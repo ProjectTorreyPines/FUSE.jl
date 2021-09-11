@@ -1,0 +1,41 @@
+name: CI
+
+# From: https://github.com/JuliaDocs/Documenter.jl/blob/master/.github/workflows/CI.yml
+#     + https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+jobs:
+  test:
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          #- "1.3"
+          - "1.6"
+          #- "nightly" # this may fail
+        os:
+          - ubuntu-latest
+          #- macos-latest # avoid buring github actions hours
+          #- windows-latest # avoid buring github actions hours
+        arch:
+          - x64
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+          show-versioninfo: true
+      - run: |
+          julia -e '
+            using Pkg
+            Pkg.activate(".")
+            Pkg.add(url="https://github.com/JuliaFusion/IMAS.jl.git")'
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
