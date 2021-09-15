@@ -2,13 +2,13 @@ __precompile__()
 
 module FUSE
 
-import IMAS
+using IMAS
 
-#= ========= =#
-#= BOOTSTRAP =#
-#= ========= =#
+#= ====== =#
+#= ACTORS =#
+#= ====== =#
 
-include("bootstrap.jl")
+include("actors.jl")
 
 #= ========== =#
 #= PARAMETERS =#
@@ -24,7 +24,7 @@ include("parameters.jl")
 # export IDS, IDSvector, IDSvectorElement
 # export dd
 # export top, parent, children, expressions
-export IMAS
+export IMAS, set_field_time_array
 export fuse_parameters, plasma_parameters, physics_models
 
 end # module
