@@ -1,4 +1,7 @@
+using Pkg
+Pkg.activate("./FUSE")
 using FUSE
+using FUSE.IMAS
 
 R0 = 1.8
 δ = 0.5
@@ -6,8 +9,13 @@ R0 = 1.8
 κ = 1.7
 B0 = 2.0
 qstar = 1.57
+beta_t = 0.1
 
-eq0 = init(IMAS.equilibrium(), 0.0; B0, R0, ϵ, δ, κ, qstar)
+eq0=FUSE.init(IMAS.equilibrium(), 0.0; B0, R0, ϵ, δ, κ, beta_t, qstar)
+
+@show eq0
+
+@time tmp=FUSE.SolovevEquilibriumActor(eq0, 0.0; verbose=false)
 
 
 # #= ============== =#

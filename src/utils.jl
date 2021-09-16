@@ -1,0 +1,1 @@
+struct StopIteration <: Exception end
