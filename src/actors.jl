@@ -1,27 +1,9 @@
-#= ============ =#
-#  AbstractActor #
-#= ============ =#
+#= =================== =#
+#  init IMAS structures #
+#= =================== =#
 
-abstract type AbstractActor end
-
-function step(actor::AbstractActor, ids::IDS, time_index::Integer)
-    error("Function step() not defined for actor of type $(typeof(actor))")
-end
-
-function finalize(actor::AbstractActor, ids::IDS, time_index::Integer)
-    error("Function finalize() not defined for actor of type $(typeof(actor))")
-end
-
-#= =========== =#
-#  Equilibrium  #
-#= =========== =#
-
-using Equilibrium
-
-abstract type EquilibriumActor <: AbstractActor end
-
-struct SolovevEquilibriumActor <: EquilibriumActor
-    S::SolovevEquilibrium
+function init(ids::IMAS.IDS, time::Real)
+    error("Function init() not defined for ids of type $(typeof(ids))")
 end
 
 function init(equilibrium::IMAS.equilibrium, time::Real=0.0;
@@ -44,7 +26,41 @@ function init(equilibrium::IMAS.equilibrium, time::Real=0.0;
     return equilibrium
 end
 
-function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real; verbose=false)
+
+#= ============ =#
+#  AbstractActor #
+#= ============ =#
+abstract type AbstractActor end
+
+"""
+    Take a step with a given actor
+"""
+function Base.step(actor::AbstractActor)
+    error("Function step() not defined for actor of type $(typeof(actor))")
+end
+
+"""
+    store output data in IDS
+"""
+function finalize(actor::AbstractActor)
+    error("Function finalize() not defined for actor of type $(typeof(actor))")
+end
+
+#= =========== =#
+#  Equilibrium  #
+#= =========== =#
+using Equilibrium
+
+abstract type EquilibriumActor <: AbstractActor end
+
+mutable struct SolovevEquilibriumActor <: EquilibriumActor
+    eq_in::IMAS.equilibrium
+    time::Real
+    S::SolovevEquilibrium
+    eq_out::IMAS.equilibrium
+end
+
+function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
     a = eqt.profiles_1d.r_outboard[end] - eqt.profiles_1d.r_inboard[end]
@@ -57,40 +73,54 @@ function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real; verb
     R0 = equilibrium.vacuum_toroidal_field.r0
     qstar = eqt.profiles_1d.q[end]
     Ip_dir = Int(sign(qstar) * B0_dir)
-
-    # non-linear optimization translating `alpha` into `beta_t`
-    target_beta = equilibrium.time_slice[time_index].global_quantities.beta_tor
-    alpha = -0.155 # initial guess
+    alpha = 0.0
     S0 = solovev(B0, R0, ϵ, δ, κ, alpha, qstar, B0_dir=B0_dir, Ip_dir=Ip_dir)
-    
+    SolovevEquilibriumActor(equilibrium, time, S0, IMAS.equilibrium())
+end
+
+function Base.step(actor::SolovevEquilibriumActor; abs_error=1E-3, verbose=false)
+    # non-linear optimization translating `alpha` into `beta_t`
+    S0 = actor.S
+    time_index = get_time_index(actor.eq_in.time_slice, actor.time)
+    target_beta = actor.eq_in.time_slice[time_index].global_quantities.beta_tor
+
     function opti(x)
-        S = solovev(B0, R0, ϵ, δ, κ, x[1], qstar, B0_dir=B0_dir, Ip_dir=Ip_dir)
-        cost = abs(S.beta_t - target_beta).^2
-        if verbose
-            @printf("α=%3.3f β_t=%3.3e cost=%3.3e\n",x[1].value,S.beta_t,cost.value)
-        end
-        if cost < (1E-3)^2
-            throw(StopIteration())
-        end
+        S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], S0.qstar, B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
+        v[1] = S
+        precision = abs(S.beta_t - target_beta)
+        cost = precision.^2
         return cost
     end
     
-    x = [alpha]
-    try
-        for k in 1:1000
-            g = ForwardDiff.gradient(opti, x)
-            x[1] -= (g[1] / abs(S0.beta_t))
+    x = [S0.alpha]
+    v = Any[S0]
+    for k in 1:1000
+        g = ForwardDiff.gradient(opti, x, )
+        x[1] -= (g[1] / abs(S0.beta_t))
+        precision = abs(v[1].beta_t.value - target_beta)
+        if verbose
+            @printf("α=%3.3f β_t=%3.3e precision=%3.3e\n", x[1], v[1].beta_t.value, precision)
         end
-    catch e
-        if e isa StopIteration
-            # ignore
-        else
-            rethrow()
+        if precision < abs_error
+            break
         end
     end
     
-    S1 = solovev(B0, R0, ϵ, δ, κ, x[1], qstar, B0_dir=B0_dir, Ip_dir=Ip_dir)
-    
-    # here sill need to do the work to return the data in IMAS format
-    return SolovevEquilibriumActor(S1)
+    actor.S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], S0.qstar, B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
+end
+
+function finalize(actor::SolovevEquilibriumActor)
+    equilibrium = actor.eq_out
+    time_index = get_time_index(equilibrium.time_slice, actor.time)
+    eqt = equilibrium.time_slice[time_index]
+
+    # eqt.profiles_1d.r_outboard =
+    # eqt.profiles_1d.r_inboard = 
+    # eqt.profiles_1d.elongation = 
+    # eqt.profiles_1d.triangularity_upper = 
+    # eqt.profiles_1d.triangularity_lower = 
+    # equilibrium.vacuum_toroidal_field.b0 = 
+    # equilibrium.vacuum_toroidal_field.r0 = 
+    # ...
+    return actor.eq_out
 end
