@@ -97,27 +97,16 @@ function finalize(actor::SolovevEquilibriumActor, n=129)
     eqt.profiles_2d[1].grid.dim2 = range(zlims..., length=n)
     eqt.profiles_2d[1].psi = [actor.S(rr, zz) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
 
+    eqt.profiles_2d[1].b_field_r = zeros(size(eqt.profiles_2d[1].psi)...)
+    eqt.profiles_2d[1].b_field_tor = zeros(size(eqt.profiles_2d[1].psi)...)
+    eqt.profiles_2d[1].b_field_z = zeros(size(eqt.profiles_2d[1].psi)...)
+    for (kr, rr) in enumerate(eqt.profiles_2d[1].grid.dim1), (kz, zz) in enumerate(eqt.profiles_2d[1].grid.dim2)
+        (eqt.profiles_2d[1].b_field_r[kr,kz], eqt.profiles_2d[1].b_field_tor[kr,kz], eqt.profiles_2d[1].b_field_z[kr,kz]) = Bfield(actor.S, rr, zz)
+    end
+
     eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z = Equilibrium.magnetic_axis(actor.S)
 
-    eqt.profiles_1d.elongation = zero(eqt.profiles_1d.psi)
-    eqt.profiles_1d.triangularity_lower = zero(eqt.profiles_1d.psi)
-    eqt.profiles_1d.triangularity_upper = zero(eqt.profiles_1d.psi)
-    eqt.profiles_1d.r_inboard = zero(eqt.profiles_1d.psi)
-    eqt.profiles_1d.r_outboard = zero(eqt.profiles_1d.psi)
-    for (k, psi_level) in enumerate(eqt.profiles_1d.psi)
-        pr, pz = flux_surface(eqt, psi_level)
-        tmp = fluxGeo(pr, pz)
-        eqt.profiles_1d.elongation[k] = tmp["kappa"]
-        eqt.profiles_1d.triangularity_upper[k] = tmp["delu"]
-        eqt.profiles_1d.triangularity_lower[k] = tmp["dell"]
-        eqt.profiles_1d.r_outboard[k] = tmp["max_r"]
-        eqt.profiles_1d.r_inboard[k] = tmp["min_r"]
-        eqt.boundary.elongation_upper = tmp["kapu"]
-        eqt.boundary.elongation_lower = tmp["kapl"]
-    end
-    eqt.profiles_1d.triangularity_upper[1] = 0.0
-    eqt.profiles_1d.triangularity_lower[1] = 0.0
-    eqt.profiles_1d.elongation[1]= eqt.profiles_1d.elongation[2]
+    flux_surfaces(eqt)
 
     # eqt.profiles_1d.r_outboard =
     # eqt.profiles_1d.r_inboard = 
@@ -134,6 +123,82 @@ end
 #= ====================== =#
 # IMAS PROESSING FUNCTIONS #
 #= ====================== =#
+function flux_surfaces(eqt::IMAS.equilibrium__time_slice)
+    cc = cocos(3) # for now hardcoded to 3 because testing for 
+
+    Br_interpolant = Interpolations.interpolate((eqt.profiles_2d[1].grid.dim1, eqt.profiles_2d[1].grid.dim2), eqt.profiles_2d[1].b_field_r, Gridded(Linear()))
+    Bz_interpolant = Interpolations.interpolate((eqt.profiles_2d[1].grid.dim1, eqt.profiles_2d[1].grid.dim2), eqt.profiles_2d[1].b_field_z, Gridded(Linear()))
+
+    eqt.profiles_1d.elongation = zero(eqt.profiles_1d.psi)
+    eqt.profiles_1d.triangularity_lower = zero(eqt.profiles_1d.psi)
+    eqt.profiles_1d.triangularity_upper = zero(eqt.profiles_1d.psi)
+    eqt.profiles_1d.r_inboard = zero(eqt.profiles_1d.psi)
+    eqt.profiles_1d.r_outboard = zero(eqt.profiles_1d.psi)
+    eqt.profiles_1d.q = zero(eqt.profiles_1d.psi)
+    eqt.profiles_1d.dvolume_dpsi = zero(eqt.profiles_1d.psi)
+    for (k, psi_level) in enumerate(eqt.profiles_1d.psi)
+        # trace flux surface
+        pr, pz = flux_surface(eqt, psi_level)
+
+        # geometry
+        tmp = flux_geo(pr, pz)
+        eqt.profiles_1d.elongation[k] = tmp["elongation"]
+        eqt.profiles_1d.triangularity_upper[k] = tmp["triangularity_upper"]
+        eqt.profiles_1d.triangularity_lower[k] = tmp["triangularity_lower"]
+        eqt.profiles_1d.r_outboard[k] = tmp["r_outboard"]
+        eqt.profiles_1d.r_inboard[k] = tmp["r_inboard"]
+        eqt.boundary.elongation_upper = tmp["elongation_upper"]
+        eqt.boundary.elongation_lower = tmp["elongation_lower"]
+
+        dl = tmp["dl"]
+
+        Br = Br_interpolant(pr, pz)
+        Bz = Bz_interpolant(pr, pz)
+
+        Bp_abs = sqrt.(Br.^2.0+Bz.^2.0)
+
+        Bp = (Bp_abs
+        .* cc.sigma_rhotp * cc.sigma_RpZ
+        .* sign.((pz .- eqt.global_quantities.magnetic_axis.z) .* Br
+              .- (pr .- eqt.global_quantities.magnetic_axis.r) .* Bz))
+
+        fluxexpansion_dl = dl ./ Bp_abs
+        int_fluxexpansion_dl = sum(fluxexpansion_dl)
+
+        # flux-surface averaging function
+        function flxAvg(input)
+            return sum(fluxexpansion_dl * input) / int_fluxexpansion_dl
+        end
+
+        avg=Dict()
+        avg["1/R^2"] = flxAvg(1.0./pr.^2)
+        avg["Bp"] = flxAvg(Bp)
+
+        eqt.profiles_1d.dvolume_dpsi[k] = (
+            cc.sigma_rhotp
+            * cc.sigma_Bp
+            * sign(avg["Bp"])
+            * int_fluxexpansion_dl
+            * (2.0 * pi) ^ (1.0 - cc.exp_Bp)
+        )
+
+        # eqt.profiles_1d.q[k]=(
+        #     cc.sigma_rhotp
+        #     *cc.sigma_Bp
+        #     *eqt.profiles_1d.dvolume_dpsi[k]
+        #     *eqt.profiles_1d.f[k]
+        #     *avg["1/R^2"]
+        #     / ((2 * pi) ^ (2.0 - cc.exp_Bp))
+
+        eqt.profiles_1d.q[k] = eqt.global_quantities.ip = cc.sigma_rhotp * sum(dl .* Bp) / (4e-7 * pi)
+
+    end
+    # special handling of on-axis
+    eqt.profiles_1d.triangularity_upper[1] = 0.0
+    eqt.profiles_1d.triangularity_lower[1] = 0.0
+    eqt.profiles_1d.elongation[1] = eqt.profiles_1d.elongation[2]
+end
+
 """
     flux_surface(eqt, psi_level)
 
@@ -159,15 +224,13 @@ function flux_surface(eqt::IMAS.equilibrium__time_slice, psi_level::Real)
     end
 end
 
-function flux_surfaces_geo(eqt::IMAS.equilibrium__time_slice)
-end
 
 """
     fluxGeo(inputR::Vector{Real}, inputZ::Vector{Real})::Dict
 
 Recturns dictionary with geometric properties of a given flux surface
 """
-function fluxGeo(inputR::Vector{T} where T <: Real, inputZ::Vector{T} where T <: Real)::Dict
+function flux_geo(inputR::Vector{T} where T <: Real, inputZ::Vector{T} where T <: Real)::Dict
 
     # concatenate inputs 3 times to avoid bound errors in minimization
     if inputR[1] == inputR[2]
@@ -205,26 +268,27 @@ function fluxGeo(inputR::Vector{T} where T <: Real, inputZ::Vector{T} where T <:
     dl = vcat([0], sqrt.(diff(inputR).^2 + diff(inputZ).^2))
 
     geo = Dict()
+    geo["dl"] = dl
     geo["r_at_max_z"] = r_at_max_z
     geo["r_at_min_z"] = r_at_min_z
     geo["z_at_max_r"] = z_at_max_r
     geo["z_at_min_r"] = z_at_min_r
     geo["max_z"] = max_z
     geo["min_z"] = min_z
-    geo["max_r"] = max_r
-    geo["min_r"] = min_r
+    geo["r_outboard"] = max_r
+    geo["r_inboard"] = min_r
     geo["R"] = 0.5 * (max_r + min_r)
     geo["Z"] = 0.5 * (max_z + min_z)
     geo["a"] = 0.5 * (max_r - min_r)
     geo["eps"] = geo["a"] / geo["R"]
     geo["per"] = sum(dl)
     geo["surfArea"] = 2 * pi * sum(inputR .* dl)
-    geo["kappa"] = 0.5 * ((max_z - min_z) / geo["a"])
-    geo["kapu"] = (max_z - z_at_max_r) / geo["a"]
-    geo["kapl"] = (z_at_max_r - min_z) / geo["a"]
-    geo["delu"] = (geo["R"] - r_at_max_z) / geo["a"]
-    geo["dell"] = (geo["R"] - r_at_min_z) / geo["a"]
-    geo["delta"] = 0.5 * (geo["dell"] + geo["delu"])
+    geo["elongation"] = 0.5 * ((max_z - min_z) / geo["a"])
+    geo["elongation_upper"] = (max_z - z_at_max_r) / geo["a"]
+    geo["elongation_lower"] = (z_at_max_r - min_z) / geo["a"]
+    geo["triangularity_upper"] = (geo["R"] - r_at_max_z) / geo["a"]
+    geo["triangularity_lower"] = (geo["R"] - r_at_min_z) / geo["a"]
+    geo["triangularity"] = 0.5 * (geo["triangularity_upper"] + geo["triangularity_lower"])
     geo["zoffset"] = z_at_max_r
 
     # NOTE: lonull, upnull, squareness, centroid, zeta have not been translated from OMFIT fluxGeo

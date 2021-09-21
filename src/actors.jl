@@ -11,6 +11,7 @@ function init(equilibrium::IMAS.equilibrium, time::Real=0.0;
         diverted::Bool=false,
         xpoint::Union{NTuple{2},Nothing}=(diverted ? (R0 * (1 - 1.1 * δ * ϵ), -R0 * 1.1 * κ * ϵ) : nothing),
         symmetric::Bool=(xpoint === nothing))
+    # all this should be switched to use 'boundary'
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
     eqt.profiles_1d.psi = [1.0]
@@ -41,6 +42,7 @@ end
 
 """
     store output data in IDS
+    NOTE: actors should take dd and output dd, operating in place
 """
 function finalize(actor::AbstractActor)
     error("Function finalize() not defined for actor of type $(typeof(actor))")
