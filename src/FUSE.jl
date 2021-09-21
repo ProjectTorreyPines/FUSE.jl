@@ -3,8 +3,6 @@ __precompile__()
 module FUSE
 
 using IMAS
-using Printf
-using ForwardDiff
 
 include("utils.jl")
 
