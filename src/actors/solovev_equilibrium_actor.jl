@@ -2,6 +2,7 @@
 using Equilibrium
 using Printf
 import ForwardDiff
+import Optim
 
 mutable struct SolovevEquilibriumActor <: EquilibriumActor
     eq_in::IMAS.equilibrium
@@ -34,7 +35,7 @@ end
 #= == =#
 # STEP #
 #= == =#
-function Base.step(actor::SolovevEquilibriumActor; abs_error=1E-3, max_iter=100, verbose=false)
+function Base.step(actor::SolovevEquilibriumActor; verbose=false)
     # non-linear optimization to obtain a target `beta_t`
     S0 = actor.S
     time_index = get_time_index(actor.eq_in.time_slice, actor.time)
@@ -42,36 +43,23 @@ function Base.step(actor::SolovevEquilibriumActor; abs_error=1E-3, max_iter=100,
 
     function opti(x)
         S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], S0.qstar, B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
-        v[1] = S
-        precision = abs(S.beta_t - target_beta)
-        cost = precision.^2
-        return cost
+        return (S.beta_t - target_beta).^2
     end
+
+    res = Optim.optimize(opti, [S0.alpha], Optim.Newton(); autodiff=:forward)
     
-    x = [S0.alpha]
-    v = Any[S0]
-    for k in 1:max_iter
-        g = ForwardDiff.gradient(opti, x, )
-        x[1] -= (g[1] / abs(S0.beta_t))
-        precision = abs(v[1].beta_t.value - target_beta)
-        if verbose
-            @printf("α=%3.3f β_t=%3.3e precision=%3.3e\n", x[1], v[1].beta_t.value, precision)
-        end
-        if precision < abs_error
-            break
-        end
-        if k == max_iter
-            error("Current β_t=$(v[1].beta_t.value) is not β_t,target $(target_beta)")
-        end
+    if verbose
+        println(res)
     end
-    
-    actor.S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], S0.qstar, B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
+
+    return actor.S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, res.minimizer[1], S0.qstar, B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
 end
 
 #= ====== =#
 # FINALIZE #
 #= ====== =#
-function finalize(actor::SolovevEquilibriumActor, n=129)
+function finalize(actor::SolovevEquilibriumActor, n::Integer=129)
+    @assert mod(n, 2) == 1 "`n` in finalize SolovevEquilibriumActor must be a odd number"
     equilibrium = actor.eq_out
     time_index = get_time_index(equilibrium.time_slice, actor.time)
     eqt = equilibrium.time_slice[time_index]
@@ -87,11 +75,21 @@ function finalize(actor::SolovevEquilibriumActor, n=129)
     eqt.profiles_1d.f = Equilibrium.poloidal_current(actor.S, eqt.profiles_1d.psi)
     eqt.profiles_1d.f_df_dpsi = eqt.profiles_1d.f .* Equilibrium.poloidal_current_gradient(actor.S, eqt.profiles_1d.psi)
 
+    # magnetic axis
+    eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z = Equilibrium.magnetic_axis(actor.S)
+
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
     rlims, zlims = Equilibrium.limits(actor.S)
-    eqt.profiles_2d[1].grid.dim1 = range(rlims..., length=n)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims..., length=n)
+    dr = (rlims[2] - rlims[1]) / (n - 2)
+    eqt.profiles_2d[1].grid.dim1 = range(rlims[1] - dr, rlims[2] + dr, length=n)
+    _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim1 .- eqt.global_quantities.magnetic_axis.r))
+    eqt.profiles_2d[1].grid.dim1 = eqt.profiles_2d[1].grid.dim1 .- eqt.profiles_2d[1].grid.dim1[i] .+ eqt.global_quantities.magnetic_axis.r
+    dz = (zlims[2] - zlims[1]) / (n - 2)
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] - dz, zlims[2] + dz, length=n)
+    _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim2 .- eqt.global_quantities.magnetic_axis.z))
+    eqt.profiles_2d[1].grid.dim2 = eqt.profiles_2d[1].grid.dim2 .- eqt.profiles_2d[1].grid.dim2[i] .+ eqt.global_quantities.magnetic_axis.z
+
     eqt.profiles_2d[1].psi = [actor.S(rr, zz) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
 
     eqt.profiles_2d[1].b_field_r = zeros(size(eqt.profiles_2d[1].psi)...)
@@ -101,10 +99,9 @@ function finalize(actor::SolovevEquilibriumActor, n=129)
         (eqt.profiles_2d[1].b_field_r[kr,kz], eqt.profiles_2d[1].b_field_tor[kr,kz], eqt.profiles_2d[1].b_field_z[kr,kz]) = Bfield(actor.S, rr, zz)
     end
 
-    # magnetic axis
-    eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z = Equilibrium.magnetic_axis(actor.S)
 
-    IMAS.flux_surfaces(eqt)
+
+    IMAS.flux_surfaces(eqt, actor.S.B0, actor.S.R0)
 
     # eqt.profiles_1d.r_outboard =
     # eqt.profiles_1d.r_inboard = 
