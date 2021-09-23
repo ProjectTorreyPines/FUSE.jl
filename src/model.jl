@@ -12,10 +12,10 @@ qstar = 1.57
 beta_t = 0.1
 
 eq0=FUSE.init(IMAS.equilibrium(), 0.0; B0, R0, ϵ, δ, κ, beta_t, qstar)
-eq=FUSE.SolovevEquilibriumActor(eq0, 0.0);
-FUSE.step(eq; abs_error=1E-4,verbose=true)
-FUSE.finalize(eq)
-
+eqactor=FUSE.SolovevEquilibriumActor(eq0, 0.0);
+FUSE.step(eqactor; verbose=false)
+eq1 = FUSE.finalize(eqactor)
+@show eq1
 
 
 # #= ============== =#
