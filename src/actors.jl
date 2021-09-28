@@ -7,7 +7,7 @@ function init(ids::IMAS.IDS, time::Real)
 end
 
 function init(equilibrium::IMAS.equilibrium, time::Real=0.0;
-        B0, R0, ϵ, δ, κ, beta_t, qstar,
+        B0, R0, ϵ, δ, κ, beta_n, ip,
         diverted::Bool=false,
         xpoint::Union{NTuple{2},Nothing}=(diverted ? (R0 * (1 - 1.1 * δ * ϵ), -R0 * 1.1 * κ * ϵ) : nothing),
         symmetric::Bool=(xpoint === nothing))
@@ -22,8 +22,8 @@ function init(equilibrium::IMAS.equilibrium, time::Real=0.0;
     eqt.profiles_1d.triangularity_upper = [δ]
     set_field_time_array(equilibrium.vacuum_toroidal_field, :b0, time_index, B0)
     equilibrium.vacuum_toroidal_field.r0 = R0
-    eqt.profiles_1d.q = [qstar]
-    eqt.global_quantities.beta_tor = beta_t
+    eqt.global_quantities.ip = ip
+    eqt.global_quantities.beta_normal = beta_n
     return equilibrium
 end
 

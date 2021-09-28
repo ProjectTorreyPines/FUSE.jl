@@ -25,7 +25,7 @@ function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
     B0 = abs(equilibrium.vacuum_toroidal_field.b0[time_index])
     B0_dir = Int(sign(B0))
     R0 = equilibrium.vacuum_toroidal_field.r0
-    qstar = eqt.profiles_1d.q[end]
+    qstar = 1.5
     Ip_dir = Int(sign(qstar) * B0_dir)
     alpha = 0.0
     S0 = solovev(B0, R0, ϵ, δ, κ, alpha, qstar, B0_dir=B0_dir, Ip_dir=Ip_dir)
@@ -36,23 +36,24 @@ end
 # STEP #
 #= == =#
 function Base.step(actor::SolovevEquilibriumActor; verbose=false)
-    # non-linear optimization to obtain a target `beta_t`
+    # non-linear optimization to obtain a target `beta_normal`
     S0 = actor.S
     time_index = get_time_index(actor.eq_in.time_slice, actor.time)
-    target_beta = actor.eq_in.time_slice[time_index].global_quantities.beta_tor
 
     function opti(x)
-        S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], S0.qstar, B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
-        return (S.beta_t - target_beta).^2
+        S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], x[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
+        beta_cost=(Equilibrium.beta_n(S) - actor.eq_in.time_slice[time_index].global_quantities.beta_normal).^2
+        ip_cost=((Equilibrium.plasma_current(S)- actor.eq_in.time_slice[time_index].global_quantities.ip)/1E6).^2
+        return beta_cost+ip_cost
     end
 
-    res = Optim.optimize(opti, [S0.alpha], Optim.Newton(); autodiff=:forward)
+    res = Optim.optimize(opti, [S0.alpha,S0.qstar], Optim.Newton(); autodiff=:forward)
     
     if verbose
         println(res)
     end
 
-    return actor.S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, res.minimizer[1], S0.qstar, B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
+    return actor.S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, res.minimizer[1], res.minimizer[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
 end
 
 #= ====== =#
