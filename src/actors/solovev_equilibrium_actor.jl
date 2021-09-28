@@ -78,15 +78,20 @@ function finalize(actor::SolovevEquilibriumActor, n::Integer=129)
     # magnetic axis
     eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z = Equilibrium.magnetic_axis(actor.S)
 
+    # generate grid with vertex on magnetic axis
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
     rlims, zlims = Equilibrium.limits(actor.S)
-    dr = (rlims[2] - rlims[1]) / (n - 2)
-    eqt.profiles_2d[1].grid.dim1 = range(rlims[1] - dr, rlims[2] + dr, length=n)
+    dr = (eqt.global_quantities.magnetic_axis.r - (rlims[2] + rlims[1]) / 2.0)
+    dr0 = (rlims[2] - rlims[1]) / n
+    ddr = mod(dr, dr0)
+    eqt.profiles_2d[1].grid.dim1 = range(rlims[1] - ddr, rlims[2] + ddr, length=n) .+ ddr
     _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim1 .- eqt.global_quantities.magnetic_axis.r))
     eqt.profiles_2d[1].grid.dim1 = eqt.profiles_2d[1].grid.dim1 .- eqt.profiles_2d[1].grid.dim1[i] .+ eqt.global_quantities.magnetic_axis.r
-    dz = (zlims[2] - zlims[1]) / (n - 2)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] - dz, zlims[2] + dz, length=n)
+    dz = (eqt.global_quantities.magnetic_axis.z - (zlims[2] + zlims[1]) / 2.0)
+    dz0 = (zlims[2] - zlims[1]) / n
+    ddz = mod(dz, dz0)
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] - ddz, zlims[2] + ddz, length=n) .+ ddz
     _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim2 .- eqt.global_quantities.magnetic_axis.z))
     eqt.profiles_2d[1].grid.dim2 = eqt.profiles_2d[1].grid.dim2 .- eqt.profiles_2d[1].grid.dim2[i] .+ eqt.global_quantities.magnetic_axis.z
 
