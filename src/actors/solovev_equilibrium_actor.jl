@@ -36,18 +36,22 @@ end
 # STEP #
 #= == =#
 function Base.step(actor::SolovevEquilibriumActor; verbose=false)
-    # non-linear optimization to obtain a target `beta_normal`
+    # non-linear optimization to obtain a target `ip` and `beta_normal`
     S0 = actor.S
     time_index = get_time_index(actor.eq_in.time_slice, actor.time)
 
+    target_ip = actor.eq_in.time_slice[time_index].global_quantities.ip
+    target_beta = actor.eq_in.time_slice[time_index].global_quantities.beta_normal
+
     function opti(x)
         S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], x[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
-        beta_cost=(Equilibrium.beta_n(S) - actor.eq_in.time_slice[time_index].global_quantities.beta_normal).^2
-        ip_cost=((Equilibrium.plasma_current(S)- actor.eq_in.time_slice[time_index].global_quantities.ip)/1E6).^2
-        return beta_cost+ip_cost
+        beta_cost = abs((Equilibrium.beta_n(S) - target_beta)^2/target_beta)
+        Equilibrium.plasma_current(S)
+        ip_cost = abs((Equilibrium.plasma_current(S) - target_ip)^2/target_ip)
+        return (beta_cost + ip_cost)^2
     end
 
-    res = Optim.optimize(opti, [S0.alpha,S0.qstar], Optim.Newton(); autodiff=:forward)
+    res = Optim.optimize(opti, [S0.alpha, S0.qstar], Optim.Newton(), Optim.Options(g_tol=1E-1); autodiff=:forward)
     
     if verbose
         println(res)
