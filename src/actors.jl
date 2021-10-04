@@ -14,12 +14,10 @@ function init(equilibrium::IMAS.equilibrium, time::Real=0.0;
     # all this should be switched to use 'boundary'
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
-    eqt.profiles_1d.psi = [1.0]
-    eqt.profiles_1d.r_outboard = [R0 + ϵ * R0]
-    eqt.profiles_1d.r_inboard = [R0 - ϵ * R0]
-    eqt.profiles_1d.elongation = [κ]
-    eqt.profiles_1d.triangularity_lower = [δ]
-    eqt.profiles_1d.triangularity_upper = [δ]
+    eqt.boundary.minor_radius = ϵ * R0
+    eqt.boundary.geometric_axis.r = R0
+    eqt.boundary.elongation = κ
+    eqt.boundary.triangularity = δ
     set_field_time_array(equilibrium.vacuum_toroidal_field, :b0, time_index, B0)
     equilibrium.vacuum_toroidal_field.r0 = R0
     eqt.global_quantities.ip = ip

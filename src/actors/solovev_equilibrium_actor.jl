@@ -17,10 +17,10 @@ end
 function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
-    a = eqt.profiles_1d.r_outboard[end] - eqt.profiles_1d.r_inboard[end]
-    R0 = eqt.profiles_1d.r_outboard[end] + eqt.profiles_1d.r_inboard[end]
-    κ = eqt.profiles_1d.elongation[end]
-    δ = (eqt.profiles_1d.triangularity_lower[end] + eqt.profiles_1d.triangularity_upper[end]) / 2.0
+    a = eqt.boundary.minor_radius
+    R0 = eqt.boundary.geometric_axis.r
+    κ = eqt.boundary.elongation
+    δ = eqt.boundary.triangularity
     ϵ = a / R0
     B0 = abs(equilibrium.vacuum_toroidal_field.b0[time_index])
     B0_dir = Int(sign(B0))
