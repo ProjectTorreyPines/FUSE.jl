@@ -14,9 +14,15 @@ end
 #= == =#
 # INIT #
 #= == =#
+"""
+    function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
+
+Constructor for the SolovevEquilibriumActor structure
+"""
 function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
+
     a = eqt.boundary.minor_radius
     R0 = eqt.boundary.geometric_axis.r
     κ = eqt.boundary.elongation
@@ -28,23 +34,45 @@ function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
     qstar = 1.5
     Ip_dir = Int(sign(qstar) * B0_dir)
     alpha = 0.0
-    S0 = solovev(B0, R0, ϵ, δ, κ, alpha, qstar, B0_dir=B0_dir, Ip_dir=Ip_dir)
+
+    if length(eqt.boundary.x_point)>0
+        xpoint = (eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z)
+    else
+        xpoint = nothing
+    end
+
+    S0 = solovev(B0, R0, ϵ, δ, κ, alpha, qstar, B0_dir=B0_dir, Ip_dir=Ip_dir, xpoint=xpoint)
+
     SolovevEquilibriumActor(equilibrium, time, S0, IMAS.equilibrium())
+end
+
+function no_Dual(x)
+    if typeof(x) <: ForwardDiff.Dual
+        x = x.value
+        return no_Dual(x)
+    else
+        return x
+    end
 end
 
 #= == =#
 # STEP #
 #= == =#
+"""
+    Base.step(actor::SolovevEquilibriumActor; verbose=false)
+
+Non-linear optimization to obtain a target `ip` and `beta_normal`
+"""
 function Base.step(actor::SolovevEquilibriumActor; verbose=false)
-    # non-linear optimization to obtain a target `ip` and `beta_normal`
     S0 = actor.S
     time_index = get_time_index(actor.eq_in.time_slice, actor.time)
 
     target_ip = actor.eq_in.time_slice[time_index].global_quantities.ip
     target_beta = actor.eq_in.time_slice[time_index].global_quantities.beta_normal
 
+    # NOTE: some problems when running with xpoint, that I suspect are due to issues with flux surface tracing in Equilibrium.jl
     function opti(x)
-        S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], x[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
+        S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, x[1], x[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip, xpoint=S0.xpoint)
         beta_cost = abs((Equilibrium.beta_n(S) - target_beta)^2/target_beta)
         Equilibrium.plasma_current(S)
         ip_cost = abs((Equilibrium.plasma_current(S) - target_ip)^2/target_ip)
@@ -57,14 +85,19 @@ function Base.step(actor::SolovevEquilibriumActor; verbose=false)
         println(res)
     end
 
-    return actor.S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, res.minimizer[1], res.minimizer[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip)
+    actor.S = solovev(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, res.minimizer[1], res.minimizer[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip, xpoint=S0.xpoint)
+    return res
 end
 
 #= ====== =#
 # FINALIZE #
 #= ====== =#
-function finalize(actor::SolovevEquilibriumActor, n::Integer=129)
-    @assert mod(n, 2) == 1 "`n` in finalize SolovevEquilibriumActor must be a odd number"
+"""
+    finalize(actor::SolovevEquilibriumActor, n::Integer=129)::IMAS.equilibrium
+
+Store SolovevEquilibriumActor data in IMAS.equilibrium
+"""
+function finalize(actor::SolovevEquilibriumActor, n::Integer=129)::IMAS.equilibrium
     equilibrium = actor.eq_out
     time_index = get_time_index(equilibrium.time_slice, actor.time)
     eqt = equilibrium.time_slice[time_index]
@@ -109,17 +142,7 @@ function finalize(actor::SolovevEquilibriumActor, n::Integer=129)
         (eqt.profiles_2d[1].b_field_r[kr,kz], eqt.profiles_2d[1].b_field_tor[kr,kz], eqt.profiles_2d[1].b_field_z[kr,kz]) = Bfield(actor.S, rr, zz)
     end
 
-
-
     IMAS.flux_surfaces(eqt, actor.S.B0, actor.S.R0)
 
-    # eqt.profiles_1d.r_outboard =
-    # eqt.profiles_1d.r_inboard = 
-    # eqt.profiles_1d.elongation = 
-    # eqt.profiles_1d.triangularity_upper = 
-    # eqt.profiles_1d.triangularity_lower = 
-    # equilibrium.vacuum_toroidal_field.b0 = 
-    # equilibrium.vacuum_toroidal_field.r0 = 
-    # ...
     return actor.eq_out
 end

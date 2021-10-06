@@ -6,12 +6,14 @@ function init(ids::IMAS.IDS, time::Real)
     error("Function init() not defined for ids of type $(typeof(ids))")
 end
 
+"""
+    init(equilibrium::IMAS.equilibrium, time::Real=0.0; B0, R0, ϵ, δ, κ, beta_n, ip, x_point::Union{Vector, NTuple{2}, Bool}=false)
+
+Initialize equilibrium IDS based on some basic Miller geometry parameters
+"""
 function init(equilibrium::IMAS.equilibrium, time::Real=0.0;
         B0, R0, ϵ, δ, κ, beta_n, ip,
-        diverted::Bool=false,
-        xpoint::Union{NTuple{2},Nothing}=(diverted ? (R0 * (1 - 1.1 * δ * ϵ), -R0 * 1.1 * κ * ϵ) : nothing),
-        symmetric::Bool=(xpoint === nothing))
-    # all this should be switched to use 'boundary'
+        x_point::Union{Vector, NTuple{2}, Bool}=false)
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
     eqt.boundary.minor_radius = ϵ * R0
@@ -22,6 +24,14 @@ function init(equilibrium::IMAS.equilibrium, time::Real=0.0;
     equilibrium.vacuum_toroidal_field.r0 = R0
     eqt.global_quantities.ip = ip
     eqt.global_quantities.beta_normal = beta_n
+    if x_point === true
+        x_point = (R0 * (1 - 1.1 * δ * ϵ), -R0 * 1.1 * κ * ϵ)
+    end
+    if isa(x_point, Union{Vector, Tuple})
+        resize!(eqt.boundary.x_point, 1)
+        eqt.boundary.x_point[1].r=x_point[1]
+        eqt.boundary.x_point[1].z=x_point[2]
+    end
     return equilibrium
 end
 
