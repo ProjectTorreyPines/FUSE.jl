@@ -18,8 +18,14 @@ end
     function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
 
 Constructor for the SolovevEquilibriumActor structure
+“One size fits all” analytic solutions to the Grad–Shafranov equation
+Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
+
+- qstar: Kink safety factor
+
+- alpha: Constant affecting the pressure
 """
-function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
+function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real; qstar = 1.5, alpha = 0.0)
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
 
@@ -31,9 +37,7 @@ function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real)
     B0 = abs(equilibrium.vacuum_toroidal_field.b0[time_index])
     B0_dir = Int(sign(B0))
     R0 = equilibrium.vacuum_toroidal_field.r0
-    qstar = 1.5
     Ip_dir = Int(sign(qstar) * B0_dir)
-    alpha = 0.0
 
     if length(eqt.boundary.x_point)>0
         xpoint = (eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z)
