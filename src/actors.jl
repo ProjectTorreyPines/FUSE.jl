@@ -64,3 +64,12 @@ abstract type EquilibriumActor <: AbstractActor end
 
 include("actors/solovev_equilibrium_actor.jl")
 
+#= ===== =#
+#  Coils  #
+#= ===== =#
+
+abstract type CoilsActor <: AbstractActor end
+
+include("actors/coils_actor.jl")
+
+export PFcoilsActor
