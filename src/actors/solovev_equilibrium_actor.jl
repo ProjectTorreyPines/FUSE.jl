@@ -11,6 +11,32 @@ mutable struct SolovevEquilibriumActor <: EquilibriumActor
     eq_out::IMAS.equilibrium
 end
 
+function IMAS2Equilibrium(equilibrium::IMAS.equilibrium,
+                          time::Real)
+    time_index = get_time_index(equilibrium.time_slice, time)
+    eqt = equilibrium.time_slice[time_index]
+
+    dim1=range(eqt.profiles_2d[1].grid.dim1[1],eqt.profiles_2d[1].grid.dim1[end],length=length(eqt.profiles_2d[1].grid.dim1))
+    @assert collect(dim1) ≈ eqt.profiles_2d[1].grid.dim1
+    dim2=range(eqt.profiles_2d[1].grid.dim2[1],eqt.profiles_2d[1].grid.dim2[end],length=length(eqt.profiles_2d[1].grid.dim2))
+    @assert collect(dim2) ≈ eqt.profiles_2d[1].grid.dim2
+    psi=range(eqt.profiles_1d.psi[1],eqt.profiles_1d.psi[end],length=length(eqt.profiles_1d.psi))
+    @assert collect(psi) ≈ eqt.profiles_1d.psi
+
+    Equilibrium.efit(Equilibrium.cocos(11), # COCOS
+                     dim1, # Radius/R range
+                     dim2, # Elevation/Z range
+                     psi, # Polodial Flux range (polodial flux from magnetic axis)
+                     eqt.profiles_2d[1].psi, # Polodial Flux on RZ grid (polodial flux from magnetic axis)
+                     eqt.profiles_1d.f, # Polodial Current
+                     eqt.profiles_1d.pressure, # Plasma pressure
+                     eqt.profiles_1d.q, # Q profile
+                     eqt.profiles_1d.psi.*0, # Electric Potential
+                     (eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z), # Magnetic Axis (raxis,zaxis)
+                     Int(sign(equilibrium.vacuum_toroidal_field.b0[time_index])*sign(eqt.global_quantities.ip)) # sign(dot(J,B))
+                     )
+end
+
 #= == =#
 # INIT #
 #= == =#
@@ -25,7 +51,10 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 
 - alpha: Constant affecting the pressure
 """
-function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium, time::Real; qstar = 1.5, alpha = 0.0)
+function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium,
+                                 time::Real;
+                                 qstar = 1.5,
+                                 alpha = 0.0)
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
 
@@ -98,12 +127,16 @@ end
 
 Store SolovevEquilibriumActor data in IMAS.equilibrium
 """
-function finalize(actor::SolovevEquilibriumActor, n::Integer=129)::IMAS.equilibrium
+function finalize(actor::SolovevEquilibriumActor,
+                  resolution::Integer=129,
+                  rlims::NTuple{2,<:Real} = Equilibrium.limits(actor.S)[1],
+                  zlims::NTuple{2,<:Real} = Equilibrium.limits(actor.S)[2])::IMAS.equilibrium
+
     equilibrium = actor.eq_out
     time_index = get_time_index(equilibrium.time_slice, actor.time)
     eqt = equilibrium.time_slice[time_index]
 
-    eqt.profiles_1d.psi = collect(range(Equilibrium.psi_limits(actor.S)..., length=n))
+    eqt.profiles_1d.psi = collect(range(Equilibrium.psi_limits(actor.S)..., length=resolution))
 
     set_field_time_array(equilibrium.vacuum_toroidal_field, :b0, time_index, actor.S.B0)
     equilibrium.vacuum_toroidal_field.r0 = actor.S.R0
@@ -120,19 +153,23 @@ function finalize(actor::SolovevEquilibriumActor, n::Integer=129)::IMAS.equilibr
     # generate grid with vertex on magnetic axis
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
-    rlims, zlims = Equilibrium.limits(actor.S)
-    dr = (eqt.global_quantities.magnetic_axis.r - (rlims[2] + rlims[1]) / 2.0)
-    dr0 = (rlims[2] - rlims[1]) / n
-    ddr = mod(dr, dr0)
-    eqt.profiles_2d[1].grid.dim1 = range(rlims[1] - ddr, rlims[2] + ddr, length=n) .+ ddr
-    _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim1 .- eqt.global_quantities.magnetic_axis.r))
-    eqt.profiles_2d[1].grid.dim1 = eqt.profiles_2d[1].grid.dim1 .- eqt.profiles_2d[1].grid.dim1[i] .+ eqt.global_quantities.magnetic_axis.r
-    dz = (eqt.global_quantities.magnetic_axis.z - (zlims[2] + zlims[1]) / 2.0)
-    dz0 = (zlims[2] - zlims[1]) / n
-    ddz = mod(dz, dz0)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] - ddz, zlims[2] + ddz, length=n) .+ ddz
-    _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim2 .- eqt.global_quantities.magnetic_axis.z))
-    eqt.profiles_2d[1].grid.dim2 = eqt.profiles_2d[1].grid.dim2 .- eqt.profiles_2d[1].grid.dim2[i] .+ eqt.global_quantities.magnetic_axis.z
+    if true
+        eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=resolution)
+        eqt.profiles_2d[1].grid.dim2 = range(zlims[1], zlims[2], length=resolution)#Int(ceil(resolution*actor.S.kappa)))
+    else
+        dr = (eqt.global_quantities.magnetic_axis.r - (rlims[2] + rlims[1]) / 2.0)
+        dr0 = (rlims[2] - rlims[1]) / resolution
+        ddr = mod(dr, dr0)
+        eqt.profiles_2d[1].grid.dim1 = range(rlims[1] - ddr, rlims[2] + ddr, length=resolution) .+ ddr
+        _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim1 .- eqt.global_quantities.magnetic_axis.r))
+        eqt.profiles_2d[1].grid.dim1 = eqt.profiles_2d[1].grid.dim1 .- eqt.profiles_2d[1].grid.dim1[i] .+ eqt.global_quantities.magnetic_axis.r
+        dz = (eqt.global_quantities.magnetic_axis.z - (zlims[2] + zlims[1]) / 2.0)
+        dz0 = (zlims[2] - zlims[1]) / resolution
+        ddz = mod(dz, dz0)
+        eqt.profiles_2d[1].grid.dim2 = range(zlims[1] - ddz, zlims[2] + ddz, length=resolution) .+ ddz
+        _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim2 .- eqt.global_quantities.magnetic_axis.z))
+        eqt.profiles_2d[1].grid.dim2 = eqt.profiles_2d[1].grid.dim2 .- eqt.profiles_2d[1].grid.dim2[i] .+ eqt.global_quantities.magnetic_axis.z
+    end
 
     eqt.profiles_2d[1].psi = [actor.S(rr, zz) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
 

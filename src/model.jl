@@ -3,19 +3,23 @@ Pkg.activate("./FUSE")
 using FUSE
 using FUSE.IMAS
 
-R0 = 1.8
-δ = 0.5
 ϵ = 0.32
 κ = 1.7
-B0 = 2.0
-qstar = 1.57
-beta_t = 0.1
+δ = 0.33
+R0 = 6.2
+B0 = 5.3
+ip = 15.E6
+beta_n = 12.0
 
-eq0=FUSE.init(IMAS.equilibrium(), 0.0; B0, R0, ϵ, δ, κ, beta_t, qstar)
-eqactor=FUSE.SolovevEquilibriumActor(eq0, 0.0);
-FUSE.step(eqactor; verbose=false)
-eq1 = FUSE.finalize(eqactor)
-@show eq1
+resolution = 33
+
+dd=IMAS.dd()
+FUSE.init(dd.equilibrium, 0.0; B0, R0, ϵ, δ, κ, beta_n, ip, x_point=false)
+
+eqactor = FUSE.SolovevEquilibriumActor(dd.equilibrium, 0.0, alpha=0, qstar=1.5)
+FUSE.step(eqactor)
+dd.equilibrium = FUSE.finalize(eqactor, resolution)
+
 
 
 # #= ============== =#
