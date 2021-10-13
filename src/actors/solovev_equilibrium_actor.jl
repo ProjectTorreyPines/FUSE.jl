@@ -55,7 +55,7 @@ function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium,
                                  time::Real;
                                  qstar = 1.5,
                                  alpha = 0.0,
-                                 symmetric=false) # symmetric should really be passed/detected through IMAS
+                                 symmetric=true) # symmetric should really be passed/detected through IMAS
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
 
@@ -165,10 +165,6 @@ function finalize(actor::SolovevEquilibriumActor,
     for (kr, rr) in enumerate(eqt.profiles_2d[1].grid.dim1), (kz, zz) in enumerate(eqt.profiles_2d[1].grid.dim2)
         (eqt.profiles_2d[1].b_field_r[kr,kz], eqt.profiles_2d[1].b_field_tor[kr,kz], eqt.profiles_2d[1].b_field_z[kr,kz]) = Bfield(actor.S, rr, zz)
     end
-
-    # correct psi_boundary value to make sure that lcfs is always closing
-    psi_boundary = IMAS.find_psi_boundary(eqt)
-    eqt.profiles_1d.psi = range(Equilibrium.psi_limits(actor.S)[1],psi_boundary, length=resolution)
 
     IMAS.flux_surfaces(eqt, actor.S.B0, actor.S.R0)
 
