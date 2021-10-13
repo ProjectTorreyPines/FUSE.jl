@@ -1,3 +1,13 @@
+@Base.kwdef mutable struct PFcoilsOptTrace
+    coils::Vector=[]
+    currents::Vector=[]
+    λ_regularize::Vector=[]
+    cost_ψ::Vector=[]
+    cost_currents::Vector=[]
+    cost_bound::Vector=[]
+    cost::Vector=[]
+end
+
 mutable struct PFcoilsOptActor <: CoilsActor
     eq_in::IMAS.equilibrium
     eq_out::IMAS.equilibrium
@@ -9,7 +19,7 @@ mutable struct PFcoilsOptActor <: CoilsActor
     symmetric::Bool
     λ_regularize::Real
     λ_norm::Real
-    trace::Dict{Symbol,Vector{Any}}
+    trace::PFcoilsOptTrace
 end
 
 #= == =#
@@ -26,8 +36,10 @@ using AD_GS
 using LinearAlgebra
 
 # The PFcoilsOptActor should eventually also take IMAS.wall, IMAS.tf, IMAS.cryostat IDSs as an inputs
-function PFcoilsOptActor(eq_in::IMAS.equilibrium, time::Real, ncoils::Int;
-                      λ_regularize=1E-13)
+function PFcoilsOptActor(eq_in::IMAS.equilibrium,
+                         time::Real,
+                         ncoils::Int;
+                         λ_regularize=1E-13)
     time_index = get_time_index(eq_in.time_slice, time)
     eqt = eq_in.time_slice[time_index]
     
@@ -66,7 +78,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium, time::Real, ncoils::Int;
     R0 = eqt.boundary.geometric_axis.r[end]
 
     # coils will not be closer to the boundary than this
-    ml = 1.2
+    ml = 1.3
     pr_inner = (pr .- R0) .* ml .+ R0
     pz_inner = pz .* ml * 1.1
 
@@ -156,14 +168,17 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium, time::Real, ncoils::Int;
     symmetric = sum([c[2] for c in coils]) / length(coils) < 1E-3
 
     # constructor
-    PFcoilsOptActor(eq_in, eq_out, time, pf_active, rmask, zmask, mask_log_interpolant, symmetric, λ_regularize, λ_norm, Dict())
+    PFcoilsOptActor(eq_in, eq_out, time, pf_active, rmask, zmask, mask_log_interpolant, symmetric, λ_regularize, λ_norm, PFcoilsOptTrace())
 end
 
 #= == =#
 # STEP #
 #= == =#
 function Base.step(actor::PFcoilsOptActor;
-                   symmetric=actor.symmetric, λ_regularize=actor.λ_regularize, verbose=false)
+                   symmetric=actor.symmetric,
+                   λ_regularize=actor.λ_regularize,
+                   λ_currents=1E7,
+                   verbose=false)
 
     # generate coils structure as accepted by AD_GS
     coils = []
@@ -195,7 +210,7 @@ function Base.step(actor::PFcoilsOptActor;
         fixed_eq = ψp_on_fixed_eq_boundary(S)
         packed = pack(coils, λ_regularize)
         
-        trace = Dict(:coils => [], :currents => [], :λ_regularize => [], :cost_ψ => [], :cost_currents => [], :cost_bound => [], :cost => [])
+        trace = PFcoilsOptTrace()
         packed_tmp = []
         function placement_cost(packed; do_trace=false)
             push!(packed_tmp, packed)
@@ -206,13 +221,13 @@ function Base.step(actor::PFcoilsOptActor;
             cost_bound = norm(mask_interpolant.([c[2] for c in coils], [c[1] for c in coils]))*10.0
             cost = sqrt.(cost_ψ.^2 + cost_currents.^2 + cost_bound.^2)
             if do_trace
-                push!(trace[:currents], currents)
-                push!(trace[:coils], coils)
-                push!(trace[:λ_regularize], λ_regularize)
-                push!(trace[:cost_ψ], cost_ψ)
-                push!(trace[:cost_currents], cost_currents)
-                push!(trace[:cost_bound], cost_bound)
-                push!(trace[:cost], cost)
+                push!(trace.currents, currents)
+                push!(trace.coils, coils)
+                push!(trace.λ_regularize, λ_regularize)
+                push!(trace.cost_ψ, cost_ψ)
+                push!(trace.cost_currents, cost_currents)
+                push!(trace.cost_bound, cost_bound)
+                push!(trace.cost, cost)
             end
             return cost
         end
@@ -233,8 +248,8 @@ function Base.step(actor::PFcoilsOptActor;
 
     # run optimization (note that we feed actor.eq_out, so that the optimization could be resumed)
     EQfixed = IMAS2Equilibrium(actor.eq_in, actor.time)
-    (coils, λ_regularize, trace) = optimize_coils(EQfixed, coils, λ_regularize, actor.λ_norm, 1E7, actor.mask_log_interpolant)
-    currents = [trace[:currents][end][k] for (k, c) in enumerate(coils)]
+    (coils, λ_regularize, trace) = optimize_coils(EQfixed, coils, λ_regularize, actor.λ_norm, λ_currents, actor.mask_log_interpolant)
+    currents = [trace.currents[end][k] for (k, c) in enumerate(coils)]
 
     # ψ from fixed-boundary gEQDSK
     # make ψ at boundary zero, and very small value outside for plotting

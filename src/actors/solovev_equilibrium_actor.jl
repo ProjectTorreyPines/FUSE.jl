@@ -54,7 +54,8 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium,
                                  time::Real;
                                  qstar = 1.5,
-                                 alpha = 0.0)
+                                 alpha = 0.0,
+                                 symmetric=false) # symmetric should really be passed/detected through IMAS
     time_index = get_time_index(equilibrium.time_slice, time)
     eqt = equilibrium.time_slice[time_index]
 
@@ -74,7 +75,7 @@ function SolovevEquilibriumActor(equilibrium::IMAS.equilibrium,
         xpoint = nothing
     end
 
-    S0 = solovev(B0, R0, ϵ, δ, κ, alpha, qstar, B0_dir=B0_dir, Ip_dir=Ip_dir, xpoint=xpoint)
+    S0 = solovev(B0, R0, ϵ, δ, κ, alpha, qstar, B0_dir=B0_dir, Ip_dir=Ip_dir, symmetric=symmetric, xpoint=xpoint)
 
     SolovevEquilibriumActor(equilibrium, time, S0, IMAS.equilibrium())
 end
@@ -96,15 +97,15 @@ function Base.step(actor::SolovevEquilibriumActor; verbose=false)
 
     B0, R0, epsilon, delta, kappa, alpha, qstar, target_ip, target_beta = promote(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, S0.alpha, S0.qstar, target_ip, target_beta)
 
-    # NOTE: some problems when running with xpoint, that I suspect are due to issues with flux surface tracing in Equilibrium.jl
     function opti(x)
-        S = solovev(B0, R0, epsilon, delta, kappa, x[1], x[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip, xpoint=S0.xpoint)
+        S = solovev(B0, R0, epsilon, delta, kappa, x[1], x[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip, symmetric=true, xpoint=nothing)
         beta_cost = abs((Equilibrium.beta_n(S) - target_beta)^2/target_beta)
         ip_cost = abs((Equilibrium.plasma_current(S) - target_ip)^2/target_ip)
         return (beta_cost + ip_cost)^2
     end
 
-    if isa(B0, ForwardDiff.Dual)
+    # having issues taking derivatives of SolovevEquilibriumActor and using Newton optimizer when S is diverted 
+    if isa(B0, ForwardDiff.Dual)# || S0.diverted
         optim_method = Optim.NelderMead()
     else
         optim_method = Optim.Newton()
@@ -115,7 +116,7 @@ function Base.step(actor::SolovevEquilibriumActor; verbose=false)
         println(res)
     end
 
-    actor.S = solovev(B0, R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip, xpoint=S0.xpoint)
+    actor.S = solovev(B0, R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip, symmetric=S0.symmetric, xpoint=S0.xpoint)
     return res
 end
 
@@ -153,23 +154,8 @@ function finalize(actor::SolovevEquilibriumActor,
     # generate grid with vertex on magnetic axis
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
-    if true
-        eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=resolution)
-        eqt.profiles_2d[1].grid.dim2 = range(zlims[1], zlims[2], length=resolution)#Int(ceil(resolution*actor.S.kappa)))
-    else
-        dr = (eqt.global_quantities.magnetic_axis.r - (rlims[2] + rlims[1]) / 2.0)
-        dr0 = (rlims[2] - rlims[1]) / resolution
-        ddr = mod(dr, dr0)
-        eqt.profiles_2d[1].grid.dim1 = range(rlims[1] - ddr, rlims[2] + ddr, length=resolution) .+ ddr
-        _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim1 .- eqt.global_quantities.magnetic_axis.r))
-        eqt.profiles_2d[1].grid.dim1 = eqt.profiles_2d[1].grid.dim1 .- eqt.profiles_2d[1].grid.dim1[i] .+ eqt.global_quantities.magnetic_axis.r
-        dz = (eqt.global_quantities.magnetic_axis.z - (zlims[2] + zlims[1]) / 2.0)
-        dz0 = (zlims[2] - zlims[1]) / resolution
-        ddz = mod(dz, dz0)
-        eqt.profiles_2d[1].grid.dim2 = range(zlims[1] - ddz, zlims[2] + ddz, length=resolution) .+ ddz
-        _, i = findmin(abs.(eqt.profiles_2d[1].grid.dim2 .- eqt.global_quantities.magnetic_axis.z))
-        eqt.profiles_2d[1].grid.dim2 = eqt.profiles_2d[1].grid.dim2 .- eqt.profiles_2d[1].grid.dim2[i] .+ eqt.global_quantities.magnetic_axis.z
-    end
+    eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=resolution)
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1], zlims[2], length=resolution)#Int(ceil(resolution*actor.S.kappa)))
 
     eqt.profiles_2d[1].psi = [actor.S(rr, zz) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
 
@@ -179,6 +165,10 @@ function finalize(actor::SolovevEquilibriumActor,
     for (kr, rr) in enumerate(eqt.profiles_2d[1].grid.dim1), (kz, zz) in enumerate(eqt.profiles_2d[1].grid.dim2)
         (eqt.profiles_2d[1].b_field_r[kr,kz], eqt.profiles_2d[1].b_field_tor[kr,kz], eqt.profiles_2d[1].b_field_z[kr,kz]) = Bfield(actor.S, rr, zz)
     end
+
+    # correct psi_boundary value to make sure that lcfs is always closing
+    psi_boundary = IMAS.find_psi_boundary(eqt)
+    eqt.profiles_1d.psi = range(Equilibrium.psi_limits(actor.S)[1],psi_boundary, length=resolution)
 
     IMAS.flux_surfaces(eqt, actor.S.B0, actor.S.R0)
 
