@@ -1,11 +1,11 @@
 @Base.kwdef mutable struct PFcoilsOptTrace
-    coils::Vector=[]
-    currents::Vector=[]
-    λ_regularize::Vector=[]
-    cost_ψ::Vector=[]
-    cost_currents::Vector=[]
-    cost_bound::Vector=[]
-    cost::Vector=[]
+    coils::Vector = []
+    currents::Vector = []
+    λ_regularize::Vector = []
+    cost_ψ::Vector = []
+    cost_currents::Vector = []
+    cost_bound::Vector = []
+    cost::Vector = []
 end
 
 mutable struct PFcoilsOptActor <: CoilsActor
@@ -34,71 +34,82 @@ using Interpolations
 using Optim
 using AD_GS
 using LinearAlgebra
+using Statistics
 
 # The PFcoilsOptActor should eventually also take IMAS.wall, IMAS.tf, IMAS.cryostat IDSs as an inputs
 function PFcoilsOptActor(eq_in::IMAS.equilibrium,
                          time::Real,
-                         ncoils::Int;
-                         λ_regularize=1E-13)
+                         ncoils::Int,
+                         λ_regularize=1E-13,
+                         coils_outsideof=1.3,
+                         coils_insideof=nothing)
     time_index = get_time_index(eq_in.time_slice, time)
     eqt = eq_in.time_slice[time_index]
     
-    # define extent of computation domain where the placing of pf coils could take place
-    xlim = extrema(eqt.profiles_2d[1].grid.dim1)
-    ylim = extrema(eqt.profiles_2d[1].grid.dim2)
+    if coils_insideof === nothing
+        # define extent of computation domain where the placing of pf coils could take place
+        xlim = extrema(eqt.profiles_2d[1].grid.dim1)
+        ylim = extrema(eqt.profiles_2d[1].grid.dim2)
+        coils_insideof = zip([xlim[1],xlim[2],xlim[2],xlim[1],xlim[1]], [ylim[2],ylim[2],ylim[1],ylim[1],ylim[2]])
+    else
+        xlim = extrema([p[1] for p in coils_insideof])
+        ylim = extrema([p[2] for p in coils_insideof])
+    end
 
     # grid the coputation domain 
     resolution = 257
     rmask = range(xlim[1], xlim[2], length=resolution)
     zmask = range(ylim[1], ylim[2], length=resolution * Int(round((ylim[2] - ylim[1] / (xlim[2] - xlim[1])))))
     pts = [((kr, kz), (rr, zz)) for (kz, zz) in enumerate(zmask), (kr, rr) in enumerate(rmask)]
-    mask = zeros(size(pts)...)
-    
-    mask[1,1:end].=1.0
-    mask[end,1:end].=1.0
-    mask[1:end,1].=1.0
-    mask[1:end,end].=1.0
+    mask = ones(size(pts)...)
 
     # outer domain (this will be either the cryostat or the TF coils depending on whether the PFs are inside or outside the TFs)
-    # dx=0.001
-    # pr_outer = [xlim[1]+dx,xlim[2]-dx,xlim[2]-dx,xlim[1]+dx,xlim[1]+dx]
-    # pz_outer = [ylim[2]-dx,ylim[2]-dx,ylim[1]+dx,ylim[1]+dx,ylim[2]-dx]
-    # for ((kr, kz), (rr, zz)) in hcat(pts...)
-    #     if PolygonOps.inpolygon((rr, zz), StaticArrays.SVector.(pr_outer, pz_outer)) == 1
-    #         mask[kz,kr] = 0
-    #     end
-    # end
-    
-    # plasma boundary
-    ψb = eqt.global_quantities.psi_boundary
-    ψ0 = eqt.global_quantities.psi_axis
-    pr, pz = IMAS.flux_surface(eqt, (ψb - ψ0) * 0.999 + ψ0)
+    coils_insideof_array = StaticArrays.SVector.([p[1] for p in coils_insideof], [p[2] for p in coils_insideof])
+    for ((kr, kz), (rr, zz)) in hcat(pts...)
+        if PolygonOps.inpolygon((rr, zz), coils_insideof_array) == 1
+            mask[kz,kr] = 0.0
+        end
+    end
     
     # geometric center
     R0 = eqt.boundary.geometric_axis.r[end]
 
-    # coils will not be closer to the boundary than this
-    ml = 1.3
-    pr_inner = (pr .- R0) .* ml .+ R0
-    pz_inner = pz .* ml * 1.1
+    if typeof(coils_outsideof) <: Number
+        coils_outsideof=(coils_outsideof,coils_outsideof)
+    end
+    if typeof(coils_outsideof) <: Tuple
+        # plasma boundary
+        ψb = eqt.global_quantities.psi_boundary
+        ψ0 = eqt.global_quantities.psi_axis
+        pr, pz = IMAS.flux_surface(eqt, (ψb - ψ0) * 0.5 + ψ0)
 
-    # initial position of coils
-    ml = ml + 0.1
-    pr_coil = (pr .- R0) .* ml .+ R0
-    pz_coil = pz .* ml * 1.1
+        mr=Statistics.mean(pr)
+        dx=maximum(pr)-minimum(pr)
+        dz=maximum(pz)-minimum(pz)
 
+        # coils will not be closer to the boundary than this
+        coils_outsideof = zip((pr .- mr) .* (1+coils_outsideof[1]/dx) .+ R0, pz .* (1+coils_outsideof[2]/dx))
+    end
+    
     # forbidden plasma area
+    coils_outsideof_array = StaticArrays.SVector.([p[1] for p in coils_outsideof], [p[2] for p in coils_outsideof])
     for ((kr, kz), (rr, zz)) in hcat(pts...)
-        if PolygonOps.inpolygon((rr, zz), StaticArrays.SVector.(pr_inner, pz_inner)) == 1
+        if PolygonOps.inpolygon((rr, zz), coils_outsideof_array) == 1
             mask[kz,kr] = 1
         end
     end
-    
+
     # apply filtering to smooth transition between allowed and forbidden regions
     n = 7
     filter = exp.(-(range(-1, 1, length=2 * n + 1) / n).^2)
     filter = filter ./ sum(filter)
     mask = DSP.conv(filter, filter, mask)[n + 1:end - n,n + 1:end - n]
+
+    # never allow the coils to leave the computation domain
+    mask[1,2:end] .= 1.0
+    mask[end,2:end] .= 1.0
+    mask[2:end,1] .= 1.0
+    mask[2:end,end] .= 1.0
 
     # Cubic spline interpolation on the log to ensure positivity of the cost
     mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((zmask, rmask), log10.(1.0 .+ mask))
@@ -107,6 +118,10 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
         return 10.0.^(mask_log_interpolant_raw(z, r)) .- 1
     end
     
+    # initial position of coils
+    pr_coil = ([p[1] for p in coils_outsideof] .- R0) .* 1.1 .+ R0
+    pz_coil = [p[2] for p in coils_outsideof] .* 1.2
+
     # initial coils placement is uniformely spaced along a surface conforming to plasma
     coils = []
     θ_coil = atan.(pz_coil, pr_coil .- R0)
@@ -116,7 +131,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     end
     pr_coilθ = Interpolations.extrapolate(Interpolations.interpolate((θ_coil,), pr_coil, Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
     pz_coilθ = Interpolations.extrapolate(Interpolations.interpolate((θ_coil,), pz_coil, Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
-    θ = range(0, 2π, length=1001)[1:end - 1]
+    θ = range(π/4, 2π-π/4, length=1001)[1:end - 1]
     l2p = vcat(0, cumsum(sqrt.(diff(pr_coilθ(θ)).^2.0 .+ diff(pz_coilθ(θ)).^2.0)))
     lcoils = range(0, l2p[end], length=ncoils + 1)[1:end - 1]
     pr_coilL = Interpolations.extrapolate(Interpolations.interpolate((l2p,), pr_coilθ(θ), Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
@@ -133,7 +148,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     end
     
     # find coil currents for this initial configuration
-    EQfixed=IMAS2Equilibrium(eq_in, time)
+    EQfixed = IMAS2Equilibrium(eq_in, time)
     currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, coils, λ_regularize=λ_regularize, λ_minimize=0.0, λ_zerosum=0.0, return_cost=true)
 
     # update psirz based on coil configuration
@@ -142,13 +157,13 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     # ψ from fixed-boundary gEQDSK
     # make ψ at boundary zero, and very small value outside for plotting
     ψ0_fix, ψb_fix = psi_limits(EQfixed)
-    σ₀ = sign(ψ0_fix-ψb_fix)
-    ψ_fix = [EQfixed(r,z) for z in EQfixed.z, r in EQfixed.r] .- ψb_fix
-    ψ_fix = ifelse.(σ₀*ψ_fix.>0, ψ_fix, 1e-6*ψ_fix)
+    σ₀ = sign(ψ0_fix - ψb_fix)
+    ψ_fix = [EQfixed(r, z) for z in EQfixed.z, r in EQfixed.r] .- ψb_fix
+    ψ_fix = ifelse.(σ₀ * ψ_fix .> 0, ψ_fix, 1e-6 * ψ_fix)
     
     # ψ at the boundary is determined by the value of the currents
     # calculated in fixed_eq_currents
-    ψ_f2f = fixed2free(EQfixed, coils, currents, EQfixed.r,EQfixed.z)
+    ψ_f2f = fixed2free(EQfixed, coils, currents, EQfixed.r, EQfixed.z)
     eq_out.time_slice[1].profiles_2d[1].psi = transpose(ψ_f2f)
 
     # populate IMAS data structure
@@ -218,8 +233,12 @@ function Base.step(actor::PFcoilsOptActor;
             currents, cost = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, λ_minimize=0.0, λ_zerosum=0.0, return_cost=true)
             cost_ψ = cost / ψp_cost_norm
             cost_currents = norm(currents) / length(currents) / currents_cost_norm
-            cost_bound = norm(mask_interpolant.([c[2] for c in coils], [c[1] for c in coils]))*10.0
+            cost_bound = norm(mask_interpolant.([c[2] for c in coils], [c[1] for c in coils])) * 10.0
             cost = sqrt.(cost_ψ.^2 + cost_currents.^2 + cost_bound.^2)
+            cx=[c[1] for c in coils]
+            cy=[c[2] for c in coils]
+            coil_distance_cost=0.1/minimum(sqrt.((repeat(cx,1,length(cx)).-repeat(transpose(cx),length(cx),1)).^2.0.+(repeat(cy,1,length(cx)).-repeat(transpose(cy),length(cx),1)).^2)+LinearAlgebra.I*1E3)
+            cost+=coil_distance_cost
             if do_trace
                 push!(trace.currents, currents)
                 push!(trace.coils, coils)
@@ -254,13 +273,13 @@ function Base.step(actor::PFcoilsOptActor;
     # ψ from fixed-boundary gEQDSK
     # make ψ at boundary zero, and very small value outside for plotting
     ψ0_fix, ψb_fix = psi_limits(EQfixed)
-    σ₀ = sign(ψ0_fix-ψb_fix)
-    ψ_fix = [EQfixed(r,z) for z in EQfixed.z, r in EQfixed.r] .- ψb_fix
-    ψ_fix = ifelse.(σ₀*ψ_fix.>0, ψ_fix, 1e-6*ψ_fix)
+    σ₀ = sign(ψ0_fix - ψb_fix)
+    ψ_fix = [EQfixed(r, z) for z in EQfixed.z, r in EQfixed.r] .- ψb_fix
+    ψ_fix = ifelse.(σ₀ * ψ_fix .> 0, ψ_fix, 1e-6 * ψ_fix)
     
     # ψ at the boundary is determined by the value of the currents
     # calculated in fixed_eq_currents
-    ψ_f2f = fixed2free(EQfixed, coils, currents, EQfixed.r,EQfixed.z)
+    ψ_f2f = fixed2free(EQfixed, coils, currents, EQfixed.r, EQfixed.z)
     actor.eq_out.time_slice[1].profiles_2d[1].psi = transpose(ψ_f2f)
 
     # populate IMAS data structure
