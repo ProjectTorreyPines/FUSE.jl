@@ -35,6 +35,7 @@ using Optim
 using AD_GS
 using LinearAlgebra
 using Statistics
+using Plots
 
 # The PFcoilsOptActor should eventually also take IMAS.wall, IMAS.tf, IMAS.cryostat IDSs as an inputs
 function PFcoilsOptActor(eq_in::IMAS.equilibrium,
@@ -75,7 +76,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     R0 = eqt.boundary.geometric_axis.r[end]
 
     if typeof(coils_outsideof) <: Number
-        coils_outsideof=(coils_outsideof,coils_outsideof)
+        coils_outsideof = (coils_outsideof, coils_outsideof)
     end
     if typeof(coils_outsideof) <: Tuple
         # plasma boundary
@@ -83,12 +84,12 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
         ψ0 = eqt.global_quantities.psi_axis
         pr, pz = IMAS.flux_surface(eqt, (ψb - ψ0) * 0.5 + ψ0)
 
-        mr=Statistics.mean(pr)
-        dx=maximum(pr)-minimum(pr)
-        dz=maximum(pz)-minimum(pz)
+        mr = Statistics.mean(pr)
+        dx = maximum(pr) - minimum(pr)
+        dz = maximum(pz) - minimum(pz)
 
         # coils will not be closer to the boundary than this
-        coils_outsideof = zip((pr .- mr) .* (1+coils_outsideof[1]/dx) .+ R0, pz .* (1+coils_outsideof[2]/dx))
+        coils_outsideof = zip((pr .- mr) .* (1 + coils_outsideof[1] / dx) .+ R0, pz .* (1 + coils_outsideof[2] / dx))
     end
     
     # forbidden plasma area
@@ -131,7 +132,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     end
     pr_coilθ = Interpolations.extrapolate(Interpolations.interpolate((θ_coil,), pr_coil, Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
     pz_coilθ = Interpolations.extrapolate(Interpolations.interpolate((θ_coil,), pz_coil, Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
-    θ = range(π/4, 2π-π/4, length=1001)[1:end - 1]
+    θ = range(π / 4, 2π - π / 4, length=1001)[1:end - 1]
     l2p = vcat(0, cumsum(sqrt.(diff(pr_coilθ(θ)).^2.0 .+ diff(pz_coilθ(θ)).^2.0)))
     lcoils = range(0, l2p[end], length=ncoils + 1)[1:end - 1]
     pr_coilL = Interpolations.extrapolate(Interpolations.interpolate((l2p,), pr_coilθ(θ), Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
@@ -235,10 +236,10 @@ function Base.step(actor::PFcoilsOptActor;
             cost_currents = norm(currents) / length(currents) / currents_cost_norm
             cost_bound = norm(mask_interpolant.([c[2] for c in coils], [c[1] for c in coils])) * 10.0
             cost = sqrt.(cost_ψ.^2 + cost_currents.^2 + cost_bound.^2)
-            cx=[c[1] for c in coils]
-            cy=[c[2] for c in coils]
-            coil_distance_cost=0.1/minimum(sqrt.((repeat(cx,1,length(cx)).-repeat(transpose(cx),length(cx),1)).^2.0.+(repeat(cy,1,length(cx)).-repeat(transpose(cy),length(cx),1)).^2)+LinearAlgebra.I*1E3)
-            cost+=coil_distance_cost
+            cx = [c[1] for c in coils]
+            cy = [c[2] for c in coils]
+            coil_distance_cost = 0.1 / minimum(sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cx)) .- repeat(transpose(cy), length(cx), 1)).^2) + LinearAlgebra.I * 1E3)
+            cost += coil_distance_cost
             if do_trace
                 push!(trace.currents, currents)
                 push!(trace.coils, coils)
@@ -301,4 +302,100 @@ function Base.step(actor::PFcoilsOptActor;
     actor.trace = trace
 
     return trace
+end
+
+
+#= ====== =#
+# PLOTTING #
+#= ====== =#
+"""
+    plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor)
+
+Plot PFcoilsOptActor optimization cross-section
+"""
+@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor)
+    # plot mask
+    rmask = pfactor.rmask
+    zmask = pfactor.zmask
+    dst = pfactor.mask_log_interpolant(zmask, rmask)
+
+    xlims --> [rmask[1],rmask[end]]
+    ylims --> [zmask[1],zmask[end]]
+    aspect_ratio --> :equal
+
+    # plot domain
+    @series begin
+        colorbar --> false
+        seriescolor --> :gray
+        seriestype --> :contour
+        rmask, zmask, dst
+    end
+
+    # plot pf_active coils
+    @series pfactor.pf_active
+
+    # plot target equilibrium
+    @series begin
+        label --> "Target"
+        seriescolor --> :red
+        pfactor.eq_in.time_slice[1]
+    end
+    # plot final equilibrium
+    @series begin
+        label --> "Final"
+        seriescolor --> :black
+        lcfs --> true
+        pfactor.eq_out.time_slice[1]
+    end
+end
+
+"""
+    function plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at::Int=1)
+
+Plot PFcoilsOptActor optimization trace
+
+Attributes:
+- what::Symbol=:cost or :currents or individual fields of the PFcoilsOptTrace structure
+- start_at=::Int=1 index of the first element of the trace to start plotting
+"""
+@recipe function plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at=::Int=1)
+    x = (start_at:length(trace.cost))
+    if what == :cost
+        @series begin
+            label --> "ψ"
+            yscale --> :log10
+            x, [FUSE.no_Dual(y) for y in trace.cost_ψ[start_at:end]]
+        end
+        @series begin
+            label --> "currents"
+            yscale --> :log10
+            x, [FUSE.no_Dual(y) for y in trace.cost_currents[start_at:end]]
+        end
+        @series begin
+            label --> "bounds"
+            yscale --> :log10
+            x, [FUSE.no_Dual(y) for y in trace.cost_bound[start_at:end]]
+        end
+        @series begin
+            label --> "total"
+            yscale --> :log10
+            x, [FUSE.no_Dual(y) for y in trace.cost[start_at:end]]
+        end
+            
+    elseif what == :currents
+        @series begin
+            label --> "Starting"
+            [FUSE.no_Dual(y) for y in getfield(trace, what)[start_at:end]][1,:]
+        end
+        @series begin
+            label --> "Final"
+            [FUSE.no_Dual(y) for y in getfield(trace, what)[start_at:end]][end,:]
+        end
+
+    else
+        @series begin
+            label --> String(what)
+            x, [FUSE.no_Dual(y) for y in getfield(trace, what)[start_at:end]]
+        end
+    end
 end
