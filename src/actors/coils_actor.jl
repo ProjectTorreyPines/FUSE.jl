@@ -43,9 +43,9 @@ import Contour
 function PFcoilsOptActor(eq_in::IMAS.equilibrium,
                          time::Real,
                          ncoils::Int,
-                         λ_regularize=1E-13,
                          coils_outsideof=1.3,
-                         coils_insideof=nothing)
+                         coils_insideof=nothing,
+                         λ_regularize=1E-13,)
     time_index = get_time_index(eq_in.time_slice, time)
     eqt = eq_in.time_slice[time_index]
     
@@ -346,15 +346,15 @@ Plot PFcoilsOptActor optimization cross-section
     # plot target equilibrium
     @series begin
         label --> "Target"
-        seriescolor --> :red
+        seriescolor --> :black
+        lcfs --> true
         pfactor.eq_in.time_slice[1]
     end
 
     # plot final equilibrium
     @series begin
         label --> "Final"
-        seriescolor --> :black
-        lcfs --> true
+        seriescolor --> :red
         pfactor.eq_out.time_slice[1]
     end
 
