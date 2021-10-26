@@ -63,14 +63,15 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     resolution = 257
     rmask = range(xlim[1], xlim[2], length=resolution)
     zmask = range(ylim[1], ylim[2], length=resolution * Int(round((ylim[2] - ylim[1] / (xlim[2] - xlim[1])))))
-    pts = [((kr, kz), (rr, zz)) for (kz, zz) in enumerate(zmask), (kr, rr) in enumerate(rmask)]
-    mask = ones(size(pts)...)
+    mask = ones(length(rmask), length(zmask))
 
     # outer domain (this will be either the cryostat or the TF coils depending on whether the PFs are inside or outside the TFs)
     coils_insideof_array = StaticArrays.SVector.([p[1] for p in coils_insideof], [p[2] for p in coils_insideof])
-    for ((kr, kz), (rr, zz)) in hcat(pts...)
-        if PolygonOps.inpolygon((rr, zz), coils_insideof_array) == 1
-            mask[kz,kr] = 0.0
+    for (kr, rr) in enumerate(rmask)
+        for (kz, zz) in enumerate(zmask)
+            if PolygonOps.inpolygon((rr, zz), coils_insideof_array) == 1
+                mask[kr,kz] = 0.0
+            end
         end
     end
     
@@ -96,9 +97,11 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     
     # forbidden plasma area
     coils_outsideof_array = StaticArrays.SVector.([p[1] for p in coils_outsideof], [p[2] for p in coils_outsideof])
-    for ((kr, kz), (rr, zz)) in hcat(pts...)
-        if PolygonOps.inpolygon((rr, zz), coils_outsideof_array) == 1
-            mask[kz,kr] = 1
+    for (kr, rr) in enumerate(rmask)
+        for (kz, zz) in enumerate(zmask)
+            if PolygonOps.inpolygon((rr, zz), coils_outsideof_array) == 1
+                mask[kr,kz] = 1.0
+            end
         end
     end
 
@@ -109,7 +112,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     filterx = filterx ./ sum(filterx)
     filtery = exp.(-(range(-1, 1, length=2 * ny + 1) / ny).^2)
     filtery = filtery ./ sum(filtery)
-    mask = DSP.conv(filtery, filterx, mask)[ny + 1:end - ny,nx + 1:end - nx]
+    mask = DSP.conv(filterx, filtery, mask)[nx + 1:end - nx, ny + 1:end - ny]
 
     # never allow the coils to leave the computation domain
     mask[1,2:end] .= 1.0
@@ -118,10 +121,10 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     mask[2:end,end] .= 1.0
 
     # Cubic spline interpolation on the log to ensure positivity of the cost
-    mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((zmask, rmask), log10.(1.0 .+ mask))
+    mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((rmask, zmask), log10.(1.0 .+ mask))
     mask_log_interpolant_raw = Interpolations.extrapolate(mask_log_interpolant_raw.itp, Interpolations.Flat());
-    function mask_log_interpolant(z, r)
-        return 10.0.^(mask_log_interpolant_raw(z, r)) .- 1
+    function mask_log_interpolant(r, z)
+        return 10.0.^(mask_log_interpolant_raw(r, z)) .- 1
     end
     
     # initial position of coils
@@ -239,7 +242,7 @@ function Base.step(actor::PFcoilsOptActor;
             currents, cost = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, λ_minimize=0.0, λ_zerosum=0.0, return_cost=true)
             cost_ψ = cost / ψp_cost_norm
             cost_currents = norm(currents) / length(currents) / currents_cost_norm
-            cost_bound = norm(mask_interpolant.([c[2] for c in coils], [c[1] for c in coils])) * 10.0
+            cost_bound = norm(mask_interpolant.([c[1] for c in coils], [c[2] for c in coils])) * 10.0
             cost = sqrt.(cost_ψ.^2 + cost_currents.^2 + cost_bound.^2)
             cx = [c[1] for c in coils]
             cy = [c[2] for c in coils]
@@ -271,7 +274,7 @@ function Base.step(actor::PFcoilsOptActor;
         return coils, λ_regularize, trace
     end
 
-    # run optimization (note that we feed actor.eq_out, so that the optimization could be resumed)
+    # run optimization
     EQfixed = IMAS2Equilibrium(actor.eq_in, actor.time)
     (coils, λ_regularize, trace) = optimize_coils(EQfixed, coils, λ_regularize, actor.λ_norm, λ_currents, actor.mask_log_interpolant)
     currents = [trace.currents[end][k] for (k, c) in enumerate(coils)]
@@ -321,20 +324,19 @@ Plot PFcoilsOptActor optimization cross-section
     # plot mask
     rmask = pfactor.rmask
     zmask = pfactor.zmask
-    dst = pfactor.mask_log_interpolant(zmask, rmask)
+    dst = pfactor.mask_log_interpolant(rmask, zmask)
 
     xlims --> [rmask[1],rmask[end]]
     ylims --> [zmask[1],zmask[end]]
     aspect_ratio --> :equal
 
-    cl = Contour.contour(zmask, rmask, dst, 0.5)
+    cl = Contour.contour(rmask, zmask, dst, 0.5)
     for line in Contour.lines(cl)
         @series begin
             label --> ""
             seriescolor --> :gray
             linewidth --> 3
-            pz, pr = Contour.coordinates(line)
-            pr, pz
+            Contour.coordinates(line)
         end
     end
 
@@ -409,7 +411,7 @@ Attributes:
     elseif what == :currents
         @series begin
             label --> "Starting"
-            [FUSE.no_Dual(y) for y in getfield(trace, what)[start_at:end]][1,:]
+        [FUSE.no_Dual(y) for y in getfield(trace, what)[start_at:end]][1,:]
         end
         @series begin
             label --> "Final"
