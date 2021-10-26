@@ -36,6 +36,8 @@ using AD_GS
 using LinearAlgebra
 using Statistics
 using Plots
+import Contour
+
 
 # The PFcoilsOptActor should eventually also take IMAS.wall, IMAS.tf, IMAS.cryostat IDSs as an inputs
 function PFcoilsOptActor(eq_in::IMAS.equilibrium,
@@ -101,10 +103,13 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     end
 
     # apply filtering to smooth transition between allowed and forbidden regions
-    n = 7
-    filter = exp.(-(range(-1, 1, length=2 * n + 1) / n).^2)
-    filter = filter ./ sum(filter)
-    mask = DSP.conv(filter, filter, mask)[n + 1:end - n,n + 1:end - n]
+    nx = 7
+    ny = Int(ceil(nx * size(mask)[1] / size(mask)[2]))
+    filterx = exp.(-(range(-1, 1, length=2 * nx + 1) / nx).^2)
+    filterx = filterx ./ sum(filterx)
+    filtery = exp.(-(range(-1, 1, length=2 * ny + 1) / ny).^2)
+    filtery = filtery ./ sum(filtery)
+    mask = DSP.conv(filtery, filterx, mask)[ny + 1:end - ny,nx + 1:end - nx]
 
     # never allow the coils to leave the computation domain
     mask[1,2:end] .= 1.0
@@ -304,7 +309,6 @@ function Base.step(actor::PFcoilsOptActor;
     return trace
 end
 
-
 #= ====== =#
 # PLOTTING #
 #= ====== =#
@@ -313,7 +317,7 @@ end
 
 Plot PFcoilsOptActor optimization cross-section
 """
-@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor)
+@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor, trace=true)
     # plot mask
     rmask = pfactor.rmask
     zmask = pfactor.zmask
@@ -323,23 +327,27 @@ Plot PFcoilsOptActor optimization cross-section
     ylims --> [zmask[1],zmask[end]]
     aspect_ratio --> :equal
 
-    # plot domain
-    @series begin
-        colorbar --> false
-        seriescolor --> :gray
-        seriestype --> :contour
-        rmask, zmask, dst
+    cl = Contour.contour(zmask, rmask, dst, 0.5)
+    for line in Contour.lines(cl)
+        @series begin
+            label --> ""
+            seriescolor --> :gray
+            linewidth --> 3
+            pz, pr = Contour.coordinates(line)
+            pr, pz
+        end
     end
 
     # plot pf_active coils
     @series pfactor.pf_active
-
+    
     # plot target equilibrium
     @series begin
         label --> "Target"
         seriescolor --> :red
         pfactor.eq_in.time_slice[1]
     end
+
     # plot final equilibrium
     @series begin
         label --> "Final"
@@ -347,6 +355,22 @@ Plot PFcoilsOptActor optimization cross-section
         lcfs --> true
         pfactor.eq_out.time_slice[1]
     end
+
+    if trace
+        if length(pfactor.trace.coils) > 0
+            for c in 1:length(pfactor.trace.coils[1])
+                @series begin
+                    label --> ""
+                    linewidth --> 1
+                    seriesalpha --> 0.5
+                    primary --> false
+                    seriescolor --> :blue
+                    [FUSE.no_Dual(k[c][1]) for k in pfactor.trace.coils], [FUSE.no_Dual(k[c][2]) for k in pfactor.trace.coils]
+                end
+            end
+        end
+    end
+
 end
 
 """
@@ -358,7 +382,7 @@ Attributes:
 - what::Symbol=:cost or :currents or individual fields of the PFcoilsOptTrace structure
 - start_at=::Int=1 index of the first element of the trace to start plotting
 """
-@recipe function plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at=::Int=1)
+@recipe function plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at::Int=1)
     x = (start_at:length(trace.cost))
     if what == :cost
         @series begin
