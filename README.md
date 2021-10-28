@@ -5,34 +5,36 @@ Getting started
 
 1. Bring in Project Torrey Pines private repos in your Julia development directory:
     ```julia
-    using Pkg
-    Pkg.develop(url="git@github.com:ProjectTorreyPines/FUSE.jl.git")
-    Pkg.develop(url="git@github.com:ProjectTorreyPines/IMAS.jl.git")
-    Pkg.develop(url="git@github.com:ProjectTorreyPines/Equilibrium.jl.git")
-    Pkg.develop(url="git@github.com:ProjectTorreyPines/AD_GS.jl.git")
+    ] develop "git@github.com:ProjectTorreyPines/FUSE.jl.git"
+    ] develop "git@github.com:ProjectTorreyPines/IMAS.jl.git"
+    ] develop "git@github.com:ProjectTorreyPines/Equilibrium.jl.git"
+    ] develop "git@github.com:ProjectTorreyPines/AD_GS.jl.git"
     ```
     this will clone the repos in the the `FUSE`, `IMAS`, `Equilibrium` development folders under `~/.julia/dev`
   
-2. Activate the FUSE environment:
-    ```julia
-    using Pkg
-    Pkg.activate("..") #this may fail
-    using Revise # useful for development
-    using FUSE
-    using FUSE.IMAS
+2. Activate the FUSE environment (NOTE: if not starting from scratch, it may be necessary to remove the `Manifest.toml` file from the development repositories):
+    ```bash
+    cd ~/.julia/dev/FUSE
     ```
-3. If `Pkg.activate("..")` fails, then see https://discourse.julialang.org/t/cant-instantiate-project-with-two-unregistered-packages/36703 Essentiall removing all dependent development packages, and then adding them back should work. Also creating a private registry should work.
+    
     ```julia
-    Pkg.rm("AD_GS")
-    Pkg.rm("IMAS")
-    Pkg.rm("Equilibrium")
-    Pkg.develop(url="git@github.com:ProjectTorreyPines/Equilibrium.jl.git")
-    Pkg.develop(url="git@github.com:ProjectTorreyPines/IMAS.jl.git")
-    Pkg.develop(url="git@github.com:ProjectTorreyPines/AD_GS.jl.git")
+    ] activate .    # activate the ~/.julia/dev/FUSE/Project.toml environment
+    ] status        # see where we are
+    # We need to tell the environment not to look for our packages in our dev folder and not in the official Julia package registry
+    ] develop Equilibrium IMAS AD_GS
+    ] resolve       # Download packages, update
     ```
+
 4. Play:
 
     ```julia
+    using Pkg
+    Pkg.activate(ENV["HOME"] * "/.julia/dev/FUSE")
+    using Revise
+    using FUSE
+    using FUSE.IMAS
+    using Plots
+    
     R0 = 1.8
     δ = 0.5
     ϵ = 0.3
@@ -52,4 +54,7 @@ Getting started
     
     # translate actor internals to equilibrium IDS
     eq1 = FUSE.finalize(eqactor)
+    
+    # plot equilibrium
+    plot(eq1.time_slice[1])
     ```
