@@ -367,7 +367,7 @@ Plot PFcoilsOptActor optimization cross-section
                     seriesalpha --> 0.5
                     primary --> false
                     seriescolor --> :blue
-                    [FUSE.no_Dual(k[c][1]) for k in pfactor.trace.coils], [FUSE.no_Dual(k[c][2]) for k in pfactor.trace.coils]
+                    [no_Dual(k[c][1]) for k in pfactor.trace.coils], [no_Dual(k[c][2]) for k in pfactor.trace.coils]
                 end
             end
         end
@@ -384,44 +384,44 @@ Attributes:
 - what::Symbol=:cost or :currents or individual fields of the PFcoilsOptTrace structure
 - start_at=::Int=1 index of the first element of the trace to start plotting
 """
-@recipe function plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at::Int=1)
+@recipe function plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at=1)
     x = (start_at:length(trace.cost))
     if what == :cost
         @series begin
             label --> "ψ"
             yscale --> :log10
-            x, [FUSE.no_Dual(y) for y in trace.cost_ψ[start_at:end]]
+            x, [no_Dual(y) for y in trace.cost_ψ[start_at:end]]
         end
         @series begin
             label --> "currents"
             yscale --> :log10
-            x, [FUSE.no_Dual(y) for y in trace.cost_currents[start_at:end]]
+            x, [no_Dual(y) for y in trace.cost_currents[start_at:end]]
         end
         @series begin
             label --> "bounds"
             yscale --> :log10
-            x, [FUSE.no_Dual(y) for y in trace.cost_bound[start_at:end]]
+            x, [no_Dual(y) for y in trace.cost_bound[start_at:end]]
         end
         @series begin
             label --> "total"
             yscale --> :log10
-            x, [FUSE.no_Dual(y) for y in trace.cost[start_at:end]]
+            x, [no_Dual(y) for y in trace.cost[start_at:end]]
         end
             
     elseif what == :currents
         @series begin
             label --> "Starting"
-        [FUSE.no_Dual(y) for y in getfield(trace, what)[start_at:end]][1,:]
+        [no_Dual(y) for y in getfield(trace, what)[start_at:end]][1,:]
         end
         @series begin
             label --> "Final"
-            [FUSE.no_Dual(y) for y in getfield(trace, what)[start_at:end]][end,:]
+            [no_Dual(y) for y in getfield(trace, what)[start_at:end]][end,:]
         end
 
     else
         @series begin
             label --> String(what)
-            x, [FUSE.no_Dual(y) for y in getfield(trace, what)[start_at:end]]
+            x, [no_Dual(y) for y in getfield(trace, what)[start_at:end]]
         end
     end
 end
