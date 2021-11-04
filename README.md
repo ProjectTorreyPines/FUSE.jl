@@ -41,10 +41,11 @@ Getting started
     κ = 1.9
     B0 = 2.0
     qstar = 1.5
-    beta_t = 0.01
+    beta_n = 1.5
+    ip = 1e6
 
     # initialize equilibrium IDS
-    eq0 = FUSE.init(IMAS.equilibrium(), 0.0; B0, R0, ϵ, δ, κ, beta_t, qstar)
+    eq0 = FUSE.init(IMAS.equilibrium(), 0.0; B0, R0, ϵ, δ, κ, beta_n, ip)
     
     # instantiate equilibrium actor
     eqactor = FUSE.SolovevEquilibriumActor(eq0, 0.0)
