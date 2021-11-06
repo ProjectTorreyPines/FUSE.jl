@@ -5,7 +5,8 @@
     cost_ψ::Vector = []
     cost_currents::Vector = []
     cost_bound::Vector = []
-    cost::Vector = []
+    cost_distance::Vector = []
+    cost_total::Vector = []
 end
 
 mutable struct PFcoilsOptActor <: CoilsActor
@@ -61,11 +62,19 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
 
     # grid the coputation domain 
     resolution = 257
-    rmask = range(xlim[1], xlim[2], length=resolution)
-    zmask = range(ylim[1], ylim[2], length=resolution * Int(round((ylim[2] - ylim[1] / (xlim[2] - xlim[1])))))
+    dd=(xlim[2]-xlim[1])/10
+    rmask = range(xlim[1]-dd, xlim[2]+dd, length=resolution)
+    zmask = range(ylim[1]-dd, ylim[2]+dd, length=resolution * Int(round((ylim[2] - ylim[1]+2*dd) / (xlim[2] - xlim[1]+2*dd))))
     mask = ones(length(rmask), length(zmask))
 
-    # outer domain (this will be either the cryostat or the TF coils depending on whether the PFs are inside or outside the TFs)
+    # we want the cost to increase ever so slightly as we go farther away
+    for (kr, rr) in enumerate(rmask)
+        for (kz, zz) in enumerate(zmask)
+            mask[kr,kz] = 1.0+1E-3*sqrt((rr-eqt.global_quantities.magnetic_axis.r)^2+(zz-eqt.global_quantities.magnetic_axis.z)^2)
+        end
+    end
+
+    # allowed coils area (this will be inside of the cryostat or the TF coils depending on whether the PFs are inside or outside the TFs)
     coils_insideof_array = StaticArrays.SVector.([p[1] for p in coils_insideof], [p[2] for p in coils_insideof])
     for (kr, rr) in enumerate(rmask)
         for (kz, zz) in enumerate(zmask)
@@ -96,11 +105,12 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     end
     
     # forbidden plasma area
+    # we want the cost to decrease ever so slightly as we go farther away
     coils_outsideof_array = StaticArrays.SVector.([p[1] for p in coils_outsideof], [p[2] for p in coils_outsideof])
     for (kr, rr) in enumerate(rmask)
         for (kz, zz) in enumerate(zmask)
             if PolygonOps.inpolygon((rr, zz), coils_outsideof_array) == 1
-                mask[kr,kz] = 1.0
+                mask[kr,kz] = 1.0-1E-3*sqrt((rr-eqt.global_quantities.magnetic_axis.r)^2+(zz-eqt.global_quantities.magnetic_axis.z)^2)
             end
         end
     end
@@ -113,12 +123,6 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     filtery = exp.(-(range(-1, 1, length=2 * ny + 1) / ny).^2)
     filtery = filtery ./ sum(filtery)
     mask = DSP.conv(filterx, filtery, mask)[nx + 1:end - nx, ny + 1:end - ny]
-
-    # never allow the coils to leave the computation domain
-    mask[1,2:end] .= 1.0
-    mask[end,2:end] .= 1.0
-    mask[2:end,1] .= 1.0
-    mask[2:end,end] .= 1.0
 
     # Cubic spline interpolation on the log to ensure positivity of the cost
     mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((rmask, zmask), log10.(1.0 .+ mask))
@@ -151,9 +155,9 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
         start_coil_L = x -> abs.(pz_coilL.(lcoils[1] .+ x))[1]
     end
     L0 = Optim.minimizer(Optim.optimize(start_coil_L, 0.0, l2p[end]))
-    coils = [(pr_coilL(L), pz_coilL(L)) for L in lcoils .+ L0]
+    coils = [PointCoil(pr_coilL(L), pz_coilL(L)) for L in lcoils .+ L0]
     if mod(ncoils, 2) == 1
-        coils[1] = (coils[1][1], 0.0)
+        coils[1] = PointCoil(coils[1].R, 0.0)
     end
     
     # find coil currents for this initial configuration
@@ -180,16 +184,16 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     resize!(pf_active.coil, length(coils))
     for (k, c) in enumerate(coils)
         resize!(pf_active.coil[k].element, 1)
-        pf_active.coil[k].element[1].geometry.rectangle.r = c[1]
-        pf_active.coil[k].element[1].geometry.rectangle.z = c[2]
-        pf_active.coil[k].element[1].geometry.rectangle.height = 0.0
-        pf_active.coil[k].element[1].geometry.rectangle.width = 0.0
+        pf_active.coil[k].element[1].geometry.rectangle.r = c.R
+        pf_active.coil[k].element[1].geometry.rectangle.z = c.Z
+        pf_active.coil[k].element[1].geometry.rectangle.width = maximum(c.R) - minimum(c.R)
+        pf_active.coil[k].element[1].geometry.rectangle.height = maximum(c.Z) - minimum(c.Z)
         set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
         set_field_time_array(pf_active.coil[k].current, :data, 1, currents[k])
     end
 
     # detect if initial coil configuration was symmetric
-    symmetric = sum([c[2] for c in coils]) / length(coils) < 1E-3
+    symmetric = sum([c.Z for c in coils]) / length(coils) < 1E-3
 
     # constructor
     PFcoilsOptActor(eq_in, eq_out, time, pf_active, rmask, zmask, mask_log_interpolant, symmetric, λ_regularize, λ_norm, PFcoilsOptTrace())
@@ -207,21 +211,21 @@ function Base.step(actor::PFcoilsOptActor;
     # generate coils structure as accepted by AD_GS
     coils = []
     for coil in actor.pf_active.coil
-        push!(coils, (coil.element[1].geometry.rectangle.r, coil.element[1].geometry.rectangle.z))
+        push!(coils, PointCoil(coil.element[1].geometry.rectangle.r, coil.element[1].geometry.rectangle.z))
     end
 
     # utility functions for packing and unpacking info in/out of optimization function
     function pack(coils, λ_regularize)
-        coilz = vcat([c[1] for c in coils if ((! symmetric) || c[2] >= 0)], [c[2] for c in coils if ((! symmetric) || c[2] >= 0)])
+        coilz = vcat([c.R for c in coils if ((! symmetric) || c.Z >= 0)], [c.Z for c in coils if ((! symmetric) || c.Z >= 0)])
         packed = vcat(coilz, log10(λ_regularize))
         return packed
     end
     function unpack(packed)
         coilz = packed[1:end - 1]
         λ_regularize = packed[end]
-        coils =  [(coilz[k], coilz[k + Int(length(coilz) / 2)]) for (k, c) in enumerate(coilz[1:Int(end / 2)])]
+        coils =  [PointCoil(coilz[k], coilz[k + Int(length(coilz) / 2)]) for (k, c) in enumerate(coilz[1:Int(end / 2)])]
         if symmetric
-            coils = vcat(coils, [(c[1], -c[2]) for c in coils if c[2] != 0])
+            coils = vcat(coils, [PointCoil(c.R, -c.Z) for c in coils if c.Z != 0])
         end
         return coils, 10^λ_regularize
     end
@@ -242,34 +246,36 @@ function Base.step(actor::PFcoilsOptActor;
             currents, cost = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, λ_minimize=0.0, λ_zerosum=0.0, return_cost=true)
             cost_ψ = cost / ψp_cost_norm
             cost_currents = norm(currents) / length(currents) / currents_cost_norm
-            cost_bound = norm(mask_interpolant.([c[1] for c in coils], [c[2] for c in coils])) * 10.0
-            cost = sqrt.(cost_ψ.^2 + cost_currents.^2 + cost_bound.^2)
-            cx = [c[1] for c in coils]
-            cy = [c[2] for c in coils]
-            coil_distance_cost = 0.1 / minimum(sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cx)) .- repeat(transpose(cy), length(cx), 1)).^2) + LinearAlgebra.I * 1E3)
-            cost += coil_distance_cost
+            cost_bound = norm(mask_interpolant.([c.R for c in coils], [c.Z for c in coils]))
+            cx = [c.R for c in coils]
+            cy = [c.Z for c in coils]
+            distance_matrix = sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cy)) .- repeat(transpose(cy), length(cy), 1)).^2.0)
+            cost_distance = norm(1.0./(distance_matrix + LinearAlgebra.I * 1E3)) / length(coils).^2
+            cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2+ cost_distance^2)
             if do_trace
-                push!(trace.currents, currents)
-                push!(trace.coils, coils)
-                push!(trace.λ_regularize, λ_regularize)
-                push!(trace.cost_ψ, cost_ψ)
-                push!(trace.cost_currents, cost_currents)
-                push!(trace.cost_bound, cost_bound)
-                push!(trace.cost, cost)
+                push!(trace.currents, [no_Dual(c) for c in currents])
+                push!(trace.coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in coils])
+                push!(trace.λ_regularize, no_Dual(λ_regularize))
+                push!(trace.cost_ψ, no_Dual(cost_ψ))
+                push!(trace.cost_currents, no_Dual(cost_currents))
+                push!(trace.cost_bound, no_Dual(cost_bound))
+                push!(trace.cost_distance, no_Dual(cost_distance))
+                push!(trace.cost_total, no_Dual(cost))
             end
             return cost
         end
 
         function clb(x)
-            placement_cost(packed_tmp[end];do_trace=true)
+            placement_cost(packed_tmp[end]; do_trace=true)
             false
         end
         
         # use NelderMead() ; other optimizer that works is Newton(), others have trouble
         res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=30, iterations=10000, allow_f_increases=true, successive_f_tol=100, callback=clb); autodiff=:forward)
+
+        if verbose println(res) end
         packed = Optim.minimizer(res)
         (coils, λ_regularize) = unpack(packed)
-        if verbose println(res) end
 
         return coils, λ_regularize, trace
     end
@@ -296,10 +302,10 @@ function Base.step(actor::PFcoilsOptActor;
     resize!(pf_active.coil, length(coils))
     for (k, c) in enumerate(coils)
         resize!(pf_active.coil[k].element, 1)
-        pf_active.coil[k].element[1].geometry.rectangle.r = c[1]
-        pf_active.coil[k].element[1].geometry.rectangle.z = c[2]
-        pf_active.coil[k].element[1].geometry.rectangle.height = 0.0
-        pf_active.coil[k].element[1].geometry.rectangle.width = 0.0
+        pf_active.coil[k].element[1].geometry.rectangle.r = c.R
+        pf_active.coil[k].element[1].geometry.rectangle.z = c.Z
+        pf_active.coil[k].element[1].geometry.rectangle.width = maximum(c.R) - minimum(c.R)
+        pf_active.coil[k].element[1].geometry.rectangle.height = maximum(c.Z) - minimum(c.Z)
         set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
         set_field_time_array(pf_active.coil[k].current, :data, 1, currents[k])
     end
@@ -367,7 +373,7 @@ Plot PFcoilsOptActor optimization cross-section
                     seriesalpha --> 0.5
                     primary --> false
                     seriescolor --> :blue
-                    [no_Dual(k[c][1]) for k in pfactor.trace.coils], [no_Dual(k[c][2]) for k in pfactor.trace.coils]
+                    [no_Dual(k[c].R) for k in pfactor.trace.coils], [no_Dual(k[c].Z) for k in pfactor.trace.coils]
                 end
             end
         end
@@ -385,43 +391,49 @@ Attributes:
 - start_at=::Int=1 index of the first element of the trace to start plotting
 """
 @recipe function plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at=1)
-    x = (start_at:length(trace.cost))
+    x = (start_at:length(trace.cost_total))
+    legend --> :bottomleft
     if what == :cost
         @series begin
             label --> "ψ"
             yscale --> :log10
-            x, [no_Dual(y) for y in trace.cost_ψ[start_at:end]]
+            x, trace.cost_ψ[start_at:end]
         end
         @series begin
             label --> "currents"
             yscale --> :log10
-            x, [no_Dual(y) for y in trace.cost_currents[start_at:end]]
+            x, trace.cost_currents[start_at:end]
         end
         @series begin
             label --> "bounds"
             yscale --> :log10
-            x, [no_Dual(y) for y in trace.cost_bound[start_at:end]]
+            x, trace.cost_bound[start_at:end]
+        end
+        @series begin
+            label --> "distance"
+            yscale --> :log10
+            x, trace.cost_distance[start_at:end]
         end
         @series begin
             label --> "total"
             yscale --> :log10
-            x, [no_Dual(y) for y in trace.cost[start_at:end]]
+            x, trace.cost_total[start_at:end]
         end
-            
+
     elseif what == :currents
         @series begin
             label --> "Starting"
-        [no_Dual(y) for y in getfield(trace, what)[start_at:end]][1,:]
+            getfield(trace, what)[start_at:end][1,:]
         end
         @series begin
             label --> "Final"
-            [no_Dual(y) for y in getfield(trace, what)[start_at:end]][end,:]
+            getfield(trace, what)[start_at:end][end,:]
         end
 
     else
         @series begin
             label --> String(what)
-            x, [no_Dual(y) for y in getfield(trace, what)[start_at:end]]
+            x, getfield(trace, what)[start_at:end]
         end
     end
 end

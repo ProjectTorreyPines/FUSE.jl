@@ -1,16 +1,25 @@
 
-function oh_actor(dd, time::Real=0.0; fluxMultiplier=1.0, lswing=2)
+"""
+    oh_actor(dd::IMAS.dd, time::Real=0.0; ejima, flux_multiplier=1.0, lswing=2)
+
+Evaluate flux consumption and corresponding max magnetic field at the center of the OH coil solenoid
+"""
+function oh_actor(dd::IMAS.dd, time::Real=0.0; ejima, flux_multiplier=1.0, lswing=2)
+
     # from IMAS dd to local variables
     time_index = get_time_index(dd.equilibrium.time_slice, time)
     majorRadius = dd.equilibrium.time_slice[time_index].boundary.geometric_axis.r
     minorRadius = dd.equilibrium.time_slice[time_index].boundary.minor_radius
     elongation = dd.equilibrium.time_slice[time_index].boundary.elongation
-    plasmaCurrent = dd.equilibrium.time_slice[time_index].global_quantities.ip/1E6 # in [MA]
+    plasmaCurrent = dd.equilibrium.time_slice[time_index].global_quantities.ip / 1E6 # in [MA]
     betaP = dd.equilibrium.time_slice[time_index].global_quantities.beta_pol
     li = dd.equilibrium.time_slice[time_index].global_quantities.li_3 # what li ?
-    ejimaCoeff = dd.core_profiles.global_quantities.ejima[time_index]
-    innerSolenoidRadius,outerSolenoidRadius=IMAS.radial_build_start_end_radii(dd.radial_build, 1)
+    innerSolenoidRadius, outerSolenoidRadius = IMAS.radial_build_start_end_radii(dd.radial_build, 1)
+    if ejima === nothing
+        ejima = dd.core_profiles.global_quantities.ejima[time_index]
+    end
 
+    # ============================= #
     # evaluate plasma inductance
     plasmaInductanceInternal = 0.4 * 0.5 * pi * majorRadius * li
     plasmaInductanceExternal = 0.4 * pi * majorRadius * (log(8.0 * majorRadius / minorRadius / sqrt(elongation)) - 2.0)
@@ -21,21 +30,23 @@ function oh_actor(dd, time::Real=0.0; fluxMultiplier=1.0, lswing=2)
     fluxFromVerticalField = 0.8 * verticalFieldAtCenter * pi * (majorRadius^2 - (majorRadius - minorRadius)^2)
 
     # flux swing
-    rampUpFlux = (ejimaCoeff * 0.4 * pi * majorRadius + plasmaInductanceTotal) * plasmaCurrent
+    rampUpFlux = (ejima * 0.4 * pi * majorRadius + plasmaInductanceTotal) * plasmaCurrent
 
     # required flux swing from OH
-    totalRampUpFluxReq = rampUpFlux * fluxMultiplier - fluxFromVerticalField
+    totalRampUpFluxReq = rampUpFlux * flux_multiplier - fluxFromVerticalField
 
-    # Calculate magnetic field at solenoid Bore required to match lswing request (Number of swings in OH coil [1=single, 2=double swing])
+    # Calculate magnetic field at solenoid bore required to match flux swing request (Number of swings in OH coil [1=single, 2=double swing])
     RiRoFactor = innerSolenoidRadius / outerSolenoidRadius
     magneticFieldSolenoidBore = 3.0 * totalRampUpFluxReq / pi / outerSolenoidRadius^2 / (RiRoFactor^2 + RiRoFactor + 1.0) / lswing
+    # ============================= #
 
     # assign max B OH to radial_build IDS
     dd.radial_build.oh_b_field_max = magneticFieldSolenoidBore
+    return dd
 end
 
 
-function stress_calculations(dd)
+function stress_calculations(dd::IMAS.dd)
     error("not completed yet")
     B0_TF = dd.radial_build.tf_b_field_max
     R0_TF = sum(IMAS.radial_build_start_end_radii(dd.radial_build, -1)) / 2.0
