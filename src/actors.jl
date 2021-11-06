@@ -41,13 +41,17 @@ end
 Initialize radial_build IDS based on center stack layers (thicknesses) and maximum fields
 
 NOTE: index and material follows from standard naming of layers
-*  0 ...gap... : vacuum
-*  1 OH: ohmic coil
-*  2 TF: toroidal field coil
-*  3 ...shield...: neutron shield
-*  4 ...blanket...: neutron blanket
-*  5 ...wall....: 
-* -1 ...vessel...: 
+*   0 ...gap... : vacuum
+*   1 OH: ohmic coil
+*  -2 inner_TF: toroidal field coil
+*  -3 inner_shield...: neutron shield
+*  -4 inner_blanket...: neutron blanket
+*  -5 inner_wall....: 
+*  -1 ...vessel...: 
+*   5 outer_wall....: 
+*   4 outer_blanket...: neutron blanket
+*   3 outer_shield...: neutron shield
+*   2 outer_TF: toroidal field coil
 """
 function init(radial_build::IMAS.radial_build; Bmax_OH=nothing, Bmax_TF=nothing, layers...)
     if Bmax_OH !== nothing
@@ -66,7 +70,7 @@ function init(radial_build::IMAS.radial_build; Bmax_OH=nothing, Bmax_TF=nothing,
             radial_build.center_stack[klayer].material = "vacuum"
         elseif uppercase(radial_build.center_stack[klayer].name) == "OH"
             radial_build.center_stack[klayer].index = 1
-        elseif uppercase(radial_build.center_stack[klayer].name) == "TF"
+        elseif occursin("TF", uppercase(radial_build.center_stack[klayer].name))
             radial_build.center_stack[klayer].index = 2
         elseif occursin("shield", lowercase(radial_build.center_stack[klayer].name))
             radial_build.center_stack[klayer].index = 3
@@ -74,8 +78,13 @@ function init(radial_build::IMAS.radial_build; Bmax_OH=nothing, Bmax_TF=nothing,
             radial_build.center_stack[klayer].index = 4
         elseif occursin("wall", lowercase(radial_build.center_stack[klayer].name))
             radial_build.center_stack[klayer].index = 5
-        elseif occursin("vessel", lowercase(radial_build.center_stack[klayer].name))
+        end
+        if occursin("inner", lowercase(radial_build.center_stack[klayer].name))
+            radial_build.center_stack[klayer].index *= -1
+        end
+        if occursin("vessel", lowercase(radial_build.center_stack[klayer].name))
             radial_build.center_stack[klayer].index = -1
+            radial_build.center_stack[klayer].material = "vacuum"
         end
     end
     return radial_build
@@ -94,40 +103,42 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
     if is_nuclear_facility
-        nlayers = 6
+        n_inner_layers = 6
         gap = (rmax - rmin) / 10.0
         rmin -= gap
         rmax += gap
-        dr = rmin / nlayers
+        dr = rmin / n_inner_layers
         init(radial_build,
             Bmax_OH=Bmax_OH,
             Bmax_TF=Bmax_TF,
             gap_TF=dr * 2.0,
             OH=dr,
-            TF=dr,
+            inner_TF=dr,
             inner_shield=dr / 2.0,
             inner_blanket=dr,
             inner_wall=dr / 2.0,
             vacuum_vessel=rmax - rmin,
             outer_wall=dr / 2.0,
             outer_blanket=dr,
-            outer_shield=dr / 2.0)
+            outer_shield=dr / 2.0,
+            outer_TF=dr)
 
     else
-        nlayers = 4.5
+        n_inner_layers = 4.5
         gap = (rmax - rmin) / 10.0
         rmin -= gap
         rmax += gap
-        dr = rmin / nlayers
+        dr = rmin / n_inner_layers
         init(radial_build,
             Bmax_OH=Bmax_OH,
             Bmax_TF=Bmax_TF,
             gap_TF=dr * 2.0,
             OH=dr,
-            TF=dr,
+            inner_TF=dr,
             inner_wall=dr / 2.0,
             vacuum_vessel=rmax - rmin,
-            outer_wall=dr / 2.0)
+            outer_wall=dr / 2.0,
+            outer_TF=dr)
     end
 
     return radial_build

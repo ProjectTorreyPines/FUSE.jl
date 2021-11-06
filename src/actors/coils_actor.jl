@@ -62,15 +62,15 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
 
     # grid the coputation domain 
     resolution = 257
-    dd=(xlim[2]-xlim[1])/10
-    rmask = range(xlim[1]-dd, xlim[2]+dd, length=resolution)
-    zmask = range(ylim[1]-dd, ylim[2]+dd, length=resolution * Int(round((ylim[2] - ylim[1]+2*dd) / (xlim[2] - xlim[1]+2*dd))))
+    dd = (xlim[2] - xlim[1]) / 10
+    rmask = range(xlim[1] - dd, xlim[2] + dd, length=resolution)
+    zmask = range(ylim[1] - dd, ylim[2] + dd, length=resolution * Int(round((ylim[2] - ylim[1] + 2 * dd) / (xlim[2] - xlim[1] + 2 * dd))))
     mask = ones(length(rmask), length(zmask))
 
     # we want the cost to increase ever so slightly as we go farther away
     for (kr, rr) in enumerate(rmask)
         for (kz, zz) in enumerate(zmask)
-            mask[kr,kz] = 1.0+1E-3*sqrt((rr-eqt.global_quantities.magnetic_axis.r)^2+(zz-eqt.global_quantities.magnetic_axis.z)^2)
+            mask[kr,kz] = 1.0 + 1E-2 * sqrt((rr - eqt.global_quantities.magnetic_axis.r)^2 + (zz - eqt.global_quantities.magnetic_axis.z)^2)
         end
     end
 
@@ -110,7 +110,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     for (kr, rr) in enumerate(rmask)
         for (kz, zz) in enumerate(zmask)
             if PolygonOps.inpolygon((rr, zz), coils_outsideof_array) == 1
-                mask[kr,kz] = 1.0-1E-3*sqrt((rr-eqt.global_quantities.magnetic_axis.r)^2+(zz-eqt.global_quantities.magnetic_axis.z)^2)
+                mask[kr,kz] = 1.0 - 1E-2 * sqrt((rr - eqt.global_quantities.magnetic_axis.r)^2 + (zz - eqt.global_quantities.magnetic_axis.z)^2)
             end
         end
     end
@@ -250,8 +250,8 @@ function Base.step(actor::PFcoilsOptActor;
             cx = [c.R for c in coils]
             cy = [c.Z for c in coils]
             distance_matrix = sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cy)) .- repeat(transpose(cy), length(cy), 1)).^2.0)
-            cost_distance = norm(1.0./(distance_matrix + LinearAlgebra.I * 1E3)) / length(coils).^2
-            cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2+ cost_distance^2)
+            cost_distance = norm(1.0 ./ (distance_matrix + LinearAlgebra.I * 1E3)) / length(coils).^2
+            cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2 + cost_distance^2)
             if do_trace
                 push!(trace.currents, [no_Dual(c) for c in currents])
                 push!(trace.coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in coils])

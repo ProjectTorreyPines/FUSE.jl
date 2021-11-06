@@ -14,7 +14,7 @@ function oh_actor(dd::IMAS.dd, time::Real=0.0; ejima, flux_multiplier=1.0, lswin
     plasmaCurrent = dd.equilibrium.time_slice[time_index].global_quantities.ip / 1E6 # in [MA]
     betaP = dd.equilibrium.time_slice[time_index].global_quantities.beta_pol
     li = dd.equilibrium.time_slice[time_index].global_quantities.li_3 # what li ?
-    innerSolenoidRadius, outerSolenoidRadius = IMAS.radial_build_start_end_radii(dd.radial_build, 1)
+    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_radial_build(rb, 1).start_radius,IMAS.get_radial_build(rb, 1).end_radius)
     if ejima === nothing
         ejima = dd.core_profiles.global_quantities.ejima[time_index]
     end
@@ -49,10 +49,12 @@ end
 function stress_calculations(dd::IMAS.dd)
     error("not completed yet")
     B0_TF = dd.radial_build.tf_b_field_max
-    R0_TF = sum(IMAS.radial_build_start_end_radii(dd.radial_build, -1)) / 2.0
-    (Rtf1, Rtf2) = IMAS.radial_build_start_end_radii(dd.radial_build, 2)
+    R0_TF = sum((IMAS.get_radial_build(rb, -1).start_radius, IMAS.get_radial_build(rb, -1).end_radius)) / 2.0
+    Rtf1=IMAS.get_radial_build(rb, 2).start_radius
+    Rtf2 = IMAS.get_radial_build(rb, 2).end_radius
     B0_OH = dd.radial_build.oh_b_field_max
-    (R_sol1, R_sol2) = IMAS.radial_build_start_end_radii(dd.radial_build, 1)
+    R_sol1 = IMAS.get_radial_build(rb, 1).start_radius
+    R_sol2 = IMAS.get_radial_build(rb, 1).end_radius
     s_ax_ave = something
     f_t_ss_tot_in = something
     f_oh_cu_in = something
