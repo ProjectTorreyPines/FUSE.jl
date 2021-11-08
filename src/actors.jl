@@ -121,7 +121,8 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
             outer_wall=dr / 2.0,
             outer_blanket=dr,
             outer_shield=dr / 2.0,
-            outer_TF=dr)
+            outer_TF=dr,
+            gap_cryostat=3*dr)
 
     else
         n_inner_layers = 4.5
