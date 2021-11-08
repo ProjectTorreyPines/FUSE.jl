@@ -1,3 +1,261 @@
+using LibGEOS
+using Interpolations
+using Contour
+
+#= ==== =#
+#  init  #
+#= ==== =#
+
+"""
+    init(radial_build::IMAS.radial_build; Bmax_OH=nothing, Bmax_TF=nothing, layers...)
+
+Initialize radial_build IDS based on center stack layers (thicknesses) and maximum fields
+
+NOTE: index and material follows from standard naming of layers
+*   0 ...gap... : vacuum
+*   1 OH: ohmic coil
+*  -2 inner_TF: toroidal field coil
+*  -3 inner_shield...: neutron shield
+*  -4 inner_blanket...: neutron blanket
+*  -5 inner_wall....: 
+*  -1 ...vessel...: 
+*   5 outer_wall....: 
+*   4 outer_blanket...: neutron blanket
+*   3 outer_shield...: neutron shield
+*   2 outer_TF: toroidal field coil
+"""
+function init(radial_build::IMAS.radial_build; Bmax_OH=nothing, Bmax_TF=nothing, layers...)
+    if Bmax_OH !== nothing
+        radial_build.oh_b_field_max = Bmax_OH
+    end
+    if Bmax_TF !== nothing
+        radial_build.tf_b_field_max = Bmax_TF
+    end
+
+    # assign layers
+    resize!(radial_build.center_stack, length(layers))
+    for (klayer, (layer_name, layer_thickness)) in enumerate(layers)
+        radial_build.center_stack[klayer].thickness = layer_thickness
+        radial_build.center_stack[klayer].name = replace(String(layer_name), "_" => " ")
+        if occursin("gap", lowercase(radial_build.center_stack[klayer].name))
+            radial_build.center_stack[klayer].index = 0
+            radial_build.center_stack[klayer].material = "vacuum"
+        elseif uppercase(radial_build.center_stack[klayer].name) == "OH"
+            radial_build.center_stack[klayer].index = 1
+        elseif occursin("TF", uppercase(radial_build.center_stack[klayer].name))
+            radial_build.center_stack[klayer].index = 2
+        elseif occursin("shield", lowercase(radial_build.center_stack[klayer].name))
+            radial_build.center_stack[klayer].index = 3
+        elseif occursin("blanket", lowercase(radial_build.center_stack[klayer].name))
+            radial_build.center_stack[klayer].index = 4
+        elseif occursin("wall", lowercase(radial_build.center_stack[klayer].name))
+            radial_build.center_stack[klayer].index = 5
+        end
+        if occursin("inner", lowercase(radial_build.center_stack[klayer].name))
+            radial_build.center_stack[klayer].index *= -1
+        end
+        if occursin("vessel", lowercase(radial_build.center_stack[klayer].name))
+            radial_build.center_stack[klayer].index = -1
+            radial_build.center_stack[klayer].material = "vacuum"
+        end
+    end
+
+    return radial_build
+end
+
+"""
+    init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true)
+
+Simple initialization of radial_build IDS based on equilibrium time_slice
+"""
+function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true)
+    Bmax_OH = nothing
+    Bmax_TF = eqt.profiles_1d.f[end] / eqt.boundary.geometric_axis.r
+
+    rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
+    rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
+
+    if is_nuclear_facility
+        n_inner_layers = 6
+        gap = (rmax - rmin) / 10.0
+        rmin -= gap
+        rmax += gap
+        dr = rmin / n_inner_layers
+        init(radial_build,
+            Bmax_OH=Bmax_OH,
+            Bmax_TF=Bmax_TF,
+            gap_TF=dr * 2.0,
+            OH=dr,
+            inner_TF=dr,
+            inner_shield=dr / 2.0,
+            inner_blanket=dr,
+            inner_wall=dr / 2.0,
+            vacuum_vessel=rmax - rmin,
+            outer_wall=dr / 2.0,
+            outer_blanket=dr,
+            outer_shield=dr / 2.0,
+            outer_TF=dr,
+            gap_cryostat=3 * dr)
+
+    else
+        n_inner_layers = 4.5
+        gap = (rmax - rmin) / 10.0
+        rmin -= gap
+        rmax += gap
+        dr = rmin / n_inner_layers
+        init(radial_build,
+            Bmax_OH=Bmax_OH,
+            Bmax_TF=Bmax_TF,
+            gap_TF=dr * 2.0,
+            OH=dr,
+            inner_TF=dr,
+            inner_wall=dr / 2.0,
+            vacuum_vessel=rmax - rmin,
+            outer_wall=dr / 2.0,
+            outer_TF=dr,
+            gap_cryostat=2 * dr)
+    end
+
+    radial_build_cx(radial_build, eqt)
+
+    return radial_build
+end
+
+function xy_polygon(x,y)
+    if x[1]≈x[end]
+        x[end]=x[1]
+        y[end]=y[1]
+    elseif x[1]!=x[end]
+        push!(x,x[1])
+        push!(y,y[1])
+    end
+    coords = [collect(map(collect,zip(x,y)))]
+    return LibGEOS.Polygon(coords)
+end
+
+function miller(R0,epsilon,kappa,delta,n)
+    θ = range(0,2pi,length=n)
+    δ₀ = asin(delta)
+    x = R0*(1 .+ epsilon .* cos.(θ .+ δ₀*sin.(θ)))
+    y = R0*(epsilon*kappa*sin.(θ))
+    return (x,y)
+end
+
+function wall_miller_conformal(rb,layer_id,elongation,triangularity)
+    layer_id=-abs(layer_id)
+    Rstart_outer=IMAS.get_radial_build(rb, -layer_id).start_radius
+    Rend_outer=IMAS.get_radial_build(rb, -layer_id).end_radius
+    if layer_id==-1
+        outer_line=miller((Rend_outer+Rstart_outer)/2.0,(Rend_outer-Rstart_outer)/(Rend_outer+Rstart_outer),elongation,triangularity,100)        
+        return outer_line,outer_line
+    else
+        Rstart_inner=IMAS.get_radial_build(rb, layer_id).start_radius
+        Rend_inner=IMAS.get_radial_build(rb, layer_id).end_radius
+        inner_line=miller((Rstart_outer+Rend_inner)/2.0,(Rstart_outer-Rend_inner)/(Rstart_outer+Rend_inner),elongation,triangularity,100)
+        outer_line=miller((Rend_outer+Rstart_inner)/2.0,(Rend_outer-Rstart_inner)/(Rend_outer+Rstart_inner),elongation,triangularity,100)
+        return inner_line,outer_line
+    end
+end
+
+function wall_plug(rb::IMAS.radial_build)
+    L=0
+    R=IMAS.get_radial_build(rb, 1).start_radius
+    U=maximum(IMAS.get_radial_build(rb, -2).outline.z)
+    D=minimum(IMAS.get_radial_build(rb, -2).outline.z)
+    return [L,R,R,L,L],[D,D,U,U,D]
+end
+
+function wall_oh(rb::IMAS.radial_build)
+    L=IMAS.get_radial_build(rb, 1).start_radius
+    R=IMAS.get_radial_build(rb, 1).end_radius
+    U=maximum(IMAS.get_radial_build(rb, -2).outline.z)
+    D=minimum(IMAS.get_radial_build(rb, -2).outline.z)
+    return [L,R,R,L,L],[D,D,U,U,D]
+end
+
+function wall_cryostat(rb::IMAS.radial_build)
+    L=0
+    R=rb.center_stack[end].end_radius
+    U=maximum(IMAS.get_radial_build(rb, -2).outline.z)+rb.center_stack[end].thickness
+    D=minimum(IMAS.get_radial_build(rb, -2).outline.z)-rb.center_stack[end].thickness
+    return [L,R,R,L,L],[D,D,U,U,D]
+end
+
+
+function radial_build_cx(rb::IMAS.radial_build,eqt,δψ=0.05)
+    # we make the outer wall to be conformal to miller
+    inner_wall_line, outer_wall_line=wall_miller_conformal(rb,5,eqt.boundary.elongation,eqt.boundary.triangularity) # wall
+    wall_poly = xy_polygon(outer_wall_line...)
+    if false
+        vessel_poly = LibGEOS.buffer(wall_poly,-IMAS.get_radial_build(rb, 5).thickness)
+    else
+        r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
+        z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
+        PSI_interpolant = Interpolations.CubicSplineInterpolation((r, z), eqt.profiles_2d[1].psi)
+
+        # Inner/outer radii of the vacuum vessel
+        R_inner_vessel=IMAS.get_radial_build(rb, -1).start_radius
+        R_outer_vessel=IMAS.get_radial_build(rb, -1).end_radius
+        psi_vessel_trace=(eqt.global_quantities.psi_boundary-eqt.global_quantities.psi_axis)*(1+δψ)+eqt.global_quantities.psi_axis
+
+        # Trace contours of psi on the inner radii and use those contours as the shape of the vacuum vessel.
+        cl = Contour.contour(r,z,eqt.profiles_2d[1].psi,psi_vessel_trace)
+        distances=[]
+        for line in Contour.lines(cl)
+            pr, pz = Contour.coordinates(line)
+            push!(distances,minimum(sqrt.((pr.-R_inner_vessel).^2 + (pz.-0.0).^2)))
+        end
+        inner_vessel_line = Contour.coordinates(Contour.lines(cl)[argmin(distances)])
+        outer_vessel_line = Contour.coordinates(Contour.lines(cl)[argmax(distances)])
+        inner_vessel_line[1].+=(R_inner_vessel-inner_vessel_line[1][argmin(abs.(inner_vessel_line[2]))])
+        outer_vessel_line[1].+=(R_outer_vessel-outer_vessel_line[1][argmin(abs.(outer_vessel_line[2]))])
+
+        if sign(inner_vessel_line[2][1])!=sign(outer_vessel_line[2][1])
+            vessel_line=[vcat(inner_vessel_line[1],outer_vessel_line[1]),
+                        vcat(inner_vessel_line[2],outer_vessel_line[2])]
+        else
+            vessel_line=[vcat(inner_vessel_line[1],reverse(outer_vessel_line[1])),
+                        vcat(inner_vessel_line[2],reverse(outer_vessel_line[2]))]
+        end
+        vessel_poly=xy_polygon(vessel_line...)
+
+        # make the divertor domes in the vessel
+        cl = Contour.contour(r,z,eqt.profiles_2d[1].psi,eqt.global_quantities.psi_boundary*(1-δψ)+eqt.global_quantities.psi_axis*δψ)
+        for line in Contour.lines(cl)
+            pr, pz = Contour.coordinates(line)
+            if pr[1]!=pr[end]
+                vessel_poly=LibGEOS.difference(vessel_poly,xy_polygon(pr,pz))
+            end
+        end
+        
+        # cut the top/bottom part of the vessel with the inner_wall_line
+        vessel_poly=LibGEOS.intersection(vessel_poly,xy_polygon(inner_wall_line...))
+    end
+
+    IMAS.get_radial_build(rb, -1).outline.r = [v[1] for v in LibGEOS.coordinates(vessel_poly)[1]]
+    IMAS.get_radial_build(rb, -1).outline.z = [v[2] for v in LibGEOS.coordinates(vessel_poly)[1]]
+
+    IMAS.get_radial_build(rb, -5).outline.r = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
+    IMAS.get_radial_build(rb, -5).outline.z = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
+
+    for (k,layer) in reverse(collect(enumerate(rb.center_stack)))
+        if (layer.index<-1) && (layer.index>-5)
+            poly=LibGEOS.buffer(xy_polygon(rb.center_stack[k+1].outline.r,rb.center_stack[k+1].outline.z),layer.thickness)
+            rb.center_stack[k].outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
+            rb.center_stack[k].outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+        end
+    end
+
+    IMAS.get_radial_build(rb, 1).outline.r,IMAS.get_radial_build(rb, 1).outline.z = wall_oh(rb)
+    IMAS.get_radial_build(rb, 0).outline.r,IMAS.get_radial_build(rb, 0).outline.z = wall_plug(rb)
+    rb.center_stack[end].outline.r,rb.center_stack[end].outline.z = wall_cryostat(rb)
+    return rb
+end
+
+#= == =#
+#  OH  #
+#= == =#
+
 
 """
     oh_actor(dd::IMAS.dd, time::Real=0.0; ejima, flux_multiplier=1.0, lswing=2)
@@ -14,7 +272,7 @@ function oh_actor(dd::IMAS.dd, time::Real=0.0; ejima, flux_multiplier=1.0, lswin
     plasmaCurrent = dd.equilibrium.time_slice[time_index].global_quantities.ip / 1E6 # in [MA]
     betaP = dd.equilibrium.time_slice[time_index].global_quantities.beta_pol
     li = dd.equilibrium.time_slice[time_index].global_quantities.li_3 # what li ?
-    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_radial_build(rb, 1).start_radius,IMAS.get_radial_build(rb, 1).end_radius)
+    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_radial_build(rb, 1).start_radius, IMAS.get_radial_build(rb, 1).end_radius)
     if ejima === nothing
         ejima = dd.core_profiles.global_quantities.ejima[time_index]
     end
@@ -50,7 +308,7 @@ function stress_calculations(dd::IMAS.dd)
     error("not completed yet")
     B0_TF = dd.radial_build.tf_b_field_max
     R0_TF = sum((IMAS.get_radial_build(rb, -1).start_radius, IMAS.get_radial_build(rb, -1).end_radius)) / 2.0
-    Rtf1=IMAS.get_radial_build(rb, 2).start_radius
+    Rtf1 = IMAS.get_radial_build(rb, 2).start_radius
     Rtf2 = IMAS.get_radial_build(rb, 2).end_radius
     B0_OH = dd.radial_build.oh_b_field_max
     R_sol1 = IMAS.get_radial_build(rb, 1).start_radius
