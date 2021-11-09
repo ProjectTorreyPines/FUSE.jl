@@ -1,9 +1,26 @@
 #= =================== =#
 #  init IMAS structures #
 #= =================== =#
+# dummy `init`, `step`, `finalize` simply let IDSs go through them
+"""
+    dummy `init`
+"""
+function init(ids::IMAS.IDS)
+    return ids
+end
 
-function init(ids::IMAS.IDS, time::Real)
-    error("Function init() not defined for ids of type $(typeof(ids))")
+"""
+    dummy `step`
+"""
+function step(ids::IMAS.IDS)
+    return ids
+end
+
+"""
+    dummy `finalize`
+"""
+function finalize(ids::IMAS.IDS)
+    return ids
 end
 
 #= ============ =#
