@@ -11,7 +11,7 @@ using Contour
 
 Initialize radial_build IDS based on center stack layers (thicknesses)
 
-NOTE: center_stack[:].index and center_stack[:].material follows from naming of layers
+NOTE: layer[:].type and layer[:].material follows from naming of layers
 *   0 ...gap... : vacuum
 *   1 OH: ohmic coil
 *   2 TF: toroidal field coil
@@ -20,42 +20,42 @@ NOTE: center_stack[:].index and center_stack[:].material follows from naming of 
 *   5 wall....: 
 *  -1 ...vessel...: 
 
-center_stack[:].hfs is set depending on if "hfs" or "lfs" appear in the name
+layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
-center_stack[:].index is created as a hash of then name removing "hfs" or "lfs"
+layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
 function init(radial_build::IMAS.radial_build; layers...)
     # assign layers
-    resize!(radial_build.center_stack, length(layers))
-    for (klayer, (layer_name, layer_thickness)) in enumerate(layers)
-        radial_build.center_stack[klayer].thickness = layer_thickness
-        radial_build.center_stack[klayer].name = replace(String(layer_name), "_" => " ")
-        if occursin("gap", lowercase(radial_build.center_stack[klayer].name))
-            radial_build.center_stack[klayer].type = 0
-            radial_build.center_stack[klayer].material = "vacuum"
-        elseif uppercase(radial_build.center_stack[klayer].name) == "OH"
-            radial_build.center_stack[klayer].type = 1
-        elseif occursin("TF", uppercase(radial_build.center_stack[klayer].name))
-            radial_build.center_stack[klayer].type = 2
-        elseif occursin("shield", lowercase(radial_build.center_stack[klayer].name))
-            radial_build.center_stack[klayer].type = 3
-        elseif occursin("blanket", lowercase(radial_build.center_stack[klayer].name))
-            radial_build.center_stack[klayer].type = 4
-        elseif occursin("wall", lowercase(radial_build.center_stack[klayer].name))
-            radial_build.center_stack[klayer].type = 5
+    resize!(radial_build.layer, length(layers))
+    for (k, (layer_name, layer_thickness)) in enumerate(layers)
+        radial_build.layer[k].thickness = layer_thickness
+        radial_build.layer[k].name = replace(String(layer_name), "_" => " ")
+        if occursin("gap", lowercase(radial_build.layer[k].name))
+            radial_build.layer[k].type = 0
+            radial_build.layer[k].material = "vacuum"
+        elseif uppercase(radial_build.layer[k].name) == "OH"
+            radial_build.layer[k].type = 1
+        elseif occursin("TF", uppercase(radial_build.layer[k].name))
+            radial_build.layer[k].type = 2
+        elseif occursin("shield", lowercase(radial_build.layer[k].name))
+            radial_build.layer[k].type = 3
+        elseif occursin("blanket", lowercase(radial_build.layer[k].name))
+            radial_build.layer[k].type = 4
+        elseif occursin("wall", lowercase(radial_build.layer[k].name))
+            radial_build.layer[k].type = 5
         end
-        if occursin("hfs", lowercase(radial_build.center_stack[klayer].name))
-            radial_build.center_stack[klayer].hfs = -1
-        elseif occursin("lfs", lowercase(radial_build.center_stack[klayer].name))
-            radial_build.center_stack[klayer].hfs = 1
+        if occursin("hfs", lowercase(radial_build.layer[k].name))
+            radial_build.layer[k].hfs = -1
+        elseif occursin("lfs", lowercase(radial_build.layer[k].name))
+            radial_build.layer[k].hfs = 1
         else
-            radial_build.center_stack[klayer].hfs = 0
+            radial_build.layer[k].hfs = 0
         end
-        if occursin("vessel", lowercase(radial_build.center_stack[klayer].name))
-            radial_build.center_stack[klayer].type = -1
-            radial_build.center_stack[klayer].material = "vacuum"
+        if occursin("vessel", lowercase(radial_build.layer[k].name))
+            radial_build.layer[k].type = -1
+            radial_build.layer[k].material = "vacuum"
         end
-        radial_build.center_stack[klayer].index = UInt(hash(replace(replace(lowercase(radial_build.center_stack[klayer].name), "hfs" => ""), "lfs" => "")))
+        radial_build.layer[k].identifier = UInt(hash(replace(replace(lowercase(radial_build.layer[k].name), "hfs" => ""), "lfs" => "")))
     end
 
     return radial_build
@@ -171,9 +171,9 @@ end
 
 function wall_cryostat(rb::IMAS.radial_build)
     L = 0
-    R = rb.center_stack[end].end_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z) + rb.center_stack[end].thickness
-    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z) - rb.center_stack[end].thickness
+    R = rb.layer[end].end_radius
+    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z) + rb.layer[end].thickness
+    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z) - rb.layer[end].thickness
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
@@ -182,7 +182,7 @@ function radial_build_cx(rb::IMAS.radial_build, eqt, δψ=0.05)
     # we make the lfs wall to be conformal to miller
     hfs_wall_line, lfs_wall_line = wall_miller_conformal(rb, 5, eqt.boundary.elongation, eqt.boundary.triangularity) # wall
     wall_poly = xy_polygon(lfs_wall_line...)
-    if false
+    if δψ === nothing
         vessel_poly = LibGEOS.buffer(wall_poly, -IMAS.get_radial_build(rb, 5).thickness)
     else
         r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
@@ -234,14 +234,14 @@ function radial_build_cx(rb::IMAS.radial_build, eqt, δψ=0.05)
     IMAS.get_radial_build(rb, type=5, hfs=-1).outline.z = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
 
     valid = false
-    for (k, layer) in reverse(collect(enumerate(rb.center_stack)))
+    for (k, layer) in reverse(collect(enumerate(rb.layer)))
         if valid
-            outer_layer = rb.center_stack[k + 1]
+            outer_layer = rb.layer[k + 1]
             hfs_thickness = layer.thickness
-            lfs_thickness = IMAS.get_radial_build(rb, index=layer.index, hfs=1).thickness
+            lfs_thickness = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).thickness
             poly = LibGEOS.buffer(xy_polygon(outer_layer.outline.r, outer_layer.outline.z), (hfs_thickness + lfs_thickness) / 2.0)
-            rb.center_stack[k].outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
-            rb.center_stack[k].outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+            rb.layer[k].outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
+            rb.layer[k].outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
         end
         if (layer.type == 5) && (layer.hfs == -1)
             valid = true
@@ -251,9 +251,9 @@ function radial_build_cx(rb::IMAS.radial_build, eqt, δψ=0.05)
         end
     end
 
-    rb.center_stack[2].outline.r, rb.center_stack[2].outline.z = wall_oh(rb)
-    rb.center_stack[1].outline.r, rb.center_stack[1].outline.z = wall_plug(rb)
-    rb.center_stack[end].outline.r, rb.center_stack[end].outline.z = wall_cryostat(rb)
+    rb.layer[2].outline.r, rb.layer[2].outline.z = wall_oh(rb)
+    rb.layer[1].outline.r, rb.layer[1].outline.z = wall_plug(rb)
+    rb.layer[end].outline.r, rb.layer[end].outline.z = wall_cryostat(rb)
     return rb
 end
 
