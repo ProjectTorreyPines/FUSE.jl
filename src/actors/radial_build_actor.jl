@@ -66,7 +66,7 @@ end
 
 Simple initialization of radial_build IDS based on equilibrium time_slice
 """
-function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true)
+function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true, δψ=nothing)
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -111,7 +111,7 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
             gap_cryostat=2 * dr)
     end
 
-    radial_build_cx(radial_build, eqt)
+    radial_build_cx(radial_build, eqt, δψ)
 
     return radial_build
 end
@@ -133,23 +133,23 @@ function miller(R0, epsilon, kappa, delta, n)
     δ₀ = asin(delta)
     x = R0 * (1 .+ epsilon .* cos.(θ .+ δ₀ * sin.(θ)))
     y = R0 * (epsilon * kappa * sin.(θ))
-    return (x, y)
+    return [x, y]
 end
 
 function wall_miller_conformal(rb, layer_type, elongation, triangularity)
     if layer_type == -1
         Rstart = IMAS.get_radial_build(rb, type=layer_type).start_radius
         Rend = IMAS.get_radial_build(rb, type=layer_type).end_radius
-        lfs_line = miller((Rend + Rstart) / 2.0, (Rend - Rstart) / (Rend + Rstart), elongation, triangularity, 100)        
-        return lfs_line, lfs_line
+        line = miller((Rend + Rstart) / 2.0, (Rend - Rstart) / (Rend + Rstart), elongation, triangularity, 100)        
+        return line, line
     else
         Rstart_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).start_radius
         Rend_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).end_radius
         Rstart_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).start_radius
         Rend_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).end_radius
-        hfs_line = miller((Rstart_lfs + Rend_hfs) / 2.0, (Rstart_lfs - Rend_hfs) / (Rstart_lfs + Rend_hfs), elongation, triangularity, 100)
-        lfs_line = miller((Rend_lfs + Rstart_hfs) / 2.0, (Rend_lfs - Rstart_hfs) / (Rend_lfs + Rstart_hfs), elongation, triangularity, 100)
-        return hfs_line, lfs_line
+        inner_line = miller((Rstart_lfs + Rend_hfs) / 2.0, (Rstart_lfs - Rend_hfs) / (Rstart_lfs + Rend_hfs), elongation, triangularity, 100)
+        outer_line = miller((Rend_lfs + Rstart_hfs) / 2.0, (Rend_lfs - Rstart_hfs) / (Rend_lfs + Rstart_hfs), elongation, triangularity, 100)
+        return inner_line, outer_line
     end
 end
 
@@ -178,60 +178,117 @@ function wall_cryostat(rb::IMAS.radial_build)
 end
 
 
-function radial_build_cx(rb::IMAS.radial_build, eqt, δψ=0.05)
+function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal=false)
     # we make the lfs wall to be conformal to miller
-    hfs_wall_line, lfs_wall_line = wall_miller_conformal(rb, 5, eqt.boundary.elongation, eqt.boundary.triangularity) # wall
-    wall_poly = xy_polygon(lfs_wall_line...)
-    if δψ === nothing
-        vessel_poly = LibGEOS.buffer(wall_poly, -IMAS.get_radial_build(rb, 5).thickness)
+    n = Int(floor(length(eqt.profiles_1d.elongation) * 0.95))
+    inner_wall_line, outer_wall_line = wall_miller_conformal(rb, 5, eqt.profiles_1d.elongation[n], (eqt.profiles_1d.triangularity_upper[n] + eqt.profiles_1d.triangularity_lower[n]) / 2.0) # wall
+    outer_wall_line[2] = outer_wall_line[2] .* 1.2
+    outer_wall_poly = xy_polygon(outer_wall_line...)
+    inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=-1).thickness)
+
+    if conformal === nothing
+        vessel_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=-1).thickness)
     else
         r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
         z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
+        PSI_interpolant = Interpolations.CubicSplineInterpolation((r, z), eqt.profiles_2d[1].psi)
+
+        if false # wall conformal to 0.95 flux surface
+            R_hfs_wall = IMAS.get_radial_build(rb, type=5, hfs=-1).start_radius
+            R_lfs_wall = IMAS.get_radial_build(rb, type=5, hfs=1).end_radius
+            psi_wall = (eqt.global_quantities.psi_boundary - eqt.global_quantities.psi_axis) * 0.95 + eqt.global_quantities.psi_axis
+            pr, pz = IMAS.flux_surface(eqt, psi_wall, true)
+            distance_R_hfs = sqrt.((pr .- R_hfs_wall).^2 + (pz .- 0.0).^2)
+            R_hfs = pr[argmin(distance_R_hfs)]
+            distance_R_lfs = sqrt.((pr .- R_lfs_wall).^2 + (pz .- 0.0).^2)
+            R_lfs = pr[argmin(distance_R_lfs)]
+            scale = (R_lfs_wall .- R_hfs_wall) ./ (R_lfs .- R_hfs)
+            pr = (pr .- (R_hfs .+ R_lfs) ./ 2) .* scale .+ (R_hfs_wall .+ R_lfs_wall) ./ 2
+            pz = pz .* scale * 1.2
+            outer_wall_poly = xy_polygon(pr, pz)
+            inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=-1).thickness)
+        end
 
         # Inner/lfs radii of the vacuum vessel
         R_hfs_vessel = IMAS.get_radial_build(rb, type=-1).start_radius
         R_lfs_vessel = IMAS.get_radial_build(rb, type=-1).end_radius
-        psi_vessel_trace = (eqt.global_quantities.psi_boundary - eqt.global_quantities.psi_axis) * (1 + δψ) + eqt.global_quantities.psi_axis
+        psi_vessel_trace = PSI_interpolant(R_hfs_vessel, 0)
 
-        # Trace contours of psi on the hfs radii and use those contours as the shape of the vacuum vessel.
+        # Trace contours of psi and use it as the shape of the vacuum vessel.
         cl = Contour.contour(r, z, eqt.profiles_2d[1].psi, psi_vessel_trace)
-        distances = []
+        traces = []
         for line in Contour.lines(cl)
             pr, pz = Contour.coordinates(line)
-            push!(distances, minimum(sqrt.((pr .- R_hfs_vessel).^2 + (pz .- 0.0).^2)))
+            distance_R_hfs = sqrt.((pr .- R_hfs_vessel).^2 + (pz .- 0.0).^2)
+            distance_R_lfs = sqrt.((pr .- R_lfs_vessel).^2 + (pz .- 0.0).^2)
+            trace = Dict()
+            trace[:pr] = pr
+            trace[:pz] = pz
+            trace[:d_hfs] = minimum(distance_R_hfs)
+            trace[:d_lfs] = minimum(distance_R_lfs)
+            trace[:R_hfs] = pr[argmin(distance_R_hfs)]
+            trace[:R_lfs] = pr[argmin(distance_R_lfs)]
+            trace[:contains] = (sign(pz[1]) == sign(pz[end])) && (PolygonOps.inpolygon((eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z), StaticArrays.SVector.(vcat(pr, pr[1]), vcat(pz, pz[1]))) == 1)
+            push!(traces, trace)
         end
-        hfs_vessel_line = Contour.coordinates(Contour.lines(cl)[argmin(distances)])
-        lfs_vessel_line = Contour.coordinates(Contour.lines(cl)[argmax(distances)])
-        hfs_vessel_line[1] .+= (R_hfs_vessel - hfs_vessel_line[1][argmin(abs.(hfs_vessel_line[2]))])
-        lfs_vessel_line[1] .+= (R_lfs_vessel - lfs_vessel_line[1][argmin(abs.(lfs_vessel_line[2]))])
 
-        if sign(hfs_vessel_line[2][1]) != sign(lfs_vessel_line[2][1])
-            vessel_line = [vcat(hfs_vessel_line[1], lfs_vessel_line[1]),
-                        vcat(hfs_vessel_line[2], lfs_vessel_line[2])]
-        else
-            vessel_line = [vcat(hfs_vessel_line[1], reverse(lfs_vessel_line[1])),
-                        vcat(hfs_vessel_line[2], reverse(lfs_vessel_line[2]))]
+        vessel_line = []
+        if ! any([trace[:contains] for trace in traces])
+            trace_hfs = traces[argmin([trace[:d_hfs] for trace in traces])]
+            trace_lfs = traces[argmin([trace[:d_lfs] for trace in traces])]
+            hfs_vessel_line = [trace_hfs[:pr],trace_hfs[:pz]]
+            lfs_vessel_line = [trace_lfs[:pr],trace_lfs[:pz]]
+            if sign(hfs_vessel_line[2][1]) != sign(lfs_vessel_line[2][1])
+                vessel_line = [vcat(hfs_vessel_line[1], lfs_vessel_line[1]),
+                               vcat(hfs_vessel_line[2][1] * 2,hfs_vessel_line[2][2:end - 1],hfs_vessel_line[2][end] * 2,
+                                    lfs_vessel_line[2][1] * 2,lfs_vessel_line[2][2:end - 1],lfs_vessel_line[2][end] * 2)]
+            else
+                vessel_line = [vcat(hfs_vessel_line[1], reverse(lfs_vessel_line[1])),
+                                            vcat(hfs_vessel_line[2][1] * 2,hfs_vessel_line[2][2:end - 1],hfs_vessel_line[2][end] * 2,
+                                    reverse(vcat(lfs_vessel_line[2][1] * 2, lfs_vessel_line[2][2:end - 1], lfs_vessel_line[2][end] * 2)))]
+            end
+            trace = Dict()
+            trace[:pr] = vessel_line[1]
+            trace[:pz] = vessel_line[2]
+            trace[:R_hfs] = trace_hfs[:R_hfs]
+            trace[:R_lfs] = trace_lfs[:R_lfs]
+            trace[:contains] = true
+            push!(traces, trace)
+        end
+        vessel_line = []
+        for trace in traces
+            if ! trace[:contains]
+                continue
+            end
+            scale = (R_lfs_vessel .- R_hfs_vessel) ./ (trace[:R_lfs] .- trace[:R_hfs])
+            fact = exp.(-(trace[:pz] ./ maximum(abs.(trace[:pz])) .* eqt.boundary.elongation).^2) * (scale - 1) .+ 1
+            push!(vessel_line, (trace[:pr] .- (trace[:R_hfs] .+ trace[:R_lfs]) ./ 2) .* fact .+ (R_hfs_vessel .+ R_lfs_vessel) ./ 2)
+            push!(vessel_line, trace[:pz] .* fact)
         end
         vessel_poly = xy_polygon(vessel_line...)
+        
+        # cut the top/bottom part of the vessel with the inner_wall_line
+        vessel_poly = LibGEOS.intersection(vessel_poly, inner_wall_poly)
 
         # make the divertor domes in the vessel
+        δψ = 0.05
         cl = Contour.contour(r, z, eqt.profiles_2d[1].psi, eqt.global_quantities.psi_boundary * (1 - δψ) + eqt.global_quantities.psi_axis * δψ)
         for line in Contour.lines(cl)
             pr, pz = Contour.coordinates(line)
             if pr[1] != pr[end]
+                pz[1] = pz[1] * 2
+                pz[end] = pz[end] * 2
                 vessel_poly = LibGEOS.difference(vessel_poly, xy_polygon(pr, pz))
             end
         end
-        
-        # cut the top/bottom part of the vessel with the hfs_wall_line
-        vessel_poly = LibGEOS.intersection(vessel_poly, xy_polygon(hfs_wall_line...))
+
     end
 
     IMAS.get_radial_build(rb, type=-1).outline.r = [v[1] for v in LibGEOS.coordinates(vessel_poly)[1]]
     IMAS.get_radial_build(rb, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(vessel_poly)[1]]
 
-    IMAS.get_radial_build(rb, type=5, hfs=-1).outline.r = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
-    IMAS.get_radial_build(rb, type=5, hfs=-1).outline.z = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
+    IMAS.get_radial_build(rb, type=5, hfs=-1).outline.r = [v[1] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
+    IMAS.get_radial_build(rb, type=5, hfs=-1).outline.z = [v[2] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
 
     valid = false
     for (k, layer) in reverse(collect(enumerate(rb.layer)))
