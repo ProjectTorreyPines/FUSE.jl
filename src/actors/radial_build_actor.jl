@@ -66,7 +66,7 @@ end
 
 Simple initialization of radial_build IDS based on equilibrium time_slice
 """
-function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true, δψ=nothing)
+function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true, conformal_wall=true)
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -111,7 +111,7 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
             gap_cryostat=2 * dr)
     end
 
-    radial_build_cx(radial_build, eqt, δψ)
+    radial_build_cx(radial_build, eqt, conformal_wall)
 
     return radial_build
 end
@@ -178,7 +178,7 @@ function wall_cryostat(rb::IMAS.radial_build)
 end
 
 
-function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal=false)
+function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
     # we make the lfs wall to be conformal to miller
     n = Int(floor(length(eqt.profiles_1d.elongation) * 0.95))
     inner_wall_line, outer_wall_line = wall_miller_conformal(rb, 5, eqt.profiles_1d.elongation[n], (eqt.profiles_1d.triangularity_upper[n] + eqt.profiles_1d.triangularity_lower[n]) / 2.0) # wall
@@ -186,14 +186,14 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     outer_wall_poly = xy_polygon(outer_wall_line...)
     inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=-1).thickness)
 
-    if conformal === nothing
+    if ! conformal_wall
         vessel_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=-1).thickness)
     else
         r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
         z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
         PSI_interpolant = Interpolations.CubicSplineInterpolation((r, z), eqt.profiles_2d[1].psi)
 
-        if false # wall conformal to 0.95 flux surface
+        if false # wall like the 0.95 flux surface
             R_hfs_wall = IMAS.get_radial_build(rb, type=5, hfs=-1).start_radius
             R_lfs_wall = IMAS.get_radial_build(rb, type=5, hfs=1).end_radius
             psi_wall = (eqt.global_quantities.psi_boundary - eqt.global_quantities.psi_axis) * 0.95 + eqt.global_quantities.psi_axis
