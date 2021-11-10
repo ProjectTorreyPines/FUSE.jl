@@ -39,130 +39,169 @@ using Statistics
 using Plots
 import Contour
 
-
-# The PFcoilsOptActor should eventually also take IMAS.wall, IMAS.tf, IMAS.cryostat IDSs as an inputs
-function PFcoilsOptActor(eq_in::IMAS.equilibrium,
-                         time::Real,
-                         ncoils::Int,
-                         coils_outsideof=1.3,
-                         coils_insideof=nothing,
-                         λ_regularize=1E-13,)
-    time_index = get_time_index(eq_in.time_slice, time)
-    eqt = eq_in.time_slice[time_index]
-    
-    if coils_insideof === nothing
-        # define extent of computation domain where the placing of pf coils could take place
-        xlim = extrema(eqt.profiles_2d[1].grid.dim1)
-        ylim = extrema(eqt.profiles_2d[1].grid.dim2)
-        coils_insideof = zip([xlim[1],xlim[2],xlim[2],xlim[1],xlim[1]], [ylim[2],ylim[2],ylim[1],ylim[1],ylim[2]])
+function unwrap(v, inplace=false)
+    # currently assuming an array
+    unwrapped = inplace ? v : copy(v)
+    for i in 2:length(v)
+        while (unwrapped[i] - unwrapped[i - 1] >= pi)
+            unwrapped[i] -= 2pi
+        end
+        while (unwrapped[i] - unwrapped[i - 1] <= -pi)
+            unwrapped[i] += 2pi
+    end
+    end
+    return unwrapped
+end
+  
+function atan_eq(r, z, r0, z0)
+    if r[1] == r[end] && z[1] == z[end]
+        r = r[1:end - 1]
+        z = z[1:end - 1]
+    end
+    θ = unwrap(atan.(z .- z0, r .- r0))
+    if θ[2] < θ[1]
+        r = reverse(r)
+        z = reverse(z)
+        θ = reverse(θ)
+    end
+    return r, z, θ
+end
+  
+function two_curves_same_θ(r1, z1, r2, z2, scheme=:cubic)
+    r0 = (sum(r1) / length(r1) + sum(r2) / length(r2)) / 2.0
+    z0 = (sum(z1) / length(z1) + sum(z2) / length(z2)) / 2.0
+    r1, z1, θ1 = atan_eq(r1, z1, r0, z0)
+    r2, z2, θ2 = atan_eq(r2, z2, r0, z0)
+    if length(θ2) > length(θ1)
+        r1 = IMAS.interp(vcat(θ1 .- 2 * π, θ1, θ1 .+ 2 * π), vcat(r1, r1, r1), scheme=scheme).(θ2)
+        z1 = IMAS.interp(vcat(θ1 .- 2 * π, θ1, θ1 .+ 2 * π), vcat(z1, z1, z1), scheme=scheme).(θ2)
+        θ = θ2
     else
-        xlim = extrema([p[1] for p in coils_insideof])
-        ylim = extrema([p[2] for p in coils_insideof])
+        r2 = IMAS.interp(vcat(θ2 .- 2 * π, θ2, θ2 .+ 2 * π), vcat(r2, r2, r2), scheme=scheme).(θ1)
+        z2 = IMAS.interp(vcat(θ2 .- 2 * π, θ2, θ2 .+ 2 * π), vcat(z2, z2, z2), scheme=scheme).(θ1)
+        θ = θ1
     end
+    return r1, z1, r2, z2, θ
+end
+  
+  
+function equispace_coils(rb, rmask, zmask, mask, ncoils_per_region)
+    coils_in_regions=[]
+    region = 0
+    for (k, layer) in enumerate(vcat(rb.layer[1:end]))
+        if (layer.hfs == -1 || k == length(rb.layer)) && ! is_missing(layer.outline, :r)
+            if ! is_missing(layer, :material) && layer.material == "vacuum"
+                # pick layers with outline information
+                if layer.hfs == -1
+                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=-1)
+                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k + 1].identifier, hfs=[-1,0])
+                else
+                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k - 1].identifier, hfs=-1)
+                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=[-1,0])
+                end
 
-    # grid the coputation domain 
-    resolution = 257
-    dd = (xlim[2] - xlim[1]) / 10
-    rmask = range(xlim[1] - dd, xlim[2] + dd, length=resolution)
-    zmask = range(ylim[1] - dd, ylim[2] + dd, length=resolution * Int(round((ylim[2] - ylim[1] + 2 * dd) / (xlim[2] - xlim[1] + 2 * dd))))
-    mask = ones(length(rmask), length(zmask))
+                # take two outlines and interpolate them on the same θ
+                inner_r, inner_z, outer_r, outer_z, θ = two_curves_same_θ(inner_layer.outline.r, inner_layer.outline.z, outer_layer.outline.r, outer_layer.outline.z)
 
-    # we want the cost to increase ever so slightly as we go farther away
-    for (kr, rr) in enumerate(rmask)
-        for (kz, zz) in enumerate(zmask)
-            mask[kr,kz] = 1.0 + 1E-2 * sqrt((rr - eqt.global_quantities.magnetic_axis.r)^2 + (zz - eqt.global_quantities.magnetic_axis.z)^2)
-        end
-    end
+                # generate the average ouline between the two layers
+                mid_r = (inner_r .+ outer_r) ./ 2
+                mid_z = (inner_z .+ outer_z) ./ 2
 
-    # allowed coils area (this will be inside of the cryostat or the TF coils depending on whether the PFs are inside or outside the TFs)
-    coils_insideof_array = StaticArrays.SVector.([p[1] for p in coils_insideof], [p[2] for p in coils_insideof])
-    for (kr, rr) in enumerate(rmask)
-        for (kz, zz) in enumerate(zmask)
-            if PolygonOps.inpolygon((rr, zz), coils_insideof_array) == 1
-                mask[kr,kz] = 0.0
+                # mark what regions on that mid-line are valid to hold coils
+                n = 7 # this was found to be reasonable on a 257 mask grid
+                n = Int(ceil(n * length(rmask) / 257))
+                valid_k = []
+                for (k, (r, z)) in enumerate(zip(mid_r, mid_z))
+                    ir = argmin(abs.(rmask .- r))
+                    iz = argmin(abs.(zmask .- z))
+                    if (ir - n) < 1 || (ir + n) > length(rmask) || (iz - n) < 1 || (iz + n) > length(zmask)
+                        continue
+                    end
+                    if all(mask[(-n:n) .+ ir,(-n:n) .+ iz] .== 1)
+                        push!(valid_k, k)
+                    end
+                end
+                istart = argmax(diff(valid_k))
+                valid_r = fill(NaN, size(mid_r)...)
+                valid_z = fill(NaN, size(mid_z)...)
+                valid_r[valid_k] = mid_r[valid_k]
+                valid_z[valid_k] = mid_z[valid_k]
+                valid_r = vcat(valid_r[istart + 1:end], valid_r[1:istart])
+                valid_z = vcat(valid_z[istart + 1:end], valid_z[1:istart])
+
+                region += 1
+                ncoils = ncoils_per_region[region]
+
+                # evaluate distance along valid mid-line
+                d_distance = sqrt.(diff(vcat(valid_r, valid_r[1])).^2.0 .+ diff(vcat(valid_z, valid_z[1])).^2.0)
+                d_distance[isnan.(d_distance)] .= 1E-6
+                distance = cumsum(d_distance)
+                distance = (distance .- distance[1])
+                distance = (distance ./ distance[end]) .* (ncoils)
+
+                # uniformely distribute coils
+                r_coils = IMAS.interp(distance, valid_r)((1:ncoils) .- 0.5)
+                z_coils = IMAS.interp(distance, valid_z)((1:ncoils) .- 0.5)
+                push!(coils_in_regions, collect(zip(r_coils,z_coils)))
+
             end
+        end 
+    end
+    # p=plot(rb)
+    # for coils_in_region in coils_in_regions
+    #     for coil in coils_in_region
+    #         scatter!([coil[1]],[coil[2]],primary=false)
+    #     end
+    # end
+    # display(p)
+    return coils_in_regions
+end
+
+function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_per_region::Vector{Int}, λ_regularize=1E-13, )
+
+    # time_index = get_time_index(eq_in.time_slice, time)
+    # eqt = eq_in.time_slice[time_index]
+
+    time_index = 1
+    time=eq_in.time[time_index]
+    eqt=eq_in.time_slice[time_index]
+
+    rmask, zmask, mask = IMAS.structures_mask(rb)
+
+    coils_in_regions = equispace_coils(rb, rmask, zmask, mask, ncoils_per_region)
+
+    coils=[]
+    for coils_in_region in coils_in_regions
+        for coil in coils_in_region
+            push!(coils,PointCoil(coil[1], coil[2]))
         end
     end
-    
-    # geometric center
-    R0 = eqt.boundary.geometric_axis.r[end]
+    println(coils)
 
-    if typeof(coils_outsideof) <: Number
-        coils_outsideof = (coils_outsideof, coils_outsideof)
-    end
-    if typeof(coils_outsideof) <: Tuple
-        # plasma boundary
-        ψb = eqt.global_quantities.psi_boundary
-        ψ0 = eqt.global_quantities.psi_axis
-        pr, pz = IMAS.flux_surface(eqt, (ψb - ψ0) * 0.5 + ψ0)
+    mask=1.0.-mask
 
-        mr = Statistics.mean(pr)
-        dx = maximum(pr) - minimum(pr)
-        dz = maximum(pz) - minimum(pz)
-
-        # coils will not be closer to the boundary than this
-        coils_outsideof = zip((pr .- mr) .* (1 + coils_outsideof[1] / dx) .+ R0, pz .* (1 + coils_outsideof[2] / dx))
-    end
-    
-    # forbidden plasma area
-    # we want the cost to decrease ever so slightly as we go farther away
-    coils_outsideof_array = StaticArrays.SVector.([p[1] for p in coils_outsideof], [p[2] for p in coils_outsideof])
-    for (kr, rr) in enumerate(rmask)
-        for (kz, zz) in enumerate(zmask)
-            if PolygonOps.inpolygon((rr, zz), coils_outsideof_array) == 1
-                mask[kr,kz] = 1.0 - 1E-2 * sqrt((rr - eqt.global_quantities.magnetic_axis.r)^2 + (zz - eqt.global_quantities.magnetic_axis.z)^2)
-            end
-        end
-    end
-
-    # apply filtering to smooth transition between allowed and forbidden regions
-    nx = 7
-    ny = Int(ceil(nx * size(mask)[1] / size(mask)[2]))
-    filterx = exp.(-(range(-1, 1, length=2 * nx + 1) / nx).^2)
-    filterx = filterx ./ sum(filterx)
-    filtery = exp.(-(range(-1, 1, length=2 * ny + 1) / ny).^2)
-    filtery = filtery ./ sum(filtery)
-    mask = DSP.conv(filterx, filtery, mask)[nx + 1:end - nx, ny + 1:end - ny]
+    # # apply filtering to smooth transition between allowed and forbidden regions
+    # # nx = 1
+    # # ny = Int(ceil(nx * size(mask)[1] / size(mask)[2]))
+    # # filterx = exp.(-(range(-1, 1, length=2 * nx + 1) / nx).^2)
+    # # filterx = filterx ./ sum(filterx)
+    # # filtery = exp.(-(range(-1, 1, length=2 * ny + 1) / ny).^2)
+    # # filtery = filtery ./ sum(filtery)
+    # # mask = DSP.conv(filterx, filtery, mask)[nx + 1:end - nx, ny + 1:end - ny]
 
     # Cubic spline interpolation on the log to ensure positivity of the cost
-    mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((rmask, zmask), log10.(1.0 .+ mask))
+    mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((rmask, zmask), log10.(1E-1 .+ mask))
     mask_log_interpolant_raw = Interpolations.extrapolate(mask_log_interpolant_raw.itp, Interpolations.Flat());
     function mask_log_interpolant(r, z)
-        return 10.0.^(mask_log_interpolant_raw(r, z)) .- 1
-    end
-    
-    # initial position of coils
-    pr_coil = ([p[1] for p in coils_outsideof] .- R0) .* 1.1 .+ R0
-    pz_coil = [p[2] for p in coils_outsideof] .* 1.2
-
-    # initial coils placement is uniformely spaced along a surface conforming to plasma
-    coils = []
-    θ_coil = atan.(pz_coil, pr_coil .- R0)
-    θ_coil = DSP.unwrap(θ_coil)
-    if θ_coil[2] < θ_coil[1]
-        θ_coil = -θ_coil
-    end
-    pr_coilθ = Interpolations.extrapolate(Interpolations.interpolate((θ_coil,), pr_coil, Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
-    pz_coilθ = Interpolations.extrapolate(Interpolations.interpolate((θ_coil,), pz_coil, Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
-    θ = range(π / 4, 2π - π / 4, length=1001)[1:end - 1]
-    l2p = vcat(0, cumsum(sqrt.(diff(pr_coilθ(θ)).^2.0 .+ diff(pz_coilθ(θ)).^2.0)))
-    lcoils = range(0, l2p[end], length=ncoils + 1)[1:end - 1]
-    pr_coilL = Interpolations.extrapolate(Interpolations.interpolate((l2p,), pr_coilθ(θ), Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
-    pz_coilL = Interpolations.extrapolate(Interpolations.interpolate((l2p,), pz_coilθ(θ), Interpolations.Gridded(Interpolations.Linear())), Interpolations.Periodic())
-    if mod(ncoils, 2) == 0
-        start_coil_L = x -> abs.(pz_coilL.(lcoils[1] .+ x) .+ pz_coilL.(lcoils[end] .+ x))[1]
-    else
-        start_coil_L = x -> abs.(pz_coilL.(lcoils[1] .+ x))[1]
-    end
-    L0 = Optim.minimizer(Optim.optimize(start_coil_L, 0.0, l2p[end]))
-    coils = [PointCoil(pr_coilL(L), pz_coilL(L)) for L in lcoils .+ L0]
-    if mod(ncoils, 2) == 1
-        coils[1] = PointCoil(coils[1].R, 0.0)
+        return (10.0.^(mask_log_interpolant_raw(r, z)) .- 1E-1)
     end
     
     # find coil currents for this initial configuration
-    EQfixed = IMAS2Equilibrium(eq_in, time)
+    EQfixed = IMAS2Equilibrium(eqt)
+    @show EQfixed
     currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, coils, λ_regularize=λ_regularize, λ_minimize=0.0, λ_zerosum=0.0, return_cost=true)
+    println(currents)
+    println(λ_norm)
 
     # update psirz based on coil configuration
     eq_out = deepcopy(eq_in)
@@ -177,7 +216,9 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium,
     # ψ at the boundary is determined by the value of the currents
     # calculated in fixed_eq_currents
     ψ_f2f = fixed2free(EQfixed, coils, currents, EQfixed.r, EQfixed.z)
-    eq_out.time_slice[1].profiles_2d[1].psi = transpose(ψ_f2f)
+    display(contourf(eq_out.time_slice[time_index].profiles_2d[1].psi))
+    eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
+    display(contourf(eq_out.time_slice[time_index].profiles_2d[1].psi))
 
     # populate IMAS data structure
     pf_active = IMAS.pf_active()
@@ -281,7 +322,7 @@ function Base.step(actor::PFcoilsOptActor;
     end
 
     # run optimization
-    EQfixed = IMAS2Equilibrium(actor.eq_in, actor.time)
+    EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
     (coils, λ_regularize, trace) = optimize_coils(EQfixed, coils, λ_regularize, actor.λ_norm, λ_currents, actor.mask_log_interpolant)
     currents = [trace.currents[end][k] for (k, c) in enumerate(coils)]
 
@@ -295,7 +336,7 @@ function Base.step(actor::PFcoilsOptActor;
     # ψ at the boundary is determined by the value of the currents
     # calculated in fixed_eq_currents
     ψ_f2f = fixed2free(EQfixed, coils, currents, EQfixed.r, EQfixed.z)
-    actor.eq_out.time_slice[1].profiles_2d[1].psi = transpose(ψ_f2f)
+    actor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
 
     # populate IMAS data structure
     pf_active = IMAS.pf_active()

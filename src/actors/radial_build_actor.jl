@@ -57,6 +57,9 @@ function init(radial_build::IMAS.radial_build; layers...)
         end
         radial_build.layer[k].identifier = UInt(hash(replace(replace(lowercase(radial_build.layer[k].name), "hfs" => ""), "lfs" => "")))
     end
+    if radial_build.layer[end].material!="vacuum"
+        error("radial_build last material must be `vacuum`")
+    end
 
     return radial_build
 end
