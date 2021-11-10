@@ -115,11 +115,11 @@ end
 # STEP #
 #= == =#
 """
-    Base.step(actor::SolovevEquilibriumActor; verbose=false)
+    step(actor::SolovevEquilibriumActor; verbose=false)
 
 Non-linear optimization to obtain a target `ip` and `beta_normal`
 """
-function Base.step(actor::SolovevEquilibriumActor; verbose=false)
+function step(actor::SolovevEquilibriumActor; verbose=false)
     S0 = actor.S
 
     target_ip = actor.eq_in.global_quantities.ip
