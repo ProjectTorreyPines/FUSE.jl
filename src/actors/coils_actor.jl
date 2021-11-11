@@ -117,7 +117,7 @@ function equispace_coils(rb, rmask, zmask, mask, ncoils_per_region)
                     if (ir - n) < 1 || (ir + n) > length(rmask) || (iz - n) < 1 || (iz + n) > length(zmask)
                         continue
                     end
-                    if all(mask[(-n:n) .+ ir,(-n:n) .+ iz] .== 1)
+                    if all(mask[(-n:n) .+ ir,(-n:n) .+ iz] .== 0)
                         push!(valid_k, k)
                     end
                 end
@@ -180,30 +180,49 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_
             push!(optim_coils, PointCoil(coil[1], coil[2]))
         end
     end
-
     coils = vcat(fixed_coils, optim_coils)
 
-    mask = 1.0 .- mask
-
-    # # apply filtering to smooth transition between allowed and forbidden regions
-    # # nx = 1
-    # # ny = Int(ceil(nx * size(mask)[1] / size(mask)[2]))
-    # # filterx = exp.(-(range(-1, 1, length=2 * nx + 1) / nx).^2)
-    # # filterx = filterx ./ sum(filterx)
-    # # filtery = exp.(-(range(-1, 1, length=2 * ny + 1) / ny).^2)
-    # # filtery = filtery ./ sum(filtery)
-    # # mask = DSP.conv(filterx, filtery, mask)[nx + 1:end - nx, ny + 1:end - ny]
+    # create a gradient in the forbidden region to
+    # tell the optimizer which direction to escape
+    dr = 1
+    dz = (zmask[2]-zmask[1])/(rmask[2]-rmask[1])
+    n = 10
+    mask = mask .* sqrt((n * dr)^2 + (n * dz)^2)
+    for (kr, r) in enumerate(rmask)
+        if (kr - n) < 1 || (kr + n) > length(rmask)
+            continue
+        end
+        for (kz, z) in enumerate(zmask)
+            if mask[kr,kz] == 0
+                continue
+            end
+            if (kz - n) < 1 || (kz + n) > length(zmask)
+                continue
+            end
+            pos = []
+            for ir in (-n:n)
+                for iz in (-n:n)
+                    if mask[ir + kr,iz + kz] == 0
+                        push!(pos, sqrt((ir * dr)^2 + (iz * dz)^2))
+                    end
+            end
+            end
+            if length(pos) > 0
+                mask[kr,kz] = minimum(pos)
+            end
+        end
+    end
 
     # Cubic spline interpolation on the log to ensure positivity of the cost
-    mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((rmask, zmask), log10.(1E-1 .+ mask))
+    mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((rmask, zmask), log10.(1 .+ mask))
     mask_log_interpolant_raw = Interpolations.extrapolate(mask_log_interpolant_raw.itp, Interpolations.Flat());
     function mask_log_interpolant(r, z)
-        return (10.0.^(mask_log_interpolant_raw(r, z)) .- 1E-1)
+        return (10.0.^(mask_log_interpolant_raw(r, z)) .- 1)
     end
     
     # find coil currents for this initial configuration
     EQfixed = IMAS2Equilibrium(eqt)
-    currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, coils, λ_regularize=λ_regularize, λ_minimize=0.0, λ_zerosum=0.0, return_cost=true)
+    currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, coils, λ_regularize=λ_regularize, return_cost=true)
 
     # update psirz based on coil configuration
     eq_out = deepcopy(eq_in)
@@ -255,52 +274,58 @@ function step(actor::PFcoilsOptActor;
               verbose=false)
 
     # generate coils structure as accepted by AD_GS
-    coils = []
+    fixed_coils = []
+    optim_coils = []
     for coil in actor.pf_active.coil
-        push!(coils, PointCoil(coil.element[1].geometry.rectangle.r, coil.element[1].geometry.rectangle.z))
+        c = PointCoil(coil.element[1].geometry.rectangle.r, coil.element[1].geometry.rectangle.z)
+        if coil.identifier == "fixed"
+            push!(fixed_coils, c)
+        else
+            push!(optim_coils, c)
+        end
     end
 
     # utility functions for packing and unpacking info in/out of optimization function
-    function pack(coils, λ_regularize)
-        coilz = vcat([c.R for c in coils if ((! symmetric) || c.Z >= 0)], [c.Z for c in coils if ((! symmetric) || c.Z >= 0)])
+    function pack(optim_coils, λ_regularize)
+        coilz = vcat([c.R for c in optim_coils if ((! symmetric) || c.Z >= 0)], [c.Z for c in optim_coils if ((! symmetric) || c.Z >= 0)])
         packed = vcat(coilz, log10(λ_regularize))
         return packed
     end
     function unpack(packed)
         coilz = packed[1:end - 1]
         λ_regularize = packed[end]
-        coils =  [PointCoil(coilz[k], coilz[k + Int(length(coilz) / 2)]) for (k, c) in enumerate(coilz[1:Int(end / 2)])]
+        optim_coils =  [PointCoil(coilz[k], coilz[k + Int(length(coilz) / 2)]) for (k, c) in enumerate(coilz[1:Int(end / 2)])]
         if symmetric
-            coils = vcat(coils, [PointCoil(c.R, -c.Z) for c in coils if c.Z != 0])
+            optim_coils = vcat(optim_coils, [PointCoil(c.R, -c.Z) for c in optim_coils if c.Z != 0])
         end
-        return coils, 10^λ_regularize
+        return optim_coils, 10^λ_regularize
     end
 
     # apply packing/unpacknig function
-    packed = pack(coils, λ_regularize)
-    (coils, λ_regularize) = unpack(packed)
+    packed = pack(optim_coils, λ_regularize)
+    (optim_coils, λ_regularize) = unpack(packed)
 
-    function optimize_coils(S, coils, λ_regularize, ψp_cost_norm, currents_cost_norm, mask_interpolant)
+    function optimize_coils(S, fixed_coils, optim_coils, λ_regularize, ψp_cost_norm, currents_cost_norm, mask_interpolant)
         fixed_eq = ψp_on_fixed_eq_boundary(S)
-        packed = pack(coils, λ_regularize)
+        packed = pack(optim_coils, λ_regularize)
         
         trace = PFcoilsOptTrace()
         packed_tmp = []
         function placement_cost(packed; do_trace=false)
             push!(packed_tmp, packed)
-            (coils, λ_regularize) = unpack(packed)
-            currents, cost = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, λ_minimize=0.0, λ_zerosum=0.0, return_cost=true)
-            cost_ψ = cost / ψp_cost_norm
+            (optim_coils, λ_regularize) = unpack(packed)
+            currents, cost_ψ = currents_to_match_ψp(fixed_eq..., vcat(fixed_coils, optim_coils), λ_regularize=λ_regularize, return_cost=true)
+            cost_ψ = cost_ψ / ψp_cost_norm
             cost_currents = norm(currents) / length(currents) / currents_cost_norm
-            cost_bound = norm(mask_interpolant.([c.R for c in coils], [c.Z for c in coils]))
-            cx = [c.R for c in coils]
-            cy = [c.Z for c in coils]
+            cost_bound = norm(mask_interpolant.([c.R for c in optim_coils], [c.Z for c in optim_coils]))
+            cx = [c.R for c in optim_coils]
+            cy = [c.Z for c in optim_coils]
             distance_matrix = sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cy)) .- repeat(transpose(cy), length(cy), 1)).^2.0)
-            cost_distance = norm(1.0 ./ (distance_matrix + LinearAlgebra.I * 1E3)) / length(coils).^2
-            cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2 + cost_distance^2)
+            cost_distance = norm(1.0 ./ (distance_matrix + LinearAlgebra.I * 1E2)) / length(optim_coils).^2
+            cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2)# + cost_distance^2)
             if do_trace
                 push!(trace.currents, [no_Dual(c) for c in currents])
-                push!(trace.coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in coils])
+                push!(trace.coils, vcat(fixed_coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in optim_coils]))
                 push!(trace.λ_regularize, no_Dual(λ_regularize))
                 push!(trace.cost_ψ, no_Dual(cost_ψ))
                 push!(trace.cost_currents, no_Dual(cost_currents))
@@ -321,14 +346,15 @@ function step(actor::PFcoilsOptActor;
 
         if verbose println(res) end
         packed = Optim.minimizer(res)
-        (coils, λ_regularize) = unpack(packed)
+        (optim_coils, λ_regularize) = unpack(packed)
 
-        return coils, λ_regularize, trace
+        return vcat(fixed_coils, optim_coils), λ_regularize, trace
     end
 
     # run optimization
+    time_index = 1
     EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
-    (coils, λ_regularize, trace) = optimize_coils(EQfixed, coils, λ_regularize, actor.λ_norm, λ_currents, actor.mask_log_interpolant)
+    (coils, λ_regularize, trace) = optimize_coils(EQfixed, fixed_coils, optim_coils, λ_regularize, actor.λ_norm, λ_currents, actor.mask_log_interpolant)
     currents = [trace.currents[end][k] for (k, c) in enumerate(coils)]
 
     # ψ from fixed-boundary gEQDSK
@@ -348,6 +374,11 @@ function step(actor::PFcoilsOptActor;
     resize!(pf_active.coil, length(coils))
     for (k, c) in enumerate(coils)
         resize!(pf_active.coil[k].element, 1)
+        if c in fixed_coils
+            pf_active.coil[k].identifier = "fixed"
+        else
+            pf_active.coil[k].identifier = "optim"
+        end
         pf_active.coil[k].element[1].geometry.rectangle.r = c.R
         pf_active.coil[k].element[1].geometry.rectangle.z = c.Z
         pf_active.coil[k].element[1].geometry.rectangle.width = maximum(c.R) - minimum(c.R)
@@ -372,7 +403,7 @@ end
 
 Plot PFcoilsOptActor optimization cross-section
 """
-@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor, trace=true)
+@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; trace=false)
     # plot mask
     rmask = pfactor.rmask
     zmask = pfactor.zmask
@@ -394,20 +425,21 @@ Plot PFcoilsOptActor optimization cross-section
 
     # plot pf_active coils
     @series pfactor.pf_active
-    
-    # plot target equilibrium
-    @series begin
-        label --> "Target"
-        seriescolor --> :black
-        lcfs --> true
-        pfactor.eq_in.time_slice[1]
-    end
 
     # plot final equilibrium
     @series begin
         label --> "Final"
         seriescolor --> :red
         pfactor.eq_out.time_slice[1]
+    end
+
+    # plot target equilibrium
+    @series begin
+        label --> "Target"
+        seriescolor --> :black
+        lcfs --> true
+        linestyle --> :dash
+        pfactor.eq_in.time_slice[1]
     end
 
     if trace
@@ -418,7 +450,7 @@ Plot PFcoilsOptActor optimization cross-section
                     linewidth --> 1
                     seriesalpha --> 0.5
                     primary --> false
-                    seriescolor --> :blue
+                    seriescolor --> :magenta
                     [no_Dual(k[c].R) for k in pfactor.trace.coils], [no_Dual(k[c].Z) for k in pfactor.trace.coils]
                 end
             end
@@ -464,6 +496,12 @@ Attributes:
             label --> "total"
             yscale --> :log10
             x, trace.cost_total[start_at:end]
+        end
+
+    elseif what == :final_currents
+        @series begin
+            label --> "Final"
+            getfield(trace, :currents)[start_at:end][end,:]
         end
 
     elseif what == :currents
