@@ -132,6 +132,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
 
                 # add rail info to radial_build IDS
                 rb.pf_coils_rail[rail].name = replace(replace(layer.name, "hfs " => ""), "lfs " => "")
+                rb.pf_coils_rail[rail].coils_number = ncoils
                 rb.pf_coils_rail[rail].outline.r = valid_r
                 rb.pf_coils_rail[rail].outline.z = valid_z
                 rb.pf_coils_rail[rail].outline.distance = distance
@@ -197,12 +198,12 @@ end
 # STEP #
 #= == =#
 # utility functions for packing and unpacking info in/out of optimization function
-function pack(optim_coils, λ_regularize, symmetric)
+function pack_mask(optim_coils::Vector, λ_regularize::Real, symmetric::Bool)
     coilz = vcat([c.R for c in optim_coils if ((! symmetric) || c.Z >= 0)], [c.Z for c in optim_coils if ((! symmetric) || c.Z >= 0)])
     packed = vcat(coilz, log10(λ_regularize))
     return packed
 end
-function unpack(packed, symmetric)
+function unpack_mask(packed::Vector, symmetric::Bool)
     coilz = packed[1:end - 1]
     λ_regularize = packed[end]
     optim_coils =  [PointCoil(coilz[k], coilz[k + Int(length(coilz) / 2)]) for (k, c) in enumerate(coilz[1:Int(end / 2)])]
@@ -212,19 +213,20 @@ function unpack(packed, symmetric)
     return optim_coils, 10^λ_regularize
 end
 
-function optimize_coils_mask(S; fixed_coils, optim_coils, symmetric, λ_regularize, ψp_cost_norm, λ_currents, mask_interpolant, maxiter, verbose)
-    fixed_eq = ψp_on_fixed_eq_boundary(S)
-    packed = pack(optim_coils, λ_regularize, symmetric)
+function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coils::Vector, optim_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, radial_build::IMAS.radial_build, maxiter::Int, verbose::Bool)
+    mask_interpolant = mask_interpolant_function(radial_build)
+    fixed_eq = ψp_on_fixed_eq_boundary(EQfixed)
+    packed = pack_mask(optim_coils, λ_regularize, symmetric)
     
     trace = PFcoilsOptTrace()
     packed_tmp = []
     function placement_cost(packed; do_trace=false)
         push!(packed_tmp, packed)
-        (optim_coils, λ_regularize) = unpack(packed, symmetric)
+        (optim_coils, λ_regularize) = unpack_mask(packed, symmetric)
         coils = vcat(fixed_coils, optim_coils)
-        ccc = [(c.R, c.Z) for c in coils]
+        ccc = [(c.R, c.Z) for c in coils] ###FIX
         currents, cost_ψ = currents_to_match_ψp(fixed_eq..., ccc, λ_regularize=λ_regularize, return_cost=true)
-        cost_ψ = cost_ψ / ψp_cost_norm
+        cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
         cost_bound = norm(mask_interpolant.([c.R for c in optim_coils], [c.Z for c in optim_coils]))
         cx = [c.R for c in optim_coils]
@@ -255,16 +257,46 @@ function optimize_coils_mask(S; fixed_coils, optim_coils, symmetric, λ_regulari
 
     if verbose println(res) end
     packed = Optim.minimizer(res)
-    (optim_coils, λ_regularize) = unpack(packed, symmetric)
+    (optim_coils, λ_regularize) = unpack_mask(packed, symmetric)
 
     return vcat(fixed_coils, optim_coils), λ_regularize, trace
+end
+
+function pack_rail(rb::IMAS.radial_build, λ_regularize::Real, symmetric::Bool)
+    coilz = []
+    for rail in rb.pf_coils_rail
+        append!(coilz, range(0, 1, length=rail.coils_number + 2)[2:end - 1])
+    end
+    packed = vcat(coilz, log10(λ_regularize))
+    return packed
+end
+function unpack_rail(packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
+    coilz = packed[1:end - 1]
+    λ_regularize = packed[end]
+
+    optim_coils = []
+    kcoil = 0
+    for rail in rb.pf_coils_rail
+        r_interp = IMAS.interp(rail.outline.distance, rail.outline.r)
+        z_interp = IMAS.interp(rail.outline.distance, rail.outline.z)
+        for k in 1:rail.coils_number
+            kcoil += 1
+            r_coil = r_interp(coilz[kcoil])
+            z_coil = z_interp(coilz[kcoil])
+            push!(optim_coils, PointCoil(r_coil, z_coil))
+        end
+    end
+
+    return optim_coils, 10^λ_regularize
 end
 
 function step(actor::PFcoilsOptActor;
               symmetric=actor.symmetric,
               λ_regularize=actor.λ_regularize,
+              λ_ψ=actor.λ_norm,
               λ_currents=1E7,
               maxiter=10000,
+              optimization_scheme=:mask,
               verbose=false)
 
     # generate coils structure as accepted by AD_GS
@@ -279,29 +311,33 @@ function step(actor::PFcoilsOptActor;
         end
     end
 
-    # pre-apply packing/unpacknig function
-    packed = pack(optim_coils, λ_regularize, symmetric)
-    (optim_coils, λ_regularize) = unpack(packed, symmetric)
-
     # convert equilibrium to Equilibrium.jl format, since this is what AD_GS uses
     time_index = 1
     EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
     # find coil currents for this initial configuration
-    if maxiter == 0
-        trace = PFcoilsOptTrace()
+    if maxiter <= 0
         coils = vcat(fixed_coils, optim_coils)
-        ccc = [(c.R, c.Z) for c in coils]
+        ccc = [(c.R, c.Z) for c in coils] ###FIX
         currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, ccc, λ_regularize=λ_regularize, return_cost=true)
-        coils = vcat(fixed_coils, optim_coils)
+        coils = vcat(fixed_coils, optim_coils) ###FIX
         actor.λ_norm = λ_norm
+        trace = actor.trace
+
     # run optimization
     else
-        mask_interpolant = mask_interpolant_function(actor.radial_build)
-        ψp_cost_norm = actor.λ_norm
-        (coils, λ_regularize, trace) = optimize_coils_mask(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, ψp_cost_norm, λ_currents, mask_interpolant, maxiter, verbose)
+        λ_ψ = actor.λ_norm
+        radial_build = actor.radial_build
+        # run mask type optimizer
+        if optimization_scheme == :mask
+            (coils, λ_regularize, trace) = optimize_coils_mask(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, λ_ψ, λ_currents, radial_build, maxiter, verbose)
+        # run rail type optimizer
+        elseif optimization_scheme==:rail
+             (coils, λ_regularize, trace) = optimize_coils_rail(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, λ_ψ, λ_currents, radial_build, maxiter, verbose)
+        else
+            error("Supported PFcoilsOptActor optimization_scheme are `:mask` and `:rail`")
+        end
         currents = [trace.currents[end][k] for (k, c) in enumerate(coils)]
-        
         actor.λ_regularize = λ_regularize
         actor.trace = trace
     end
