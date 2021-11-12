@@ -1,6 +1,52 @@
 using LibGEOS
 using Interpolations
 using Contour
+import ModelingToolkit
+import OrdinaryDiffEq
+
+"""
+    princeton_D(R1::Real,R2::Real,closed::Bool=true)
+
+Draw "princeton D" TF coil contour between radii R2 and R1
+
+http://www.jaschwartz.net/journal/princeton-dee.html
+https://doi.org/10.2172/4096514
+"""
+function princeton_D(R1::Real, R2::Real; closed::Bool=true)
+    R0 = sqrt(R1 * R2)
+    k = 0.5 * log(R2 / R1)
+    
+    @ModelingToolkit.parameters R
+    @ModelingToolkit.variables Z(R)
+    D = ModelingToolkit.Differential(R)
+    eqs = [D(D(Z)) ~ -1 / (k * R) * (1 + D(Z)^2)^(3 / 2)]
+    @ModelingToolkit.named sys = ModelingToolkit.ODESystem(eqs)
+    sys = ModelingToolkit.ode_order_lowering(sys)
+    u0 = [Z => 0, D(Z) => 0]
+    
+    function get_segment(a, b)
+        tspan = (a, b)
+        prob = ModelingToolkit.ODEProblem(sys, u0, tspan, [], jac=true)
+        sol = ModelingToolkit.solve(prob, OrdinaryDiffEq.Rosenbrock23())
+        return sol.t, [u[2] for u in sol.u]
+    end
+
+    segment1 = get_segment(R0, R1)
+    segment2 = get_segment(R0, R2)
+
+    Z02 = segment2[2][end]
+    segment1[2] .-= Z02
+    segment2[2] .-= Z02
+
+    x = vcat(reverse(segment1[1])[1:end-1], segment2[1][1:end-1], reverse(segment2[1])[1:end-1], segment1[1])
+    y = vcat(reverse(segment1[2])[1:end-1], segment2[2][1:end-1], -reverse(segment2[2])[1:end-1], -segment1[2])
+
+    if closed        
+        x = vcat(x,x[1])
+        y = vcat(y,y[1])
+    end
+    return x, y
+end
 
 #= ==== =#
 #  init  #
@@ -57,7 +103,7 @@ function init(radial_build::IMAS.radial_build; layers...)
         end
         radial_build.layer[k].identifier = UInt(hash(replace(replace(lowercase(radial_build.layer[k].name), "hfs" => ""), "lfs" => "")))
     end
-    if radial_build.layer[end].material!="vacuum"
+    if radial_build.layer[end].material != "vacuum"
         error("radial_build last material must be `vacuum`")
     end
 
@@ -75,7 +121,7 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
 
     if is_nuclear_facility
         n_hfs_layers = 6
-        gap = (rmax - rmin) / 10.0
+        gap = (rmax - rmin) / 20.0 # plasma-wall gap
         rmin -= gap
         rmax += gap
         dr = rmin / n_hfs_layers
@@ -89,7 +135,7 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
             hfs_wall=dr / 2.0,
             vacuum_vessel=rmax - rmin,
             lfs_wall=dr / 2.0,
-            lfs_blanket=dr,
+            lfs_blanket=dr * 2,
             lfs_shield=dr / 2.0,
             gap_lfs_TF_shield=dr * 5,
             lfs_TF=dr,
@@ -97,7 +143,7 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
 
     else
         n_hfs_layers = 4.5
-        gap = (rmax - rmin) / 10.0
+        gap = (rmax - rmin) / 20.0 # plasma-wall gap
         rmin -= gap
         rmax += gap
         dr = rmin / n_hfs_layers
@@ -287,9 +333,11 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
 
     end
 
+    # vacuum vessel
     IMAS.get_radial_build(rb, type=-1).outline.r = [v[1] for v in LibGEOS.coordinates(vessel_poly)[1]]
     IMAS.get_radial_build(rb, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(vessel_poly)[1]]
 
+    # wall
     IMAS.get_radial_build(rb, type=5, hfs=-1).outline.r = [v[1] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
     IMAS.get_radial_build(rb, type=5, hfs=-1).outline.z = [v[2] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
 
@@ -311,8 +359,26 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
         end
     end
 
-    rb.layer[2].outline.r, rb.layer[2].outline.z = wall_oh(rb)
+    # if it's a nuclear facility we overwrite TF outer and inner outlines with princeton D
+    # for now we do this only if there is a blanket because without it it is likely that the TF and the wall will encroach
+    if IMAS.get_radial_build(rb, type=4, hfs=-1, raise_error_on_missing=false) !== nothing
+        layer = IMAS.get_radial_build(rb, type=2, hfs=-1)
+        xTF, yTF = princeton_D(layer.end_radius, IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).start_radius, closed=true)
+        poly = LibGEOS.buffer(xy_polygon(xTF, yTF), layer.thickness)
+        layer.outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
+        layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+        layer = rb.layer[IMAS.get_radial_build(rb, type=2, hfs=-1, return_index=true) + 1]
+        layer.outline.r = xTF
+        layer.outline.z = yTF
+    end
+
+    # plug
     rb.layer[1].outline.r, rb.layer[1].outline.z = wall_plug(rb)
+
+    # oh
+    rb.layer[2].outline.r, rb.layer[2].outline.z = wall_oh(rb)
+
+    # cryostat
     rb.layer[end].outline.r, rb.layer[end].outline.z = wall_cryostat(rb)
     return rb
 end
