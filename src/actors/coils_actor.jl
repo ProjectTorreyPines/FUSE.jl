@@ -50,9 +50,10 @@ import Contour
 
 Use radial build layers outline to initialize PF coils distribution
 """
-function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_gap_region::Vector{Int})
+function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_gap_region::Vector)
 
-    rmask, zmask, mask = IMAS.structures_mask(rb)
+    resolution=257
+    rmask, zmask, mask = IMAS.structures_mask(rb, resolution=resolution)
 
     pf_active = IMAS.pf_active()
 
@@ -81,23 +82,26 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
             if ! is_missing(layer, :material) && layer.material == "vacuum"
                 # pick layers with outline information
                 if layer.hfs == -1
-                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=-1)
-                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k + 1].identifier, hfs=[-1,0])
+                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=-1)
+                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k + 1].identifier, hfs=[-1,0])
                 else
                     inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k - 1].identifier, hfs=-1)
                     outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=[-1,0])
                 end
 
                 # take two outlines and interpolate them on the same θ
-                inner_r, inner_z, outer_r, outer_z, θ = two_curves_same_θ(inner_layer.outline.r, inner_layer.outline.z, outer_layer.outline.r, outer_layer.outline.z)
+                # inner_r, inner_z, outer_r, outer_z, θ = two_curves_same_θ(inner_layer.outline.r, inner_layer.outline.z, outer_layer.outline.r, outer_layer.outline.z)
+
+                clerance = 7 * length(rmask) / 257 # this is reasonable on a 257 mask grid
+                buff = (clerance + 3) * (rmask[2] - rmask[1])
 
                 # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
-                mid_r = (inner_r .+ outer_r) ./ 2
-                mid_z = (inner_z .+ outer_z) ./ 2
+                poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), buff)
+                mid_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
+                mid_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
 
                 # mark what regions on that rail do not intersect solid structures and can hold coils
-                clerance = 7 # this is reasonable on a 257 mask grid
-                clerance = Int(ceil(clerance * length(rmask) / 257))
+                clerance = Int(ceil(clerance))
                 valid_k = []
                 for (k, (r, z)) in enumerate(zip(mid_r, mid_z))
                     ir = argmin(abs.(rmask .- r))
@@ -118,7 +122,13 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 valid_z = vcat(valid_z[istart + 1:end], valid_z[1:istart])
 
                 rail += 1
-                ncoils = n_pf_coils_per_gap_region[rail]
+                if isa(n_pf_coils_per_gap_region[rail], Int)
+                    ncoils = n_pf_coils_per_gap_region[rail]
+                    coils_distance=((1:ncoils) .- 0.5) ./ ncoils
+                else
+                    ncoils = length(n_pf_coils_per_gap_region[rail])
+                    coils_distance = n_pf_coils_per_gap_region[rail]
+                end
 
                 # evaluate distance along rail
                 d_distance = sqrt.(diff(vcat(valid_r, valid_r[1])).^2.0 .+ diff(vcat(valid_z, valid_z[1])).^2.0)
@@ -138,8 +148,8 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 rb.pf_coils_rail[rail].outline.distance = distance
 
                 # uniformely distribute coils
-                r_coils = IMAS.interp(distance, valid_r)(((1:ncoils) .- 0.5) ./ ncoils)
-                z_coils = IMAS.interp(distance, valid_z)(((1:ncoils) .- 0.5) ./ ncoils)
+                r_coils = IMAS.interp(distance, valid_r)(coils_distance)
+                z_coils = IMAS.interp(distance, valid_z)(coils_distance)
                 coils = [PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
 
                 # populate IMAS data structure
@@ -161,7 +171,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
     return pf_active
 end
 
-function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_OH::Int, ncoils_per_region::Vector{Int}, λ_regularize=1E-13)
+function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_OH::Int, ncoils_per_region::Vector, λ_regularize=1E-13)
     # initialize coils location
     pf_active = initialize_coils(rb, ncoils_OH, ncoils_per_region)
 
@@ -198,7 +208,7 @@ end
 # STEP #
 #= == =#
 # utility functions for packing and unpacking info in/out of optimization function
-function pack_mask(optim_coils::Vector, λ_regularize::Real, symmetric::Bool)
+function pack_mask(optim_coils::Vector, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
     coilz = vcat([c.R for c in optim_coils if ((! symmetric) || c.Z >= 0)], [c.Z for c in optim_coils if ((! symmetric) || c.Z >= 0)])
     packed = vcat(coilz, log10(λ_regularize))
     return packed
@@ -262,32 +272,89 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
     return vcat(fixed_coils, optim_coils), λ_regularize, trace
 end
 
-function pack_rail(rb::IMAS.radial_build, λ_regularize::Real, symmetric::Bool)
-    coilz = []
+function pack_rail(rb::IMAS.radial_build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
+    distances = []
     for rail in rb.pf_coils_rail
-        append!(coilz, range(0, 1, length=rail.coils_number + 2)[2:end - 1])
+        append!(distances, collect(range(0.0, 1.0, length=rail.coils_number + 2))[2:end - 1])
     end
-    packed = vcat(coilz, log10(λ_regularize))
+    packed = vcat(distances, log10(λ_regularize))
     return packed
 end
 function unpack_rail(packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
-    coilz = packed[1:end - 1]
+    distances = packed[1:end - 1]
     λ_regularize = packed[end]
-
     optim_coils = []
     kcoil = 0
     for rail in rb.pf_coils_rail
-        r_interp = IMAS.interp(rail.outline.distance, rail.outline.r)
-        z_interp = IMAS.interp(rail.outline.distance, rail.outline.z)
-        for k in 1:rail.coils_number
-            kcoil += 1
-            r_coil = r_interp(coilz[kcoil])
-            z_coil = z_interp(coilz[kcoil])
-            push!(optim_coils, PointCoil(r_coil, z_coil))
+        r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
+        z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc=:flat)
+        coil_distances = distances[kcoil + 1:kcoil + rail.coils_number]
+
+        # mirror coil position when they reach the end of the rail
+        while any(coil_distances .< 0) || any(coil_distances .> 1)
+            coil_distances[coil_distances .< 0] = 0.0 .- coil_distances[coil_distances .< 0]
+            coil_distances[coil_distances .> 1] = 1.0 .- coil_distances[coil_distances .> 1]
         end
+
+        # do not make coils cross, keep their order
+        coil_distances = sort(coil_distances)
+
+        r_coils = r_interp.(coil_distances)
+        z_coils = z_interp.(coil_distances)
+        append!(optim_coils, [PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)])
+        kcoil += rail.coils_number
     end
 
     return optim_coils, 10^λ_regularize
+end
+
+function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coils::Vector, optim_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, radial_build::IMAS.radial_build, maxiter::Int, verbose::Bool)
+    fixed_eq = ψp_on_fixed_eq_boundary(EQfixed)
+    packed = pack_rail(radial_build, λ_regularize, symmetric)
+    trace = PFcoilsOptTrace()
+    packed_tmp = []
+    function placement_cost(packed; do_trace=false)
+        push!(packed_tmp, packed)
+        distances = packed[1:end - 1]
+        λ_regularize = packed[end]
+        (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, radial_build)
+        coils = vcat(fixed_coils, optim_coils)
+        ccc = [(c.R, c.Z) for c in coils] ###FIX
+        currents, cost_ψ = currents_to_match_ψp(fixed_eq..., ccc, λ_regularize=λ_regularize, return_cost=true)
+        cost_ψ = cost_ψ / λ_ψ
+        cost_currents = norm(currents) / length(currents) / λ_currents
+        cost_bound = sum((distances .- 0.5) .* 2).^2
+        cx = [c.R for c in optim_coils]
+        cy = [c.Z for c in optim_coils]
+        distance_matrix = sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cy)) .- repeat(transpose(cy), length(cy), 1)).^2.0)
+        cost_distance = norm(1.0 ./ (distance_matrix + LinearAlgebra.I * 1E2)) / length(optim_coils)
+        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2 + cost_distance^2)
+        if do_trace
+            push!(trace.currents, [no_Dual(c) for c in currents])
+            push!(trace.coils, vcat(fixed_coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in optim_coils]))
+            push!(trace.λ_regularize, no_Dual(λ_regularize))
+            push!(trace.cost_ψ, no_Dual(cost_ψ))
+            push!(trace.cost_currents, no_Dual(cost_currents))
+            push!(trace.cost_bound, no_Dual(cost_bound))
+            push!(trace.cost_distance, no_Dual(cost_distance))
+            push!(trace.cost_total, no_Dual(cost))
+        end
+        return cost
+    end
+
+    function clb(x)
+        placement_cost(packed_tmp[end]; do_trace=true)
+        false
+    end
+    
+    # use NelderMead() ; other optimizer that works is Newton(), others have trouble
+    res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, allow_f_increases=true, successive_f_tol=10, callback=clb); autodiff=:forward)
+    if verbose println(res) end
+    packed = Optim.minimizer(res)
+
+    (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, radial_build)
+
+    return vcat(fixed_coils, optim_coils), λ_regularize, trace
 end
 
 function step(actor::PFcoilsOptActor;
@@ -316,7 +383,7 @@ function step(actor::PFcoilsOptActor;
     EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
     # find coil currents for this initial configuration
-    if maxiter <= 0
+    if maxiter < 0
         coils = vcat(fixed_coils, optim_coils)
         ccc = [(c.R, c.Z) for c in coils] ###FIX
         currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, ccc, λ_regularize=λ_regularize, return_cost=true)
@@ -332,7 +399,7 @@ function step(actor::PFcoilsOptActor;
         if optimization_scheme == :mask
             (coils, λ_regularize, trace) = optimize_coils_mask(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, λ_ψ, λ_currents, radial_build, maxiter, verbose)
         # run rail type optimizer
-        elseif optimization_scheme==:rail
+        elseif optimization_scheme == :rail
              (coils, λ_regularize, trace) = optimize_coils_rail(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, λ_ψ, λ_currents, radial_build, maxiter, verbose)
         else
             error("Supported PFcoilsOptActor optimization_scheme are `:mask` and `:rail`")
@@ -373,7 +440,7 @@ end
 
 Plot PFcoilsOptActor optimization cross-section
 """
-@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; trace=false, mask=false, rail=true)
+@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; equilibrium=true, trace=false, mask=false, rail=true)
 
     # setup plotting area
     rb = pfactor.radial_build
@@ -397,8 +464,10 @@ Plot PFcoilsOptActor optimization cross-section
 
     # plot optimization rails
     if rail
-        for rail in rb.pf_coils_rail
+        for (krail,rail) in enumerate(rb.pf_coils_rail)
             @series begin
+                label --> "coil optimization rail"
+                primary --> krail==1 ? true : false
                 color --> :gray
                 linestyle --> :dash
                 rail.outline.r, rail.outline.z
@@ -414,21 +483,23 @@ Plot PFcoilsOptActor optimization cross-section
     end
 
     # plot final equilibrium
-    @series begin
-        label --> "Final"
-        seriescolor --> :red
-        pfactor.eq_out.time_slice[1]
+    if equilibrium
+        @series begin
+            label --> "Final"
+            seriescolor --> :red
+            pfactor.eq_out.time_slice[1]
+        end
+
+        # plot target equilibrium
+        @series begin
+            label --> "Target"
+            seriescolor --> :black
+            lcfs --> true
+            linestyle --> :dash
+            pfactor.eq_in.time_slice[1]
+        end
     end
 
-    # plot target equilibrium
-    @series begin
-        label --> "Target"
-        seriescolor --> :black
-        lcfs --> true
-        linestyle --> :dash
-        pfactor.eq_in.time_slice[1]
-    end
-        
     if trace
         if length(pfactor.trace.coils) > 0
             for c in 1:length(pfactor.trace.coils[1])
@@ -460,8 +531,8 @@ Attributes:
     legend --> :bottomleft
     if what == :cost
         @series begin
-    label --> "ψ"
-    yscale --> :log10
+            label --> "ψ"
+            yscale --> :log10
             x, trace.cost_ψ[start_at:end]
         end
         @series begin
@@ -482,8 +553,17 @@ Attributes:
         @series begin
             label --> "total"
             yscale --> :log10
+            linestyle --> :dash
+            color --> :black
+            ylim --> [minimum(trace.cost_total[end-100:end])/2,maximum(trace.cost_total[end-100:end])]
             x, trace.cost_total[start_at:end]
         end
+
+    elseif what == :starting_currents
+        @series begin
+        label --> "Starting"
+        getfield(trace, :currents)[start_at:end][1,:]
+    end
 
     elseif what == :final_currents
             @series begin
@@ -503,6 +583,9 @@ Attributes:
 
     else
         @series begin
+            if occursin("cost_", String(what))
+                yscale --> :log10
+            end
             label --> String(what)
             x, getfield(trace, what)[start_at:end]
         end
