@@ -216,8 +216,8 @@ function unpack_mask(packed::Vector, symmetric::Bool)
     return optim_coils, 10^λ_regularize
 end
 
-function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coils::Vector, optim_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, radial_build::IMAS.radial_build, maxiter::Int, verbose::Bool)
-    mask_interpolant = mask_interpolant_function(radial_build)
+function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coils::Vector, optim_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
+    mask_interpolant = mask_interpolant_function(rb)
     fixed_eq = ψp_on_fixed_eq_boundary(EQfixed)
     packed = pack_mask(optim_coils, λ_regularize, symmetric)
     
@@ -267,7 +267,17 @@ end
 function pack_rail(rb::IMAS.radial_build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
     distances = []
     for rail in rb.pf_coils_rail
-        append!(distances, collect(range(0.0, 1.0, length=rail.coils_number + 2))[2:end - 1])
+        # not symmetric
+        if ! symmetric
+            coil_distances = collect(range(0.0, 1.0, length=rail.coils_number + 2))[2:end - 1]
+        # even symmetric
+        elseif mod(rail.coils_number,2)==0
+            coil_distances= collect(range(0.0, 1.0, length=rail.coils_number + 2))[2+Int(rail.coils_number//2):end - 1]
+        # odd symmetric
+        else
+            coil_distances = collect(range(0.0, 1.0, length=rail.coils_number + 2))[2+Int((rail.coils_number-1)//2)+1:end - 1]
+        end
+        append!(distances, coil_distances)
     end
     packed = vcat(distances, log10(λ_regularize))
     return packed
@@ -280,12 +290,27 @@ function unpack_rail(packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
     for rail in rb.pf_coils_rail
         r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
         z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc=:flat)
-        coil_distances = distances[kcoil + 1:kcoil + rail.coils_number]
+        # not symmetric
+        if ! symmetric
+            dkcoil = rail.coils_number
+            coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+        # even symmetric
+        elseif mod(rail.coils_number,2)==0
+            dkcoil = Int(rail.coils_number//2)
+            coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+            coil_distances = vcat(1.0.-reverse(coil_distances), coil_distances)
+        # odd symmetric
+        else
+            dkcoil = Int((rail.coils_number-1)//2)
+            coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+            coil_distances = vcat(1.0.-reverse(coil_distances), 0.5, coil_distances)
+        end
+        kcoil += dkcoil
 
         # mirror coil position when they reach the end of the rail
         while any(coil_distances .< 0) || any(coil_distances .> 1)
             coil_distances[coil_distances .< 0] = 0.0 .- coil_distances[coil_distances .< 0]
-            coil_distances[coil_distances .> 1] = 1.0 .- coil_distances[coil_distances .> 1]
+            coil_distances[coil_distances .> 1] = 2.0 .- coil_distances[coil_distances .> 1]
         end
 
         # do not make coils cross, keep their order
@@ -294,39 +319,36 @@ function unpack_rail(packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
         r_coils = r_interp.(coil_distances)
         z_coils = z_interp.(coil_distances)
         append!(optim_coils, [PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)])
-        kcoil += rail.coils_number
+        
     end
 
     return optim_coils, 10^λ_regularize
 end
 
-function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coils::Vector, optim_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, radial_build::IMAS.radial_build, maxiter::Int, verbose::Bool)
+function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coils::Vector, optim_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
     fixed_eq = ψp_on_fixed_eq_boundary(EQfixed)
-    packed = pack_rail(radial_build, λ_regularize, symmetric)
+    packed = pack_rail(rb, λ_regularize, symmetric)
     trace = PFcoilsOptTrace()
     packed_tmp = []
     function placement_cost(packed; do_trace=false)
         push!(packed_tmp, packed)
-        distances = packed[1:end - 1]
-        λ_regularize = packed[end]
-        (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, radial_build)
+        (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, rb)
         coils = vcat(fixed_coils, optim_coils)
         currents, cost_ψ = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
-        cost_bound = sum((distances .- 0.5) .* 2).^2
         cx = [c.R for c in optim_coils]
         cy = [c.Z for c in optim_coils]
         distance_matrix = sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cy)) .- repeat(transpose(cy), length(cy), 1)).^2.0)
-        cost_distance = norm(1.0 ./ (distance_matrix + LinearAlgebra.I * 1E2)) / length(optim_coils)
-        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2 + cost_distance^2)
+        cost_distance = norm(1.0 ./ (distance_matrix + LinearAlgebra.I * 1E2)) / sum([rail.coils_number for rail in rb.pf_coils_rail])
+        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_distance^2)
         if do_trace
             push!(trace.currents, [no_Dual(c) for c in currents])
             push!(trace.coils, vcat(fixed_coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in optim_coils]))
             push!(trace.λ_regularize, no_Dual(λ_regularize))
             push!(trace.cost_ψ, no_Dual(cost_ψ))
             push!(trace.cost_currents, no_Dual(cost_currents))
-            push!(trace.cost_bound, no_Dual(cost_bound))
+            push!(trace.cost_bound, NaN)
             push!(trace.cost_distance, no_Dual(cost_distance))
             push!(trace.cost_total, no_Dual(cost))
         end
@@ -343,7 +365,7 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
     if verbose println(res) end
     packed = Optim.minimizer(res)
 
-    (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, radial_build)
+    (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, rb)
 
     return vcat(fixed_coils, optim_coils), λ_regularize, trace
 end
@@ -383,13 +405,13 @@ function step(actor::PFcoilsOptActor;
     # run optimization
     else
         λ_ψ = actor.λ_norm
-        radial_build = actor.radial_build
+        rb = actor.radial_build
         # run mask type optimizer
         if optimization_scheme == :mask
-            (coils, λ_regularize, trace) = optimize_coils_mask(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, λ_ψ, λ_currents, radial_build, maxiter, verbose)
+            (coils, λ_regularize, trace) = optimize_coils_mask(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, λ_ψ, λ_currents, rb, maxiter, verbose)
         # run rail type optimizer
         elseif optimization_scheme == :rail
-             (coils, λ_regularize, trace) = optimize_coils_rail(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, λ_ψ, λ_currents, radial_build, maxiter, verbose)
+             (coils, λ_regularize, trace) = optimize_coils_rail(EQfixed; fixed_coils, optim_coils, symmetric, λ_regularize, λ_ψ, λ_currents, rb, maxiter, verbose)
         else
             error("Supported PFcoilsOptActor optimization_scheme are `:mask` and `:rail`")
         end
@@ -543,7 +565,7 @@ Attributes:
             yscale --> :log10
             linestyle --> :dash
             color --> :black
-            ylim --> [minimum(trace.cost_total[end - 100:end]) / 2,maximum(trace.cost_total[end - 100:end])]
+            #ylim --> [minimum(trace.cost_total[start_at:end]) / 10,maximum(trace.cost_total[start_at:end])]
             x, trace.cost_total[start_at:end]
         end
 
