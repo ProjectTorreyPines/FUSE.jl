@@ -43,19 +43,22 @@ Getting started
     qstar = 1.5
     beta_n = 1.5
     ip = 1e6
+    x_point = false
 
-    # initialize equilibrium IDS
-    eq0 = FUSE.init(IMAS.equilibrium(), 0.0; B0, R0, ϵ, δ, κ, beta_n, ip)
-    
+    # initialize one time-slice of the equilibrium IDS
+    dd = IMAS.dd()
+    resize!(dd.equilibrium.time_slice,1)
+    FUSE.init(dd.equilibrium.time_slice[1]; B0, R0, ϵ, δ, κ, beta_n, ip, x_point)
+
     # instantiate equilibrium actor
-    eqactor = FUSE.SolovevEquilibriumActor(eq0, 0.0)
+    eqactor = FUSE.SolovevEquilibriumActor(eq0)
     
-    # step (aka run, solve) your actor
+    # step (a.k.a. run, solve) your actor
     FUSE.step(eqactor)
     
     # translate actor internals to equilibrium IDS
     eq1 = FUSE.finalize(eqactor)
     
     # plot equilibrium
-    plot(eq1.time_slice[1])
+    plot(eq1)
     ```
