@@ -1,11 +1,3 @@
-abstract type AbstractCoil end
-
-struct PointCoil{T <: Real} <: AbstractCoil
-    R::T
-    Z::T
-end
-
-
 @Base.kwdef mutable struct PFcoilsOptTrace
     coils::Vector = []
     currents::Vector = []
@@ -52,16 +44,16 @@ Use radial build layers outline to initialize PF coils distribution
 """
 function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_gap_region::Vector)
 
-    resolution=257
+    resolution = 257
     rmask, zmask, mask = IMAS.structures_mask(rb, resolution=resolution)
 
     pf_active = IMAS.pf_active()
 
+    # add OH coils to pf_active IDS
     OH_layer = IMAS.get_radial_build(rb, type=1)
     r_ohcoils = ones(ncoils_OH) .* (sum(extrema(OH_layer.outline.r)) / 2.)
     z_ohcoils = collect(range(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), length=ncoils_OH))    
     oh_coils = [PointCoil(r, z) for (r, z) in zip(r_ohcoils, z_ohcoils)]
-
     for c in oh_coils
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
@@ -75,9 +67,10 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
         set_field_time_array(pf_active.coil[k].current, :data, 1, 0.0)
     end
 
+    # Now add actual PF coils to regions of vacuum
     resize!(rb.pf_coils_rail, length(n_pf_coils_per_gap_region))
     rail = 0
-    for (k, layer) in enumerate(vcat(rb.layer[1:end]))
+    for (k, layer) in enumerate(rb.layer)
         if (layer.hfs == -1 || k == length(rb.layer)) && ! is_missing(layer.outline, :r)
             if ! is_missing(layer, :material) && layer.material == "vacuum"
                 # pick layers with outline information
@@ -124,7 +117,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 rail += 1
                 if isa(n_pf_coils_per_gap_region[rail], Int)
                     ncoils = n_pf_coils_per_gap_region[rail]
-                    coils_distance=((1:ncoils) .- 0.5) ./ ncoils
+                    coils_distance = ((1:ncoils) .- 0.5) ./ ncoils
                 else
                     ncoils = length(n_pf_coils_per_gap_region[rail])
                     coils_distance = n_pf_coils_per_gap_region[rail]
@@ -234,8 +227,7 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
         push!(packed_tmp, packed)
         (optim_coils, λ_regularize) = unpack_mask(packed, symmetric)
         coils = vcat(fixed_coils, optim_coils)
-        ccc = [(c.R, c.Z) for c in coils] ###FIX
-        currents, cost_ψ = currents_to_match_ψp(fixed_eq..., ccc, λ_regularize=λ_regularize, return_cost=true)
+        currents, cost_ψ = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
         cost_bound = norm(mask_interpolant.([c.R for c in optim_coils], [c.Z for c in optim_coils]))
@@ -319,8 +311,7 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
         λ_regularize = packed[end]
         (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, radial_build)
         coils = vcat(fixed_coils, optim_coils)
-        ccc = [(c.R, c.Z) for c in coils] ###FIX
-        currents, cost_ψ = currents_to_match_ψp(fixed_eq..., ccc, λ_regularize=λ_regularize, return_cost=true)
+        currents, cost_ψ = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
         cost_bound = sum((distances .- 0.5) .* 2).^2
@@ -385,9 +376,7 @@ function step(actor::PFcoilsOptActor;
     # find coil currents for this initial configuration
     if maxiter < 0
         coils = vcat(fixed_coils, optim_coils)
-        ccc = [(c.R, c.Z) for c in coils] ###FIX
-        currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, ccc, λ_regularize=λ_regularize, return_cost=true)
-        coils = vcat(fixed_coils, optim_coils) ###FIX
+        currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, coils, λ_regularize=λ_regularize, return_cost=true)
         actor.λ_norm = λ_norm
         trace = actor.trace
 
@@ -410,8 +399,7 @@ function step(actor::PFcoilsOptActor;
     end
     
     # update ψ map
-    ccc = [(c.R, c.Z) for c in coils]
-    ψ_f2f = fixed2free(EQfixed, ccc, currents, EQfixed.r, EQfixed.z)
+    ψ_f2f = fixed2free(EQfixed, coils, currents, EQfixed.r, EQfixed.z)
     actor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
     # IMAS.flux_surfaces(actor.eq_out.time_slice[time_index]) #### PROBLEM
 
@@ -464,10 +452,10 @@ Plot PFcoilsOptActor optimization cross-section
 
     # plot optimization rails
     if rail
-        for (krail,rail) in enumerate(rb.pf_coils_rail)
+        for (krail, rail) in enumerate(rb.pf_coils_rail)
             @series begin
                 label --> "coil optimization rail"
-                primary --> krail==1 ? true : false
+                primary --> krail == 1 ? true : false
                 color --> :gray
                 linestyle --> :dash
                 rail.outline.r, rail.outline.z
@@ -555,7 +543,7 @@ Attributes:
             yscale --> :log10
             linestyle --> :dash
             color --> :black
-            ylim --> [minimum(trace.cost_total[end-100:end])/2,maximum(trace.cost_total[end-100:end])]
+            ylim --> [minimum(trace.cost_total[end - 100:end]) / 2,maximum(trace.cost_total[end - 100:end])]
             x, trace.cost_total[start_at:end]
         end
 
