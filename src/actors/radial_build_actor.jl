@@ -78,6 +78,11 @@ NOTE: layer[:].type and layer[:].material follows from naming of layers
 layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
+
+NOTE layer[:].shape integer index corresponds to the following shapes
+*   1 : Priceton_D (shape_parameters = [])
+*   2 : Rectangle  (shape_parameters = [height])
+*   3 : Tripple_Arc (shape_parameters = [Work in progress])
 """
 function init(radial_build::IMAS.radial_build; layers...)
     # assign layers
