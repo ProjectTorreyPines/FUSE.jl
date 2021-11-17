@@ -13,6 +13,9 @@ http://www.jaschwartz.net/journal/princeton-dee.html
 https://doi.org/10.2172/4096514
 """
 function princeton_D(R1::Real, R2::Real; closed::Bool=true)
+    if R1 > R2
+        error("R1 can't be larger than R2")
+    end
     R0 = sqrt(R1 * R2)
     k = 0.5 * log(R2 / R1)
     
@@ -48,6 +51,12 @@ function princeton_D(R1::Real, R2::Real; closed::Bool=true)
     return x, y
 end
 
+"""
+    Rectangular TF coil shape(R1::Real, R2::Real, height::Real)
+"""
+function rectangle_shape(R1::Real, R2::Real, height::Real)
+    return [R1, R2, R2, R1, R1], [-height/2, -height/2, height/2, height/2, -height/2]
+end
 #= ==== =#
 #  init  #
 #= ==== =#
@@ -159,7 +168,7 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
             lfs_TF=dr,
             gap_cryostat=2 * dr)
     end
-
+    radial_build.layer[3].shape=1
     radial_build_cx(radial_build, eqt, conformal_wall)
 
     return radial_build
@@ -363,7 +372,11 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     # for now we do this only if there is a blanket because without it it is likely that the TF and the wall will encroach
     if IMAS.get_radial_build(rb, type=4, hfs=-1, raise_error_on_missing=false) !== nothing
         layer = IMAS.get_radial_build(rb, type=2, hfs=-1)
-        xTF, yTF = princeton_D(layer.end_radius, IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).start_radius, closed=true)
+        if layer.shape  == 1
+            xTF, yTF = princeton_D(layer.end_radius, IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).start_radius, closed=true)
+        elseif layer.shape == 2
+            xTF, yTF = rectangle_shape(layer.end_radius,IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).start_radius,layer.shape_parameters[1])
+        end
         poly = LibGEOS.buffer(xy_polygon(xTF, yTF), layer.thickness)
         layer.outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
