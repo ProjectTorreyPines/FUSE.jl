@@ -231,10 +231,16 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
         cost_bound = norm(mask_interpolant.([c.R for c in optim_coils], [c.Z for c in optim_coils]))
-        cx = [c.R for c in optim_coils]
-        cy = [c.Z for c in optim_coils]
-        distance_matrix = sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cy)) .- repeat(transpose(cy), length(cy), 1)).^2.0)
-        cost_distance = norm(1.0 ./ (distance_matrix + LinearAlgebra.I * 1E2)) / length(optim_coils).^2
+        cost_distance = 0
+        for (k1,c1) in enumerate(optim_coils)
+            for (k2,c2) in enumerate(optim_coils)
+                if k1==k2
+                    continue
+                end
+                cost_distance+=1/sqrt((c1.R-c2.R)^2+(c1.Z-c2.Z)^2)
+            end
+        end
+        cost_distance = cost_distance / sum([rail.coils_number for rail in rb.pf_coils_rail])^2
         cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2)# + cost_distance^2)
         if do_trace
             push!(trace.currents, [no_Dual(c) for c in currents])
@@ -255,7 +261,7 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
     end
     
     # use NelderMead() ; other optimizer that works is Newton(), others have trouble
-    res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, allow_f_increases=true, successive_f_tol=100, callback=clb); autodiff=:forward)
+    res = Optim.optimize(placement_cost, packed, Optim.Newton(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb); autodiff=:forward)
 
     if verbose println(res) end
     packed = Optim.minimizer(res)
@@ -337,10 +343,16 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
         currents, cost_ψ = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
-        cx = [c.R for c in optim_coils]
-        cy = [c.Z for c in optim_coils]
-        distance_matrix = sqrt.((repeat(cx, 1, length(cx)) .- repeat(transpose(cx), length(cx), 1)).^2.0 .+ (repeat(cy, 1, length(cy)) .- repeat(transpose(cy), length(cy), 1)).^2.0)
-        cost_distance = norm(1.0 ./ (distance_matrix + LinearAlgebra.I * 1E2)) / sum([rail.coils_number for rail in rb.pf_coils_rail])
+        cost_distance = 0
+        for (k1,c1) in enumerate(optim_coils)
+            for (k2,c2) in enumerate(optim_coils)
+                if k1==k2
+                    continue
+                end
+                cost_distance+=1/sqrt((c1.R-c2.R)^2+(c1.Z-c2.Z)^2)
+            end
+        end
+        cost_distance = cost_distance / sum([rail.coils_number for rail in rb.pf_coils_rail])^2
         cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_distance^2)
         if do_trace
             push!(trace.currents, [no_Dual(c) for c in currents])
@@ -361,7 +373,7 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
     end
     
     # use NelderMead() ; other optimizer that works is Newton(), others have trouble
-    res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, allow_f_increases=true, successive_f_tol=10, callback=clb); autodiff=:forward)
+    res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb); autodiff=:forward)
     if verbose println(res) end
     packed = Optim.minimizer(res)
 
