@@ -79,6 +79,25 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
     for (k, layer) in enumerate(rb.layer)
         if (layer.hfs == -1 || k == length(rb.layer)) && ! is_missing(layer.outline, :r)
             if ! is_missing(layer, :material) && layer.material == "vacuum"
+
+                krail += 1
+                if isa(n_pf_coils_per_gap_region[krail], Int)
+                    ncoils = n_pf_coils_per_gap_region[krail]
+                else
+                    ncoils = length(n_pf_coils_per_gap_region[krail])
+                end
+
+                # add rail info to radial_build IDS
+                rb.pf_coils_rail[1 + krail].name = replace(replace(layer.name, "hfs " => ""), "lfs " => "")
+                rb.pf_coils_rail[1 + krail].coils_number = ncoils
+
+                if ncoils == 0
+                    rb.pf_coils_rail[1 + krail].outline.r = Float64[]
+                    rb.pf_coils_rail[1 + krail].outline.z = Float64[]
+                    rb.pf_coils_rail[1 + krail].outline.distance = Float64[]
+                    continue
+                end
+
                 # pick layers with outline information
                 if layer.hfs == -1
                     outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=-1)
@@ -92,7 +111,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 # inner_r, inner_z, outer_r, outer_z, θ = two_curves_same_θ(inner_layer.outline.r, inner_layer.outline.z, outer_layer.outline.r, outer_layer.outline.z)
 
                 clerance = 7 * length(rmask) / 257 # this is reasonable on a 257 mask grid
-                buff = (clerance + 3) * (rmask[2] - rmask[1])
+                buff = (clerance * 2) * (rmask[2] - rmask[1])
 
                 # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
                 poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), buff)
@@ -120,12 +139,9 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 valid_r = vcat(valid_r[istart + 1:end], valid_r[1:istart])
                 valid_z = vcat(valid_z[istart + 1:end], valid_z[1:istart])
 
-                krail += 1
                 if isa(n_pf_coils_per_gap_region[krail], Int)
-                    ncoils = n_pf_coils_per_gap_region[krail]
                     coils_distance = ((1:ncoils) .- 0.5) ./ ncoils
                 else
-                    ncoils = length(n_pf_coils_per_gap_region[krail])
                     coils_distance = n_pf_coils_per_gap_region[krail]
                 end
 
@@ -140,8 +156,6 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 distance = (distance ./ distance[end])
 
                 # add rail info to radial_build IDS
-                rb.pf_coils_rail[1 + krail].name = replace(replace(layer.name, "hfs " => ""), "lfs " => "")
-                rb.pf_coils_rail[1 + krail].coils_number = ncoils
                 rb.pf_coils_rail[1 + krail].outline.r = valid_r
                 rb.pf_coils_rail[1 + krail].outline.z = valid_z
                 rb.pf_coils_rail[1 + krail].outline.distance = distance
@@ -493,12 +507,14 @@ Plot PFcoilsOptActor optimization cross-section
     # plot optimization rails
     if rail
         for (krail, rail) in enumerate(rb.pf_coils_rail)
-            @series begin
-                label --> "coil optimization rail"
-                primary --> krail == 1 ? true : false
-                color --> :gray
-                linestyle --> :dash
-                rail.outline.r, rail.outline.z
+            if ! is_missing(rail.outline,:r)
+                @series begin
+                    label --> "coil optimization rail"
+                    primary --> krail == 1 ? true : false
+                    color --> :gray
+                    linestyle --> :dash
+                    rail.outline.r, rail.outline.z
+                end
             end
         end
     end
