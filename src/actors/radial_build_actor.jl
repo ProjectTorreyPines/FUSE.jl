@@ -38,12 +38,12 @@ function princeton_D(R1::Real, R2::Real; closed::Bool=true)
     segment1[2] .-= Z02
     segment2[2] .-= Z02
 
-    x = vcat(reverse(segment1[1])[1:end-1], segment2[1][1:end-1], reverse(segment2[1])[1:end-1], segment1[1])
-    y = vcat(reverse(segment1[2])[1:end-1], segment2[2][1:end-1], -reverse(segment2[2])[1:end-1], -segment1[2])
+    x = vcat(reverse(segment1[1])[1:end - 1], segment2[1][1:end - 1], reverse(segment2[1])[1:end - 1], segment1[1])
+    y = vcat(reverse(segment1[2])[1:end - 1], segment2[2][1:end - 1], -reverse(segment2[2])[1:end - 1], -segment1[2])
 
     if closed        
-        x = vcat(x,x[1])
-        y = vcat(y,y[1])
+        x = vcat(x, x[1])
+        y = vcat(y, y[1])
     end
     return x, y
 end
@@ -111,11 +111,11 @@ function init(radial_build::IMAS.radial_build; layers...)
 end
 
 """
-    init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true)
+    init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true)
 
 Simple initialization of radial_build IDS based on equilibrium time_slice
 """
-function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true, conformal_wall=true)
+function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true, conformal_wall=true)
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -125,7 +125,7 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
         rmin -= gap
         rmax += gap
         dr = rmin / n_hfs_layers
-        init(radial_build,
+        init(rb,
             gap_OH=dr * 2.0,
             OH=dr,
             hfs_TF=dr,
@@ -147,7 +147,7 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
         rmin -= gap
         rmax += gap
         dr = rmin / n_hfs_layers
-        init(radial_build,
+        init(rb,
             gap_OH=dr * 2.0,
             OH=dr,
             hfs_TF=dr,
@@ -160,9 +160,11 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
             gap_cryostat=2 * dr)
     end
 
-    radial_build_cx(radial_build, eqt, conformal_wall)
+    rb.tf.coils_n = 16
 
-    return radial_build
+    radial_build_cx(rb, eqt, conformal_wall)
+
+    return rb
 end
 
 function xy_polygon(x, y)
@@ -241,22 +243,6 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
         r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
         z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
         PSI_interpolant = Interpolations.CubicSplineInterpolation((r, z), eqt.profiles_2d[1].psi)
-
-        if false # wall like the 0.95 flux surface
-            R_hfs_wall = IMAS.get_radial_build(rb, type=5, hfs=-1).start_radius
-            R_lfs_wall = IMAS.get_radial_build(rb, type=5, hfs=1).end_radius
-            psi_wall = (eqt.global_quantities.psi_boundary - eqt.global_quantities.psi_axis) * 0.95 + eqt.global_quantities.psi_axis
-            pr, pz = IMAS.flux_surface(eqt, psi_wall, true)
-            distance_R_hfs = sqrt.((pr .- R_hfs_wall).^2 + (pz .- 0.0).^2)
-            R_hfs = pr[argmin(distance_R_hfs)]
-            distance_R_lfs = sqrt.((pr .- R_lfs_wall).^2 + (pz .- 0.0).^2)
-            R_lfs = pr[argmin(distance_R_lfs)]
-            scale = (R_lfs_wall .- R_hfs_wall) ./ (R_lfs .- R_hfs)
-            pr = (pr .- (R_hfs .+ R_lfs) ./ 2) .* scale .+ (R_hfs_wall .+ R_lfs_wall) ./ 2
-            pz = pz .* scale * 1.2
-            outer_wall_poly = xy_polygon(pr, pz)
-            inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=-1).thickness)
-        end
 
         # Inner/lfs radii of the vacuum vessel
         R_hfs_vessel = IMAS.get_radial_build(rb, type=-1).start_radius
@@ -341,8 +327,14 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     IMAS.get_radial_build(rb, type=5, hfs=-1).outline.r = [v[1] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
     IMAS.get_radial_build(rb, type=5, hfs=-1).outline.z = [v[2] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
 
+    # all layers between wall and OH
     valid = false
     for (k, layer) in reverse(collect(enumerate(rb.layer)))
+        # stop once you see the OH
+        if layer.type == 1
+            valid = false
+            break
+        end
         if valid
             outer_layer = rb.layer[k + 1]
             hfs_thickness = layer.thickness
@@ -351,11 +343,9 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
             rb.layer[k].outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
             rb.layer[k].outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
         end
+        # valid starting from the wall
         if (layer.type == 5) && (layer.hfs == -1)
             valid = true
-        end
-        if (layer.type == 2) && (layer.hfs == -1)
-            valid = false
         end
     end
 
@@ -371,6 +361,9 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
         layer.outline.r = xTF
         layer.outline.z = yTF
     end
+
+    # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
+    rb.tf.thickness = 2 * π * IMAS.get_radial_build(rb, type=2, hfs=-1).start_radius / rb.tf.coils_n
 
     # plug
     rb.layer[1].outline.r, rb.layer[1].outline.z = wall_plug(rb)
