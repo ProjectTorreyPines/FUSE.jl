@@ -5,7 +5,7 @@
     cost_ψ::Vector = []
     cost_currents::Vector = []
     cost_bound::Vector = []
-    cost_distance::Vector = []
+    cost_spacing::Vector = []
     cost_total::Vector = []
 end
 
@@ -60,7 +60,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
     rb.pf_coils_rail[1].coils_number = ncoils_OH
     rb.pf_coils_rail[1].outline.r = r_ohcoils
     rb.pf_coils_rail[1].outline.z = z_ohcoils
-    rb.pf_coils_rail[1].outline.distance = range(0, 1, length=ncoils_OH)
+    rb.pf_coils_rail[1].outline.distance = range(-1, 1, length=ncoils_OH)
     for c in oh_coils
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
@@ -140,7 +140,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 valid_z = vcat(valid_z[istart + 1:end], valid_z[1:istart])
 
                 if isa(n_pf_coils_per_gap_region[krail], Int)
-                    coils_distance = ((1:ncoils) .- 0.5) ./ ncoils
+                    coils_distance = range(-(1-1/ncoils),1-1/ncoils,length=ncoils)
                 else
                     coils_distance = n_pf_coils_per_gap_region[krail]
                 end
@@ -153,7 +153,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 valid_r = valid_r[d_distance .!= 0]
                 distance = distance[d_distance .!= 0]
                 distance = (distance .- distance[1])
-                distance = (distance ./ distance[end])
+                distance = (distance ./ distance[end]).*2.0.-1.0
 
                 # add rail info to radial_build IDS
                 rb.pf_coils_rail[1 + krail].outline.r = valid_r
@@ -251,17 +251,17 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
         cost_bound = norm(mask_interpolant.([c.R for c in optim_coils], [c.Z for c in optim_coils]))
-        cost_distance = 0
+        cost_spacing = 0
         for (k1, c1) in enumerate(optim_coils)
             for (k2, c2) in enumerate(optim_coils)
                 if k1 == k2
                     continue
                 end
-                cost_distance += 1 / sqrt((c1.R - c2.R)^2 + (c1.Z - c2.Z)^2)
+                cost_spacing += 1 / sqrt((c1.R - c2.R)^2 + (c1.Z - c2.Z)^2)
             end
         end
-        cost_distance = cost_distance / sum([rail.coils_number for rail in rb.pf_coils_rail])^2
-        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2)# + cost_distance^2)
+        cost_spacing = cost_spacing / sum([rail.coils_number for rail in rb.pf_coils_rail])^2
+        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2)# + cost_spacing^2)
         if do_trace
             push!(trace.currents, [no_Dual(c) for c in currents])
             push!(trace.coils, vcat(fixed_coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in optim_coils]))
@@ -269,7 +269,7 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
             push!(trace.cost_ψ, no_Dual(cost_ψ))
             push!(trace.cost_currents, no_Dual(cost_currents))
             push!(trace.cost_bound, no_Dual(cost_bound))
-            push!(trace.cost_distance, no_Dual(cost_distance))
+            push!(trace.cost_spacing, no_Dual(cost_spacing))
             push!(trace.cost_total, no_Dual(cost))
         end
         return cost
@@ -295,13 +295,13 @@ function pack_rail(rb::IMAS.radial_build, λ_regularize::Float64, symmetric::Boo
     for rail in rb.pf_coils_rail
         # not symmetric
         if ! symmetric
-            coil_distances = collect(range(0.0, 1.0, length=rail.coils_number + 2))[2:end - 1]
+            coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2:end - 1]
         # even symmetric
         elseif mod(rail.coils_number, 2) == 0
-            coil_distances = collect(range(0.0, 1.0, length=rail.coils_number + 2))[2 + Int(rail.coils_number // 2):end - 1]
+            coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2 + Int(rail.coils_number // 2):end - 1]
         # odd symmetric
         else
-            coil_distances = collect(range(0.0, 1.0, length=rail.coils_number + 2))[2 + Int((rail.coils_number - 1) // 2) + 1:end - 1]
+            coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2 + Int((rail.coils_number - 1) // 2) + 1:end - 1]
         end
         append!(distances, coil_distances)
     end
@@ -324,18 +324,18 @@ function unpack_rail(packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
         elseif mod(rail.coils_number, 2) == 0
             dkcoil = Int(rail.coils_number // 2)
             coil_distances = distances[kcoil + 1:kcoil + dkcoil]
-            coil_distances = vcat(1.0 .- reverse(coil_distances), coil_distances)
+            coil_distances = vcat(- reverse(coil_distances), coil_distances)
         # odd symmetric
         else
             dkcoil = Int((rail.coils_number - 1) // 2)
             coil_distances = distances[kcoil + 1:kcoil + dkcoil]
-            coil_distances = vcat(1.0 .- reverse(coil_distances), 0.5, coil_distances)
+            coil_distances = vcat(- reverse(coil_distances), 0.0, coil_distances)
         end
         kcoil += dkcoil
 
         # mirror coil position when they reach the end of the rail
-        while any(coil_distances .< 0) || any(coil_distances .> 1)
-            coil_distances[coil_distances .< 0] = 0.0 .- coil_distances[coil_distances .< 0]
+        while any(coil_distances .< -1) || any(coil_distances .> 1)
+            coil_distances[coil_distances .< -1] = -2.0 .- coil_distances[coil_distances .< -1]
             coil_distances[coil_distances .> 1] = 2.0 .- coil_distances[coil_distances .> 1]
         end
 
@@ -363,17 +363,17 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
         currents, cost_ψ = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
-        cost_distance = 0
+        cost_spacing = 0
         for (k1, c1) in enumerate(optim_coils)
             for (k2, c2) in enumerate(optim_coils)
                 if k1 == k2
                     continue
                 end
-                cost_distance += 1 / sqrt((c1.R - c2.R)^2 + (c1.Z - c2.Z)^2)
+                cost_spacing += 1 / sqrt((c1.R - c2.R)^2 + (c1.Z - c2.Z)^2)
             end
         end
-        cost_distance = cost_distance / sum([rail.coils_number for rail in rb.pf_coils_rail])^2
-        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_distance^2)
+        cost_spacing = cost_spacing / sum([rail.coils_number for rail in rb.pf_coils_rail])^2
+        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_spacing^2)
         if do_trace
             push!(trace.currents, [no_Dual(c) for c in currents])
             push!(trace.coils, vcat(fixed_coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in optim_coils]))
@@ -381,7 +381,7 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; fixed_coi
             push!(trace.cost_ψ, no_Dual(cost_ψ))
             push!(trace.cost_currents, no_Dual(cost_currents))
             push!(trace.cost_bound, NaN)
-            push!(trace.cost_distance, no_Dual(cost_distance))
+            push!(trace.cost_spacing, no_Dual(cost_spacing))
             push!(trace.cost_total, no_Dual(cost))
         end
         return cost
@@ -588,9 +588,9 @@ Attributes:
             x, trace.cost_bound[start_at:end]
         end
         @series begin
-            label --> "distance"
+            label --> "spacing"
             yscale --> :log10
-            x, trace.cost_distance[start_at:end]
+            x, trace.cost_spacing[start_at:end]
         end
         @series begin
             label --> "total"
