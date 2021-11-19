@@ -228,7 +228,6 @@ function wall_cryostat(rb::IMAS.radial_build)
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
-
 function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
     # we make the lfs wall to be conformal to miller
     n = Int(floor(length(eqt.profiles_1d.elongation) * 0.95))
