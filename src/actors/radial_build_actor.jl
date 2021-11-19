@@ -91,9 +91,9 @@ function init(radial_build::IMAS.radial_build; layers...)
             radial_build.layer[k].type = 5
         end
         if occursin("hfs", lowercase(radial_build.layer[k].name))
-            radial_build.layer[k].hfs = -1
-        elseif occursin("lfs", lowercase(radial_build.layer[k].name))
             radial_build.layer[k].hfs = 1
+        elseif occursin("lfs", lowercase(radial_build.layer[k].name))
+            radial_build.layer[k].hfs = -1
         else
             radial_build.layer[k].hfs = 0
         end
@@ -194,10 +194,10 @@ function wall_miller_conformal(rb, layer_type, elongation, triangularity)
         line = miller((Rend + Rstart) / 2.0, (Rend - Rstart) / (Rend + Rstart), elongation, triangularity, 100)        
         return line, line
     else
-        Rstart_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).start_radius
-        Rend_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).end_radius
-        Rstart_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).start_radius
-        Rend_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).end_radius
+        Rstart_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).start_radius
+        Rend_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).end_radius
+        Rstart_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).start_radius
+        Rend_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).end_radius
         inner_line = miller((Rstart_lfs + Rend_hfs) / 2.0, (Rstart_lfs - Rend_hfs) / (Rstart_lfs + Rend_hfs), elongation, triangularity, 100)
         outer_line = miller((Rend_lfs + Rstart_hfs) / 2.0, (Rend_lfs - Rstart_hfs) / (Rend_lfs + Rstart_hfs), elongation, triangularity, 100)
         return inner_line, outer_line
@@ -207,24 +207,24 @@ end
 function wall_plug(rb::IMAS.radial_build)
     L = 0
     R = IMAS.get_radial_build(rb, type=1).start_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z)
-    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z)
+    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
+    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
 function wall_oh(rb::IMAS.radial_build)
     L = IMAS.get_radial_build(rb, type=1).start_radius
     R = IMAS.get_radial_build(rb, type=1).end_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z)
-    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z)
+    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
+    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
 function wall_cryostat(rb::IMAS.radial_build)
     L = 0
     R = rb.layer[end].end_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z) + rb.layer[end].thickness
-    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=-1).outline.z) - rb.layer[end].thickness
+    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z) + rb.layer[end].thickness
+    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z) - rb.layer[end].thickness
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
@@ -235,10 +235,10 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     inner_wall_line, outer_wall_line = wall_miller_conformal(rb, 5, eqt.profiles_1d.elongation[n], (eqt.profiles_1d.triangularity_upper[n] + eqt.profiles_1d.triangularity_lower[n]) / 2.0) # wall
     outer_wall_line[2] = outer_wall_line[2] .* 1.2
     outer_wall_poly = xy_polygon(outer_wall_line...)
-    inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=-1).thickness)
+    inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
 
     if ! conformal_wall
-        vessel_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=-1).thickness)
+        vessel_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
     else
         r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
         z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
@@ -324,8 +324,8 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     IMAS.get_radial_build(rb, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(vessel_poly)[1]]
 
     # wall
-    IMAS.get_radial_build(rb, type=5, hfs=-1).outline.r = [v[1] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
-    IMAS.get_radial_build(rb, type=5, hfs=-1).outline.z = [v[2] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
+    IMAS.get_radial_build(rb, type=5, hfs=1).outline.r = [v[1] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
+    IMAS.get_radial_build(rb, type=5, hfs=1).outline.z = [v[2] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
 
     # all layers between wall and OH
     valid = false
@@ -338,32 +338,32 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
         if valid
             outer_layer = rb.layer[k + 1]
             hfs_thickness = layer.thickness
-            lfs_thickness = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).thickness
+            lfs_thickness = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).thickness
             poly = LibGEOS.buffer(xy_polygon(outer_layer.outline.r, outer_layer.outline.z), (hfs_thickness + lfs_thickness) / 2.0)
             rb.layer[k].outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
             rb.layer[k].outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
         end
         # valid starting from the wall
-        if (layer.type == 5) && (layer.hfs == -1)
+        if (layer.type == 5) && (layer.hfs == 1)
             valid = true
         end
     end
 
     # if it's a nuclear facility we overwrite TF outer and inner outlines with princeton D
     # for now we do this only if there is a blanket because without it it is likely that the TF and the wall will encroach
-    if IMAS.get_radial_build(rb, type=4, hfs=-1, raise_error_on_missing=false) !== nothing
-        layer = IMAS.get_radial_build(rb, type=2, hfs=-1)
-        xTF, yTF = princeton_D(layer.end_radius, IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).start_radius, closed=true)
+    if IMAS.get_radial_build(rb, type=4, hfs=1, raise_error_on_missing=false) !== nothing
+        layer = IMAS.get_radial_build(rb, type=2, hfs=1)
+        xTF, yTF = princeton_D(layer.end_radius, IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).start_radius, closed=true)
         poly = LibGEOS.buffer(xy_polygon(xTF, yTF), layer.thickness)
         layer.outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
-        layer = rb.layer[IMAS.get_radial_build(rb, type=2, hfs=-1, return_index=true) + 1]
+        layer = rb.layer[IMAS.get_radial_build(rb, type=2, hfs=1, return_index=true) + 1]
         layer.outline.r = xTF
         layer.outline.z = yTF
     end
 
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    rb.tf.thickness = 2 * π * IMAS.get_radial_build(rb, type=2, hfs=-1).start_radius / rb.tf.coils_n
+    rb.tf.thickness = 2 * π * IMAS.get_radial_build(rb, type=2, hfs=1).start_radius / rb.tf.coils_n
 
     # plug
     rb.layer[1].outline.r, rb.layer[1].outline.z = wall_plug(rb)

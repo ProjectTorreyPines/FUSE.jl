@@ -77,7 +77,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
     # Now add actual PF coils to regions of vacuum
     krail = 0
     for (k, layer) in enumerate(rb.layer)
-        if (layer.hfs == -1 || k == length(rb.layer)) && ! is_missing(layer.outline, :r)
+        if (layer.hfs == 1 || k == length(rb.layer)) && ! is_missing(layer.outline, :r)
             if ! is_missing(layer, :material) && layer.material == "vacuum"
 
                 krail += 1
@@ -99,12 +99,12 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 end
 
                 # pick layers with outline information
-                if layer.hfs == -1
-                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=-1)
-                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k + 1].identifier, hfs=[-1,0])
+                if layer.hfs == 1
+                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=1)
+                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k + 1].identifier, hfs=[1,0])
                 else
-                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k - 1].identifier, hfs=-1)
-                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=[-1,0])
+                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k - 1].identifier, hfs=1)
+                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=[1,0])
                 end
 
                 # take two outlines and interpolate them on the same θ
