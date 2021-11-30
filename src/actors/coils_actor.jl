@@ -41,7 +41,7 @@ import Contour
 # - optim: coils that have theri position and current optimized
 # - pinned: coisl with fixed position but current is optimized
 # - fixed: fixed position and current
-  
+
 """
     initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_gap_region::Vector{Int})
 
@@ -59,7 +59,8 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
     # OH coils are distributed on a rail within the OH region
     OH_layer = IMAS.get_radial_build(rb, type=1)
     r_ohcoils = ones(ncoils_OH) .* (sum(extrema(OH_layer.outline.r)) / 2.)
-    z_ohcoils = collect(range(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), length=ncoils_OH))    
+    z_ohcoils = collect(range(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), length=ncoils_OH))
+    z_ohcoils = [abs(z)<1E-6 ? 0 : z for z in z_ohcoils]
     oh_coils = [PointCoil(r, z) for (r, z) in zip(r_ohcoils, z_ohcoils)]
     rb.pf_coils_rail[1].name = "OH"
     rb.pf_coils_rail[1].coils_number = ncoils_OH
@@ -168,6 +169,7 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 # uniformely distribute coils
                 r_coils = IMAS.interp(distance, valid_r)(coils_distance)
                 z_coils = IMAS.interp(distance, valid_z)(coils_distance)
+                z_coils = [abs(z)<1E-6 ? 0 : z for z in z_coils]
                 coils = [PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
 
                 # populate IMAS data structure
@@ -228,19 +230,45 @@ end
 # utility functions for packing and unpacking info in/out of optimization function
 
 function pack_mask(optim_coils::Vector, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
-    coilz = vcat([c.R for c in optim_coils if ((! symmetric) || c.Z >= 0)], [c.Z for c in optim_coils if ((! symmetric) || c.Z >= 0)])
+    coilz = []
+    for c in optim_coils
+        if (! symmetric) || (c.Z >= 0)
+            push!(coilz,c.R)
+            if (! symmetric) || (c.Z > 0)
+                push!(coilz,c.Z)
+            end
+        end
+    end
     packed = vcat(coilz, log10(λ_regularize))
     return packed
 end
 
-function unpack_mask(packed::Vector, symmetric::Bool)
+function unpack_mask!(optim_coils::Vector, packed::Vector, symmetric::Bool)
     coilz = packed[1:end - 1]
     λ_regularize = packed[end]
-    optim_coils =  [PointCoil(coilz[k], coilz[k + Int(length(coilz) / 2)]) for (k, c) in enumerate(coilz[1:Int(end / 2)])]
-    if symmetric
-        optim_coils = vcat(optim_coils, [PointCoil(c.R, -c.Z) for c in optim_coils if c.Z != 0])
+    kz=0
+    posz=[]
+    negz=[]
+    for (k,c) in enumerate(optim_coils)
+        if (! symmetric) || (c.Z >= 0.0)
+            kz += 1
+            c.R = coilz[kz]
+            if (! symmetric) || (c.Z > 0.0)
+                kz += 1
+                c.Z = coilz[kz]
+                push!(posz,k)
+            end
+        else
+            push!(negz,k)
+        end
     end
-    return optim_coils, 10^λ_regularize
+    if symmetric
+        for (knz,kpz) in zip(negz,posz)
+            optim_coils[knz].R = optim_coils[kpz].R
+            optim_coils[knz].Z = -optim_coils[kpz].Z
+        end
+    end
+    return 10^λ_regularize
 end
 
 function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, fixed_currents::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
@@ -252,12 +280,12 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; pinned_co
     packed_tmp = []
     function placement_cost(packed; do_trace=false)
         push!(packed_tmp, packed)
-        (optim_coils, λ_regularize) = unpack_mask(packed, symmetric)
+        λ_regularize = unpack_mask!(optim_coils, packed, symmetric)
         coils = vcat(pinned_coils, optim_coils)
         currents, cost_ψ = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
-        cost_bound = norm(mask_interpolant.([c.R for c in optim_coils], [c.Z for c in optim_coils]))
+        cost_bound = norm(mask_interpolant.([c.R for c in optim_coils], [c.Z for c in optim_coils]))/10
         cost_spacing = 0
         for (k1, c1) in enumerate(optim_coils)
             for (k2, c2) in enumerate(optim_coils)
@@ -288,12 +316,12 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; pinned_co
     end
     
     # use NelderMead() ; other optimizer that works is Newton(), others have trouble
-    res = Optim.optimize(placement_cost, packed, Optim.Newton(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb); autodiff=:forward)
+    res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb); autodiff=:forward)
 
     if verbose println(res) end
     packed = Optim.minimizer(res)
 
-    (optim_coils, λ_regularize) = unpack_mask(packed, symmetric)
+    λ_regularize = unpack_mask!(optim_coils, packed, symmetric)
 
     pinned_currents = [trace.currents[end][k] for k in 1:length(pinned_coils)]
     optim_currents = [trace.currents[end][k] for k in (length(pinned_coils)+1):(length(pinned_coils)+length(optim_coils))]
@@ -320,12 +348,12 @@ function pack_rail(rb::IMAS.radial_build, λ_regularize::Float64, symmetric::Boo
     return packed
 end
 
-function unpack_rail(packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
+function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
     distances = packed[1:end - 1]
     λ_regularize = packed[end]
-    optim_coils = []
     kcoil = 0
-    for rail in rb.pf_coils_rail
+    koptim = 0
+    for (krail,rail) in enumerate(rb.pf_coils_rail)
         r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
         z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc=:flat)
         # not symmetric
@@ -351,16 +379,19 @@ function unpack_rail(packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
             coil_distances[coil_distances .> 1] = 2.0 .- coil_distances[coil_distances .> 1]
         end
 
-        # do not make coils cross, keep their order
-        coil_distances = sort(coil_distances)
-
+        # get coils r and z from distances
         r_coils = r_interp.(coil_distances)
         z_coils = z_interp.(coil_distances)
-        append!(optim_coils, [PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)])
-        
+
+        # assign to optim coils
+        for k in 1:length(r_coils)
+            koptim += 1
+            optim_coils[koptim].R = r_coils[k]
+            optim_coils[koptim].Z = z_coils[k]
+        end
     end
 
-    return optim_coils, 10^λ_regularize
+    return 10^λ_regularize
 end
 
 function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, fixed_currents::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
@@ -371,7 +402,7 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; pinned_co
     packed_tmp = []
     function placement_cost(packed; do_trace=false)
         push!(packed_tmp, packed)
-        (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, rb)
+        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
         coils = vcat(pinned_coils, optim_coils)
         currents, cost_ψ = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
         cost_ψ = cost_ψ / λ_ψ
@@ -410,7 +441,7 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; pinned_co
     if verbose println(res) end
     packed = Optim.minimizer(res)
 
-    (optim_coils, λ_regularize) = unpack_rail(packed, symmetric, rb)
+    λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
 
     pinned_currents = [trace.currents[end][k] for k in 1:length(pinned_coils)]
     optim_currents = [trace.currents[end][k] for k in (length(pinned_coils)+1):(length(pinned_coils)+length(optim_coils))]
