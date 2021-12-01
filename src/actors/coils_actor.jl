@@ -222,6 +222,30 @@ function mask_interpolant_function(rb::IMAS.radial_build)
     return mask_log_interpolant
 end
 
+function Base.getproperty(C::IMAS.pf_active__coil, field::Symbol)
+    if field == :R
+        return C.element[1].geometry.rectangle.r
+    elseif field == :Z
+        return C.element[1].geometry.rectangle.z
+    else
+        return getfield(C, field)
+    end
+end
+
+function Base.setproperty!(C::IMAS.pf_active__coil, field::Symbol, value::Any)
+    if field == :R
+        return C.element[1].geometry.rectangle.r = value
+    elseif field == :Z
+        return C.element[1].geometry.rectangle.z = value
+    else
+        return setfield!(C, field, value)
+    end
+end
+
+function AD_GS.Green(C::IMAS.pf_active__coil, R::Real, Z::Real)
+    return AD_GS.Green(C.element[1].geometry.rectangle.r, C.element[1].geometry.rectangle.z, R, Z)
+end
+
 #= == =#
 # STEP #
 #= == =#
@@ -468,15 +492,14 @@ function step(actor::PFcoilsOptActor;
     optim_coils = []
     optim_currents = []
     for coil in actor.pf_active.coil
-        c = PointCoil(coil.element[1].geometry.rectangle.r, coil.element[1].geometry.rectangle.z)
         if coil.identifier == "pinned"
-            push!(pinned_coils, c)
+            push!(pinned_coils, coil)
             push!(pinned_currents, coil.current.data[time_index])
         elseif coil.identifier == "optim"
-            push!(optim_coils, c)
+            push!(optim_coils, coil)
             push!(optim_currents, coil.current.data[time_index])
         elseif coil.identifier == "fixed"
-            push!(fixed_coils, c)
+            push!(fixed_coils, coil)
             push!(fixed_currents, coil.current.data[time_index])
         else
             error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
