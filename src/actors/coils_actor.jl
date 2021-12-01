@@ -542,7 +542,7 @@ function step(actor::PFcoilsOptActor;
     end
 
     # update ψ map
-    ψ_f2f = fixed2free(EQfixed, vcat(pinned[1], optim[1], fixed[1]), vcat(pinned[2], optim[2], fixed[2]), EQfixed.r, EQfixed.z)
+    ψ_f2f = AD_GS.fixed2free(EQfixed, vcat(pinned[1], optim[1], fixed[1]), vcat(pinned[2], optim[2], fixed[2]), EQfixed.r, EQfixed.z)
     actor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
     # IMAS.flux_surfaces(actor.eq_out.time_slice[time_index]) #### PROBLEM
 
@@ -551,12 +551,6 @@ function step(actor::PFcoilsOptActor;
     k = 1
     for (coiltype, (coils, currents)) in [("pinned",pinned), ("optim",optim), ("fixed",fixed)]
         for (coil, current) in zip(coils, currents)
-            pf_active.coil[k].identifier = coiltype
-            pf_active.coil[k].element[1].geometry.rectangle.r = coil.r
-            pf_active.coil[k].element[1].geometry.rectangle.z = coil.z
-            pf_active.coil[k].element[1].geometry.rectangle.width = maximum(coil.r) - minimum(coil.r)
-            pf_active.coil[k].element[1].geometry.rectangle.height = maximum(coil.z) - minimum(coil.z)
-            set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
             set_field_time_array(pf_active.coil[k].current, :data, 1, current)
             k+=1
         end
