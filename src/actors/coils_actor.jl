@@ -223,9 +223,9 @@ function mask_interpolant_function(rb::IMAS.radial_build)
 end
 
 function Base.getproperty(C::IMAS.pf_active__coil, field::Symbol)
-    if field == :R
+    if field == :r
         return C.element[1].geometry.rectangle.r
-    elseif field == :Z
+    elseif field == :z
         return C.element[1].geometry.rectangle.z
     else
         return getfield(C, field)
@@ -233,9 +233,9 @@ function Base.getproperty(C::IMAS.pf_active__coil, field::Symbol)
 end
 
 function Base.setproperty!(C::IMAS.pf_active__coil, field::Symbol, value::Any)
-    if field == :R
+    if field == :r
         return C.element[1].geometry.rectangle.r = value
-    elseif field == :Z
+    elseif field == :z
         return C.element[1].geometry.rectangle.z = value
     else
         return setfield!(C, field, value)
@@ -254,10 +254,10 @@ end
 function pack_mask(optim_coils::Vector, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
     coilz = []
     for c in optim_coils
-        if (! symmetric) || (c.Z >= 0)
-            push!(coilz,c.R)
-            if (! symmetric) || (c.Z > 0)
-                push!(coilz,c.Z)
+        if (! symmetric) || (c.z >= 0)
+            push!(coilz,c.r)
+            if (! symmetric) || (c.z > 0)
+                push!(coilz,c.z)
             end
         end
     end
@@ -272,12 +272,12 @@ function unpack_mask!(optim_coils::Vector, packed::Vector, symmetric::Bool)
     posz=[]
     negz=[]
     for (k,c) in enumerate(optim_coils)
-        if (! symmetric) || (c.Z >= 0.0)
+        if (! symmetric) || (c.z >= 0.0)
             kz += 1
-            c.R = coilz[kz]
-            if (! symmetric) || (c.Z > 0.0)
+            c.r = coilz[kz]
+            if (! symmetric) || (c.z > 0.0)
                 kz += 1
-                c.Z = coilz[kz]
+                c.z = coilz[kz]
                 push!(posz,k)
             end
         else
@@ -286,8 +286,8 @@ function unpack_mask!(optim_coils::Vector, packed::Vector, symmetric::Bool)
     end
     if symmetric
         for (knz,kpz) in zip(negz,posz)
-            optim_coils[knz].R = optim_coils[kpz].R
-            optim_coils[knz].Z = -optim_coils[kpz].Z
+            optim_coils[knz].r = optim_coils[kpz].r
+            optim_coils[knz].z = -optim_coils[kpz].z
         end
     end
     return 10^λ_regularize
@@ -307,21 +307,21 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; pinned_co
         currents, cost_ψ = currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
         cost_ψ = cost_ψ / λ_ψ
         cost_currents = norm(currents) / length(currents) / λ_currents
-        cost_bound = norm(mask_interpolant.([c.R for c in optim_coils], [c.Z for c in optim_coils]))/10
+        cost_bound = norm(mask_interpolant.([c.r for c in optim_coils], [c.z for c in optim_coils]))/10
         cost_spacing = 0
         for (k1, c1) in enumerate(optim_coils)
             for (k2, c2) in enumerate(optim_coils)
                 if k1 == k2
                     continue
                 end
-                cost_spacing += 1 / sqrt((c1.R - c2.R)^2 + (c1.Z - c2.Z)^2)
+                cost_spacing += 1 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
             end
         end
         cost_spacing = cost_spacing / sum([rail.coils_number for rail in rb.pf_coils_rail])^2
         cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2)# + cost_spacing^2)
         if do_trace
             push!(trace.currents, [no_Dual(c) for c in currents])
-            push!(trace.coils, vcat(pinned_coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in optim_coils]))
+            push!(trace.coils, vcat(pinned_coils, [PointCoil(no_Dual(c.r), no_Dual(c.z)) for c in optim_coils]))
             push!(trace.λ_regularize, no_Dual(λ_regularize))
             push!(trace.cost_ψ, no_Dual(cost_ψ))
             push!(trace.cost_currents, no_Dual(cost_currents))
@@ -408,8 +408,8 @@ function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, rb::
         # assign to optim coils
         for k in 1:length(r_coils)
             koptim += 1
-            optim_coils[koptim].R = r_coils[k]
-            optim_coils[koptim].Z = z_coils[k]
+            optim_coils[koptim].r = r_coils[k]
+            optim_coils[koptim].z = z_coils[k]
         end
     end
 
@@ -435,14 +435,14 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; pinned_co
                 if k1 == k2
                     continue
                 end
-                cost_spacing += 1 / sqrt((c1.R - c2.R)^2 + (c1.Z - c2.Z)^2)
+                cost_spacing += 1 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
             end
         end
         cost_spacing = cost_spacing / sum([rail.coils_number for rail in rb.pf_coils_rail])^2
         cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_spacing^2)
         if do_trace
             push!(trace.currents, [no_Dual(c) for c in currents])
-            push!(trace.coils, vcat(pinned_coils, [PointCoil(no_Dual(c.R), no_Dual(c.Z)) for c in optim_coils]))
+            push!(trace.coils, vcat(pinned_coils, [PointCoil(no_Dual(c.r), no_Dual(c.z)) for c in optim_coils]))
             push!(trace.λ_regularize, no_Dual(λ_regularize))
             push!(trace.cost_ψ, no_Dual(cost_ψ))
             push!(trace.cost_currents, no_Dual(cost_currents))
@@ -552,10 +552,10 @@ function step(actor::PFcoilsOptActor;
     for (coiltype, (coils, currents)) in [("pinned",pinned), ("optim",optim), ("fixed",fixed)]
         for (coil, current) in zip(coils, currents)
             pf_active.coil[k].identifier = coiltype
-            pf_active.coil[k].element[1].geometry.rectangle.r = coil.R
-            pf_active.coil[k].element[1].geometry.rectangle.z = coil.Z
-            pf_active.coil[k].element[1].geometry.rectangle.width = maximum(coil.R) - minimum(coil.R)
-            pf_active.coil[k].element[1].geometry.rectangle.height = maximum(coil.Z) - minimum(coil.Z)
+            pf_active.coil[k].element[1].geometry.rectangle.r = coil.r
+            pf_active.coil[k].element[1].geometry.rectangle.z = coil.z
+            pf_active.coil[k].element[1].geometry.rectangle.width = maximum(coil.r) - minimum(coil.r)
+            pf_active.coil[k].element[1].geometry.rectangle.height = maximum(coil.z) - minimum(coil.z)
             set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
             set_field_time_array(pf_active.coil[k].current, :data, 1, current)
             k+=1
@@ -645,7 +645,7 @@ Plot PFcoilsOptActor optimization cross-section
                     seriesalpha --> 0.5
                     primary --> false
                     seriescolor --> :magenta
-                    [no_Dual(k[c].R) for k in pfactor.trace.coils], [no_Dual(k[c].Z) for k in pfactor.trace.coils]
+                    [no_Dual(k[c].r) for k in pfactor.trace.coils], [no_Dual(k[c].z) for k in pfactor.trace.coils]
                 end
             end
         end
