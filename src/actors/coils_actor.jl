@@ -37,11 +37,6 @@ using Statistics
 using Plots
 import Contour
 
-# NOTE on nomenclature:
-# - optim: coils that have theri position and current optimized
-# - pinned: coisl with fixed position but current is optimized
-# - fixed: fixed position and current
-
 """
     initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_gap_region::Vector{Int})
 
@@ -222,28 +217,45 @@ function mask_interpolant_function(rb::IMAS.radial_build)
     return mask_log_interpolant
 end
 
-function Base.getproperty(C::IMAS.pf_active__coil, field::Symbol)
+mutable struct IMAS_GS_pf_active__coil <: AD_GS.AbstractCoil
+    pf_active__coil::IMAS.pf_active__coil
+end
+
+function Base.getproperty(coil::IMAS_GS_pf_active__coil, field::Symbol)
+    if field == :pf_active__coil
+        return getfield(coil, field)
+    end
+    coil = getfield(coil,:pf_active__coil)
     if field == :r
-        return C.element[1].geometry.rectangle.r
+        return coil.element[1].geometry.rectangle.r
     elseif field == :z
-        return C.element[1].geometry.rectangle.z
+        return coil.element[1].geometry.rectangle.z
+    elseif field == :current
+        return coil.current.data[1]
     else
-        return getfield(C, field)
+        return getfield(coil, field)
     end
 end
 
-function Base.setproperty!(C::IMAS.pf_active__coil, field::Symbol, value::Any)
+function Base.setproperty!(coil::IMAS_GS_pf_active__coil, field::Symbol, value::Any)
+    if field == :pf_active__coil
+        return setfield!(coil, field, value)
+    end
+    coil = getfield(coil,:pf_active__coil)
     if field == :r
-        return C.element[1].geometry.rectangle.r = value
+        coil.element[1].geometry.rectangle.r = value
     elseif field == :z
-        return C.element[1].geometry.rectangle.z = value
+        coil.element[1].geometry.rectangle.z = value
+    elseif field == :current
+        coil.current.time = [0.0]
+        coil.current.data = [value]
     else
-        return setfield!(C, field, value)
+        setfield!(coil, field, value)
     end
 end
 
-function AD_GS.Green(C::IMAS.pf_active__coil, R::Real, Z::Real)
-    return AD_GS.Green(C.element[1].geometry.rectangle.r, C.element[1].geometry.rectangle.z, R, Z)
+function AD_GS.Green(coil::IMAS_GS_pf_active__coil, R::Real, Z::Real)
+    return AD_GS.Green(coil.r, coil.z, R, Z)
 end
 
 #= == =#
@@ -293,9 +305,9 @@ function unpack_mask!(optim_coils::Vector, packed::Vector, symmetric::Bool)
     return 10^λ_regularize
 end
 
-function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, fixed_currents::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
+function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
     mask_interpolant = mask_interpolant_function(rb)
-    fixed_eq = ψp_on_fixed_eq_boundary(EQfixed, fixed_coils, fixed_currents)
+    fixed_eq = ψp_on_fixed_eq_boundary(EQfixed, fixed_coils)
     packed = pack_mask(optim_coils, λ_regularize, symmetric)
 
     trace = PFcoilsOptTrace()
@@ -344,11 +356,8 @@ function optimize_coils_mask(EQfixed::Equilibrium.AbstractEquilibrium; pinned_co
     packed = Optim.minimizer(res)
 
     λ_regularize = unpack_mask!(optim_coils, packed, symmetric)
-
-    pinned_currents = [trace.currents[end][k] for k in 1:length(pinned_coils)]
-    optim_currents = [trace.currents[end][k] for k in (length(pinned_coils)+1):(length(pinned_coils)+length(optim_coils))]
     
-    return (pinned_coils, pinned_currents), (optim_coils, optim_currents), (fixed_coils, fixed_currents), λ_regularize, trace
+    return λ_regularize, trace
 end
 
 function pack_rail(rb::IMAS.radial_build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
@@ -416,8 +425,8 @@ function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, rb::
     return 10^λ_regularize
 end
 
-function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, fixed_currents::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
-    fixed_eq = ψp_on_fixed_eq_boundary(EQfixed, fixed_coils, fixed_currents)
+function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
+    fixed_eq = ψp_on_fixed_eq_boundary(EQfixed, fixed_coils)
     packed = pack_rail(rb, λ_regularize, symmetric)
 
     trace = PFcoilsOptTrace()
@@ -465,10 +474,7 @@ function optimize_coils_rail(EQfixed::Equilibrium.AbstractEquilibrium; pinned_co
 
     λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
 
-    pinned_currents = [trace.currents[end][k] for k in 1:length(pinned_coils)]
-    optim_currents = [trace.currents[end][k] for k in (length(pinned_coils)+1):(length(pinned_coils)+length(optim_coils))]
-
-    return (pinned_coils, pinned_currents), (optim_coils, optim_currents), (fixed_coils, fixed_currents), λ_regularize, trace
+    return λ_regularize, trace
 end
 
 function step(actor::PFcoilsOptActor;
@@ -484,30 +490,24 @@ function step(actor::PFcoilsOptActor;
     time_index = 1
     EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
-    # generate coils structure as accepted by AD_GS
-    fixed_coils = []
-    fixed_currents = []
-    pinned_coils = []
-    pinned_currents = []
-    optim_coils = []
-    optim_currents = []
+    # sort coils
+    # - optim: coils that have theri position and current optimized
+    # - pinned: coisl with fixed position but current is optimized
+    # - fixed: fixed position and current
+    fixed_coils = IMAS_GS_pf_active__coil[]
+    pinned_coils = IMAS_GS_pf_active__coil[]
+    optim_coils = IMAS_GS_pf_active__coil[]
     for coil in actor.pf_active.coil
         if coil.identifier == "pinned"
-            push!(pinned_coils, coil)
-            push!(pinned_currents, coil.current.data[time_index])
+            push!(pinned_coils, IMAS_GS_pf_active__coil(coil))
         elseif coil.identifier == "optim"
-            push!(optim_coils, coil)
-            push!(optim_currents, coil.current.data[time_index])
+            push!(optim_coils, IMAS_GS_pf_active__coil(coil))
         elseif coil.identifier == "fixed"
-            push!(fixed_coils, coil)
-            push!(fixed_currents, coil.current.data[time_index])
+            push!(fixed_coils, IMAS_GS_pf_active__coil(coil))
         else
             error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
         end
     end
-    pinned = (pinned_coils, pinned_currents)
-    optim = (optim_coils, optim_currents)
-    fixed = (fixed_coils, fixed_currents)
 
     # do nothing, simply evaluate equilibrium given existing coil currents
     if maxiter < 0
@@ -515,12 +515,7 @@ function step(actor::PFcoilsOptActor;
 
     # find coil currents for this initial configuration
     elseif maxiter == 0
-        currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, vcat(pinned_coils, optim_coils), fixed_coils, fixed_currents, λ_regularize=λ_regularize, return_cost=true)
-        pinned_currents = [currents[k] for k in 1:length(pinned_coils)]
-        optim_currents = [currents[k] for k in (length(pinned_coils)+1):(length(pinned_coils)+length(optim_coils))]
-        pinned = (pinned_coils, pinned_currents)
-        optim = (optim_coils, optim_currents)
-        fixed = (fixed_coils, fixed_currents)
+        currents, λ_norm = AD_GS.fixed_eq_currents(EQfixed, vcat(pinned_coils, optim_coils), fixed_coils, λ_regularize=λ_regularize, return_cost=true)
         actor.λ_norm = λ_norm
         trace = actor.trace
 
@@ -530,10 +525,10 @@ function step(actor::PFcoilsOptActor;
         rb = actor.radial_build
         # run mask type optimizer
         if optimization_scheme == :mask
-            (pinned, optim, fixed, λ_regularize, trace) = optimize_coils_mask(EQfixed; pinned_coils, optim_coils, fixed_coils, fixed_currents, symmetric, λ_regularize, λ_ψ, λ_currents, rb, maxiter, verbose)
+            (λ_regularize, trace) = optimize_coils_mask(EQfixed; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_currents, rb, maxiter, verbose)
         # run rail type optimizer
         elseif optimization_scheme == :rail
-            (pinned, optim, fixed, λ_regularize, trace) = optimize_coils_rail(EQfixed; pinned_coils, optim_coils, fixed_coils, fixed_currents, symmetric, λ_regularize, λ_ψ, λ_currents, rb, maxiter, verbose)
+            (λ_regularize, trace) = optimize_coils_rail(EQfixed; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_currents, rb, maxiter, verbose)
         else
             error("Supported PFcoilsOptActor optimization_scheme are `:mask` and `:rail`")
         end
@@ -542,22 +537,9 @@ function step(actor::PFcoilsOptActor;
     end
 
     # update ψ map
-    ψ_f2f = AD_GS.fixed2free(EQfixed, vcat(pinned[1], optim[1], fixed[1]), vcat(pinned[2], optim[2], fixed[2]), EQfixed.r, EQfixed.z)
+    ψ_f2f = AD_GS.fixed2free(EQfixed, vcat(pinned_coils, optim_coils, fixed_coils), EQfixed.r, EQfixed.z)
     actor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
     # IMAS.flux_surfaces(actor.eq_out.time_slice[time_index]) #### PROBLEM
-
-    # fill coil information in actor.pf_active IDS
-    pf_active = actor.pf_active
-    k = 1
-    for (coiltype, (coils, currents)) in [("pinned",pinned), ("optim",optim), ("fixed",fixed)]
-        for (coil, current) in zip(coils, currents)
-            set_field_time_array(pf_active.coil[k].current, :data, 1, current)
-            k+=1
-        end
-    end
-
-    # update PFcoilsOptActor fields
-    actor.pf_active = pf_active
 
     return actor
 end
