@@ -61,21 +61,20 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
     r_ohcoils = ones(ncoils_OH) .* (sum(extrema(OH_layer.outline.r)) / 2.)
     z_ohcoils = collect(range(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), length=ncoils_OH))
     z_ohcoils = [abs(z)<1E-6 ? 0 : z for z in z_ohcoils]
-    oh_coils = [PointCoil(r, z) for (r, z) in zip(r_ohcoils, z_ohcoils)]
     rb.pf_coils_rail[1].name = "OH"
     rb.pf_coils_rail[1].coils_number = ncoils_OH
     rb.pf_coils_rail[1].outline.r = r_ohcoils
     rb.pf_coils_rail[1].outline.z = z_ohcoils
     rb.pf_coils_rail[1].outline.distance = range(-1, 1, length=ncoils_OH)
-    for c in oh_coils
+    for (r, z) in zip(r_ohcoils, z_ohcoils)
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
         resize!(pf_active.coil[k].element, 1)
         pf_active.coil[k].identifier = "optim"
-        pf_active.coil[k].element[1].geometry.rectangle.r = c.R
-        pf_active.coil[k].element[1].geometry.rectangle.z = c.Z
-        pf_active.coil[k].element[1].geometry.rectangle.width = maximum(c.R) - minimum(c.R)
-        pf_active.coil[k].element[1].geometry.rectangle.height = maximum(c.Z) - minimum(c.Z)
+        pf_active.coil[k].element[1].geometry.rectangle.r = r
+        pf_active.coil[k].element[1].geometry.rectangle.z = z
+        pf_active.coil[k].element[1].geometry.rectangle.width = maximum(r) - minimum(r)
+        pf_active.coil[k].element[1].geometry.rectangle.height = maximum(z) - minimum(z)
         set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
         set_field_time_array(pf_active.coil[k].current, :data, 1, 0.0)
     end
@@ -170,18 +169,17 @@ function initialize_coils(rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_
                 r_coils = IMAS.interp(distance, valid_r)(coils_distance)
                 z_coils = IMAS.interp(distance, valid_z)(coils_distance)
                 z_coils = [abs(z)<1E-6 ? 0 : z for z in z_coils]
-                coils = [PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
 
                 # populate IMAS data structure
-                for c in coils
+                for (r, z) in zip(r_coils, z_coils)
                     k = length(pf_active.coil) + 1
                     resize!(pf_active.coil, k)
                     resize!(pf_active.coil[k].element, 1)
                     pf_active.coil[k].identifier = "optim"
-                    pf_active.coil[k].element[1].geometry.rectangle.r = c.R
-                    pf_active.coil[k].element[1].geometry.rectangle.z = c.Z
-                    pf_active.coil[k].element[1].geometry.rectangle.width = maximum(c.R) - minimum(c.R)
-                    pf_active.coil[k].element[1].geometry.rectangle.height = maximum(c.Z) - minimum(c.Z)
+                    pf_active.coil[k].element[1].geometry.rectangle.r = r
+                    pf_active.coil[k].element[1].geometry.rectangle.z = z
+                    pf_active.coil[k].element[1].geometry.rectangle.width = maximum(r) - minimum(r)
+                    pf_active.coil[k].element[1].geometry.rectangle.height = maximum(z) - minimum(z)
                     set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
                     set_field_time_array(pf_active.coil[k].current, :data, 1, 0.0)
                 end
