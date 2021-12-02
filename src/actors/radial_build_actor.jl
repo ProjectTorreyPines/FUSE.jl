@@ -139,7 +139,7 @@ function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nucle
             lfs_shield=dr / 2.0,
             gap_lfs_TF_shield=dr * 5,
             lfs_TF=dr,
-            gap_cryostat=3 * dr)
+            gap_cryostat=5 * dr)
 
     else
         n_hfs_layers = 4.5
