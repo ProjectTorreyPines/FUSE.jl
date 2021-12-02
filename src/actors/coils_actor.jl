@@ -325,10 +325,10 @@ function get_spacing_from_turns(pf_active__coil::IMAS.pf_active__coil)
     return sqrt((pf_active__coil.element[1].geometry.rectangle.width*pf_active__coil.element[1].geometry.rectangle.height) / abs(pf_active__coil.element[1].turns_with_sign))
 end
 
-function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
-    return AD_GS.Green(coil.r, coil.z, R, Z).*coil.turns_with_sign
-    return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, nothing), R, Z).*(coil.turns_with_sign/4)
-    return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+function AD_GS.Green(coil::GS_IMAS_pf_active__coil4, R::Real, Z::Real)
+    return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+    #return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign/4)
+    #return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 end
 
 #= ==== =#
