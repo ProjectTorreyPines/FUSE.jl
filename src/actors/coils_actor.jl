@@ -250,55 +250,34 @@ end
 #= ========================================= =#
 mutable struct GS_IMAS_pf_active__coil <: AD_GS.AbstractCoil
     pf_active__coil::IMAS.pf_active__coil
+    r::Real
+    z::Real
+    width::Real
+    height::Real
+    current::Real
+    turns_with_sign::Real
     spacing::Real
 end
 
 function GS_IMAS_pf_active__coil(pf_active__coil)
-    return GS_IMAS_pf_active__coil(pf_active__coil, get_spacing_from_turns(pf_active__coil))
+    return GS_IMAS_pf_active__coil(pf_active__coil,
+                                    pf_active__coil.element[1].geometry.rectangle.r,
+                                    pf_active__coil.element[1].geometry.rectangle.z,
+                                    pf_active__coil.element[1].geometry.rectangle.width,
+                                    pf_active__coil.element[1].geometry.rectangle.height,
+                                    pf_active__coil.current.data[1],
+                                    pf_active__coil.element[1].turns_with_sign,
+                                    get_spacing_from_turns(pf_active__coil))
 end
 
-function Base.getproperty(coil::GS_IMAS_pf_active__coil, field::Symbol)
-    if field == :pf_active__coil
-        return getfield(coil,:pf_active__coil)
-    end
-    pf_active__coil = getfield(coil,:pf_active__coil)
-    if field == :r
-        return getfield(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:r)
-    elseif field == :z
-        return getfield(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:z)
-    elseif field == :width
-        return getfield(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:width)
-    elseif field == :height
-        return getfield(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:height)
-    elseif field == :current
-        return getfield(getfield(getfield(coil,:pf_active__coil),:current),:data)[1]
-    elseif field == :turns_with_sign
-        return getfield(getfield(pf_active__coil,:element)[1],:turns_with_sign)
-    else
-        return getfield(pf_active__coil, field)
-    end
-end
-
-function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value::Any)
-    if field == :pf_active__coil
-        return setfield!(coil, field, value)
-    end
-    pf_active__coil = getfield(coil,:pf_active__coil)
-    if field == :r
-        setfield!(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:r, value)
-    elseif field == :z
-        setfield!(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:z, value)
-    elseif field == :width
-        setfield!(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:width, value)
-    elseif field == :height
-        setfield!(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:height, value)
-    elseif field == :current
-        getfield(getfield(getfield(coil,:pf_active__coil),:current),:data)[1] = value
-    elseif field == :turns_with_sign
-        setield!(getfield(pf_active__coil,:element)[1],:turns_with_sign, value)
-    else
-        setfield!(pf_active__coil, field, value)
-    end
+function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
+    pf_active__coil = coil.pf_active__coil
+    pf_active__coil.element[1].geometry.rectangle.r = coil.r
+    pf_active__coil.element[1].geometry.rectangle.z = coil.z
+    pf_active__coil.element[1].geometry.rectangle.width = coil.width
+    pf_active__coil.element[1].geometry.rectangle.height = coil.height
+    pf_active__coil.current.data[1] = coil.current
+    pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
 end
 
 function set_turns_from_spacing!(coil::GS_IMAS_pf_active__coil)
@@ -325,7 +304,7 @@ function get_spacing_from_turns(pf_active__coil::IMAS.pf_active__coil)
     return sqrt((pf_active__coil.element[1].geometry.rectangle.width*pf_active__coil.element[1].geometry.rectangle.height) / abs(pf_active__coil.element[1].turns_with_sign))
 end
 
-function AD_GS.Green(coil::GS_IMAS_pf_active__coil4, R::Real, Z::Real)
+function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
     return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
     #return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign/4)
     #return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
@@ -612,6 +591,11 @@ function step(actor::PFcoilsOptActor;
     ψ_f2f = AD_GS.fixed2free(EQfixed, vcat(pinned_coils, optim_coils, fixed_coils), EQfixed.r, EQfixed.z)
     actor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
     # IMAS.flux_surfaces(actor.eq_out.time_slice[time_index]) #### PROBLEM
+
+    # transfer the optimization results to pf_active
+    for coil in vcat(pinned_coils, optim_coils, fixed_coils)
+        transfer_info_GS_coil_to_IMAS(coil)
+    end
 
     return actor
 end
