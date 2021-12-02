@@ -259,21 +259,21 @@ end
 
 function Base.getproperty(coil::GS_IMAS_pf_active__coil, field::Symbol)
     if field == :pf_active__coil
-        return getfield(coil, field)
+        return getfield(coil,:pf_active__coil)
     end
     pf_active__coil = getfield(coil,:pf_active__coil)
     if field == :r
-        return pf_active__coil.element[1].geometry.rectangle.r
+        return getfield(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:r)
     elseif field == :z
-        return pf_active__coil.element[1].geometry.rectangle.z
+        return getfield(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:z)
     elseif field == :width
-        return pf_active__coil.element[1].geometry.rectangle.width
+        return getfield(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:width)
     elseif field == :height
-        return pf_active__coil.element[1].geometry.rectangle.height
+        return getfield(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:height)
     elseif field == :current
-        return pf_active__coil.current.data[1]
+        return getfield(getfield(getfield(coil,:pf_active__coil),:current),:data)[1]
     elseif field == :turns_with_sign
-        return pf_active__coil.element[1].turns_with_sign
+        return getfield(getfield(pf_active__coil,:element)[1],:turns_with_sign)
     else
         return getfield(pf_active__coil, field)
     end
@@ -285,18 +285,17 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value::
     end
     pf_active__coil = getfield(coil,:pf_active__coil)
     if field == :r
-        pf_active__coil.element[1].geometry.rectangle.r = value
+        setfield!(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:r, value)
     elseif field == :z
-        pf_active__coil.element[1].geometry.rectangle.z = value
+        setfield!(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:z, value)
     elseif field == :width
-        pf_active__coil.element[1].geometry.rectangle.width = value
+        setfield!(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:width, value)
     elseif field == :height
-        pf_active__coil.element[1].geometry.rectangle.height = value
+        setfield!(getfield(getfield(getfield(pf_active__coil,:element)[1],:geometry),:rectangle),:height, value)
     elseif field == :current
-        pf_active__coil.current.time = [0.0]
-        pf_active__coil.current.data = [value]
+        getfield(getfield(getfield(coil,:pf_active__coil),:current),:data)[1] = value
     elseif field == :turns_with_sign
-        pf_active__coil.element[1].turns_with_sign = value
+        setield!(getfield(pf_active__coil,:element)[1],:turns_with_sign, value)
     else
         setfield!(pf_active__coil, field, value)
     end
