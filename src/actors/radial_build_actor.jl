@@ -306,7 +306,7 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
 
         # make the divertor domes in the vessel
         δψ = 0.05
-        cl = Contour.contour(r, z, eqt.profiles_2d[1].psi, eqt.global_quantities.psi_boundary * (1 - δψ) + eqt.global_quantities.psi_axis * δψ)
+        cl = Contour.contour(r, z, eqt.profiles_2d[1].psi, eqt.profiles_1d.psi[end] * (1 - δψ) + eqt.profiles_1d.psi[1] * δψ)
         for line in Contour.lines(cl)
             pr, pz = Contour.coordinates(line)
             if pr[1] != pr[end]
