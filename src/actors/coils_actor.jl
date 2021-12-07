@@ -684,24 +684,108 @@ end
 
 Plot PFcoilsOptActor optimization cross-section
 """
-@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index=1, equilibrium=true, mask=false, rail=true)
+@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index=1, equilibrium=true, radial_build=true, coils_flux=false, mask=false, rail=false)
+
+    # if there is no equilibrium then treat this as a field_null plot
+    field_null = false
+    if length(pfactor.eq_out.time_slice[time_index].profiles_2d)==0 || IMAS.is_missing(pfactor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
+        coils_flux = true
+        field_null = true
+    end
+
+    # when plotting coils_flux the radial_build is not visible anyways
+    if coils_flux
+        radial_build = false
+    end
 
     # setup plotting area
-    rb = pfactor.radial_build
-    xlim --> [0.0,maximum(rb.layer[end].outline.r) * 2.0]
-    ylim --> [minimum(rb.layer[end].outline.z),maximum(rb.layer[end].outline.z)]
+    xlim = [0.0,maximum(pfactor.radial_build.layer[end].outline.r) * 1.6]
+    ylim = [minimum(pfactor.radial_build.layer[end].outline.z),maximum(pfactor.radial_build.layer[end].outline.z)]
+    xlim --> xlim
+    ylim --> ylim
     aspect_ratio --> :equal
 
-    # plot optimization mask
-    if mask
-        rmask, zmask, mask = IMAS.structures_mask(pfactor.radial_build)
-        cl = Contour.contour(rmask, zmask, mask, 0.5)
-        for line in Contour.lines(cl)
+    # plot radial build
+    if radial_build
+        @series begin
+            pfactor.radial_build
+        end
+    end
+
+    # plot coils_flux
+    if coils_flux
+        resolution = 129
+        R = range(xlim[1], xlim[2], length=resolution)
+        Z = range(ylim[1], ylim[2], length=resolution)
+
+        coils = [GS_IMAS_pf_active__coil5(coil) for coil in pfactor.pf_active.coil]
+        for coil in coils
+            coil.time_index=time_index
+        end
+
+        # ψ coil currents
+        ψbound = pfactor.eq_out.time_slice[time_index].global_quantities.psi_boundary
+        ψ = AD_GS.coils_flux(2*pi, coils, R, Z, resolution)
+
+        if field_null
+            ψ = ψ .- ψbound
+        end
+
+        ψmin = minimum(x->isnan(x) ? Inf : x, ψ)
+        ψmax = maximum(x->isnan(x) ? -Inf : x, ψ)
+        ψabsmax = maximum(x->isnan(x) ? -Inf : x, abs.(ψ))
+        
+        if field_null
+            clims = (-ψabsmax/10, ψabsmax/10)
+        else
+            clims = (ψmin, ψmax)
+        end
+
+        @series begin
+            seriestype --> :contourf
+            c --> :diverging
+            colorbar_entry --> false
+            levels --> range(clims[1],clims[2],length=21)
+            linewidth --> 0.0
+            R, Z, ψ
+        end
+
+        if field_null
             @series begin
-                label --> ""
-                seriescolor --> :gray
-                linewidth --> 3
-                Contour.coordinates(line)
+                seriestype --> :contour
+                colorbar_entry --> false
+                levels --> [0.0]
+                linecolor --> :black
+                R, Z, ψ
+            end
+        end
+
+        @series begin
+            outlines --> true
+            pfactor.radial_build
+        end
+    end
+
+    # plot equilibrium
+    if equilibrium
+        if field_null
+            @series begin
+                label --> "Field null region"
+                seriescolor --> :red
+                pfactor.eq_out.time_slice[time_index]
+            end
+        else
+            @series begin
+                label --> "Final"
+                seriescolor --> :red
+                pfactor.eq_out.time_slice[time_index]
+            end
+            @series begin
+                label --> "Target"
+                seriescolor --> :blue
+                lcfs --> true
+                linestyle --> :dash
+                pfactor.eq_in.time_slice[time_index]
             end
         end
     end
@@ -714,10 +798,10 @@ Plot PFcoilsOptActor optimization cross-section
 
     # plot optimization rails
     if rail
-        for (krail, rail) in enumerate(rb.pf_coils_rail)
+        for (krail, rail) in enumerate(pfactor.radial_build.pf_coils_rail)
             if ! is_missing(rail.outline,:r)
                 @series begin
-                    label --> "coil optimization rail"
+                    label --> (radial_build ? "Coil opt. rail" : "")
                     primary --> krail == 1 ? true : false
                     color --> :gray
                     linestyle --> :dash
@@ -727,21 +811,17 @@ Plot PFcoilsOptActor optimization cross-section
         end
     end
 
-    # plot final equilibrium
-    if equilibrium
-        @series begin
-            label --> "Final"
-            seriescolor --> :red
-            pfactor.eq_out.time_slice[time_index]
-        end
-
-        # plot target equilibrium
-        @series begin
-            label --> "Target"
-            seriescolor --> :black
-            lcfs --> true
-            linestyle --> :dash
-            pfactor.eq_in.time_slice[time_index]
+    # plot optimization mask
+    if mask
+        rmask, zmask, cmask = IMAS.structures_mask(pfactor.radial_build)
+        cl = Contour.contour(rmask, zmask, cmask, 0.5)
+        for line in Contour.lines(cl)
+            @series begin
+                label --> (radial_build ? "Coil opt. mask" : "")
+                seriescolor --> :magenta
+                linewidth --> 3
+                Contour.coordinates(line)
+            end
         end
     end
 
@@ -760,25 +840,33 @@ Attributes:
     x = (start_at:length(trace.cost_total))
     legend --> :bottomleft
     if what == :cost
-        @series begin
-            label --> "ψ"
-            yscale --> :log10
-            x, trace.cost_ψ[start_at:end]
+        if sum(trace.cost_ψ[start_at:end]) > 0.0
+            @series begin
+                label --> "ψ"
+                yscale --> :log10
+                x, trace.cost_ψ[start_at:end]
+            end
         end
-        @series begin
-            label --> "currents"
-            yscale --> :log10
-            x, trace.cost_currents[start_at:end]
+        if sum(trace.cost_currents[start_at:end]) > 0.0
+            @series begin
+                label --> "currents"
+                yscale --> :log10
+                x, trace.cost_currents[start_at:end]
+            end
         end
-        @series begin
-            label --> "bounds"
-            yscale --> :log10
-            x, trace.cost_bound[start_at:end]
+        if sum(trace.cost_bound[start_at:end]) > 0.0
+            @series begin
+                label --> "bounds"
+                yscale --> :log10
+                x, trace.cost_bound[start_at:end]
+            end
         end
-        @series begin
-            label --> "spacing"
-            yscale --> :log10
-            x, trace.cost_spacing[start_at:end]
+        if sum(trace.cost_spacing[start_at:end]) > 0.0
+            @series begin
+                label --> "spacing"
+                yscale --> :log10
+                x, trace.cost_spacing[start_at:end]
+            end
         end
         @series begin
             label --> "total"
