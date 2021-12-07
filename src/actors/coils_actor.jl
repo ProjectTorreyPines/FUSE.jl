@@ -403,7 +403,7 @@ function optimize_coils_mask(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
         for fixed_eq in fixed_eqs
             currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
             push!(all_cost_ψ, cost_ψ0 / λ_ψ)
-            push!(all_cost_currents, norm(currents) / length(currents) / λ_currents)
+            push!(all_cost_currents, norm((exp.(currents/λ_currents).-1.0)/(exp(1)-1)) / length(currents))
         end
         cost_ψ=norm(all_cost_ψ)/length(all_cost_ψ)
         cost_currents=norm(all_cost_currents)/length(all_cost_currents)
@@ -417,7 +417,7 @@ function optimize_coils_mask(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
                 cost_spacing += 1 / (sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2) + 0.001)
             end
         end
-        cost_spacing = cost_spacing / length(optim_coils)^2
+        cost_spacing = cost_spacing / (length(optim_coils)^2 + 1)
         cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2 + cost_spacing^2)
         if do_trace
             push!(trace.λ_regularize, no_Dual(λ_regularize))
@@ -548,7 +548,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
             else
                 push!(all_cost_ψ, cost_ψ0 / λ_ψ)
             end
-            push!(all_cost_currents, norm(currents) / length(currents) / λ_currents)
+            push!(all_cost_currents, norm((exp.(currents/λ_currents).-1.0)/(exp(1)-1)) / length(currents))
         end
         cost_ψ=norm(all_cost_ψ)/length(all_cost_ψ)
         cost_currents=norm(all_cost_currents)/length(all_cost_currents)
@@ -561,7 +561,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
                 cost_spacing += 1 / (sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2) + 0.001)
             end
         end
-        cost_spacing = cost_spacing / length(optim_coils)^2
+        cost_spacing = cost_spacing / (length(optim_coils)^2 + 1)
         cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_spacing^2)
         if do_trace
             push!(trace.λ_regularize, no_Dual(λ_regularize))
