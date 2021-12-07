@@ -225,9 +225,6 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_
     # constructor
     actor = PFcoilsOptActor(eq_in, eq_out, time, pf_active, rb, symmetric, λ_regularize, PFcoilsOptTrace())
 
-    # calculate initial current distribution
-    step(actor, maxiter=0)
-
     return actor
 end
 
@@ -471,43 +468,46 @@ end
 function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
     distances = packed[1:end - 1]
     λ_regularize = packed[end]
-    kcoil = 0
-    koptim = 0
-    for (krail,rail) in enumerate(rb.pf_coils_rail)
-        r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
-        z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc=:flat)
-        # not symmetric
-        if ! symmetric
-            dkcoil = rail.coils_number
-            coil_distances = distances[kcoil + 1:kcoil + dkcoil]
-        # even symmetric
-        elseif mod(rail.coils_number, 2) == 0
-            dkcoil = Int(rail.coils_number // 2)
-            coil_distances = distances[kcoil + 1:kcoil + dkcoil]
-            coil_distances = vcat(- reverse(coil_distances), coil_distances)
-        # odd symmetric
-        else
-            dkcoil = Int((rail.coils_number - 1) // 2)
-            coil_distances = distances[kcoil + 1:kcoil + dkcoil]
-            coil_distances = vcat(- reverse(coil_distances), 0.0, coil_distances)
-        end
-        kcoil += dkcoil
 
-        # mirror coil position when they reach the end of the rail
-        while any(coil_distances .< -1) || any(coil_distances .> 1)
-            coil_distances[coil_distances .< -1] = -2.0 .- coil_distances[coil_distances .< -1]
-            coil_distances[coil_distances .> 1] = 2.0 .- coil_distances[coil_distances .> 1]
-        end
+    if length(optim_coils) != 0 # optim_coils have zero length in case of the `static` optimization
+        kcoil = 0
+        koptim = 0
+        for rail in rb.pf_coils_rail
+            r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
+            z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc=:flat)
+            # not symmetric
+            if ! symmetric
+                dkcoil = rail.coils_number
+                coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+            # even symmetric
+            elseif mod(rail.coils_number, 2) == 0
+                dkcoil = Int(rail.coils_number // 2)
+                coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+                coil_distances = vcat(- reverse(coil_distances), coil_distances)
+            # odd symmetric
+            else
+                dkcoil = Int((rail.coils_number - 1) // 2)
+                coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+                coil_distances = vcat(- reverse(coil_distances), 0.0, coil_distances)
+            end
+            kcoil += dkcoil
 
-        # get coils r and z from distances
-        r_coils = r_interp.(coil_distances)
-        z_coils = z_interp.(coil_distances)
+            # mirror coil position when they reach the end of the rail
+            while any(coil_distances .< -1) || any(coil_distances .> 1)
+                coil_distances[coil_distances .< -1] = -2.0 .- coil_distances[coil_distances .< -1]
+                coil_distances[coil_distances .> 1] = 2.0 .- coil_distances[coil_distances .> 1]
+            end
 
-        # assign to optim coils
-        for k in 1:length(r_coils)
-            koptim += 1
-            optim_coils[koptim].r = r_coils[k]
-            optim_coils[koptim].z = z_coils[k]
+            # get coils r and z from distances
+            r_coils = r_interp.(coil_distances)
+            z_coils = z_interp.(coil_distances)
+
+            # assign to optim coils
+            for k in 1:length(r_coils)
+                koptim += 1
+                optim_coils[koptim].r = r_coils[k]
+                optim_coils[koptim].z = z_coils[k]
+            end
         end
     end
 
@@ -613,6 +613,8 @@ function step(actor::PFcoilsOptActor;
     for coil in actor.pf_active.coil
         if coil.identifier == "pinned"
             push!(pinned_coils, GS_IMAS_pf_active__coil5(coil))
+        elseif (coil.identifier == "optim") && (optimization_scheme==:static)
+            push!(pinned_coils, GS_IMAS_pf_active__coil5(coil))
         elseif coil.identifier == "optim"
             push!(optim_coils, GS_IMAS_pf_active__coil5(coil))
         elseif coil.identifier == "fixed"
@@ -639,10 +641,10 @@ function step(actor::PFcoilsOptActor;
         if optimization_scheme == :mask
             (λ_regularize, trace) = optimize_coils_mask(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
         # run rail type optimizer
-        elseif optimization_scheme == :rail
+        elseif optimization_scheme in [:rail, :static]
             (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
         else
-            error("Supported PFcoilsOptActor optimization_scheme are `:mask` and `:rail`")
+            error("Supported PFcoilsOptActor optimization_scheme are `:static`, `:rail`, or `:mask`")
         end
         actor.λ_regularize = λ_regularize
         actor.trace = trace
