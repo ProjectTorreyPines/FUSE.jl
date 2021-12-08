@@ -40,6 +40,17 @@ const coils_turns_spacing = 0.05
 #  init pf_active IDS  #
 #= ================== =#
 
+
+function finite_size_OH_coils(z, clereance)
+    ez = diff(z) / 2.0 .+ z[1:end-1]
+    ez = vcat((ez[1] - ez[2]) + ez[1], ez, (ez[end] - ez[end-1]) + ez[end])
+    ez = (ez .- minimum(ez)) ./ (maximum(ez) - minimum(ez)) * (maximum(z) - minimum(z)) .+ minimum(z)
+    ez_centers = diff(ez) / 2.0 .+ ez[1:end-1]
+    ez_centers = [abs(z)<1E-6 ? 0 : z for z in ez_centers] # correct small deviations near zero
+    ez_heights = diff(ez) .- clereance
+    return ez_centers, ez_heights
+end
+
 """
     init(pf_active::IMAS.pf_active, rb::IMAS.radial_build, ncoils_OH::Int, n_pf_coils_per_gap_region::Vector)
 
@@ -55,22 +66,24 @@ function init(pf_active::IMAS.pf_active, rb::IMAS.radial_build, ncoils_OH::Int, 
     # OH coils are distributed on a rail within the OH region
     OH_layer = IMAS.get_radial_build(rb, type=1)
     r_ohcoils = ones(ncoils_OH) .* (sum(extrema(OH_layer.outline.r)) / 2.)
+    w = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r)
     z_ohcoils = collect(range(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), length=ncoils_OH))
-    z_ohcoils = [abs(z)<1E-6 ? 0 : z for z in z_ohcoils]
+    z_ohcoils, h_ohcoils = finite_size_OH_coils(z_ohcoils, w / 2.0)
     rb.pf_coils_rail[1].name = "OH"
     rb.pf_coils_rail[1].coils_number = ncoils_OH
     rb.pf_coils_rail[1].outline.r = r_ohcoils
     rb.pf_coils_rail[1].outline.z = z_ohcoils
     rb.pf_coils_rail[1].outline.distance = range(-1, 1, length=ncoils_OH)
-    for (r, z) in zip(r_ohcoils, z_ohcoils)
+    for (r, z, h) in zip(r_ohcoils, z_ohcoils, h_ohcoils)
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
         resize!(pf_active.coil[k].element, 1)
         pf_active.coil[k].identifier = "optim"
+        pf_active.coil[k].name = "oh"
         pf_active.coil[k].element[1].geometry.rectangle.r = r
         pf_active.coil[k].element[1].geometry.rectangle.z = z
-        pf_active.coil[k].element[1].geometry.rectangle.width = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r)
-        pf_active.coil[k].element[1].geometry.rectangle.height = pf_active.coil[k].element[1].geometry.rectangle.width*2
+        pf_active.coil[k].element[1].geometry.rectangle.width = w
+        pf_active.coil[k].element[1].geometry.rectangle.height = h
         # pf_active.coil[k].element[1].turns_with_sign = 1
         set_turns_from_spacing!(pf_active.coil[k], coils_turns_spacing, +1)
         set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
@@ -176,6 +189,7 @@ function init(pf_active::IMAS.pf_active, rb::IMAS.radial_build, ncoils_OH::Int, 
                     resize!(pf_active.coil, k)
                     resize!(pf_active.coil[k].element, 1)
                     pf_active.coil[k].identifier = "optim"
+                    pf_active.coil[k].name = "pf"
                     pf_active.coil[k].element[1].geometry.rectangle.r = r
                     pf_active.coil[k].element[1].geometry.rectangle.z = z
                     pf_active.coil[k].element[1].geometry.rectangle.width = buff
@@ -262,6 +276,11 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value)
     else
         setfield!(coil, field, value)
     end
+    if field in [:width, :height, :spacing]
+        s = sign(getfield(coil, :turns_with_sign))
+        turns = Int(ceil(coil.width .* coil.height ./ coil.spacing.^2))
+        setfield!(coil, :turns_with_sign, s * turns)
+    end
 end
 
 function GS_IMAS_pf_active__coil(pf_active__coil)
@@ -299,7 +318,7 @@ function set_turns_from_spacing!(pf_active__coil::IMAS.pf_active__coil, spacing:
 end
 
 function set_turns_from_spacing!(pf_active__coil::IMAS.pf_active__coil, spacing::Real, s::Int)
-    area = (pf_active__coil.element[1].geometry.rectangle.width*pf_active__coil.element[1].geometry.rectangle.height)
+    area = (pf_active__coil.element[1].geometry.rectangle.width * pf_active__coil.element[1].geometry.rectangle.height)
     pf_active__coil.element[1].turns_with_sign = s * Int(ceil(area / spacing^2))
 end
 
@@ -309,11 +328,26 @@ function get_spacing_from_turns(coil::GS_IMAS_pf_active__coil)
 end
 
 function get_spacing_from_turns(pf_active__coil::IMAS.pf_active__coil)
-    return sqrt((pf_active__coil.element[1].geometry.rectangle.width*pf_active__coil.element[1].geometry.rectangle.height) / abs(pf_active__coil.element[1].turns_with_sign))
+    return sqrt((pf_active__coil.element[1].geometry.rectangle.width * pf_active__coil.element[1].geometry.rectangle.height) / abs(pf_active__coil.element[1].turns_with_sign))
 end
 
 function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
-    return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+    if coil.pf_active__coil.name == "oh"
+        n = Int(ceil(coil.height / coil.width / 2.0))
+        if n <= 1
+            n = 1
+            z_filaments = coil.z
+        else
+            z_filaments = range(coil.z - coil.height / 2.0, coil.z + coil.height / 2.0, length=n)
+        end
+        green = []
+        for z in z_filaments
+            push!(green, AD_GS.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
+        end
+        return sum(green)
+    else
+        return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+    end
     #return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign/4)
     #return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 end
@@ -379,7 +413,7 @@ function optimize_coils_mask(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
 
     fixed_eqs = []
     for time_index in 1:length(eq.time_slice)
-        if eq.time_slice[time_index].time <0
+        if eq.time_slice[time_index].time < 0
             push!(fixed_eqs, AD_GS.field_null_on_boundary(eq.time_slice[time_index].global_quantities.psi_boundary,
                                                           eq.time_slice[time_index].boundary.outline.r,
                                                           eq.time_slice[time_index].boundary.outline.z,
@@ -502,11 +536,19 @@ function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, rb::
             r_coils = r_interp.(coil_distances)
             z_coils = z_interp.(coil_distances)
 
+            # do not let the OH coils ovelap
+            if rail.name == "OH"
+                z_coils, h_coils = finite_size_OH_coils(z_coils, optim_coils[1].width / 2.0)
+            end
+
             # assign to optim coils
             for k in 1:length(r_coils)
                 koptim += 1
                 optim_coils[koptim].r = r_coils[k]
                 optim_coils[koptim].z = z_coils[k]
+                if rail.name == "OH"
+                    optim_coils[koptim].height = h_coils[k]
+                end
             end
         end
     end
@@ -550,8 +592,8 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
             end
             push!(all_cost_currents, norm((exp.(currents/λ_currents).-1.0)/(exp(1)-1)) / length(currents))
         end
-        cost_ψ=norm(all_cost_ψ)/length(all_cost_ψ)
-        cost_currents=norm(all_cost_currents)/length(all_cost_currents)
+        cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
+        cost_currents = norm(all_cost_currents) / length(all_cost_currents)
         cost_spacing = 0
         for (k1, c1) in enumerate(optim_coils)
             for (k2, c2) in enumerate(optim_coils)
@@ -613,7 +655,9 @@ function step(actor::PFcoilsOptActor;
     for coil in actor.pf_active.coil
         if coil.identifier == "pinned"
             push!(pinned_coils, GS_IMAS_pf_active__coil(coil))
-        elseif (coil.identifier == "optim") && (optimization_scheme==:static)
+        elseif (coil.identifier == "optim") && (coil.name == "OH") && (optimization_scheme == :mask)
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil))
+        elseif (coil.identifier == "optim") && (optimization_scheme == :static)
             push!(pinned_coils, GS_IMAS_pf_active__coil(coil))
         elseif coil.identifier == "optim"
             push!(optim_coils, GS_IMAS_pf_active__coil(coil))
@@ -831,7 +875,8 @@ Attributes:
 - start_at=::Int=1 index of the first element of the trace to start plotting
 """
 @recipe function plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at=1)
-    x = (start_at:length(trace.cost_total))
+    start_at = minimum([start_at, length(trace.cost_total)])
+    x = start_at:length(trace.cost_total)
     legend --> :bottomleft
     if what == :cost
         if sum(trace.cost_ψ[start_at:end]) > 0.0
