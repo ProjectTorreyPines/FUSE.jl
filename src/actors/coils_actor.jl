@@ -750,6 +750,7 @@ Plot PFcoilsOptActor optimization cross-section
     # plot radial build
     if radial_build
         @series begin
+            exclude_layers --> [:oh]
             pfactor.radial_build
         end
     end
@@ -800,6 +801,7 @@ Plot PFcoilsOptActor optimization cross-section
 
         @series begin
             outlines --> true
+            exclude_layers --> [:oh]
             pfactor.radial_build
         end
     end
