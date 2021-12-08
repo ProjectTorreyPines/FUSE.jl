@@ -1,6 +1,6 @@
-#= ==== =#
-#  init  #
-#= ==== =#
+#= ==================== =#
+#  init equilibrium IDS  #
+#= ==================== =#
 
 """
     init(eqt::IMAS.equilibrium__time_slice; B0::Real, R0::Real, ϵ::Real, δ::Real, κ::Real, beta_n::Real, ip::Real, x_point::Union{Vector, NTuple{2}, Bool}=false)
@@ -30,16 +30,16 @@ function init(eqt::IMAS.equilibrium__time_slice;
     return eqt
 end
 
-#= ======= =#
-#  Solovev  #
-#= ======= =#
+#= ======================= =#
+#  SolovevEquilibriumActor  #
+#= ======================= =#
 
 using Equilibrium
 using Printf
 import ForwardDiff
 import Optim
 
-mutable struct SolovevEquilibriumActor <: EquilibriumActor
+mutable struct SolovevEquilibriumActor <: AbstractActor
     eq_in::IMAS.equilibrium__time_slice
     S::SolovevEquilibrium
     eq_out::IMAS.equilibrium__time_slice
@@ -111,9 +111,6 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
                     )
 end
 
-#= == =#
-# STEP #
-#= == =#
 """
     step(actor::SolovevEquilibriumActor; verbose=false)
 
@@ -150,9 +147,6 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
     return res
 end
 
-#= ====== =#
-# FINALIZE #
-#= ====== =#
 """
     finalize(actor::SolovevEquilibriumActor, n::Integer=129)::IMAS.equilibrium__time_slice
 

@@ -48,9 +48,9 @@ function princeton_D(R1::Real, R2::Real; closed::Bool=true)
     return x, y
 end
 
-#= ==== =#
-#  init  #
-#= ==== =#
+#= ================= =#
+#  init radial_build  #
+#= ================= =#
 
 """
     init(radial_build::IMAS.radial_build; layers...)
@@ -375,30 +375,66 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     return rb
 end
 
-#= == =#
-#  OH  #
-#= == =#
+#= ============= =#
+#  OHbfieldActor  #
+#= ============= =#
 
+mutable struct OHbfieldActor <: AbstractActor
+    rb::IMAS.radial_build
+    eqt::IMAS.equilibrium__time_slice
+    cp::IMAS.core_profiles
+end
+
+function OHbfieldActor(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; ejima::Real)
+    cp = IMAS.core_profiles()
+    cp.time = [eqt.time]
+    cp.global_quantities.ejima = [ejima]
+    return OHbfieldActor(rb, eqt, cp)
+end
+
+function OHbfieldActor(rb::IMAS.radial_build, eq::IMAS.equilibrium; ejima::Real)
+    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : eqt.global_quantities.ip for eqt in eq.time_slice])
+    return OHbfieldActor(rb, eq.time_slice[time_index], ejima)
+end
+
+function OHbfieldActor(rb::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
+    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : eqt.global_quantities.ip for eqt in eq.time_slice])
+    return OHbfieldActor(rb, eq.time_slice[time_index], cp)
+end
+
+function OHbfieldActor(dd::IMAS.dd; ejima::Real)
+    return OHbfieldActor(dd.radial_build, dd.equilibrium, ejima)
+end
+
+function OHbfieldActor(dd::IMAS.dd)
+    return OHbfieldActor(dd.radial_build, dd.equilibrium, dd.core_profiles)
+end
+
+# step
+function step(ohactor::OHbfieldActor)
+    return max_Boh_rampup(ohactor.rb, ohactor.eqt, ohactor.cp)
+end
 
 """
-    oh_actor(dd::IMAS.dd, time::Real=0.0; ejima, flux_multiplier=1.0, lswing=2)
+    max_Boh_rampup(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles, rb::IMAS.radial_build, flux_multiplier=1.0, double_swing::Bool=true)
 
-Evaluate flux consumption and corresponding max magnetic field at the center of the OH coil solenoid
+Evaluate ramp-up flux consumption and corresponding max magnetic field at the center of the OH coil solenoid
+
+NOTES:
+* Equations from GASC (Stambaugh FST 2011)
+* eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
+
 """
-function oh_actor(dd::IMAS.dd, time::Real=0.0; ejima, flux_multiplier=1.0, lswing=2)
-
+function max_Boh_rampup(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles, flux_multiplier=1.0, double_swing::Bool=true)
     # from IMAS dd to local variables
-    time_index = get_time_index(dd.equilibrium.time_slice, time)
-    majorRadius = dd.equilibrium.time_slice[time_index].boundary.geometric_axis.r
-    minorRadius = dd.equilibrium.time_slice[time_index].boundary.minor_radius
-    elongation = dd.equilibrium.time_slice[time_index].boundary.elongation
-    plasmaCurrent = dd.equilibrium.time_slice[time_index].global_quantities.ip / 1E6 # in [MA]
-    betaP = dd.equilibrium.time_slice[time_index].global_quantities.beta_pol
-    li = dd.equilibrium.time_slice[time_index].global_quantities.li_3 # what li ?
-    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_radial_build(rb, 1).start_radius, IMAS.get_radial_build(rb, 1).end_radius)
-    if ejima === nothing
-        ejima = dd.core_profiles.global_quantities.ejima[time_index]
-    end
+    majorRadius = eqt.boundary.geometric_axis.r
+    minorRadius = eqt.boundary.minor_radius
+    elongation = eqt.boundary.elongation
+    plasmaCurrent = eqt.global_quantities.ip / 1E6 # in [MA]
+    betaP = eqt.global_quantities.beta_pol
+    li = eqt.global_quantities.li_3 # what li ?
+    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_radial_build(rb, type=1).start_radius, IMAS.get_radial_build(rb, type=1).end_radius)
+    ejima = IMAS.interp(cp.time, cp.global_quantities.ejima)(eqt.time)
 
     # ============================= #
     # evaluate plasma inductance
@@ -416,26 +452,29 @@ function oh_actor(dd::IMAS.dd, time::Real=0.0; ejima, flux_multiplier=1.0, lswin
     # required flux swing from OH
     totalRampUpFluxReq = rampUpFlux * flux_multiplier - fluxFromVerticalField
 
-    # Calculate magnetic field at solenoid bore required to match flux swing request (Number of swings in OH coil [1=single, 2=double swing])
+    # Calculate magnetic field at solenoid bore required to match flux swing request
     RiRoFactor = innerSolenoidRadius / outerSolenoidRadius
-    magneticFieldSolenoidBore = 3.0 * totalRampUpFluxReq / pi / outerSolenoidRadius^2 / (RiRoFactor^2 + RiRoFactor + 1.0) / lswing
+    magneticFieldSolenoidBore = 3.0 * totalRampUpFluxReq / pi / outerSolenoidRadius^2 / (RiRoFactor^2 + RiRoFactor + 1.0) / (double_swing ? 2 : 1)
     # ============================= #
 
-    # assign max B OH to radial_build IDS
-    dd.radial_build.oh_b_field_max = magneticFieldSolenoidBore
-    return dd
+    # record required max B field required for rampup
+    rb.oh.b_field_rampup_requirement = magneticFieldSolenoidBore
 end
 
+
+#= ======== =#
+#  Stresses  #
+#= ======== =#
 
 function stress_calculations(dd::IMAS.dd)
     error("not completed yet")
     B0_TF = dd.radial_build.tf_b_field_max
-    R0_TF = sum((IMAS.get_radial_build(rb, -1).start_radius, IMAS.get_radial_build(rb, -1).end_radius)) / 2.0
-    Rtf1 = IMAS.get_radial_build(rb, 2).start_radius
-    Rtf2 = IMAS.get_radial_build(rb, 2).end_radius
+    R0_TF = sum((IMAS.get_radial_build(rb, type=-1).start_radius, IMAS.get_radial_build(rb, type=-1).end_radius)) / 2.0
+    Rtf1 = IMAS.get_radial_build(rb, type=2).start_radius
+    Rtf2 = IMAS.get_radial_build(rb, type=2).end_radius
     B0_OH = dd.radial_build.oh_b_field_max
-    R_sol1 = IMAS.get_radial_build(rb, 1).start_radius
-    R_sol2 = IMAS.get_radial_build(rb, 1).end_radius
+    R_sol1 = IMAS.get_radial_build(rb, type=1).start_radius
+    R_sol2 = IMAS.get_radial_build(rb, type=1).end_radius
     s_ax_ave = something
     f_t_ss_tot_in = something
     f_oh_cu_in = something
