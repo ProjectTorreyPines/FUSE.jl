@@ -4,20 +4,23 @@ using Contour
 import ModelingToolkit
 import OrdinaryDiffEq
 
+#= =============== =#
+#  Shape functions  #
+#= =============== =#
 """
-    princeton_D(R1::Real,R2::Real,closed::Bool=true)
+    princeton_D(r_start::Real, r_end::Real, closed::Bool=true)
 
-Draw "princeton D" TF coil contour between radii R2 and R1
+Draw "princeton D" TF coil contour between radii r_end and r_start
 
 http://www.jaschwartz.net/journal/princeton-dee.html
 https://doi.org/10.2172/4096514
 """
-function princeton_D(R1::Real, R2::Real; closed::Bool=true)
-    if R1 > R2
-        error("R1 can't be larger than R2")
+function princeton_D(r_start::Real, r_end::Real; closed::Bool=true)
+    if r_start > r_end
+        error("r_start can't be larger than r_end")
     end
-    R0 = sqrt(R1 * R2)
-    k = 0.5 * log(R2 / R1)
+    R0 = sqrt(r_start * r_end)
+   k = 0.5 * log(r_end / r_start)
     
     @ModelingToolkit.parameters R
     @ModelingToolkit.variables Z(R)
@@ -34,28 +37,90 @@ function princeton_D(R1::Real, R2::Real; closed::Bool=true)
         return sol.t, [u[2] for u in sol.u]
     end
 
-    segment1 = get_segment(R0, R1)
-    segment2 = get_segment(R0, R2)
+    segment1 = get_segment(R0, r_start)
+    segment2 = get_segment(R0, r_end)
 
     Z02 = segment2[2][end]
     segment1[2] .-= Z02
     segment2[2] .-= Z02
 
-    x = vcat(reverse(segment1[1])[1:end-1], segment2[1][1:end-1], reverse(segment2[1])[1:end-1], segment1[1])
-    y = vcat(reverse(segment1[2])[1:end-1], segment2[2][1:end-1], -reverse(segment2[2])[1:end-1], -segment1[2])
+    R_TF = vcat(reverse(segment1[1])[1:end-1], segment2[1][1:end-1], reverse(segment2[1])[1:end-1], segment1[1])
+    Z_TF = vcat(reverse(segment1[2])[1:end-1], segment2[2][1:end-1], -reverse(segment2[2])[1:end-1], -segment1[2])
 
     if closed        
-        x = vcat(x,x[1])
-        y = vcat(y,y[1])
+        R_TF = vcat(R_TF, R_TF[1])
+        Z_TF = vcat(Z_TF, Z_TF[1])
     end
-    return x, y
+    return R_TF, Z_TF
 end
 
 """
-    Rectangular TF coil shape(R1::Real, R2::Real, height::Real)
+    rectangle_shape(r_start::Real, r_end::Real, height::Real)
+Rectangular TF coil shape(r_start::Real, r_end::Real, height::Real)
+layer[:].shape = 2
 """
-function rectangle_shape(R1::Real, R2::Real, height::Real)
-    return [R1, R2, R2, R1, R1], [-height/2, -height/2, height/2, height/2, -height/2]
+function rectangle_shape(r_start::Real, r_end::Real, height::Real)
+    return [r_start, r_end, r_end, r_start, r_start], [-height/2, -height/2, height/2, height/2, -height/2]
+end
+
+"""
+TrippleArc(;r_start::Real, r_end::Real , shape_parameters::Vector, resolution_points=1000)
+with shape_parameters =  h, small_radius, mid_radius, small_coverage, mid_coverage 
+    Angles in [degrees], distances in [cm]
+TrippleArc parametrized TF coil shape
+layer[:].shape = 3
+"""
+function TrippleArc(r_start::Real, r_end::Real , shape_parameters::Vector; resolution_points=1000)
+    if length(shape_parameters) != 5
+        error("shape_parameters should have size 6 with \n shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage]")
+    end
+    
+    h, small_radius, mid_radius, small_coverage, mid_coverage = shape_parameters
+    small_coverage *= pi / 180  # convert to radians
+    mid_coverage *= pi / 180
+    h *= 0.5 # Half height for each side
+    asum = small_coverage + mid_coverage
+    
+    # small arc
+    theta = LinRange(
+        0, small_coverage, 100)#abs(round(Int64,0.5 * resolution_points * small_coverage / pi)))
+    small_arc_R = r_start .+ small_radius .* (1 .- map(cos,theta))
+    small_arc_Z = h .+ small_radius .* map(sin,theta)
+    shape_POI = [(small_arc_R[end],small_arc_Z[end])]
+    # mid arc
+    theta = LinRange(
+        theta[end], asum, 100)#abs(round(Int64,0.5 * resolution_points * mid_coverage / pi)))
+    mid_arc_R = small_arc_R[end] .+ mid_radius .* 
+        (map(cos,small_coverage) .- map(cos,theta))
+        mid_arc_Z = small_arc_Z[end] .+ mid_radius * 
+        (map(sin,theta) .- map(sin,small_coverage))
+    shape_POI = vcat(shape_POI,(mid_arc_R[end],mid_arc_Z[end]))
+    # large arc
+    large_radius = (mid_arc_Z[end]) / sin(pi - asum)
+    theta = LinRange(theta[end], pi, 100)
+    large_arc_R = mid_arc_R[end] .+ large_radius .* 
+        (map(cos,pi .- theta) .- map(cos,pi .- asum))
+        large_arc_Z = mid_arc_Z[end] .- large_radius .* 
+        (sin(asum) .- map(sin, pi .- theta))
+
+    shape_POI = vcat(shape_POI,(large_arc_R[end],large_arc_Z[end]))
+
+    R = vcat(small_arc_R, mid_arc_R[2:end], large_arc_R[2:end])
+    R = vcat(R,reverse(R)[2:end])
+    Z = vcat(small_arc_Z, mid_arc_Z[2:end], large_arc_Z[2:end])
+    Z = vcat(Z, -reverse(Z)[2:end])
+    
+    # Add vertical
+    n_points_box = 100
+    R = vcat(LinRange(r_start, r_start, n_points_box), R)
+    Z = vcat(LinRange(-h, h ,n_points_box), Z)
+    
+    # Resize to ensure r_start to r_end
+    Z = Z./(maximum(R)-minimum(R)).*(r_end - r_start)
+    R = (R .- minimum(R)) ./ (maximum(R) - minimum(R)) .* (r_end - r_start) .+ r_start
+
+    return R,Z
+
 end
 #= ==== =#
 #  init  #
@@ -82,7 +147,7 @@ layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 NOTE layer[:].shape integer index corresponds to the following shapes
 *   1 : Priceton_D (shape_parameters = [])
 *   2 : Rectangle  (shape_parameters = [height])
-*   3 : Tripple_Arc (shape_parameters = [Work in progress])
+*   3 : Tripple_Arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])
 """
 function init(radial_build::IMAS.radial_build; layers...)
     # assign layers
@@ -173,7 +238,9 @@ function init(radial_build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice
             lfs_TF=dr,
             gap_cryostat=2 * dr)
     end
-    radial_build.layer[3].shape=1
+    # TF shape
+    radial_build.layer[3].shape=3
+    radial_build.layer[3].shape_parameters= [100.0, 10.0, 30.0, 80.0, 20.0]
     radial_build_cx(radial_build, eqt, conformal_wall)
 
     return radial_build
@@ -240,6 +307,10 @@ function wall_cryostat(rb::IMAS.radial_build)
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
+"""
+    radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
+Draws the 2D cross section of the radial build
+"""
 
 function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
     # we make the lfs wall to be conformal to miller
@@ -377,17 +448,29 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     # for now we do this only if there is a blanket because without it it is likely that the TF and the wall will encroach
     if IMAS.get_radial_build(rb, type=4, hfs=-1, raise_error_on_missing=false) !== nothing
         layer = IMAS.get_radial_build(rb, type=2, hfs=-1)
+        end_radius = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).start_radius
+        start_radius = layer.end_radius
         if layer.shape  == 1
-            xTF, yTF = princeton_D(layer.end_radius, IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).start_radius, closed=true)
+            R_TF, Z_TF = princeton_D(start_radius, end_radius, closed=true)
         elseif layer.shape == 2
-            xTF, yTF = rectangle_shape(layer.end_radius,IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=1).start_radius,layer.shape_parameters[1])
+            R_TF, Z_TF = rectangle_shape(start_radius, end_radius, layer.shape_parameters[1])
+        elseif layer.shape == 3
+            R_TF, Z_TF = TrippleArc(start_radius, end_radius, layer.shape_parameters)
+            R_shape, Z_shape = quick_box(60,80,70)
+            R_target_minimum_distance = 20
+            layer.shape_parameters = TF_coil_fitting_optimization(start_radius, end_radius, layer, R_shape, Z_shape, R_target_minimum_distance)
+
+        else
+            error("layer.shape $(layer.shape) doesn't exist see: \n            *   1 : Priceton_D (shape_parameters = []) \n
+            *   2 : Rectangle  (shape_parameters = [height]) \n
+            *   3 : Tripple_Arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])")
         end
-        poly = LibGEOS.buffer(xy_polygon(xTF, yTF), layer.thickness)
+        poly = LibGEOS.buffer(xy_polygon(R_TF, Z_TF), layer.thickness)
         layer.outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
         layer = rb.layer[IMAS.get_radial_build(rb, type=2, hfs=-1, return_index=true) + 1]
-        layer.outline.r = xTF
-        layer.outline.z = yTF
+        layer.outline.r = R_TF
+        layer.outline.z = Z_TF
     end
 
     # plug
@@ -399,6 +482,40 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     # cryostat
     rb.layer[end].outline.r, rb.layer[end].outline.z = wall_cryostat(rb)
     return rb
+end
+
+
+#= ============= =#
+#  TF_coil_actor  #
+#= ============= =#
+
+function TF_coil_fitting_optimization(r_start, r_end, radial_build_layer::IMAS.radial_build__layer, R_shape::Vector, Z_shape::Vector, R_target_minimum_distance::Real)
+
+    function cost_TF_shape(shape_parameters, R_shape, Z_shape, distance_target; doPlot=false)
+
+        R_TF, Z_TF = TrippleArc(r_start, r_end, shape_parameters)
+        
+        if doPlot
+            plot(R_TF, Z_TF,label="Initial guess", aspect_ratio=:equal, linewidth=5)
+        end
+        
+        coil_length = sum((abs.(diff(R_TF).^2 + diff(Z_TF).^2)).^0.5)
+        #coil_length = sum(abs.(diff(R_TF).*(Z_TF[2:end].+Z_TF[1:end-1])))
+        box_length =  sum((abs.(diff(R_shape).^2 + diff(Z_shape).^2)).^0.5)
+        #box_length = sum(abs.(diff(R_shape).*(Z_shape[2:end].+Z_shape[1:end-1])))
+        
+        # Minimum distance
+        cost_distance = abs(minimum(minimum_distance_two_objects(R_TF, Z_TF, R_shape, Z_shape)) - R_target_minimum_distance) / R_target_minimum_distance
+    
+        # Coil length
+        cost_length = coil_length / box_length
+        cost = cost_length/10 + cost_distance^2
+        return cost
+    end
+
+    Sol = optimize(shape_parameters-> cost_TF_shape(radial_build_layer.shape_parameters, R_shape, Z_shape, R_target_minimum_distance; doPlot=false),
+    radial_build_layer.shape_parameters, NelderMead(), Optim.Options(time_limit=20, g_tol=1e-8); autodiff=:forward)
+    return Optim.minimizer(Sol)
 end
 
 #= == =#

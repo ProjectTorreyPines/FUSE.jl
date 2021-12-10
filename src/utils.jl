@@ -50,3 +50,30 @@ function two_curves_same_θ(r1, z1, r2, z2, scheme=:cubic)
     end
     return r1, z1, r2, z2, θ
 end
+
+"""
+    minimum_distance_two_objects(R_obj1, Z_obj1, R_obj2, Z_obj2)
+Returns an array of minimal distance points for each point in obj1 (R_obj1, Z_obj1)
+"""
+function minimum_distance_two_objects(R_obj1, Z_obj1, R_obj2, Z_obj2)
+    min_distance_array = Real[]
+    for (r_1, z_1) in zip(R_obj1,Z_obj1)
+        distance = Real[]
+        for (r_2, z_2) in zip(R_obj2, Z_obj2)
+            append!(distance, sqrt((r_1 - r_2)^2 + (z_1 - z_2)^2))
+            end
+        append!(min_distance_array,minimum(distance))
+        end
+    return min_distance_array
+end
+
+function quick_box(width::Real,height::Real, r_center::Real)
+    r_start = r_center - 0.5 * width
+    r_end = r_center + 0.5 * width
+    z_start = - 0.5 * height 
+    z_end = 0.5 * height
+    n_points = 100
+    R_box = vcat(LinRange(r_start,r_start,n_points),LinRange(r_start,r_end,n_points),LinRange(r_end,r_end,n_points),LinRange(r_end,r_start,n_points))
+    Z_box = vcat(LinRange(z_start,z_end,n_points),LinRange(z_end,z_end,n_points),LinRange(z_end,z_start,n_points),LinRange(z_start,z_start,n_points))
+    return R_box, Z_box
+end
