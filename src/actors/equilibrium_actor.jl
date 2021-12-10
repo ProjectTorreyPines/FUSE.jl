@@ -1,3 +1,8 @@
+using Equilibrium
+using Printf
+import ForwardDiff
+import Optim
+
 #= ==================== =#
 #  init equilibrium IDS  #
 #= ==================== =#
@@ -33,12 +38,6 @@ end
 #= ======================= =#
 #  SolovevEquilibriumActor  #
 #= ======================= =#
-
-using Equilibrium
-using Printf
-import ForwardDiff
-import Optim
-
 mutable struct SolovevEquilibriumActor <: AbstractActor
     eq_in::IMAS.equilibrium__time_slice
     S::SolovevEquilibrium

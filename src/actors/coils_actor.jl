@@ -1,26 +1,3 @@
-@Base.kwdef mutable struct PFcoilsOptTrace
-    λ_regularize::Vector = []
-    cost_ψ::Vector = []
-    cost_currents::Vector = []
-    cost_bound::Vector = []
-    cost_spacing::Vector = []
-    cost_total::Vector = []
-end
-
-mutable struct PFcoilsOptActor <: AbstractActor
-    eq_in::IMAS.equilibrium
-    eq_out::IMAS.equilibrium
-    time::Real
-    pf_active::IMAS.pf_active
-    radial_build::IMAS.radial_build
-    symmetric::Bool
-    λ_regularize::Real
-    trace::PFcoilsOptTrace
-end
-
-#= == =#
-# INIT #
-#= == =#
 using Equilibrium
 using PolygonOps
 using StaticArrays
@@ -39,8 +16,6 @@ const coils_turns_spacing = 0.05
 #= ================== =#
 #  init pf_active IDS  #
 #= ================== =#
-
-
 function finite_size_OH_coils(z, clereance)
     ez = diff(z) / 2.0 .+ z[1:end-1]
     ez = vcat((ez[1] - ez[2]) + ez[1], ez, (ez[end] - ez[end-1]) + ez[end])
@@ -231,6 +206,26 @@ end
 #= =============== =#
 #  PFcoilsOptActor  #
 #= =============== =#
+@Base.kwdef mutable struct PFcoilsOptTrace
+    λ_regularize::Vector = []
+    cost_ψ::Vector = []
+    cost_currents::Vector = []
+    cost_bound::Vector = []
+    cost_spacing::Vector = []
+    cost_total::Vector = []
+end
+
+mutable struct PFcoilsOptActor <: AbstractActor
+    eq_in::IMAS.equilibrium
+    eq_out::IMAS.equilibrium
+    time::Real
+    pf_active::IMAS.pf_active
+    radial_build::IMAS.radial_build
+    symmetric::Bool
+    λ_regularize::Real
+    trace::PFcoilsOptTrace
+end
+
 function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_OH::Int, ncoils_per_region::Vector, λ_regularize=1E-13)
     # initialize coils location
     pf_active = IMAS.pf_active()
