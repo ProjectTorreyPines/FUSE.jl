@@ -201,27 +201,6 @@ function init(pf_active::IMAS.pf_active,
         end
     end
 
-    # valid_r=IMAS.get_radial_build(rb, type=5, hfs=1).outline.r
-    # valid_z=IMAS.get_radial_build(rb, type=5, hfs=1).outline.z
-    # distance=cumsum(sqrt.(diff(valid_r).^2+diff(valid_z).^2))
-    # distance.-=distance[1]
-    # distance./=distance[end]
-    # coils_distance=range(0,1,length=61)
-    # r_coils = IMAS.interp(distance, valid_r[1:end-1])(coils_distance)
-    # z_coils = IMAS.interp(distance, valid_z[1:end-1])(coils_distance)
-    # for (r,z) in collect(zip(r_coils, z_coils))
-    #     k = length(pf_active.coil) + 1
-    #     resize!(pf_active.coil,k)
-    #     resize!(pf_active.coil[k].element, 1)
-    #     pf_active.coil[k].identifier = "fixed"
-    #     pf_active.coil[k].element[1].geometry.rectangle.r = r
-    #     pf_active.coil[k].element[1].geometry.rectangle.z = z
-    #     pf_active.coil[k].element[1].geometry.rectangle.width = 0.0
-    #     pf_active.coil[k].element[1].geometry.rectangle.height = 0.0
-    #     pf_active.coil[k].element[1].turns_with_sign = 1
-    #     IMAS.set_timedep_value!(pf_active.coil[k].current, pf_active.coil[k].current, :data, 0.0, -(mod(k,2)==0 ? 1 : -1) * 5E4 * z^3)
-    # end
-
     return pf_active
 end
 
