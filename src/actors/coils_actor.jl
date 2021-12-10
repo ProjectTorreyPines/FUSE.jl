@@ -79,7 +79,7 @@ function init(pf_active::IMAS.pf_active, rb::IMAS.radial_build, ncoils_OH::Int, 
         resize!(pf_active.coil, k)
         resize!(pf_active.coil[k].element, 1)
         pf_active.coil[k].identifier = "optim"
-        pf_active.coil[k].name = "oh"
+        pf_active.coil[k].name = "OH"
         pf_active.coil[k].element[1].geometry.rectangle.r = r
         pf_active.coil[k].element[1].geometry.rectangle.z = z
         pf_active.coil[k].element[1].geometry.rectangle.width = w
@@ -332,7 +332,7 @@ function get_spacing_from_turns(pf_active__coil::IMAS.pf_active__coil)
 end
 
 function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
-    if coil.pf_active__coil.name == "oh"
+    if coil.pf_active__coil.name == "OH"
         n = Int(ceil(coil.height / coil.width / 2.0))
         if n <= 1
             n = 1
