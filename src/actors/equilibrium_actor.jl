@@ -148,12 +148,15 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
 end
 
 """
-    finalize(actor::SolovevEquilibriumActor, n::Integer=129)::IMAS.equilibrium__time_slice
+    finalize(actor::SolovevEquilibriumActor,
+             resolution::Int=129,
+             rlims::NTuple{2,<:Real}=Equilibrium.limits(actor.S)[1],
+             zlims::NTuple{2,<:Real}=Equilibrium.limits(actor.S)[2])::IMAS.equilibrium__time_slice
 
-Store SolovevEquilibriumActor data in IMAS.equilibrium
+Store SolovevEquilibriumActor data in IMAS.equilibrium format
 """
 function finalize(actor::SolovevEquilibriumActor,
-                  resolution::Integer=129,
+                  resolution::Int=129,
                   rlims::NTuple{2,<:Real}=Equilibrium.limits(actor.S)[1],
                   zlims::NTuple{2,<:Real}=Equilibrium.limits(actor.S)[2])::IMAS.equilibrium__time_slice
 
