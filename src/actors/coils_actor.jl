@@ -61,8 +61,7 @@ function init(pf_active::IMAS.pf_active, rb::IMAS.radial_build, ncoils_OH::Int, 
         pf_active.coil[k].element[1].geometry.rectangle.height = h
         # pf_active.coil[k].element[1].turns_with_sign = 1
         set_turns_from_spacing!(pf_active.coil[k], coils_turns_spacing, +1)
-        set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
-        set_field_time_array(pf_active.coil[k].current, :data, 1, 0.0)
+        IMAS.set_timedep_value!(pf_active.coil[k].current, pf_active.coil[k].current, :data, 0.0, 0.0)
     end
 
     # Now add actual PF coils to regions of vacuum
@@ -171,8 +170,7 @@ function init(pf_active::IMAS.pf_active, rb::IMAS.radial_build, ncoils_OH::Int, 
                     pf_active.coil[k].element[1].geometry.rectangle.height = buff
                     # pf_active.coil[k].element[1].turns_with_sign = 1
                     set_turns_from_spacing!(pf_active.coil[k], coils_turns_spacing, +1)
-                    set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
-                    set_field_time_array(pf_active.coil[k].current, :data, 1, 0.0)
+                    IMAS.set_timedep_value!(pf_active.coil[k].current, pf_active.coil[k].current, :data, 0.0, 0.0)
                 end
             end
         end
@@ -196,8 +194,7 @@ function init(pf_active::IMAS.pf_active, rb::IMAS.radial_build, ncoils_OH::Int, 
     #     pf_active.coil[k].element[1].geometry.rectangle.width = 0.0
     #     pf_active.coil[k].element[1].geometry.rectangle.height = 0.0
     #     pf_active.coil[k].element[1].turns_with_sign = 1
-    #     set_field_time_array(pf_active.coil[k].current, :time, 1, 0.0)
-    #     set_field_time_array(pf_active.coil[k].current, :data, 1, -(mod(k,2)==0 ? 1 : -1) * 5E4 * z^3)
+    #     IMAS.set_timedep_value!(pf_active.coil[k].current, pf_active.coil[k].current, :data, 0.0, -(mod(k,2)==0 ? 1 : -1) * 5E4 * z^3)
     # end
 
     return pf_active
@@ -224,9 +221,10 @@ mutable struct PFcoilsOptActor <: AbstractActor
     symmetric::Bool
     λ_regularize::Real
     trace::PFcoilsOptTrace
+    coil_model::Symbol
 end
 
-function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_OH::Int, ncoils_per_region::Vector, λ_regularize=1E-13)
+function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_OH::Int, ncoils_per_region::Vector; λ_regularize=1E-13, coil_model=:quick)
     # initialize coils location
     pf_active = IMAS.pf_active()
     init(pf_active, rb, ncoils_OH, ncoils_per_region)
@@ -238,9 +236,9 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, ncoils_
     time = eq_in.time[time_index]
 
     # constructor
-    actor = PFcoilsOptActor(eq_in, eq_out, time, pf_active, rb, symmetric, λ_regularize, PFcoilsOptTrace())
+    pfactor = PFcoilsOptActor(eq_in, eq_out, time, pf_active, rb, symmetric, λ_regularize, PFcoilsOptTrace(), coil_model)
 
-    return actor
+    return pfactor
 end
 
 # Dispatching AD_GS on IMAS.pf_active__coil
@@ -255,6 +253,21 @@ mutable struct GS_IMAS_pf_active__coil <: AD_GS.AbstractCoil
     time_current::Vector{T} where T <: Real
     time::Vector{T} where T <: Real
     time_index::Int
+    coil_model::Symbol
+end
+
+function GS_IMAS_pf_active__coil(pf_active__coil, coil_model)
+    return GS_IMAS_pf_active__coil(pf_active__coil,
+                                   pf_active__coil.element[1].geometry.rectangle.r,
+                                   pf_active__coil.element[1].geometry.rectangle.z,
+                                   pf_active__coil.element[1].geometry.rectangle.width,
+                                   pf_active__coil.element[1].geometry.rectangle.height,
+                                   pf_active__coil.element[1].turns_with_sign,
+                                   get_spacing_from_turns(pf_active__coil),
+                                   pf_active__coil.current.data,
+                                   pf_active__coil.current.time,
+                                   1,
+                                   coil_model)
 end
 
 function Base.getproperty(coil::GS_IMAS_pf_active__coil, field::Symbol)
@@ -276,19 +289,6 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value)
         turns = Int(ceil(coil.width .* coil.height ./ coil.spacing.^2))
         setfield!(coil, :turns_with_sign, s * turns)
     end
-end
-
-function GS_IMAS_pf_active__coil(pf_active__coil)
-    return GS_IMAS_pf_active__coil(pf_active__coil,
-                                    pf_active__coil.element[1].geometry.rectangle.r,
-                                    pf_active__coil.element[1].geometry.rectangle.z,
-                                    pf_active__coil.element[1].geometry.rectangle.width,
-                                    pf_active__coil.element[1].geometry.rectangle.height,
-                                    pf_active__coil.element[1].turns_with_sign,
-                                    get_spacing_from_turns(pf_active__coil),
-                                    pf_active__coil.current.data,
-                                    pf_active__coil.current.time,
-                                    1)
 end
 
 function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
@@ -326,25 +326,44 @@ function get_spacing_from_turns(pf_active__coil::IMAS.pf_active__coil)
     return sqrt((pf_active__coil.element[1].geometry.rectangle.width * pf_active__coil.element[1].geometry.rectangle.height) / abs(pf_active__coil.element[1].turns_with_sign))
 end
 
+"""
+    AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+
+Calculates coil green function at given R and Z coordinate
+"""
 function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
-    if coil.pf_active__coil.name == "OH"
-        n = Int(ceil(coil.height / coil.width / 2.0))
-        if n <= 1
-            n = 1
-            z_filaments = coil.z
-        else
-            z_filaments = range(coil.z - coil.height / 2.0, coil.z + coil.height / 2.0, length=n)
-        end
-        green = []
-        for z in z_filaments
-            push!(green, AD_GS.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
-        end
-        return sum(green)
-    else
+    # fastest
+    if coil.coil_model == :point
         return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+
+    # medium
+    elseif coil.coil_model in [:corners, :quick]
+        if coil.pf_active__coil.name == "OH"
+            n = Int(ceil((coil.height - coil.width) / coil.width / 2.0))
+            if n <= 1
+                n = 1
+                z_filaments = coil.z
+            else
+                z_filaments = range(coil.z - (coil.height - coil.width) / 2.0, coil.z + (coil.height - coil.width) / 2.0, length=n)
+            end
+            green = []
+            for z in z_filaments
+                push!(green, AD_GS.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
+            end
+            return sum(green)
+        elseif coil.coil_model == :corners
+            return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width/2.0, coil.height/2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign/4)
+        elseif coil.coil_model == :quick
+            return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+        end
+
+    # slow
+    elseif coil.coil_model == :realistic
+        return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+
+    else
+        error("GS_IMAS_pf_active__coil coil.coil_model can only be (in order of accuracy) :realistic, :corners, :quick, and :point")
     end
-    #return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign/4)
-    #return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 end
 
 # step
@@ -630,9 +649,9 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
     return λ_regularize, trace
 end
 
-function step(actor::PFcoilsOptActor;
-              symmetric=actor.symmetric,
-              λ_regularize=actor.λ_regularize,
+function step(pfactor::PFcoilsOptActor;
+              symmetric=pfactor.symmetric,
+              λ_regularize=pfactor.λ_regularize,
               λ_ψ=1E-2,
               λ_null=1,
               λ_currents=1E5,
@@ -647,17 +666,17 @@ function step(actor::PFcoilsOptActor;
     fixed_coils = GS_IMAS_pf_active__coil[]
     pinned_coils = GS_IMAS_pf_active__coil[]
     optim_coils = GS_IMAS_pf_active__coil[]
-    for coil in actor.pf_active.coil
+    for coil in pfactor.pf_active.coil
         if coil.identifier == "pinned"
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil))
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
         elseif (coil.identifier == "optim") && (coil.name == "OH") && (optimization_scheme == :mask)
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil))
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
         elseif (coil.identifier == "optim") && (optimization_scheme == :static)
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil))
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
         elseif coil.identifier == "optim"
-            push!(optim_coils, GS_IMAS_pf_active__coil(coil))
+            push!(optim_coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
         elseif coil.identifier == "fixed"
-            push!(fixed_coils, GS_IMAS_pf_active__coil(coil))
+            push!(fixed_coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
         else
             error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
         end
@@ -671,22 +690,22 @@ function step(actor::PFcoilsOptActor;
     else
 
         for coil in vcat(pinned_coils, optim_coils, fixed_coils)
-            coil.time_current = actor.eq_in.time .* 0.0
-            coil.time = actor.eq_in.time
+            coil.time_current = pfactor.eq_in.time .* 0.0
+            coil.time = pfactor.eq_in.time
         end
 
-        rb = actor.radial_build
+        rb = pfactor.radial_build
         # run mask type optimizer
         if optimization_scheme == :mask
-            (λ_regularize, trace) = optimize_coils_mask(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
+            (λ_regularize, trace) = optimize_coils_mask(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
         # run rail type optimizer
         elseif optimization_scheme in [:rail, :static]
-            (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
+            (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
         else
             error("Supported PFcoilsOptActor optimization_scheme are `:static`, `:rail`, or `:mask`")
         end
-        actor.λ_regularize = λ_regularize
-        actor.trace = trace
+        pfactor.λ_regularize = λ_regularize
+        pfactor.trace = trace
 
         # transfer the results to IMAS.pf_active
         for coil in vcat(pinned_coils, optim_coils, fixed_coils)
@@ -695,8 +714,8 @@ function step(actor::PFcoilsOptActor;
     end
 
     # update equilibrium
-    for time_index in 1:length(actor.eq_in.time_slice)
-        if actor.eq_in.time_slice[time_index].time < 0
+    for time_index in 1:length(pfactor.eq_in.time_slice)
+        if pfactor.eq_in.time_slice[time_index].time < 0
             continue
         end
         for coil in vcat(pinned_coils, optim_coils, fixed_coils)
@@ -704,15 +723,15 @@ function step(actor::PFcoilsOptActor;
         end
 
         # convert equilibrium to Equilibrium.jl format, since this is what AD_GS uses
-        EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
+        EQfixed = IMAS2Equilibrium(pfactor.eq_in.time_slice[time_index])
 
         # update ψ map
         ψ_f2f = AD_GS.fixed2free(EQfixed, vcat(pinned_coils, optim_coils, fixed_coils), EQfixed.r, EQfixed.z)
-        actor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
-        # IMAS.flux_surfaces(actor.eq_out.time_slice[time_index]) #### PROBLEM
+        pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
+        # IMAS.flux_surfaces(pfactor.eq_out.time_slice[time_index]) #### PROBLEM
     end
 
-    return actor
+    return pfactor
 end
 
 # plotting
@@ -754,9 +773,9 @@ Plot PFcoilsOptActor optimization cross-section
     if coils_flux
         resolution = 129
         R = range(xlim[1], xlim[2], length=resolution)
-        Z = range(ylim[1], ylim[2], length=resolution)
+        Z = range(ylim[1], ylim[2], length=Int(ceil(resolution * (ylim[2]-ylim[1]) / (xlim[2]- xlim[1]))))
 
-        coils = [GS_IMAS_pf_active__coil(coil) for coil in pfactor.pf_active.coil]
+        coils = [GS_IMAS_pf_active__coil(coil, pfactor.coil_model) for coil in pfactor.pf_active.coil]
         for coil in coils
             coil.time_index=time_index
         end
