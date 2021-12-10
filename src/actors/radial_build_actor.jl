@@ -375,63 +375,48 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     return rb
 end
 
-#= ============= =#
-#  RampupActor  #
-#= ============= =#
+#= ============== =#
+#  FluxSwingActor  #
+#= ============== =#
 
-mutable struct RampupActor <: AbstractActor
+mutable struct FluxSwingActor <: AbstractActor
     rb::IMAS.radial_build
     eqt::IMAS.equilibrium__time_slice
     cp::IMAS.core_profiles
 end
 
-function RampupActor(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; ejima::Real)
-    cp = IMAS.core_profiles()
-    cp.time = [eqt.time]
-    cp.global_quantities.ejima = [ejima]
-    return RampupActor(rb, eqt, cp)
-end
-
-function RampupActor(rb::IMAS.radial_build, eq::IMAS.equilibrium; ejima::Real)
+function FluxSwingActor(rb::IMAS.radial_build, eq::IMAS.equilibrium; ejima::Real)
     time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : eqt.global_quantities.ip for eqt in eq.time_slice])
-    return RampupActor(rb, eq.time_slice[time_index], ejima)
+    return FluxSwingActor(rb, eq.time_slice[time_index], ejima)
 end
 
-function RampupActor(rb::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
-    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : eqt.global_quantities.ip for eqt in eq.time_slice])
-    return RampupActor(rb, eq.time_slice[time_index], cp)
-end
-
-function RampupActor(dd::IMAS.dd; ejima::Real)
-    return RampupActor(dd.radial_build, dd.equilibrium, ejima)
-end
-
-function RampupActor(dd::IMAS.dd)
-    return RampupActor(dd.radial_build, dd.equilibrium, dd.core_profiles)
+function FluxSwingActor(dd::IMAS.dd)
+    return FluxSwingActor(dd.radial_build, dd.equilibrium, dd.core_profiles)
 end
 
 # step
-function step(ohactor::RampupActor)
-    rampup_flux_requirements(ohactor.rb, ohactor.eqt, ohactor.cp)
-    rampup_oh_requirements(ohactor.rb)
+function step(flxactor::FluxSwingActor)
+    rampup_flux_requirements(flxactor.rb, flxactor.eqt, flxactor.cp)
+    flattop_flux_requirements(flxactor.rb, flxactor.eqt, flxactor.cp)
+    pf_flux_requirements(flxactor.rb, flxactor.eqt)
 end
 
 """
-    rampup_oh_flux_requirement(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles, rampup_flux_multiplier=1.0)
+    rampup_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
 
-Evaluate OH ramp-up flux consumption
+Estimate OH flux requirement during rampup
 
 NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
+* core_profiles is only used to get core_profiles.global_quantities.ejima
 """
-function rampup_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles, rampup_flux_multiplier=1.0)
+function rampup_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
     # from IMAS dd to local variables
     majorRadius = eqt.boundary.geometric_axis.r
     minorRadius = eqt.boundary.minor_radius
     elongation = eqt.boundary.elongation
     plasmaCurrent = eqt.global_quantities.ip / 1E6 # in [MA]
-    betaP = eqt.global_quantities.beta_pol
     li = eqt.global_quantities.li_3 # what li ?
     ejima = IMAS.interp(cp.time, cp.global_quantities.ejima)(eqt.time)
 
@@ -441,49 +426,86 @@ function rampup_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__
     plasmaInductanceExternal = 0.4 * pi * majorRadius * (log(8.0 * majorRadius / minorRadius / sqrt(elongation)) - 2.0)
     plasmaInductanceTotal = plasmaInductanceInternal + plasmaInductanceExternal
 
-    # estimate flux swing
-    rampUpFlux = (ejima * 0.4 * pi * majorRadius + plasmaInductanceTotal) * plasmaCurrent * rampup_flux_multiplier
+    # estimate rampup flux requirement
+    rampUpFlux = (ejima * 0.4 * pi * majorRadius + plasmaInductanceTotal) * plasmaCurrent
 
+    # ============================= #
+    rb.flux_swing_requirements.rampup = abs(rampUpFlux)
+end
+
+"""
+    flattop_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+
+Estimate OH flux requirement during flattop 
+
+NOTES:
+* this is a dummy function right now!, we simply take 1/2 of the rampup
+"""
+function flattop_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+    # from IMAS dd to local variables
+
+    # ============================= #
+    #plasmaResistivity = calc_plasmaResitivity(IN['plasma parameters']['Ti0'],neLinAvg,effectiveZ,Tratio,St,Sn,1.0,1./aspectRatio)
+    #flattopFluxConsumption = 1.e6*plasmaResistivity * inductiveFraction * plasmaCurrent * flattopDuration
+
+    flattopFluxConsumption = 0.5 * rb.flux_swing_requirements.rampup
+
+    # ============================= #
+    rb.flux_swing_requirements.flattop = flattopFluxConsumption
+end
+
+"""
+    pf_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
+
+Estimate vertical field from PF coils and its contribution to flux swing
+
+NOTES:
+* Equations from GASC (Stambaugh FST 2011)
+* eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
+"""
+function pf_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
+    # from IMAS dd to local variables
+    majorRadius = eqt.boundary.geometric_axis.r
+    minorRadius = eqt.boundary.minor_radius
+    elongation = eqt.boundary.elongation
+    plasmaCurrent = eqt.global_quantities.ip / 1E6 # in [MA]
+    betaP = eqt.global_quantities.beta_pol
+    li = eqt.global_quantities.li_3 # what li ?
+
+    # ============================= #
     # estimate vertical field and its contribution to flux swing
     verticalFieldAtCenter = 0.1 * plasmaCurrent / majorRadius * (log(8.0 * majorRadius / (minorRadius * sqrt(elongation))) - 1.5 + betaP + 0.5 * li)
     fluxFromVerticalField = 0.8 * verticalFieldAtCenter * pi * (majorRadius^2 - (majorRadius - minorRadius)^2)
 
-    # estimated flux from OH
-    totalOhRampUpFluxReq = rampUpFlux - fluxFromVerticalField
-
     # ============================= #
-    rb.oh.rampup.flux = rampUpFlux
-    rb.oh.rampup.pf_flux = fluxFromVerticalField
-    rb.oh.rampup.oh_flux = totalOhRampUpFluxReq
-
-    return totalOhRampUpFluxReq
+    rb.flux_swing_requirements.pf = - abs(fluxFromVerticalField)
 end
 
-
 """
-    rampup_oh_requirements(rb::IMAS.radial_build, double_swing::Bool=true)
+    oh_requirements(rb::IMAS.radial_build, double_swing::Bool=true)
 
-Evaluate minimum B solenoid bore and OH current density required for rampup
+Evaluate OH current density and B_field required for rampup and flattop
 
 NOTES:
 * Equations from GASC (Stambaugh FST 2011)
+* Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
-function rampup_oh_requirements(rb::IMAS.radial_build, double_swing::Bool=true)
+function oh_requirements(rb::IMAS.radial_build, double_swing::Bool=true)
     innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_radial_build(rb, type=1).start_radius, IMAS.get_radial_build(rb, type=1).end_radius)
-    totalOhRampUpFluxReq = rb.oh.rampup.oh_flux
+    totalOhFluxReq = rb.flux_swing_requirements.rampup.total + rb.flux_swing_requirements.flattop + rb.flux_swing_requirements.pf
 
     # ============================= #
 
     # Calculate magnetic field at solenoid bore required to match flux swing request
     RiRoFactor = innerSolenoidRadius / outerSolenoidRadius
-    magneticFieldSolenoidBore = 3.0 * totalOhRampUpFluxReq / pi / outerSolenoidRadius^2 / (RiRoFactor^2 + RiRoFactor + 1.0) / (double_swing ? 2 : 1)
-    jSolenoid = magneticFieldSolenoidBore / (0.4 * pi * (outerSolenoidRadius-innerSolenoidRadius))
+    magneticFieldSolenoidBore = 3.0 * totalOhFluxReq / pi / outerSolenoidRadius^2 / (RiRoFactor^2 + RiRoFactor + 1.0) / (double_swing ? 2 : 1)
+    currentDensityOH = magneticFieldSolenoidBore / (0.4 * pi * outerSolenoidRadius*(1-innerSolenoidRadius/outerSolenoidRadius))
 
     # ============================= #
 
-    # minimum B solenoid bore and OH current density required for rampup
-    rb.oh.rampup.min_b_field_required = magneticFieldSolenoidBore
-    rb.oh.rampup.min_j_required = jSolenoid
+    # minimum requirements for OH
+    rb.oh.required.b_field = magneticFieldSolenoidBore
+    rb.oh.required.j = currentDensityOH
 end
 
 #= ======== =#
