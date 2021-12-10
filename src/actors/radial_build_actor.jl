@@ -2,12 +2,24 @@ using LibGEOS
 using Interpolations
 using Contour
 
+#= ================== =#
+#  init core_profiles  #
+#= ================== =#
+function init(cp::IMAS.core_profiles; kw...)
+    
+    if :ejima in keys(kw)
+        IMAS.set_timedep_value!(cp, cp.global_quantities, :ejima, 0.0, kw[:ejima])
+    end
+
+    return cp
+end
+
 #= ================= =#
 #  init radial_build  #
 #= ================= =#
 
 """
-    init(radial_build::IMAS.radial_build; layers...)
+    init(rb::IMAS.radial_build; layers...)
 
 Initialize radial_build IDS based on center stack layers (thicknesses)
 
@@ -24,44 +36,44 @@ layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
-function init(radial_build::IMAS.radial_build; layers...)
+function init(rb::IMAS.radial_build; layers...)
     # assign layers
-    resize!(radial_build.layer, length(layers))
+    resize!(rb.layer, length(layers))
     for (k, (layer_name, layer_thickness)) in enumerate(layers)
-        radial_build.layer[k].thickness = layer_thickness
-        radial_build.layer[k].name = replace(String(layer_name), "_" => " ")
-        if occursin("gap", lowercase(radial_build.layer[k].name))
-            radial_build.layer[k].type = 0
-            radial_build.layer[k].material = "vacuum"
-        elseif uppercase(radial_build.layer[k].name) == "OH"
-            radial_build.layer[k].type = 1
-        elseif occursin("TF", uppercase(radial_build.layer[k].name))
-            radial_build.layer[k].type = 2
-        elseif occursin("shield", lowercase(radial_build.layer[k].name))
-            radial_build.layer[k].type = 3
-        elseif occursin("blanket", lowercase(radial_build.layer[k].name))
-            radial_build.layer[k].type = 4
-        elseif occursin("wall", lowercase(radial_build.layer[k].name))
-            radial_build.layer[k].type = 5
+        rb.layer[k].thickness = layer_thickness
+        rb.layer[k].name = replace(String(layer_name), "_" => " ")
+        if occursin("gap", lowercase(rb.layer[k].name))
+            rb.layer[k].type = 0
+            rb.layer[k].material = "vacuum"
+        elseif uppercase(rb.layer[k].name) == "OH"
+            rb.layer[k].type = 1
+        elseif occursin("TF", uppercase(rb.layer[k].name))
+            rb.layer[k].type = 2
+        elseif occursin("shield", lowercase(rb.layer[k].name))
+            rb.layer[k].type = 3
+        elseif occursin("blanket", lowercase(rb.layer[k].name))
+            rb.layer[k].type = 4
+        elseif occursin("wall", lowercase(rb.layer[k].name))
+            rb.layer[k].type = 5
         end
-        if occursin("hfs", lowercase(radial_build.layer[k].name))
-            radial_build.layer[k].hfs = 1
-        elseif occursin("lfs", lowercase(radial_build.layer[k].name))
-            radial_build.layer[k].hfs = -1
+        if occursin("hfs", lowercase(rb.layer[k].name))
+            rb.layer[k].hfs = 1
+        elseif occursin("lfs", lowercase(rb.layer[k].name))
+            rb.layer[k].hfs = -1
         else
-            radial_build.layer[k].hfs = 0
+            rb.layer[k].hfs = 0
         end
-        if occursin("vessel", lowercase(radial_build.layer[k].name))
-            radial_build.layer[k].type = -1
-            radial_build.layer[k].material = "vacuum"
+        if occursin("vessel", lowercase(rb.layer[k].name))
+            rb.layer[k].type = -1
+            rb.layer[k].material = "vacuum"
         end
-        radial_build.layer[k].identifier = UInt(hash(replace(replace(lowercase(radial_build.layer[k].name), "hfs" => ""), "lfs" => "")))
+        rb.layer[k].identifier = UInt(hash(replace(replace(lowercase(rb.layer[k].name), "hfs" => ""), "lfs" => "")))
     end
-    if radial_build.layer[end].material != "vacuum"
+    if rb.layer[end].material != "vacuum"
         error("radial_build last material must be `vacuum`")
     end
 
-    return radial_build
+    return rb
 end
 
 """
@@ -339,9 +351,9 @@ mutable struct FluxSwingActor <: AbstractActor
     cp::IMAS.core_profiles
 end
 
-function FluxSwingActor(rb::IMAS.radial_build, eq::IMAS.equilibrium; ejima::Real)
+function FluxSwingActor(rb::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
     time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : eqt.global_quantities.ip for eqt in eq.time_slice])
-    return FluxSwingActor(rb, eq.time_slice[time_index], ejima)
+    return FluxSwingActor(rb, eq.time_slice[time_index], cp)
 end
 
 function FluxSwingActor(dd::IMAS.dd)
