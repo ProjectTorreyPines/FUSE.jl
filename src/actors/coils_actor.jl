@@ -768,7 +768,7 @@ Plot PFcoilsOptActor optimization cross-section
 
         # ψ coil currents
         ψbound = pfactor.eq_out.time_slice[time_index].global_quantities.psi_boundary
-        ψ = AD_GS.coils_flux(2*pi, coils, R, Z, resolution)
+        ψ = AD_GS.coils_flux(2*pi, coils, R, Z)
 
         ψmin = minimum(x->isnan(x) ? Inf : x, ψ)
         ψmax = maximum(x->isnan(x) ? -Inf : x, ψ)
@@ -786,7 +786,7 @@ Plot PFcoilsOptActor optimization cross-section
             colorbar_entry --> false
             levels --> range(clims[1],clims[2],length=21)
             linewidth --> 0.0
-            R, Z, ψ
+            R, Z, transpose(ψ)
         end
 
         if field_null
@@ -795,7 +795,7 @@ Plot PFcoilsOptActor optimization cross-section
                 colorbar_entry --> false
                 levels --> [ψbound]
                 linecolor --> :black
-                R, Z, ψ
+                R, Z, transpose(ψ)
             end
         end
 
