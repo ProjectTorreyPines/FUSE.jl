@@ -371,133 +371,6 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
 end
 
 # step
-function mask_interpolant_function(rb::IMAS.radial_build)
-    # generate mask
-    rmask, zmask, mask = IMAS.structures_mask(rb)
-
-    # Cubic spline interpolation on the log to ensure positivity of the cost
-    mask_log_interpolant_raw = Interpolations.CubicSplineInterpolation((rmask, zmask), log10.(1 .+ mask))
-    mask_log_interpolant_raw = Interpolations.extrapolate(mask_log_interpolant_raw.itp, Interpolations.Flat());
-    function mask_log_interpolant(r, z)
-        return (10.0.^(mask_log_interpolant_raw(r, z)) .- 1)
-    end
-    return mask_log_interpolant
-end
-
-function pack_mask(optim_coils::Vector, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
-    coilz = []
-    for c in optim_coils
-        if (! symmetric) || (c.z >= 0)
-            push!(coilz,c.r)
-            if (! symmetric) || (c.z > 0)
-                push!(coilz,c.z)
-            end
-        end
-    end
-    packed = vcat(coilz, log10(λ_regularize))
-    return packed
-end
-
-function unpack_mask!(optim_coils::Vector, packed::Vector, symmetric::Bool)
-    coilz = packed[1:end - 1]
-    λ_regularize = packed[end]
-    kz=0
-    posz=[]
-    negz=[]
-    for (k,c) in enumerate(optim_coils)
-        if (! symmetric) || (c.z >= 0.0)
-            kz += 1
-            c.r = coilz[kz]
-            if (! symmetric) || (c.z > 0.0)
-                kz += 1
-                c.z = coilz[kz]
-                push!(posz,k)
-            end
-        else
-            push!(negz,k)
-        end
-    end
-    if symmetric
-        for (knz,kpz) in zip(negz,posz)
-            optim_coils[knz].r = optim_coils[kpz].r
-            optim_coils[knz].z = -optim_coils[kpz].z
-            optim_coils[knz].current = optim_coils[kpz].current
-        end
-    end
-    return 10^λ_regularize
-end
-
-function optimize_coils_mask(eq::IMAS.equilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
-
-    fixed_eqs = []
-    for time_index in 1:length(eq.time_slice)
-        if eq.time_slice[time_index].time < 0
-            push!(fixed_eqs, AD_GS.field_null_on_boundary(eq.time_slice[time_index].global_quantities.psi_boundary,
-                                                          eq.time_slice[time_index].boundary.outline.r,
-                                                          eq.time_slice[time_index].boundary.outline.z,
-                                                          fixed_coils))
-        else
-            push!(fixed_eqs, AD_GS.ψp_on_fixed_eq_boundary(IMAS2Equilibrium(eq.time_slice[time_index]), fixed_coils))
-        end
-    end
-
-    mask_interpolant = mask_interpolant_function(rb)
-    packed = pack_mask(optim_coils, λ_regularize, symmetric)
-    trace = PFcoilsOptTrace()
-
-    packed_tmp = []
-    function placement_cost(packed; do_trace=false)
-        push!(packed_tmp, packed)
-        λ_regularize = unpack_mask!(optim_coils, packed, symmetric)
-        coils = vcat(pinned_coils, optim_coils)
-        all_cost_ψ=[]
-        all_cost_currents=[]
-        for fixed_eq in fixed_eqs
-            currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
-            push!(all_cost_ψ, cost_ψ0 / λ_ψ)
-            push!(all_cost_currents, norm((exp.(currents/λ_currents).-1.0)/(exp(1)-1)) / length(currents))
-        end
-        cost_ψ=norm(all_cost_ψ)/length(all_cost_ψ)
-        cost_currents=norm(all_cost_currents)/length(all_cost_currents)
-        cost_bound = norm(mask_interpolant.([c.r for c in optim_coils], [c.z for c in optim_coils]))/10
-        cost_spacing = 0
-        for (k1, c1) in enumerate(optim_coils)
-            for (k2, c2) in enumerate(optim_coils)
-                if k1 == k2
-                    continue
-                end
-                cost_spacing += 1 / (sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2) + 0.001)
-            end
-        end
-        cost_spacing = cost_spacing / (length(optim_coils)^2 + 1)
-        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_bound^2 + cost_spacing^2)
-        if do_trace
-            push!(trace.λ_regularize, no_Dual(λ_regularize))
-            push!(trace.cost_ψ, no_Dual(cost_ψ))
-            push!(trace.cost_currents, no_Dual(cost_currents))
-            push!(trace.cost_bound, no_Dual(cost_bound))
-            push!(trace.cost_spacing, no_Dual(cost_spacing))
-            push!(trace.cost_total, no_Dual(cost))
-        end
-        return cost
-    end
-
-    function clb(x)
-        placement_cost(packed_tmp[end]; do_trace=true)
-        false
-    end
-    
-    # use NelderMead() ; other optimizer that works is Newton(), others have trouble
-    res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb); autodiff=:forward)
-
-    if verbose println(res) end
-    packed = Optim.minimizer(res)
-
-    λ_regularize = unpack_mask!(optim_coils, packed, symmetric)
-    
-    return λ_regularize, trace
-end
-
 function pack_rail(rb::IMAS.radial_build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
     distances = []
     for rail in rb.pf_coils_rail
@@ -673,8 +546,6 @@ function step(pfactor::PFcoilsOptActor;
     for coil in pfactor.pf_active.coil
         if coil.identifier == "pinned"
             push!(pinned_coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
-        elseif (coil.identifier == "optim") && (coil.name == "OH") && (optimization_scheme == :mask)
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
         elseif (coil.identifier == "optim") && (optimization_scheme == :static)
             push!(pinned_coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
         elseif coil.identifier == "optim"
@@ -699,14 +570,11 @@ function step(pfactor::PFcoilsOptActor;
         end
 
         rb = pfactor.radial_build
-        # run mask type optimizer
-        if optimization_scheme == :mask
-            (λ_regularize, trace) = optimize_coils_mask(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
         # run rail type optimizer
-        elseif optimization_scheme in [:rail, :static]
+        if optimization_scheme in [:rail, :static]
             (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
         else
-            error("Supported PFcoilsOptActor optimization_scheme are `:static`, `:rail`, or `:mask`")
+            error("Supported PFcoilsOptActor optimization_scheme are `:static` or `:rail`")
         end
         pfactor.λ_regularize = λ_regularize
         pfactor.trace = trace
@@ -740,11 +608,11 @@ end
 
 # plotting
 """
-    plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index=1, equilibrium=true, mask=false, rail=true)
+    plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index=1, equilibrium=true, rail=true)
 
 Plot PFcoilsOptActor optimization cross-section
 """
-@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index=1, equilibrium=true, radial_build=true, coils_flux=false, mask=false, rail=false, plot_r_buffer=1.6)
+@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index=1, equilibrium=true, radial_build=true, coils_flux=false, rail=false, plot_r_buffer=1.6)
 
     # if there is no equilibrium then treat this as a field_null plot
     field_null = false
@@ -865,20 +733,6 @@ Plot PFcoilsOptActor optimization cross-section
                     linestyle --> :dash
                     rail.outline.r, rail.outline.z
                 end
-            end
-        end
-    end
-
-    # plot optimization mask
-    if mask
-        rmask, zmask, cmask = IMAS.structures_mask(pfactor.radial_build)
-        cl = Contour.contour(rmask, zmask, cmask, 0.5)
-        for line in Contour.lines(cl)
-            @series begin
-                label --> (radial_build ? "Coil opt. mask" : "")
-                seriescolor --> :magenta
-                linewidth --> 3
-                Contour.coordinates(line)
             end
         end
     end
