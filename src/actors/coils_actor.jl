@@ -189,7 +189,7 @@ function init(pf_active::IMAS.pf_active,
                     resize!(pf_active.coil, k)
                     resize!(pf_active.coil[k].element, 1)
                     pf_active.coil[k].identifier = "optim"
-                    pf_active.coil[k].name = "pf"
+                    pf_active.coil[k].name = "PF"
                     pf_active.coil[k].element[1].geometry.rectangle.r = r
                     pf_active.coil[k].element[1].geometry.rectangle.z = z
                     pf_active.coil[k].element[1].geometry.rectangle.width = coil_size
@@ -450,14 +450,20 @@ end
 function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
 
     fixed_eqs = []
+    weights = []
     for time_index in 1:length(eq.time_slice)
-        if eq.time_slice[time_index].time <0
+        if eq.time_slice[time_index].time < 0
             push!(fixed_eqs, AD_GS.field_null_on_boundary(eq.time_slice[time_index].global_quantities.psi_boundary,
                                                           eq.time_slice[time_index].boundary.outline.r,
                                                           eq.time_slice[time_index].boundary.outline.z,
                                                           fixed_coils))
+            push!(weights, nothing)
         else
-            push!(fixed_eqs, AD_GS.ψp_on_fixed_eq_boundary(IMAS2Equilibrium(eq.time_slice[time_index]), fixed_coils))
+            fixed_eq=IMAS2Equilibrium(eq.time_slice[time_index])
+            Bp_fac, ψp, Rp, Zp = AD_GS.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils)
+            push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
+            weight = exp.( (abs.(Zp)/maximum(abs.(Zp))).^2)
+            push!(weights, weight)
         end
     end
 
@@ -471,11 +477,11 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
         coils = vcat(pinned_coils, optim_coils)
         all_cost_ψ=[]
         all_cost_currents=[]
-        for (time_index,fixed_eq) in enumerate(fixed_eqs)
+        for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs,weights))
             for coil in vcat(pinned_coils, optim_coils, fixed_coils)
                 coil.time_index = time_index
             end
-            currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, λ_regularize=λ_regularize, return_cost=true)
+            currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights=weight, λ_regularize=λ_regularize, return_cost=true)
             if eq.time_slice[time_index].time <0
                 push!(all_cost_ψ, cost_ψ0 / λ_null)
             else
