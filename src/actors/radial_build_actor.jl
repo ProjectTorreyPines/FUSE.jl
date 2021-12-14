@@ -352,7 +352,7 @@ mutable struct FluxSwingActor <: AbstractActor
 end
 
 function FluxSwingActor(rb::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
-    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : eqt.global_quantities.ip for eqt in eq.time_slice])
+    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : abs(eqt.global_quantities.ip) for eqt in eq.time_slice])
     return FluxSwingActor(rb, eq.time_slice[time_index], cp)
 end
 
