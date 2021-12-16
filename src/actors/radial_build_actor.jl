@@ -470,7 +470,7 @@ function step(actor::TFCoilActor; time_limit=100.0)
         #display(plot(minimum_distance_two_objects(R_TF, Z_TF, R_shape, Z_shape)))
         # Coil length
         cost_length = coil_length / box_length
-        cost = cost_length/10 + cost_distance*100
+        cost = cost_length/10 + cost_distance
 
         return cost
     end
