@@ -450,11 +450,8 @@ function step(actor::TFCoilActor; time_limit=100.0)
     # Find the TF layers
     layer_TF = IMAS.get_radial_build(actor.rb, type=2, hfs=1)
     index_TF = IMAS.get_radial_build(actor.rb, type=2, hfs=1; return_index=true)
-    @show index_TF
     r_start = layer_TF.start_radius
     r_end = IMAS.get_radial_build(actor.rb, identifier=layer_TF.identifier, hfs=-1).end_radius
-
-    println(r_start," ", r_end)
 
     function cost_TF_shape(shape_parameters, R_shape, Z_shape, target_minimum_distance)
        R_TF, Z_TF = TrippleArc(r_start, r_end, shape_parameters)
