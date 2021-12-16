@@ -36,6 +36,8 @@ jobs:
           julia -e '
             using Pkg
             Pkg.activate(".")
-            Pkg.add(url="https://github.com/JuliaFusion/IMAS.jl.git")'
+            Pkg.develop(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/IMAS.jl.git")
+            Pkg.develop(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/JuliaFusion/Equilibrium.jl.git")
+            Pkg.develop(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/AD_GS.jl.git")'
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1

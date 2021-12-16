@@ -2,27 +2,24 @@ __precompile__()
 
 module FUSE
 
-using IMAS
+    using IMAS
 
-include("utils.jl")
+    #= ======= =#
+    #= INCLUDE =#
+    #= ======= =#
+    include("utils.jl")
 
-#= ====== =#
-#= ACTORS =#
-#= ====== =#
+    include("physics.jl")
 
-include("actors.jl")
+    include("actors.jl")
 
-#= ========== =#
-#= PARAMETERS =#
-#= ========== =#
+    include("parameters.jl")
 
-include("parameters.jl")
+    #= ====== =#
+    #= EXPORT =#
+    #= ====== =#
+    export init, step, finalize
+    export IMAS
+    export fuse_parameters, plasma_parameters, physics_models
 
-#= ====== =#
-#= EXPORT =#
-#= ====== =#
-export init, step, finalize
-export IMAS
-export fuse_parameters, plasma_parameters, physics_models
-
-end # module
+end

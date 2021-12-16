@@ -1,6 +1,11 @@
-#= ==== =#
-#  init  #
-#= ==== =#
+using Equilibrium
+using Printf
+import ForwardDiff
+import Optim
+
+#= ==================== =#
+#  init equilibrium IDS  #
+#= ==================== =#
 
 """
     init(eqt::IMAS.equilibrium__time_slice; B0::Real, R0::Real, ϵ::Real, δ::Real, κ::Real, beta_n::Real, ip::Real, x_point::Union{Vector, NTuple{2}, Bool}=false)
@@ -30,16 +35,10 @@ function init(eqt::IMAS.equilibrium__time_slice;
     return eqt
 end
 
-#= ======= =#
-#  Solovev  #
-#= ======= =#
-
-using Equilibrium
-using Printf
-import ForwardDiff
-import Optim
-
-mutable struct SolovevEquilibriumActor <: EquilibriumActor
+#= ======================= =#
+#  SolovevEquilibriumActor  #
+#= ======================= =#
+mutable struct SolovevEquilibriumActor <: AbstractActor
     eq_in::IMAS.equilibrium__time_slice
     S::SolovevEquilibrium
     eq_out::IMAS.equilibrium__time_slice
@@ -111,9 +110,6 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
                     )
 end
 
-#= == =#
-# STEP #
-#= == =#
 """
     step(actor::SolovevEquilibriumActor; verbose=false)
 
@@ -150,16 +146,16 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
     return res
 end
 
-#= ====== =#
-# FINALIZE #
-#= ====== =#
 """
-    finalize(actor::SolovevEquilibriumActor, n::Integer=129)::IMAS.equilibrium__time_slice
+    finalize(actor::SolovevEquilibriumActor,
+             resolution::Int=129,
+             rlims::NTuple{2,<:Real}=Equilibrium.limits(actor.S)[1],
+             zlims::NTuple{2,<:Real}=Equilibrium.limits(actor.S)[2])::IMAS.equilibrium__time_slice
 
-Store SolovevEquilibriumActor data in IMAS.equilibrium
+Store SolovevEquilibriumActor data in IMAS.equilibrium format
 """
 function finalize(actor::SolovevEquilibriumActor,
-                  resolution::Integer=129,
+                  resolution::Int=129,
                   rlims::NTuple{2,<:Real}=Equilibrium.limits(actor.S)[1],
                   zlims::NTuple{2,<:Real}=Equilibrium.limits(actor.S)[2])::IMAS.equilibrium__time_slice
 
