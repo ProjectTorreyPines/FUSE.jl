@@ -2,83 +2,12 @@ using LibGEOS
 using Interpolations
 using Contour
 
-#= =============== =#
-#  Shape functions  #
-#= =============== =#
-"""
-    rectangle_shape(r_start::Real, r_end::Real, height::Real)
-Rectangular TF coil shape(r_start::Real, r_end::Real, height::Real)
-layer[:].shape = 2
-"""
-function rectangle_shape(r_start::Real, r_end::Real, height::Real)
-    return [r_start, r_end, r_end, r_start, r_start], [-height/2, -height/2, height/2, height/2, -height/2]
-end
-
-"""
-TrippleArc(;r_start::Real, r_end::Real , shape_parameters::Vector, resolution_points=1000)
-with shape_parameters =  h, small_radius, mid_radius, small_coverage, mid_coverage 
-    Angles in [degrees], distances in [cm]
-TrippleArc parametrized TF coil shape
-layer[:].shape = 3
-"""
-function TrippleArc(r_start::Real, r_end::Real , shape_parameters::Vector; resolution_points=1000)
-    if length(shape_parameters) != 5
-        error("shape_parameters should have size 6 with \n shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage]")
-    end
-    
-    h, small_radius, mid_radius, small_coverage, mid_coverage = shape_parameters
-    small_coverage *= pi / 180  # convert to radians
-    mid_coverage *= pi / 180
-    h *= 0.5 # Half height for each side
-    asum = small_coverage + mid_coverage
-    
-    # small arc
-    theta = LinRange(
-        0, small_coverage, 100)#abs(round(Int64,0.5 * resolution_points * small_coverage / pi)))
-    small_arc_R = r_start .+ small_radius .* (1 .- map(cos,theta))
-    small_arc_Z = h .+ small_radius .* map(sin,theta)
-    shape_POI = [(small_arc_R[end],small_arc_Z[end])]
-    # mid arc
-    theta = LinRange(
-        theta[end], asum, 100)#abs(round(Int64,0.5 * resolution_points * mid_coverage / pi)))
-    mid_arc_R = small_arc_R[end] .+ mid_radius .* 
-        (map(cos,small_coverage) .- map(cos,theta))
-        mid_arc_Z = small_arc_Z[end] .+ mid_radius * 
-        (map(sin,theta) .- map(sin,small_coverage))
-    shape_POI = vcat(shape_POI,(mid_arc_R[end],mid_arc_Z[end]))
-    # large arc
-    large_radius = (mid_arc_Z[end]) / sin(pi - asum)
-    theta = LinRange(theta[end], pi, 100)
-    large_arc_R = mid_arc_R[end] .+ large_radius .* 
-        (map(cos,pi .- theta) .- map(cos,pi .- asum))
-        large_arc_Z = mid_arc_Z[end] .- large_radius .* 
-        (sin(asum) .- map(sin, pi .- theta))
-
-    shape_POI = vcat(shape_POI,(large_arc_R[end],large_arc_Z[end]))
-
-    R = vcat(small_arc_R, mid_arc_R[2:end], large_arc_R[2:end])
-    R = vcat(R,reverse(R)[2:end])
-    Z = vcat(small_arc_Z, mid_arc_Z[2:end], large_arc_Z[2:end])
-    Z = vcat(Z, -reverse(Z)[2:end])
-    
-    # Add vertical
-    n_points_box = 100
-    R = vcat(LinRange(r_start, r_start, n_points_box), R)
-    Z = vcat(LinRange(-h, h ,n_points_box), Z)
-    
-    # Resize to ensure r_start to r_end
-    Z = Z./(maximum(R)-minimum(R)).*(r_end - r_start)
-    R = (R .- minimum(R)) ./ (maximum(R) - minimum(R)) .* (r_end - r_start) .+ r_start
-
-    return R,Z
-
-end
 #= ==== =#
 #  init  #
 #= ==== =#
 
 """
-    init(rb::IMAS.radial_build; layers...)
+    init(build::IMAS.radial_build; layers...)
 
 Initialize radial_build IDS based on center stack layers (thicknesses)
 
@@ -98,54 +27,54 @@ layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 NOTE layer[:].shape integer index corresponds to the following shapes
 *   1 : Priceton_D (shape_parameters = [])
 *   2 : Rectangle  (shape_parameters = [height])
-*   3 : Tripple_Arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])
+*   3 : tripple_arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])
 """
-function init(rb::IMAS.radial_build; layers...)
+function init(build::IMAS.radial_build; layers...)
     # assign layers
-    resize!(rb.layer, length(layers))
+    resize!(build.layer, length(layers))
     for (k, (layer_name, layer_thickness)) in enumerate(layers)
-        rb.layer[k].thickness = layer_thickness
-        rb.layer[k].name = replace(String(layer_name), "_" => " ")
-        if occursin("gap", lowercase(rb.layer[k].name))
-            rb.layer[k].type = 0
-            rb.layer[k].material = "vacuum"
-        elseif uppercase(rb.layer[k].name) == "OH"
-            rb.layer[k].type = 1
-        elseif occursin("TF", uppercase(rb.layer[k].name))
-            rb.layer[k].type = 2
-        elseif occursin("shield", lowercase(rb.layer[k].name))
-            rb.layer[k].type = 3
-        elseif occursin("blanket", lowercase(rb.layer[k].name))
-            rb.layer[k].type = 4
-        elseif occursin("wall", lowercase(rb.layer[k].name))
-            rb.layer[k].type = 5
+        build.layer[k].thickness = layer_thickness
+        build.layer[k].name = replace(String(layer_name), "_" => " ")
+        if occursin("gap", lowercase(build.layer[k].name))
+            build.layer[k].type = 0
+            build.layer[k].material = "vacuum"
+        elseif uppercase(build.layer[k].name) == "OH"
+            build.layer[k].type = 1
+        elseif occursin("TF", uppercase(build.layer[k].name))
+            build.layer[k].type = 2
+        elseif occursin("shield", lowercase(build.layer[k].name))
+            build.layer[k].type = 3
+        elseif occursin("blanket", lowercase(build.layer[k].name))
+            build.layer[k].type = 4
+        elseif occursin("wall", lowercase(build.layer[k].name))
+            build.layer[k].type = 5
         end
-        if occursin("hfs", lowercase(rb.layer[k].name))
-            rb.layer[k].hfs = 1
-        elseif occursin("lfs", lowercase(rb.layer[k].name))
-            rb.layer[k].hfs = -1
+        if occursin("hfs", lowercase(build.layer[k].name))
+            build.layer[k].hfs = 1
+        elseif occursin("lfs", lowercase(build.layer[k].name))
+            build.layer[k].hfs = -1
         else
-            rb.layer[k].hfs = 0
+            build.layer[k].hfs = 0
         end
-        if occursin("vessel", lowercase(rb.layer[k].name))
-            rb.layer[k].type = -1
-            rb.layer[k].material = "vacuum"
+        if occursin("vessel", lowercase(build.layer[k].name))
+            build.layer[k].type = -1
+            build.layer[k].material = "vacuum"
         end
-        rb.layer[k].identifier = UInt(hash(replace(replace(lowercase(rb.layer[k].name), "hfs" => ""), "lfs" => "")))
+        build.layer[k].identifier = UInt(hash(replace(replace(lowercase(build.layer[k].name), "hfs" => ""), "lfs" => "")))
     end
-    if rb.layer[end].material != "vacuum"
+    if build.layer[end].material != "vacuum"
         error("radial_build last material must be `vacuum`")
     end
 
-    return rb
+    return build
 end
 
 """
-    init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true)
+    init(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true)
 
 Simple initialization of radial_build IDS based on equilibrium time_slice
 """
-function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true, conformal_wall=true)
+function init(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true, conformal_wall=true)
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -155,7 +84,7 @@ function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nucle
         rmin -= gap
         rmax += gap
         dr = rmin / n_hfs_layers
-        init(rb,
+        init(build,
             gap_OH=dr * 2.0,
             OH=dr,
             hfs_TF=dr,
@@ -177,7 +106,7 @@ function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nucle
         rmin -= gap
         rmax += gap
         dr = rmin / n_hfs_layers
-        init(rb,
+        init(build,
             gap_OH=dr * 2.0,
             OH=dr,
             hfs_TF=dr,
@@ -190,12 +119,12 @@ function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nucle
             gap_cryostat=2 * dr)
     end
     # TF shape
-    rb.layer[3].shape=3
-    rb.layer[3].shape_parameters= [100.0, 10.0, 30.0, 80.0, 20.0]
-    rb.tf.coils_n = 16
-    radial_build_cx(rb, eqt, conformal_wall)
+    build.layer[3].shape=3
+    build.layer[3].shape_parameters= [100.0, 10.0, 30.0, 80.0, 20.0]
+    build.tf.coils_n = 16
+    radial_build_cx(build, eqt, conformal_wall)
 
-    return rb
+    return build
 end
 
 function xy_polygon(x, y)
@@ -218,70 +147,70 @@ function miller(R0, epsilon, kappa, delta, n)
     return [x, y]
 end
 
-function wall_miller_conformal(rb, layer_type, elongation, triangularity)
+function wall_miller_conformal(build, layer_type, elongation, triangularity)
     if layer_type == -1
-        Rstart = IMAS.get_radial_build(rb, type=layer_type).start_radius
-        Rend = IMAS.get_radial_build(rb, type=layer_type).end_radius
+        Rstart = IMAS.get_radial_build(build, type=layer_type).start_radius
+        Rend = IMAS.get_radial_build(build, type=layer_type).end_radius
         line = miller((Rend + Rstart) / 2.0, (Rend - Rstart) / (Rend + Rstart), elongation, triangularity, 100)        
         return line, line
     else
-        Rstart_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).start_radius
-        Rend_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).end_radius
-        Rstart_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).start_radius
-        Rend_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).end_radius
+        Rstart_lfs = IMAS.get_radial_build(build, type=layer_type, hfs=-1).start_radius
+        Rend_lfs = IMAS.get_radial_build(build, type=layer_type, hfs=-1).end_radius
+        Rstart_hfs = IMAS.get_radial_build(build, type=layer_type, hfs=1).start_radius
+        Rend_hfs = IMAS.get_radial_build(build, type=layer_type, hfs=1).end_radius
         inner_line = miller((Rstart_lfs + Rend_hfs) / 2.0, (Rstart_lfs - Rend_hfs) / (Rstart_lfs + Rend_hfs), elongation, triangularity, 100)
         outer_line = miller((Rend_lfs + Rstart_hfs) / 2.0, (Rend_lfs - Rstart_hfs) / (Rend_lfs + Rstart_hfs), elongation, triangularity, 100)
         return inner_line, outer_line
     end
 end
 
-function wall_plug(rb::IMAS.radial_build)
+function wall_plug(build::IMAS.radial_build)
     L = 0
-    R = IMAS.get_radial_build(rb, type=1).start_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
-    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
+    R = IMAS.get_radial_build(build, type=1).start_radius
+    U = maximum(IMAS.get_radial_build(build, type=2, hfs=1).outline.z)
+    D = minimum(IMAS.get_radial_build(build, type=2, hfs=1).outline.z)
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
-function wall_oh(rb::IMAS.radial_build)
-    L = IMAS.get_radial_build(rb, type=1).start_radius
-    R = IMAS.get_radial_build(rb, type=1).end_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
-    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
+function wall_oh(build::IMAS.radial_build)
+    L = IMAS.get_radial_build(build, type=1).start_radius
+    R = IMAS.get_radial_build(build, type=1).end_radius
+    U = maximum(IMAS.get_radial_build(build, type=2, hfs=1).outline.z)
+    D = minimum(IMAS.get_radial_build(build, type=2, hfs=1).outline.z)
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
-function wall_cryostat(rb::IMAS.radial_build)
+function wall_cryostat(build::IMAS.radial_build)
     L = 0
-    R = rb.layer[end].end_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z) + rb.layer[end].thickness
-    D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z) - rb.layer[end].thickness
+    R = build.layer[end].end_radius
+    U = maximum(IMAS.get_radial_build(build, type=2, hfs=1).outline.z) + build.layer[end].thickness
+    D = minimum(IMAS.get_radial_build(build, type=2, hfs=1).outline.z) - build.layer[end].thickness
     return [L,R,R,L,L], [D,D,U,U,D]
 end
 
 """
-    radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
-Draws the 2D cross section of the radial build
+    radial_build_cx(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
+Translates 1D radial build to 2D cross-sections
 """
 
-function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
+function radial_build_cx(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
     # we make the lfs wall to be conformal to miller
-    n = Int(floor(length(eqt.profiles_1d.elongation) * 0.95))
-    inner_wall_line, outer_wall_line = wall_miller_conformal(rb, 5, eqt.profiles_1d.elongation[n], (eqt.profiles_1d.triangularity_upper[n] + eqt.profiles_1d.triangularity_lower[n]) / 2.0) # wall
+    n = floor(Int,length(eqt.profiles_1d.elongation) * 0.95)
+    inner_wall_line, outer_wall_line = wall_miller_conformal(build, 5, eqt.profiles_1d.elongation[n], (eqt.profiles_1d.triangularity_upper[n] + eqt.profiles_1d.triangularity_lower[n]) / 2.0) # wall
     outer_wall_line[2] = outer_wall_line[2] .* 1.2
     outer_wall_poly = xy_polygon(outer_wall_line...)
-    inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
+    inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(build, type=5, hfs=1).thickness)
 
     if ! conformal_wall
-        vessel_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
+        vessel_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(build, type=5, hfs=1).thickness)
     else
         r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
         z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
         PSI_interpolant = Interpolations.CubicSplineInterpolation((r, z), eqt.profiles_2d[1].psi)
 
         # Inner/lfs radii of the vacuum vessel
-        R_hfs_vessel = IMAS.get_radial_build(rb, type=-1).start_radius
-        R_lfs_vessel = IMAS.get_radial_build(rb, type=-1).end_radius
+        R_hfs_vessel = IMAS.get_radial_build(build, type=-1).start_radius
+        R_lfs_vessel = IMAS.get_radial_build(build, type=-1).end_radius
         psi_vessel_trace = PSI_interpolant(R_hfs_vessel, 0)
 
         # Trace contours of psi and use it as the shape of the vacuum vessel.
@@ -355,28 +284,28 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     end
 
     # vacuum vessel
-    IMAS.get_radial_build(rb, type=-1).outline.r = [v[1] for v in LibGEOS.coordinates(vessel_poly)[1]]
-    IMAS.get_radial_build(rb, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(vessel_poly)[1]]
+    IMAS.get_radial_build(build, type=-1).outline.r = [v[1] for v in LibGEOS.coordinates(vessel_poly)[1]]
+    IMAS.get_radial_build(build, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(vessel_poly)[1]]
 
     # wall
-    IMAS.get_radial_build(rb, type=5, hfs=1).outline.r = [v[1] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
-    IMAS.get_radial_build(rb, type=5, hfs=1).outline.z = [v[2] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
+    IMAS.get_radial_build(build, type=5, hfs=1).outline.r = [v[1] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
+    IMAS.get_radial_build(build, type=5, hfs=1).outline.z = [v[2] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
 
     # all layers between wall and OH
     valid = false
-    for (k, layer) in reverse(collect(enumerate(rb.layer)))
+    for (k, layer) in reverse(collect(enumerate(build.layer)))
         # stop once you see the OH
         if layer.type == 1
             valid = false
             break
         end
         if valid
-            outer_layer = rb.layer[k + 1]
+            outer_layer = build.layer[k + 1]
             hfs_thickness = layer.thickness
-            lfs_thickness = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).thickness
+            lfs_thickness = IMAS.get_radial_build(build, identifier=layer.identifier, hfs=-1).thickness
             poly = LibGEOS.buffer(xy_polygon(outer_layer.outline.r, outer_layer.outline.z), (hfs_thickness + lfs_thickness) / 2.0)
-            rb.layer[k].outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
-            rb.layer[k].outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+            build.layer[k].outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
+            build.layer[k].outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
         end
         # valid starting from the wall
         if (layer.type == 5) && (layer.hfs == 1)
@@ -386,42 +315,42 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
 
     # if it's a nuclear facility we overwrite TF outer and inner outlines with princeton D
     # for now we do this only if there is a blanket because without it it is likely that the TF and the wall will encroach
-    if IMAS.get_radial_build(rb, type=4, hfs=1, raise_error_on_missing=false) !== nothing
-        layer = IMAS.get_radial_build(rb, type=2, hfs=1)
-        end_radius = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).start_radius
+    if IMAS.get_radial_build(build, type=4, hfs=1, raise_error_on_missing=false) !== nothing
+        layer = IMAS.get_radial_build(build, type=2, hfs=1)
+        end_radius = IMAS.get_radial_build(build, identifier=layer.identifier, hfs=-1).start_radius
         start_radius = layer.end_radius
         if layer.shape  == 1
-            R_TF, Z_TF = princeton_D(start_radius, end_radius, closed=true)
+            R_TF, Z_TF = princeton_D(start_radius, end_radius)
         elseif layer.shape == 2
-            R_TF, Z_TF = rectangle_shape(start_radius, end_radius, layer.shape_parameters[1])
+            R_TF, Z_TF = rectangle_shape(start_radius, end_radius, layer.shape_parameters...)
         elseif layer.shape == 3
-            R_TF, Z_TF = TrippleArc(start_radius, end_radius, layer.shape_parameters)
+            R_TF, Z_TF = tripple_arc(start_radius, end_radius, layer.shape_parameters...)
 
         else
             error("layer.shape $(layer.shape) doesn't exist see: \n            *   1 : Priceton_D (shape_parameters = []) \n
             *   2 : Rectangle  (shape_parameters = [height]) \n
-            *   3 : Tripple_Arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])")
+            *   3 : tripple_arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])")
         end
         poly = LibGEOS.buffer(xy_polygon(R_TF, Z_TF), layer.thickness)
         layer.outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
-        layer = rb.layer[IMAS.get_radial_build(rb, type=2, hfs=-1, return_index=true) + 1]
+        layer = build.layer[IMAS.get_radial_build(build, type=2, hfs=-1, return_index=true) + 1]
         layer.outline.r = R_TF
         layer.outline.z = Z_TF
     end
 
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    rb.tf.thickness = 2 * π * IMAS.get_radial_build(rb, type=2, hfs=1).start_radius / rb.tf.coils_n
+    build.tf.thickness = 2 * π * IMAS.get_radial_build(build, type=2, hfs=1).start_radius / build.tf.coils_n
 
     # plug
-    rb.layer[1].outline.r, rb.layer[1].outline.z = wall_plug(rb)
+    build.layer[1].outline.r, build.layer[1].outline.z = wall_plug(build)
 
     # oh
-    rb.layer[2].outline.r, rb.layer[2].outline.z = wall_oh(rb)
+    build.layer[2].outline.r, build.layer[2].outline.z = wall_oh(build)
 
     # cryostat
-    rb.layer[end].outline.r, rb.layer[end].outline.z = wall_cryostat(rb)
-    return rb
+    build.layer[end].outline.r, build.layer[end].outline.z = wall_cryostat(build)
+    return build
 end
 
 
@@ -430,41 +359,30 @@ end
 
 
 mutable struct TFCoilActor <: AbstractActor
-    rb::IMAS.radial_build
+    build::IMAS.radial_build
     R_shape::Vector
     Z_shape::Vector
     target_minimum_distance::Real
 end
- 
-function TFCoilActor(eq::IMAS.equilibrium, rb::IMAS.radial_build, R_shape, Z_shape, target_minimum_distance::Real, conformal_wall::Bool)
-  
-    # constructor
-    actor = TFCoilActor(rb, R_shape, Z_shape, target_minimum_distance)
-
-    return actor
-end
-
 
 function step(actor::TFCoilActor; time_limit=100.0)
 
     # Find the TF layers
-    layer_TF = IMAS.get_radial_build(actor.rb, type=2, hfs=1)
-    index_TF = IMAS.get_radial_build(actor.rb, type=2, hfs=1; return_index=true)
+    layer_TF = IMAS.get_radial_build(actor.build, type=2, hfs=1)
+    index_TF = IMAS.get_radial_build(actor.build, type=2, hfs=1; return_index=true)
     r_start = layer_TF.start_radius
-    r_end = IMAS.get_radial_build(actor.rb, identifier=layer_TF.identifier, hfs=-1).end_radius
+    r_end = IMAS.get_radial_build(actor.build, identifier=layer_TF.identifier, hfs=-1).end_radius
 
     function cost_TF_shape(shape_parameters, R_shape, Z_shape, target_minimum_distance)
-       R_TF, Z_TF = TrippleArc(r_start, r_end, shape_parameters)
+       R_TF, Z_TF = tripple_arc(r_start, r_end, shape_parameters...)
         
         # To be tweaked
         coil_length = sum((abs.(diff(R_TF).^2 + diff(Z_TF).^2)).^0.5)
-        #coil_length = sum(abs.(diff(R_TF).*(Z_TF[2:end].+Z_TF[1:end-1])))
         box_length =  sum((abs.(diff(R_shape).^2 + diff(Z_shape).^2)).^0.5)
-        #box_length = sum(abs.(diff(actor.R_shape).*(actor.Z_shape[2:end].+actor.Z_shape[1:end-1])))
         
-        # Minimum distance
+        # Minimum distancex``
         cost_distance = abs(minimum(minimum_distance_two_objects(R_TF, Z_TF, R_shape, Z_shape)) - target_minimum_distance) / target_minimum_distance
-        #display(plot(minimum_distance_two_objects(R_TF, Z_TF, R_shape, Z_shape)))
+
         # Coil length
         cost_length = coil_length / box_length
         cost = cost_length/10 + cost_distance
@@ -477,8 +395,8 @@ function step(actor::TFCoilActor; time_limit=100.0)
     Sol = optimize(initial_guess-> cost_TF_shape(initial_guess, actor.R_shape, actor.Z_shape, actor.target_minimum_distance),
     layer_TF.shape_parameters, NelderMead(), Optim.Options(time_limit=time_limit, g_tol=1e-8); autodiff=:forward)
     layer_TF.shape_parameters = Optim.minimizer(Sol)
-    layer_TF.outline.r, layer_TF.outline.z = TrippleArc(r_start, r_end, layer_TF.shape_parameters)
-    actor.rb.layer[index_TF] = layer_TF
+    layer_TF.outline.r, layer_TF.outline.z = tripple_arc(r_start, r_end, layer_TF.shape_parameters...)
+    actor.build.layer[index_TF] = layer_TF
 
 end
 
@@ -494,14 +412,14 @@ end
 #= == =#
 
 mutable struct FluxSwingActor <: AbstractActor
-    rb::IMAS.radial_build
+    build::IMAS.radial_build
     eqt::IMAS.equilibrium__time_slice
     cp::IMAS.core_profiles
 end
 
-function FluxSwingActor(rb::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
+function FluxSwingActor(build::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
     time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : eqt.global_quantities.ip for eqt in eq.time_slice])
-    return FluxSwingActor(rb, eq.time_slice[time_index], cp)
+    return FluxSwingActor(build, eq.time_slice[time_index], cp)
 end
 
 function FluxSwingActor(dd::IMAS.dd)
@@ -510,13 +428,13 @@ end
 
 # step
 function step(flxactor::FluxSwingActor)
-    rampup_flux_requirements(flxactor.rb, flxactor.eqt, flxactor.cp)
-    flattop_flux_requirements(flxactor.rb, flxactor.eqt, flxactor.cp)
-    pf_flux_requirements(flxactor.rb, flxactor.eqt)
+    rampup_flux_requirements(flxactor.build, flxactor.eqt, flxactor.cp)
+    flattop_flux_requirements(flxactor.build, flxactor.eqt, flxactor.cp)
+    pf_flux_requirements(flxactor.build, flxactor.eqt)
 end
 
 """
-    rampup_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+    rampup_flux_requirements(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
 
 Estimate OH flux requirement during rampup
 
@@ -525,7 +443,7 @@ NOTES:
 * eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 * core_profiles is only used to get core_profiles.global_quantities.ejima
 """
-function rampup_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+function rampup_flux_requirements(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
     # from IMAS dd to local variables
     majorRadius = eqt.boundary.geometric_axis.r
     minorRadius = eqt.boundary.minor_radius
@@ -544,32 +462,32 @@ function rampup_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__
     rampUpFlux = (ejima * 0.4 * pi * majorRadius + plasmaInductanceTotal) * plasmaCurrent
 
     # ============================= #
-    rb.flux_swing_requirements.rampup = abs(rampUpFlux)
+    build.flux_swing_requirements.rampup = abs(rampUpFlux)
 end
 
 """
-    flattop_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+    flattop_flux_requirements(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
 
 Estimate OH flux requirement during flattop 
 
 NOTES:
 * this is a dummy function right now!, we simply take 1/2 of the rampup
 """
-function flattop_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+function flattop_flux_requirements(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
     # from IMAS dd to local variables
 
     # ============================= #
     #plasmaResistivity = calc_plasmaResitivity(IN['plasma parameters']['Ti0'],neLinAvg,effectiveZ,Tratio,St,Sn,1.0,1./aspectRatio)
     #flattopFluxConsumption = 1.e6*plasmaResistivity * inductiveFraction * plasmaCurrent * flattopDuration
 
-    flattopFluxConsumption = 0.5 * rb.flux_swing_requirements.rampup
+    flattopFluxConsumption = 0.5 * build.flux_swing_requirements.rampup
 
     # ============================= #
-    rb.flux_swing_requirements.flattop = flattopFluxConsumption
+    build.flux_swing_requirements.flattop = flattopFluxConsumption
 end
 
 """
-    pf_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
+    pf_flux_requirements(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
 
 Estimate vertical field from PF coils and its contribution to flux swing
 
@@ -577,7 +495,7 @@ NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 """
-function pf_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
+function pf_flux_requirements(build::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
     # from IMAS dd to local variables
     majorRadius = eqt.boundary.geometric_axis.r
     minorRadius = eqt.boundary.minor_radius
@@ -592,11 +510,11 @@ function pf_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time
     fluxFromVerticalField = 0.8 * verticalFieldAtCenter * pi * (majorRadius^2 - (majorRadius - minorRadius)^2)
 
     # ============================= #
-    rb.flux_swing_requirements.pf = - abs(fluxFromVerticalField)
+    build.flux_swing_requirements.pf = - abs(fluxFromVerticalField)
 end
 
 """
-    oh_requirements(rb::IMAS.radial_build, double_swing::Bool=true)
+    oh_requirements(build::IMAS.radial_build, double_swing::Bool=true)
 
 Evaluate OH current density and B_field required for rampup and flattop
 
@@ -604,9 +522,9 @@ NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
-function oh_requirements(rb::IMAS.radial_build, double_swing::Bool=true)
-    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_radial_build(rb, type=1).start_radius, IMAS.get_radial_build(rb, type=1).end_radius)
-    totalOhFluxReq = rb.flux_swing_requirements.rampup.total + rb.flux_swing_requirements.flattop + rb.flux_swing_requirements.pf
+function oh_requirements(build::IMAS.radial_build, double_swing::Bool=true)
+    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_radial_build(build, type=1).start_radius, IMAS.get_radial_build(build, type=1).end_radius)
+    totalOhFluxReq = build.flux_swing_requirements.rampup.total + build.flux_swing_requirements.flattop + build.flux_swing_requirements.pf
 
     # ============================= #
 
@@ -618,8 +536,8 @@ function oh_requirements(rb::IMAS.radial_build, double_swing::Bool=true)
     # ============================= #
 
     # minimum requirements for OH
-    rb.oh.required.b_field = magneticFieldSolenoidBore
-    rb.oh.required.j = currentDensityOH
+    build.oh.required.b_field = magneticFieldSolenoidBore
+    build.oh.required.j = currentDensityOH
 end
 
 #= ======== =#
@@ -629,12 +547,12 @@ end
 function stress_calculations(dd::IMAS.dd)
     error("not completed yet")
     B0_TF = dd.radial_build.tf_b_field_max
-    R0_TF = sum((IMAS.get_radial_build(rb, type=-1).start_radius, IMAS.get_radial_build(rb, type=-1).end_radius)) / 2.0
-    Rtf1 = IMAS.get_radial_build(rb, type=2).start_radius
-    Rtf2 = IMAS.get_radial_build(rb, type=2).end_radius
+    R0_TF = sum((IMAS.get_radial_build(build, type=-1).start_radius, IMAS.get_radial_build(build, type=-1).end_radius)) / 2.0
+    Rtf1 = IMAS.get_radial_build(build, type=2).start_radius
+    Rtf2 = IMAS.get_radial_build(build, type=2).end_radius
     B0_OH = dd.radial_build.oh_b_field_max
-    R_sol1 = IMAS.get_radial_build(rb, type=1).start_radius
-    R_sol2 = IMAS.get_radial_build(rb, type=1).end_radius
+    R_sol1 = IMAS.get_radial_build(build, type=1).start_radius
+    R_sol2 = IMAS.get_radial_build(build, type=1).end_radius
     s_ax_ave = something
     f_t_ss_tot_in = something
     f_oh_cu_in = something

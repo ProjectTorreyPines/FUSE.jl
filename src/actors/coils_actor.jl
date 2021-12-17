@@ -27,7 +27,7 @@ function finite_size_OH_coils(z, coils_cleareance)
 end
 
 """
-    init(pf_active::IMAS.pf_active, rb::IMAS.radial_build, n_coils::Vector)
+    init(pf_active::IMAS.pf_active, build::IMAS.radial_build, n_coils::Vector)
 
 Use radial build layers outline to initialize PF coils distribution
 
@@ -38,15 +38,15 @@ Attributes
  * coils_elements_area: Cross-sectional area taken up by individual filaments in a coil (per rail)
 """
 function init(pf_active::IMAS.pf_active,
-              rb::IMAS.radial_build,
+              build::IMAS.radial_build,
               n_coils::Vector{TI} where TI <: Int;
               pf_coils_size::Union{Nothing, Real, Vector{TR}} where TR <: Real=nothing,
               coils_cleareance::Union{Nothing, Real, Vector{TR}} where TR <: Real=nothing,
               coils_elements_area::Union{Nothing, Real, Vector{TR}} where TR <: Real=nothing)
 
-    OH_layer = IMAS.get_radial_build(rb, type=1)
+    OH_layer = IMAS.get_radial_build(build, type=1)
 
-    resize!(rb.pf_coils_rail, length(n_coils))
+    resize!(build.pf_coils_rail, length(n_coils))
 
     # make sure coils_cleareance is an array the lenght of the rails
     if coils_elements_area === nothing
@@ -69,13 +69,13 @@ function init(pf_active::IMAS.pf_active,
     w = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r)
     z_ohcoils = collect(range(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), length=n_coils[1]))
     z_ohcoils, h_ohcoils = finite_size_OH_coils(z_ohcoils, coils_cleareance[1])
-    rb.pf_coils_rail[1].name = "OH"
-    rb.pf_coils_rail[1].coils_number = n_coils[1]
-    rb.pf_coils_rail[1].coils_elements_area = coils_elements_area[1]
-    rb.pf_coils_rail[1].coils_cleareance = coils_cleareance[1]
-    rb.pf_coils_rail[1].outline.r = r_ohcoils
-    rb.pf_coils_rail[1].outline.z = z_ohcoils
-    rb.pf_coils_rail[1].outline.distance = range(-1, 1, length=n_coils[1])
+    build.pf_coils_rail[1].name = "OH"
+    build.pf_coils_rail[1].coils_number = n_coils[1]
+    build.pf_coils_rail[1].coils_elements_area = coils_elements_area[1]
+    build.pf_coils_rail[1].coils_cleareance = coils_cleareance[1]
+    build.pf_coils_rail[1].outline.r = r_ohcoils
+    build.pf_coils_rail[1].outline.z = z_ohcoils
+    build.pf_coils_rail[1].outline.distance = range(-1, 1, length=n_coils[1])
     for (r, z, h) in zip(r_ohcoils, z_ohcoils, h_ohcoils)
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
@@ -101,27 +101,27 @@ function init(pf_active::IMAS.pf_active,
     # Now add actual PF coils to regions of vacuum
     krail = 1
     resolution = 257
-    rmask, zmask, mask = IMAS.structures_mask(rb, resolution=resolution)
-    for (k, layer) in enumerate(rb.layer)
-        if (layer.hfs == 1 || k == length(rb.layer)) && ! is_missing(layer.outline, :r)
+    rmask, zmask, mask = IMAS.structures_mask(build, resolution=resolution)
+    for (k, layer) in enumerate(build.layer)
+        if (layer.hfs == 1 || k == length(build.layer)) && ! is_missing(layer.outline, :r)
             if ! is_missing(layer, :material) && layer.material == "vacuum"
 
                 krail += 1
                 nc = n_coils[krail]
 
                 # add rail info to radial_build IDS
-                rb.pf_coils_rail[krail].name = replace(replace(layer.name, "hfs " => ""), "lfs " => "")
-                rb.pf_coils_rail[krail].coils_number = nc
-                rb.pf_coils_rail[krail].coils_elements_area = coils_elements_area[krail]
-                rb.pf_coils_rail[krail].coils_cleareance = coils_cleareance[krail]
+                build.pf_coils_rail[krail].name = replace(replace(layer.name, "hfs " => ""), "lfs " => "")
+                build.pf_coils_rail[krail].coils_number = nc
+                build.pf_coils_rail[krail].coils_elements_area = coils_elements_area[krail]
+                build.pf_coils_rail[krail].coils_cleareance = coils_cleareance[krail]
 
                 # pick layers with outline information
                 if layer.hfs == 1
-                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=1)
-                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k + 1].identifier, hfs=[1,0])
+                    outer_layer = IMAS.get_radial_build(build, identifier=build.layer[k].identifier, hfs=1)
+                    inner_layer = IMAS.get_radial_build(build, identifier=build.layer[k + 1].identifier, hfs=[1,0])
                 else
-                    inner_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k - 1].identifier, hfs=1)
-                    outer_layer = IMAS.get_radial_build(rb, identifier=rb.layer[k].identifier, hfs=[1,0])
+                    inner_layer = IMAS.get_radial_build(build, identifier=build.layer[k - 1].identifier, hfs=1)
+                    outer_layer = IMAS.get_radial_build(build, identifier=build.layer[k].identifier, hfs=[1,0])
                 end
 
                 # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
@@ -144,9 +144,9 @@ function init(pf_active::IMAS.pf_active,
                     end
                 end
                 if length(valid_k) == 0
-                    rb.pf_coils_rail[krail].outline.r = Real[]
-                    rb.pf_coils_rail[krail].outline.z = Real[]
-                    rb.pf_coils_rail[krail].outline.distance = Real[]
+                    build.pf_coils_rail[krail].outline.r = Real[]
+                    build.pf_coils_rail[krail].outline.z = Real[]
+                    build.pf_coils_rail[krail].outline.distance = Real[]
                     error("Coils on PF rail #$(krail-1) are too big to fit.")
                     continue
                 end
@@ -169,9 +169,9 @@ function init(pf_active::IMAS.pf_active,
                 distance = (distance ./ distance[end]).*2.0.-1.0
 
                 # add rail info to radial_build IDS
-                rb.pf_coils_rail[krail].outline.r = valid_r
-                rb.pf_coils_rail[krail].outline.z = valid_z
-                rb.pf_coils_rail[krail].outline.distance = distance
+                build.pf_coils_rail[krail].outline.r = valid_r
+                build.pf_coils_rail[krail].outline.z = valid_z
+                build.pf_coils_rail[krail].outline.distance = distance
 
                 if nc == 0
                     continue
@@ -228,10 +228,10 @@ mutable struct PFcoilsOptActor <: AbstractActor
     coil_model::Symbol
 end
 
-function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, n_coils::Vector; λ_regularize=1E-13, coil_model=:quick)
+function PFcoilsOptActor(eq_in::IMAS.equilibrium, build::IMAS.radial_build, n_coils::Vector; λ_regularize=1E-13, coil_model=:quick)
     # initialize coils location
     pf_active = IMAS.pf_active()
-    init(pf_active, rb, n_coils)
+    init(pf_active, build, n_coils)
 
     # basic constructors
     eq_out = deepcopy(eq_in)
@@ -240,7 +240,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, n_coils
     time = eq_in.time[time_index]
 
     # constructor
-    pfactor = PFcoilsOptActor(eq_in, eq_out, time, pf_active, rb, symmetric, λ_regularize, PFcoilsOptTrace(), coil_model)
+    pfactor = PFcoilsOptActor(eq_in, eq_out, time, pf_active, build, symmetric, λ_regularize, PFcoilsOptTrace(), coil_model)
 
     return pfactor
 end
@@ -371,9 +371,9 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
 end
 
 # step
-function pack_rail(rb::IMAS.radial_build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
+function pack_rail(build::IMAS.radial_build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
     distances = []
-    for rail in rb.pf_coils_rail
+    for rail in build.pf_coils_rail
         # not symmetric
         if ! symmetric
             coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2:end - 1]
@@ -390,14 +390,14 @@ function pack_rail(rb::IMAS.radial_build, λ_regularize::Float64, symmetric::Boo
     return packed
 end
 
-function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, rb::IMAS.radial_build)
+function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, build::IMAS.radial_build)
     distances = packed[1:end - 1]
     λ_regularize = packed[end]
 
     if length(optim_coils) != 0 # optim_coils have zero length in case of the `static` optimization
         kcoil = 0
         koptim = 0
-        for rail in rb.pf_coils_rail
+        for rail in build.pf_coils_rail
             r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
             z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc=:flat)
             # not symmetric
@@ -447,7 +447,7 @@ function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, rb::
     return 10^λ_regularize
 end
 
-function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, rb::IMAS.radial_build, maxiter::Int, verbose::Bool)
+function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, build::IMAS.radial_build, maxiter::Int, verbose::Bool)
 
     fixed_eqs = []
     for time_index in 1:length(eq.time_slice)
@@ -461,13 +461,13 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
         end
     end
 
-    packed = pack_rail(rb, λ_regularize, symmetric)
+    packed = pack_rail(build, λ_regularize, symmetric)
     trace = PFcoilsOptTrace()
 
     packed_tmp = []
     function placement_cost(packed; do_trace=false)
         push!(packed_tmp, packed)
-        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
+        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, build)
         coils = vcat(pinned_coils, optim_coils)
         all_cost_ψ=[]
         all_cost_currents=[]
@@ -514,13 +514,13 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
     
     if maxiter == 0
         placement_cost(packed)
-        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
+        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, build)
     else
         # use NelderMead() ; other optimizer that works is Newton(), others have trouble
         res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb); autodiff=:forward)
-        if verbose println(res) end
+        if vebuildose println(res) end
         packed = Optim.minimizer(res)
-        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
+        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, build)
     end
 
     return λ_regularize, trace
@@ -569,10 +569,10 @@ function step(pfactor::PFcoilsOptActor;
             coil.time = pfactor.eq_in.time
         end
 
-        rb = pfactor.radial_build
+        build = pfactor.radial_build
         # run rail type optimizer
         if optimization_scheme in [:rail, :static]
-            (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, rb, maxiter, verbose)
+            (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, build, maxiter, verbose)
         else
             error("Supported PFcoilsOptActor optimization_scheme are `:static` or `:rail`")
         end
