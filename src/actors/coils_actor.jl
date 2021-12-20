@@ -452,17 +452,35 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
     fixed_eqs = []
     weights = []
     for time_index in 1:length(eq.time_slice)
-        if eq.time_slice[time_index].time < 0
-            push!(fixed_eqs, AD_GS.field_null_on_boundary(eq.time_slice[time_index].global_quantities.psi_boundary,
-                                                          eq.time_slice[time_index].boundary.outline.r,
-                                                          eq.time_slice[time_index].boundary.outline.z,
-                                                          fixed_coils))
-            push!(weights, nothing)
-        else
-            fixed_eq=IMAS2Equilibrium(eq.time_slice[time_index])
-            Bp_fac, ψp, Rp, Zp = AD_GS.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils)
+        eqt = eq.time_slice[time_index]
+        # field nulls
+        if eqt.time < 0
+            # find ψp
+            Bp_fac, ψp, Rp, Zp = AD_GS.field_null_on_boundary(eqt.global_quantities.psi_boundary,
+                                                              eqt.boundary.outline.r,
+                                                              eqt.boundary.outline.z,
+                                                              fixed_coils)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
-            weight = exp.( (abs.(Zp)/maximum(abs.(Zp))).^2)
+            push!(weights, nothing)
+        # solutions with plasma
+        else
+            fixed_eq = IMAS2Equilibrium(eqt)
+            # private flux regions
+            prpz = IMAS.flux_surface(eqt,eqt.profiles_1d.psi[end],false)
+            Rx = []
+            Zx = []
+            for (pr, pz) in prpz
+                append!(Rx, pr)
+                append!(Zx, pz)
+            end
+            # find ψp
+            Bp_fac, ψp, Rp, Zp = AD_GS.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx)
+            push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
+            # Use Bp to give more weight to the x-point regions
+            Bp = map(x->sqrt(sum(x.^2)), IMAS.Br_Bz_interpolant(IMAS.to_range(eqt.profiles_2d[1].grid.dim1),
+                                                                IMAS.to_range(eqt.profiles_2d[1].grid.dim2),
+                                                                eqt.profiles_2d[1].psi).(Rp, Zp))
+            weight = 1.0 ./ sqrt.(Bp .+ maximum(Bp) / 10.0)
             push!(weights, weight)
         end
     end
