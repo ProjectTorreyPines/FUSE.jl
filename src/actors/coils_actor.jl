@@ -480,7 +480,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
             Bp = map(x->sqrt(sum(x.^2)), IMAS.Br_Bz_interpolant(IMAS.to_range(eqt.profiles_2d[1].grid.dim1),
                                                                 IMAS.to_range(eqt.profiles_2d[1].grid.dim2),
                                                                 eqt.profiles_2d[1].psi).(Rp, Zp))
-            weight = 1.0 ./ sqrt.(Bp .+ maximum(Bp) / 10.0)
+            weight = 1.0 ./ (Bp .+ maximum(Bp) / 10.0)
             push!(weights, weight)
         end
     end
@@ -493,8 +493,8 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
         push!(packed_tmp, packed)
         λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
         coils = vcat(pinned_coils, optim_coils)
-        all_cost_ψ=[]
-        all_cost_currents=[]
+        all_cost_ψ = []
+        all_cost_currents = []
         for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs,weights))
             for coil in vcat(pinned_coils, optim_coils, fixed_coils)
                 coil.time_index = time_index
@@ -509,23 +509,13 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
         end
         cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
         cost_currents = norm(all_cost_currents) / length(all_cost_currents)
-        cost_spacing = 0
-        for (k1, c1) in enumerate(optim_coils)
-            for (k2, c2) in enumerate(optim_coils)
-                if k1 == k2
-                    continue
-                end
-                cost_spacing += 1 / (sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2) + 0.001)
-            end
-        end
-        cost_spacing = cost_spacing / (length(optim_coils)^2 + 1)
-        cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_spacing^2)
+        cost = sqrt(cost_ψ^2 + cost_currents^2)
         if do_trace
             push!(trace.λ_regularize, no_Dual(λ_regularize))
             push!(trace.cost_ψ, no_Dual(cost_ψ))
             push!(trace.cost_currents, no_Dual(cost_currents))
             push!(trace.cost_bound, NaN)
-            push!(trace.cost_spacing, no_Dual(cost_spacing))
+            push!(trace.cost_spacing, NaN)
             push!(trace.cost_total, no_Dual(cost))
         end
         return cost
