@@ -469,10 +469,10 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
             prpz = IMAS.flux_surface(eqt,eqt.profiles_1d.psi[end],false)
             Rx = []
             Zx = []
-            for (pr, pz) in prpz
-                append!(Rx, pr)
-                append!(Zx, pz)
-            end
+            # for (pr, pz) in prpz
+            #     append!(Rx, pr)
+            #     append!(Zx, pz)
+            # end
             # find ψp
             Bp_fac, ψp, Rp, Zp = AD_GS.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
