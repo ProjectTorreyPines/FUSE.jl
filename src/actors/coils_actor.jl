@@ -228,7 +228,7 @@ mutable struct PFcoilsOptActor <: AbstractActor
     coil_model::Symbol
 end
 
-function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, n_coils::Vector; λ_regularize=1E-13, coil_model=:quick)
+function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, n_coils::Vector; λ_regularize=1E-13, coil_model=:simple)
     # initialize coils location
     pf_active = IMAS.pf_active()
     init(pf_active, rb, n_coils)
@@ -341,7 +341,7 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
         return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     # medium
-    elseif coil.coil_model in [:corners, :quick]
+    elseif coil.coil_model in [:corners, :simple]
         if coil.pf_active__coil.name == "OH"
             n = Int(ceil((coil.height - coil.width) / coil.width / 2.0))
             if n <= 1
@@ -357,7 +357,7 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
             return sum(green)
         elseif coil.coil_model == :corners
             return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width/2.0, coil.height/2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign/4)
-        elseif coil.coil_model == :quick
+        elseif coil.coil_model == :simple
             return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
         end
 
@@ -366,7 +366,7 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
         return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 
     else
-        error("GS_IMAS_pf_active__coil coil.coil_model can only be (in order of accuracy) :realistic, :corners, :quick, and :point")
+        error("GS_IMAS_pf_active__coil coil.coil_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
     end
 end
 
