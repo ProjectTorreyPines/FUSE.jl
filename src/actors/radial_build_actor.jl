@@ -2,9 +2,21 @@ using LibGEOS
 using Interpolations
 using Contour
 
-#= ==== =#
-#  init  #
-#= ==== =#
+#= ================== =#
+#  init core_profiles  #
+#= ================== =#
+function init(cp::IMAS.core_profiles; kw...)
+    
+    if :ejima in keys(kw)
+        IMAS.set_timedep_value!(cp, cp.global_quantities, :ejima, 0.0, kw[:ejima])
+    end
+
+    return cp
+end
+
+#= ================= =#
+#  init radial_build  #
+#= ================= =#
 
 """
     init(rb::IMAS.radial_build; layers...)
@@ -364,7 +376,7 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
 end
 
 #= ============= =#
-#  TF_coil_actor  #
+#  TF coil actor  #
 #= ============= =#
 
 mutable struct TFCoilActor <: AbstractActor
@@ -410,9 +422,9 @@ function finalize(actor::TFCoilActor)
     return actor
 end
 
-#= == =#
-#  OH  #
-#= == =#
+#= ================ =#
+#  flux-swing actor #
+#= ================ =#
 
 mutable struct FluxSwingActor <: AbstractActor
     rb::IMAS.radial_build
