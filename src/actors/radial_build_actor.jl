@@ -43,8 +43,13 @@ NOTE layer[:].shape integer index corresponds to the following shapes
 """
 function init(rb::IMAS.radial_build; layers...)
     # assign layers
-    resize!(rb.layer, length(layers))
-    for (k, (layer_name, layer_thickness)) in enumerate(layers)
+    resize!(rb.layer, length([layer_name for (layer_name, layer_thickness) in layers if layer_thickness >= 0.0]))
+    k = 0
+    for (layer_name, layer_thickness) in layers
+        if layer_thickness < 0.0
+            continue
+        end
+        k += 1
         rb.layer[k].thickness = layer_thickness
         rb.layer[k].name = replace(String(layer_name), "_" => " ")
         if occursin("gap", lowercase(rb.layer[k].name))
@@ -74,8 +79,8 @@ function init(rb::IMAS.radial_build; layers...)
         end
         rb.layer[k].identifier = UInt(hash(replace(replace(lowercase(rb.layer[k].name), "hfs" => ""), "lfs" => "")))
     end
-    if rb.layer[end].material != "vacuum"
-        error("radial_build last material must be `vacuum`")
+    if is_missing(rb.layer[end],:material) || rb.layer[end].material != "vacuum"
+        error("radial_build material of last layer ($(rb.layer[end].name)) must be `vacuum`")
     end
 
     return rb
@@ -86,7 +91,12 @@ end
 
 Simple initialization of radial_build IDS based on equilibrium time_slice
 """
-function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true, conformal_wall=true)
+function init(rb::IMAS.radial_build,
+              eqt::IMAS.equilibrium__time_slice;
+              is_nuclear_facility=true,
+              pf_inside_tf=false,
+              pf_outside_tf=true,
+              conformal_wall=true)
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -100,7 +110,7 @@ function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nucle
             gap_OH=dr * 2.0,
             OH=dr,
             hfs_TF=dr,
-            gap_hfs_TF_shield=0.0,
+            gap_hfs_TF_shield=pf_inside_tf ? 0 : -1,
             hfs_shield=dr / 2.0,
             hfs_blanket=dr,
             hfs_wall=dr / 2.0,
@@ -108,9 +118,9 @@ function init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nucle
             lfs_wall=dr / 2.0,
             lfs_blanket=dr * 2,
             lfs_shield=dr / 2.0,
-            gap_lfs_TF_shield=dr * 5,
+            gap_lfs_TF_shield=dr * (pf_inside_tf ? 5 : -1),
             lfs_TF=dr,
-            gap_cryostat=5 * dr)
+            gap_cryostat=dr * (pf_outside_tf ? 5 : 1))
 
     else
         n_hfs_layers = 4.5
