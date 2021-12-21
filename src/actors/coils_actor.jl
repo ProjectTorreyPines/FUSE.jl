@@ -211,8 +211,6 @@ end
     λ_regularize::Vector = []
     cost_ψ::Vector = []
     cost_currents::Vector = []
-    cost_bound::Vector = []
-    cost_spacing::Vector = []
     cost_total::Vector = []
 end
 
@@ -514,8 +512,6 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
             push!(trace.λ_regularize, no_Dual(λ_regularize))
             push!(trace.cost_ψ, no_Dual(cost_ψ))
             push!(trace.cost_currents, no_Dual(cost_currents))
-            push!(trace.cost_bound, NaN)
-            push!(trace.cost_spacing, NaN)
             push!(trace.cost_total, no_Dual(cost))
         end
         return cost
@@ -675,7 +671,7 @@ Plot PFcoilsOptActor optimization cross-section
         ψabsmax = maximum(x->isnan(x) ? -Inf : x, abs.(ψ))
         
         if field_null
-            clims = (-ψabsmax/10+ψbound, ψabsmax/10+ψbound)
+            clims = (-ψabsmax / 10 + ψbound, ψabsmax / 10 + ψbound)
         else
             clims = (ψmin, ψmax)
         end
@@ -779,20 +775,6 @@ Attributes:
                 label --> "currents"
                 yscale --> :log10
                 x, trace.cost_currents[start_at:end]
-            end
-        end
-        if sum(trace.cost_bound[start_at:end]) > 0.0
-            @series begin
-                label --> "bounds"
-                yscale --> :log10
-                x, trace.cost_bound[start_at:end]
-            end
-        end
-        if sum(trace.cost_spacing[start_at:end]) > 0.0
-            @series begin
-                label --> "spacing"
-                yscale --> :log10
-                x, trace.cost_spacing[start_at:end]
             end
         end
         @series begin
