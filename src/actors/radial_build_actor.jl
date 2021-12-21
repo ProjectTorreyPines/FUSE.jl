@@ -96,7 +96,7 @@ function init(rb::IMAS.radial_build,
               is_nuclear_facility=true,
               pf_inside_tf=false,
               pf_outside_tf=true,
-              conformal_wall=true)
+              conformal_vessel=true)
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -144,7 +144,7 @@ function init(rb::IMAS.radial_build,
     rb.layer[3].shape=3
     rb.layer[3].shape_parameters= [100.0, 10.0, 30.0, 80.0, 20.0]
     rb.tf.coils_n = 16
-    radial_build_cx(rb, eqt, conformal_wall)
+    radial_build_cx(rb, eqt, conformal_vessel)
 
     return rb
 end
@@ -211,11 +211,11 @@ function wall_cryostat(rb::IMAS.radial_build)
 end
 
 """
-    radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
+    radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_vessel::Bool=false)
 Translates 1D radial build to 2D cross-sections
 """
 
-function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
+function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_vessel::Bool=false)
     # outer wall is Miller-like
     n = Int(floor(length(eqt.profiles_1d.elongation) * 0.95))
     inner_wall_line, outer_wall_line = wall_miller_conformal(rb, 5, eqt.profiles_1d.elongation[n], (eqt.profiles_1d.triangularity_upper[n] + eqt.profiles_1d.triangularity_lower[n]) / 2.0) # wall
@@ -232,7 +232,7 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     outer_wall_poly = xy_polygon(outer_wall_line...)
     inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
 
-    if ! conformal_wall
+    if ! conformal_vessel
         vessel_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
 
     else
