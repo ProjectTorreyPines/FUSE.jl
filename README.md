@@ -3,26 +3,22 @@
 Getting started
 ===============
 
-1. Bring in Project Torrey Pines private repos in your Julia development directory:
+1. Clone the FUSE repository in your Julia development directory:
     ```julia
     ] develop "git@github.com:ProjectTorreyPines/FUSE.jl.git"
-    ] develop "git@github.com:ProjectTorreyPines/IMAS.jl.git"
-    ] develop "git@github.com:ProjectTorreyPines/Equilibrium.jl.git"
-    ] develop "git@github.com:ProjectTorreyPines/AD_GS.jl.git"
     ```
-    this will clone the repos in the the `FUSE`, `IMAS`, `Equilibrium` development folders under `~/.julia/dev`
+    this will clone FUSE.jl in the the `FUSE` development folders under `~/.julia/dev`
   
-2. Activate the FUSE environment (NOTE: if not starting from scratch, it may be necessary to remove the `Manifest.toml` file from the development repositories):
+2. Install all dependencies:
     ```bash
     cd ~/.julia/dev/FUSE
+    make install
     ```
-    
-    ```julia
-    ] activate .    # activate the ~/.julia/dev/FUSE/Project.toml environment
-    ] status        # see where we are
-    # We need to tell the environment not to look for our packages in our dev folder and not in the official Julia package registry
-    ] develop Equilibrium IMAS AD_GS
-    ] resolve       # Download packages, update
+
+3. Update FUSE and dependencies to latest version
+    ```bash
+    cd ~/.julia/dev/FUSE
+    make update
     ```
 
 4. Play:

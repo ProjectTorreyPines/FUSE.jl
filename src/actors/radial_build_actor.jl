@@ -194,26 +194,36 @@ Translates 1D radial build to 2D cross-sections
 """
 
 function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_wall::Bool=false)
-    # we make the lfs wall to be conformal to miller
-    n = floor(Int,length(eqt.profiles_1d.elongation) * 0.95)
+    # outer wall is Miller-like
+    n = Int(floor(length(eqt.profiles_1d.elongation) * 0.95))
     inner_wall_line, outer_wall_line = wall_miller_conformal(rb, 5, eqt.profiles_1d.elongation[n], (eqt.profiles_1d.triangularity_upper[n] + eqt.profiles_1d.triangularity_lower[n]) / 2.0) # wall
-    outer_wall_line[2] = outer_wall_line[2] .* 1.2
+
+    # scale outer wall Z based on strike points
+    private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end],false)
+    for (pr, pz) in private
+        if sum(pz)<0
+            outer_wall_line[2][outer_wall_line[2].<0] .*= 1.2
+        else
+            outer_wall_line[2][outer_wall_line[2].>0] .*= 1.2
+        end
+    end
     outer_wall_poly = xy_polygon(outer_wall_line...)
     inner_wall_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
 
     if ! conformal_wall
         vessel_poly = LibGEOS.buffer(outer_wall_poly, -IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
+
     else
         r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
         z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
         PSI_interpolant = Interpolations.CubicSplineInterpolation((r, z), eqt.profiles_2d[1].psi)
 
-        # Inner/lfs radii of the vacuum vessel
+        # Inner radii of the vacuum vessel
         R_hfs_vessel = IMAS.get_radial_build(rb, type=-1).start_radius
         R_lfs_vessel = IMAS.get_radial_build(rb, type=-1).end_radius
         psi_vessel_trace = PSI_interpolant(R_hfs_vessel, 0)
 
-        # Trace contours of psi and use it as the shape of the vacuum vessel.
+        # Trace contours of psi and use it as the shape of the vacuum vessel
         cl = Contour.contour(r, z, eqt.profiles_2d[1].psi, psi_vessel_trace)
         traces = []
         for line in Contour.lines(cl)
@@ -314,7 +324,7 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     end
 
     # if it's a nuclear facility we overwrite TF outer and inner outlines with princeton D
-    # for now we do this only if there is a blanket because without it it is likely that the TF and the wall will encroach
+    # for now we do this only if there is a blanket because without it is likely that the TF and the wall will encroach
     if IMAS.get_radial_build(rb, type=4, hfs=1, raise_error_on_missing=false) !== nothing
         layer = IMAS.get_radial_build(rb, type=2, hfs=1)
         end_radius = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).start_radius
@@ -416,7 +426,7 @@ mutable struct FluxSwingActor <: AbstractActor
 end
 
 function FluxSwingActor(rb::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
-    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : eqt.global_quantities.ip for eqt in eq.time_slice])
+    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : abs(eqt.global_quantities.ip) for eqt in eq.time_slice])
     return FluxSwingActor(rb, eq.time_slice[time_index], cp)
 end
 

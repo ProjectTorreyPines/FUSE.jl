@@ -228,7 +228,7 @@ mutable struct PFcoilsOptActor <: AbstractActor
     coil_model::Symbol
 end
 
-function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, n_coils::Vector; λ_regularize=1E-13, coil_model=:quick)
+function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, n_coils::Vector; λ_regularize=1E-13, coil_model=:simple)
     # initialize coils location
     pf_active = IMAS.pf_active()
     init(pf_active, rb, n_coils)
@@ -341,7 +341,7 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
         return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     # medium
-    elseif coil.coil_model in [:corners, :quick]
+    elseif coil.coil_model in [:corners, :simple]
         if coil.pf_active__coil.name == "OH"
             n = Int(ceil((coil.height - coil.width) / coil.width / 2.0))
             if n <= 1
@@ -357,7 +357,7 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
             return sum(green)
         elseif coil.coil_model == :corners
             return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width/2.0, coil.height/2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign/4)
-        elseif coil.coil_model == :quick
+        elseif coil.coil_model == :simple
             return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
         end
 
@@ -366,7 +366,7 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
         return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 
     else
-        error("GS_IMAS_pf_active__coil coil.coil_model can only be (in order of accuracy) :realistic, :corners, :quick, and :point")
+        error("GS_IMAS_pf_active__coil coil.coil_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
     end
 end
 
@@ -466,21 +466,21 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
         else
             fixed_eq = IMAS2Equilibrium(eqt)
             # private flux regions
-            prpz = IMAS.flux_surface(eqt,eqt.profiles_1d.psi[end],false)
+            private = IMAS.flux_surface(eqt,eqt.profiles_1d.psi[end],false)
+            vessel = IMAS.get_radial_build(rb, type=-1, hfs=0)
             Rx = []
             Zx = []
-            # for (pr, pz) in prpz
-            #     append!(Rx, pr)
-            #     append!(Zx, pz)
-            # end
+            for (pr, pz) in private
+               pvx , pvy = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz; as_list_of_points=false)
+               append!(Rx, pvx)
+               append!(Zx, pvy)
+            end
             # find ψp
             Bp_fac, ψp, Rp, Zp = AD_GS.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
-            # Use Bp to give more weight to the x-point regions
-            Bp = map(x->sqrt(sum(x.^2)), IMAS.Br_Bz_interpolant(IMAS.to_range(eqt.profiles_2d[1].grid.dim1),
-                                                                IMAS.to_range(eqt.profiles_2d[1].grid.dim2),
-                                                                eqt.profiles_2d[1].psi).(Rp, Zp))
-            weight = 1.0 ./ (Bp .+ maximum(Bp) / 10.0)
+            # give each strike point the same weight as the lcfs
+            weight = Rp .* 0.0 .+ 1.0
+            weight[end - length(Rx) + 1 : end] .= length(Rp) / (1+length(Rx))
             push!(weights, weight)
         end
     end
