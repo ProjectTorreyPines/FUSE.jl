@@ -335,11 +335,11 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
             R_TF, Z_TF = rectangle_shape(start_radius, end_radius, layer.shape_parameters...)
         elseif layer.shape == 3
             R_TF, Z_TF = tripple_arc(start_radius, end_radius, layer.shape_parameters...)
-
         else
-            error("layer.shape $(layer.shape) doesn't exist see: \n            *   1 : Priceton_D (shape_parameters = []) \n
-            *   2 : Rectangle  (shape_parameters = [height]) \n
-            *   3 : tripple_arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])")
+            error("layer.shape $(layer.shape) doesn't exist. Valid options are:
+1: Priceton D  (shape_parameters = [])
+2: rectangle   (shape_parameters = [height])
+3: tripple-arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])")
         end
         poly = LibGEOS.buffer(xy_polygon(R_TF, Z_TF), layer.thickness)
         layer.outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
@@ -363,8 +363,9 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     return rb
 end
 
- #  TF_coil_actor  #
- #= ============= =#
+#= ============= =#
+#  TF_coil_actor  #
+#= ============= =#
 
 mutable struct TFCoilActor <: AbstractActor
     rb::IMAS.radial_build
@@ -377,7 +378,6 @@ function step(actor::TFCoilActor; time_limit=100.0)
 
     # Find the TF layers
     layer_TF = IMAS.get_radial_build(actor.rb, type=2, hfs=1)
-    index_TF = IMAS.get_radial_build(actor.rb, type=2, hfs=1; return_index=true)
     r_start = layer_TF.start_radius
     r_end = IMAS.get_radial_build(actor.rb, identifier=layer_TF.identifier, hfs=-1).end_radius
 
@@ -388,7 +388,7 @@ function step(actor::TFCoilActor; time_limit=100.0)
         coil_length = sum((abs.(diff(R_TF).^2 + diff(Z_TF).^2)).^0.5)
         box_length =  sum((abs.(diff(R_shape).^2 + diff(Z_shape).^2)).^0.5)
         
-        # Minimum distancex``
+        # Minimum distance
         cost_distance = abs(minimum(minimum_distance_two_objects(R_TF, Z_TF, R_shape, Z_shape)) - target_minimum_distance) / target_minimum_distance
 
         # Coil length
@@ -404,13 +404,8 @@ function step(actor::TFCoilActor; time_limit=100.0)
     layer_TF.shape_parameters, NelderMead(), Optim.Options(time_limit=time_limit, g_tol=1e-8); autodiff=:forward)
     layer_TF.shape_parameters = Optim.minimizer(Sol)
     layer_TF.outline.r, layer_TF.outline.z = tripple_arc(r_start, r_end, layer_TF.shape_parameters...)
-    actor.rb.layer[index_TF] = layer_TF
-
 end
 
-#= ====== =#
-# FINALIZE #
-#= ====== =#
 function finalize(actor::TFCoilActor)
     return actor
 end
