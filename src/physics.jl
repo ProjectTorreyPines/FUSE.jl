@@ -5,6 +5,29 @@ import OrdinaryDiffEq
 #  Shape functions  #
 #= =============== =#
 
+function shape_function(shape_index)
+    if shape_index  == 1
+        return princeton_D
+    elseif shape_index == 2
+        return rectangle_shape
+    elseif shape_index == 3
+        return  tripple_arc
+    elseif shape_index == 4
+        return miller_Rstart_Rend
+    else
+        error("layer.shape=$(shape) is invalid. Valid options are:
+1: Priceton D  (shape_parameters = [])
+2: rectangle   (shape_parameters = [height])
+3: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
+4: miller      (shape_parameters = [elongation, triangularity])
+")
+    end
+end
+
+function shape_generator(start_radius, end_radius, shape_index, shape_parameters)
+    return shape_function(shape_index)(start_radius, end_radius, shape_parameters...)
+end
+
 """
     miller(R0, inverse_aspect_ratio, elongation, triangularity, n_points)
 

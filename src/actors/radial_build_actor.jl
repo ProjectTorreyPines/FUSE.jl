@@ -203,26 +203,6 @@ function wall_cryostat(rb::IMAS.radial_build)
     return rectangle_shape(L, R, D, U)
 end
 
-function wall_shape(start_radius, end_radius, shape, shape_parameters)
-    if shape  == 1
-        r, z = princeton_D(start_radius, end_radius)
-    elseif shape == 2
-        r, z = rectangle_shape(start_radius, end_radius, shape_parameters...)
-    elseif shape == 3
-        r, z = tripple_arc(start_radius, end_radius, shape_parameters...)
-    elseif shape == 4
-        r, z = miller_Rstart_Rend(start_radius, end_radius, shape_parameters...)
-    else
-        error("layer.shape=$(shape) is invalid. Valid options are:
-1: Priceton D  (shape_parameters = [])
-2: rectangle   (shape_parameters = [height])
-3: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-4: miller      (shape_parameters = [elongation, triangularity])
-")
-    end
-    return r, z
-end
-
 """
     radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_vessel::Bool=false)
 Translates 1D radial build to 2D cross-sections
@@ -333,6 +313,7 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     IMAS.get_radial_build(rb, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(vessel_poly)[1]]
 
     # wall
+    outer_wall_poly = LibGEOS.buffer(inner_wall_poly, IMAS.get_radial_build(rb, type=5, hfs=1).thickness)
     IMAS.get_radial_build(rb, type=5, hfs=1).outline.r = [v[1] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
     IMAS.get_radial_build(rb, type=5, hfs=1).outline.z = [v[2] for v in LibGEOS.coordinates(outer_wall_poly)[1]]
 
@@ -364,7 +345,7 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
         layer = IMAS.get_radial_build(rb, type=2, hfs=1)
         end_radius = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).start_radius
         start_radius = layer.end_radius
-        r, z = wall_shape(start_radius, end_radius, layer.shape, layer.shape_parameters)
+        r, z = shape_generator(start_radius, end_radius, layer.shape, layer.shape_parameters)
         poly = LibGEOS.buffer(xy_polygon(r, z), layer.thickness)
         layer.outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
@@ -395,36 +376,43 @@ mutable struct TFCoilActor <: AbstractActor
     target_minimum_distance::Real
 end
 
-function step(actor::TFCoilActor; time_limit=100.0)
+"""
+    optimize_shape_clearance(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters)
 
-    # Find the TF layers
-    layer_TF = IMAS.get_radial_build(actor.rb, type=2, hfs=1)
-    r_start = layer_TF.start_radius
-    r_end = IMAS.get_radial_build(actor.rb, identifier=layer_TF.identifier, hfs=-1).end_radius
+Find shape parameters that generate smallest shape and target clearance from an obstruction
+"""
+function optimize_shape_clearance(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; time_limit=60)
+    function cost_TF_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters)
 
-    function cost_TF_shape(shape_parameters, R_shape, Z_shape, target_minimum_distance)
-       R_TF, Z_TF = tripple_arc(r_start, r_end, shape_parameters...)
+        R, Z = func(r_start, r_end, shape_parameters...)
         
-        # To be tweaked
-        coil_length = sum((abs.(diff(R_TF).^2 + diff(Z_TF).^2)).^0.5)
-        box_length =  sum((abs.(diff(R_shape).^2 + diff(Z_shape).^2)).^0.5)
+        # minimize length
+        coil_length = sum((sqrt.(diff(R).^2 + diff(Z).^2)))
+        obstruction_length =  sum((sqrt.(diff(r_obstruction).^2 + diff(z_obstruction).^2)))
+        cost_length = (coil_length - obstruction_length) / obstruction_length
         
-        # Minimum distance
-        cost_distance = abs(minimum(minimum_distance_two_objects(R_TF, Z_TF, R_shape, Z_shape)) - target_minimum_distance) / target_minimum_distance
+        # target clearance
+        distance = minimum(minimum_distance_two_objects(R, Z, r_obstruction, z_obstruction))
+        cost_distance = (distance - target_clearance) / target_clearance
 
         # Coil length
-        cost_length = coil_length / box_length
-        cost = cost_length/10 + cost_distance
-
+        cost = cost_distance^2 + 1E-3 * cost_length^2
         return cost
     end
 
-    # Use the optimizer to find the most fitting shape parameters
-    initial_guess = copy(layer_TF.shape_parameters)
-    Sol = optimize(initial_guess-> cost_TF_shape(initial_guess, actor.R_shape, actor.Z_shape, actor.target_minimum_distance),
-    layer_TF.shape_parameters, NelderMead(), Optim.Options(time_limit=time_limit, g_tol=1e-8); autodiff=:forward)
-    layer_TF.shape_parameters = Optim.minimizer(Sol)
-    layer_TF.outline.r, layer_TF.outline.z = tripple_arc(r_start, r_end, layer_TF.shape_parameters...)
+    initial_guess = copy(shape_parameters)
+    res = optimize(shape_parameters-> cost_TF_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
+                   initial_guess, NelderMead(), Optim.Options(time_limit=time_limit, g_tol=1e-8); autodiff=:forward)
+    shape_parameters = Optim.minimizer(res)
+end
+
+function step(actor::TFCoilActor; time_limit=60)
+    layer = IMAS.get_radial_build(actor.rb, type=2, hfs=1)
+    r_start = layer.start_radius
+    r_end = IMAS.get_radial_build(actor.rb, identifier=layer.identifier, hfs=-1).end_radius
+    func = shape_function(layer.shape)
+    layer.shape_parameters = optimize_shape_clearance(actor.R_shape, actor.Z_shape, actor.target_minimum_distance, func, r_start, r_end, layer.shape_parameters; time_limit)
+    layer.outline.r, layer.outline.z = func(r_start, r_end, layer.shape_parameters...)
 end
 
 function finalize(actor::TFCoilActor)
