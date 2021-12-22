@@ -35,11 +35,6 @@ NOTE: layer[:].type and layer[:].material follows from naming of layers
 layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
-
-NOTE layer[:].shape integer index corresponds to the following shapes
-*   1 : Priceton_D (shape_parameters = [])
-*   2 : Rectangle  (shape_parameters = [height])
-*   3 : tripple_arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])
 """
 function init(rb::IMAS.radial_build; layers...)
     # assign layers
@@ -140,10 +135,16 @@ function init(rb::IMAS.radial_build,
             lfs_TF=dr,
             gap_cryostat=2 * dr)
     end
+
     # TF shape
-    rb.layer[3].shape=3
-    rb.layer[3].shape_parameters= [100.0, 10.0, 30.0, 80.0, 20.0]
+    layer = IMAS.get_radial_build(rb, type=2, hfs=1)
+    layer.shape = 1
+    layer.shape_parameters = Real[]
+    layer.shape = 3
+    layer.shape_parameters = [100.0, 10.0, 30.0, 80.0, 20.0]
     rb.tf.coils_n = 16
+
+    # cross-section outlines
     radial_build_cx(rb, eqt, conformal_vessel)
 
     return rb
@@ -161,27 +162,19 @@ function xy_polygon(x, y)
     return LibGEOS.Polygon(coords)
 end
 
-function miller(R0, epsilon, kappa, delta, n)
-    θ = range(0, 2pi, length=n)
-    δ₀ = asin(delta)
-    x = R0 * (1 .+ epsilon .* cos.(θ .+ δ₀ * sin.(θ)))
-    y = R0 * (epsilon * kappa * sin.(θ))
-    return [x, y]
-end
-
 function wall_miller_conformal(rb, layer_type, elongation, triangularity)
     if layer_type == -1
         Rstart = IMAS.get_radial_build(rb, type=layer_type).start_radius
         Rend = IMAS.get_radial_build(rb, type=layer_type).end_radius
-        line = miller((Rend + Rstart) / 2.0, (Rend - Rstart) / (Rend + Rstart), elongation, triangularity, 100)        
+        line = miller_Rstart_Rend(Rstart, Rend, elongation, triangularity, 100)        
         return line, line
     else
         Rstart_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).start_radius
         Rend_lfs = IMAS.get_radial_build(rb, type=layer_type, hfs=-1).end_radius
         Rstart_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).start_radius
         Rend_hfs = IMAS.get_radial_build(rb, type=layer_type, hfs=1).end_radius
-        inner_line = miller((Rstart_lfs + Rend_hfs) / 2.0, (Rstart_lfs - Rend_hfs) / (Rstart_lfs + Rend_hfs), elongation, triangularity, 100)
-        outer_line = miller((Rend_lfs + Rstart_hfs) / 2.0, (Rend_lfs - Rstart_hfs) / (Rend_lfs + Rstart_hfs), elongation, triangularity, 100)
+        inner_line = miller_Rstart_Rend(Rend_hfs, Rstart_lfs, elongation, triangularity, 100)
+        outer_line = miller_Rstart_Rend(Rstart_hfs, Rend_lfs, elongation, triangularity, 100)
         return inner_line, outer_line
     end
 end
@@ -189,25 +182,45 @@ end
 function wall_plug(rb::IMAS.radial_build)
     L = 0
     R = IMAS.get_radial_build(rb, type=1).start_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
     D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
-    return [L,R,R,L,L], [D,D,U,U,D]
+    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
+    return rectangle_shape(L, R, D, U)
 end
 
 function wall_oh(rb::IMAS.radial_build)
     L = IMAS.get_radial_build(rb, type=1).start_radius
     R = IMAS.get_radial_build(rb, type=1).end_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
     D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
-    return [L,R,R,L,L], [D,D,U,U,D]
+    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z)
+    return rectangle_shape(L, R, D, U)
 end
 
 function wall_cryostat(rb::IMAS.radial_build)
     L = 0
     R = rb.layer[end].end_radius
-    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z) + rb.layer[end].thickness
     D = minimum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z) - rb.layer[end].thickness
-    return [L,R,R,L,L], [D,D,U,U,D]
+    U = maximum(IMAS.get_radial_build(rb, type=2, hfs=1).outline.z) + rb.layer[end].thickness
+    return rectangle_shape(L, R, D, U)
+end
+
+function wall_shape(start_radius, end_radius, shape, shape_parameters)
+    if shape  == 1
+        r, z = princeton_D(start_radius, end_radius)
+    elseif shape == 2
+        r, z = rectangle_shape(start_radius, end_radius, shape_parameters...)
+    elseif shape == 3
+        r, z = tripple_arc(start_radius, end_radius, shape_parameters...)
+    elseif shape == 4
+        r, z = miller_Rstart_Rend(start_radius, end_radius, shape_parameters...)
+    else
+        error("layer.shape=$(shape) is invalid. Valid options are:
+1: Priceton D  (shape_parameters = [])
+2: rectangle   (shape_parameters = [height])
+3: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
+4: miller      (shape_parameters = [elongation, triangularity])
+")
+    end
+    return r, z
 end
 
 """
@@ -351,24 +364,10 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
         layer = IMAS.get_radial_build(rb, type=2, hfs=1)
         end_radius = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).start_radius
         start_radius = layer.end_radius
-        if layer.shape  == 1
-            R_TF, Z_TF = princeton_D(start_radius, end_radius)
-        elseif layer.shape == 2
-            R_TF, Z_TF = rectangle_shape(start_radius, end_radius, layer.shape_parameters...)
-        elseif layer.shape == 3
-            R_TF, Z_TF = tripple_arc(start_radius, end_radius, layer.shape_parameters...)
-        else
-            error("layer.shape $(layer.shape) doesn't exist. Valid options are:
-1: Priceton D  (shape_parameters = [])
-2: rectangle   (shape_parameters = [height])
-3: tripple-arc (shape_parameters = [h, small_radius, mid_radius, small_coverage, mid_coverage])")
-        end
-        poly = LibGEOS.buffer(xy_polygon(R_TF, Z_TF), layer.thickness)
+        r, z = wall_shape(start_radius, end_radius, layer.shape, layer.shape_parameters)
+        poly = LibGEOS.buffer(xy_polygon(r, z), layer.thickness)
         layer.outline.r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
-        layer = rb.layer[IMAS.get_radial_build(rb, type=2, hfs=-1, return_index=true) + 1]
-        layer.outline.r = R_TF
-        layer.outline.z = Z_TF
     end
 
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils

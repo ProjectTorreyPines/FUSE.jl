@@ -6,16 +6,38 @@ import OrdinaryDiffEq
 #= =============== =#
 
 """
+    miller(R0, inverse_aspect_ratio, elongation, triangularity, n_points)
+
+Miller contour
+"""
+function miller(R0, rmin_over_R0, elongation, triangularity, n_points)
+    θ = range(0, 2pi, length=n_points)
+    δ₀ = asin(triangularity)
+    R = R0 * (1 .+ rmin_over_R0 .* cos.(θ .+ δ₀ * sin.(θ)))
+    Z = R0 * (rmin_over_R0 * elongation * sin.(θ))
+    return R, Z
+end
+
+"""
+    miller_Rstart_Rend(r_start, r_end, elongation, triangularity, n_points)
+
+Miller contour
+"""
+function miller_Rstart_Rend(r_start, r_end, elongation, triangularity, n_points)
+    return miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity, n_points)
+end
+
+"""
     princeton_D(r_start::Real,r_end::Real,closed::Bool=true)
 
-Draw "princeton D" TF coil contour between radii r_end and r_start
+"Princeton D" contour between radii r_end and r_start
 
 http://www.jaschwartz.net/journal/princeton-dee.html
 https://doi.org/10.2172/4096514
 
 layer[:].shape = 1
 """
-function princeton_D(r_start::Real, r_end::Real; closed::Bool=true)
+function princeton_D(r_start::Real, r_end::Real)
     R0 = sqrt(r_start * r_end)
     k = 0.5 * log(r_end / r_start)
     
@@ -23,7 +45,7 @@ function princeton_D(r_start::Real, r_end::Real; closed::Bool=true)
     @ModelingToolkit.variables Z(R)
     D = ModelingToolkit.Differential(R)
     eqs = [D(D(Z)) ~ -1 / (k * R) * (1 + D(Z)^2)^(3 / 2)]
-    @ModelingToolkit.named sys = ModelingToolkit.ODESxstem(eqs)
+    @ModelingToolkit.named sys = ModelingToolkit.ODESystem(eqs)
     sys = ModelingToolkit.ode_order_lowering(sys)
     u0 = [Z => 0, D(Z) => 0]
     
@@ -41,38 +63,52 @@ function princeton_D(r_start::Real, r_end::Real; closed::Bool=true)
     segment1[2] .-= Z02
     segment2[2] .-= Z02
 
-    R_TF = vcat(reverse(segment1[1])[1:end - 1], segment2[1][1:end - 1], reverse(segment2[1])[1:end - 1], segment1[1])
-    Z_TF = vcat(reverse(segment1[2])[1:end - 1], segment2[2][1:end - 1], -reverse(segment2[2])[1:end - 1], -segment1[2])
+    R = vcat(reverse(segment1[1])[1:end - 1], segment2[1][1:end - 1], reverse(segment2[1])[1:end - 1], segment1[1])
+    Z = vcat(reverse(segment1[2])[1:end - 1], segment2[2][1:end - 1], -reverse(segment2[2])[1:end - 1], -segment1[2])
 
-    if closed        
-        R_TF = vcat(R_TF, R_TF[1])
-        Z_TF = vcat(Z_TF, Z_TF[1])
-    end
-    return R_TF, Z_TF
+    return R, Z
+end
+
+"""
+    rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real)
+
+Asymmetric rectangular contour
+"""
+function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real)
+    return [r_start, r_end, r_end, r_start, r_start], [z_low, z_low, z_high, z_high, z_low]
 end
 
 """
     rectangle_shape(r_start::Real, r_end::Real, height::Real)
-Rectangular TF coil shape(r_start::Real, r_end::Real, height::Real; n_points=400)
-layer[:].shape = 2
+
+Symmetric rectangular contour
 """
-function rectangle_shape(r_start::Real, r_end::Real, height::Real; n_points=400)
-    n_points =  floor(Int, n_points/4)
-    z_start = - height / 2.0
-    z_end = height / 2.0
-    R_box = vcat(LinRange(r_start,r_start,n_points),LinRange(r_start,r_end,n_points),LinRange(r_end,r_end,n_points),LinRange(r_end,r_start,n_points))
-    Z_box = vcat(LinRange(z_start,z_end,n_points),LinRange(z_end,z_end,n_points),LinRange(z_end,z_start,n_points),LinRange(z_start,z_start,n_points))
-    return R_box, Z_box
+function rectangle_shape(r_start::Real, r_end::Real, height::Real)
+    Δ = height / 2.0
+    return rectangle_shape(r_start, r_end, -Δ, Δ)
 end
 
 """
-TrippleArc(;r_start::Real, r_end::Real , shape_parameters::Vector, n_points=1000)
-with shape_parameters =  height, small_radius, mid_radius, small_coverage, mid_coverage 
-    Angles in [degrees], distances in [cm]
-TrippleArc parametrized TF coil shape
-layer[:].shape = 3
+    function tripple_arc(r_start::Real,
+                         r_end::Real,
+                         height::Real,
+                         small_radius::Real,
+                         mid_radius::Real,
+                         small_coverage::Real,
+                         mid_coverage::Real;
+                         n_points::Int=1000)
+
+TrippleArc contour
+Angles are in degrees
 """
-function tripple_arc(r_start::Real, r_end::Real , height::Real, small_radius::Real, mid_radius, small_coverage, mid_coverage; n_points=1000)
+function tripple_arc(r_start::Real,
+                     r_end::Real,
+                     height::Real,
+                     small_radius::Real,
+                     mid_radius::Real,
+                     small_coverage::Real,
+                     mid_coverage::Real;
+                     n_points::Int=1000)
     
     small_coverage *= pi / 180              # Convert to radians
     mid_coverage *= pi / 180
@@ -81,14 +117,12 @@ function tripple_arc(r_start::Real, r_end::Real , height::Real, small_radius::Re
     n_points =  floor(Int, n_points/4)
 
     # small arc
-    theta = LinRange(
-        0, small_coverage, n_points)
+    theta = LinRange(0, small_coverage, n_points)
     small_arc_R = r_start .+ small_radius .* (1 .- map(cos,theta))
     small_arc_Z = height .+ small_radius .* map(sin,theta)
 
     # mid arc
-    theta = LinRange(
-        theta[end], asum, n_points)
+    theta = LinRange(theta[end], asum, n_points)
     mid_arc_R = small_arc_R[end] .+ mid_radius .* 
         (map(cos,small_coverage) .- map(cos,theta))
         mid_arc_Z = small_arc_Z[end] .+ mid_radius * 
@@ -115,5 +149,5 @@ function tripple_arc(r_start::Real, r_end::Real , height::Real, small_radius::Re
     Z = Z./(maximum(R)-minimum(R)).*(r_end - r_start)
     R = (R .- minimum(R)) ./ (maximum(R) - minimum(R)) .* (r_end - r_start) .+ r_start
 
-    return R,Z
+    return R, Z
 end
