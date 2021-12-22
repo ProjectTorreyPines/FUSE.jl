@@ -381,7 +381,7 @@ end
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
-function optimize_shape_clearance(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; time_limit=60)
+function optimize_shape_clearance(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=true, time_limit=60)
     function cost_TF_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters)
 
         R, Z = func(r_start, r_end, shape_parameters...)
@@ -392,17 +392,19 @@ function optimize_shape_clearance(r_obstruction, z_obstruction, target_clearance
         cost_length = (coil_length - obstruction_length) / obstruction_length
         
         # target clearance
-        distance = minimum(minimum_distance_two_objects(R, Z, r_obstruction, z_obstruction))
+        distance = minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
         cost_distance = (distance - target_clearance) / target_clearance
 
-        # Coil length
-        cost = cost_distance^2 + 1E-3 * cost_length^2
-        return cost
+        # return cost
+        return cost_distance^2 + 1E-3*cost_length^2
     end
 
     initial_guess = copy(shape_parameters)
     res = optimize(shape_parameters-> cost_TF_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
                    initial_guess, NelderMead(), Optim.Options(time_limit=time_limit, g_tol=1e-8); autodiff=:forward)
+    if verbose
+        println(res)
+    end
     shape_parameters = Optim.minimizer(res)
 end
 

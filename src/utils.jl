@@ -52,17 +52,20 @@ function two_curves_same_θ(r1, z1, r2, z2, scheme=:cubic)
 end
 
 """
-    minimum_distance_two_objects(R_obj1, Z_obj1, R_obj2, Z_obj2)
-Returns an array of minimal distance points for each point in obj1 (R_obj1, Z_obj1)
+    minimum_distance_two_shapes(R_obj1, Z_obj1, R_obj2, Z_obj2)
+
+Returns minimum distance between two shapes
 """
-function minimum_distance_two_objects(R_obj1, Z_obj1, R_obj2, Z_obj2)
-    min_distance_array = Real[]
-    for (r_1, z_1) in zip(R_obj1,Z_obj1)
-        distance = Real[]
-        for (r_2, z_2) in zip(R_obj2, Z_obj2)
-            append!(distance, sqrt((r_1 - r_2)^2 + (z_1 - z_2)^2))
+function minimum_distance_two_shapes(R_obj1, Z_obj1, R_obj2, Z_obj2)
+    distance = zeros(length(R_obj1),length(R_obj2))
+    for (k1, (r_1, z_1)) in enumerate(zip(R_obj1,Z_obj1))
+        for (k2, (r_2, z_2)) in enumerate(zip(R_obj2, Z_obj2))
+            d = (r_1 - r_2)^2 + (z_1 - z_2)^2
+            if d == 0.0
+                return 0.0
             end
-        append!(min_distance_array,minimum(distance))
+            distance[k1,k2] = d
         end
-    return min_distance_array
+    end
+    return sqrt(minimum(distance))
 end

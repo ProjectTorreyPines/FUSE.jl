@@ -141,23 +141,19 @@ function tripple_arc(r_start::Real,
 
     # small arc
     theta = LinRange(0, small_coverage, n_points)
-    small_arc_R = r_start .+ small_radius .* (1 .- map(cos,theta))
-    small_arc_Z = height .+ small_radius .* map(sin,theta)
+    small_arc_R = r_start .+ small_radius .* (1 .- cos.(theta))
+    small_arc_Z = height .+ small_radius .* sin.(theta)
 
     # mid arc
-    theta = LinRange(theta[end], asum, n_points)
-    mid_arc_R = small_arc_R[end] .+ mid_radius .* 
-        (map(cos,small_coverage) .- map(cos,theta))
-        mid_arc_Z = small_arc_Z[end] .+ mid_radius * 
-        (map(sin,theta) .- map(sin,small_coverage))
+    theta = LinRange(small_coverage, asum, n_points)
+    mid_arc_R = small_arc_R[end] .+ mid_radius .* (cos.(small_coverage) .- cos.(theta))
+    mid_arc_Z = small_arc_Z[end] .+ mid_radius .* (sin.(theta) .- sin.(small_coverage))
 
     # large arc
-    large_radius = (mid_arc_Z[end]) / sin(pi - asum)
     theta = LinRange(theta[end], pi, n_points)
-    large_arc_R = mid_arc_R[end] .+ large_radius .* 
-        (map(cos,pi .- theta) .- map(cos,pi .- asum))
-        large_arc_Z = mid_arc_Z[end] .- large_radius .* 
-        (sin(asum) .- map(sin, pi .- theta))
+    large_radius = mid_arc_Z[end] / sin(pi - asum)
+    large_arc_R = mid_arc_R[end] .+ large_radius .* (cos.(pi .- theta) .- cos.(pi .- asum))
+    large_arc_Z = mid_arc_Z[end] .- large_radius .* (sin(asum) .- sin.(pi .- theta))
 
     R = vcat(small_arc_R, mid_arc_R[2:end], large_arc_R[2:end])
     R = vcat(R,reverse(R)[2:end])
@@ -169,8 +165,9 @@ function tripple_arc(r_start::Real,
     Z = vcat(LinRange(-height, height ,n_points), Z)
     
     # Resize to ensure r_start to r_end
-    Z = Z./(maximum(R)-minimum(R)).*(r_end - r_start)
-    R = (R .- minimum(R)) ./ (maximum(R) - minimum(R)) .* (r_end - r_start) .+ r_start
+    factor = (r_end - r_start) / (maximum(R) - minimum(R))
+    Z = Z .* factor
+    R = (R .- minimum(R)) .* factor .+ r_start
 
     return R, Z
 end
