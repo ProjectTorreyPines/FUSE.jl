@@ -288,9 +288,10 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
         end
     end
     for (n,k) in enumerate(vessel_to_oh)
-        FUSE.optimize_shape(rb, k, 3)
-        if n<length(vessel_to_oh)
-            rb.layer[vessel_to_oh[n+1]].shape_parameters = deepcopy(rb.layer[vessel_to_oh[n]].shape_parameters)
+        if n == 1
+            FUSE.optimize_shape(rb, k, 3)
+        else
+            FUSE.optimize_shape(rb, k, 0)
         end
     end
 
