@@ -1,5 +1,6 @@
 import ModelingToolkit
 import OrdinaryDiffEq
+import LazySets
 
 #= =============== =#
 #  Shape functions  #
@@ -7,7 +8,7 @@ import OrdinaryDiffEq
 
 function init_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, target_clearance)
     height = maximum(z_obstruction) - minimum(z_obstruction) + target_clearance * 2
-    if shape_function_index == 1
+    if shape_function_index in [1, -1, -2]
         shape_parameters = Real[]
     elseif shape_function_index == 2
         shape_parameters = [height]
@@ -20,7 +21,7 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
 end
 
 function shape_function(shape_index)
-    if shape_index == 0
+    if shape_index in [-1, -2]
         return nothing
     elseif shape_index  == 1
         return princeton_D
@@ -257,10 +258,13 @@ end
 
 
 function xy_polygon(x, y)
-    if x[1] ≈ x[end]
+    if (x[1] != x[end]) && (x[1] ≈ x[end])
         x[end] = x[1]
+    end
+    if (y[1] != y[end]) && (y[1] ≈ y[end])
         y[end] = y[1]
-    elseif x[1] != x[end]
+    end
+    if (x[1] != x[end]) || (y[1] != y[end])
         push!(x, x[1])
         push!(y, y[1])
     end
