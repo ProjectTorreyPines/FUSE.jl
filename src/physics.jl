@@ -6,39 +6,79 @@ import LazySets
 #  Shape functions  #
 #= =============== =#
 
+function error_layer_shape(shape_function_index)
+    error("layer.shape=$(shape_function_index) is invalid. Valid options are:
+ -2: Offset & convex-hull
+ -1: Offset
+  1: Priceton D  (shape_parameters = [])
+  2: rectangle   (shape_parameters = [height])
+  3: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
+  4: miller      (shape_parameters = [elongation, triangularity])
+101: Priceton D  (shape_parameters = [z_offset])
+102: rectangle   (shape_parameters = [height, z_offset])
+103: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage, z_offset])
+104: miller      (shape_parameters = [elongation, triangularity, z_offset])
+")
+end
+
 function init_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, target_clearance)
-    height = maximum(z_obstruction) - minimum(z_obstruction) + target_clearance * 2
-    if shape_function_index in [1, -1, -2]
-        shape_parameters = Real[]
-    elseif shape_function_index == 2
-        shape_parameters = [height]
-    elseif shape_function_index == 3
-        shape_parameters = [height, height*0.1, height*0.25, 45, 90]
-    elseif shape_function_index == 4
-        shape_parameters = [height/(r_end-r_start), 0.0]
+    height = maximum(z_obstruction) - minimum(z_obstruction) + target_clearance * 2.0
+    z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0 
+    shape_parameters = nothing
+    if shape_function_index in [-1, -2]
+        return nothing
+    else
+        shape_index_mod = mod(shape_function_index, 100)
+        if shape_index_mod == 1
+            shape_parameters = []
+        elseif shape_index_mod == 2
+            shape_parameters = [height]
+        elseif shape_index_mod == 3
+            shape_parameters = [height, 0.0, 0.0, 45, 45]
+        elseif shape_index_mod == 4
+            shape_parameters = [height/(r_end-r_start), 0.0]
+        end
+    end
+    if shape_parameters === nothing
+        error(shape_function_index)
+    end
+    if shape_function_index > 100
+        push!(shape_parameters, z_offset)
     end
     return shape_parameters
 end
 
-function shape_function(shape_index)
-    if shape_index in [-1, -2]
-        return nothing
-    elseif shape_index  == 1
-        return princeton_D
-    elseif shape_index == 2
-        return (r_start, r_end, height) -> rectangle_shape(r_start, r_end, height; n_points = 100)
-    elseif shape_index == 3
-        return  tripple_arc
-    elseif shape_index == 4
-        return miller_Rstart_Rend
-    else
-        error("layer.shape=$(shape) is invalid. Valid options are:
-1: Priceton D  (shape_parameters = [])
-2: rectangle   (shape_parameters = [height])
-3: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-4: miller      (shape_parameters = [elongation, triangularity])
-")
+function add_z_offset_parameter(func)
+    function (args...)
+        R, Z = func(args[1:end-1]...)
+        Z .+= args[end]
+        return R, Z
     end
+end
+
+function shape_function(shape_function_index)
+    func = nothing
+    if shape_function_index in [-1, -2]
+        return nothing
+    else
+        shape_index_mod = mod(shape_function_index, 100)
+        if shape_index_mod  in 1
+            func = princeton_D
+        elseif shape_index_mod == 2
+            func = (r_start, r_end, height) -> rectangle_shape(r_start, r_end, height; n_points = 100)
+        elseif shape_index_mod == 3
+            func =  tripple_arc
+        elseif shape_index_mod == 4
+            func = miller_Rstart_Rend
+        end
+    end
+    if func === nothing
+        error_layer_shape(shape_function_index)
+    end
+    if shape_function_index > 100
+        func = add_z_offset_parameter(func)
+    end
+    return func
 end
 
 """

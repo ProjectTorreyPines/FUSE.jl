@@ -170,53 +170,51 @@ Translates 1D radial build to 2D cross-sections
 
 function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_vessel::Bool=false)
 
-    if true
-        # Inner radii of the vacuum vessel
-        R_hfs_vessel = IMAS.get_radial_build(rb, type=-1).start_radius
-        R_lfs_vessel = IMAS.get_radial_build(rb, type=-1).end_radius
-        
-        # Vessel as buffered convex-hull polygon of LCFS and strike points
-        r95, z95, _ = IMAS.flux_surface(eqt, (eqt.profiles_1d.psi[end] - eqt.profiles_1d.psi[1]) * 0.90 + eqt.profiles_1d.psi[1], true)
-        rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], true)
-        theta = range(0.0, 2 * pi, length=101)
-        private_extrema = []
-        private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-        a = 0
-        for (pr, pz) in private
-            if sum(pz) < 0
-                index = argmax(pz)
-                a = minimum(z95)-minimum(zlcfs)
-                a = min(a, pz[index]-minimum(pz))
-            else
-                index = argmin(pz)
-                a = maximum(zlcfs)-maximum(z95)
-                a = min(a, maximum(pz) - pz[index])
-            end
-            Rx = pr[index]
-            Zx = pz[index]
-            append!(private_extrema, IMAS.intersection(a .* cos.(theta) .+ Rx, a .* sin.(theta) .+ Zx, pr, pz))
-        end 
-        h = [[r,z] for (r,z) in vcat(collect(zip(rlcfs,zlcfs)),private_extrema)]
-        hull = LazySets.convex_hull(h)
-        hull_poly = xy_polygon([r for (r,z) in hull],[z for (r,z) in hull])
-        vessel_poly = LibGEOS.buffer(hull_poly, ((R_lfs_vessel - R_hfs_vessel) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0 )
+    # Inner radii of the vacuum vessel
+    R_hfs_vessel = IMAS.get_radial_build(rb, type=-1).start_radius
+    R_lfs_vessel = IMAS.get_radial_build(rb, type=-1).end_radius
+    
+    # Vessel as buffered convex-hull polygon of LCFS and strike points
+    r95, z95, _ = IMAS.flux_surface(eqt, (eqt.profiles_1d.psi[end] - eqt.profiles_1d.psi[1]) * 0.90 + eqt.profiles_1d.psi[1], true)
+    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], true)
+    theta = range(0.0, 2 * pi, length=101)
+    private_extrema = []
+    private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
+    a = 0
+    for (pr, pz) in private
+        if sum(pz) < 0
+            index = argmax(pz)
+            a = minimum(z95)-minimum(zlcfs)
+            a = min(a, pz[index]-minimum(pz))
+        else
+            index = argmin(pz)
+            a = maximum(zlcfs)-maximum(z95)
+            a = min(a, maximum(pz) - pz[index])
+        end
+        Rx = pr[index]
+        Zx = pz[index]
+        append!(private_extrema, IMAS.intersection(a .* cos.(theta) .+ Rx, a .* sin.(theta) .+ Zx, pr, pz))
+    end 
+    h = [[r,z] for (r,z) in vcat(collect(zip(rlcfs,zlcfs)),private_extrema)]
+    hull = LazySets.convex_hull(h)
+    R = [r for (r,z) in hull]
+    R[R .< R_hfs_vessel] .= R_hfs_vessel
+    R[R .> R_lfs_vessel] .= R_lfs_vessel
+    Z = [z for (r,z) in hull]
+    hull_poly = xy_polygon(R, Z)
+    vessel_poly = LibGEOS.buffer(hull_poly, ((R_lfs_vessel - R_hfs_vessel) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0 )
 
-        # make sure vessel is always between the R_hfs_vessel and R_lfs_vessel bounds
-        vessel_poly = LibGEOS.difference(vessel_poly, xy_polygon(rectangle_shape(0, R_hfs_vessel, 100)...))
-        vessel_poly = LibGEOS.difference(vessel_poly, xy_polygon(rectangle_shape(R_lfs_vessel, R_lfs_vessel*2.0, 100)...))
-
-        # make the divertor domes in the vessel
-        δψ = 0.05
-        r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
-        z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
-        cl = Contour.contour(r, z, eqt.profiles_2d[1].psi, eqt.profiles_1d.psi[end] * (1 - δψ) + eqt.profiles_1d.psi[1] * δψ)
-        for line in Contour.lines(cl)
-            pr, pz = Contour.coordinates(line)
-            if pr[1] != pr[end]
-                pz[1] = pz[1] * 2
-                pz[end] = pz[end] * 2
-                vessel_poly = LibGEOS.difference(vessel_poly, xy_polygon(pr, pz))
-            end
+    # make the divertor domes in the vessel
+    δψ = 0.05
+    r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
+    z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
+    cl = Contour.contour(r, z, eqt.profiles_2d[1].psi, eqt.profiles_1d.psi[end] * (1 - δψ) + eqt.profiles_1d.psi[1] * δψ)
+    for line in Contour.lines(cl)
+        pr, pz = Contour.coordinates(line)
+        if pr[1] != pr[end]
+            pz[1] = pz[1] * 2
+            pz[end] = pz[end] * 2
+            vessel_poly = LibGEOS.difference(vessel_poly, xy_polygon(pr, pz))
         end
     end
 
@@ -284,25 +282,26 @@ end
 #  TF coil actor  #
 #= ============= =#
 
-function optimize_shape(rb, layer_index, default_shape_index=2)
+function optimize_shape(rb, layer_index, default_shape_index=3)
 
-    #layer_index = IMAS.get_radial_build(rb, type=5, hfs=1, return_index=true)
+    # properties of current layer
     layer = rb.layer[layer_index]
     id = rb.layer[layer_index].identifier
     r_start = layer.start_radius
     r_end = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).end_radius
-
     hfs_thickness = layer.thickness
     lfs_thickness = IMAS.get_radial_build(rb, identifier=id, hfs=-1).thickness
     target_minimum_distance = (2.0 * hfs_thickness + lfs_thickness) / 3.0
 
+    # obstruction
     oR = rb.layer[layer_index+1].outline.r
     oZ = rb.layer[layer_index+1].outline.z
 
     if is_missing(layer, :shape)
         layer.shape = default_shape_index
     end
-    
+
+    # handle offset and offset & convex-hull
     if layer.shape in [-1, -2]
         poly = LibGEOS.buffer(xy_polygon(oR, oZ), (hfs_thickness + lfs_thickness) / 2.0)
         layer.outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
@@ -313,20 +312,26 @@ function optimize_shape(rb, layer_index, default_shape_index=2)
             layer.outline.r = vcat([r for (r,z) in hull],hull[1][1])
             layer.outline.z = vcat([z for (r,z) in hull],hull[1][2])
         end
+    # handle shapes
     else
+        up_down_symmetric = false
+        if abs(sum(oZ)/sum(abs.(oZ))) < 1E-2
+            up_down_symmetric = true
+        end
+
+        if up_down_symmetric
+            layer.shape = mod(layer.shape, 100)
+        else
+            layer.shape = mod(layer.shape, 100) + 100
+        end
+
         func = shape_function(layer.shape)
         if is_missing(layer, :shape_parameters)
             layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, r_start, r_end, target_minimum_distance)
         end
         layer.outline.r, layer.outline.z = func(r_start, r_end, layer.shape_parameters...)
-
-        #plot(oR,oZ,color=:red,aspect_ratio=:equal)
-        #plot!(layer.outline.r, layer.outline.z, color=:blue)
-
         layer.shape_parameters = optimize_shape(oR, oZ, target_minimum_distance, func, r_start, r_end, layer.shape_parameters)
         layer.outline.r, layer.outline.z = func(r_start, r_end, layer.shape_parameters...)
-        
-        #display(plot!(layer.outline.r, layer.outline.z, color=:green))
     end
 end
 
