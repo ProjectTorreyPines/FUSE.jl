@@ -1,4 +1,4 @@
-# FUSE
+# FUSE.jl
 
 Getting started
 ===============
@@ -9,7 +9,7 @@ Getting started
     ```
     this will clone FUSE.jl in the the `FUSE` development folders under `~/.julia/dev`
   
-2. Install all dependencies:
+2. Install all FUSE dependencies:
     ```bash
     cd ~/.julia/dev/FUSE
     make install
