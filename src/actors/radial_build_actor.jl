@@ -91,8 +91,7 @@ function init(rb::IMAS.radial_build,
               eqt::IMAS.equilibrium__time_slice;
               is_nuclear_facility=true,
               pf_inside_tf=false,
-              pf_outside_tf=true,
-              conformal_vessel=true)
+              pf_outside_tf=true)
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -141,7 +140,7 @@ function init(rb::IMAS.radial_build,
     rb.tf.coils_n = 16
 
     # cross-section outlines
-    radial_build_cx(rb, eqt, conformal_vessel)
+    radial_build_cx(rb, eqt)
 
     return rb
 end
@@ -164,11 +163,11 @@ function wall_miller_conformal(rb, layer_type, elongation, triangularity; n_poin
 end
 
 """
-    radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_vessel::Bool=false)
+    radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
 Translates 1D radial build to 2D cross-sections
 """
 
-function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, conformal_vessel::Bool=false)
+function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
 
     # Inner radii of the vacuum vessel
     R_hfs_vessel = IMAS.get_radial_build(rb, type=-1).start_radius
@@ -278,9 +277,6 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     return rb
 end
 
-#= ============= =#
-#  TF coil actor  #
-#= ============= =#
 
 function optimize_shape(rb, layer_index, default_shape_index=3)
 
@@ -291,7 +287,7 @@ function optimize_shape(rb, layer_index, default_shape_index=3)
     r_end = IMAS.get_radial_build(rb, identifier=layer.identifier, hfs=-1).end_radius
     hfs_thickness = layer.thickness
     lfs_thickness = IMAS.get_radial_build(rb, identifier=id, hfs=-1).thickness
-    target_minimum_distance = (2.0 * hfs_thickness + lfs_thickness) / 3.0
+    target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
 
     # obstruction
     oR = rb.layer[layer_index+1].outline.r
