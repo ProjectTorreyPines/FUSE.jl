@@ -8,13 +8,19 @@ all:
 	@echo ' - make update   : update FUSE and all of its dependencies'
 	@echo ''
 
-install: install_FUSE
+install: install_FUSE install_IJulia
 	julia -e '\
 using Pkg;\
 Pkg.activate();\
 Pkg.develop(["FUSE", "IMAS", "CoordinateConventions", "AD_GS", "Equilibrium"]);\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
+'
+
+install_IJulia:
+	julia -e '\
+using Pkg;\
+Pkg.add("IJulia");\
 '
 
 install_FUSE: install_IMAS install_CoordinateConventions install_FusionMaterials install_AD_GS install_Equilibrium
@@ -75,7 +81,7 @@ try Pkg.upgrade_manifest() catch end;\
 
 install_Equilibrium: install_CoordinateConventions
 	if [ ! -d "$(JULIA_PKG_DEVDIR)/Equilibrium" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:JuliaFusion/Equilibrium.jl.git");';\
+		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/Equilibrium.jl.git");';\
 	fi
 	julia -e '\
 using Pkg;\
