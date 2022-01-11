@@ -89,7 +89,7 @@ Simple initialization of radial_build IDS based on equilibrium time_slice
 """
 function init(rb::IMAS.radial_build,
               eqt::IMAS.equilibrium__time_slice;
-              tf_shape_index::Int=5,
+              tf_shape_index::Int=3,
               is_nuclear_facility::Bool=true,
               pf_inside_tf::Bool=false,
               pf_outside_tf::Bool=true)
