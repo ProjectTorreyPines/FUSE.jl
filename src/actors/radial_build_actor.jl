@@ -89,9 +89,10 @@ Simple initialization of radial_build IDS based on equilibrium time_slice
 """
 function init(rb::IMAS.radial_build,
               eqt::IMAS.equilibrium__time_slice;
-              is_nuclear_facility=true,
-              pf_inside_tf=false,
-              pf_outside_tf=true)
+              tf_shape_index::Int=3,
+              is_nuclear_facility::Bool=true,
+              pf_inside_tf::Bool=false,
+              pf_outside_tf::Bool=true)
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -140,7 +141,7 @@ function init(rb::IMAS.radial_build,
     rb.tf.coils_n = 16
 
     # cross-section outlines
-    radial_build_cx(rb, eqt)
+    radial_build_cx(rb, eqt, tf_shape_index)
 
     return rb
 end
@@ -167,8 +168,7 @@ end
 Translates 1D radial build to 2D cross-sections
 """
 
-function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice)
-
+function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
     # Inner radii of the vacuum vessel
     R_hfs_vessel = IMAS.get_radial_build(rb, type=-1).start_radius
     R_lfs_vessel = IMAS.get_radial_build(rb, type=-1).end_radius
@@ -238,13 +238,12 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
             valid = true
         end
     end
+    shape_set = false
     for (n, k) in enumerate(vessel_to_oh)
-         # layer that preceeds the TF sets the TF shape
-        if (n<length(vessel_to_oh)) && (rb.layer[vessel_to_oh[n+1]].type == 2)
-            FUSE.optimize_shape(rb, k, 3)
-        # layer that preceeds the shield sets the shield shape
-        elseif (n<length(vessel_to_oh)) && (rb.layer[vessel_to_oh[n+1]].type == 3)
-            FUSE.optimize_shape(rb, k, 3)
+        # layer that preceeds the TF (or shield) sets the TF (and shield) shape
+        if (!shape_set) && (n<length(vessel_to_oh)) && (rb.layer[vessel_to_oh[n+1]].type in [2, 3])
+            FUSE.optimize_shape(rb, k, tf_shape_index)
+            shape_set = true
         # everything else is conformal convex hull
         else
             FUSE.optimize_shape(rb, k, -2)
@@ -278,8 +277,7 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
 end
 
 
-function optimize_shape(rb, layer_index, default_shape_index=3)
-
+function optimize_shape(rb::IMAS.radial_build, layer_index::Int, tf_shape_index::Int)
     # properties of current layer
     layer = rb.layer[layer_index]
     id = rb.layer[layer_index].identifier
@@ -294,7 +292,7 @@ function optimize_shape(rb, layer_index, default_shape_index=3)
     oZ = rb.layer[layer_index+1].outline.z
 
     if is_missing(layer, :shape)
-        layer.shape = default_shape_index
+        layer.shape = tf_shape_index
     end
 
     # handle offset and offset & convex-hull
@@ -320,7 +318,7 @@ function optimize_shape(rb, layer_index, default_shape_index=3)
         else
             layer.shape = mod(layer.shape, 100) + 100
         end
-
+        
         func = shape_function(layer.shape)
         if is_missing(layer, :shape_parameters)
             layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, r_start, r_end, target_minimum_distance)

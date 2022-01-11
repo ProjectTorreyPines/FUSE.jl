@@ -1,6 +1,7 @@
 import ModelingToolkit
 import OrdinaryDiffEq
 import LazySets
+import Interpolations
 
 #= =============== =#
 #  Shape functions  #
@@ -14,10 +15,12 @@ function error_layer_shape(shape_function_index)
   2: rectangle   (shape_parameters = [height])
   3: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
   4: miller      (shape_parameters = [elongation, triangularity])
+  5: spline      (shape_parameters = [hfact, rz...)
 101: Priceton D  (shape_parameters = [z_offset])
 102: rectangle   (shape_parameters = [height, z_offset])
 103: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage, z_offset])
 104: miller      (shape_parameters = [elongation, triangularity, z_offset])
+105: spline      (shape_parameters = [hfact, rz..., z_offset])
 ")
 end
 
@@ -30,13 +33,21 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
     else
         shape_index_mod = mod(shape_function_index, 100)
         if shape_index_mod == 1
-            shape_parameters = []
+            shape_parameters = Real[]
         elseif shape_index_mod == 2
             shape_parameters = [height]
         elseif shape_index_mod == 3
-            shape_parameters = [height, 0.0, 0.0, 45, 45]
+            shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
         elseif shape_index_mod == 4
-            shape_parameters = [height/(r_end-r_start), 0.0]
+            shape_parameters = [height / (r_end - r_start), 0.0]
+        elseif shape_index_mod == 5
+            n = 2
+            R = range(r_start, r_end, length=2+n)[2:end-1]
+            Z = range(height/2.0, height/2.0, length=2+n)[2:end-1]
+            shape_parameters = Float64[0.8]
+            for (r,z) in zip(R,Z)
+                append!(shape_parameters, [r, z])
+            end
         end
     end
     if shape_parameters === nothing
@@ -70,6 +81,8 @@ function shape_function(shape_function_index)
             func =  tripple_arc
         elseif shape_index_mod == 4
             func = miller_Rstart_Rend
+        elseif shape_index_mod == 5
+            func = spline_shape
         end
     end
     if func === nothing
@@ -82,13 +95,13 @@ function shape_function(shape_function_index)
 end
 
 """
-    optimize_shape_clearance(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
+    optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
 function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
 
-    if length(shape_parameters) == 0
+    if length(shape_parameters) in [0, 1]
         func(r_start, r_end, shape_parameters...)
         return shape_parameters 
     end
@@ -101,7 +114,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         R = R[index]
         Z = Z[index]
 
-        # no polygon crossings!  O(N)
+        # no polygon crossings  O(N)
         inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r,z) in zip(R, Z)]
         cost_inside = sum(inpoly)
 
@@ -113,52 +126,43 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         minimum_distance = minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
         cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
         
+        # favor up/down symmetric solutions
+        cost_up_down_symmetry = abs(sum(Z) / sum(abs.(Z)))
+
+        # favor smoothness and avoid convex shapes
+        dR = diff(R)
+        dZ = diff(Z)
+        dRa = dR[1:end-1]
+        dRb = dR[2:end]
+        dZa = dZ[1:end-1]
+        dZb = dZ[2:end]
+        sin_theta = (dRa.*dZb.-dZa.*dRb)./(sqrt.(dRa.^2.0.+dZa.^2.0).*sqrt.(dRb.^2.0+dZb.^2.0))
+        cost_concavity = 0
+        if any(sin_theta.>0)
+            cost_concavity = sum(abs.(sin_theta[sin_theta.>0]))/length(sin_theta)
+        end
+        cost_smoothness = sum(abs.(sin_theta))/length(sin_theta)
+
         # return cost
-        return cost_min_clearance^2 + 1E-1 * cost_area^2 + cost_inside^2
+        return cost_min_clearance^2 + 1E-1 * cost_area^2 + cost_inside^2 + 1E-3 * cost_up_down_symmetry^2 + cost_smoothness^2 + 100 * cost_concavity^2
     end
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
     obstruction_area =  sum(abs.(diff(r_obstruction) .* (z_obstruction[1:end-1] .+ z_obstruction[2:end]) ))
     initial_guess = copy(shape_parameters)
+    # res = optimize(shape_parameters-> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters),
+    #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
     res = optimize(shape_parameters-> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters),
-                   initial_guess, length(shape_parameters)==1 ? BFGS() : NelderMead(), Optim.Options(time_limit=time_limit); autodiff=:forward)
+                  initial_guess, length(shape_parameters)==1 ? BFGS() : NelderMead(), Optim.Options(time_limit=time_limit); autodiff=:forward)
     if verbose
         println(res)
     end
     shape_parameters = Optim.minimizer(res)
+    R, Z = func(r_start, r_end, shape_parameters...)
+    # plot(func(r_start, r_end, initial_guess...);markershape=:+)
+    # plot!(r_obstruction,z_obstruction)
+    # display(plot!(R,Z;markershape=:x,aspect_ratio=:equal))
     return shape_parameters
-end
-
-"""
-    miller(R0, inverse_aspect_ratio, elongation, triangularity, n_points)
-
-Miller contour
-"""
-function miller(R0, rmin_over_R0, elongation, triangularity; n_points = 401)
-    θ = range(0, 2*pi, length=n_points)
-    # bound triangularity
-    while abs(triangularity) > 1.0
-        if triangularity < 1.0
-            triangularity = -2.0 - triangularity
-        else
-            triangularity = 2.0 - triangularity
-        end
-    end
-    δ₀ = asin(triangularity)
-    R = R0 * (1 .+ rmin_over_R0 .* cos.(θ .+ δ₀ * sin.(θ)))
-    Z = R0 * (rmin_over_R0 * elongation * sin.(θ))
-    R[end] = R[1]
-    Z[end] = Z[1]
-    return R, Z
-end
-
-"""
-    miller_Rstart_Rend(r_start, r_end, elongation, triangularity, n_points)
-
-Miller contour
-"""
-function miller_Rstart_Rend(r_start, r_end, elongation, triangularity; n_points = 401)
-    return miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity; n_points)
 end
 
 """
@@ -203,11 +207,11 @@ function princeton_D(r_start::Real, r_end::Real)
     return R, Z
 end
 
-
 """
     rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real)
 
 Asymmetric rectangular contour
+layer[:].shape = 2
 """
 function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; n_points = 5)
     if n_points == 5
@@ -242,6 +246,7 @@ end
 
 TrippleArc contour
 Angles are in degrees
+height, small_radius, mid_radius, small_coverage, mid_coverage are 10^exponent (to ensure positiveness)
 """
 function tripple_arc(r_start::Real,
                      r_end::Real,
@@ -250,15 +255,15 @@ function tripple_arc(r_start::Real,
                      mid_radius::Real,
                      small_coverage::Real,
                      mid_coverage::Real;
-                     min_small_radius_fraction::Real=0.1,
-                     min_mid_radius_fraction::Real=0.25,
-                     n_points::Int=1000)
+                     min_small_radius_fraction::Real=0.45,
+                     min_mid_radius_fraction::Real=min_small_radius_fraction*2,
+                     n_points::Int=400)
 
-    height = abs(height) * 0.5
-    small_radius = abs(small_radius) + height * min_small_radius_fraction
-    mid_radius = abs(mid_radius) + height * min_mid_radius_fraction
-    small_coverage = abs(small_coverage) * pi / 180
-    mid_coverage =  abs(mid_coverage) * pi / 180
+    height = 10^height * 0.5
+    small_radius = 10^small_radius + height * min_small_radius_fraction
+    mid_radius = 10^mid_radius + height * min_mid_radius_fraction
+    small_coverage = 10^small_coverage * pi / 180
+    mid_coverage =  10^mid_coverage * pi / 180
 
     asum = small_coverage + mid_coverage
     n_points =  floor(Int, n_points/4)
@@ -294,6 +299,71 @@ function tripple_arc(r_start::Real,
     R = (R .- minimum(R)) .* factor .+ r_start
 
     return R, Z
+end
+
+"""
+    miller(R0, inverse_aspect_ratio, elongation, triangularity, n_points)
+
+Miller contour
+layer[:].shape = 4
+"""
+function miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real; n_points::Int=401)
+    θ = range(0, 2*pi, length=n_points)
+    # bound triangularity
+    while abs(triangularity) > 1.0
+        if triangularity < 1.0
+            triangularity = -2.0 - triangularity
+        else
+            triangularity = 2.0 - triangularity
+        end
+    end
+    δ₀ = asin(triangularity)
+    R = R0 * (1 .+ rmin_over_R0 .* cos.(θ .+ δ₀ * sin.(θ)))
+    Z = R0 * (rmin_over_R0 * elongation * sin.(θ))
+    R[end] = R[1]
+    Z[end] = Z[1]
+    return R, Z
+end
+
+"""
+    miller_Rstart_Rend(r_start, r_end, elongation, triangularity, n_points)
+
+Miller contour
+"""
+function miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real; n_points::Int=401)
+    return miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity; n_points)
+end
+
+"""
+    spline_shape(r::Real, z::Real; n_points::Int=101)
+
+Spline contour
+"""
+function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where T <: Real
+    r = vcat(r[1],r[1],r,r[end],r[end])
+    z = vcat(0,z[1]/2,z,z[end]/2,0)
+    d = cumsum(sqrt.(vcat(0,diff(r)).^2.0.+vcat(0,diff(z)).^2.0))
+
+    itp_r = Interpolations.interpolate(d, r, Interpolations.FritschCarlsonMonotonicInterpolation())
+    itp_z = Interpolations.interpolate(d, z, Interpolations.FritschCarlsonMonotonicInterpolation())
+
+    D = LinRange(d[1], d[end], n_points)
+    R, Z = itp_r.(D), itp_z.(D)
+    R[end] = R[1]
+    Z[end] = Z[1]
+    return R, Z
+end
+
+function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points=101)
+    rz = collect(rz)
+    R = rz[1:2:end]
+    Z = rz[2:2:end]
+    hfact_max = 0.65+(minimum(R)-r_start)/(r_end-r_start)
+    hfact = min(abs(hfact),hfact_max)
+    h = maximum(Z) * hfact
+    r = vcat(r_start, R, r_end, reverse(R), r_start)
+    z = vcat(h, Z, 0, -reverse(Z), -h)
+    return spline_shape(r,z; n_points=n_points)
 end
 
 
