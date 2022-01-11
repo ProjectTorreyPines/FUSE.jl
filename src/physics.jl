@@ -37,9 +37,9 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
         elseif shape_index_mod == 2
             shape_parameters = [height]
         elseif shape_index_mod == 3
-            shape_parameters = [height, 0.0, 0.0, 45, 45]
+            shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
         elseif shape_index_mod == 4
-            shape_parameters = [height/(r_end-r_start), 0.0]
+            shape_parameters = [height / (r_end - r_start), 0.0]
         elseif shape_index_mod == 5
             n = 2
             R = range(r_start, r_end, length=2+n)[2:end-1]
@@ -101,7 +101,7 @@ Find shape parameters that generate smallest shape and target clearance from an 
 """
 function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
 
-    if length(shape_parameters) == 0
+    if length(shape_parameters) in [0, 1]
         func(r_start, r_end, shape_parameters...)
         return shape_parameters 
     end
@@ -161,7 +161,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     R, Z = func(r_start, r_end, shape_parameters...)
     # plot(func(r_start, r_end, initial_guess...);markershape=:+)
     # plot!(r_obstruction,z_obstruction)
-    # display(plot!(R,Z;markershape=:x,aspect_ratio=:equal))    
+    # display(plot!(R,Z;markershape=:x,aspect_ratio=:equal))
     return shape_parameters
 end
 
@@ -246,7 +246,7 @@ end
 
 TrippleArc contour
 Angles are in degrees
-layer[:].shape = 3
+height, small_radius, mid_radius, small_coverage, mid_coverage are 10^exponent (to ensure positiveness)
 """
 function tripple_arc(r_start::Real,
                      r_end::Real,
@@ -255,15 +255,15 @@ function tripple_arc(r_start::Real,
                      mid_radius::Real,
                      small_coverage::Real,
                      mid_coverage::Real;
-                     min_small_radius_fraction::Real=0.1,
-                     min_mid_radius_fraction::Real=0.25,
-                     n_points::Int=1000)
+                     min_small_radius_fraction::Real=0.45,
+                     min_mid_radius_fraction::Real=min_small_radius_fraction*2,
+                     n_points::Int=400)
 
-    height = abs(height) * 0.5
-    small_radius = abs(small_radius) + height * min_small_radius_fraction
-    mid_radius = abs(mid_radius) + height * min_mid_radius_fraction
-    small_coverage = abs(small_coverage) * pi / 180
-    mid_coverage =  abs(mid_coverage) * pi / 180
+    height = 10^height * 0.5
+    small_radius = 10^small_radius + height * min_small_radius_fraction
+    mid_radius = 10^mid_radius + height * min_mid_radius_fraction
+    small_coverage = 10^small_coverage * pi / 180
+    mid_coverage =  10^mid_coverage * pi / 180
 
     asum = small_coverage + mid_coverage
     n_points =  floor(Int, n_points/4)
