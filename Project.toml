@@ -4,6 +4,7 @@ authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+AD_GS = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 Contour = "d38c429a-6771-53c6-b99e-75d170b6e991"
 CoordinateConventions = "7204ce3a-f536-43d2-be4a-fbed74e90d86"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
