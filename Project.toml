@@ -4,7 +4,6 @@ authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.1.0"
 
 [deps]
-AD_GS = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 Contour = "d38c429a-6771-53c6-b99e-75d170b6e991"
 CoordinateConventions = "7204ce3a-f536-43d2-be4a-fbed74e90d86"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
@@ -19,6 +18,7 @@ LibGEOS = "a90b1aa1-3769-5649-ba7e-abc5a9d163eb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
+NumericalIntegration = "e7bfaba1-d571-5449-8927-abc22e82249b"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
