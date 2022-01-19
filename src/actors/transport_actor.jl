@@ -1,13 +1,44 @@
+using NumericalIntegration
+using AD_TAUENN
 
+function Hmode_profiles(edge::Real, ped::Real, core::Real, ngrid::Int, expin::Real, expout::Real, widthp::Real)
+    w_E1 = 0.5 * widthp  # width as defined in eped
+    xphalf = 1.0 - w_E1
 
+    xped = xphalf - w_E1
+ 
+    pconst = 1.0 - tanh((1.0 - xphalf) / w_E1)
+    a_t = 2.0 * (ped - edge) / (1.0 + tanh(1.0) - pconst)
 
-function init(cs::IMAS.core_sources, eq::IMAS.equilibrium, Paux_e::Real, Paux_i::Real)
+    coretanh = 0.5 * a_t * (1.0 - tanh(-xphalf / w_E1) - pconst) + edge
+
+    xpsi = LinRange(1e-50, 1, ngrid)
+
+    val = [0.5 * a_t * (1. - tanh((xpsi[i] - xphalf) / w_E1) - pconst) + edge * 1. for i in 1:ngrid]
+
+    xtoped = xpsi / xped
+    grid = LinRange(0, 1,ngrid)
+    for (i,ival) in enumerate(grid)
+        if xtoped[i]<0 
+            @inbounds val[i] = val[i] + (core - coretanh)
+        elseif xtoped[i] ^ expin < 1.0
+            @inbounds val[i] = val[i] + (core - coretanh) * (1.0 - xtoped[i] ^ expin) ^ expout
+        end
+    end
+
+    return val
+end
+
+function init(cs::IMAS.core_sources, eq::IMAS.equilibrium; Paux_e::Real, Paux_i::Real)
+    resize!(cs.source, 1)
+    resize!(cs.source[1].profiles_1d,1)
     for time_index in 1:length(eq.time_slice)
         cs1d = cs.source[1].profiles_1d[time_index]
-        cs1d = cs.source[1].index ...
-        cs1d = cs.source[1].name ...
-        cs1d.grid.rho_tor_norm = rho = eq.time_slice[time_index].grid.rho_tor_norm
-        cs1d.grid.vol = vol = eq.time_slice[time_index].grid.vol
+        cs.source[1].identifier.name = "arb"
+        cs.source[1].identifier.index = 901
+        cs.source[1].identifier.description = "Arbitrary source from transport initialization"
+        cs1d.grid.rho_tor_norm = rho = eq.time_slice[time_index].profiles_1d.rho_tor_norm
+        cs1d.grid.volume = vol = eq.time_slice[time_index].profiles_1d.volume
 
         auxHeatingProfile =  exp.(-4.0 * rho)
         pow_prof = cumul_integrate(vol, auxHeatingProfile)
@@ -16,13 +47,15 @@ function init(cs::IMAS.core_sources, eq::IMAS.equilibrium, Paux_e::Real, Paux_i:
         cs1d.electrons.power_inside = pow_prof .* Paux_e
         cs1d.total_ion_power_inside = pow_prof .* Paux_i
     end
+    return cs
 end
 
-function init(cpt, eqt, neped, ne_peaking, Te_ped, Te_peaking, w_ped, zeff, n_points=101)
+function init(cp::IMAS.core_profiles, eqt::IMAS.equilibrium__time_slice; neped::Real, ne_peaking::Real, Te_ped::Real, Te_peaking::Real, w_ped::Real, zeff::Real, Paux::Real,T_ratio=1.0, n_points=101)
+    resize!(cp.profiles_1d,1)
+    cpt = cp.profiles_1d[1]
     cpt.grid.rho_tor_norm = rho =  LinRange(0, 1, n_points)
-
-    cpt.zeff = ones(inputs.rgrid) .* zeff
-    cpt.rotation_frequency_tor_sonic = 5e3 .* abs(inputs.Paux .* 1.0 + 0.5) .* (1.0 .- rho)
+    cpt.zeff = ones(n_points) .* zeff
+    cpt.rotation_frequency_tor_sonic = 5e3 * abs(Paux/1e6 * 1.0 + 0.5) .* (1.0 .- rho)
 
     # Set ions
     resize!(cpt.ion, 2)
@@ -37,26 +70,30 @@ function init(cpt, eqt, neped, ne_peaking, Te_ped, Te_peaking, w_ped, zeff, n_po
 
     # Set densities
     ne_core = ne_peaking * neped
-    ne = TAUENN_AD.Hmode_profiles(0.5 * neped, neped, ne_core, length(rho), 0.9, 0.9, w_ped)
-    prof1d.electrons.density = ne
+    #ne = TAUENN_AD.Hmode_profiles(0.5 * neped, neped, ne_core, length(rho), 0.9, 0.9, w_ped)
+    ne = Hmode_profiles(0.5 * neped, neped, ne_core, length(rho), 0.9, 0.9, w_ped)
+
+    cpt.electrons.density = ne
     zimp1 = 6.0
     niFraction = zeros(2)
     niFraction[2] = (zeff - 1.0) / (zimp1 * (zimp1 - 1.0))
     niFraction[1] = 1.0 - zimp1 * niFraction[2]
-    for i in 1:length(prof1d.ion)
-        prof1d.ion[i].density = ni = ne .* niFraction[i]
+    for i in 1:length(cpt.ion)
+        cpt.ion[i].density = ni = ne .* niFraction[i]
     end
 
     # Set temperatures
-    # Use same approach of EPED guess for Tcore
-    betaN = eqt...
-    Bt = eqt...
-    Ip = eqt...
-    a = eqt...
+    betaN = eqt.global_quantities.beta_normal
+    Bt = eqt.global_quantities.magnetic_axis.b_field_tor
+    Ip = eqt.global_quantities.ip
+    a = eqt.boundary.minor_radius
 
-    tcore = 10. * betaN * abs(Bt * Ip) / a / ne_core / (2.0 * 1.6e1 * 4.0 * pi * 1.0e-4)
-    Te = Hmode_profiles(80., teped, tcore, length(rho), Te_peaking, Te_peaking, w_ped)
-    prof1d.electrons.temperature = Te
+    Te_core = 10. * betaN * abs(Bt * (Ip/1e6)) / a / (ne_core/1e20) / (2.0 * 1.6e1 * 4.0 * pi * 1.0e-4)
+#    Te = TAUENN_AD.Hmode_profiles(80., teped, tcore, length(rho), Te_peaking, Te_peaking, w_ped)
+    Te = Hmode_profiles(80., Te_ped, Te_core, length(rho), Te_peaking, Te_peaking, w_ped)
+    cpt.electrons.temperature = Te
+    cpt.ion[1].temperature = Te ./ T_ratio
+    cpt.ion[2].temperature = Te ./ T_ratio
 
     # to be done as an expression
     # prof1d.pressure_thermal = 1.6e-19 .* ne .* Te
@@ -66,5 +103,36 @@ function init(cpt, eqt, neped, ne_peaking, Te_ped, Te_peaking, w_ped, zeff, n_po
     #     pion =  1.6e-19 .* ni .* Ti
     #     prof1d.pressure_thermal = prof1d.pressure_thermal .+ pion
     # end
+    return cp
+end
 
+#= ================ =#
+#     TAUENN actor   #
+#= ================ =#
+
+mutable struct TaueNNactor <: AbstractActor
+    cp::IMAS.core_profiles
+    eqt::IMAS.equilibrium__time_slice
+    cs::IMAS.core_sources
+    rho_fluxmatch::Real
+    eped_factor::Real
+    temp_shape::Real
+end
+
+function TaueNNactor(cp::IMAS.core_profiles, eq::IMAS.equilibrium, cs::IMAS.core_sources; rho_fluxmatch=0.4, eped_factor=1.0, temp_shape=1.8)
+    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : abs(eqt.global_quantities.ip) for eqt in eq.time_slice])
+    return TaueNNactor(cp, eq.time_slice[time_index], cs)
+end
+
+function TaueNNactor(dd::IMAS.dd; rho_fluxmatch=0.4, eped_factor=1.0, Tshape=1.8)
+    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : abs(eqt.global_quantities.ip) for eqt in dd.equilibrium.time_slice])
+    return TaueNNactor(dd.core_profiles, dd.equilibrium.time_slice[time_index], dd.core_sources)
+end
+
+
+# step
+function step(tauennactor::TaueNNactor)
+    # run tauenn
+    tauenn(tauennactor.cp, tauenator.eqt, tauennactor.cs, rho_fluxmatch, eped_factor, temp_shape)
+    print("step of tauennactor")
 end
