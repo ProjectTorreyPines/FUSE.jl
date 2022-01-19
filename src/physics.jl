@@ -340,12 +340,12 @@ end
 Spline contour
 """
 function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where T <: Real
-    r = vcat(r[1],r[1],r,r[end],r[end])
-    z = vcat(0,z[1]/2,z,z[end]/2,0)
-    d = cumsum(sqrt.(vcat(0,diff(r)).^2.0.+vcat(0,diff(z)).^2.0))
+    r = vcat(r[1], r[1], r, r[end], r[end])
+    z = vcat(0, z[1]/2, z, z[end]/2, 0)
+    d = cumsum(sqrt.(vcat(0, diff(r)) .^ 2.0 .+ vcat(0, diff(z)) .^ 2.0))
 
-    itp_r = Interpolations.interpolate(d, r, Interpolations.FritschCarlsonMonotonicInterpolation())
-    itp_z = Interpolations.interpolate(d, z, Interpolations.FritschCarlsonMonotonicInterpolation())
+    itp_r = Interpolations.interpolate(d, r, Interpolations.FritschButlandMonotonicInterpolation())
+    itp_z = Interpolations.interpolate(d, z, Interpolations.FritschButlandMonotonicInterpolation())
 
     D = LinRange(d[1], d[end], n_points)
     R, Z = itp_r.(D), itp_z.(D)
@@ -358,12 +358,12 @@ function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points=1
     rz = collect(rz)
     R = rz[1:2:end]
     Z = rz[2:2:end]
-    hfact_max = 0.65+(minimum(R)-r_start)/(r_end-r_start)
-    hfact = min(abs(hfact),hfact_max)
+    hfact_max = 0.65 + (minimum(R) - r_start) / (r_end - r_start)
+    hfact = min(abs(hfact), hfact_max)
     h = maximum(Z) * hfact
     r = vcat(r_start, R, r_end, reverse(R), r_start)
     z = vcat(h, Z, 0, -reverse(Z), -h)
-    return spline_shape(r,z; n_points=n_points)
+    return spline_shape(r, z; n_points=n_points)
 end
 
 
