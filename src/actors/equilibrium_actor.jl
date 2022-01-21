@@ -125,18 +125,12 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
 
     function opti(x)
         S = solovev(B0, R0, epsilon, delta, kappa, x[1], x[2], B0_dir=S0.sigma_B0, Ip_dir=S0.sigma_Ip, symmetric=true, xpoint=nothing)
-        beta_cost = abs((Equilibrium.beta_n(S) - target_beta)^2 / target_beta)
-        ip_cost = abs((Equilibrium.plasma_current(S) - target_ip)^2 / target_ip)
-        return (beta_cost + ip_cost)^2
+        beta_cost = ((Equilibrium.beta_n(S) - target_beta) / target_beta)
+        ip_cost = ((Equilibrium.plasma_current(S) - target_ip) / target_ip)
+        return beta_cost^2 + ip_cost^2
     end
 
-    # having issues taking derivatives of SolovevEquilibriumActor and using Newton optimizer when S is diverted 
-    if isa(B0, ForwardDiff.Dual)# || S0.diverted
-        optim_method = Optim.NelderMead()
-    else
-        optim_method = Optim.Newton()
-    end
-    res = Optim.optimize(opti, [alpha, qstar], optim_method, Optim.Options(g_tol=1E-1); autodiff=:forward)
+    res = Optim.optimize(opti, [alpha, qstar], Optim.NelderMead(), Optim.Options(g_tol=1E-1); autodiff=:forward)
     
     if verbose
         println(res)
