@@ -181,7 +181,9 @@ function radial_build_cx(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slic
     private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
     a = 0
     for (pr, pz) in private
-        if sum(pz) < 0
+        if pz[1] != pz[end]
+            continue
+        elseif sum(pz) < 0
             index = argmax(pz)
             a = minimum(z95)-minimum(zlcfs)
             a = min(a, pz[index]-minimum(pz))
