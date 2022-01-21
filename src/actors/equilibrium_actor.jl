@@ -177,9 +177,9 @@ function finalize(actor::SolovevEquilibriumActor,
 
     eqt.profiles_2d[1].psi = [actor.S(rr, zz) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
 
-    eqt.profiles_2d[1].b_field_r = zeros(size(eqt.profiles_2d[1].psi)...)
-    eqt.profiles_2d[1].b_field_tor = zeros(size(eqt.profiles_2d[1].psi)...)
-    eqt.profiles_2d[1].b_field_z = zeros(size(eqt.profiles_2d[1].psi)...)
+    eqt.profiles_2d[1].b_field_r = zeros(eltype(eqt.profiles_2d[1].psi), size(eqt.profiles_2d[1].psi))
+    eqt.profiles_2d[1].b_field_tor = zeros(eltype(eqt.profiles_2d[1].psi), size(eqt.profiles_2d[1].psi))
+    eqt.profiles_2d[1].b_field_z = zeros(eltype(eqt.profiles_2d[1].psi), size(eqt.profiles_2d[1].psi))
     for (kr, rr) in enumerate(eqt.profiles_2d[1].grid.dim1), (kz, zz) in enumerate(eqt.profiles_2d[1].grid.dim2)
         (eqt.profiles_2d[1].b_field_r[kr,kz], eqt.profiles_2d[1].b_field_tor[kr,kz], eqt.profiles_2d[1].b_field_z[kr,kz]) = Bfield(actor.S, rr, zz)
     end
