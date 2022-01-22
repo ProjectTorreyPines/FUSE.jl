@@ -114,14 +114,14 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         R = R[index]
         Z = Z[index]
 
+        # minimize area  O(1)
+        area = sum(abs.(diff(R) .* (Z[1:end-1] .+ Z[2:end])))
+        cost_area = (area - obstruction_area) / obstruction_area
+
         # no polygon crossings  O(N)
         inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r,z) in zip(R, Z)]
-        cost_inside = sum(inpoly)
+        cost_inside = sum(inpoly) / cost_area
 
-        # minimize area  O(1)
-        coil_area = sum(abs.(diff(R) .* (Z[1:end-1] .+ Z[2:end])))
-        cost_area = (coil_area - obstruction_area) / obstruction_area
-        
         # target clearance  O(1)
         minimum_distance = minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
         cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
