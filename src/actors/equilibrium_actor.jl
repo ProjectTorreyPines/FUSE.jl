@@ -35,6 +35,21 @@ function init(eqt::IMAS.equilibrium__time_slice;
     return eqt
 end
 
+"""
+    field_null_surface(eqt, scale = 0.25, abs_psi_boundary = 0.1)
+
+Return field null surface by scaling an existing equilibrium time_slice
+"""
+function field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real = 0.25, abs_psi_boundary::Real = 0.1)
+    eqb = IMAS.equilibrium__time_slice()
+    eqb.global_quantities.psi_boundary = sign(eqt.profiles_1d.psi[1] - eqt.profiles_1d.psi[end]) * abs_psi_boundary
+    eqb.boundary.outline.r, eqb.boundary.outline.z, _ = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[1] * (1 - scale) + eqt.profiles_1d.psi[end] * scale)
+    eqb.boundary.outline.r .-= minimum(eqb.boundary.outline.r) .- minimum(IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end])[1])
+    eqb.profiles_1d.psi = [eqb.global_quantities.psi_boundary]
+    eqb.profiles_1d.f = [eqt.profiles_1d.f[end]]
+    return eqb
+end
+
 #= ======================= =#
 #  SolovevEquilibriumActor  #
 #= ======================= =#
