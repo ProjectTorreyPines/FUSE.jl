@@ -46,9 +46,9 @@ include("actors/coils_actor.jl")
 
 export PFcoilsOptActor
 
-#= ============ =#
-#  Radial Build  #
-#= ============ =#
-include("actors/radial_build_actor.jl")
+#= ===== =#
+#  Build  #
+#= ===== =#
+include("actors/build_actor.jl")
 
 export FluxSwingActor
