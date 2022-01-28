@@ -19,7 +19,7 @@ module FUSE
     #= EXPORT =#
     #= ====== =#
     export init, step, finalize
-    export IMAS
+    export IMAS, is_missing, @ddtime
     export fuse_parameters, plasma_parameters, physics_models
 
 end

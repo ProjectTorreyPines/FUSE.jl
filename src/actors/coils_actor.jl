@@ -1,8 +1,6 @@
 using Equilibrium
-using PolygonOps
+import PolygonOps
 using StaticArrays
-using DSP
-using Random
 using Interpolations
 using Optim
 using AD_GS
@@ -46,6 +44,7 @@ function init(pf_active::IMAS.pf_active,
 
     OH_layer = IMAS.get_radial_build(rb, type=1)
 
+    empty!(pf_active)
     resize!(rb.pf_coils_rail, length(n_coils))
 
     # make sure coils_cleareance is an array the lenght of the rails
@@ -87,7 +86,7 @@ function init(pf_active::IMAS.pf_active,
         pf_active.coil[k].element[1].geometry.rectangle.width = w
         pf_active.coil[k].element[1].geometry.rectangle.height = h
         set_turns_from_spacing!(pf_active.coil[k], coils_turns_spacing, +1)
-        IMAS.set_timedep_value!(pf_active.coil[k].current, pf_active.coil[k].current, :data, 0.0, 0.0)
+        @ddtime pf_active.coil[k].current.data = 0.0
     end
 
     # make sure coils_cleareance is an array the lenght of the PF rails
@@ -195,7 +194,7 @@ function init(pf_active::IMAS.pf_active,
                     pf_active.coil[k].element[1].geometry.rectangle.width = coil_size
                     pf_active.coil[k].element[1].geometry.rectangle.height = coil_size
                     set_turns_from_spacing!(pf_active.coil[k], coils_turns_spacing, +1)
-                    IMAS.set_timedep_value!(pf_active.coil[k].current, pf_active.coil[k].current, :data, 0.0, 0.0)
+                    @ddtime pf_active.coil[k].current.data = 0.0
                 end
             end
         end
@@ -226,10 +225,14 @@ mutable struct PFcoilsOptActor <: AbstractActor
     coil_model::Symbol
 end
 
-function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, n_coils::Vector; λ_regularize=1E-13, coil_model=:simple)
+function PFcoilsOptActor(eq_in::IMAS.equilibrium,
+                         rb::IMAS.radial_build,
+                         pf::IMAS.pf_active,
+                         n_coils::Vector;
+                         λ_regularize=1E-13,
+                         coil_model=:simple)
     # initialize coils location
-    pf_active = IMAS.pf_active()
-    init(pf_active, rb, n_coils)
+    init(pf, rb, n_coils)
 
     # basic constructors
     eq_out = deepcopy(eq_in)
@@ -238,7 +241,7 @@ function PFcoilsOptActor(eq_in::IMAS.equilibrium, rb::IMAS.radial_build, n_coils
     time = eq_in.time[time_index]
 
     # constructor
-    pfactor = PFcoilsOptActor(eq_in, eq_out, time, pf_active, rb, symmetric, λ_regularize, PFcoilsOptTrace(), coil_model)
+    pfactor = PFcoilsOptActor(eq_in, eq_out, time, pf, rb, symmetric, λ_regularize, PFcoilsOptTrace(), coil_model)
 
     return pfactor
 end
@@ -452,7 +455,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
     for time_index in 1:length(eq.time_slice)
         eqt = eq.time_slice[time_index]
         # field nulls
-        if eqt.time < 0
+        if is_missing(eqt.global_quantities, :ip)
             # find ψp
             Bp_fac, ψp, Rp, Zp = AD_GS.field_null_on_boundary(eqt.global_quantities.psi_boundary,
                                                               eqt.boundary.outline.r,
@@ -488,33 +491,40 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
 
     packed_tmp = []
     function placement_cost(packed; do_trace=false)
-        push!(packed_tmp, packed)
-        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
-        coils = vcat(pinned_coils, optim_coils)
-        all_cost_ψ = []
-        all_cost_currents = []
-        for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs,weights))
-            for coil in vcat(pinned_coils, optim_coils, fixed_coils)
-                coil.time_index = time_index
+        try
+            push!(packed_tmp, packed)
+            λ_regularize = unpack_rail!(optim_coils, packed, symmetric, rb)
+            coils = vcat(pinned_coils, optim_coils)
+            all_cost_ψ = []
+            all_cost_currents = []
+            for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs,weights))
+                for coil in vcat(pinned_coils, optim_coils, fixed_coils)
+                    coil.time_index = time_index
+                end
+                currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights=weight, λ_regularize=λ_regularize, return_cost=true)
+                if is_missing(eq.time_slice[time_index].global_quantities, :ip)
+                    push!(all_cost_ψ, cost_ψ0 / λ_null)
+                else
+                    push!(all_cost_ψ, cost_ψ0 / λ_ψ)
+                end
+                push!(all_cost_currents, norm((exp.(currents/λ_currents).-1.0)/(exp(1)-1)) / length(currents))
             end
-            currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights=weight, λ_regularize=λ_regularize, return_cost=true)
-            if eq.time_slice[time_index].time <0
-                push!(all_cost_ψ, cost_ψ0 / λ_null)
-            else
-                push!(all_cost_ψ, cost_ψ0 / λ_ψ)
+            cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
+            cost_currents = norm(all_cost_currents) / length(all_cost_currents)
+            cost = sqrt(cost_ψ^2 + cost_currents^2)
+            if do_trace
+                push!(trace.λ_regularize, no_Dual(λ_regularize))
+                push!(trace.cost_ψ, no_Dual(cost_ψ))
+                push!(trace.cost_currents, no_Dual(cost_currents))
+                push!(trace.cost_total, no_Dual(cost))
             end
-            push!(all_cost_currents, norm((exp.(currents/λ_currents).-1.0)/(exp(1)-1)) / length(currents))
+            println(cost)
+            return cost
+        catch e
+            println(e)
+            rethrow
         end
-        cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
-        cost_currents = norm(all_cost_currents) / length(all_cost_currents)
-        cost = sqrt(cost_ψ^2 + cost_currents^2)
-        if do_trace
-            push!(trace.λ_regularize, no_Dual(λ_regularize))
-            push!(trace.cost_ψ, no_Dual(cost_ψ))
-            push!(trace.cost_currents, no_Dual(cost_currents))
-            push!(trace.cost_total, no_Dual(cost))
-        end
-        return cost
+
     end
 
     function clb(x)
@@ -597,7 +607,7 @@ function step(pfactor::PFcoilsOptActor;
 
     # update equilibrium
     for time_index in 1:length(pfactor.eq_in.time_slice)
-        if pfactor.eq_in.time_slice[time_index].time < 0
+        if is_missing(pfactor.eq_in.time_slice[time_index].global_quantities, :ip)
             continue
         end
         for coil in vcat(pinned_coils, optim_coils, fixed_coils)
@@ -626,7 +636,7 @@ Plot PFcoilsOptActor optimization cross-section
 
     # if there is no equilibrium then treat this as a field_null plot
     field_null = false
-    if length(pfactor.eq_out.time_slice[time_index].profiles_2d)==0 || IMAS.is_missing(pfactor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
+    if length(pfactor.eq_out.time_slice[time_index].profiles_2d)==0 || is_missing(pfactor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
         coils_flux = true
         field_null = true
     end

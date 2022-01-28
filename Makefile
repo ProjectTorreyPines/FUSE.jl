@@ -21,6 +21,7 @@ install_IJulia:
 	julia -e '\
 using Pkg;\
 Pkg.add("IJulia");\
+Pkg.build("IJulia");\
 '
 
 install_FUSE: install_IMAS install_CoordinateConventions install_FusionMaterials install_AD_GS install_Equilibrium

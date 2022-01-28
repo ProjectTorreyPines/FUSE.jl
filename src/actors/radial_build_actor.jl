@@ -7,18 +7,15 @@ import LazySets
 #  init core_profiles  #
 #= ================== =#
 function init(cp::IMAS.core_profiles; kw...)
-    
-    if :ejima in keys(kw)
-        IMAS.set_timedep_value!(cp, cp.global_quantities, :ejima, 0.0, kw[:ejima])
+    for item in keys(kw)
+        IMAS.set_time_array(cp.global_quantities, item, kw[item])
     end
-
     return cp
 end
 
 #= ================= =#
 #  init radial_build  #
 #= ================= =#
-
 """
     init(rb::IMAS.radial_build; layers...)
 
@@ -38,6 +35,8 @@ layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
 function init(rb::IMAS.radial_build; layers...)
+    # empty radial build IDS
+    empty!(rb)
     # assign layers
     resize!(rb.layer, length([layer_name for (layer_name, layer_thickness) in layers if layer_thickness >= 0.0]))
     k = 0
@@ -83,16 +82,17 @@ function init(rb::IMAS.radial_build; layers...)
 end
 
 """
-    init(rb::IMAS.radial_build, eqt::IMAS.equilibrium__time_slice; is_nuclear_facility=true)
+    init(rb::IMAS.radial_build, eqt::IMAS.equilibrium; is_nuclear_facility=true)
 
 Simple initialization of radial_build IDS based on equilibrium time_slice
 """
 function init(rb::IMAS.radial_build,
-              eqt::IMAS.equilibrium__time_slice;
+              eq::IMAS.equilibrium;
               tf_shape_index::Int=3,
               is_nuclear_facility::Bool=true,
               pf_inside_tf::Bool=false,
               pf_outside_tf::Bool=true)
+    eqt = eq.time_slice[]
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
 
@@ -341,13 +341,12 @@ mutable struct FluxSwingActor <: AbstractActor
     cp::IMAS.core_profiles
 end
 
-function FluxSwingActor(rb::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
-    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : abs(eqt.global_quantities.ip) for eqt in eq.time_slice])
-    return FluxSwingActor(rb, eq.time_slice[time_index], cp)
-end
-
 function FluxSwingActor(dd::IMAS.dd)
     return FluxSwingActor(dd.radial_build, dd.equilibrium, dd.core_profiles)
+end
+
+function FluxSwingActor(rb::IMAS.radial_build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
+    return FluxSwingActor(rb, eq.time_slice[], cp)
 end
 
 # step
@@ -374,7 +373,7 @@ function rampup_flux_requirements(rb::IMAS.radial_build, eqt::IMAS.equilibrium__
     elongation = eqt.boundary.elongation
     plasmaCurrent = eqt.global_quantities.ip / 1E6 # in [MA]
     li = eqt.global_quantities.li_3 # what li ?
-    ejima = IMAS.interp(cp.time, cp.global_quantities.ejima)(eqt.time)
+    ejima = @ddtime cp.global_quantities.ejima
 
     # ============================= #
     # evaluate plasma inductance
