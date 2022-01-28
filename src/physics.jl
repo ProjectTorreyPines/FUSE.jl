@@ -114,14 +114,14 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         R = R[index]
         Z = Z[index]
 
+        # minimize area  O(1)
+        area = sum(abs.(diff(R) .* (Z[1:end-1] .+ Z[2:end])))
+        cost_area = (area - obstruction_area) / obstruction_area
+
         # no polygon crossings  O(N)
         inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r,z) in zip(R, Z)]
-        cost_inside = sum(inpoly)
+        cost_inside = sum(inpoly) / cost_area
 
-        # minimize area  O(1)
-        coil_area = sum(abs.(diff(R) .* (Z[1:end-1] .+ Z[2:end])))
-        cost_area = (coil_area - obstruction_area) / obstruction_area
-        
         # target clearance  O(1)
         minimum_distance = minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
         cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
@@ -144,7 +144,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         cost_smoothness = sum(abs.(sin_theta))/length(sin_theta)
 
         # return cost
-        return cost_min_clearance^2 + 1E-1 * cost_area^2 + cost_inside^2 + 1E-3 * cost_up_down_symmetry^2 + cost_smoothness^2 + 100 * cost_concavity^2
+        return cost_min_clearance^2 + cost_area^2 + cost_inside^2 + 1E-3 * cost_up_down_symmetry^2 + 10*cost_smoothness^2 + 100 * cost_concavity^2
     end
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
@@ -166,7 +166,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
 end
 
 """
-    princeton_D(r_start::Real,r_end::Real,closed::Bool=true)
+    princeton_D(r_start::Real, r_end::Real)
 
 "Princeton D" contour between radii r_end and r_start
 
@@ -208,7 +208,7 @@ function princeton_D(r_start::Real, r_end::Real)
 end
 
 """
-    rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real)
+    rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; n_points = 5)
 
 Asymmetric rectangular contour
 layer[:].shape = 2
@@ -225,7 +225,7 @@ function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; 
 end
 
 """
-    rectangle_shape(r_start::Real, r_end::Real, height::Real)
+    rectangle_shape(r_start::Real, r_end::Real, height::Real; n_points = 5)
 
 Symmetric rectangular contour
 """
@@ -236,13 +236,15 @@ end
 
 """
     function tripple_arc(r_start::Real,
-                         r_end::Real,
-                         height::Real,
-                         small_radius::Real,
-                         mid_radius::Real,
-                         small_coverage::Real,
-                         mid_coverage::Real;
-                         n_points::Int=1000)
+        r_end::Real,
+        height::Real,
+        small_radius::Real,
+        mid_radius::Real,
+        small_coverage::Real,
+        mid_coverage::Real;
+        min_small_radius_fraction::Real=0.5,
+        min_mid_radius_fraction::Real=min_small_radius_fraction*2.0,
+        n_points::Int=400)
 
 TrippleArc contour
 Angles are in degrees
@@ -255,15 +257,15 @@ function tripple_arc(r_start::Real,
                      mid_radius::Real,
                      small_coverage::Real,
                      mid_coverage::Real;
-                     min_small_radius_fraction::Real=0.45,
-                     min_mid_radius_fraction::Real=min_small_radius_fraction*2,
+                     min_small_radius_fraction::Real=0.5,
+                     min_mid_radius_fraction::Real=min_small_radius_fraction*2.0,
                      n_points::Int=400)
 
-    height = 10^height * 0.5
+    height = 10^height / 2.0
     small_radius = 10^small_radius + height * min_small_radius_fraction
     mid_radius = 10^mid_radius + height * min_mid_radius_fraction
     small_coverage = 10^small_coverage * pi / 180
-    mid_coverage =  10^mid_coverage * pi / 180
+    mid_coverage = 10^mid_coverage * pi / 180
 
     asum = small_coverage + mid_coverage
     n_points =  floor(Int, n_points/4)
@@ -291,7 +293,7 @@ function tripple_arc(r_start::Real,
     
     # Add vertical
     R = vcat(LinRange(r_start, r_start, n_points), R)
-    Z = vcat(LinRange(-height, height ,n_points), Z)
+    Z = vcat(LinRange(-height, height, n_points), Z)
     
     # Resize to ensure r_start to r_end
     factor = (r_end - r_start) / (maximum(R) - minimum(R))
@@ -340,12 +342,12 @@ end
 Spline contour
 """
 function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where T <: Real
-    r = vcat(r[1],r[1],r,r[end],r[end])
-    z = vcat(0,z[1]/2,z,z[end]/2,0)
-    d = cumsum(sqrt.(vcat(0,diff(r)).^2.0.+vcat(0,diff(z)).^2.0))
+    r = vcat(r[1], r[1], r, r[end], r[end])
+    z = vcat(0, z[1]/2, z, z[end]/2, 0)
+    d = cumsum(sqrt.(vcat(0, diff(r)) .^ 2.0 .+ vcat(0, diff(z)) .^ 2.0))
 
-    itp_r = Interpolations.interpolate(d, r, Interpolations.FritschCarlsonMonotonicInterpolation())
-    itp_z = Interpolations.interpolate(d, z, Interpolations.FritschCarlsonMonotonicInterpolation())
+    itp_r = Interpolations.interpolate(d, r, Interpolations.FritschButlandMonotonicInterpolation())
+    itp_z = Interpolations.interpolate(d, z, Interpolations.FritschButlandMonotonicInterpolation())
 
     D = LinRange(d[1], d[end], n_points)
     R, Z = itp_r.(D), itp_z.(D)
@@ -358,12 +360,12 @@ function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points=1
     rz = collect(rz)
     R = rz[1:2:end]
     Z = rz[2:2:end]
-    hfact_max = 0.65+(minimum(R)-r_start)/(r_end-r_start)
-    hfact = min(abs(hfact),hfact_max)
+    hfact_max = 0.5 + (minimum(R) - r_start) / (r_end - r_start) / 2.0
+    hfact = min(abs(hfact), hfact_max)
     h = maximum(Z) * hfact
     r = vcat(r_start, R, r_end, reverse(R), r_start)
     z = vcat(h, Z, 0, -reverse(Z), -h)
-    return spline_shape(r,z; n_points=n_points)
+    return spline_shape(r, z; n_points=n_points)
 end
 
 

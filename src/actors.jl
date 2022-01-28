@@ -35,7 +35,6 @@ end
 #= =========== =#
 #  Equilibrium  #
 #= =========== =#
-
 include("actors/equilibrium_actor.jl")
 
 export SolovevEquilibriumActor
@@ -43,7 +42,6 @@ export SolovevEquilibriumActor
 #= ===== =#
 #  Coils  #
 #= ===== =#
-
 include("actors/coils_actor.jl")
 
 export PFcoilsOptActor
@@ -51,7 +49,6 @@ export PFcoilsOptActor
 #= ============ =#
 #  Radial Build  #
 #= ============ =#
-
 include("actors/radial_build_actor.jl")
 
 #= ========= =#
