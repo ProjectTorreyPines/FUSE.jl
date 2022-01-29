@@ -1,24 +1,24 @@
 using NumericalIntegration
 import AD_TAUENN
 
-function init(cs::IMAS.core_sources, eq::IMAS.equilibrium; Paux_e::Real, Paux_i::Real)
+function init(cs::IMAS.core_sources, eq::IMAS.equilibrium;ngrid=101, Paux_e::Real, Paux_i::Real)
     resize!(cs.source, 1)
     resize!(cs.source[1].profiles_1d,1)
-    for time_index in 1:length(eq.time_slice)
-        cs1d = cs.source[1].profiles_1d[time_index]
-        cs.source[1].identifier.name = "arb"
-        cs.source[1].identifier.index = 901
-        cs.source[1].identifier.description = "Arbitrary source from transport initialization"
-        cs1d.grid.rho_tor_norm = rho = eq.time_slice[time_index].profiles_1d.rho_tor_norm
-        cs1d.grid.volume = vol = eq.time_slice[time_index].profiles_1d.volume
+    cs1d = cs.source[1].profiles_1d[]
+    cs.source[1].identifier.name = "arb"
+    cs.source[1].identifier.index = 901
+    cs.source[1].identifier.description = "Arbitrary source from transport initialization"
+    cs1d.grid.rho_tor_norm = rho = LinRange(0,1,101)
+    rho_eq = eq.time_slice[].profiles_1d.rho_tor_norm
 
-        auxHeatingProfile =  exp.(-4.0 * rho)
-        pow_prof = cumul_integrate(vol, auxHeatingProfile)
-        pow_prof = pow_prof ./ pow_prof[end]
+    cs1d.grid.volume = vol = IMAS.interp(rho_eq,eq.time_slice[].profiles_1d.volume)[rho]
 
-        cs1d.electrons.power_inside = pow_prof .* Paux_e
-        cs1d.total_ion_power_inside = pow_prof .* Paux_i
-    end
+    auxHeatingProfile =  exp.(-4.0 * rho)
+    pow_prof = cumul_integrate(vol, auxHeatingProfile)
+    pow_prof = pow_prof ./ pow_prof[end]
+
+    cs1d.electrons.power_inside = pow_prof .* Paux_e
+    cs1d.total_ion_power_inside = pow_prof .* Paux_i
     return cs
 end
 
@@ -85,30 +85,19 @@ end
 #= ================ =#
 
 mutable struct TaueNNactor <: AbstractActor
-    cp::IMAS.core_profiles
-    eqt::IMAS.equilibrium__time_slice
-    cs::IMAS.core_sources
-    summary::IMAS.summary
+    dd::IMAS.dd
     rho_fluxmatch::Real
     eped_factor::Real
     temp_shape::Real
     temp_pedestal_ratio::Real
 end
 
-function TaueNNactor(cp::IMAS.core_profiles, eq::IMAS.equilibrium, cs::IMAS.core_sources, summary::IMAS.summary; rho_fluxmatch=0.6, eped_factor=1.0, temp_shape=1.8, temp_pedestal_ratio=1.0)
-    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : abs(eqt.global_quantities.ip) for eqt in eq.time_slice])
-    return TaueNNactor(cp, eq.time_slice[time_index], cs,summary, rho_fluxmatch, eped_factor, temp_shape, temp_pedestal_ratio)
+function TaueNNactor(dd::IMAS.dd; rho_fluxmatch=0.5, eped_factor=1.0, temp_shape=1.8, temp_pedestal_ratio=1.0)
+    return TaueNNactor(dd, rho_fluxmatch, eped_factor, temp_shape, temp_pedestal_ratio)
 end
-
-function TaueNNactor(dd::IMAS.dd; rho_fluxmatch=0.6, eped_factor=1.0, temp_shape=1.8, temp_pedestal_ratio=1.0)
-    time_index = argmax([is_missing(eqt.global_quantities,:ip) ? 0.0 : abs(eqt.global_quantities.ip) for eqt in dd.equilibrium.time_slice])
-    return TaueNNactor(dd.core_profiles, dd.equilibrium.time_slice[time_index], dd.core_sources,dd.summary, rho_fluxmatch, eped_factor, temp_shape, temp_pedestal_ratio)
-end
-
-
 # step
 function step(tauennactor::TaueNNactor)
     # run tauenn
     print("step of tauennactors")
-    AD_TAUENN.tau_enn(tauennactor.cp, tauennactor.eqt, tauennactor.cs, tauennactor.summary, tauennactor.rho_fluxmatch, tauennactor.eped_factor, tauennactor.temp_shape, tauennactor.temp_pedestal_ratio)
+    AD_TAUENN.tau_enn(tauennactor.dd, tauennactor.rho_fluxmatch, tauennactor.eped_factor, tauennactor.temp_shape, tauennactor.temp_pedestal_ratio)
 end
