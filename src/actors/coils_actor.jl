@@ -102,8 +102,8 @@ function init(pf_active::IMAS.pf_active,
     resolution = 257
     rmask, zmask, mask = IMAS.structures_mask(bd, resolution=resolution)
     for (k, layer) in enumerate(bd.layer)
-        if (layer.hfs == 1 || k == length(bd.layer)) && ! is_missing(layer.outline, :r)
-            if ! is_missing(layer, :material) && layer.material == "vacuum"
+        if (layer.hfs == 1 || k == length(bd.layer)) && ! ismissing(layer.outline, :r)
+            if ! ismissing(layer, :material) && layer.material == "vacuum"
 
                 krail += 1
                 nc = n_coils[krail]
@@ -455,7 +455,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
     for time_index in 1:length(eq.time_slice)
         eqt = eq.time_slice[time_index]
         # field nulls
-        if is_missing(eqt.global_quantities, :ip)
+        if ismissing(eqt.global_quantities, :ip)
             # find ψp
             Bp_fac, ψp, Rp, Zp = AD_GS.field_null_on_boundary(eqt.global_quantities.psi_boundary,
                                                               eqt.boundary.outline.r,
@@ -502,7 +502,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
                     coil.time_index = time_index
                 end
                 currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights=weight, λ_regularize=λ_regularize, return_cost=true)
-                if is_missing(eq.time_slice[time_index].global_quantities, :ip)
+                if ismissing(eq.time_slice[time_index].global_quantities, :ip)
                     push!(all_cost_ψ, cost_ψ0 / λ_null)
                 else
                     push!(all_cost_ψ, cost_ψ0 / λ_ψ)
@@ -607,7 +607,7 @@ function step(pfactor::PFcoilsOptActor;
 
     # update equilibrium
     for time_index in 1:length(pfactor.eq_in.time_slice)
-        if is_missing(pfactor.eq_in.time_slice[time_index].global_quantities, :ip)
+        if ismissing(pfactor.eq_in.time_slice[time_index].global_quantities, :ip)
             continue
         end
         for coil in vcat(pinned_coils, optim_coils, fixed_coils)
@@ -636,7 +636,7 @@ Plot PFcoilsOptActor optimization cross-section
 
     # if there is no equilibrium then treat this as a field_null plot
     field_null = false
-    if length(pfactor.eq_out.time_slice[time_index].profiles_2d)==0 || is_missing(pfactor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
+    if length(pfactor.eq_out.time_slice[time_index].profiles_2d)==0 || ismissing(pfactor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
         coils_flux = true
         field_null = true
     end
@@ -745,7 +745,7 @@ Plot PFcoilsOptActor optimization cross-section
     # plot optimization rails
     if rail
         for (krail, rail) in enumerate(pfactor.bd.pf_coils_rail)
-            if ! is_missing(rail.outline,:r)
+            if ! ismissing(rail.outline,:r)
                 @series begin
                     label --> (build ? "Coil opt. rail" : "")
                     primary --> krail == 1 ? true : false

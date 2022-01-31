@@ -74,7 +74,7 @@ function init(bd::IMAS.build; layers...)
         end
         bd.layer[k].identifier = UInt(hash(replace(replace(lowercase(bd.layer[k].name), "hfs" => ""), "lfs" => "")))
     end
-    if is_missing(bd.layer[end],:material) || bd.layer[end].material != "vacuum"
+    if ismissing(bd.layer[end],:material) || bd.layer[end].material != "vacuum"
         error("Material of last layer ($(bd.layer[end].name)) must be `vacuum`")
     end
 
@@ -293,7 +293,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     oR = bd.layer[layer_index+1].outline.r
     oZ = bd.layer[layer_index+1].outline.z
 
-    if is_missing(layer, :shape)
+    if ismissing(layer, :shape)
         layer.shape = tf_shape_index
     end
 
@@ -322,7 +322,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
         end
         
         func = shape_function(layer.shape)
-        if is_missing(layer, :shape_parameters)
+        if ismissing(layer, :shape_parameters)
             layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, r_start, r_end, target_minimum_distance)
         end
         layer.outline.r, layer.outline.z = func(r_start, r_end, layer.shape_parameters...)
