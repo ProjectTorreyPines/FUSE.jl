@@ -41,7 +41,6 @@ function init(
     n_points::Int = 101,
 )
     cpt = resize!(cp.profiles_1d)
-    empty!(cpt)
 
     cpt.grid.rho_tor_norm = LinRange(0, 1, n_points)
     cpt.zeff = ones(n_points) .* zeff
@@ -78,7 +77,7 @@ function init(
     # Set temperatures
     eqt = eq.time_slice[]
     betaN = eqt.global_quantities.beta_normal
-    Bt = eqt.global_quantities.magnetic_axis.b_field_tor
+    Bt = @ddtime eq.vacuum_toroidal_field.b0
     Ip = eqt.global_quantities.ip
     a = eqt.boundary.minor_radius
 

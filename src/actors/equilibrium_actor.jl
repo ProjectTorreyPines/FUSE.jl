@@ -8,21 +8,19 @@ import Optim
 #= ==================== =#
 
 """
-    init(eqt::IMAS.equilibrium__time_slice; B0::Real, R0::Real, ϵ::Real, δ::Real, κ::Real, beta_n::Real, ip::Real, x_point::Union{Vector, NTuple{2}, Bool}=false)
+    init(eqt::IMAS.equilibrium__time_slice; B0::Real, R0::Real, Z0::Real,, ϵ::Real, δ::Real, κ::Real, beta_n::Real, ip::Real, x_point::Union{Vector, NTuple{2}, Bool}=false)
 
 Initialize equilibrium IDS based on some basic Miller geometry parameters
 """
 function init(eq::IMAS.equilibrium;
-              B0::Real, R0::Real, ϵ::Real, δ::Real, κ::Real, beta_n::Real, ip::Real,
+              B0::Real, R0::Real, Z0::Real, ϵ::Real, δ::Real, κ::Real, beta_n::Real, ip::Real,
               x_point::Union{Vector,NTuple{2},Bool}=false)
-    eqt = eq.time_slice[]
-    empty!(eqt)
+    eqt = resize!(eq.time_slice)
     eqt.boundary.minor_radius = ϵ * R0
     eqt.boundary.geometric_axis.r = R0
+    eqt.boundary.geometric_axis.z = Z0
     eqt.boundary.elongation = κ
     eqt.boundary.triangularity = δ
-    eqt.profiles_1d.psi = [1.0]
-    eqt.profiles_1d.f = [B0 * R0]
     eqt.global_quantities.ip = ip
     eqt.global_quantities.beta_normal = beta_n
     if x_point === true
@@ -33,6 +31,7 @@ function init(eq::IMAS.equilibrium;
         eqt.boundary.x_point[1].r = x_point[1]
         eqt.boundary.x_point[1].z = x_point[2]
     end
+    eq.vacuum_toroidal_field.r0 = R0
     @ddtime eq.vacuum_toroidal_field.b0 = B0
     return eqt
 end
@@ -56,16 +55,16 @@ end
 #  SolovevEquilibriumActor  #
 #= ======================= =#
 mutable struct SolovevEquilibriumActor <: AbstractActor
-    eqt::IMAS.equilibrium__time_slice
+    eq::IMAS.equilibrium
     S::SolovevEquilibrium
 end
 
 function SolovevEquilibriumActor(dd::IMAS.dd; kw...)
-    return SolovevEquilibriumActor(dd.equilibrium.time_slice[]; kw...)
+    return SolovevEquilibriumActor(dd.equilibrium; kw...)
 end
 
 """
-    function SolovevEquilibriumActor(eqt::IMAS.equilibrium__time_slice, qstar=1.5, alpha=0.0, symmetric=true)
+    function SolovevEquilibriumActor(dd::IMAS.dd, qstar=1.5, alpha=0.0, symmetric=true)
 
 Constructor for the SolovevEquilibriumActor structure
 “One size fits all” analytic solutions to the Grad–Shafranov equation
@@ -75,17 +74,18 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 
 - alpha: Constant affecting the pressure
 """
-function SolovevEquilibriumActor(eqt::IMAS.equilibrium__time_slice;
+function SolovevEquilibriumActor(eq::IMAS.equilibrium;
                                  qstar=1.5,
                                  alpha=0.0,
                                  symmetric=true) # symmetric should really be passed/detected through IMAS
 
+    eqt = eq.time_slice[]
     a = eqt.boundary.minor_radius
     R0 = eqt.boundary.geometric_axis.r
     κ = eqt.boundary.elongation
     δ = eqt.boundary.triangularity
     ϵ = a / R0
-    B0 = abs(eqt.profiles_1d.f[end] / R0)
+    B0 = @ddtime eq.vacuum_toroidal_field.b0
 
     if length(eqt.boundary.x_point) > 0
         xpoint = (eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z)
@@ -95,7 +95,7 @@ function SolovevEquilibriumActor(eqt::IMAS.equilibrium__time_slice;
 
     S0 = solovev(B0, R0, ϵ, δ, κ, alpha, qstar, B0_dir=1, Ip_dir=1, symmetric=symmetric, xpoint=xpoint)
 
-    SolovevEquilibriumActor(eqt, S0)
+    SolovevEquilibriumActor(eq, S0)
 end
 
 """
@@ -133,8 +133,9 @@ Non-linear optimization to obtain a target `ip` and `beta_normal`
 function step(actor::SolovevEquilibriumActor; verbose=false)
     S0 = actor.S
 
-    target_ip = abs(actor.eqt.global_quantities.ip)
-    target_beta = actor.eqt.global_quantities.beta_normal
+    eqt = actor.eq.time_slice[]
+    target_ip = abs(eqt.global_quantities.ip)
+    target_beta = eqt.global_quantities.beta_normal
 
     B0, R0, epsilon, delta, kappa, alpha, qstar, target_ip, target_beta = promote(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, S0.alpha, S0.qstar, target_ip, target_beta)
 
@@ -178,12 +179,18 @@ function finalize(actor::SolovevEquilibriumActor,
 
     tc = transform_cocos(3, 11)
 
-    eqt = actor.eqt
+    eq = actor.eq
+    eqt = eq.time_slice[]
     sign_Ip = sign(eqt.global_quantities.ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
+    Z0 = eqt.boundary.geometric_axis.z
+
+    eq.vacuum_toroidal_field.r0 = actor.S.R0
+    @ddtime eq.vacuum_toroidal_field.b0 = actor.S.B0 * sign_Bt
 
     empty!(eqt)
     eqt.boundary.geometric_axis.r = actor.S.R0
+    eqt.boundary.geometric_axis.z = Z0
     eqt.profiles_1d.psi = collect(range(Equilibrium.psi_limits(actor.S)..., length=resolution)) * (tc["PSI"] * sign_Ip)
 
     eqt.profiles_1d.pressure = Equilibrium.pressure(actor.S, eqt.profiles_1d.psi)
@@ -192,14 +199,12 @@ function finalize(actor::SolovevEquilibriumActor,
     eqt.profiles_1d.f = Equilibrium.poloidal_current(actor.S, eqt.profiles_1d.psi) * (tc["F"] * sign_Bt)
     eqt.profiles_1d.f_df_dpsi = eqt.profiles_1d.f .* Equilibrium.poloidal_current_gradient(actor.S, eqt.profiles_1d.psi) * (tc["F"] * sign_Bt) / (tc["PSI"] * sign_Ip)
 
-    eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z = Equilibrium.magnetic_axis(actor.S)
-
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
     eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=resolution)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1], zlims[2], length=Int(ceil(resolution * actor.S.kappa)))
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1]+Z0, zlims[2]+Z0, length=Int(ceil(resolution * actor.S.kappa)))
 
-    eqt.profiles_2d[1].psi = [actor.S(rr, zz) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2] * (tc["PSI"] * sign_Ip)
+    eqt.profiles_2d[1].psi = [actor.S(rr, zz-Z0) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2] * (tc["PSI"] * sign_Ip)
 
     IMAS.flux_surfaces(eqt)
 
