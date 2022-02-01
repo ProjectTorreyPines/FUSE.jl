@@ -21,7 +21,6 @@ function init(eq::IMAS.equilibrium;
     eqt.boundary.geometric_axis.r = R0
     eqt.boundary.elongation = κ
     eqt.boundary.triangularity = δ
-    eqt.boundary.triangularity = δ
     eqt.profiles_1d.psi = [1.0]
     eqt.profiles_1d.f = [B0 * R0]
     eqt.global_quantities.ip = ip
@@ -179,10 +178,12 @@ function finalize(actor::SolovevEquilibriumActor,
 
     tc = transform_cocos(3, 11)
 
-    sign_Ip = sign(actor.eqt.global_quantities.ip)
-    sign_Bt = sign(actor.eqt.profiles_1d.f[end])
-
     eqt = actor.eqt
+    sign_Ip = sign(eqt.global_quantities.ip)
+    sign_Bt = sign(eqt.profiles_1d.f[end])
+
+    empty!(eqt)
+    eqt.boundary.geometric_axis.r = actor.S.R0
     eqt.profiles_1d.psi = collect(range(Equilibrium.psi_limits(actor.S)..., length=resolution)) * (tc["PSI"] * sign_Ip)
 
     eqt.profiles_1d.pressure = Equilibrium.pressure(actor.S, eqt.profiles_1d.psi)
@@ -202,5 +203,5 @@ function finalize(actor::SolovevEquilibriumActor,
 
     IMAS.flux_surfaces(eqt)
 
-    return actor.eqt
+    return eqt
 end
