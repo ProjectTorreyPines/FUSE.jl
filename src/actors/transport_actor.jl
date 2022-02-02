@@ -111,6 +111,6 @@ function TaueNNactor(dd::IMAS.dd; rho_fluxmatch = 0.5, eped_factor = 1.0, temp_s
     return TaueNNactor(dd, rho_fluxmatch, eped_factor, temp_shape, temp_pedestal_ratio)
 end
 
-function step(actor::TaueNNactor)
-    return AD_TAUENN.tau_enn(actor.dd, actor.rho_fluxmatch, actor.eped_factor, actor.temp_shape, actor.temp_pedestal_ratio)
+function step(actor::TaueNNactor; verbose=false)
+    return AD_TAUENN.tau_enn(actor.dd, actor.rho_fluxmatch, actor.eped_factor, actor.temp_shape, actor.temp_pedestal_ratio; verbose=verbose)
 end
