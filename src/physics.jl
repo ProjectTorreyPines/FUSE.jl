@@ -39,7 +39,21 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
         elseif shape_index_mod == 3
             shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
         elseif shape_index_mod == 4
-            shape_parameters = [height / (r_end - r_start), 0.0]
+            _, imaxr = findmax(r_obstruction)
+            _, iminr = findmin(r_obstruction)
+            _, imaxz = findmax(z_obstruction)
+            _, iminz = findmin(z_obstruction)
+            r_at_max_z, max_z = r_obstruction[imaxz], z_obstruction[imaxz]
+            r_at_min_z, min_z = r_obstruction[iminz], z_obstruction[iminz]
+            z_at_max_r, max_r = z_obstruction[imaxr], r_obstruction[imaxr]
+            z_at_min_r, min_r = z_obstruction[iminr], r_obstruction[iminr]
+            a = 0.5 * (max_r - min_r)
+            b = 0.5 * (max_z - min_z)
+            R = 0.5 * (max_r + min_r)
+            elongation = b / a
+            triup = (R - r_at_max_z) / a
+            tridown = (R - r_at_min_z) / a
+            shape_parameters = [elongation, (triup + tridown) / 2.0]
         elseif shape_index_mod == 5
             n = 2
             R = range(r_start, r_end, length=2+n)[2:end-1]
