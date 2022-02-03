@@ -202,7 +202,7 @@ function finalize(actor::SolovevEquilibriumActor,
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
     eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=resolution)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1]+Z0, zlims[2]+Z0, length=Int(ceil(resolution * actor.S.kappa)))
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(resolution * actor.S.kappa)))
 
     eqt.profiles_2d[1].psi = [actor.S(rr, zz-Z0) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2] * (tc["PSI"] * sign_Ip)
 
