@@ -126,13 +126,13 @@ function init(pf_active::IMAS.pf_active,
                 # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
                 coil_size = pf_coils_size[krail - 1]
                 poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), coil_size / sqrt(2) + coils_cleareance[krail])
-                mid_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
-                mid_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+                rail_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
+                rail_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
 
                 # mark what regions on that rail do not intersect solid structures and can hold coils
                 iclearance = Int(ceil(coil_size/(rmask[2] - rmask[1])/2))
                 valid_k = []
-                for (k, (r, z)) in enumerate(zip(mid_r, mid_z))
+                for (k, (r, z)) in enumerate(zip(rail_r, rail_z))
                     ir = argmin(abs.(rmask .- r))
                     iz = argmin(abs.(zmask .- z))
                     if (ir - iclearance) < 1 || (ir + iclearance) > length(rmask) || (iz - iclearance) < 1 || (iz + iclearance) > length(zmask)
@@ -149,11 +149,14 @@ function init(pf_active::IMAS.pf_active,
                     error("Coils on PF rail #$(krail-1) are too big to fit.")
                     continue
                 end
-                istart = argmax(diff(valid_k))
-                valid_r = fill(NaN, size(mid_r)...)
-                valid_z = fill(NaN, size(mid_z)...)
-                valid_r[valid_k] = mid_r[valid_k]
-                valid_z[valid_k] = mid_z[valid_k]
+                istart = argmax(diff(valid_k)) + 1
+                if istart < (valid_k[1] + (length(rail_r) - valid_k[end]))
+                    istart = 0
+                end
+                valid_r = fill(NaN, size(rail_r)...)
+                valid_z = fill(NaN, size(rail_z)...)
+                valid_r[valid_k] = rail_r[valid_k]
+                valid_z[valid_k] = rail_z[valid_k]
                 valid_r = vcat(valid_r[istart + 1:end], valid_r[1:istart])
                 valid_z = vcat(valid_z[istart + 1:end], valid_z[1:istart])
 
