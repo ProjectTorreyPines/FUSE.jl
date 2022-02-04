@@ -1,3 +1,5 @@
+using JSON
+
 function no_Dual(x)
     if typeof(x) <: ForwardDiff.Dual
         x = x.value
@@ -70,3 +72,8 @@ function minimum_distance_two_shapes(R_obj1, Z_obj1, R_obj2, Z_obj2)
     end
     return sqrt(minimum(distance))
 end
+
+function read_GASC(filename::String, case::Int)
+    return JSON.parsefile(filename)["SOLUTIONS"][case]
+end
+    
