@@ -451,7 +451,7 @@ function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, bd::IMAS.build, maxiter::Int, verbose::Bool)
+function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, λ_strike::Real, bd::IMAS.build, maxiter::Int, verbose::Bool)
 
     fixed_eqs = []
     weights = []
@@ -484,7 +484,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             # give each strike point the same weight as the lcfs
             weight = Rp .* 0.0 .+ 1.0
-            weight[end - length(Rx) + 1 : end] .= length(Rp) / (1+length(Rx))
+            weight[end - length(Rx) + 1 : end] .= length(Rp) / (1+length(Rx)) * λ_strike
             push!(weights, weight)
         end
     end
@@ -521,7 +521,6 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
                 push!(trace.cost_currents, no_Dual(cost_currents))
                 push!(trace.cost_total, no_Dual(cost))
             end
-            println(cost)
             return cost
         catch e
             println(e)
@@ -555,6 +554,7 @@ function step(pfactor::PFcoilsOptActor;
               λ_ψ=1E-2,
               λ_null=1,
               λ_currents=1E5,
+              λ_strike=1,
               maxiter=10000,
               optimization_scheme=:rail,
               verbose=false)
@@ -595,7 +595,7 @@ function step(pfactor::PFcoilsOptActor;
         bd = pfactor.bd
         # run rail type optimizer
         if optimization_scheme in [:rail, :static]
-            (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, bd, maxiter, verbose)
+            (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, λ_strike, bd, maxiter, verbose)
         else
             error("Supported PFcoilsOptActor optimization_scheme are `:static` or `:rail`")
         end
