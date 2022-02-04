@@ -173,13 +173,15 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     R_hfs_vessel = IMAS.get_build(bd, type=-1).start_radius
     R_lfs_vessel = IMAS.get_build(bd, type=-1).end_radius
     
+    ψb = IMAS.find_psi_boundary(eqt)
+    ψa = eqt.profiles_1d.psi[1]
     # Vessel as buffered convex-hull polygon of LCFS and strike points
-    r95, z95, _ = IMAS.flux_surface(eqt, (eqt.profiles_1d.psi[end] - eqt.profiles_1d.psi[1]) * 0.90 + eqt.profiles_1d.psi[1], true)
+    r95, z95, _ = IMAS.flux_surface(eqt, (ψb - ψa) * 0.90 + ψa, true)
     Z0 = eqt.global_quantities.magnetic_axis.z
-    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], true)
+    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
     theta = range(0.0, 2 * pi, length=101)
     private_extrema = []
-    private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
+    private = IMAS.flux_surface(eqt, ψb, false)
     a = 0
     for (pr, pz) in private
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
