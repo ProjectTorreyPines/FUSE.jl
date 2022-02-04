@@ -81,10 +81,15 @@ function init(bd::IMAS.build; layers...)
     return bd
 end
 
+function init(bd::IMAS.build, layers::AbstractDict)
+    nt = (;zip([Symbol(k) for k in keys(layers)], values(layers))...)
+    init(bd::IMAS.build; nt...)
+end
+
 """
     init(bd::IMAS.build, eqt::IMAS.equilibrium; is_nuclear_facility=true)
 
-Simple initialization of build IDS based on equilibrium time_slice
+Initialization of build IDS based on equilibrium time_slice
 """
 function init(bd::IMAS.build,
               eq::IMAS.equilibrium;
