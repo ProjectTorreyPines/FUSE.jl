@@ -81,10 +81,15 @@ function init(bd::IMAS.build; layers...)
     return bd
 end
 
+function init(bd::IMAS.build, layers::AbstractDict)
+    nt = (;zip([Symbol(k) for k in keys(layers)], values(layers))...)
+    init(bd::IMAS.build; nt...)
+end
+
 """
     init(bd::IMAS.build, eqt::IMAS.equilibrium; is_nuclear_facility=true)
 
-Simple initialization of build IDS based on equilibrium time_slice
+Initialization of build IDS based on equilibrium time_slice
 """
 function init(bd::IMAS.build,
               eq::IMAS.equilibrium;
@@ -173,21 +178,30 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     R_hfs_vessel = IMAS.get_build(bd, type=-1).start_radius
     R_lfs_vessel = IMAS.get_build(bd, type=-1).end_radius
     
+    ψb = IMAS.find_psi_boundary(eqt)
+    ψa = eqt.profiles_1d.psi[1]
     # Vessel as buffered convex-hull polygon of LCFS and strike points
-    r95, z95, _ = IMAS.flux_surface(eqt, (eqt.profiles_1d.psi[end] - eqt.profiles_1d.psi[1]) * 0.90 + eqt.profiles_1d.psi[1], true)
-    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], true)
+    r95, z95, _ = IMAS.flux_surface(eqt, (ψb - ψa) * 0.90 + ψa, true)
+    Z0 = eqt.global_quantities.magnetic_axis.z
+    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
     theta = range(0.0, 2 * pi, length=101)
     private_extrema = []
-    private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
+    private = IMAS.flux_surface(eqt, ψb, false)
     a = 0
     for (pr, pz) in private
-        if sign(pz[1]) != sign(pz[end])
+        if sign(pz[1] - Z0) != sign(pz[end] - Z0)
+            # open flux surface does not encicle the plasma
             continue
-        elseif sum(pz) < 0
+        elseif minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > (maximum(zlcfs) - minimum(zlcfs)) / 20
+            # secondary Xpoint far away
+            continue
+        elseif (sum(pz) - Z0) < 0
+            # lower private region
             index = argmax(pz)
-            a = minimum(z95)-minimum(zlcfs)
-            a = min(a, pz[index]-minimum(pz))
+            a = minimum(z95) - minimum(zlcfs)
+            a = min(a, pz[index] - minimum(pz))
         else
+            # upper private region
             index = argmin(pz)
             a = maximum(zlcfs)-maximum(z95)
             a = min(a, maximum(pz) - pz[index])
@@ -195,7 +209,7 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
         Rx = pr[index]
         Zx = pz[index]
         append!(private_extrema, IMAS.intersection(a .* cos.(theta) .+ Rx, a .* sin.(theta) .+ Zx, pr, pz))
-    end 
+    end
     h = [[r,z] for (r,z) in vcat(collect(zip(rlcfs,zlcfs)),private_extrema)]
     hull = LazySets.convex_hull(h)
     R = [r for (r,z) in hull]

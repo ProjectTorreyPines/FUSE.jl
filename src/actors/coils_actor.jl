@@ -126,13 +126,13 @@ function init(pf_active::IMAS.pf_active,
                 # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
                 coil_size = pf_coils_size[krail - 1]
                 poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), coil_size / sqrt(2) + coils_cleareance[krail])
-                mid_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
-                mid_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+                rail_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
+                rail_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
 
                 # mark what regions on that rail do not intersect solid structures and can hold coils
                 iclearance = Int(ceil(coil_size/(rmask[2] - rmask[1])/2))
                 valid_k = []
-                for (k, (r, z)) in enumerate(zip(mid_r, mid_z))
+                for (k, (r, z)) in enumerate(zip(rail_r, rail_z))
                     ir = argmin(abs.(rmask .- r))
                     iz = argmin(abs.(zmask .- z))
                     if (ir - iclearance) < 1 || (ir + iclearance) > length(rmask) || (iz - iclearance) < 1 || (iz + iclearance) > length(zmask)
@@ -149,11 +149,14 @@ function init(pf_active::IMAS.pf_active,
                     error("Coils on PF rail #$(krail-1) are too big to fit.")
                     continue
                 end
-                istart = argmax(diff(valid_k))
-                valid_r = fill(NaN, size(mid_r)...)
-                valid_z = fill(NaN, size(mid_z)...)
-                valid_r[valid_k] = mid_r[valid_k]
-                valid_z[valid_k] = mid_z[valid_k]
+                istart = argmax(diff(valid_k)) + 1
+                if istart < (valid_k[1] + (length(rail_r) - valid_k[end]))
+                    istart = 0
+                end
+                valid_r = fill(NaN, size(rail_r)...)
+                valid_z = fill(NaN, size(rail_z)...)
+                valid_r[valid_k] = rail_r[valid_k]
+                valid_z[valid_k] = rail_z[valid_k]
                 valid_r = vcat(valid_r[istart + 1:end], valid_r[1:istart])
                 valid_z = vcat(valid_z[istart + 1:end], valid_z[1:istart])
 
@@ -448,7 +451,7 @@ function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, bd::IMAS.build, maxiter::Int, verbose::Bool)
+function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, λ_strike::Real, bd::IMAS.build, maxiter::Int, verbose::Bool)
 
     fixed_eqs = []
     weights = []
@@ -481,7 +484,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             # give each strike point the same weight as the lcfs
             weight = Rp .* 0.0 .+ 1.0
-            weight[end - length(Rx) + 1 : end] .= length(Rp) / (1+length(Rx))
+            weight[end - length(Rx) + 1 : end] .= length(Rp) / (1+length(Rx)) * λ_strike
             push!(weights, weight)
         end
     end
@@ -518,7 +521,6 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
                 push!(trace.cost_currents, no_Dual(cost_currents))
                 push!(trace.cost_total, no_Dual(cost))
             end
-            println(cost)
             return cost
         catch e
             println(e)
@@ -546,20 +548,11 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
     return λ_regularize, trace
 end
 
-function step(pfactor::PFcoilsOptActor;
-              symmetric=pfactor.symmetric,
-              λ_regularize=pfactor.λ_regularize,
-              λ_ψ=1E-2,
-              λ_null=1,
-              λ_currents=1E5,
-              maxiter=10000,
-              optimization_scheme=:rail,
-              verbose=false)
-
-    # sort coils
-    # - optim: coils that have theri position and current optimized
-    # - pinned: coisl with fixed position but current is optimized
+function fixed_pinned_optim_coils(pfactor, optimization_scheme)
+    # sort coils by their function
     # - fixed: fixed position and current
+    # - pinned: coisl with fixed position but current is optimized
+    # - optim: coils that have theri position and current optimized
     fixed_coils = GS_IMAS_pf_active__coil[]
     pinned_coils = GS_IMAS_pf_active__coil[]
     optim_coils = GS_IMAS_pf_active__coil[]
@@ -576,33 +569,50 @@ function step(pfactor::PFcoilsOptActor;
             error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
         end
     end
+    return fixed_coils, pinned_coils, optim_coils
+end
 
-    # do nothing, simply evaluate equilibrium given existing coil currents
-    if maxiter < 0
-        # pass
+function step(pfactor::PFcoilsOptActor;
+              symmetric=pfactor.symmetric,
+              λ_regularize=pfactor.λ_regularize,
+              λ_ψ=1E-2,
+              λ_null=1,
+              λ_currents=1E5,
+              λ_strike=1,
+              maxiter=10000,
+              optimization_scheme=:rail,
+              verbose=false)
 
-    # run optimization
+    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(pfactor, optimization_scheme)
+    coils = vcat(pinned_coils, optim_coils, fixed_coils)
+    for coil in coils
+        coil.time_current = pfactor.eq_in.time .* 0.0
+        coil.time = pfactor.eq_in.time
+    end
+
+    bd = pfactor.bd
+    # run rail type optimizer
+    if optimization_scheme in [:rail, :static]
+        (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, λ_strike, bd, maxiter, verbose)
     else
+        error("Supported PFcoilsOptActor optimization_scheme are `:static` or `:rail`")
+    end
+    pfactor.λ_regularize = λ_regularize
+    pfactor.trace = trace
 
-        for coil in vcat(pinned_coils, optim_coils, fixed_coils)
-            coil.time_current = pfactor.eq_in.time .* 0.0
-            coil.time = pfactor.eq_in.time
-        end
+    # transfer the results to IMAS.pf_active
+    for coil in coils
+        transfer_info_GS_coil_to_IMAS(coil)
+    end
 
-        bd = pfactor.bd
-        # run rail type optimizer
-        if optimization_scheme in [:rail, :static]
-            (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, bd, maxiter, verbose)
-        else
-            error("Supported PFcoilsOptActor optimization_scheme are `:static` or `:rail`")
-        end
-        pfactor.λ_regularize = λ_regularize
-        pfactor.trace = trace
+    return pfactor
+end
 
-        # transfer the results to IMAS.pf_active
-        for coil in vcat(pinned_coils, optim_coils, fixed_coils)
-            transfer_info_GS_coil_to_IMAS(coil)
-        end
+function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0)
+
+    coils = GS_IMAS_pf_active__coil[]
+    for coil in pfactor.pf_active.coil
+        push!(coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
     end
 
     # update equilibrium
@@ -610,20 +620,22 @@ function step(pfactor::PFcoilsOptActor;
         if ismissing(pfactor.eq_in.time_slice[time_index].global_quantities, :ip)
             continue
         end
-        for coil in vcat(pinned_coils, optim_coils, fixed_coils)
+        for coil in coils
             coil.time_index = time_index
         end
 
         # convert equilibrium to Equilibrium.jl format, since this is what AD_GS uses
         EQfixed = IMAS2Equilibrium(pfactor.eq_in.time_slice[time_index])
 
-        # update ψ map
-        ψ_f2f = AD_GS.fixed2free(EQfixed, vcat(pinned_coils, optim_coils, fixed_coils), EQfixed.r, EQfixed.z)
+        # # update ψ map
+        R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length = length(EQfixed.r))
+        Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length = length(EQfixed.z))
+        ψ_f2f = AD_GS.fixed2free(EQfixed, coils, R, Z)
+        pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
+        pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
         # IMAS.flux_surfaces(pfactor.eq_out.time_slice[time_index]) #### PROBLEM
     end
-
-    return pfactor
 end
 
 # plotting
