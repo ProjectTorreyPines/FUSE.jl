@@ -1,3 +1,5 @@
+import DataStructures
+
 #= =================== =#
 #  init IMAS structures #
 #= =================== =#
@@ -8,8 +10,8 @@ function init(ids::IMAS.IDS)
     error("Function init() not defined for IDS of type $(typeof(ids))")
 end
 
-function init_from_gasc(dd::IMAS.dd, filename, case; eq_kw = Dict(), cp_kw = Dict(), rb_kw = Dict())
-    gasc = read_GASC(filename, case)
+function init_from_gasc(dd::IMAS.dd, filename, case, no_small_gaps=true; eq_kw = Dict(), cp_kw = Dict(), rb_kw = Dict(), verbose=false)
+    gasc = read_GASC(filename, case + 1) # +1 to account for GASC (PYTHON) and FUSE (JULIA) numbering
 
     eq = dd.equilibrium
     cp = dd.core_profiles
@@ -38,21 +40,48 @@ function init_from_gasc(dd::IMAS.dd, filename, case; eq_kw = Dict(), cp_kw = Dic
     init(cp, ejima = ejima; cp_kw...)
 
     # build
-    norm = 0.570 / gasc["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
-    tmp = DataStructures.OrderedDict()
-    tmp["gap_OH"] = gasc["OUTPUTS"]["radial build"]["innerSolenoidRadius"] * norm
-    tmp["OH"] = (gasc["OUTPUTS"]["radial build"]["outerSolenoidRadius"] - gasc["OUTPUTS"]["radial build"]["innerSolenoidRadius"]) * norm
-    tmp["hfs_TF"] = (gasc["OUTPUTS"]["radial build"]["outerRadiusTF"] - gasc["OUTPUTS"]["radial build"]["innerRadiusTF"]) * norm
-    tmp["hfs_shield"] = gasc["OUTPUTS"]["radial build"]["rbInnerShield"] * norm
-    tmp["hfs_blanket"] = gasc["OUTPUTS"]["radial build"]["rbInnerBlanket"] * norm
-    tmp["hfs_wall"] = 0.1
-    tmp["vacuum_vessel"] = (gasc["INPUTS"]["radial build"]["majorRadius"] - sum(values(tmp))) * 2
-    tmp["lfs_wall"] = 0.1
-    tmp["lfs_blanket"] = gasc["OUTPUTS"]["radial build"]["rbOuterBlanket"] * norm
-    tmp["lfs_shield"] = gasc["OUTPUTS"]["radial build"]["rbOuterShield"] * norm
-    tmp["lfs_TF"] = tmp["hfs_TF"] * norm
-    tmp["gap_cryostat"] = tmp["gap_OH"] * 3 * norm
-    init(bd, tmp)
+    norm = gasc["OUTPUTS"]["radial build"]["innerPlasmaRadius"]
+
+    radial_build = DataStructures.OrderedDict()
+    radial_build["gap_OH"] = gasc["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
+    radial_build["OH"] = gasc["INPUTS"]["radial build"]["rbOH"] * norm
+
+    radial_build["hfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
+    radial_build["hfs_TF"] = gasc["INPUTS"]["radial build"]["rbTF"] * norm
+    if no_small_gaps
+        radial_build["hfs_TF"] += radial_build["hfs_gap_TF"]
+        pop!(radial_build, "hfs_gap_TF")
+    end
+
+    radial_build["hfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+    radial_build["hfs_shield"] = gasc["INPUTS"]["radial build"]["rbInnerShield"] * norm
+    if no_small_gaps
+        radial_build["hfs_shield"] += radial_build["hfs_gap_shield"]
+        pop!(radial_build, "hfs_gap_shield")
+    end
+    radial_build["hfs_blanket"] = gasc["INPUTS"]["radial build"]["rbInnerBlanket"] * norm
+
+    radial_build["hfs_wall"] = gasc["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
+    radial_build["vacuum_vessel"] = (gasc["INPUTS"]["radial build"]["majorRadius"] - sum(values(radial_build))) * 2
+    radial_build["lfs_wall"] = gasc["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
+
+    radial_build["lfs_blanket"] = gasc["INPUTS"]["radial build"]["rbOuterBlanket"] * norm
+    radial_build["lfs_shield"] = gasc["INPUTS"]["radial build"]["rbOuterShield"] * norm
+    radial_build["lfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+    if no_small_gaps
+        radial_build["lfs_shield"] += radial_build["lfs_gap_shield"]
+        pop!(radial_build, "lfs_gap_shield")
+    end
+
+    radial_build["lfs_TF"] = radial_build["hfs_TF"]
+    radial_build["lfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
+    if no_small_gaps
+        radial_build["lfs_TF"] += radial_build["lfs_gap_TF"]
+        pop!(radial_build, "lfs_gap_TF")
+    end
+
+    radial_build["gap_cryostat"] = radial_build["gap_OH"] * 3
+    init(bd, radial_build; verbose)
 
     # TF coils
     bd.tf.coils_n = 16

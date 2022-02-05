@@ -34,45 +34,53 @@ layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
-function init(bd::IMAS.build; layers...)
+function init(bd::IMAS.build; verbose=false, layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
     resize!(bd.layer, length([layer_name for (layer_name, layer_thickness) in layers if layer_thickness >= 0.0]))
     k = 0
+    radius_start = 0.0
+    radius_end = 0.0
     for (layer_name, layer_thickness) in layers
         if layer_thickness < 0.0
             continue
         end
         k += 1
-        bd.layer[k].thickness = layer_thickness
-        bd.layer[k].name = replace(String(layer_name), "_" => " ")
-        if occursin("gap", lowercase(bd.layer[k].name))
-            bd.layer[k].type = 0
-            bd.layer[k].material = "vacuum"
-        elseif uppercase(bd.layer[k].name) == "OH"
-            bd.layer[k].type = 1
-        elseif occursin("TF", uppercase(bd.layer[k].name))
-            bd.layer[k].type = 2
-        elseif occursin("shield", lowercase(bd.layer[k].name))
-            bd.layer[k].type = 3
-        elseif occursin("blanket", lowercase(bd.layer[k].name))
-            bd.layer[k].type = 4
-        elseif occursin("wall", lowercase(bd.layer[k].name))
-            bd.layer[k].type = 5
+        layer = bd.layer[k]
+        layer.thickness = layer_thickness
+        layer.name = replace(String(layer_name), "_" => " ")
+        if occursin("gap", lowercase(layer.name))
+            layer.type = 0
+            layer.material = "vacuum"
+        elseif uppercase(layer.name) == "OH"
+            layer.type = 1
+        elseif occursin("TF", uppercase(layer.name))
+            layer.type = 2
+        elseif occursin("shield", lowercase(layer.name))
+            layer.type = 3
+        elseif occursin("blanket", lowercase(layer.name))
+            layer.type = 4
+        elseif occursin("wall", lowercase(layer.name))
+            layer.type = 5
         end
-        if occursin("hfs", lowercase(bd.layer[k].name))
-            bd.layer[k].hfs = 1
-        elseif occursin("lfs", lowercase(bd.layer[k].name))
-            bd.layer[k].hfs = -1
+        if occursin("hfs", lowercase(layer.name))
+            layer.hfs = 1
+        elseif occursin("lfs", lowercase(layer.name))
+            layer.hfs = -1
         else
-            bd.layer[k].hfs = 0
+            layer.hfs = 0
         end
-        if occursin("vessel", lowercase(bd.layer[k].name))
-            bd.layer[k].type = -1
-            bd.layer[k].material = "vacuum"
+        if occursin("vessel", lowercase(layer.name))
+            layer.type = -1
+            layer.material = "vacuum"
         end
-        bd.layer[k].identifier = UInt(hash(replace(replace(lowercase(bd.layer[k].name), "hfs" => ""), "lfs" => "")))
+        layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
+        radius_end += layer.thickness
+        if verbose
+            println("$(rpad(string(k),4)) $(rpad(layer.name, 17)) Δr=$(@sprintf("%3.3f",layer.thickness))    R=[$(@sprintf("%3.3f",radius_start)) <=> $(@sprintf("%3.3f",radius_end))]")
+        end
+        radius_start = radius_end
     end
     if ismissing(bd.layer[end],:material) || bd.layer[end].material != "vacuum"
         error("Material of last layer ($(bd.layer[end].name)) must be `vacuum`")
@@ -81,9 +89,9 @@ function init(bd::IMAS.build; layers...)
     return bd
 end
 
-function init(bd::IMAS.build, layers::AbstractDict)
+function init(bd::IMAS.build, layers::AbstractDict; verbose=false)
     nt = (;zip([Symbol(k) for k in keys(layers)], values(layers))...)
-    init(bd::IMAS.build; nt...)
+    init(bd::IMAS.build; verbose, nt...)
 end
 
 """

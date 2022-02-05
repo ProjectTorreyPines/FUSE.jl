@@ -130,7 +130,7 @@ function init(pf_active::IMAS.pf_active,
                 rail_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
 
                 # mark what regions on that rail do not intersect solid structures and can hold coils
-                iclearance = Int(ceil(coil_size/(rmask[2] - rmask[1])/2))
+                iclearance = Int(floor(coil_size/(rmask[2] - rmask[1])/2))
                 valid_k = []
                 for (k, (r, z)) in enumerate(zip(rail_r, rail_z))
                     ir = argmin(abs.(rmask .- r))
@@ -452,7 +452,6 @@ function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, bd::
 end
 
 function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, λ_strike::Real, bd::IMAS.build, maxiter::Int, verbose::Bool)
-
     fixed_eqs = []
     weights = []
     for time_index in 1:length(eq.time_slice)
@@ -548,11 +547,16 @@ function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_co
     return λ_regularize, trace
 end
 
+
+"""
+    fixed_pinned_optim_coils(pfactor, optimization_scheme)
+
+Returns tuple of GS_IMAS_pf_active__coil coils organized by their function:
+- fixed: fixed position and current
+- pinned: coisl with fixed position but current is optimized
+- optim: coils that have theri position and current optimized
+"""
 function fixed_pinned_optim_coils(pfactor, optimization_scheme)
-    # sort coils by their function
-    # - fixed: fixed position and current
-    # - pinned: coisl with fixed position but current is optimized
-    # - optim: coils that have theri position and current optimized
     fixed_coils = GS_IMAS_pf_active__coil[]
     pinned_coils = GS_IMAS_pf_active__coil[]
     optim_coils = GS_IMAS_pf_active__coil[]
@@ -572,6 +576,20 @@ function fixed_pinned_optim_coils(pfactor, optimization_scheme)
     return fixed_coils, pinned_coils, optim_coils
 end
 
+"""
+    step(pfactor::PFcoilsOptActor;
+        symmetric=pfactor.symmetric,
+        λ_regularize=pfactor.λ_regularize,
+        λ_ψ=1E-2,
+        λ_null=1,
+        λ_currents=1E5,
+        λ_strike=1,
+        maxiter=10000,
+        optimization_scheme=:rail,
+        verbose=false)
+
+Optimize coil currents and positions to produce sets of equilibria while minimizing coil currents
+"""
 function step(pfactor::PFcoilsOptActor;
               symmetric=pfactor.symmetric,
               λ_regularize=pfactor.λ_regularize,
@@ -608,8 +626,13 @@ function step(pfactor::PFcoilsOptActor;
     return pfactor
 end
 
-function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0)
 
+"""
+    finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0)
+
+Update pfactor.eq_out 2D equilibrium PSI based on coils positions and currents
+"""
+function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0)
     coils = GS_IMAS_pf_active__coil[]
     for coil in pfactor.pf_active.coil
         push!(coils, GS_IMAS_pf_active__coil(coil, pfactor.coil_model))
