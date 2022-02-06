@@ -210,10 +210,10 @@ end
 #  PFcoilsOptActor  #
 #= =============== =#
 @Base.kwdef mutable struct PFcoilsOptTrace
-    λ_regularize::Vector = []
-    cost_ψ::Vector = []
-    cost_currents::Vector = []
-    cost_total::Vector = []
+    params::Vector{Vector{Real}} = Vector{Real}[]
+    cost_ψ::Vector{Real} = Real[]
+    cost_currents::Vector{Real} = Real[]
+    cost_total::Vector{Real} = Real[]
 end
 
 mutable struct PFcoilsOptActor <: AbstractActor
@@ -347,13 +347,8 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
     # medium
     elseif coil.coil_model in [:corners, :simple]
         if coil.pf_active__coil.name == "OH"
-            n = Int(ceil((coil.height - coil.width) / coil.width / 2.0))
-            if n <= 1
-                n = 1
-                z_filaments = coil.z
-            else
-                z_filaments = range(coil.z - (coil.height - coil.width) / 2.0, coil.z + (coil.height - coil.width) / 2.0, length=n)
-            end
+            n = 3
+            z_filaments = range(coil.z - (coil.height - coil.width/2.0) / 2.0, coil.z + (coil.height - coil.width/2.0) / 2.0, length=n)
             green = []
             for z in z_filaments
                 push!(green, AD_GS.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
@@ -378,71 +373,110 @@ end
 function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
     distances = []
     for rail in bd.pf_coils_rail
-        # not symmetric
-        if ! symmetric
-            coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2:end - 1]
-        # even symmetric
-        elseif mod(rail.coils_number, 2) == 0
-            coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2 + Int(rail.coils_number // 2):end - 1]
-        # odd symmetric
-        else
-            coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2 + Int((rail.coils_number - 1) // 2) + 1:end - 1]
+        if rail.name !== "OH"
+            # not symmetric
+            if ! symmetric
+                coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2:end - 1]
+            # even symmetric
+            elseif mod(rail.coils_number, 2) == 0
+                coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2 + Int(rail.coils_number // 2):end - 1]
+            # odd symmetric
+            else
+                coil_distances = collect(range(-1.0, 1.0, length=rail.coils_number + 2))[2 + Int((rail.coils_number - 1) // 2) + 1:end - 1]
+            end
+            append!(distances, coil_distances)
         end
-        append!(distances, coil_distances)
     end
-    packed = vcat(distances, log10(λ_regularize))
+    oh_height_off=[]
+    for rail in bd.pf_coils_rail
+        if rail.name == "OH"
+            push!(oh_height_off, 1.0)
+            if ! symmetric
+                push!(oh_height_off, 0.0)
+            end
+        end
+    end
+    packed = vcat(distances, oh_height_off, log10(λ_regularize))
+
     return packed
 end
 
-function unpack_rail!(optim_coils::Vector, packed::Vector, symmetric::Bool, bd::IMAS.build)
-    distances = packed[1:end - 1]
+function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::IMAS.build)
     λ_regularize = packed[end]
+    if symmetric
+        n_oh_params=1
+    else
+        n_oh_params=2
+    end
+    if any(rail.name == "OH" for rail in bd.pf_coils_rail)
+        oh_height_off = packed[end - n_oh_params:end - 1]
+        distances = packed[1:end - n_oh_params]
+    else
+        oh_height_off = []
+        distances = packed[1:end - 1]
+    end
 
     if length(optim_coils) != 0 # optim_coils have zero length in case of the `static` optimization
         kcoil = 0
         koptim = 0
+        koh = 0
         for rail in bd.pf_coils_rail
-            r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
-            z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc=:flat)
-            # not symmetric
-            if ! symmetric
-                dkcoil = rail.coils_number
-                coil_distances = distances[kcoil + 1:kcoil + dkcoil]
-            # even symmetric
-            elseif mod(rail.coils_number, 2) == 0
-                dkcoil = Int(rail.coils_number // 2)
-                coil_distances = distances[kcoil + 1:kcoil + dkcoil]
-                coil_distances = vcat(- reverse(coil_distances), coil_distances)
-            # odd symmetric
-            else
-                dkcoil = Int((rail.coils_number - 1) // 2)
-                coil_distances = distances[kcoil + 1:kcoil + dkcoil]
-                coil_distances = vcat(- reverse(coil_distances), 0.0, coil_distances)
-            end
-            kcoil += dkcoil
-
-            # mirror coil position when they reach the end of the rail
-            while any(coil_distances .< -1) || any(coil_distances .> 1)
-                coil_distances[coil_distances .< -1] = -2.0 .- coil_distances[coil_distances .< -1]
-                coil_distances[coil_distances .> 1] = 2.0 .- coil_distances[coil_distances .> 1]
-            end
-
-            # get coils r and z from distances
-            r_coils = r_interp.(coil_distances)
-            z_coils = z_interp.(coil_distances)
-
-            # do not let the OH coils ovelap
             if rail.name == "OH"
-                z_coils, h_coils = finite_size_OH_coils(z_coils, optim_coils[1].width / 2.0)
-            end
+                for k in 1:rail.coils_number
+                    koptim += 1
+                    koh += 1
 
-            # assign to optim coils
-            for k in 1:length(r_coils)
-                koptim += 1
-                optim_coils[koptim].r = r_coils[k]
-                optim_coils[koptim].z = z_coils[k]
-                if rail.name == "OH"
-                    optim_coils[koptim].height = h_coils[k]
+                    # mirror OH size when it reaches maximum extent of the rail
+                    while (oh_height_off[1] < -1) || (oh_height_off[1] > 1)
+                        if oh_height_off[1] < -1
+                            oh_height_off[1] = -2.0 .- oh_height_off[1]
+                        else
+                            oh_height_off[1] = 2.0 .- oh_height_off[1]
+                        end
+                    end
+                    Δrail = maximum(rail.outline.z)-minimum(rail.outline.z)
+                    rail_offset = (maximum(rail.outline.z)+minimum(rail.outline.z))/2.0
+                    optim_coils[koptim].z = range(-oh_height_off[1]/2.0,oh_height_off[1]/2.0,length=rail.coils_number)[koh]*Δrail + rail_offset
+                    if ! symmetric
+                        optim_coils[koptim].z += oh_height_off[2] * (1-oh_height_off[1]) * Δrail
+                    end
+                    optim_coils[koptim].height = (oh_height_off[1] * Δrail - rail.coils_cleareance * (rail.coils_number - 1)) / rail.coils_number
+                end
+            else
+                r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
+                z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc=:flat)
+                # not symmetric
+                if ! symmetric
+                    dkcoil = rail.coils_number
+                    coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+                # even symmetric
+                elseif mod(rail.coils_number, 2) == 0
+                    dkcoil = Int(rail.coils_number // 2)
+                    coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+                    coil_distances = vcat(- reverse(coil_distances), coil_distances)
+                # odd symmetric
+                else
+                    dkcoil = Int((rail.coils_number - 1) // 2)
+                    coil_distances = distances[kcoil + 1:kcoil + dkcoil]
+                    coil_distances = vcat(- reverse(coil_distances), 0.0, coil_distances)
+                end
+                kcoil += dkcoil
+
+                # mirror coil position when they reach the end of the rail
+                while any(coil_distances .< -1) || any(coil_distances .> 1)
+                    coil_distances[coil_distances .< -1] = -2.0 .- coil_distances[coil_distances .< -1]
+                    coil_distances[coil_distances .> 1] = 2.0 .- coil_distances[coil_distances .> 1]
+                end
+
+                # get coils r and z from distances
+                r_coils = r_interp.(coil_distances)
+                z_coils = z_interp.(coil_distances)
+
+                # assign to optim coils
+                for k in 1:rail.coils_number
+                    koptim += 1
+                    optim_coils[koptim].r = r_coils[k]
+                    optim_coils[koptim].z = z_coils[k]
                 end
             end
         end
@@ -495,7 +529,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_co
     function placement_cost(packed; do_trace=false)
         try
             push!(packed_tmp, packed)
-            λ_regularize = unpack_rail!(optim_coils, packed, symmetric, bd)
+            λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
             coils = vcat(pinned_coils, optim_coils)
             all_cost_ψ = []
             all_cost_currents = []
@@ -515,10 +549,10 @@ function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_co
             cost_currents = norm(all_cost_currents) / length(all_cost_currents)
             cost = sqrt(cost_ψ^2 + cost_currents^2)
             if do_trace
-                push!(trace.λ_regularize, no_Dual(λ_regularize))
-                push!(trace.cost_ψ, no_Dual(cost_ψ))
-                push!(trace.cost_currents, no_Dual(cost_currents))
-                push!(trace.cost_total, no_Dual(cost))
+                push!(trace.params, packed)
+                push!(trace.cost_ψ, cost_ψ)
+                push!(trace.cost_currents, cost_currents)
+                push!(trace.cost_total, cost)
             end
             return cost
         catch e
@@ -535,13 +569,13 @@ function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_co
     
     if maxiter == 0
         placement_cost(packed)
-        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, bd)
+        λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
     else
         # use NelderMead() ; other optimizer that works is Newton(), others have trouble
         res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb); autodiff=:forward)
         if verbose println(res) end
         packed = Optim.minimizer(res)
-        λ_regularize = unpack_rail!(optim_coils, packed, symmetric, bd)
+        λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
     end
 
     return λ_regularize, trace
