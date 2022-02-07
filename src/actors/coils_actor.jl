@@ -719,7 +719,7 @@ Plot PFcoilsOptActor optimization cross-section
     # if there is no equilibrium then treat this as a field_null plot
     field_null = false
     if length(pfactor.eq_out.time_slice[time_index].profiles_2d)==0 || ismissing(pfactor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
-        coils_flux = true
+        coils_flux = equilibrium
         field_null = true
     end
 

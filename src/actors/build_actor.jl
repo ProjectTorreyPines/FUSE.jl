@@ -315,6 +315,8 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     oR = bd.layer[layer_index+1].outline.r
     oZ = bd.layer[layer_index+1].outline.z
 
+    # only update shape if that's not been set before
+    # this is to allow external overriding of default shape setting
     if ismissing(layer, :shape)
         layer.shape = tf_shape_index
     end
