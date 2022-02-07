@@ -186,10 +186,11 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     R_hfs_plasma = IMAS.get_build(bd, type=-1).start_radius
     R_lfs_plasma = IMAS.get_build(bd, type=-1).end_radius
     
+    # Plasma as buffered convex-hull polygon of LCFS and strike points
     ψb = IMAS.find_psi_boundary(eqt)
     ψa = eqt.profiles_1d.psi[1]
-    # Plasma as buffered convex-hull polygon of LCFS and strike points
-    r95, z95, _ = IMAS.flux_surface(eqt, (ψb - ψa) * 0.90 + ψa, true)
+    δψ = 0.10 # this sets the length of the strike divertor legs
+    r_in, z_in, _ = IMAS.flux_surface(eqt, ψb * (1 - δψ) +  ψa * δψ, true)
     Z0 = eqt.global_quantities.magnetic_axis.z
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
     theta = range(0.0, 2 * pi, length=101)
@@ -206,12 +207,12 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
         elseif (sum(pz) - Z0) < 0
             # lower private region
             index = argmax(pz)
-            a = minimum(z95) - minimum(zlcfs)
+            a = minimum(z_in) - minimum(zlcfs)
             a = min(a, pz[index] - minimum(pz))
         else
             # upper private region
             index = argmin(pz)
-            a = maximum(zlcfs)-maximum(z95)
+            a = maximum(zlcfs)-maximum(z_in)
             a = min(a, maximum(pz) - pz[index])
         end
         Rx = pr[index]
@@ -228,12 +229,8 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0 )
 
     # make the divertor domes in the plasma
-    δψ = 0.05
-    r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
-    z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
-    cl = Contour.contour(r, z, eqt.profiles_2d[1].psi, eqt.profiles_1d.psi[end] * (1 - δψ) + eqt.profiles_1d.psi[1] * δψ)
-    for line in Contour.lines(cl)
-        pr, pz = Contour.coordinates(line)
+    δψ = 0.05 # how close to the LCFS shoudl the divertor plates be
+    for (pr, pz) in IMAS.flux_surface(eqt, ψb * (1 - δψ) +  ψa * δψ, false)
         if pr[1] != pr[end]
             pz[1] = pz[1] * 2
             pz[end] = pz[end] * 2
