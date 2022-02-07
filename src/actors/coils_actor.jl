@@ -525,12 +525,21 @@ function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_co
     packed = pack_rail(bd, λ_regularize, symmetric)
     trace = PFcoilsOptTrace()
 
-    packed_tmp = []
+    packed_tmp = [packed]
     function placement_cost(packed; do_trace=false)
         try
-            push!(packed_tmp, packed)
+            packed_tmp[1] = packed
+            
+            index = findall(.>(1.0), abs.(packed[1:end-1]))
+            if length(index)>0
+                cost_1to1 = sum(abs.(packed[index]) .- 1.0) * 10
+            else
+                cost_1to1 = 0.0
+            end
+
             λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
             coils = vcat(pinned_coils, optim_coils)
+
             all_cost_ψ = []
             all_cost_currents = []
             for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs,weights))
@@ -547,14 +556,17 @@ function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_co
             end
             cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
             cost_currents = norm(all_cost_currents) / length(all_cost_currents)
-            cost = sqrt(cost_ψ^2 + cost_currents^2)
+            cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_1to1^2)
+
             if do_trace
                 push!(trace.params, packed)
                 push!(trace.cost_ψ, cost_ψ)
                 push!(trace.cost_currents, cost_currents)
                 push!(trace.cost_total, cost)
             end
+
             return cost
+
         catch e
             println(e)
             rethrow
@@ -563,7 +575,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_co
     end
 
     function clb(x)
-        placement_cost(packed_tmp[end]; do_trace=true)
+        placement_cost(packed_tmp[1]; do_trace=true)
         false
     end
     
