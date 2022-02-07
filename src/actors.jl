@@ -81,6 +81,18 @@ function init_from_gasc(dd::IMAS.dd, filename, case, no_small_gaps=true; eq_kw =
     end
 
     radial_build["gap_cryostat"] = radial_build["gap_OH"] * 3
+
+    # thin layers can cause LibGEOS to crash
+    min_fraction_thin_wall = 0.02
+    if no_small_gaps && (radial_build["hfs_wall"] < min_fraction_thin_wall * norm)
+        radial_build["hfs_blanket"] -= (min_fraction_thin_wall * norm - radial_build["hfs_wall"])
+        radial_build["hfs_wall"] = min_fraction_thin_wall * norm
+    end
+    if no_small_gaps && (radial_build["lfs_wall"] < min_fraction_thin_wall * norm)
+        radial_build["lfs_blanket"] -= (min_fraction_thin_wall * norm - radial_build["lfs_wall"])
+        radial_build["lfs_wall"] = min_fraction_thin_wall * norm
+    end
+
     init(bd, radial_build; verbose)
 
     # TF coils
