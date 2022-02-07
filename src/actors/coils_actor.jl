@@ -14,14 +14,15 @@ const coils_turns_spacing = 0.05
 #= ================== =#
 #  init pf_active IDS  #
 #= ================== =#
-function finite_size_OH_coils(z, coils_cleareance)
-    ez = diff(z) / 2.0 .+ z[1:end-1]
-    ez = vcat((ez[1] - ez[2]) + ez[1], ez, (ez[end] - ez[end-1]) + ez[end])
-    ez = (ez .- minimum(ez)) ./ (maximum(ez) - minimum(ez)) * (maximum(z) - minimum(z)) .+ minimum(z)
-    ez_centers = diff(ez) / 2.0 .+ ez[1:end-1]
-    ez_centers = [abs(z)<1E-6 ? 0 : z for z in ez_centers] # correct small deviations near zero
-    ez_heights = diff(ez) .- coils_cleareance
-    return ez_centers, ez_heights
+function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height = 1.0, offset = 0.0)
+    Δrail = maximum(rail_outline_z) - minimum(rail_outline_z)
+    Δclear = coils_cleareance * (coils_number - 1)
+    Δcoil = (height * Δrail - Δclear) / (coils_number + 1)
+    rail_offset = (maximum(rail_outline_z) + minimum(rail_outline_z)) / 2.0
+    z = LinRange(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
+    z = z .+ (offset * (1 - height) * Δrail)
+    height = Δcoil
+    return z, height
 end
 
 """
@@ -67,7 +68,7 @@ function init(pf_active::IMAS.pf_active,
     r_ohcoils = ones(n_coils[1]) .* (sum(extrema(OH_layer.outline.r)) / 2.)
     w = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r)
     z_ohcoils = collect(range(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), length=n_coils[1]))
-    z_ohcoils, h_ohcoils = finite_size_OH_coils(z_ohcoils, coils_cleareance[1])
+    z_ohcoils, h_ohcoils = size_oh_coils(OH_layer.outline.z, coils_cleareance[1],  n_coils[1])
     bd.pf_coils_rail[1].name = "OH"
     bd.pf_coils_rail[1].coils_number = n_coils[1]
     bd.pf_coils_rail[1].coils_elements_area = coils_elements_area[1]
@@ -75,7 +76,7 @@ function init(pf_active::IMAS.pf_active,
     bd.pf_coils_rail[1].outline.r = r_ohcoils
     bd.pf_coils_rail[1].outline.z = z_ohcoils
     bd.pf_coils_rail[1].outline.distance = range(-1, 1, length=n_coils[1])
-    for (r, z, h) in zip(r_ohcoils, z_ohcoils, h_ohcoils)
+    for (r, z) in zip(r_ohcoils, z_ohcoils)
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
         resize!(pf_active.coil[k].element, 1)
@@ -84,14 +85,14 @@ function init(pf_active::IMAS.pf_active,
         pf_active.coil[k].element[1].geometry.rectangle.r = r
         pf_active.coil[k].element[1].geometry.rectangle.z = z
         pf_active.coil[k].element[1].geometry.rectangle.width = w
-        pf_active.coil[k].element[1].geometry.rectangle.height = h
+        pf_active.coil[k].element[1].geometry.rectangle.height = h_ohcoils
         set_turns_from_spacing!(pf_active.coil[k], coils_turns_spacing, +1)
         @ddtime pf_active.coil[k].current.data = 0.0
     end
 
     # make sure coils_cleareance is an array the lenght of the PF rails
     if pf_coils_size === nothing
-        pf_coils_size = sqrt(w * sum(h_ohcoils) / length(h_ohcoils))
+        pf_coils_size = sqrt(w * h_ohcoils)
     end
     if isa(pf_coils_size, Number)
         pf_coils_size = reverse([pf_coils_size/s for s in 2.0.^(0:length(n_coils)-2)])
@@ -420,27 +421,28 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
         kcoil = 0
         koptim = 0
         koh = 0
+
         for rail in bd.pf_coils_rail
             if rail.name == "OH"
+                # mirror OH size when it reaches maximum extent of the rail
+                while (oh_height_off[1] < -1) || (oh_height_off[1] > 1)
+                    if oh_height_off[1] < -1
+                        oh_height_off[1] = -2.0 .- oh_height_off[1]
+                    else
+                        oh_height_off[1] = 2.0 .- oh_height_off[1]
+                    end
+                end
+                if ! symmetric
+                    offset = oh_height_off[2]
+                else
+                    offset = 0.0
+                end
+                z_oh, height_oh = size_oh_coils(rail.outline.z, rail.coils_cleareance, rail.coils_number, oh_height_off[1], offset)
                 for k in 1:rail.coils_number
                     koptim += 1
                     koh += 1
-
-                    # mirror OH size when it reaches maximum extent of the rail
-                    while (oh_height_off[1] < -1) || (oh_height_off[1] > 1)
-                        if oh_height_off[1] < -1
-                            oh_height_off[1] = -2.0 .- oh_height_off[1]
-                        else
-                            oh_height_off[1] = 2.0 .- oh_height_off[1]
-                        end
-                    end
-                    Δrail = maximum(rail.outline.z)-minimum(rail.outline.z)
-                    rail_offset = (maximum(rail.outline.z)+minimum(rail.outline.z))/2.0
-                    optim_coils[koptim].z = range(-oh_height_off[1]/2.0,oh_height_off[1]/2.0,length=rail.coils_number)[koh]*Δrail + rail_offset
-                    if ! symmetric
-                        optim_coils[koptim].z += oh_height_off[2] * (1-oh_height_off[1]) * Δrail
-                    end
-                    optim_coils[koptim].height = (oh_height_off[1] * Δrail - rail.coils_cleareance * (rail.coils_number - 1)) / rail.coils_number
+                    optim_coils[koptim].z = z_oh[koh]
+                    optim_coils[koptim].height = height_oh
                 end
             else
                 r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc=:flat)
