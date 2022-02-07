@@ -62,7 +62,7 @@ function init_from_gasc(dd::IMAS.dd, filename, case, no_small_gaps=true; eq_kw =
     radial_build["hfs_blanket"] = gasc["INPUTS"]["radial build"]["rbInnerBlanket"] * norm
 
     radial_build["hfs_wall"] = gasc["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
-    radial_build["vacuum_vessel"] = (gasc["INPUTS"]["radial build"]["majorRadius"] - sum(values(radial_build))) * 2
+    radial_build["plasma"] = (gasc["INPUTS"]["radial build"]["majorRadius"] - sum(values(radial_build))) * 2
     radial_build["lfs_wall"] = gasc["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
 
     radial_build["lfs_blanket"] = gasc["INPUTS"]["radial build"]["rbOuterBlanket"] * norm

@@ -28,7 +28,7 @@ NOTE: layer[:].type and layer[:].material follows from naming of layers
 *   3 shield...: neutron shield
 *   4 blanket...: neutron blanket
 *   5 wall....: 
-*  -1 ...vessel...: 
+*  -1 ...plasma...: 
 
 layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
@@ -71,7 +71,7 @@ function init(bd::IMAS.build; verbose=false, layers...)
         else
             layer.hfs = 0
         end
-        if occursin("vessel", lowercase(layer.name))
+        if occursin("plasma", lowercase(layer.name))
             layer.type = -1
             layer.material = "vacuum"
         end
@@ -123,7 +123,7 @@ function init(bd::IMAS.build,
             hfs_shield=dr / 2.0,
             hfs_blanket=dr,
             hfs_wall=dr / 2.0,
-            vacuum_vessel=rmax - rmin,
+            plasma=rmax - rmin,
             lfs_wall=dr / 2.0,
             lfs_blanket=dr * 2,
             lfs_shield=dr / 2.0,
@@ -143,7 +143,7 @@ function init(bd::IMAS.build,
             hfs_TF=dr,
             gap_hfs_TF_wall=0.0,
             hfs_wall=dr / 2.0,
-            vacuum_vessel=rmax - rmin,
+            plasma=rmax - rmin,
             lfs_wall=dr / 2.0,
             gap_lfs_TF_wall=dr * 3,
             lfs_TF=dr,
@@ -182,13 +182,13 @@ Translates 1D build to 2D cross-sections
 """
 
 function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
-    # Inner radii of the vacuum vessel
-    R_hfs_vessel = IMAS.get_build(bd, type=-1).start_radius
-    R_lfs_vessel = IMAS.get_build(bd, type=-1).end_radius
+    # Inner radii of the plasma
+    R_hfs_plasma = IMAS.get_build(bd, type=-1).start_radius
+    R_lfs_plasma = IMAS.get_build(bd, type=-1).end_radius
     
     ψb = IMAS.find_psi_boundary(eqt)
     ψa = eqt.profiles_1d.psi[1]
-    # Vessel as buffered convex-hull polygon of LCFS and strike points
+    # Plasma as buffered convex-hull polygon of LCFS and strike points
     r95, z95, _ = IMAS.flux_surface(eqt, (ψb - ψa) * 0.90 + ψa, true)
     Z0 = eqt.global_quantities.magnetic_axis.z
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
@@ -221,13 +221,13 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     h = [[r,z] for (r,z) in vcat(collect(zip(rlcfs,zlcfs)),private_extrema)]
     hull = LazySets.convex_hull(h)
     R = [r for (r,z) in hull]
-    R[R .< R_hfs_vessel] .= R_hfs_vessel
-    R[R .> R_lfs_vessel] .= R_lfs_vessel
+    R[R .< R_hfs_plasma] .= R_hfs_plasma
+    R[R .> R_lfs_plasma] .= R_lfs_plasma
     Z = [z for (r,z) in hull]
     hull_poly = xy_polygon(R, Z)
-    vessel_poly = LibGEOS.buffer(hull_poly, ((R_lfs_vessel - R_hfs_vessel) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0 )
+    plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0 )
 
-    # make the divertor domes in the vessel
+    # make the divertor domes in the plasma
     δψ = 0.05
     r = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
     z = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
@@ -237,16 +237,16 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
         if pr[1] != pr[end]
             pz[1] = pz[1] * 2
             pz[end] = pz[end] * 2
-            vessel_poly = LibGEOS.difference(vessel_poly, xy_polygon(pr, pz))
+            plasma_poly = LibGEOS.difference(plasma_poly, xy_polygon(pr, pz))
         end
     end
 
-    # vacuum vessel
-    IMAS.get_build(bd, type=-1).outline.r = [v[1] for v in LibGEOS.coordinates(vessel_poly)[1]]
-    IMAS.get_build(bd, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(vessel_poly)[1]]
+    # plasma
+    IMAS.get_build(bd, type=-1).outline.r = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
+    IMAS.get_build(bd, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
 
-    # all layers between vessel and OH
-    vessel_to_oh = []
+    # all layers between plasma and OH
+    plasma_to_oh = []
     valid = false
     for (k, layer) in reverse(collect(enumerate(bd.layer)))
         # stop once you see the OH
@@ -255,17 +255,17 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
             break
         end
         if valid
-            push!(vessel_to_oh, k)
+            push!(plasma_to_oh, k)
         end
-        # valid starting from the vessel
+        # valid starting from the plasma
         if layer.type == -1
             valid = true
         end
     end
     shape_set = false
-    for (n, k) in enumerate(vessel_to_oh)
+    for (n, k) in enumerate(plasma_to_oh)
         # layer that preceeds the TF (or shield) sets the TF (and shield) shape
-        if (!shape_set) && (n<length(vessel_to_oh)) && (bd.layer[vessel_to_oh[n+1]].type in [2, 3])
+        if (!shape_set) && (n<length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [2, 3])
             FUSE.optimize_shape(bd, k, tf_shape_index)
             shape_set = true
         # everything else is conformal convex hull
