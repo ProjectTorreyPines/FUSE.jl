@@ -158,7 +158,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         cost_smoothness = sum(abs.(sin_theta)) / length(sin_theta)
 
         # return cost
-        return cost_min_clearance^2 + cost_area^2 + cost_inside^2 + 1E-3 * cost_up_down_symmetry^2 + 10 * cost_smoothness^2 + 100 * cost_concavity^2
+        return cost_min_clearance^2 + 0.1 * cost_area^2 + cost_inside^2 + 1E-3 * cost_up_down_symmetry^2 + 10 * cost_smoothness^2 + 100 * cost_concavity^2
     end
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
