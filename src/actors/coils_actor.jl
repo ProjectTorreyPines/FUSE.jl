@@ -571,8 +571,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium;pinned_coils::Vector, optim_co
         placement_cost(packed)
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
     else
-        # use NelderMead() ; other optimizer that works is Newton(), others have trouble
-        res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb); autodiff=:forward)
+        res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb, g_tol=1E-4); autodiff=:forward)
         if verbose println(res) end
         packed = Optim.minimizer(res)
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
