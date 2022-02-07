@@ -12,7 +12,7 @@ install: install_FUSE install_IJulia
 	julia -e '\
 using Pkg;\
 Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "CoordinateConventions", "AD_GS", "Equilibrium"]);\
+Pkg.develop(["FUSE", "IMAS", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN"]);\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
@@ -24,12 +24,12 @@ Pkg.add("IJulia");\
 Pkg.build("IJulia");\
 '
 
-install_FUSE: install_IMAS install_CoordinateConventions install_FusionMaterials install_AD_GS install_Equilibrium
+install_FUSE: install_IMAS install_FusionMaterials install_AD_GS install_Equilibrium install_TAUENN
 	if [ ! -d "$(JULIA_PKG_DEVDIR)/FUSE" ]; then ln -s $(CURRENTDIR) $(JULIA_PKG_DEVDIR)/FUSE; fi
 	julia -e '\
 using Pkg;\
 Pkg.activate("$(JULIA_PKG_DEVDIR)/FUSE");\
-Pkg.develop(["IMAS", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium"]);\
+Pkg.develop(["IMAS", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN"]);\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
@@ -92,7 +92,36 @@ Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
 
-update: update_FUSE update_IMAS update_AD_GS update_Equilibrium update_CoordinateConventions update_FusionMaterials
+install_TAUENN: install_IMAS install_CoordinateConventions install_TGLFNN install_EPEDNN
+	if [ ! -d "$(JULIA_PKG_DEVDIR)/AD_TAUENN" ]; then ln -s $(CURRENTDIR) $(JULIA_PKG_DEVDIR)/AD_TAUENN; fi
+	julia -e '\
+using Pkg;\
+Pkg.activate("$(JULIA_PKG_DEVDIR)/AD_TAUENN");\
+Pkg.develop(["IMAS", "CoordinateConventions", "AD_TGLFNN", "AD_EPEDNN"]);\
+Pkg.resolve();\
+try Pkg.upgrade_manifest() catch end;\
+'
+
+install_TGLFNN:
+	if [ ! -d "$(JULIA_PKG_DEVDIR)/AD_TGLFNN" ]; then\
+		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/AD_TGLFNN.jl.git");';\
+	fi
+	julia -e '\
+using Pkg;\
+Pkg.resolve();\
+try Pkg.upgrade_manifest() catch end;\
+'
+
+install_EPEDNN:
+	if [ ! -d "$(JULIA_PKG_DEVDIR)/AD_EPEDNN" ]; then\
+		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/AD_EPEDNN.jl.git");';\
+	fi
+	julia -e '\
+using Pkg;\
+Pkg.resolve();\
+try Pkg.upgrade_manifest() catch end;\
+
+update: update_FUSE update_IMAS update_CoordinateConventions update_FusionMaterials update_AD_GS update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN
 	make install
 
 update_FUSE:
@@ -101,16 +130,25 @@ update_FUSE:
 update_IMAS:
 	cd $(JULIA_PKG_DEVDIR)/IMAS; git fetch; git pull
 
+update_CoordinateConventions:
+	cd $(JULIA_PKG_DEVDIR)/CoordinateConventions; git fetch; git pull
+
+update_FusionMaterials:
+	cd $(JULIA_PKG_DEVDIR)/FusionMaterials; git fetch; git pull
+
 update_AD_GS:
 	cd $(JULIA_PKG_DEVDIR)/AD_GS; git fetch; git pull
 
 update_Equilibrium:
 	cd $(JULIA_PKG_DEVDIR)/Equilibrium; git fetch; git pull
 
-update_CoordinateConventions:
-	cd $(JULIA_PKG_DEVDIR)/CoordinateConventions; git fetch; git pull
+update_TAUENN:
+	cd $(JULIA_PKG_DEVDIR)/AD_TAUENN; git fetch; git pull
 
-update_FusionMaterials:
-	cd $(JULIA_PKG_DEVDIR)/FusionMaterials; git fetch; git pull
+update_TGLFNN:
+	cd $(JULIA_PKG_DEVDIR)/AD_TGLFNN; git fetch; git pull
+
+update_EPEDNN:
+	cd $(JULIA_PKG_DEVDIR)/AD_EPEDNN; git fetch; git pull
 
 .PHONY:
