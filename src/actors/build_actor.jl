@@ -34,7 +34,7 @@ layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
-function init(bd::IMAS.build; verbose=false, layers...)
+function init(bd::IMAS.build; verbose = false, layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
@@ -82,15 +82,15 @@ function init(bd::IMAS.build; verbose=false, layers...)
         end
         radius_start = radius_end
     end
-    if ismissing(bd.layer[end],:material) || bd.layer[end].material != "vacuum"
+    if ismissing(bd.layer[end], :material) || bd.layer[end].material != "vacuum"
         error("Material of last layer ($(bd.layer[end].name)) must be `vacuum`")
     end
 
     return bd
 end
 
-function init(bd::IMAS.build, layers::AbstractDict; verbose=false)
-    nt = (;zip([Symbol(k) for k in keys(layers)], values(layers))...)
+function init(bd::IMAS.build, layers::AbstractDict; verbose = false)
+    nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
     init(bd::IMAS.build; verbose, nt...)
 end
 
@@ -100,11 +100,11 @@ end
 Initialization of build IDS based on equilibrium time_slice
 """
 function init(bd::IMAS.build,
-              eq::IMAS.equilibrium;
-              tf_shape_index::Int=3,
-              is_nuclear_facility::Bool=true,
-              pf_inside_tf::Bool=false,
-              pf_outside_tf::Bool=true)
+    eq::IMAS.equilibrium;
+    tf_shape_index::Int = 3,
+    is_nuclear_facility::Bool = true,
+    pf_inside_tf::Bool = false,
+    pf_outside_tf::Bool = true)
     eqt = eq.time_slice[]
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
@@ -116,20 +116,20 @@ function init(bd::IMAS.build,
         rmax += gap
         dr = rmin / n_hfs_layers
         init(bd,
-            gap_OH=dr * 2.0,
-            OH=dr,
-            hfs_TF=dr,
-            gap_hfs_TF_shield=pf_inside_tf ? 0 : -1,
-            hfs_shield=dr / 2.0,
-            hfs_blanket=dr,
-            hfs_wall=dr / 2.0,
-            plasma=rmax - rmin,
-            lfs_wall=dr / 2.0,
-            lfs_blanket=dr * 2,
-            lfs_shield=dr / 2.0,
-            gap_lfs_TF_shield=dr * (pf_inside_tf ? 4 : -1),
-            lfs_TF=dr,
-            gap_cryostat=dr * (pf_outside_tf ? 5 : 1))
+            gap_OH = dr * 2.0,
+            OH = dr,
+            hfs_TF = dr,
+            gap_hfs_TF_shield = pf_inside_tf ? 0 : -1,
+            hfs_shield = dr / 2.0,
+            hfs_blanket = dr,
+            hfs_wall = dr / 2.0,
+            plasma = rmax - rmin,
+            lfs_wall = dr / 2.0,
+            lfs_blanket = dr * 2,
+            lfs_shield = dr / 2.0,
+            gap_lfs_TF_shield = dr * (pf_inside_tf ? 4 : -1),
+            lfs_TF = dr,
+            gap_cryostat = dr * (pf_outside_tf ? 5 : 1))
 
     else
         n_hfs_layers = 4.5
@@ -138,16 +138,16 @@ function init(bd::IMAS.build,
         rmax += gap
         dr = rmin / n_hfs_layers
         init(bd,
-            gap_OH=dr * 2.0,
-            OH=dr,
-            hfs_TF=dr,
-            gap_hfs_TF_wall=0.0,
-            hfs_wall=dr / 2.0,
-            plasma=rmax - rmin,
-            lfs_wall=dr / 2.0,
-            gap_lfs_TF_wall=dr * 3,
-            lfs_TF=dr,
-            gap_cryostat=2 * dr)
+            gap_OH = dr * 2.0,
+            OH = dr,
+            hfs_TF = dr,
+            gap_hfs_TF_wall = 0.0,
+            hfs_wall = dr / 2.0,
+            plasma = rmax - rmin,
+            lfs_wall = dr / 2.0,
+            gap_lfs_TF_wall = dr * 3,
+            lfs_TF = dr,
+            gap_cryostat = 2 * dr)
     end
 
     # TF coils
@@ -159,17 +159,17 @@ function init(bd::IMAS.build,
     return bd
 end
 
-function wall_miller_conformal(bd, layer_type, elongation, triangularity; n_points=101)
+function wall_miller_conformal(bd, layer_type, elongation, triangularity; n_points = 101)
     if layer_type == -1
-        Rstart = IMAS.get_build(bd, type=layer_type).start_radius
-        Rend = IMAS.get_build(bd, type=layer_type).end_radius
-        line = miller_Rstart_Rend(Rstart, Rend, elongation, triangularity; n_points)        
+        Rstart = IMAS.get_build(bd, type = layer_type).start_radius
+        Rend = IMAS.get_build(bd, type = layer_type).end_radius
+        line = miller_Rstart_Rend(Rstart, Rend, elongation, triangularity; n_points)
         return line, line
     else
-        Rstart_lfs = IMAS.get_build(bd, type=layer_type, hfs=-1).start_radius
-        Rend_lfs = IMAS.get_build(bd, type=layer_type, hfs=-1).end_radius
-        Rstart_hfs = IMAS.get_build(bd, type=layer_type, hfs=1).start_radius
-        Rend_hfs = IMAS.get_build(bd, type=layer_type, hfs=1).end_radius
+        Rstart_lfs = IMAS.get_build(bd, type = layer_type, hfs = -1).start_radius
+        Rend_lfs = IMAS.get_build(bd, type = layer_type, hfs = -1).end_radius
+        Rstart_hfs = IMAS.get_build(bd, type = layer_type, hfs = 1).start_radius
+        Rend_hfs = IMAS.get_build(bd, type = layer_type, hfs = 1).end_radius
         inner_line = miller_Rstart_Rend(Rend_hfs, Rstart_lfs, elongation, triangularity; n_points)
         outer_line = miller_Rstart_Rend(Rstart_hfs, Rend_lfs, elongation, triangularity; n_points)
         return inner_line, outer_line
@@ -183,17 +183,17 @@ Translates 1D build to 2D cross-sections
 
 function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
     # Inner radii of the plasma
-    R_hfs_plasma = IMAS.get_build(bd, type=-1).start_radius
-    R_lfs_plasma = IMAS.get_build(bd, type=-1).end_radius
-    
+    R_hfs_plasma = IMAS.get_build(bd, type = -1).start_radius
+    R_lfs_plasma = IMAS.get_build(bd, type = -1).end_radius
+
     # Plasma as buffered convex-hull polygon of LCFS and strike points
     ψb = IMAS.find_psi_boundary(eqt)
     ψa = eqt.profiles_1d.psi[1]
     δψ = 0.10 # this sets the length of the strike divertor legs
-    r_in, z_in, _ = IMAS.flux_surface(eqt, ψb * (1 - δψ) +  ψa * δψ, true)
+    r_in, z_in, _ = IMAS.flux_surface(eqt, ψb * (1 - δψ) + ψa * δψ, true)
     Z0 = eqt.global_quantities.magnetic_axis.z
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
-    theta = range(0.0, 2 * pi, length=101)
+    theta = range(0.0, 2 * pi, length = 101)
     private_extrema = []
     private = IMAS.flux_surface(eqt, ψb, false)
     a = 0
@@ -212,25 +212,25 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
         else
             # upper private region
             index = argmin(pz)
-            a = maximum(zlcfs)-maximum(z_in)
+            a = maximum(zlcfs) - maximum(z_in)
             a = min(a, maximum(pz) - pz[index])
         end
         Rx = pr[index]
         Zx = pz[index]
         append!(private_extrema, IMAS.intersection(a .* cos.(theta) .+ Rx, a .* sin.(theta) .+ Zx, pr, pz))
     end
-    h = [[r,z] for (r,z) in vcat(collect(zip(rlcfs,zlcfs)),private_extrema)]
+    h = [[r, z] for (r, z) in vcat(collect(zip(rlcfs, zlcfs)), private_extrema)]
     hull = LazySets.convex_hull(h)
-    R = [r for (r,z) in hull]
-    R[R .< R_hfs_plasma] .= R_hfs_plasma
-    R[R .> R_lfs_plasma] .= R_lfs_plasma
-    Z = [z for (r,z) in hull]
+    R = [r for (r, z) in hull]
+    R[R.<R_hfs_plasma] .= R_hfs_plasma
+    R[R.>R_lfs_plasma] .= R_lfs_plasma
+    Z = [z for (r, z) in hull]
     hull_poly = xy_polygon(R, Z)
-    plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0 )
+    plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0)
 
     # make the divertor domes in the plasma
     δψ = 0.05 # how close to the LCFS shoudl the divertor plates be
-    for (pr, pz) in IMAS.flux_surface(eqt, ψb * (1 - δψ) +  ψa * δψ, false)
+    for (pr, pz) in IMAS.flux_surface(eqt, ψb * (1 - δψ) + ψa * δψ, false)
         if pr[1] != pr[end]
             pz[1] = pz[1] * 2
             pz[end] = pz[end] * 2
@@ -239,8 +239,8 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     end
 
     # plasma
-    IMAS.get_build(bd, type=-1).outline.r = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
-    IMAS.get_build(bd, type=-1).outline.z = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
+    IMAS.get_build(bd, type = -1).outline.r = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
+    IMAS.get_build(bd, type = -1).outline.z = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
 
     # all layers between plasma and OH
     plasma_to_oh = []
@@ -262,10 +262,10 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     shape_set = false
     for (n, k) in enumerate(plasma_to_oh)
         # layer that preceeds the TF (or shield) sets the TF (and shield) shape
-        if (!shape_set) && (n<length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [2, 3])
+        if (!shape_set) && (n < length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [2, 3])
             FUSE.optimize_shape(bd, k, tf_shape_index)
             shape_set = true
-        # everything else is conformal convex hull
+            # everything else is conformal convex hull
         else
             FUSE.optimize_shape(bd, k, -2)
         end
@@ -273,27 +273,27 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
 
     # plug
     L = 0
-    R = IMAS.get_build(bd, type=1).start_radius
-    D = minimum(IMAS.get_build(bd, type=2, hfs=1).outline.z)
-    U = maximum(IMAS.get_build(bd, type=2, hfs=1).outline.z)
+    R = IMAS.get_build(bd, type = 1).start_radius
+    D = minimum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z)
+    U = maximum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z)
     bd.layer[1].outline.r, bd.layer[1].outline.z = rectangle_shape(L, R, D, U)
 
     # oh
-    L = IMAS.get_build(bd, type=1).start_radius
-    R = IMAS.get_build(bd, type=1).end_radius
-    D = minimum(IMAS.get_build(bd, type=2, hfs=1).outline.z)
-    U = maximum(IMAS.get_build(bd, type=2, hfs=1).outline.z)
+    L = IMAS.get_build(bd, type = 1).start_radius
+    R = IMAS.get_build(bd, type = 1).end_radius
+    D = minimum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z)
+    U = maximum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z)
     bd.layer[2].outline.r, bd.layer[2].outline.z = rectangle_shape(L, R, D, U)
 
     # cryostat
     L = 0
     R = bd.layer[end].end_radius
-    D = minimum(IMAS.get_build(bd, type=2, hfs=1).outline.z) - bd.layer[end].thickness
-    U = maximum(IMAS.get_build(bd, type=2, hfs=1).outline.z) + bd.layer[end].thickness
+    D = minimum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z) - bd.layer[end].thickness
+    U = maximum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z) + bd.layer[end].thickness
     bd.layer[end].outline.r, bd.layer[end].outline.z = rectangle_shape(L, R, D, U)
 
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    bd.tf.thickness = 2 * π * IMAS.get_build(bd, type=2, hfs=1).start_radius / bd.tf.coils_n
+    bd.tf.thickness = 2 * π * IMAS.get_build(bd, type = 2, hfs = 1).start_radius / bd.tf.coils_n
     return bd
 end
 
@@ -303,9 +303,9 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     layer = bd.layer[layer_index]
     id = bd.layer[layer_index].identifier
     r_start = layer.start_radius
-    r_end = IMAS.get_build(bd, identifier=layer.identifier, hfs=-1).end_radius
+    r_end = IMAS.get_build(bd, identifier = layer.identifier, hfs = -1).end_radius
     hfs_thickness = layer.thickness
-    lfs_thickness = IMAS.get_build(bd, identifier=id, hfs=-1).thickness
+    lfs_thickness = IMAS.get_build(bd, identifier = id, hfs = -1).thickness
     target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
 
     # obstruction
@@ -324,15 +324,15 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
         layer.outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
         layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
         if layer.shape == -2
-            h = [[r,z] for (r,z) in collect(zip(layer.outline.r,layer.outline.z))]
-            hull =LazySets.convex_hull(h)
-            layer.outline.r = vcat([r for (r,z) in hull],hull[1][1])
-            layer.outline.z = vcat([z for (r,z) in hull],hull[1][2])
+            h = [[r, z] for (r, z) in collect(zip(layer.outline.r, layer.outline.z))]
+            hull = LazySets.convex_hull(h)
+            layer.outline.r = vcat([r for (r, z) in hull], hull[1][1])
+            layer.outline.z = vcat([z for (r, z) in hull], hull[1][2])
         end
-    # handle shapes
+        # handle shapes
     else
         up_down_symmetric = false
-        if abs(sum(oZ)/sum(abs.(oZ))) < 1E-2
+        if abs(sum(oZ) / sum(abs.(oZ))) < 1E-2
             up_down_symmetric = true
         end
 
@@ -341,7 +341,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
         else
             layer.shape = mod(layer.shape, 100) + 100
         end
-        
+
         func = shape_function(layer.shape)
         if ismissing(layer, :shape_parameters)
             layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, r_start, r_end, target_minimum_distance)
@@ -454,7 +454,7 @@ function pf_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     fluxFromVerticalField = 0.8 * verticalFieldAtCenter * pi * (majorRadius^2 - (majorRadius - minorRadius)^2)
 
     # ============================= #
-    bd.flux_swing_requirements.pf = - abs(fluxFromVerticalField)
+    bd.flux_swing_requirements.pf = -abs(fluxFromVerticalField)
 end
 
 """
@@ -466,8 +466,8 @@ NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
-function oh_requirements(bd::IMAS.build, double_swing::Bool=true)
-    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_build(bd, type=1).start_radius, IMAS.get_build(bd, type=1).end_radius)
+function oh_requirements(bd::IMAS.build, double_swing::Bool = true)
+    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_build(bd, type = 1).start_radius, IMAS.get_build(bd, type = 1).end_radius)
     totalOhFluxReq = bd.flux_swing_requirements.rampup.total + bd.flux_swing_requirements.flattop + bd.flux_swing_requirements.pf
 
     # ============================= #
@@ -475,7 +475,7 @@ function oh_requirements(bd::IMAS.build, double_swing::Bool=true)
     # Calculate magnetic field at solenoid bore required to match flux swing request
     RiRoFactor = innerSolenoidRadius / outerSolenoidRadius
     magneticFieldSolenoidBore = 3.0 * totalOhFluxReq / pi / outerSolenoidRadius^2 / (RiRoFactor^2 + RiRoFactor + 1.0) / (double_swing ? 2 : 1)
-    currentDensityOH = magneticFieldSolenoidBore / (0.4 * pi * outerSolenoidRadius*(1-innerSolenoidRadius/outerSolenoidRadius))
+    currentDensityOH = magneticFieldSolenoidBore / (0.4 * pi * outerSolenoidRadius * (1 - innerSolenoidRadius / outerSolenoidRadius))
 
     # ============================= #
 
@@ -492,12 +492,12 @@ function stress_calculations(dd::IMAS.dd)
     error("not completed yet")
     bd = dd.build
     B0_TF = dd.build.tf_b_field_max
-    R0_TF = sum((IMAS.get_build(bd, type=-1).start_radius, IMAS.get_build(bd, type=-1).end_radius)) / 2.0
-    Rtf1 = IMAS.get_build(bd, type=2).start_radius
-    Rtf2 = IMAS.get_build(bd, type=2).end_radius
+    R0_TF = sum((IMAS.get_build(bd, type = -1).start_radius, IMAS.get_build(bd, type = -1).end_radius)) / 2.0
+    Rtf1 = IMAS.get_build(bd, type = 2).start_radius
+    Rtf2 = IMAS.get_build(bd, type = 2).end_radius
     B0_OH = dd.build.oh_b_field_max
-    R_sol1 = IMAS.get_build(bd, type=1).start_radius
-    R_sol2 = IMAS.get_build(bd, type=1).end_radius
+    R_sol1 = IMAS.get_build(bd, type = 1).start_radius
+    R_sol2 = IMAS.get_build(bd, type = 1).end_radius
     s_ax_ave = something
     f_t_ss_tot_in = something
     f_oh_cu_in = something
@@ -538,7 +538,7 @@ function stress_calculations(
     f_t_ax = s_ax_ave * area_t_ax
     sw_sip1_noslp2 = 1
 
-    b_cs = [0.,B0_OH]
+    b_cs = [0.0, B0_OH]
 
     Rcs_i = R_sol1
     Rcs_o = r_2
@@ -633,15 +633,15 @@ function stress_calculations(
     Ebar_cs = em_tf / (1 - g_tf^2)
     Ebar_pl = em_tf / (1 - g_tf^2)
     Ebar_cp = Ebar_cs / Ebar_pl / (1 + g_tf)
-    Cts3 = Ebar_tf * C_T * ( (3 + g_tf) / 8 * r_3^2 - r_2^2 / 2 * ( (1 + g_tf) * log(r_3) + (1 - g_tf) / 2 ) )
+    Cts3 = Ebar_tf * C_T * ((3 + g_tf) / 8 * r_3^2 - r_2^2 / 2 * ((1 + g_tf) * log(r_3) + (1 - g_tf) / 2))
     Ats3 = Ebar_tf * (1 + g_tf)
     Bts3 = -Ebar_tf * (1 - g_tf) / r_3^2
     Cbar_ts3 = -Cts3 / Bts3
     Abar_ts3 = -Ats3 / Bts3
-    Ctu2 = C_T * ( r_2^2 / 8 - r_2^2 * ( log(r_2) / 2 - 1.0 / 4.0) )
+    Ctu2 = C_T * (r_2^2 / 8 - r_2^2 * (log(r_2) / 2 - 1.0 / 4.0))
     Atu2 = 1
     Btu2 = 1 / r_2^2
-    Cts2 = Ebar_tf * C_T * ( (3 + g_tf) / 8 * r_2^2 - r_2^2 / 2 * ( (1 + g_tf) * log(r_2) + (1 - g_tf) / 2 ) )
+    Cts2 = Ebar_tf * C_T * ((3 + g_tf) / 8 * r_2^2 - r_2^2 / 2 * ((1 + g_tf) * log(r_2) + (1 - g_tf) / 2))
     Ats2 = Ebar_tf * (1 + g_tf)
     Bts2 = -Ebar_tf * (1 - g_tf) / r_2^2
     Atu = Atu2 + Btu2 * Abar_ts3
@@ -651,7 +651,7 @@ function stress_calculations(
     Bcs1 = -Ebar_cs * (1 - g_tf) / Rcs_i^2
     Cbar_cs1 = -Ccs1 / Bcs1
     Abar_cs1 = -Acs1 / Bcs1
-    CC1 = C_C * ( Ebar_cp * ( (2 + g_tf) / 3 * Rcs_i * Rcs_o - (3 + g_tf) / 8 * Rcs_i^2 ) - (Rcs_i * Rcs_o / 3 - Rcs_i^2 / 8) )
+    CC1 = C_C * (Ebar_cp * ((2 + g_tf) / 3 * Rcs_i * Rcs_o - (3 + g_tf) / 8 * Rcs_i^2) - (Rcs_i * Rcs_o / 3 - Rcs_i^2 / 8))
     Ac1 = Ebar_cp * (1 + g_tf) - 1
     Bc1 = -Ebar_cp * (1 - g_tf) / Rcs_i^2 - 1 / Rcs_i^2
     Cbar_c1 = -CC1 / Bc1
@@ -664,7 +664,7 @@ function stress_calculations(
         Abar_c1_use = Abar_cs1
     end
 
-    Ccu2 = C_C * ( Rcs_o^2 / 3 - Rcs_o^2 / 8)
+    Ccu2 = C_C * (Rcs_o^2 / 3 - Rcs_o^2 / 8)
     Acu2 = 1
     Bcu2 = 1 / Rcs_o^2
     Ccs2 = Ebar_cs * C_C * (Rcs_o * Rcs_o / 3 * (2 + g_tf) - Rcs_o^2 / 8 * (3 + g_tf))
@@ -682,28 +682,28 @@ function stress_calculations(
     if plug_switch# == 2:
         A_P = C_C * (Rcs_o * Rcs_i / 3 - Rcs_i^2 / 8) + A_C + B_C / Rcs_i^2
     else
-        A_P = 0.
+        A_P = 0.0
     end
     B_P = 0
     R_min_t = r_2
-    u_r_rmin_t = C_T * (R_min_t^2 / 8 - r_2^2 / 2 * (log(R_min_t) - 0.5) )  + A_T + B_T / R_min_t^2
-    du_dr_rmin_t = C_T * (3 * R_min_t^2 / 8 - r_2^2 / 2 * (log(R_min_t) + 0.5) )  + A_T - B_T / R_min_t^2
-    sr_rmin_t = em_tf / (1 - g_tf^2) * (C_T * (    (3 + g_tf) / 8 * R_min_t^2   - r_2^2 / 2 * ( log(R_min_t) * (1 + g_tf) + (1 - g_tf) / 2 ) )  + A_T * (1 + g_tf) - B_T * (1 - g_tf) / R_min_t^2)
-    sh_rmin_t = em_tf / (1 - g_tf^2) * (C_T * (  (1 + 3 * g_tf) / 8 * R_min_t^2 - r_2^2 / 2 * ( log(R_min_t) * (1 + g_tf) - (1 - g_tf) / 2 ) )   + A_T * (1 + g_tf) + B_T * (1 - g_tf) / R_min_t^2)
+    u_r_rmin_t = C_T * (R_min_t^2 / 8 - r_2^2 / 2 * (log(R_min_t) - 0.5)) + A_T + B_T / R_min_t^2
+    du_dr_rmin_t = C_T * (3 * R_min_t^2 / 8 - r_2^2 / 2 * (log(R_min_t) + 0.5)) + A_T - B_T / R_min_t^2
+    sr_rmin_t = em_tf / (1 - g_tf^2) * (C_T * ((3 + g_tf) / 8 * R_min_t^2 - r_2^2 / 2 * (log(R_min_t) * (1 + g_tf) + (1 - g_tf) / 2)) + A_T * (1 + g_tf) - B_T * (1 - g_tf) / R_min_t^2)
+    sh_rmin_t = em_tf / (1 - g_tf^2) * (C_T * ((1 + 3 * g_tf) / 8 * R_min_t^2 - r_2^2 / 2 * (log(R_min_t) * (1 + g_tf) - (1 - g_tf) / 2)) + A_T * (1 + g_tf) + B_T * (1 - g_tf) / R_min_t^2)
     svm_t = np.sqrt(((sh_rmin_t - s_t_ax_use_nov)^2 + (s_t_ax_use_nov - sr_rmin_t)^2 + (sr_rmin_t - sh_rmin_t)^2) / 2)
     svm_vd_t = svm_t / f_t_ss_tot
     svm_vd_mp_t = svm_vd_t * 0.000001
     svm_vd_ksi_t = svm_vd_t * 0.000000145
     R_min_c = Rcs_i
-    u_r_min_c = C_C * ( Rcs_o * R_min_c / 3 - R_min_c^2 / 8 )  + A_C + B_C / R_min_c^2
-    du_dr_rmin_c = C_C * ( 2 * Rcs_o * R_min_c / 3 - 3 * R_min_c^2 / 8 )  + A_C - B_C / R_min_c^2
-    sr_rmin_c = em_tf / (1 - g_tf^2) * ( C_C * (   Rcs_o * R_min_c / 3 * (2 + g_tf) - (3 + g_tf) / 8 * R_min_c^2   ) + A_C * (1 + g_tf) - B_C * (1 - g_tf) / R_min_c^2)
-    sh_rmin_c = em_tf / (1 - g_tf^2) * ( C_C * (    Rcs_o * R_min_c / 3 * (1 + 2 * g_tf) - (1 + 3 * g_tf) / 8 * R_min_c^2  ) + A_C * (1 + g_tf) + B_C * (1 - g_tf) / R_min_c^2)
+    u_r_min_c = C_C * (Rcs_o * R_min_c / 3 - R_min_c^2 / 8) + A_C + B_C / R_min_c^2
+    du_dr_rmin_c = C_C * (2 * Rcs_o * R_min_c / 3 - 3 * R_min_c^2 / 8) + A_C - B_C / R_min_c^2
+    sr_rmin_c = em_tf / (1 - g_tf^2) * (C_C * (Rcs_o * R_min_c / 3 * (2 + g_tf) - (3 + g_tf) / 8 * R_min_c^2) + A_C * (1 + g_tf) - B_C * (1 - g_tf) / R_min_c^2)
+    sh_rmin_c = em_tf / (1 - g_tf^2) * (C_C * (Rcs_o * R_min_c / 3 * (1 + 2 * g_tf) - (1 + 3 * g_tf) / 8 * R_min_c^2) + A_C * (1 + g_tf) + B_C * (1 - g_tf) / R_min_c^2)
     svm_c = np.sqrt(((sh_rmin_c - s_c_ax_use_nov)^2 + (s_c_ax_use_nov - sr_rmin_c)^2 + (sr_rmin_c - sh_rmin_c)^2) / 2)
     svm_vd_c = svm_c / frac_c_ss_tot
     svm_vd_mp_c = svm_vd_c * 0.000001
     svm_vd_ksi_c = svm_vd_c * 0.000000145
-#    print (svm_vd_ksi_c)
+    #    print (svm_vd_ksi_c)
     R_min_p = 0
     u_r_rmin_p = A_P
     du_dr_rmin_p = A_P

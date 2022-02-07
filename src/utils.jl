@@ -76,4 +76,3 @@ end
 function read_GASC(filename::String, case::Int)
     return JSON.parsefile(filename)["SOLUTIONS"][case]
 end
-    

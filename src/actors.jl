@@ -10,7 +10,7 @@ function init(ids::IMAS.IDS)
     error("Function init() not defined for IDS of type $(typeof(ids))")
 end
 
-function init_from_gasc(dd::IMAS.dd, filename, case, no_small_gaps=true; eq_kw = Dict(), cp_kw = Dict(), rb_kw = Dict(), verbose=false)
+function init_from_gasc(dd::IMAS.dd, filename, case, no_small_gaps = true; eq_kw = Dict(), cp_kw = Dict(), rb_kw = Dict(), verbose = false)
     gasc = read_GASC(filename, case + 1) # +1 to account for GASC (PYTHON) and FUSE (JULIA) numbering
 
     eq = dd.equilibrium

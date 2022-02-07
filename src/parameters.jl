@@ -42,7 +42,7 @@ end
 
 
 function SwitchParameter(options, default, description)
-    if ! in(default, keys(options))
+    if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
     return SwitchParameter(options, default, description, default)
@@ -78,7 +78,7 @@ function Base.setindex!(p::FuseParameters, value, key)
             parameter.options[value.first].value = value.second
             value = value.first
         end
-        if ! in(value, keys(parameter.options))
+        if !in(value, keys(parameter.options))
             error("$(repr(value)) is not a valid option: $(collect(keys(parameter.options)))")
         end
         return parameter.value = value
