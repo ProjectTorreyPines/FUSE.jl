@@ -867,11 +867,21 @@ Attributes:
     elseif what == :currents
         @series begin
             label --> "Starting"
-            getfield(trace, what)[start_at:end][1,:]
+            getfield(trace, what)[1,:]
         end
         @series begin
             label --> "Final"
-            getfield(trace, what)[start_at:end][end,:]
+            getfield(trace, what)[end,:]
+        end
+
+    elseif what == :params
+        nparams = length(getfield(trace, what)[1])-1
+
+        for k in 1:nparams
+            @series begin
+                label --> "#$k"
+                x, [getfield(trace, what)[i][k] for i in 1:length(trace.cost_total)][start_at:end]
+            end
         end
 
     else
