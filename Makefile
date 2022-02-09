@@ -120,6 +120,7 @@ install_EPEDNN:
 using Pkg;\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
+'
 
 install_QED:
 	if [ ! -d "$(JULIA_PKG_DEVDIR)/QED" ]; then\
@@ -129,6 +130,7 @@ install_QED:
 using Pkg;\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
+'
 
 update: update_FUSE update_IMAS update_CoordinateConventions update_FusionMaterials update_AD_GS update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN update_QED
 	make install
