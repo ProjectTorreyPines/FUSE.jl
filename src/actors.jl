@@ -147,6 +147,13 @@ export PFcoilsOptActor
 #= ===== =#
 include("actors/build_actor.jl")
 
+#= ================= =#
+#  Current evolution  #
+#= ================= =#
+include("actors/current_actor.jl")
+
+export QEDcurrentActor
+
 #= ========= =#
 #  Transport  #
 #= ========= =#

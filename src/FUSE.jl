@@ -3,6 +3,7 @@ __precompile__()
 module FUSE
 
 using IMAS
+using Printf
 
 #= ======= =#
 #= INCLUDE =#

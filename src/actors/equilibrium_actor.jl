@@ -1,5 +1,4 @@
 using Equilibrium
-using Printf
 import ForwardDiff
 import Optim
 

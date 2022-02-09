@@ -12,7 +12,7 @@ install: install_FUSE install_IJulia
 	julia -e '\
 using Pkg;\
 Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN"]);\
+Pkg.develop(["FUSE", "IMAS", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN", "QED"]);\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
@@ -24,12 +24,12 @@ Pkg.add("IJulia");\
 Pkg.build("IJulia");\
 '
 
-install_FUSE: install_IMAS install_FusionMaterials install_AD_GS install_Equilibrium install_TAUENN
+install_FUSE: install_IMAS install_FusionMaterials install_AD_GS install_Equilibrium install_TAUENN install_QED
 	if [ ! -d "$(JULIA_PKG_DEVDIR)/FUSE" ]; then ln -s $(CURRENTDIR) $(JULIA_PKG_DEVDIR)/FUSE; fi
 	julia -e '\
 using Pkg;\
 Pkg.activate("$(JULIA_PKG_DEVDIR)/FUSE");\
-Pkg.develop(["IMAS", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN"]);\
+Pkg.develop(["IMAS", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN", "QED"]);\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
@@ -121,7 +121,16 @@ using Pkg;\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 
-update: update_FUSE update_IMAS update_CoordinateConventions update_FusionMaterials update_AD_GS update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN
+install_QED:
+	if [ ! -d "$(JULIA_PKG_DEVDIR)/QED" ]; then\
+		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/QED.jl.git");';\
+	fi
+	julia -e '\
+using Pkg;\
+Pkg.resolve();\
+try Pkg.upgrade_manifest() catch end;\
+
+update: update_FUSE update_IMAS update_CoordinateConventions update_FusionMaterials update_AD_GS update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN update_QED
 	make install
 
 update_FUSE:
@@ -150,5 +159,8 @@ update_TGLFNN:
 
 update_EPEDNN:
 	cd $(JULIA_PKG_DEVDIR)/AD_EPEDNN; git fetch; git pull
+
+update_QED:
+	cd $(JULIA_PKG_DEVDIR)/QED; git fetch; git pull
 
 .PHONY:
