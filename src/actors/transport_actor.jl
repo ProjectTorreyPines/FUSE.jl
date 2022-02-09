@@ -101,16 +101,22 @@ end
 
 mutable struct TaueNNactor <: AbstractActor
     dd::IMAS.dd
-    rho_fluxmatch::Real
-    eped_factor::Real
-    temp_shape::Real
-    temp_pedestal_ratio::Real
+    parameters::AD_TAUENN.TauennParameters
 end
 
-function TaueNNactor(dd::IMAS.dd; rho_fluxmatch = 0.5, eped_factor = 1.0, temp_shape = 1.8, temp_pedestal_ratio = 1.0)
-    return TaueNNactor(dd, rho_fluxmatch, eped_factor, temp_shape, temp_pedestal_ratio)
+function TaueNNactor(dd::IMAS.dd; rho_fluxmatch = 0.5, eped_factor = 1.0, temp_shape = 1.8, temp_pedestal_ratio = 1.0, use_tglfnn=true, kw...)
+    parameters = AD_TAUENN.TauennParameters()
+    parameters.eped_factor = eped_factor
+    parameters.rho_fluxmatch = rho_fluxmatch
+    parameters.temp_shape = temp_shape
+    parameters.temp_pedestal_ratio = temp_pedestal_ratio
+    parameters.use_tglfnn = use_tglfnn
+    for param in kw
+        setfield!(parameters, param, kw[param])
+    end
+    return TaueNNactor(dd, parameters)
 end
 
 function step(actor::TaueNNactor; verbose = false)
-    return AD_TAUENN.tau_enn(actor.dd, actor.rho_fluxmatch, actor.eped_factor, actor.temp_shape, actor.temp_pedestal_ratio; verbose = verbose)
+    return AD_TAUENN.tau_enn(actor.dd, actor.parameters; verbose)
 end
