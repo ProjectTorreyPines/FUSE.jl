@@ -36,8 +36,11 @@ jobs:
           julia -e '
             using Pkg
             Pkg.activate(".")
-            Pkg.develop(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/IMAS.jl.git")
-            Pkg.develop(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/JuliaFusion/Equilibrium.jl.git")
-            Pkg.develop(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/AD_GS.jl.git")'
+            dependencies = PackageSpec[]
+            for package in ["FUSE", "IMAS", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN", "QED"]
+              push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
+            end
+            Pkg.add(dependencies)
+            '
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
