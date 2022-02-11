@@ -1,5 +1,4 @@
 import NumericalIntegration: integrate, cumul_integrate
-using Plots
 # simple core_sources initialization which runs the simple_HCD_actors
 
 function add_source(
@@ -150,7 +149,7 @@ function init_simple_core_sources(dd::IMAS.dd;
     power_lh = missing, power_ohm = missing)
 
     if power_nbi !== missing
-        init_nbi(dd, 200e3, 2., power_nbi, 19.6)
+        init_nbi(dd; beam_energy=200e3, beam_mass=2., beam_power=power_nbi, toroidal_angle=19.6)
         nbiactor = simpleNBIactor(dd)
         FUSE.step(nbiactor)
     end
@@ -167,7 +166,7 @@ function step(actor::simpleNBIactor; verbose=false)
         power_launched = @ddtime(nbi_u.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
-        volume_cp = abs.(IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp])
+        volume_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp]
         area_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area)[rho_cp]
 
         nbi_gaussian = sgaussian(rho_cp, actor.rho_0[idx], actor.width[idx], 2)
