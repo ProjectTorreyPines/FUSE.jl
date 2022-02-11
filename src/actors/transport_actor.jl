@@ -36,15 +36,15 @@ function init(
     Te_peaking::Real,
     w_ped::Real,
     zeff::Real,
-    Paux::Real,
+    rotation_core::Real,
     T_ratio::Real = 1.0,
-    n_points::Int = 101
+    n_points::Int = 101,
 )
     cpt = resize!(cp.profiles_1d)
 
     cpt.grid.rho_tor_norm = LinRange(0, 1, n_points)
     cpt.zeff = ones(n_points) .* zeff
-    cpt.rotation_frequency_tor_sonic = 5e3 * abs(Paux / 1e6 * 1.0 + 0.5) .* (1.0 .- cpt.grid.rho_tor_norm)
+    cpt.rotation_frequency_tor_sonic = rotation_core .* (1.0 .- cpt.grid.rho_tor_norm)
 
     # Set ions
     resize!(cpt.ion, 2)

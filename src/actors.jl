@@ -159,3 +159,9 @@ export QEDcurrentActor
 #= ========= =#
 
 include("actors/transport_actor.jl")
+
+#= ========================= =#
+#  Heating and Current Drive  #
+#= ========================= =#
+
+include("actors/sources_actor.jl")
