@@ -1,5 +1,5 @@
 import NumericalIntegration: integrate, cumul_integrate
-
+using Plots
 # simple core_sources initialization which runs the simple_HCD_actors
 
 function add_source(
@@ -42,7 +42,7 @@ function add_source(
         cs1d.momentum_tor = IMAS.interp(LinRange(0, 1, length(momentum)), momentum)(cs1d.grid.rho_tor_norm)
     end
     if jpar !== missing
-        cs1d.jpar = IMAS.interp(LinRange(0, 1, length(jpar)), jpar)(cs1d.grid.rho_tor_norm)
+        cs1d.j_parallel = IMAS.interp(LinRange(0, 1, length(jpar)), jpar)(cs1d.grid.rho_tor_norm)
     end
 end
 
@@ -63,9 +63,14 @@ function sivukhin_fraction(beam_energy, cp1d)
     end
     # Calculates the nbi power deposition fraction profile from sivukhin
     x = beam_energy ./ W_crit
+
     y = x .* rho
     f = integrate(y, vec(1.0 / (1.0 .+ y .^ 1.5)))
-    return f ./ x
+    ion_elec_fraction = f ./ x
+    if any(i -> i > 1.0, ion_elec_fraction)
+        error("fraction is larger than 1, check beam_energy $(beam_energy) in eV")
+    end
+    return ion_elec_fraction
 end
 
 function spitzer_conductivity(ne, Te, Zeff)
@@ -101,18 +106,6 @@ gfw_dict = {
 }  # LH current drive effciency from friedberg 2015 paper
 """
 
-
-# make the NBI/EC/yada yda init and actor
-
-# init core_sources will populate dd.nbi. dd.eclauchner, runs the simple_actors adn populate dd.core_sources.
-
-# simple_nbiactor, simple_ecactor ....
-
-# simple_nbiactor will setup from nbi.dd and run actor
-
-# TGYRO-like solver 
-
-
 #= ====================== =#
 #     simple H&CD actors   #
 #= ====================== =#
@@ -129,14 +122,9 @@ function simpleNBIactor(dd::IMAS.dd, width::Real=0.3, rho_0::Real = 0.0, current
     return simpleNBIactor(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
 end
 
-function init_nbis(dd::IMAS.dd; beam_energy::Real, beam_mass::Real, beam_power::Real, toroidal_angle::Real)
-    return init_nbi(dd::IMAS.dd; beam_energy=[beam_energy], beam_mass=[beam_mass], beam_power=[beam_power], toroidal_angle=[toroidal_angle])
-end
-# beam_energy=200e3, beam_mass = 2., nbi_width = 0.18, nbi_current_efficiency = 0.3, nbi_rho_0 = 0.0, injection_angle=19.6
-
-function init_nbi(dd::IMAS.dd; beam_energy::Vector, beam_mass::Vector, beam_power::Vector, toroidal_angle::Vector)
+function init_nbi(dd::IMAS.dd, beam_energy::Vector, beam_mass::Vector, beam_power::Vector, toroidal_angle::Vector)
     for idx in 1:length(beam_power)
-        resize!(dd.nbi.unit,1)
+        resize!(dd.nbi.unit,idx)
         nbi_u = dd.nbi.unit[idx]
         @ddtime (nbi_u.energy.data = beam_energy[idx])
         @ddtime (nbi_u.power_launched.data = beam_power[idx])
@@ -147,6 +135,15 @@ function init_nbi(dd::IMAS.dd; beam_energy::Vector, beam_mass::Vector, beam_powe
     end
 end
 
+function init_nbi(dd::IMAS.dd; beam_energy:: Union{Real,Vector}, beam_mass::Union{Real,Vector}, beam_power::Union{Real,Vector}, toroidal_angle::Union{Real,Vector})
+    if isa(beam_energy, Real)
+        return init_nbi(dd::IMAS.dd, [beam_energy], [beam_mass], [beam_power], [toroidal_angle])
+    elseif isa(beam_energy, Vector) && isa(beam_mass, Real)
+        return init_nbi(dd::IMAS.dd, beam_energy, beam_mass .* ones(length(beam_energy)), beam_power, toroidal_angle)
+    else
+        return init_nbi(dd::IMAS.dd, beam_energy, beam_mass, beam_power, toroidal_angle)
+    end
+end
 
 function init_simple_core_sources(dd::IMAS.dd;
     power_nbi = missing, power_ec = missing, power_ic = missing,
@@ -169,28 +166,28 @@ function step(actor::simpleNBIactor; verbose=false)
         beam_mass = nbi_u.species.a
         power_launched = @ddtime(nbi_u.power_launched.data)
 
-        # Construct nbi source
         rho_cp = cp1d.grid.rho_tor_norm
-        volume_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp]
+        volume_cp = abs.(IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp])
         area_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area)[rho_cp]
 
         nbi_gaussian = sgaussian(rho_cp, actor.rho_0[idx], actor.width[idx], 2)
+        nbi_gaussian_vol = nbi_gaussian / integrate(volume_cp, nbi_gaussian)
+        nbi_gaussian_area = nbi_gaussian / integrate(area_cp, nbi_gaussian)
 
-        qi = power_launched * sivukhin_fraction(beam_energy, cp1d) .* nbi_gaussian
-        qi /= integrate(volume_cp, qi)
+        ion_elec_ratio = sivukhin_fraction(beam_energy, cp1d)
 
-        qe = power_launched * (1 .- sivukhin_fraction(beam_energy, cp1d)) .* nbi_gaussian
-        qe /= integrate(volume_cp, qe)
+        qi = power_launched .* nbi_gaussian_vol .* ion_elec_ratio
+        qe = power_launched .* nbi_gaussian_vol .* (1 .- ion_elec_ratio)
 
         beam_particles = power_launched / (beam_energy * constants.e)
-        se = beam_particles .* nbi_gaussian
-        se /= integrate(volume_cp, se)
+        se = beam_particles .* nbi_gaussian_vol
 
-        momentum =  sin(nbi_u.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u .* nbi_gaussian
-        momentum /= integrate(area_cp, momentum)
+        ne_vol = integrate(volume_cp,cp1d.electrons.density) / volume_cp[end]
+        jpar = nbi_gaussian_area .* actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol/1e19) * power_launched
+        momentum_source= sin(nbi_u.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u 
+        momentum =  nbi_gaussian_area .* momentum_source
 
         isource = resize!(cs.source, "identifier.name" => "beam_$idx")
-        @show typeof(qe),typeof(volume_cp)
-        add_source(isource, 8, "beam_$idx", rho_cp, volume_cp; qe=qe , Qe=cumul_integrate(volume_cp, qe), qi=qi , Qi=cumul_integrate(volume_cp, qi) , se=se , momentum=momentum)
+        add_source(isource, 8, "beam_$idx", rho_cp, volume_cp; qe=qe , Qe=cumul_integrate(volume_cp, qe), qi=qi , Qi=cumul_integrate(volume_cp, qi), se=se , momentum=momentum, jpar=jpar)
     end
 end
