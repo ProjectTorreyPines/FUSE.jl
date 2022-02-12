@@ -76,6 +76,7 @@ function init_core_profiles(
     niFraction = zeros(2)
     niFraction[2] = (zeff - 1.0) / (zimp1 * (zimp1 - 1.0))
     niFraction[1] = 1.0 - zimp1 * niFraction[2]
+    @assert all(niFraction .> 0.0) "zeff too high for the given bulk [$bulk] and impurity [$impurity] species"
     for i = 1:length(cpt.ion)
         cpt.ion[i].density = cpt.electrons.density .* niFraction[i]
     end
