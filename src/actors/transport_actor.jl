@@ -1,7 +1,11 @@
 using NumericalIntegration
 import AD_TAUENN
 
-function init(cs::IMAS.core_sources, eq::IMAS.equilibrium; Paux_e::Real, Paux_i::Real, ngrid::Int = 51)
+function init_core_sources(dd::IMAS.dd; kwargs...)
+    init_core_sources(dd.core_sources, dd.equilibrium; kwargs...)
+end
+
+function init_core_sources(cs::IMAS.core_sources, eq::IMAS.equilibrium; Paux_e::Real, Paux_i::Real, ngrid::Int = 51)
     empty!(cs)
 
     resize!(cs.source, 1)
@@ -26,7 +30,11 @@ function init(cs::IMAS.core_sources, eq::IMAS.equilibrium; Paux_e::Real, Paux_i:
     return cs
 end
 
-function init(
+function init_core_profiles(dd::IMAS.dd; kwargs...)
+    init_core_profiles(dd.core_profiles, dd.equilibrium, dd.summary; kwargs...)
+end
+
+function init_core_profiles(
     cp::IMAS.core_profiles,
     eq::IMAS.equilibrium,
     summary::IMAS.summary;
@@ -36,6 +44,8 @@ function init(
     Te_peaking::Real,
     w_ped::Real,
     zeff::Real,
+    bulk::Symbol,
+    impurity::Symbol,
     Paux::Real,
     T_ratio::Real = 1.0,
     n_points::Int = 101
@@ -47,15 +57,11 @@ function init(
     cpt.rotation_frequency_tor_sonic = 5e3 * abs(Paux / 1e6 * 1.0 + 0.5) .* (1.0 .- cpt.grid.rho_tor_norm)
 
     # Set ions
-    resize!(cpt.ion, 2)
-    cpt.ion[1].label = "D"
-    resize!(cpt.ion[1].element, 1)
-    cpt.ion[1].element[1].z_n = 1
-    cpt.ion[1].element[1].a = 2
-    resize!(cpt.ion[2].element, 1)
-    cpt.ion[2].label = "C"
-    cpt.ion[2].element[1].z_n = 6
-    cpt.ion[2].element[1].a = 12
+    ion = resize!(cpt.ion, "label" => String(bulk))
+    fill!(ion, IMAS.ion_element(bulk))
+    @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
+    ion = resize!(cpt.ion, "label" => String(impurity))
+    fill!(ion, IMAS.ion_element(impurity))
 
     # pedestal
     @ddtime summary.local.pedestal.n_e.value = ne_ped
@@ -66,7 +72,7 @@ function init(
     ne_core = ne_peaking * ne_ped
     cpt.electrons.density = AD_TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, n_points, 0.9, 0.9, w_ped)
 
-    zimp1 = 6.0
+    zimp1 = IMAS.ion_element(impurity).element[1].z_n
     niFraction = zeros(2)
     niFraction[2] = (zeff - 1.0) / (zimp1 * (zimp1 - 1.0))
     niFraction[1] = 1.0 - zimp1 * niFraction[2]
