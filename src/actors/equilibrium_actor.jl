@@ -7,13 +7,32 @@ import Optim
 #= ==================== =#
 
 """
-    init(eqt::IMAS.equilibrium__time_slice; B0::Real, R0::Real, Z0::Real,, ϵ::Real, δ::Real, κ::Real, beta_n::Real, ip::Real, x_point::Union{Vector, NTuple{2}, Bool}=false)
+    function init_equilibrium(
+        eq::IMAS.equilibrium;
+        B0::Real,
+        R0::Real,
+        Z0::Real,
+        ϵ::Real,
+        δ::Real,
+        κ::Real,
+        beta_n::Real,
+        ip::Real,
+        x_point::Union{Vector,NTuple{2},Bool} = false)
 
 Initialize equilibrium IDS based on some basic Miller geometry parameters
 """
-function init(eq::IMAS.equilibrium;
-    B0::Real, R0::Real, Z0::Real, ϵ::Real, δ::Real, κ::Real, beta_n::Real, ip::Real,
+function init_equilibrium(
+    eq::IMAS.equilibrium;
+    B0::Real,
+    R0::Real,
+    Z0::Real,
+    ϵ::Real,
+    κ::Real,
+    δ::Real,
+    beta_n::Real,
+    ip::Real,
     x_point::Union{Vector,NTuple{2},Bool} = false)
+
     eqt = resize!(eq.time_slice)
     eqt.boundary.minor_radius = ϵ * R0
     eqt.boundary.geometric_axis.r = R0
@@ -33,6 +52,10 @@ function init(eq::IMAS.equilibrium;
     eq.vacuum_toroidal_field.r0 = R0
     @ddtime eq.vacuum_toroidal_field.b0 = B0
     return eqt
+end
+
+function init_equilibrium(dd::IMAS.dd, args...; kw...)
+    return init_equilibrium(dd.equilibrium, args; kw...)
 end
 
 """
@@ -171,10 +194,12 @@ end
 
 Store SolovevEquilibriumActor data in IMAS.equilibrium format
 """
-function finalize(actor::SolovevEquilibriumActor,
+function finalize(
+    actor::SolovevEquilibriumActor,
     resolution::Int = 129,
-    rlims::NTuple{2,<:Real} = Equilibrium.limits(actor.S)[1],
-    zlims::NTuple{2,<:Real} = Equilibrium.limits(actor.S)[2])::IMAS.equilibrium__time_slice
+    rlims::NTuple{2,<:Real} = (maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
+    zlims::NTuple{2,<:Real} = (-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2)
+)::IMAS.equilibrium__time_slice
 
     tc = transform_cocos(3, 11)
 
