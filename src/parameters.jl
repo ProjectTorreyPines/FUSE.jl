@@ -1,9 +1,9 @@
-abstract type AbstractParameter end
+abstract type Parameter end
 
 #= ================= =#
 #   Scalar Parameter  #
 #= ================= =#
-mutable struct ScalarParameter{T} <: AbstractParameter
+mutable struct Entry{T} <: Parameter
     default::T
     units::String
     description::String
@@ -11,12 +11,23 @@ mutable struct ScalarParameter{T} <: AbstractParameter
 end
 
 """
-    ScalarParameter(default, units, description)
+    Entry(default, units::String, description::String)
 
-Defines a scalar parameter
+Defines a parameter
 """
-function ScalarParameter(default, units, description)
-    return ScalarParameter(default, units, description, default)
+function Entry(T, default, units::String, description::String)
+    return Entry{Union{Missing,T}}(default, units, description, default)
+end
+
+"""
+    Entry(default, ids::Type{T}, field::Symbol) where {T<:IMAS.IDS}
+
+Defines a parameter taking units and description from IDS field
+"""
+function Entry(T, default, ids, field::Symbol)
+    location = "$(IMAS._f2u(ids)).$(field)"
+    info = IMAS.imas_info(location)
+    return Entry(T, default, get(info, "units", ""), get(info, "documentation", ""))
 end
 
 #= =============== =#
@@ -30,50 +41,98 @@ struct SwitchOption
 end
 
 #= ================= =#
-#   SwitchParameter   #
+#   Switch   #
 #= ================= =#
 
-mutable struct SwitchParameter <: AbstractParameter
-    options::Dict{Symbol,Union{SwitchOption,ScalarParameter}}
+mutable struct Switch <: Parameter
+    options::Dict{Symbol,Union{SwitchOption,Entry}}
     default::Symbol
+    units::String
     description::String
     value::Symbol
 end
+"""
+    Switch(options, default, units::String, description::String)
 
-
-function SwitchParameter(options, default, description)
+Defines a switch
+"""
+function Switch(options, default, units::String, description::String)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
-    return SwitchParameter(options, default, description, default)
+    return Switch(options, default, units, description, default)
+end
+
+"""
+    Switch(options, default, ids::IMAS.IDS, field::Symbol)
+
+Defines a switch taking units and description from IDS field
+"""
+function Switch(options, default, ids::Type{T}, field::Symbol) where {T<:IMAS.IDS}
+    location = "$(IMAS._f2u(ids)).$(field)"
+    info = IMAS.imas_info(location)
+    return Switch(options, default, get(info, "units", ""), get(info, "documentation", ""))
 end
 
 #= ================= =#
 #   Fuse Parameters   #
 #= ================= =#
 
-mutable struct FuseParameters
-    parameters::Dict{Symbol,AbstractParameter}
+struct InexistentParameterException <: Exception
+    key::Symbol
+end
+Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: parameter $(e.key) does not exist")
+
+struct NotsetParameterException <: Exception
+    key::Symbol
+end
+Base.showerror(io::IO, e::NotsetParameterException) = print(io, "ERROR: parameter $(e.key) is not set")
+
+Base.@kwdef struct Parameters
+    _parameters::Dict{Symbol,Union{Parameter,Parameters}} = Dict{Symbol,Union{Parameter,Parameters}}()
 end
 
 
-function Base.getindex(p::FuseParameters, key)
-    parameter = p.parameters[key]
-    if typeof(parameter) <: ScalarParameter
-        return parameter.value
-    elseif typeof(parameter) <: SwitchParameter
-        parameter.options[parameter.value].value
-    else
-        throw(KeyError(key))
+function Base.getproperty(p::Parameters, key::Symbol)
+    _parameter = getfield(p, :_parameters)
+    if !(key in keys(_parameter))
+        throw(InexistentParameterException(key))
     end
+    parameter = _parameter[key]
+
+    if typeof(parameter) <: Parameters
+        value = parameter
+    elseif typeof(parameter) <: Entry
+        value = parameter.value
+    elseif typeof(parameter) <: Switch
+        value = parameter.options[parameter.value].value
+    else
+        error("Unrecognized type $(typeof(parameter))")
+    end
+
+    if ismissing(value)
+        throw(NotsetParameterException(key))
+    end
+
+    return value
 end
 
 
-function Base.setindex!(p::FuseParameters, value, key)
-    parameter = p.parameters[key]
-    if typeof(parameter) <: ScalarParameter
+function Base.setproperty!(p::Parameters, key::Symbol, value)
+    if typeof(value) <: Union{Parameter,Parameters}
+        getfield(p, :_parameters)[key] = value
+        return
+    end
+
+    _parameter = getfield(p, :_parameters)
+    if !(key in keys(_parameter))
+        throw(InexistentParameterException(key))
+    end
+    parameter = _parameter[key]
+
+    if typeof(parameter) <: Entry
         return parameter.value = value
-    elseif typeof(parameter) <: SwitchParameter
+    elseif typeof(parameter) <: Switch
         if typeof(value) <: Pair
             parameter.options[value.first].value = value.second
             value = value.first
@@ -83,7 +142,7 @@ function Base.setindex!(p::FuseParameters, value, key)
         end
         return parameter.value = value
     else
-        throw(KeyError(key))
+        error("Unrecognized type $(typeof(parameter))")
     end
 end
 

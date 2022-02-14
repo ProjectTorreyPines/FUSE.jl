@@ -1,49 +1,21 @@
-# begin adding parameters to simple dictionary
-fuse_parameters = Dict()
+function AllParameters()
 
-#= ============== =#
-#  PHYSICS_MODELS  #
-#= ============== =#
-fuse_parameters[:PHYSICS_MODELS] = Dict()
+    params = Parameters()
 
-# # bootstrapModel
-# options = Dict()
-# options[:pomphrey] = SwitchOption(CBSPomphrey(), "", "Pomphrey, N. Bootstrap dependence on plasma profile parameters. PPPL, 1992.")
-# options[:gi] = SwitchOption(CBSGi(), "", "Gi et al., Fus. Eng. Design 89 2709 (2014)")
-# options[:wilson] = SwitchOption(CBSWilson(), "", "Wilson et al., Nucl. Fusion 32 257 (1992)")
-# options[:user] = ScalarParameter(0.7, "", "User-defined constant")
-# fuse_parameters[:PHYSICS_MODELS][:bootstrapModel] = SwitchParameter(options, :gi, "Bootstrap current efficiency model")
+    equilibrium = params.equilibrium = Parameters()
+    equilibrium.B0 = Entry(Real, missing, IMAS.equilibrium__vacuum_toroidal_field, :b0)
+    equilibrium.R0 = Entry(Real, missing, IMAS.equilibrium__vacuum_toroidal_field, :r0)
+    equilibrium.ϵ = Entry(Real, missing, "", "Plasma aspect ratio")
+    equilibrium.δ = Entry(Real, missing, IMAS.equilibrium__time_slice___boundary, :triangularity)
+    equilibrium.κ = Entry(Real, missing, IMAS.equilibrium__time_slice___boundary, :elongation)
+    equilibrium.βn = Entry(Real, missing, IMAS.equilibrium__time_slice___global_quantities, :beta_normal)
+    equilibrium.ip = Entry(Real, missing, IMAS.equilibrium__time_slice___global_quantities, :ip)
+    equilibrium.x_point = Entry(Bool, missing, IMAS.equilibrium__time_slice___boundary, :x_point)
 
-# this should really go under a 0D data structure
-#= ================= =#
-#  PLASMA_PARAMETERS  #
-#= ================= =#
+    build = params.build = Parameters()
+    build.n_oh_coils = Entry(Int, missing, "", "number of OH coils")
+    build.n_pf_coils_inside = Entry(Int, missing, "", "number of PF coils inside of the TF")
+    build.n_pf_coils_outside = Entry(Int, missing, "", "number of PF coils outside of the TF")
 
-fuse_parameters[:PLASMA_PARAMETERS] = Dict()
-
-# profiles shapes
-fuse_parameters[:PLASMA_PARAMETERS][:Sn] = ScalarParameter(1.0, "", "Shape of density profile (1-x^2)^Sn")
-fuse_parameters[:PLASMA_PARAMETERS][:St] = ScalarParameter(1.0, "", "Shape of temperature profile (1-x^2)^St")
-fuse_parameters[:PLASMA_PARAMETERS][:Sj] = ScalarParameter(1.0, "", "Shape of current density profile (1-x^2)^Sj")
-
-# profiles scales
-fuse_parameters[:PLASMA_PARAMETERS][:Te0] = ScalarParameter(1.0E3, "eV", "electron temperature on axis")
-fuse_parameters[:PLASMA_PARAMETERS][:ne0] = ScalarParameter(1E19, "m^-3", "electron density on axis")
-
-# plasma composition
-fuse_parameters[:PLASMA_PARAMETERS][:Zeff] = ScalarParameter(2, "", "plasma effective charge")
-
-# plasma geometry
-fuse_parameters[:PLASMA_PARAMETERS][:R0] = ScalarParameter(1.7, "m", "Major radius")
-fuse_parameters[:PLASMA_PARAMETERS][:aspect_ratio] = ScalarParameter(2.7, "", "plasma aspect ratio")
-fuse_parameters[:PLASMA_PARAMETERS][:elongation] = ScalarParameter(1.9, "", "plasma elongation")
-
-#= ================= =#
-
-# define FuseParameters for rapid access of .value property
-for (k, v) in fuse_parameters
-    fuse_parameters[k] = FuseParameters(v)
+    return params
 end
-
-plasma_parameters = fuse_parameters[:PLASMA_PARAMETERS]
-physics_models = fuse_parameters[:PHYSICS_MODELS]
