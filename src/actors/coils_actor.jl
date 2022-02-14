@@ -36,12 +36,13 @@ Attributes
  * coils_cleareance: Clereance that coils have from other structures (per rail)
  * coils_elements_area: Cross-sectional area taken up by individual filaments in a coil (per rail)
 """
-function init(pf_active::IMAS.pf_active,
+function init_pf_active(
+    pf_active::IMAS.pf_active,
     bd::IMAS.build,
-    n_coils::Vector{TI} where {TI<:Int};
-    pf_coils_size::Union{Nothing,Real,Vector{TR}} where {TR<:Real} = nothing,
-    coils_cleareance::Union{Nothing,Real,Vector{TR}} where {TR<:Real} = nothing,
-    coils_elements_area::Union{Nothing,Real,Vector{TR}} where {TR<:Real} = nothing)
+    n_coils::Vector{TI};
+    pf_coils_size::Union{Nothing,TR,Vector{TR}} = nothing,
+    coils_cleareance::Union{Nothing,TR,Vector{TR}}= nothing,
+    coils_elements_area::Union{Nothing,TR,Vector{TR}} = nothing) where {TI<:Int, TR<:Real}
 
     OH_layer = IMAS.get_build(bd, type = 1)
 
@@ -220,7 +221,6 @@ end
 mutable struct PFcoilsOptActor <: AbstractActor
     eq_in::IMAS.equilibrium
     eq_out::IMAS.equilibrium
-    time::Real
     pf_active::IMAS.pf_active
     bd::IMAS.build
     symmetric::Bool
@@ -229,23 +229,27 @@ mutable struct PFcoilsOptActor <: AbstractActor
     coil_model::Symbol
 end
 
-function PFcoilsOptActor(eq_in::IMAS.equilibrium,
+function PFcoilsOptActor(dd::IMAS.dd, args...; kw...)
+    return PFcoilsOptActor(dd.equilibrium, dd.build, dd.pf_active, args...; kw...)
+end
+
+function PFcoilsOptActor(
+    eq_in::IMAS.equilibrium,
     bd::IMAS.build,
     pf::IMAS.pf_active,
     n_coils::Vector;
     λ_regularize = 1E-13,
     coil_model = :simple)
+
     # initialize coils location
-    init(pf, bd, n_coils)
+    init_pf_active(pf, bd, n_coils)
 
     # basic constructors
     eq_out = deepcopy(eq_in)
     symmetric = false
-    time_index = 1
-    time = eq_in.time[time_index]
 
     # constructor
-    pfactor = PFcoilsOptActor(eq_in, eq_out, time, pf, bd, symmetric, λ_regularize, PFcoilsOptTrace(), coil_model)
+    pfactor = PFcoilsOptActor(eq_in, eq_out, pf, bd, symmetric, λ_regularize, PFcoilsOptTrace(), coil_model)
 
     return pfactor
 end
@@ -259,8 +263,8 @@ mutable struct GS_IMAS_pf_active__coil <: AD_GS.AbstractCoil
     height::Real
     turns_with_sign::Real
     spacing::Real
-    time_current::Vector{T} where {T<:Real}
-    time::Vector{T} where {T<:Real}
+    current_data::Vector{T} where {T<:Real}
+    current_time::Vector{T} where {T<:Real}
     time_index::Int
     coil_model::Symbol
 end
@@ -281,7 +285,7 @@ end
 
 function Base.getproperty(coil::GS_IMAS_pf_active__coil, field::Symbol)
     if field == :current
-        return getfield(coil, :time_current)[coil.time_index]
+        return getfield(coil, :current_data)[coil.time_index]
     else
         return getfield(coil, field)
     end
@@ -289,7 +293,7 @@ end
 
 function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value)
     if field == :current
-        getfield(coil, :time_current)[coil.time_index] = value
+        getfield(coil, :current_data)[coil.time_index] = value
     else
         setfield!(coil, field, value)
     end
@@ -307,8 +311,8 @@ function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
     pf_active__coil.element[1].geometry.rectangle.width = coil.width
     pf_active__coil.element[1].geometry.rectangle.height = coil.height
     pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
-    pf_active__coil.current.time = coil.time
-    pf_active__coil.current.data = coil.time_current
+    pf_active__coil.current.time = coil.current_time
+    pf_active__coil.current.data = coil.current_data
 end
 
 function set_turns_from_spacing!(coil::GS_IMAS_pf_active__coil)
@@ -653,8 +657,8 @@ function step(pfactor::PFcoilsOptActor;
     fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(pfactor, optimization_scheme)
     coils = vcat(pinned_coils, optim_coils, fixed_coils)
     for coil in coils
-        coil.time_current = pfactor.eq_in.time .* 0.0
-        coil.time = pfactor.eq_in.time
+        coil.current_time = pfactor.eq_in.time
+        coil.current_data = zeros(size(pfactor.eq_in.time))
     end
 
     bd = pfactor.bd
