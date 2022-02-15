@@ -2,8 +2,6 @@ using Revise
 using FUSE
 using Test
 
-
-
 @testset "parameters" begin
     par = FUSE.Parameters()
 
@@ -21,4 +19,9 @@ using Test
 
     @test_throws FUSE.InexistentParameterException par.equilibrium.does_not_exist = 1.0
 
+    @test fieldnames(par.equilibrium) == fieldnames(FUSE.Parameters(:equilibrium))
+
+    @test_throws FUSE.InexistentParameterException FUSE.Parameters(:does_not_exist)
+
+    @test FUSE.Parameters(:ITER).equilibrium.B0 == 5.3
 end

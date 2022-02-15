@@ -15,7 +15,7 @@ end
 
 Defines a parameter
 """
-function Entry(T, default, units::String, description::String)
+function Entry(T, units::String, description::String; default = missing)
     return Entry{Union{Missing,T}}(default, units, description, default)
 end
 
@@ -24,10 +24,10 @@ end
 
 Defines a parameter taking units and description from IDS field
 """
-function Entry(T, default, ids, field::Symbol)
+function Entry(T, ids, field::Symbol; default = missing)
     location = "$(IMAS._f2u(ids)).$(field)"
     info = IMAS.imas_info(location)
-    return Entry(T, default, get(info, "units", ""), get(info, "documentation", ""))
+    return Entry(T, get(info, "units", ""), get(info, "documentation", ""); default)
 end
 
 #= =============== =#
@@ -56,7 +56,7 @@ end
 
 Defines a switch
 """
-function Switch(options, default, units::String, description::String)
+function Switch(options, units::String, description::String; default = missing)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
@@ -68,10 +68,10 @@ end
 
 Defines a switch taking units and description from IDS field
 """
-function Switch(options, default, ids::Type{T}, field::Symbol) where {T<:IMAS.IDS}
+function Switch(options, ids::Type{T}, field::Symbol; default = missing) where {T<:IMAS.IDS}
     location = "$(IMAS._f2u(ids)).$(field)"
     info = IMAS.imas_info(location)
-    return Switch(options, default, get(info, "units", ""), get(info, "documentation", ""))
+    return Switch(options, get(info, "units", ""), get(info, "documentation", ""); default)
 end
 
 #= ================= =#
@@ -90,6 +90,10 @@ Base.showerror(io::IO, e::NotsetParameterException) = print(io, "ERROR: paramete
 
 struct Parameters
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
+end
+
+function Base.fieldnames(p::Parameters)
+    return collect(keys(getfield(p, :_parameters)))
 end
 
 
