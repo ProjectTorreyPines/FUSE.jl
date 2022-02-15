@@ -14,14 +14,17 @@ function Parameters(what::Symbol)
 
         if what == :general
             general = params
-            general.init_from = Entry(Symbol, "", "Initialize run from") # [:ods, :scalars, :gasc]
+            options = [
+                :ods => "Load data from ODS saved in .json format",
+                :scalars => "Initialize FUSE run form scalar FUSE parameters",
+                :gasc => "Initialize FUSE run form GASC output file saved in .json format"]
+            general.init_from = Switch(options, "", "Initialize run from")
 
         elseif what == :equilibrium
             equilibrium = params
             equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
-            equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
             equilibrium.R0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
-            equilibrium.Z0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
+            equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default = 0.0)
             equilibrium.ϵ = Entry(Real, "", "Plasma aspect ratio")
             equilibrium.δ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :triangularity)
             equilibrium.κ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :elongation)
@@ -29,11 +32,16 @@ function Parameters(what::Symbol)
             equilibrium.ip = Entry(Real, IMAS.equilibrium__time_slice___global_quantities, :ip)
             equilibrium.x_point = Entry(Bool, IMAS.equilibrium__time_slice___boundary, :x_point)
             equilibrium.symmetric = Entry(Bool, "", "Is plasma up-down symmetric")
-            equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
+            equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default = 129)
 
         elseif what == :coil
             coil = params
-            coil.green_model = Entry(Symbol, "", "Model to be used for the Greens function table of the PF coils"; default=:simple) # [:simple, :....]
+            options = [
+                :point => "one filament per coil",
+                :simple => "like :point, but OH coils have three filaments",
+                :corners => "like :point, but PF coils have filaments at the four corners",
+                :realistic => "hundreds of filaments (very slow!)"]
+            coil.green_model = Switch(options, "", "Model to be used for the Greens function table of the PF coils"; default = :simple)
 
         elseif what == :build
             build = params
@@ -47,7 +55,7 @@ function Parameters(what::Symbol)
             gasc = params
             gasc.filename = Entry(String, "", "Output GASC .json file from which data will be loaded")
             gasc.case = Entry(Int, "", "Number of the GASC run to load")
-            gasc.no_small_gaps = Entry(Bool, "", "Remove small gaps from the GASC radial build"; default=true)
+            gasc.no_small_gaps = Entry(Bool, "", "Remove small gaps from the GASC radial build"; default = true)
 
         elseif what == :ods
             ods = params
@@ -113,6 +121,6 @@ function Parameters(what::Symbol)
             throw(InexistentParameterException(what))
         end
     end
-    
+
     return params
 end

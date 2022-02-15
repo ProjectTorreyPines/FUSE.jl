@@ -23,5 +23,11 @@ using Test
 
     @test_throws FUSE.InexistentParameterException FUSE.Parameters(:does_not_exist)
 
-    @test FUSE.Parameters(:ITER).equilibrium.B0 == 5.3
+    iter = FUSE.Parameters(:ITER)
+
+    @test iter.equilibrium.B0 == 5.3
+
+    @test (iter.general.init_from = :ods) == :ods
+
+    @test_throws FUSE.BadParameterException iter.general.init_from = :odsa
 end

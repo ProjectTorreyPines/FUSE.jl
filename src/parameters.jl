@@ -11,7 +11,7 @@ mutable struct Entry{T} <: Parameter
 end
 
 """
-    Entry(default, units::String, description::String)
+    Entry(T, units::String, description::String; default = missing)
 
 Defines a parameter
 """
@@ -19,11 +19,6 @@ function Entry(T, units::String, description::String; default = missing)
     return Entry{Union{Missing,T}}(default, units, description, default)
 end
 
-"""
-    Entry(default, ids::Type{T}, field::Symbol) where {T<:IMAS.IDS}
-
-Defines a parameter taking units and description from IDS field
-"""
 function Entry(T, ids, field::Symbol; default = missing)
     location = "$(IMAS._f2u(ids)).$(field)"
     info = IMAS.imas_info(location)
@@ -46,28 +41,32 @@ end
 
 mutable struct Switch <: Parameter
     options::Dict{Symbol,Union{SwitchOption,Entry}}
-    default::Symbol
+    default::Union{Missing,Symbol}
     units::String
     description::String
-    value::Symbol
+    value::Union{Missing,Symbol}
 end
+
 """
-    Switch(options, default, units::String, description::String)
+    Switch(options, units::String, description::String; default = missing)
 
 Defines a switch
 """
-function Switch(options, units::String, description::String; default = missing)
+function Switch(options::Dict{Symbol,Union{SwitchOption,Entry}}, units::String, description::String; default = missing)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
     return Switch(options, default, units, description, default)
 end
 
-"""
-    Switch(options, default, ids::IMAS.IDS, field::Symbol)
+function Switch(options::Vector{T}, units::String, description::String; default = missing) where {T<:Pair{Symbol,Z}} where {Z<:Any}
+    opts = Dict{Symbol,SwitchOption}()
+    for (key, desc) in options
+        opts[key] = SwitchOption(key, units, desc)
+    end
+    return Switch(opts, default, units, description, default)
+end
 
-Defines a switch taking units and description from IDS field
-"""
 function Switch(options, ids::Type{T}, field::Symbol; default = missing) where {T<:IMAS.IDS}
     location = "$(IMAS._f2u(ids)).$(field)"
     info = IMAS.imas_info(location)
@@ -88,6 +87,12 @@ struct NotsetParameterException <: Exception
 end
 Base.showerror(io::IO, e::NotsetParameterException) = print(io, "ERROR: parameter $(e.key) is not set")
 
+struct BadParameterException <: Exception
+    key::Symbol
+    valid::Vector{Symbol}
+end
+Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: `$(repr(e.key))` is not one of the valid options: $(e.valid)")
+
 struct Parameters
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
@@ -95,7 +100,6 @@ end
 function Base.fieldnames(p::Parameters)
     return collect(keys(getfield(p, :_parameters)))
 end
-
 
 function Base.getproperty(p::Parameters, key::Symbol)
     _parameter = getfield(p, :_parameters)
@@ -141,8 +145,8 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
             parameter.options[value.first].value = value.second
             value = value.first
         end
-        if !in(value, keys(parameter.options))
-            error("$(repr(value)) is not a valid option: $(collect(keys(parameter.options)))")
+        if (value !== missing) && !(value in keys(parameter.options))
+            throw(BadParameterException(value, collect(keys(parameter.options))))
         end
         return parameter.value = value
     else
