@@ -5,14 +5,12 @@ using Test
 @testset "workflows" begin
 
     @testset "ITER_ods" begin
-        par = FUSE.Parameters(:ITER)
-        par.general.init_from = :ods
+        par = FUSE.Parameters(:ITER; init_from = :ods)
         FUSE.simple_workflow(par)
     end
 
     @testset "ITER_scalars" begin
-        par = FUSE.Parameters(:ITER)
-        par.general.init_from = :scalars
+        par = FUSE.Parameters(:ITER; init_from = :scalars)
         FUSE.simple_workflow(par)
     end
 

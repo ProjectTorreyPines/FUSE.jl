@@ -4,10 +4,11 @@ abstract type Parameter end
 #   Scalar Parameter  #
 #= ================= =#
 mutable struct Entry{T} <: Parameter
-    default::T
     units::String
     description::String
     value::T
+    base::T
+    default::T
 end
 
 """
@@ -16,7 +17,7 @@ end
 Defines a parameter
 """
 function Entry(T, units::String, description::String; default = missing)
-    return Entry{Union{Missing,T}}(default, units, description, default)
+    return Entry{Union{Missing,T}}(units, description, default, default, default)
 end
 
 function Entry(T, ids, field::Symbol; default = missing)
@@ -41,10 +42,11 @@ end
 
 mutable struct Switch <: Parameter
     options::Dict{Symbol,Union{SwitchOption,Entry}}
-    default::Union{Missing,Symbol}
     units::String
     description::String
     value::Union{Missing,Symbol}
+    base::Union{Missing,Symbol}
+    default::Union{Missing,Symbol}
 end
 
 """
@@ -56,7 +58,7 @@ function Switch(options::Dict{Symbol,Union{SwitchOption,Entry}}, units::String, 
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
-    return Switch(options, default, units, description, default)
+    return Switch(options, units, description, default, default, default)
 end
 
 function Switch(options::Vector{T}, units::String, description::String; default = missing) where {T<:Pair{Symbol,Z}} where {Z<:Any}
@@ -64,7 +66,7 @@ function Switch(options::Vector{T}, units::String, description::String; default 
     for (key, desc) in options
         opts[key] = SwitchOption(key, units, desc)
     end
-    return Switch(opts, default, units, description, default)
+    return Switch(opts, units, description, default, default, default)
 end
 
 function Switch(options, ids::Type{T}, field::Symbol; default = missing) where {T<:IMAS.IDS}
@@ -125,7 +127,6 @@ function Base.getproperty(p::Parameters, key::Symbol)
     return value
 end
 
-
 function Base.setproperty!(p::Parameters, key::Symbol, value)
     if typeof(value) <: Union{Parameter,Parameters}
         getfield(p, :_parameters)[key] = value
@@ -154,6 +155,48 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
     end
 end
 
+function Base.show(io::IO, p::Parameters, depth::Int)
+    _parameters = getfield(p, :_parameters)
+    for item in sort(collect(keys(_parameters)))
+        parameter = _parameters[item]
+        if typeof(parameter) <: Parameters
+            printstyled(io, "$(' '^(2*depth))")
+            printstyled(io, "$(item)\n"; bold = true)
+            show(io, parameter, depth + 1)
+        else
+            value = parameter.value
+            if value === missing
+                continue
+            elseif value === parameter.default
+                color = :blue
+            elseif value === parameter.base
+                color = :black
+            else
+                color = :red
+            end
+            printstyled(io, "$(' '^(2*depth))")
+            printstyled(io, "$(item)"; color = color)
+            printstyled(io, " ➡ "; color = :red)
+            printstyled(io, "$(value)\n"; color = color)
+        end
+    end
+end
+
+function set_new_base(p::Parameters)
+    _parameters = getfield(p, :_parameters)
+    for item in sort(collect(keys(_parameters)))
+        parameter = _parameters[item]
+        if typeof(parameter) <: Parameters
+            set_new_base(parameter)
+        else
+            parameter.base = parameter.value
+        end
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain", p::Parameters)
+    return show(io, p, 0)
+end
 
 #= ================= =#
 #   Parameters list   #
