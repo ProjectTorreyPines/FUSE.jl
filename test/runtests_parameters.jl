@@ -23,7 +23,7 @@ using Test
 
     @test_throws FUSE.InexistentParameterException FUSE.Parameters(:does_not_exist)
 
-    iter = FUSE.Parameters(:ITER)
+    iter = FUSE.Parameters(:ITER; init_from=:scalars)
 
     @test iter.equilibrium.B0 == 5.3
 
