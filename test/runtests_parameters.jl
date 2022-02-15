@@ -4,21 +4,21 @@ using Test
 
 
 
-@testset "parameters_set_get" begin
-    PAR = AllParameters()
+@testset "parameters" begin
+    par = FUSE.Parameters()
 
-    @test typeof(PAR.equilibrium) <: FUSE.Parameters
+    @test typeof(par.equilibrium) <: FUSE.Parameters
 
-    @test_throws FUSE.NotsetParameterException PAR.equilibrium.B0
+    @test_throws FUSE.NotsetParameterException par.equilibrium.B0
 
-    PAR.equilibrium.B0 = 1.0
-    @test PAR.equilibrium.B0 == 1.0
+    par.equilibrium.B0 = 1.0
+    @test par.equilibrium.B0 == 1.0
 
-    @test_throws Exception PAR.equilibrium.B0 = "a string"
+    @test_throws Exception par.equilibrium.B0 = "a string"
 
-    PAR.equilibrium.B0 = missing
-    @test_throws FUSE.NotsetParameterException PAR.equilibrium.B0
+    par.equilibrium.B0 = missing
+    @test_throws FUSE.NotsetParameterException par.equilibrium.B0
 
-    @test_throws FUSE.InexistentParameterException PAR.equilibrium.does_not_exist = 1.0
+    @test_throws FUSE.InexistentParameterException par.equilibrium.does_not_exist = 1.0
 
 end

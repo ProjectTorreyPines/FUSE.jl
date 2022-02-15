@@ -13,9 +13,9 @@ import Optim
         R0::Real,
         Z0::Real,
         ϵ::Real,
-        δ::Real,
         κ::Real,
-        beta_n::Real,
+        δ::Real,
+        βn::Real,
         ip::Real,
         x_point::Union{Vector,NTuple{2},Bool} = false)
 
@@ -29,7 +29,7 @@ function init_equilibrium(
     ϵ::Real,
     κ::Real,
     δ::Real,
-    beta_n::Real,
+    βn::Real,
     ip::Real,
     x_point::Union{Vector,NTuple{2},Bool} = false)
 
@@ -40,7 +40,7 @@ function init_equilibrium(
     eqt.boundary.elongation = κ
     eqt.boundary.triangularity = δ
     eqt.global_quantities.ip = ip
-    eqt.global_quantities.beta_normal = beta_n
+    eqt.global_quantities.beta_normal = βn
     if x_point === true
         x_point = (R0 * (1 - 1.1 * δ * ϵ), -R0 * 1.1 * κ * ϵ)
     end
@@ -54,8 +54,22 @@ function init_equilibrium(
     return eqt
 end
 
-function init_equilibrium(dd::IMAS.dd, args...; kw...)
-    return init_equilibrium(dd.equilibrium, args; kw...)
+function init_equilibrium(dd::IMAS.dd; kw...)
+    return init_equilibrium(dd.equilibrium; kw...)
+end
+
+function init_equilibrium(dd::IMAS.dd, par::Parameters)
+    return init_equilibrium(
+        dd;
+        B0 = par.equilibrium.B0,
+        R0 = par.equilibrium.R0,
+        Z0 = par.equilibrium.Z0,
+        ϵ = par.equilibrium.ϵ,
+        κ = par.equilibrium.κ,
+        δ = par.equilibrium.δ,
+        βn = par.equilibrium.βn,
+        ip = par.equilibrium.ip,
+        x_point = par.equilibrium.x_point)
 end
 
 """

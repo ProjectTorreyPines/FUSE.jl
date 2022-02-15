@@ -3,13 +3,6 @@ import DataStructures
 #= =================== =#
 #  init IMAS structures #
 #= =================== =#
-"""
-    dummy `init`
-"""
-function init(ids::IMAS.IDS)
-    error("Function init() not defined for IDS of type $(typeof(ids))")
-end
-
 function init_from_gasc(dd::IMAS.dd, filename, case, no_small_gaps = true; eq_kw = Dict(), cp_kw = Dict(), rb_kw = Dict(), verbose = false)
     gasc = read_GASC(filename, case + 1) # +1 to account for GASC (PYTHON) and FUSE (JULIA) numbering
 
@@ -31,13 +24,13 @@ function init_from_gasc(dd::IMAS.dd, filename, case, no_small_gaps = true; eq_kw
     resolution = 129
 
     # equilibrium
-    init(eq; B0, R0, Z0, ϵ, δ, κ, beta_n = βn, ip, x_point = x_point, eq_kw...)
+    init_equilibrium(eq; B0, R0, Z0, ϵ, κ, δ, βn = βn, ip, x_point = x_point, eq_kw...)
     eqactor = SolovevEquilibriumActor(dd, symmetric = symmetric)
     step(eqactor, verbose = false)
     finalize(eqactor, resolution, (maximum([R0 * (1 - ϵ * 2), 0.0]), R0 * (1 + ϵ * 2)), (-R0 * ϵ * κ * 1.5, R0 * ϵ * κ * 1.5))
 
     # core profiles
-    init(cp, ejima = ejima; cp_kw...)
+    #init_core_profiles(cp, ejima = ejima; cp_kw...)
 
     # build
     norm = gasc["OUTPUTS"]["radial build"]["innerPlasmaRadius"]
@@ -93,7 +86,7 @@ function init_from_gasc(dd::IMAS.dd, filename, case, no_small_gaps = true; eq_kw
         radial_build["lfs_wall"] = min_fraction_thin_wall * norm
     end
 
-    init(bd, radial_build; verbose)
+    init_build(bd, radial_build; verbose)
 
     # TF coils
     bd.tf.coils_n = 16

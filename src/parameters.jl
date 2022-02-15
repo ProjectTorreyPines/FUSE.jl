@@ -88,8 +88,8 @@ struct NotsetParameterException <: Exception
 end
 Base.showerror(io::IO, e::NotsetParameterException) = print(io, "ERROR: parameter $(e.key) is not set")
 
-Base.@kwdef struct Parameters
-    _parameters::Dict{Symbol,Union{Parameter,Parameters}} = Dict{Symbol,Union{Parameter,Parameters}}()
+struct Parameters
+    _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
 

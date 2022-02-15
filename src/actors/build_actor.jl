@@ -6,7 +6,7 @@ import LazySets
 #= ================== =#
 #  init core_profiles  #
 #= ================== =#
-function init(cp::IMAS.core_profiles; kw...)
+function init_core_profiles(cp::IMAS.core_profiles; kw...)
     for item in keys(kw)
         IMAS.set_time_array(cp.global_quantities, item, kw[item])
     end
@@ -17,7 +17,7 @@ end
 #  init build  #
 #= ========== =#
 """
-    init(bd::IMAS.build; layers...)
+    init_build(bd::IMAS.build; verbose = false, layers...)
 
 Initialize build IDS based on center stack layers (thicknesses)
 
@@ -34,7 +34,7 @@ layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
-function init(bd::IMAS.build; verbose = false, layers...)
+function init_build(bd::IMAS.build; verbose = false, layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
@@ -89,22 +89,39 @@ function init(bd::IMAS.build; verbose = false, layers...)
     return bd
 end
 
-function init(bd::IMAS.build, layers::AbstractDict; verbose = false)
+function init_build(bd::IMAS.build, layers::AbstractDict; verbose = false)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
-    init(bd::IMAS.build; verbose, nt...)
+    init_build(bd; verbose, nt...)
+end
+
+function init_build(dd::IMAS.dd; verbose = false, kw...)
+    if length(keys(dd.equilibrium)) > 0
+        return init_build(dd.build, dd.equilibrium; verbose, kw...)
+    else
+        return init_build(dd.build; verbose, kw...)
+    end
 end
 
 """
-    init(bd::IMAS.build, eqt::IMAS.equilibrium; is_nuclear_facility=true)
+    init_build(
+        bd::IMAS.build,
+        eq::IMAS.equilibrium;
+        tf_shape_index::Int = 3,
+        is_nuclear_facility::Bool = true,
+        pf_inside_tf::Bool = false,
+        pf_outside_tf::Bool = true)
 
 Initialization of build IDS based on equilibrium time_slice
 """
-function init(bd::IMAS.build,
+function init_build(
+    bd::IMAS.build,
     eq::IMAS.equilibrium;
     tf_shape_index::Int = 3,
     is_nuclear_facility::Bool = true,
     pf_inside_tf::Bool = false,
-    pf_outside_tf::Bool = true)
+    pf_outside_tf::Bool = true,
+    verbose::Bool = false)
+
     eqt = eq.time_slice[]
     rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
     rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
@@ -115,7 +132,8 @@ function init(bd::IMAS.build,
         rmin -= gap
         rmax += gap
         dr = rmin / n_hfs_layers
-        init(bd,
+        init_build(bd;
+            verbose,
             gap_OH = dr * 2.0,
             OH = dr,
             hfs_TF = dr,
@@ -137,15 +155,16 @@ function init(bd::IMAS.build,
         rmin -= gap
         rmax += gap
         dr = rmin / n_hfs_layers
-        init(bd,
+        init_build(bd;
+            verbose,
             gap_OH = dr * 2.0,
             OH = dr,
             hfs_TF = dr,
-            gap_hfs_TF_wall = 0.0,
+            gap_hfs_TF_wall = pf_inside_tf ? 0 : -1,
             hfs_wall = dr / 2.0,
             plasma = rmax - rmin,
             lfs_wall = dr / 2.0,
-            gap_lfs_TF_wall = dr * 3,
+            gap_lfs_TF_wall = dr * (pf_inside_tf ? 3 : -1),
             lfs_TF = dr,
             gap_cryostat = 2 * dr)
     end
