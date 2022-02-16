@@ -241,10 +241,13 @@ end
 
 
 function init_build(dd::IMAS.dd, par::Parameters)
-
     init_from = par.general.init_from
 
-    if init_from == :ods
+    if init_from == :gasc
+        gasc = GASC(par.gasc.filename, par.gasc.case)
+        init_build(dd, gasc; par.gasc.no_small_gaps, tf_shape_index = 3)
+
+    elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
         if length(keys(dd1.build)) > 0
             dd.build = dd1.build
@@ -252,11 +255,8 @@ function init_build(dd::IMAS.dd, par::Parameters)
             init_from = :scalars
         end
     end
-
-    if init_from == :gasc
-        gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_build(dd, gasc; par.gasc.no_small_gaps, tf_shape_index = 3)
-    else
+ 
+    if init_from == :scalars
         init_build(
             dd.build,
             dd.equilibrium;

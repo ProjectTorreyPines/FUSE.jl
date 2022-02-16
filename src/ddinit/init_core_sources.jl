@@ -1,3 +1,5 @@
+import NumericalIntegration: cumul_integrate
+
 function init_core_sources(dd::IMAS.dd; kwargs...)
     init_core_sources(dd.core_sources, dd.equilibrium; kwargs...)
 end

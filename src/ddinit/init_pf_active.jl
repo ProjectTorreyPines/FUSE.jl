@@ -205,9 +205,8 @@ function init_pf_active(dd::IMAS.dd, par::Parameters)
 
     if init_from == :gasc
         init_from = :scalars
-    end
 
-    if init_from == :ods
+    elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
         if length(keys(dd1.pf_active)) > 0
             dd.pf_active = dd1.pf_active

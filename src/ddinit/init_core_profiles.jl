@@ -1,18 +1,88 @@
+import NumericalIntegration: integrate
+
 function init_core_profiles(dd::IMAS.dd; par::Parameters)
-    init_core_profiles(
-        dd.core_profiles,
-        dd.equilibrium,
-        dd.summary;
-        ne_ped = par.core_profiles.ne_ped,
-        ne_peaking = par.core_profiles.ne_peaking,
-        Te_ped = par.core_profiles.Te_ped,
-        Te_peaking = par.core_profiles.Te_peaking,
-        w_ped = par.core_profiles.w_ped,
-        zeff = par.core_profiles.zeff,
-        P_co_nbi = par.core_profiles.P_co_nbi,
-        ngrid = par.core_profiles.ngrid,
-        bulk = par.core_profiles.bulk,
-        impurity = par.core_profiles.impurity)
+    init_from = par.general.init_from
+
+    if init_from ==  :gasc
+        gasc = GASC(par.gasc.filename, par.gasc.case)
+        init_core_profiles(dd, gasc; bulk = par.core_profiles.bulk)
+
+    elseif init_from == :ods
+        dd1 = IMAS.json2imas(par.ods.filename)
+        if length(keys(dd1.core_profiles)) > 0
+            dd1.core_profiles.time = [t.time for t in dd1.core_profiles.profiles_1d]
+            dd.core_sources = dd1.core_sources
+        else
+            init_from = :scalars
+        end
+    end
+
+    if init_from == :scalars
+        init_core_profiles(
+            dd.core_profiles,
+            dd.equilibrium,
+            dd.summary;
+            ne_ped = par.core_profiles.ne_ped,
+            ne_peaking = par.core_profiles.ne_peaking,
+            Te_ped = par.core_profiles.Te_ped,
+            Te_peaking = par.core_profiles.Te_peaking,
+            w_ped = par.core_profiles.w_ped,
+            zeff = par.core_profiles.zeff,
+            P_co_nbi = par.core_profiles.P_co_nbi,
+            ngrid = par.core_profiles.ngrid,
+            bulk = par.core_profiles.bulk,
+            impurity = par.core_profiles.impurity)
+    end
+
+    return dd
+end
+
+function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
+    gasc = gasc.solution
+
+    cp = dd.core_profiles
+    cpt = resize!(cp.profiles_1d)
+
+    cpt.grid.rho_tor_norm = gasc["OUTPUTS"]["numerical profiles"]["rProf"]
+    cpt.zeff = gasc["OUTPUTS"]["numerical profiles"]["ZeffProf"]
+    cpt.rotation_frequency_tor_sonic = cpt.grid.rho_tor_norm * 0.0 # < GASC has no notion of rotation
+
+    # Set ions
+    ion = resize!(cpt.ion, "label" => String(bulk))
+    fill!(ion, IMAS.ion_element(bulk))
+    @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
+    ion = resize!(cpt.ion, 2)
+    element = resize!(ion.element, 1)
+    element.z_n =  gasc["INPUTS"]["impurities"]["impurityZ"]
+    element.a = Int(ceil(gasc["INPUTS"]["impurities"]["impurityZ"] * 2.0))
+    ion.label = "imp"
+
+    # pedestal
+    @ddtime dd.summary.local.pedestal.n_e.value = gasc["OUTPUTS"]["plasma parameters"]["neped"] * 1E20
+    i_ped = argmin(abs.(gasc["OUTPUTS"]["numerical profiles"]["neProf"] .- gasc["OUTPUTS"]["plasma parameters"]["neped"] / gasc["OUTPUTS"]["plasma parameters"]["ne0"]))
+    rho_ped = gasc["OUTPUTS"]["numerical profiles"]["rProf"][i_ped]
+    @ddtime dd.summary.local.pedestal.position.rho_tor_norm = rho_ped
+    @ddtime dd.summary.local.pedestal.zeff.value = cpt.zeff[i_ped]
+
+    # Set densities
+    cpt.electrons.density = gasc["OUTPUTS"]["numerical profiles"]["neProf"] * gasc["OUTPUTS"]["plasma parameters"]["ne0"] * 1E20
+    zimp1 = gasc["INPUTS"]["impurities"]["impurityZ"]
+    niFraction = zeros(2,length(cpt.grid.rho_tor_norm))
+    niFraction[2,:] .= (cpt.zeff .- 1.0) ./ (zimp1 * (zimp1 - 1.0))
+    niFraction[1,:] .= 1.0 .- zimp1 .* niFraction[2]
+    @assert all(niFraction .> 0.0) "zeff too high for the given bulk [$bulk] and impurity [$impurity] species"
+    for i = 1:length(cpt.ion)
+        cpt.ion[i].density = cpt.electrons.density .* niFraction[i]
+    end
+
+    # Set temperatures
+    TiVolAvg = integrate(gasc["OUTPUTS"]["numerical profiles"]["volumeProf"], gasc["OUTPUTS"]["numerical profiles"]["TeProf"]) / integrate(gasc["OUTPUTS"]["numerical profiles"]["volumeProf"], gasc["OUTPUTS"]["numerical profiles"]["volumeProf"])
+    Ti = gasc["OUTPUTS"]["numerical profiles"]["TiProf"] * gasc["OUTPUTS"]["plasma parameters"]["TiVolAvg"] / TiVolAvg * 1000
+    cpt.electrons.temperature = Ti * gasc["INPUTS"]["plasma parameters"]["Tratio"]
+    for i = 1:length(cpt.ion)
+        cpt.ion[i].temperature = Ti
+    end
+
     return dd
 end
 

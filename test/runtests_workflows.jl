@@ -23,4 +23,5 @@ using Test
         par = FUSE.Parameters(:FPP)
         FUSE.simple_workflow(par)
     end
+
 end

@@ -78,7 +78,25 @@ function init_equilibrium(dd::IMAS.dd, gasc::GASC)
 end
 
 function init_equilibrium(dd::IMAS.dd, par::Parameters)
-    if par.general.init_from == :scalars
+    init_from = par.general.init_from
+
+    if init_from == :gasc
+        gasc = GASC(par.gasc.filename, par.gasc.case)
+        init_equilibrium(dd, gasc)
+
+    elseif init_from == :ods
+        dd1 = IMAS.json2imas(par.ods.filename)
+        if length(keys(dd1.equilibrium)) > 0
+            dd1.equilibrium.time = [t.time for t in dd1.equilibrium.time_slice]
+            dd1.global_time = dd1.equilibrium.time[end]
+            IMAS.flux_surfaces(dd1.equilibrium)
+            dd.equilibrium = dd1.equilibrium
+        else
+            init_from == :scalars
+        end
+    end
+
+    if init_from == :scalars
         # init equilibrium
         init_equilibrium(
             dd.equilibrium;
@@ -96,18 +114,8 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
         eqactor = SolovevEquilibriumActor(dd, symmetric = par.equilibrium.symmetric)
         step(eqactor, verbose = false)
         finalize(eqactor, par.equilibrium.ngrid)
-
-    elseif par.general.init_from == :ods
-        dd1 = IMAS.json2imas(par.ods.filename)
-        dd1.equilibrium.time = [t for t in dd1.equilibrium.time]
-        dd.global_time = dd1.global_time = dd1.equilibrium.time[end]
-        IMAS.flux_surfaces(dd1.equilibrium)
-        dd.equilibrium = dd1.equilibrium
-
-    elseif par.general.init_from == :gasc
-        gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_equilibrium(dd, gasc)
     end
+
 
     # field null surface
     if par.equilibrium.field_null_surface > 0.0
