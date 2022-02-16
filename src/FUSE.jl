@@ -3,6 +3,7 @@ module FUSE
 __precompile__(true)
 
 using IMAS
+using RecipesBase
 using Printf
 
 #= ======= =#
@@ -13,6 +14,8 @@ include("utils.jl")
 include("physics.jl")
 
 include("parameters.jl")
+
+include("ddinit.jl")
 
 include("actors.jl")
 

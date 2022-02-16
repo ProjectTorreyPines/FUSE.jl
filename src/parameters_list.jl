@@ -30,7 +30,7 @@ function Base.length(pa::ParametersKwargs)
     return length(pa.kw)
 end
 
-top_level_parameters = [:general, :equilibrium, :coil, :build, :gasc, :ods]
+top_level_parameters = [:general, :equilibrium, :core_profiles, :coil, :build, :gasc, :ods]
 
 function Parameters()
     params = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
@@ -68,13 +68,26 @@ function Parameters(group::Symbol; kw...)
             equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default = 129)
             equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default = 0.25)#, min=0.0, max=1.0)
 
+        elseif group == :core_profiles
+            core_profiles = params
+            core_profiles.ne_ped = Entry(Real, "m^-3", "Pedestal electron density")
+            core_profiles.ne_peaking = Entry(Real, "", "Electron density peaking")
+            core_profiles.Te_ped = Entry(Real, "eV", "Pedestal electron temperature")
+            core_profiles.Te_peaking = Entry(Real, "", "Electron temperature peaking")
+            core_profiles.w_ped = Entry(Real, "", "Pedestal width expressed in fraction of ψₙ")
+            core_profiles.zeff = Entry(Real, "", "Effective ion charge")
+            core_profiles.P_co_nbi = Entry(Real, "W", "Co-current NBI input power")
+            core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default = 101)
+            core_profiles.bulk = Entry(Symbol, "", "Bulk ion species")
+            core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
+
         elseif group == :coil
             coil = params
             options = [
                 :point => "one filament per coil",
                 :simple => "like :point, but OH coils have three filaments",
-                :corners => "like :point, but PF coils have filaments at the four corners",
-                :realistic => "hundreds of filaments (very slow!)"]
+                :corners => "like :simple, but PF coils have filaments at the four corners",
+                :realistic => "hundreds of filaments per coil (very slow!)"]
             coil.green_model = Switch(options, "", "Model to be used for the Greens function table of the PF coils"; default = :simple)
 
         elseif group == :build
@@ -122,6 +135,16 @@ function Parameters(group::Symbol; kw...)
             params.build.n_pf_coils_inside = 0
             params.build.n_pf_coils_outside = 6
 
+            params.core_profiles.ne_ped = 7E19
+            params.core_profiles.ne_peaking = 1.5
+            params.core_profiles.Te_ped = 1E3
+            params.core_profiles.Te_peaking = 3
+            params.core_profiles.w_ped = 0.08
+            params.core_profiles.zeff = 2.5
+            params.core_profiles.P_co_nbi = 20e6
+            params.core_profiles.bulk = :DT
+            params.core_profiles.impurity = :Ne
+
         elseif group == :CAT
             params.general.init_from = :ods
 
@@ -132,6 +155,16 @@ function Parameters(group::Symbol; kw...)
             params.build.n_pf_coils_inside = 0
             params.build.n_pf_coils_outside = 6
 
+            params.core_profiles.ne_ped = 7E19
+            params.core_profiles.ne_peaking = 1.5
+            params.core_profiles.Te_ped = 1E3
+            params.core_profiles.Te_peaking = 3
+            params.core_profiles.w_ped = 0.08
+            params.core_profiles.zeff = 2.5
+            params.core_profiles.P_co_nbi = 20e6
+            params.core_profiles.bulk = :DT
+            params.core_profiles.impurity = :Ne
+
         elseif group == :D3D
             params.general.init_from = :ods
 
@@ -141,6 +174,16 @@ function Parameters(group::Symbol; kw...)
             params.build.n_oh_coils = 20
             params.build.n_pf_coils_inside = 18
             params.build.n_pf_coils_outside = 0
+
+            params.core_profiles.ne_ped = 5E19
+            params.core_profiles.ne_peaking = 1.5
+            params.core_profiles.Te_ped = 500
+            params.core_profiles.Te_peaking = 3
+            params.core_profiles.w_ped = 0.08
+            params.core_profiles.zeff = 2.0
+            params.core_profiles.P_co_nbi = 5e6
+            params.core_profiles.bulk = :D
+            params.core_profiles.impurity = :C
 
         elseif group == :FPP
             params.general.init_from = :gasc
@@ -153,6 +196,9 @@ function Parameters(group::Symbol; kw...)
             params.build.n_oh_coils = 6
             params.build.n_pf_coils_inside = 0
             params.build.n_pf_coils_outside = 6
+
+            params.core_profiles.bulk = :DT
+            params.core_profiles.impurity = :Ne
         else
             throw(InexistentParameterException(group))
         end

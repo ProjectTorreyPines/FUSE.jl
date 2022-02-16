@@ -2,6 +2,7 @@ import ModelingToolkit
 import OrdinaryDiffEq
 import LazySets
 import Interpolations
+import PolygonOps
 
 #= =============== =#
 #  Shape functions  #
@@ -166,8 +167,8 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     initial_guess = copy(shape_parameters)
     # res = optimize(shape_parameters-> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters),
     #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
-    res = optimize(shape_parameters -> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters),
-        initial_guess, length(shape_parameters) == 1 ? BFGS() : NelderMead(), Optim.Options(time_limit = time_limit); autodiff = :forward)
+    res = Optim.optimize(shape_parameters -> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters),
+        initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit = time_limit); autodiff = :forward)
     if verbose
         println(res)
     end
