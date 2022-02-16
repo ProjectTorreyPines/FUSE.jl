@@ -41,8 +41,8 @@ function init_pf_active(
     bd::IMAS.build,
     n_coils::Vector{TI};
     pf_coils_size::Union{Nothing,TR,Vector{TR}} = nothing,
-    coils_cleareance::Union{Nothing,TR,Vector{TR}}= nothing,
-    coils_elements_area::Union{Nothing,TR,Vector{TR}} = nothing) where {TI<:Int, TR<:Real}
+    coils_cleareance::Union{Nothing,TR,Vector{TR}} = nothing,
+    coils_elements_area::Union{Nothing,TR,Vector{TR}} = nothing) where {TI<:Int,TR<:Real}
 
     OH_layer = IMAS.get_build(bd, type = 1)
 
@@ -208,6 +208,39 @@ function init_pf_active(
     return pf_active
 end
 
+function init_pf_active(dd::IMAS.dd, par::Parameters)
+    init_from = par.general.init_from
+
+    if init_from == :gasc
+        init_from = :scalars
+    end
+
+    if init_from == :ods
+        dd1 = IMAS.json2imas(par.ods.filename)
+        if length(keys(dd1.pf_active)) > 0
+            dd.pf_active = dd1.pf_active
+        else
+            init_from = :scalars
+        end
+    end
+
+    if init_from == :scalars
+        n_coils = [par.build.n_oh_coils]
+        if par.build.n_pf_coils_inside > 0
+            push!(n_coils, par.build.n_pf_coils_inside)
+        end
+        push!(n_coils, par.build.n_pf_coils_outside)
+        init_pf_active(dd.pf_active, dd.build, n_coils)
+
+        # calculate currents
+        pfoptactor = PFcoilsOptActor(dd; green_model = par.coil.green_model)
+        FUSE.step(pfoptactor, λ_ψ = 1E-2, λ_null = 1E+2, λ_currents = 1E5, verbose = false, optimization_scheme = :static)
+        FUSE.finalize(pfoptactor; update_eq_in=false)
+    end
+
+    return dd
+end
+
 #= =============== =#
 #  PFcoilsOptActor  #
 #= =============== =#
@@ -229,20 +262,16 @@ mutable struct PFcoilsOptActor <: AbstractActor
     green_model::Symbol
 end
 
-function PFcoilsOptActor(dd::IMAS.dd, n_coils::Vector; kw...)
-    return PFcoilsOptActor(dd.equilibrium, dd.build, dd.pf_active, n_coils; kw...)
+function PFcoilsOptActor(dd::IMAS.dd; kw...)
+    return PFcoilsOptActor(dd.equilibrium, dd.build, dd.pf_active; kw...)
 end
 
 function PFcoilsOptActor(
     eq_in::IMAS.equilibrium,
     bd::IMAS.build,
-    pf::IMAS.pf_active,
-    n_coils::Vector;
+    pf::IMAS.pf_active;
     λ_regularize = 1E-13,
     green_model = :simple)
-
-    # initialize coils location
-    init_pf_active(pf, bd, n_coils)
 
     # basic constructors
     eq_out = deepcopy(eq_in)
@@ -685,7 +714,7 @@ end
 
 Update pfactor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
-function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0)
+function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0, update_eq_in=false)
     coils = GS_IMAS_pf_active__coil[]
     for coil in pfactor.pf_active.coil
         push!(coils, GS_IMAS_pf_active__coil(coil, pfactor.green_model))
@@ -710,7 +739,17 @@ function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0)
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
-        # IMAS.flux_surfaces(pfactor.eq_out.time_slice[time_index]) #### PROBLEM
+    end
+
+    # update psi
+    if update_eq_in
+        for time_index in 1:length(pfactor.eq_out.time_slice)
+            if !ismissing(pfactor.eq_out.time_slice[time_index].global_quantities, :ip)
+                psi1 = pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi
+                pfactor.eq_in.time_slice[time_index].profiles_2d[1].psi = psi1
+                IMAS.flux_surfaces(pfactor.eq_in.time_slice[time_index])
+            end
+        end
     end
 end
 

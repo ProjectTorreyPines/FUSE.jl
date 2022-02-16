@@ -94,14 +94,6 @@ function init_build(bd::IMAS.build, layers::AbstractDict; verbose = false)
     init_build(bd; verbose, nt...)
 end
 
-function init_build(dd::IMAS.dd; verbose = false, kw...)
-    if length(keys(dd.equilibrium)) > 0
-        return init_build(dd.build, dd.equilibrium; verbose, kw...)
-    else
-        return init_build(dd.build; verbose, kw...)
-    end
-end
-
 """
     init_build(
         bd::IMAS.build,
@@ -166,7 +158,7 @@ function init_build(
             lfs_wall = dr / 2.0,
             gap_lfs_TF_wall = dr * (pf_inside_tf ? 3 : -1),
             lfs_TF = dr,
-            gap_cryostat = 2 * dr)
+            gap_cryostat = dr * (pf_outside_tf ? 3 : 1))
     end
 
     # TF coils
@@ -176,6 +168,103 @@ function init_build(
     build_cx(bd, eqt, tf_shape_index)
 
     return bd
+end
+
+function init_build(dd::IMAS.dd, gasc::GASC; no_small_gaps::Bool = true, tf_shape_index::Int = 3, verbose::Bool = false)
+    gasc = gasc.solution
+
+    # build
+    norm = gasc["OUTPUTS"]["radial build"]["innerPlasmaRadius"]
+
+    radial_build = DataStructures.OrderedDict()
+    radial_build["gap_OH"] = gasc["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
+    radial_build["OH"] = gasc["INPUTS"]["radial build"]["rbOH"] * norm
+
+    radial_build["hfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
+    radial_build["hfs_TF"] = gasc["INPUTS"]["radial build"]["rbTF"] * norm
+    if no_small_gaps
+        radial_build["hfs_TF"] += radial_build["hfs_gap_TF"]
+        pop!(radial_build, "hfs_gap_TF")
+    end
+
+    radial_build["hfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+    radial_build["hfs_shield"] = gasc["INPUTS"]["radial build"]["rbInnerShield"] * norm
+    if no_small_gaps
+        radial_build["hfs_shield"] += radial_build["hfs_gap_shield"]
+        pop!(radial_build, "hfs_gap_shield")
+    end
+    radial_build["hfs_blanket"] = gasc["INPUTS"]["radial build"]["rbInnerBlanket"] * norm
+
+    radial_build["hfs_wall"] = gasc["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
+    radial_build["plasma"] = (gasc["INPUTS"]["radial build"]["majorRadius"] - sum(values(radial_build))) * 2
+    radial_build["lfs_wall"] = gasc["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
+
+    radial_build["lfs_blanket"] = gasc["INPUTS"]["radial build"]["rbOuterBlanket"] * norm
+    radial_build["lfs_shield"] = gasc["INPUTS"]["radial build"]["rbOuterShield"] * norm
+    radial_build["lfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+    if no_small_gaps
+        radial_build["lfs_shield"] += radial_build["lfs_gap_shield"]
+        pop!(radial_build, "lfs_gap_shield")
+    end
+
+    radial_build["lfs_TF"] = radial_build["hfs_TF"]
+    radial_build["lfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
+    if no_small_gaps
+        radial_build["lfs_TF"] += radial_build["lfs_gap_TF"]
+        pop!(radial_build, "lfs_gap_TF")
+    end
+
+    radial_build["gap_cryostat"] = radial_build["gap_OH"] * 3
+
+    # thin layers can cause LibGEOS to crash
+    min_fraction_thin_wall = 0.02
+    if no_small_gaps && (radial_build["hfs_wall"] < min_fraction_thin_wall * norm)
+        radial_build["hfs_blanket"] -= (min_fraction_thin_wall * norm - radial_build["hfs_wall"])
+        radial_build["hfs_wall"] = min_fraction_thin_wall * norm
+    end
+    if no_small_gaps && (radial_build["lfs_wall"] < min_fraction_thin_wall * norm)
+        radial_build["lfs_blanket"] -= (min_fraction_thin_wall * norm - radial_build["lfs_wall"])
+        radial_build["lfs_wall"] = min_fraction_thin_wall * norm
+    end
+
+    init_build(dd.build, radial_build; verbose)
+
+    # TF coils
+    dd.build.tf.coils_n = 16
+
+    # cross-section outlines
+    build_cx(dd.build, dd.equilibrium.time_slice[], tf_shape_index)
+
+    return dd
+end
+
+
+function init_build(dd::IMAS.dd, par::Parameters)
+
+    init_from = par.general.init_from
+
+    if init_from == :ods
+        dd1 = IMAS.json2imas(par.ods.filename)
+        if length(keys(dd1.build)) > 0
+            dd.build = dd1.build
+        else
+            init_from = :scalars
+        end
+    end
+
+    if init_from == :gasc
+        gasc = GASC(par.gasc.filename, par.gasc.case)
+        init_build(dd, gasc; par.gasc.no_small_gaps, tf_shape_index = 3)
+    else
+        init_build(
+            dd.build,
+            dd.equilibrium;
+            tf_shape_index = 3,
+            is_nuclear_facility = par.build.is_nuclear_facility,
+            pf_inside_tf = (par.build.n_pf_coils_inside > 0),
+            pf_outside_tf = (par.build.n_pf_coils_outside > 0))
+    end
+    return dd
 end
 
 function wall_miller_conformal(bd, layer_type, elongation, triangularity; n_points = 101)

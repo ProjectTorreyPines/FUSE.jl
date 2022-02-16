@@ -66,6 +66,7 @@ function Parameters(group::Symbol; kw...)
             equilibrium.x_point = Entry(Bool, IMAS.equilibrium__time_slice___boundary, :x_point)
             equilibrium.symmetric = Entry(Bool, "", "Is plasma up-down symmetric")
             equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default = 129)
+            equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default = 0.25)#, min=0.0, max=1.0)
 
         elseif group == :coil
             coil = params
