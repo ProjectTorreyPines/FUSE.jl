@@ -7,18 +7,37 @@ using RecipesBase
 using Printf
 
 #= ======= =#
-#= INCLUDE =#
+#  INCLUDE  #
 #= ======= =#
 include("utils.jl")
-
 include("physics.jl")
-
 include("parameters.jl")
 
-include("ddinit.jl")
+#= ====== =#
+#  DDINIT  #
+#= ====== =#
+include("ddinit/init_equilibrium.jl")
+include("ddinit/init_build.jl")
+include("ddinit/init_core_profiles.jl")
+include("ddinit/init_core_sources.jl")
+include("ddinit/init_pf_active.jl")
 
-include("actors.jl")
+#= ====== =#
+#  ACTORS  #
+#= ====== =#
+abstract type AbstractActor end
+function finalize(actor::AbstractActor)
+    actor
+end
+include("actors/equilibrium_actor.jl")
+include("actors/coils_actor.jl")
+include("actors/build_actor.jl")
+include("actors/current_actor.jl")
+include("actors/transport_actor.jl")
 
+#= ========= =#
+#  WORKFLOWS  #
+#= ========= =#
 include("workflows.jl")
 
 #= ====== =#

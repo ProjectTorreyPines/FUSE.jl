@@ -2,6 +2,7 @@ import LibGEOS
 import Interpolations
 import Contour
 import LazySets
+import DataStructures
 
 #= ================== =#
 #  init core_profiles  #
