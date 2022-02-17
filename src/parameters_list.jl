@@ -88,21 +88,25 @@ function Parameters(group::Symbol; kw...)
                 :corners => "like :simple, but PF coils have filaments at the four corners",
                 :realistic => "hundreds of filaments per coil (very slow!)"]
             pf_active.green_model = Switch(options, "", "Model to be used for the Greens function table of the PF coils"; default = :simple)
+            pf_active.n_oh_coils = Entry(Int, "", "Number of OH coils")
+            pf_active.n_pf_coils_inside = Entry(Int, "", "Number of PF coils inside of the TF")
+            pf_active.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")
 
         elseif group == :nbi
             nbi = params
             nbi.beam_power = Entry(Union{Real,Vector{Real}}, "W", "Beam power")
             nbi.beam_energy = Entry(Union{Real,Vector{Real}}, "eV", "Beam energy")
-            nbi.beam_mass = Entry(Union{Real,Vector{Real}}, "AU", "Beam mass"; default=2.0)
-            nbi.toroidal_angle = Entry(Union{Real,Vector{Real}}, "rad", "toroidal angle of injection"; default=0.0)
+            nbi.beam_mass = Entry(Union{Real,Vector{Real}}, "AU", "Beam mass"; default = 2.0)
+            nbi.toroidal_angle = Entry(Union{Real,Vector{Real}}, "rad", "toroidal angle of injection"; default = 0.0)
 
+        elseif group == :actor
+            actor = params
+            actor.equilibrium = Switch([:solovev => "SolovevEquilibriumActor"], "", "Actor used for equilibrium calculations"; default = :solovev)
+            actor.transport = Switch([:tauenn => "TaueNNactor"], "", "Actor used for transport calculations"; default = :tauenn)
+            actor.current = Switch([:qed => "QEDcurrentActor"], "", "Actor used for current diffusion calculations"; default = :qed)
 
         elseif group == :build
             build = params
-            build.n_oh_coils = Entry(Int, "", "Number of OH coils")
-            build.n_pf_coils_inside = Entry(Int, "", "Number of PF coils inside of the TF")
-            build.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")
-
             build.is_nuclear_facility = Entry(Bool, "", "Is this a nuclear facility")
 
         elseif group == :gasc
@@ -138,9 +142,9 @@ function Parameters(group::Symbol; kw...)
             end
 
             params.build.is_nuclear_facility = true
-            params.build.n_oh_coils = 6
-            params.build.n_pf_coils_inside = 0
-            params.build.n_pf_coils_outside = 6
+            params.pf_active.n_oh_coils = 6
+            params.pf_active.n_pf_coils_inside = 0
+            params.pf_active.n_pf_coils_outside = 6
 
             params.core_profiles.ne_ped = 7E19
             params.core_profiles.n_peaking = 1.5
@@ -160,9 +164,9 @@ function Parameters(group::Symbol; kw...)
             params.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "CAT_eq_ods.json")
 
             params.build.is_nuclear_facility = false
-            params.build.n_oh_coils = 6
-            params.build.n_pf_coils_inside = 0
-            params.build.n_pf_coils_outside = 6
+            params.pf_active.n_oh_coils = 6
+            params.pf_active.n_pf_coils_inside = 0
+            params.pf_active.n_pf_coils_outside = 6
 
             params.core_profiles.ne_ped = 7E19
             params.core_profiles.n_peaking = 1.5
@@ -184,9 +188,9 @@ function Parameters(group::Symbol; kw...)
             params.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "D3D_eq_ods.json")
 
             params.build.is_nuclear_facility = false
-            params.build.n_oh_coils = 20
-            params.build.n_pf_coils_inside = 18
-            params.build.n_pf_coils_outside = 0
+            params.pf_active.n_oh_coils = 20
+            params.pf_active.n_pf_coils_inside = 18
+            params.pf_active.n_pf_coils_outside = 0
 
             params.core_profiles.ne_ped = 5E19
             params.core_profiles.n_peaking = 1.5
@@ -200,7 +204,7 @@ function Parameters(group::Symbol; kw...)
             params.nbi.beam_power = 5E6
             params.nbi.beam_energy = 80e3
             params.nbi.beam_mass = 2
-            params.nbi.toroidal_angle = 20.0/180*pi
+            params.nbi.toroidal_angle = 20.0 / 180 * pi
 
         elseif group == :FPP
             params.general.init_from = :gasc
@@ -210,9 +214,9 @@ function Parameters(group::Symbol; kw...)
             params.gasc.no_small_gaps = true
 
             params.build.is_nuclear_facility = true
-            params.build.n_oh_coils = 6
-            params.build.n_pf_coils_inside = 0
-            params.build.n_pf_coils_outside = 6
+            params.pf_active.n_oh_coils = 6
+            params.pf_active.n_pf_coils_inside = 0
+            params.pf_active.n_pf_coils_outside = 6
 
             params.core_profiles.bulk = :DT
             params.core_profiles.impurity = :Ne

@@ -262,8 +262,8 @@ function init_build(dd::IMAS.dd, par::Parameters)
             dd.equilibrium;
             tf_shape_index = 3,
             is_nuclear_facility = par.build.is_nuclear_facility,
-            pf_inside_tf = (par.build.n_pf_coils_inside > 0),
-            pf_outside_tf = (par.build.n_pf_coils_outside > 0))
+            pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
+            pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
     end
     return dd
 end

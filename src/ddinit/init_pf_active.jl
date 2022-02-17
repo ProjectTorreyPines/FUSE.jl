@@ -216,11 +216,11 @@ function init_pf_active(dd::IMAS.dd, par::Parameters)
     end
 
     if init_from == :scalars
-        n_coils = [par.build.n_oh_coils]
-        if par.build.n_pf_coils_inside > 0
-            push!(n_coils, par.build.n_pf_coils_inside)
+        n_coils = [par.pf_active.n_oh_coils]
+        if par.pf_active.n_pf_coils_inside > 0
+            push!(n_coils, par.pf_active.n_pf_coils_inside)
         end
-        push!(n_coils, par.build.n_pf_coils_outside)
+        push!(n_coils, par.pf_active.n_pf_coils_outside)
         init_pf_active(dd.pf_active, dd.build, n_coils)
 
         # calculate currents
