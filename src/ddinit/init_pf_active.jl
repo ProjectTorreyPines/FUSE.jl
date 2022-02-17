@@ -224,7 +224,7 @@ function init_pf_active(dd::IMAS.dd, par::Parameters)
         init_pf_active(dd.pf_active, dd.build, n_coils)
 
         # calculate currents
-        pfoptactor = PFcoilsOptActor(dd; green_model = par.coil.green_model)
+        pfoptactor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model)
         FUSE.step(pfoptactor, λ_ψ = 1E-2, λ_null = 1E+2, λ_currents = 1E5, verbose = false, optimization_scheme = :static)
         FUSE.finalize(pfoptactor; update_eq_in=false)
     end

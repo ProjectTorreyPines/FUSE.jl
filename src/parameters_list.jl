@@ -30,7 +30,7 @@ function Base.length(pa::ParametersKwargs)
     return length(pa.kw)
 end
 
-top_level_parameters = [:general, :equilibrium, :core_profiles, :coil, :build, :gasc, :ods]
+top_level_parameters = [:general, :equilibrium, :core_profiles, :pf_active, :build, :gasc, :ods, :nbi]
 
 function Parameters()
     params = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
@@ -81,14 +81,21 @@ function Parameters(group::Symbol; kw...)
             core_profiles.bulk = Entry(Symbol, "", "Bulk ion species")
             core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
 
-        elseif group == :coil
-            coil = params
+        elseif group == :pf_active
+            pf_active = params
             options = [
                 :point => "one filament per coil",
                 :simple => "like :point, but OH coils have three filaments",
                 :corners => "like :simple, but PF coils have filaments at the four corners",
                 :realistic => "hundreds of filaments per coil (very slow!)"]
-            coil.green_model = Switch(options, "", "Model to be used for the Greens function table of the PF coils"; default = :simple)
+            pf_active.green_model = Switch(options, "", "Model to be used for the Greens function table of the PF coils"; default = :simple)
+
+        elseif group == :nbi
+            nbi = params
+            nbi.beam_energy = Entry(Union{Real,Vector{Real}}, "eV", "Beam energy")
+            nbi.beam_mass = Entry(Union{Real,Vector{Real}}, "AU", "Beam mass")
+            nbi.beam_power = Entry(Union{Real,Vector{Real}}, "W", "Beam power")
+            nbi.toroidal_angle = Entry(Union{Real,Vector{Real}}, "rad", "toroidal angle of injection")
 
         elseif group == :build
             build = params

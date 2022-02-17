@@ -21,7 +21,7 @@ function simple_workflow(par::Parameters; do_plot = false)
     init_pf_active(dd, par)
 
     # optimize coils location
-    pfoptactor = PFcoilsOptActor(dd; green_model = par.coil.green_model)
+    pfoptactor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model)
     step(pfoptactor, λ_ψ = 1E-2, λ_null = 1E10, λ_currents = 5E5, λ_strike = 0.0, verbose = false, symmetric = false, maxiter = 1000, optimization_scheme = :rail)
     finalize(pfoptactor)
 
