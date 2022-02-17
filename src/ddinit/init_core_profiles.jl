@@ -20,9 +20,8 @@ function init_core_profiles(dd::IMAS.dd, par::Parameters)
             dd.equilibrium,
             dd.summary;
             ne_ped = par.core_profiles.ne_ped,
-            ne_peaking = par.core_profiles.ne_peaking,
-            Te_ped = par.core_profiles.Te_ped,
-            Te_peaking = par.core_profiles.Te_peaking,
+            n_peaking = par.core_profiles.n_peaking,
+            T_shaping = par.core_profiles.T_shaping,
             w_ped = par.core_profiles.w_ped,
             zeff = par.core_profiles.zeff,
             P_co_nbi = par.core_profiles.P_co_nbi,
@@ -87,9 +86,8 @@ function init_core_profiles(
     eq::IMAS.equilibrium,
     summary::IMAS.summary;
     ne_ped::Real,
-    ne_peaking::Real,
-    Te_ped::Real,
-    Te_peaking::Real,
+    n_peaking::Real,
+    T_shaping::Real,
     w_ped::Real,
     zeff::Real,
     bulk::Symbol,
@@ -117,7 +115,7 @@ function init_core_profiles(
     @ddtime summary.local.pedestal.zeff.value = zeff
 
     # Set densities
-    ne_core = ne_peaking * ne_ped
+    ne_core = n_peaking * ne_ped
     cpt.electrons.density = AD_TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, 0.9, 0.9, w_ped)
 
     zimp1 = IMAS.ion_element(impurity).element[1].z_n
@@ -137,7 +135,8 @@ function init_core_profiles(
     a = eqt.boundary.minor_radius
 
     Te_core = 10.0 * betaN * abs(Bt * (Ip / 1e6)) / a / (ne_core / 1e20) / (2.0 * 1.6e1 * 4.0 * pi * 1.0e-4)
-    cpt.electrons.temperature = AD_TAUENN.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, Te_peaking, Te_peaking, w_ped)
+    Te_ped = Te_core / 4
+    cpt.electrons.temperature = AD_TAUENN.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cpt.ion)
         cpt.ion[i].temperature = cpt.electrons.temperature ./ T_ratio
     end

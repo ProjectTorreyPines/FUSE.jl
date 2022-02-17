@@ -1,17 +1,17 @@
 import NumericalIntegration: cumul_integrate
 
 function init_nbi(dd::IMAS.dd, par::Parameters)
-    init_nbi(dd, par.nbi.beam_energy, par.nbi.beam_mass, par.nbi.beam_power, par.nbi.toroidal_angle)
+    return init_nbi(dd, par.nbi.beam_power, par.nbi.beam_energy, par.nbi.beam_mass, par.nbi.toroidal_angle)
 end
 
 function init_nbi(
     dd::IMAS.dd,
+    beam_power::Union{Real,Vector},
     beam_energy::Union{Real,Vector},
     beam_mass::Union{Real,Vector},
-    beam_power::Union{Real,Vector},
     toroidal_angle::Union{Real,Vector})
 
-    beam_energy, beam_mass, beam_power, toroidal_angle = IMAS.same_length_vectors(beam_energy, beam_mass, beam_power, toroidal_angle)
+    beam_power, beam_energy, beam_mass, toroidal_angle = IMAS.same_length_vectors(beam_power, beam_energy, beam_mass, toroidal_angle)
 
     for idx in 1:length(beam_power)
         resize!(dd.nbi.unit, idx)
@@ -23,7 +23,8 @@ function init_nbi(
         resize!(nbi_u.beamlets_group, 1)
         nbi_u.beamlets_group[1].angle = toroidal_angle[idx] / 360 * 2pi
     end
-    dd
+    
+    return dd
 end
 
 function init_core_sources(dd::IMAS.dd, par::Parameters)
@@ -43,7 +44,7 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
     end
 
     if init_from == :scalars
-        if par.nbi.beam_power > 0
+        if !ismissing(par.nbi,:beam_power)
             init_nbi(dd, par)
 
             nbiactor = simpleNBIactor(dd)
@@ -71,8 +72,6 @@ function init_core_sources(dd::IMAS.dd, gasc::GASC, par::Parameters)
     par.general.init_from = :scalars
     par.nbi.beam_power = heating_power # this will need to be expanded
     par.nbi.beam_energy = 200e3
-    par.nbi.beam_mass = 2
-    par.nbi.toroidal_angle = 0.0
 
     init_core_sources(dd, par)
     return dd

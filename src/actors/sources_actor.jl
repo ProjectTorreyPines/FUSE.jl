@@ -35,19 +35,19 @@ function step(actor::simpleNBIactor; verbose=false)
 
         ion_elec_ratio = sivukhin_fraction(beam_energy, cp1d)
 
-        qi = power_launched .* nbi_gaussian_vol .* ion_elec_ratio
-        qe = power_launched .* nbi_gaussian_vol .* (1 .- ion_elec_ratio)
+        total_ion_energy = power_launched .* nbi_gaussian_vol .* ion_elec_ratio
+        electrons_energy = power_launched .* nbi_gaussian_vol .* (1 .- ion_elec_ratio)
 
         beam_particles = power_launched / (beam_energy * constants.e)
-        se = beam_particles .* nbi_gaussian_vol
+        electrons_particles = beam_particles .* nbi_gaussian_vol
 
         ne_vol = integrate(volume_cp,cp1d.electrons.density) / volume_cp[end]
-        jpar = nbi_gaussian_area .* actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol/1e19) * power_launched
+        j_parallel = nbi_gaussian_area .* actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol/1e19) * power_launched
         momentum_source= sin(nbi_u.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u 
-        momentum =  nbi_gaussian_area .* momentum_source
+        momentum_tor =  nbi_gaussian_area .* momentum_source
 
         isource = resize!(cs.source, "identifier.name" => "beam_$idx")
-        IMAS.new_source(isource, 8, "beam_$idx", rho_cp, volume_cp; qe, qi, se, jpar, momentum)
+        IMAS.new_source(isource, 8, "beam_$idx", rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
     end
 end
 

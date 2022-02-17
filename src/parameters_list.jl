@@ -71,9 +71,8 @@ function Parameters(group::Symbol; kw...)
         elseif group == :core_profiles
             core_profiles = params
             core_profiles.ne_ped = Entry(Real, "m^-3", "Pedestal electron density")
-            core_profiles.ne_peaking = Entry(Real, "", "Electron density peaking")
-            core_profiles.Te_ped = Entry(Real, "eV", "Pedestal electron temperature")
-            core_profiles.Te_peaking = Entry(Real, "", "Electron temperature peaking")
+            core_profiles.n_peaking = Entry(Real, "", "Ratio of core/pedestal densities")
+            core_profiles.T_shaping = Entry(Real, "", "Temperature shaping factor")
             core_profiles.w_ped = Entry(Real, "", "Pedestal width expressed in fraction of ψₙ")
             core_profiles.zeff = Entry(Real, "", "Effective ion charge")
             core_profiles.P_co_nbi = Entry(Real, "W", "Co-current NBI input power")
@@ -92,10 +91,11 @@ function Parameters(group::Symbol; kw...)
 
         elseif group == :nbi
             nbi = params
-            nbi.beam_energy = Entry(Union{Real,Vector{Real}}, "eV", "Beam energy")
-            nbi.beam_mass = Entry(Union{Real,Vector{Real}}, "AU", "Beam mass")
             nbi.beam_power = Entry(Union{Real,Vector{Real}}, "W", "Beam power")
-            nbi.toroidal_angle = Entry(Union{Real,Vector{Real}}, "rad", "toroidal angle of injection")
+            nbi.beam_energy = Entry(Union{Real,Vector{Real}}, "eV", "Beam energy")
+            nbi.beam_mass = Entry(Union{Real,Vector{Real}}, "AU", "Beam mass"; default=2.0)
+            nbi.toroidal_angle = Entry(Union{Real,Vector{Real}}, "rad", "toroidal angle of injection"; default=0.0)
+
 
         elseif group == :build
             build = params
@@ -143,14 +143,16 @@ function Parameters(group::Symbol; kw...)
             params.build.n_pf_coils_outside = 6
 
             params.core_profiles.ne_ped = 7E19
-            params.core_profiles.ne_peaking = 1.5
-            params.core_profiles.Te_ped = 1E3
-            params.core_profiles.Te_peaking = 3
+            params.core_profiles.n_peaking = 1.5
+            params.core_profiles.T_shaping = 1.8
             params.core_profiles.w_ped = 0.08
             params.core_profiles.zeff = 2.5
             params.core_profiles.P_co_nbi = 20e6
             params.core_profiles.bulk = :DT
             params.core_profiles.impurity = :Ne
+
+            params.nbi.beam_power = 16.7E6
+            params.nbi.beam_energy = 1000e3
 
         elseif group == :CAT
             params.general.init_from = :ods
@@ -163,14 +165,18 @@ function Parameters(group::Symbol; kw...)
             params.build.n_pf_coils_outside = 6
 
             params.core_profiles.ne_ped = 7E19
-            params.core_profiles.ne_peaking = 1.5
-            params.core_profiles.Te_ped = 1E3
-            params.core_profiles.Te_peaking = 3
+            params.core_profiles.n_peaking = 1.5
+            params.core_profiles.T_shaping = 1.8
             params.core_profiles.w_ped = 0.08
             params.core_profiles.zeff = 2.5
             params.core_profiles.P_co_nbi = 20e6
             params.core_profiles.bulk = :DT
             params.core_profiles.impurity = :Ne
+
+            params.nbi.beam_power = 20E6
+            params.nbi.beam_energy = 200e3
+            params.nbi.beam_mass = 2
+            params.nbi.toroidal_angle = 0.0
 
         elseif group == :D3D
             params.general.init_from = :ods
@@ -183,14 +189,18 @@ function Parameters(group::Symbol; kw...)
             params.build.n_pf_coils_outside = 0
 
             params.core_profiles.ne_ped = 5E19
-            params.core_profiles.ne_peaking = 1.5
-            params.core_profiles.Te_ped = 500
-            params.core_profiles.Te_peaking = 3
+            params.core_profiles.n_peaking = 1.5
+            params.core_profiles.T_shaping = 1.8
             params.core_profiles.w_ped = 0.08
             params.core_profiles.zeff = 2.0
             params.core_profiles.P_co_nbi = 5e6
             params.core_profiles.bulk = :D
             params.core_profiles.impurity = :C
+
+            params.nbi.beam_power = 5E6
+            params.nbi.beam_energy = 80e3
+            params.nbi.beam_mass = 2
+            params.nbi.toroidal_angle = 20.0/180*pi
 
         elseif group == :FPP
             params.general.init_from = :gasc
