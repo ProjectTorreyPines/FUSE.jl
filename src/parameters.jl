@@ -198,6 +198,10 @@ function Base.show(io::IO, ::MIME"text/plain", p::Parameters)
     return show(io, p, 0)
 end
 
+function Base.ismissing(p::Parameters, field::Symbol)::Bool
+    return getfield(p, :_parameters)[field] === missing
+end
+
 #= ================= =#
 #   Parameters list   #
 #= ================= =#
