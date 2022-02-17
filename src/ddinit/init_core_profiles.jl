@@ -1,6 +1,4 @@
-import NumericalIntegration: integrate
-
-function init_core_profiles(dd::IMAS.dd; par::Parameters)
+function init_core_profiles(dd::IMAS.dd, par::Parameters)
     init_from = par.general.init_from
 
     if init_from ==  :gasc
@@ -10,7 +8,6 @@ function init_core_profiles(dd::IMAS.dd; par::Parameters)
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
         if length(keys(dd1.core_profiles)) > 0
-            dd1.core_profiles.time = [t.time for t in dd1.core_profiles.profiles_1d]
             dd.core_sources = dd1.core_sources
         else
             init_from = :scalars
@@ -76,8 +73,7 @@ function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
     end
 
     # Set temperatures
-    TiVolAvg = integrate(gasc["OUTPUTS"]["numerical profiles"]["volumeProf"], gasc["OUTPUTS"]["numerical profiles"]["TeProf"]) / integrate(gasc["OUTPUTS"]["numerical profiles"]["volumeProf"], gasc["OUTPUTS"]["numerical profiles"]["volumeProf"])
-    Ti = gasc["OUTPUTS"]["numerical profiles"]["TiProf"] * gasc["OUTPUTS"]["plasma parameters"]["TiVolAvg"] / TiVolAvg * 1000
+    Ti = gasc["OUTPUTS"]["numerical profiles"]["TiProf"] * gasc["INPUTS"]["plasma parameters"]["Ti0"]
     cpt.electrons.temperature = Ti * gasc["INPUTS"]["plasma parameters"]["Tratio"]
     for i = 1:length(cpt.ion)
         cpt.ion[i].temperature = Ti

@@ -51,7 +51,7 @@ function init_equilibrium(
     return eq
 end
 
-function init_equilibrium(dd::IMAS.dd, gasc::GASC)
+function init_equilibrium(dd::IMAS.dd, gasc::GASC; ngrid=129)
     gasc = gasc.solution
 
     R0 = gasc["INPUTS"]["radial build"]["majorRadius"]
@@ -62,9 +62,8 @@ function init_equilibrium(dd::IMAS.dd, gasc::GASC)
     B0 = gasc["INPUTS"]["conductors"]["magneticFieldOnAxis"]
     ip = gasc["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
     βn = gasc["OUTPUTS"]["plasma parameters"]["betaN"]
-    x_point = true
-    symmetric = false
-    resolution = 129
+    x_point = gasc["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
+    symmetric = (mod(gasc["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
 
     # initialize dd
     init_equilibrium(dd.equilibrium; B0, R0, Z0, ϵ, κ, δ, βn = βn, ip, x_point = x_point)
@@ -72,7 +71,7 @@ function init_equilibrium(dd::IMAS.dd, gasc::GASC)
     # equilibrium solver
     eqactor = SolovevEquilibriumActor(dd, symmetric = symmetric)
     step(eqactor, verbose = false)
-    finalize(eqactor, resolution, (maximum([R0 * (1 - ϵ * 2), 0.0]), R0 * (1 + ϵ * 2)), (-R0 * ϵ * κ * 1.5, R0 * ϵ * κ * 1.5))
+    finalize(eqactor; ngrid, rlims=(maximum([R0 * (1 - ϵ * 2), 0.0]), R0 * (1 + ϵ * 2)), zlims=(-R0 * ϵ * κ * 1.5, R0 * ϵ * κ * 1.5))
 
     return dd
 end
@@ -82,14 +81,11 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
 
     if init_from == :gasc
         gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_equilibrium(dd, gasc)
+        init_equilibrium(dd, gasc; ngrid = par.equilibrium.ngrid)
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
         if length(keys(dd1.equilibrium)) > 0
-            dd1.equilibrium.time = [t.time for t in dd1.equilibrium.time_slice]
-            dd1.global_time = dd1.equilibrium.time[end]
-            IMAS.flux_surfaces(dd1.equilibrium)
             dd.equilibrium = dd1.equilibrium
         else
             init_from == :scalars
@@ -113,7 +109,7 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
         # equilibrium
         eqactor = SolovevEquilibriumActor(dd, symmetric = par.equilibrium.symmetric)
         step(eqactor, verbose = false)
-        finalize(eqactor, par.equilibrium.ngrid)
+        finalize(eqactor, ngrid = par.equilibrium.ngrid)
     end
 
 

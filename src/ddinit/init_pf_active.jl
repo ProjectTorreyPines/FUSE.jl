@@ -93,8 +93,8 @@ function init_pf_active(
 
     # Now add actual PF coils to regions of vacuum
     krail = 1
-    resolution = 257
-    rmask, zmask, mask = IMAS.structures_mask(bd, resolution = resolution)
+    ngrid = 257
+    rmask, zmask, mask = IMAS.structures_mask(bd, ngrid = ngrid)
     for (k, layer) in enumerate(bd.layer)
         if (layer.hfs == 1 || k == length(bd.layer)) && !ismissing(layer.outline, :r)
             if !ismissing(layer, :material) && layer.material == "vacuum"

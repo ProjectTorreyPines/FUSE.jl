@@ -559,9 +559,9 @@ Plot PFcoilsOptActor optimization cross-section
 
     # plot coils_flux
     if coils_flux
-        resolution = 129
-        R = range(xlim[1], xlim[2], length = resolution)
-        Z = range(ylim[1], ylim[2], length = Int(ceil(resolution * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
+        ngrid = 129
+        R = range(xlim[1], xlim[2], length = ngrid)
+        Z = range(ylim[1], ylim[2], length = Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
 
         coils = [GS_IMAS_pf_active__coil(coil, pfactor.green_model) for coil in pfactor.pf_active.coil]
         for coil in coils
