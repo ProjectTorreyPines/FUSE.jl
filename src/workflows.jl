@@ -1,7 +1,4 @@
-function simple_workflow(par::Parameters; do_plot = false)
-
-    dd = IMAS.dd()
-
+function init_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     # initialize equilibrium
     init_equilibrium(dd, par)
     if do_plot
@@ -9,7 +6,7 @@ function simple_workflow(par::Parameters; do_plot = false)
         plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z)
     end
 
-    # init radial build
+    # initialize build
     init_build(dd, par)
     if do_plot
         plot(dd.equilibrium, color = :gray)
@@ -17,8 +14,31 @@ function simple_workflow(par::Parameters; do_plot = false)
         display(plot!(dd.build, cx = false))
     end
 
-    # init oh and pf coils
+    # initialize oh and pf coils
     init_pf_active(dd, par)
+    if do_plot
+        plot(dd.equilibrium, color = :gray)
+        plot!(dd.build, outline = true)
+        display(plot!(dd.build, cx = false))
+    end
+
+    # initialize core profiles
+    init_core_profiles(dd, par)
+    if do_plot
+        plot(dd.core_profiles)
+    end
+
+    # initialize core sources
+    init_core_sources(dd, par)
+    if do_plot
+        plot(dd.core_sources)
+    end
+end
+
+function simple_workflow(par::Parameters; do_plot = false)
+
+    # initialize
+    init_workflow(dd, par)
 
     # optimize coils location
     pfoptactor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model)
