@@ -104,8 +104,8 @@ function sivukhin_fraction(beam_energy, cp1d)
     f = integrate(y, vec(1.0 / (1.0 .+ y .^ 1.5)))
     ion_elec_fraction = f ./ x
 
-    if any(i -> i > 1.0, ion_elec_fraction)
-        error("NBI power is going more to ions than electrons. Check that beam_energy $(beam_energy) in eV")
+    if any(ion_elec_fraction .> 1.0)
+        @warn("NBI power is going more to ions than electrons. Check that beam_energy $(beam_energy) in eV")
     end
 
     return ion_elec_fraction
