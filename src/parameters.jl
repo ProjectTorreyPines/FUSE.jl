@@ -20,9 +20,8 @@ function Entry(T, units::String, description::String; default = missing)
     return Entry{Union{Missing,T}}(units, description, default, default, default)
 end
 
-function Entry(T, ids, field::Symbol; default = missing)
-    location = "$(IMAS._f2u(ids)).$(field)"
-    info = IMAS.imas_info(location)
+function Entry(T, ids::Type, field::Symbol; default = missing)
+    info = IMAS.imas_info(ids, field)
     return Entry(T, get(info, "units", ""), get(info, "documentation", ""); default)
 end
 
