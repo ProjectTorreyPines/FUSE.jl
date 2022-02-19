@@ -206,8 +206,3 @@ function Base.ismissing(p::Parameters, field::Symbol)::Bool
     return getfield(p, :_parameters)[field] === missing
 end
 
-#= ================= =#
-#   Parameters list   #
-#= ================= =#
-
-include("parameters_list.jl")

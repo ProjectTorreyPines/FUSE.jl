@@ -30,4 +30,8 @@ using Test
     @test (iter.general.init_from = :ods) == :ods
 
     @test_throws FUSE.BadParameterException iter.general.init_from = :odsa
+
+    @test_throws FUSE.InexistentParameterException FUSE.Parameters(:inexistent_group)
+
+    @test_throws UndefKeywordError FUSE.Parameters(:ITER)
 end

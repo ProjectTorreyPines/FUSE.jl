@@ -11,7 +11,16 @@ using Printf
 #= ======= =#
 include("utils.jl")
 include("physics.jl")
+
+#= ========== =#
+#  PARAMETERS  #
+#= ========== =#
 include("parameters.jl")
+include("parameters_list.jl")
+include("../parameters/ITER.jl")
+include("../parameters/D3D.jl")
+include("../parameters/CAT.jl")
+include("../parameters/FPP.jl")
 
 #= ====== =#
 #  DDINIT  #
@@ -35,7 +44,6 @@ include("actors/build_actor.jl")
 include("actors/current_actor.jl")
 include("actors/sources_actor.jl")
 include("actors/transport_actor.jl")
-
 
 #= ========= =#
 #  WORKFLOWS  #
