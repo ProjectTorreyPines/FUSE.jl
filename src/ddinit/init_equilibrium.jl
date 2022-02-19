@@ -117,8 +117,8 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
     if par.equilibrium.field_null_surface > 0.0
         pushfirst!(dd.equilibrium.time_slice, field_null_surface(dd.equilibrium.time_slice[], par.equilibrium.field_null_surface))
         pushfirst!(dd.equilibrium.vacuum_toroidal_field.b0, @ddtime(dd.equilibrium.vacuum_toroidal_field.b0))
-        pushfirst!(dd.equilibrium.time, -1.0)
-        dd.equilibrium.time_slice[1].time = -1.0
+        pushfirst!(dd.equilibrium.time, -Inf)
+        dd.equilibrium.time_slice[1].time = -Inf
     end
 
     return dd
