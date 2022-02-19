@@ -196,6 +196,7 @@ function set_new_base(p::Parameters)
             parameter.base = parameter.value
         end
     end
+    return p
 end
 
 function Base.show(io::IO, ::MIME"text/plain", p::Parameters)

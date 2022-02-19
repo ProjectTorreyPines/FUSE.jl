@@ -10,7 +10,7 @@ parametersDispatcher = Dict()
 
 function Parameters(group::Symbol; kw...)
     if group in keys(parametersDispatcher)
-        return Parameters(parametersDispatcher[group]; kw...)
+        return set_new_base(Parameters(parametersDispatcher[group]; kw...))
     end
 
     par = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())

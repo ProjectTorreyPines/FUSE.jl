@@ -106,26 +106,30 @@ end
 
 Initialization of build IDS based on equilibrium time_slice
 """
-function init_build(
-    bd::IMAS.build,
-    eq::IMAS.equilibrium;
+function init_build(dd::IMAS.dd;
     tf_shape_index::Int = 3,
     is_nuclear_facility::Bool = true,
     pf_inside_tf::Bool = false,
     pf_outside_tf::Bool = true,
     verbose::Bool = false)
 
-    eqt = eq.time_slice[]
-    rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
-    rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
-
-    if is_nuclear_facility
-        n_hfs_layers = 6
+    if !(ismissing(dd.wall.description_2d, [1, :limiter, :unit, 1, :outline, :r]))
+        rmin = minimum(dd.wall.description_2d[1].limiter.unit[1].outline.r)
+        rmax = maximum(dd.wall.description_2d[1].limiter.unit[1].outline.r)
+    else
+        eqt = dd.equilibrium.time_slice[]
+        rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
+        rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
+        gap = (rmax - rmin) / 20.0 # plasma-wall gap
         gap = (rmax - rmin) / 20.0 # plasma-wall gap
         rmin -= gap
         rmax += gap
+    end
+
+    if is_nuclear_facility
+        n_hfs_layers = 6
         dr = rmin / n_hfs_layers
-        init_build(bd;
+        init_build(dd.build;
             verbose,
             gap_OH = dr * 2.0,
             OH = dr,
@@ -144,11 +148,8 @@ function init_build(
 
     else
         n_hfs_layers = 4.5
-        gap = (rmax - rmin) / 20.0 # plasma-wall gap
-        rmin -= gap
-        rmax += gap
         dr = rmin / n_hfs_layers
-        init_build(bd;
+        init_build(dd.build;
             verbose,
             gap_OH = dr * 2.0,
             OH = dr,
@@ -157,21 +158,28 @@ function init_build(
             hfs_wall = dr / 2.0,
             plasma = rmax - rmin,
             lfs_wall = dr / 2.0,
-            gap_lfs_TF_wall = dr * (pf_inside_tf ? 3 : -1),
+            gap_lfs_TF_wall = dr * (pf_inside_tf ? 2 : -1),
             lfs_TF = dr,
             gap_cryostat = dr * (pf_outside_tf ? 3 : 1))
     end
 
     # TF coils
-    bd.tf.coils_n = 16
+    dd.build.tf.coils_n = 16
 
     # cross-section outlines
-    build_cx(bd, eqt, tf_shape_index)
+    if !(ismissing(dd.wall.description_2d, [1, :limiter, :unit, 1, :outline, :r]))
+        build_cx(dd.build, dd.wall.description_2d[1].limiter.unit[1].outline.r, dd.wall.description_2d[1].limiter.unit[1].outline.z, tf_shape_index)
+    else
+        build_cx(dd.build, eqt, tf_shape_index)
+    end
 
-    return bd
+    return dd.build
 end
 
-function init_build(dd::IMAS.dd, gasc::GASC; no_small_gaps::Bool = true, tf_shape_index::Int = 3, verbose::Bool = false)
+function init_build(dd::IMAS.dd, gasc::GASC;
+    no_small_gaps::Bool = true,
+    tf_shape_index::Int = 3,
+    verbose::Bool = false)
     gasc = gasc.solution
 
     # build
@@ -252,14 +260,15 @@ function init_build(dd::IMAS.dd, par::Parameters)
         if length(keys(dd1.build)) > 0
             dd.build = dd1.build
         else
+            if length(keys(dd1.wall)) > 0
+                dd.wall = dd1.wall
+            end
             init_from = :scalars
         end
     end
- 
+
     if init_from == :scalars
-        init_build(
-            dd.build,
-            dd.equilibrium;
+        init_build(dd;
             tf_shape_index = 3,
             is_nuclear_facility = par.build.is_nuclear_facility,
             pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
@@ -286,10 +295,10 @@ function wall_miller_conformal(bd, layer_type, elongation, triangularity; n_poin
 end
 
 """
-    build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
-Translates 1D build to 2D cross-sections
-"""
+    build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
 
+Translates 1D build to 2D cross-sections starting from equilibrium
+"""
 function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
     # Inner radii of the plasma
     R_hfs_plasma = IMAS.get_build(bd, type = -1).start_radius
@@ -347,9 +356,23 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
         end
     end
 
+    # plasma first wall
+    pr = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
+    pz = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
+
+    # build cx
+    return build_cx(bd, pr, pz, tf_shape_index)
+end
+
+"""
+    build_cx(bd::IMAS.build, pr, pz, tf_shape_index::Int)
+
+Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
+"""
+function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_shape_index::Int)
     # plasma
-    IMAS.get_build(bd, type = -1).outline.r = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
-    IMAS.get_build(bd, type = -1).outline.z = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
+    IMAS.get_build(bd, type = -1).outline.r = pr
+    IMAS.get_build(bd, type = -1).outline.z = pz
 
     # all layers between plasma and OH
     plasma_to_oh = []
@@ -406,6 +429,14 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     return bd
 end
 
+"""
+    build_cx(bd::IMAS.build, pr, pz, tf_shape_index::Int)
+
+Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
+"""
+function build_cx(bd::IMAS.build, wl::IMAS.wall__description_2d___limiter__unit___outline, tf_shape_index::Int)
+    return build_cx(bd, wl.r, wl.z, tf_shape_index)
+end
 
 function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     # properties of current layer

@@ -272,7 +272,7 @@ function tripple_arc(r_start::Real,
     mid_radius::Real,
     small_coverage::Real,
     mid_coverage::Real;
-    min_small_radius_fraction::Real = 0.5,
+    min_small_radius_fraction::Real = 0.25,
     min_mid_radius_fraction::Real = min_small_radius_fraction * 2.0,
     n_points::Int = 400)
 
