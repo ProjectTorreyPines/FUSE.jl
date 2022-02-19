@@ -164,6 +164,7 @@ function Base.show(io::IO, p::Parameters, depth::Int)
             show(io, parameter, depth + 1)
         else
             value = parameter.value
+            units = parameter.units
             if value === missing
                 continue
             elseif value === parameter.default
@@ -176,7 +177,11 @@ function Base.show(io::IO, p::Parameters, depth::Int)
             printstyled(io, "$(' '^(2*depth))")
             printstyled(io, "$(item)"; color = color)
             printstyled(io, " ➡ "; color = :red)
-            printstyled(io, "$(value)\n"; color = color)
+            printstyled(io, "$(value)"; color = color)
+            if length(units) > 0
+                printstyled(io, " [$(units)]"; color = color)
+            end
+            printstyled(io, "\n")
         end
     end
 end
