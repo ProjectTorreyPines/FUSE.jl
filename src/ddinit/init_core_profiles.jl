@@ -24,7 +24,7 @@ function init_core_profiles(dd::IMAS.dd, par::Parameters)
             T_shaping = par.core_profiles.T_shaping,
             w_ped = par.core_profiles.w_ped,
             zeff = par.core_profiles.zeff,
-            P_co_nbi = par.core_profiles.P_co_nbi,
+            rot_core = par.core_profiles.rot_core,
             ngrid = par.core_profiles.ngrid,
             bulk = par.core_profiles.bulk,
             impurity = par.core_profiles.impurity)
@@ -92,7 +92,7 @@ function init_core_profiles(
     zeff::Real,
     bulk::Symbol,
     impurity::Symbol,
-    P_co_nbi::Real,
+    rot_core::Real,
     T_ratio::Real = 1.0,
     ngrid::Int = 101
 )
@@ -100,7 +100,7 @@ function init_core_profiles(
 
     cpt.grid.rho_tor_norm = LinRange(0, 1, ngrid)
     cpt.zeff = ones(ngrid) .* zeff
-    cpt.rotation_frequency_tor_sonic = 5e3 * abs(P_co_nbi / 1e6 * 1.0 + 0.5) .* (1.0 .- cpt.grid.rho_tor_norm)
+    cpt.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cpt.grid.rho_tor_norm)
 
     # Set ions
     ion = resize!(cpt.ion, "label" => String(bulk))

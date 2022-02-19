@@ -75,7 +75,7 @@ function Parameters(group::Symbol; kw...)
             core_profiles.T_shaping = Entry(Real, "", "Temperature shaping factor")
             core_profiles.w_ped = Entry(Real, "", "Pedestal width expressed in fraction of ψₙ")
             core_profiles.zeff = Entry(Real, "", "Effective ion charge")
-            core_profiles.P_co_nbi = Entry(Real, "W", "Co-current NBI input power")
+            core_profiles.rot_core = Entry(Real, IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
             core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default = 101)
             core_profiles.bulk = Entry(Symbol, "", "Bulk ion species")
             core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
@@ -151,7 +151,7 @@ function Parameters(group::Symbol; kw...)
             params.core_profiles.T_shaping = 1.8
             params.core_profiles.w_ped = 0.08
             params.core_profiles.zeff = 2.5
-            params.core_profiles.P_co_nbi = 20e6
+            params.core_profiles.rot_core = 0.0
             params.core_profiles.bulk = :DT
             params.core_profiles.impurity = :Ne
 
@@ -173,7 +173,7 @@ function Parameters(group::Symbol; kw...)
             params.core_profiles.T_shaping = 1.8
             params.core_profiles.w_ped = 0.08
             params.core_profiles.zeff = 2.5
-            params.core_profiles.P_co_nbi = 20e6
+            params.core_profiles.rot_core = 0.0
             params.core_profiles.bulk = :DT
             params.core_profiles.impurity = :Ne
 
@@ -197,7 +197,7 @@ function Parameters(group::Symbol; kw...)
             params.core_profiles.T_shaping = 1.8
             params.core_profiles.w_ped = 0.08
             params.core_profiles.zeff = 2.0
-            params.core_profiles.P_co_nbi = 5e6
+            params.core_profiles.rot_core = 5E3
             params.core_profiles.bulk = :D
             params.core_profiles.impurity = :C
 
@@ -217,6 +217,8 @@ function Parameters(group::Symbol; kw...)
             params.pf_active.n_oh_coils = 6
             params.pf_active.n_pf_coils_inside = 0
             params.pf_active.n_pf_coils_outside = 6
+
+            params.core_profiles.rot_core = 0.0
 
             params.core_profiles.bulk = :DT
             params.core_profiles.impurity = :Ne
