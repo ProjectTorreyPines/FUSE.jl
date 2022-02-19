@@ -1,9 +1,9 @@
 function Parameters()
-    params = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
+    par = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
     for item in [:general, :equilibrium, :core_profiles, :pf_active, :nbi, :build, :gasc, :ods]
-        setproperty!(params, item, Parameters(item))
+        setproperty!(par, item, Parameters(item))
     end
-    return params
+    return par
 end
 
 parametersDispatcher = Dict()
@@ -13,10 +13,10 @@ function Parameters(group::Symbol; kw...)
         return Parameters(parametersDispatcher[group]; kw...)
     end
 
-    params = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
+    par = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
 
     if group == :general
-        general = params
+        general = par
         options = [
             :ods => "Load data from ODS saved in .json format",
             :scalars => "Initialize FUSE run form scalar FUSE parameters",
@@ -24,7 +24,7 @@ function Parameters(group::Symbol; kw...)
         general.init_from = Switch(options, "", "Initialize run from")
 
     elseif group == :equilibrium
-        equilibrium = params
+        equilibrium = par
         equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
         equilibrium.R0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
         equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default = 0.0)
@@ -39,7 +39,7 @@ function Parameters(group::Symbol; kw...)
         equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default = 0.25)#, min=0.0, max=1.0)
 
     elseif group == :core_profiles
-        core_profiles = params
+        core_profiles = par
         core_profiles.ne_ped = Entry(Real, "m^-3", "Pedestal electron density")
         core_profiles.n_peaking = Entry(Real, "", "Ratio of core/pedestal densities")
         core_profiles.T_shaping = Entry(Real, "", "Temperature shaping factor")
@@ -51,7 +51,7 @@ function Parameters(group::Symbol; kw...)
         core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
 
     elseif group == :pf_active
-        pf_active = params
+        pf_active = par
         options = [
             :point => "one filament per coil",
             :simple => "like :point, but OH coils have three filaments",
@@ -63,28 +63,28 @@ function Parameters(group::Symbol; kw...)
         pf_active.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")
 
     elseif group == :nbi
-        nbi = params
+        nbi = par
         nbi.beam_power = Entry(Union{Real,Vector{Real}}, "W", "Beam power")
         nbi.beam_energy = Entry(Union{Real,Vector{Real}}, "eV", "Beam energy")
         nbi.beam_mass = Entry(Union{Real,Vector{Real}}, "AU", "Beam mass"; default = 2.0)
         nbi.toroidal_angle = Entry(Union{Real,Vector{Real}}, "rad", "toroidal angle of injection"; default = 0.0)
 
     elseif group == :build
-        build = params
+        build = par
         build.is_nuclear_facility = Entry(Bool, "", "Is this a nuclear facility")
 
     elseif group == :gasc
-        gasc = params
+        gasc = par
         gasc.filename = Entry(String, "", "Output GASC .json file from which data will be loaded")
         gasc.case = Entry(Int, "", "Number of the GASC run to load")
         gasc.no_small_gaps = Entry(Bool, "", "Remove small gaps from the GASC radial build"; default = true)
 
     elseif group == :ods
-        ods = params
+        ods = par
         ods.filename = Entry(String, "", "ODS.json file from which equilibrium is loaded")
     else
         throw(InexistentParameterException(group))
     end
 
-    return params
+    return par
 end
