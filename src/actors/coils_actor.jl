@@ -640,16 +640,9 @@ Plot PFcoilsOptActor optimization cross-section
 
     # plot optimization rails
     if rail
-        for (krail, rail) in enumerate(pfactor.bd.pf_coils_rail)
-            if !ismissing(rail.outline, :r)
-                @series begin
-                    label --> (build ? "Coil opt. rail" : "")
-                    primary --> krail == 1 ? true : false
-                    color --> :gray
-                    linestyle --> :dash
-                    rail.outline.r, rail.outline.z
-                end
-            end
+        @series begin
+            label --> (build ? "Coil opt. rail" : "")
+            pfactor.bd.pf_coils_rail
         end
     end
 

@@ -9,9 +9,9 @@ function Parameters(::D3Dparameters)
 
     par.build.is_nuclear_facility = false
 
-    par.pf_active.n_oh_coils = 20
-    par.pf_active.n_pf_coils_inside = 18
     par.pf_active.n_pf_coils_outside = 0
+    par.pf_active.n_oh_coils = 10
+    par.pf_active.n_pf_coils_inside = 8
 
     par.core_profiles.ne_ped = 5E19
     par.core_profiles.n_peaking = 1.5

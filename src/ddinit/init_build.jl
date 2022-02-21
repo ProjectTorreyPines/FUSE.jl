@@ -158,7 +158,7 @@ function init_build(dd::IMAS.dd;
             hfs_wall = dr / 2.0,
             plasma = rmax - rmin,
             lfs_wall = dr / 2.0,
-            gap_lfs_TF_wall = dr * (pf_inside_tf ? 2 : -1),
+            gap_lfs_TF_wall = dr * (pf_inside_tf ? 2.25 : -1),
             lfs_TF = dr,
             gap_cryostat = dr * (pf_outside_tf ? 3 : 1))
     end

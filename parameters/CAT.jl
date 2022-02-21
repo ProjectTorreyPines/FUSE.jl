@@ -27,5 +27,5 @@ function Parameters(::CATparameters)
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 0.0
 
-    return parameters
+    return par
 end
