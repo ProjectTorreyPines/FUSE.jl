@@ -106,7 +106,8 @@ function shape_function(shape_function_index)
     if shape_function_index > 100
         func = add_z_offset_parameter(func)
     end
-    return func
+    resampled_func(args...) = IMAS.resample_2d_line(func(args...)...)
+    return resampled_func
 end
 
 """
