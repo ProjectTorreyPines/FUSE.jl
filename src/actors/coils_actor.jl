@@ -483,7 +483,7 @@ end
 
 Update pfactor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
-function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0, update_eq_in=false)
+function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0, update_eq_in = false)
     coils = GS_IMAS_pf_active__coil[]
     for coil in pfactor.pf_active.coil
         push!(coils, GS_IMAS_pf_active__coil(coil, pfactor.green_model))
