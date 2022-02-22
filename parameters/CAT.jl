@@ -1,7 +1,4 @@
-struct CATparameters end
-parametersDispatcher[:CAT] = CATparameters()
-
-function Parameters(::CATparameters)
+function Parameters(::Type{Val{:CAT}})
     par = Parameters()
     par.general.init_from = :ods
 

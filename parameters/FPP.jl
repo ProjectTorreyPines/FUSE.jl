@@ -1,7 +1,4 @@
-struct FPPparameters end
-parametersDispatcher[:FPP] = FPPparameters()
-
-function Parameters(::FPPparameters)
+function Parameters(::Type{Val{:FPP}})
     par = Parameters()
     par.general.init_from = :gasc
 

@@ -17,10 +17,6 @@ include("physics.jl")
 #= ========== =#
 include("parameters.jl")
 include("parameters_list.jl")
-include("../parameters/ITER.jl")
-include("../parameters/D3D.jl")
-include("../parameters/CAT.jl")
-include("../parameters/FPP.jl")
 
 #= ====== =#
 #  DDINIT  #

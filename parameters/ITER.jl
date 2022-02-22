@@ -1,7 +1,4 @@
-struct ITERparameters end
-parametersDispatcher[:ITER] = ITERparameters()
-
-function Parameters(::ITERparameters; init_from)
+function Parameters(::Type{Val{:ITER}}; init_from)
     par = Parameters()
     par.general.init_from = init_from
 

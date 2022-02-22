@@ -6,13 +6,16 @@ function Parameters()
     return par
 end
 
-parametersDispatcher = Dict()
+case_parameters = Symbol[]
+for filename in readdir(joinpath(dirname(@__FILE__), "..", "parameters"))
+    push!(case_parameters, Symbol(splitext(filename)[1]))
+    include("../parameters/" * filename)
+end
 
 function Parameters(group::Symbol; kw...)
-    if group in keys(parametersDispatcher)
-        return set_new_base(Parameters(parametersDispatcher[group]; kw...))
+    if group in case_parameters
+        return Parameters(Val{group}; kw...)
     end
-
     par = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
 
     if group == :general
