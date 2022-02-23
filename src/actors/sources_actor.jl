@@ -47,7 +47,7 @@ function step(actor::simpleNBIactor; verbose=false)
         momentum_tor =  nbi_gaussian_area .* momentum_source
 
         isource = resize!(cs.source, "identifier.name" => "beam_$idx")
-        IMAS.new_source(isource, 8, "beam_$idx", rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
+        IMAS.new_source(isource, 2, "beam_$idx", rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
     end
 end
 
