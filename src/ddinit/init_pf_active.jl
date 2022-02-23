@@ -8,13 +8,12 @@ const coils_turns_spacing = 0.05
 #= ================== =#
 function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height = 1.0, offset = 0.0)
     Δrail = maximum(rail_outline_z) - minimum(rail_outline_z)
-    Δclear = coils_cleareance * (coils_number - 1)
-    Δcoil = (height * Δrail - Δclear) / (coils_number + 1)
+    Δclear = coils_cleareance * coils_number
+    Δcoil = (height * Δrail - Δclear) / coils_number
     rail_offset = (maximum(rail_outline_z) + minimum(rail_outline_z)) / 2.0
     z = LinRange(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
     z = z .+ (offset * (1 - height) * Δrail)
-    height = Δcoil
-    return z, height
+    return z, Δcoil
 end
 
 """
@@ -51,7 +50,7 @@ function init_pf_active(
 
     # coils_cleareance is an array the lenght of the rails
     if coils_cleareance === nothing
-        coils_cleareance = (maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r)) / 4.0
+        coils_cleareance = (maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r)) / 8.0
     end
     if isa(coils_cleareance, Number)
         coils_cleareance = [coils_cleareance for k in 1:length(n_coils)]
@@ -59,7 +58,7 @@ function init_pf_active(
 
     # OH coils are distributed on a rail within the OH region
     r_oh = sum(extrema(OH_layer.outline.r)) / 2.0
-    w_oh = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r)
+    w_oh = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r) - 2 * coils_cleareance[1]
     z_ohcoils, h_oh = size_oh_coils(OH_layer.outline.z, coils_cleareance[1], n_coils[1])
     bd.pf_coils_rail[1].name = "OH"
     bd.pf_coils_rail[1].coils_number = n_coils[1]
@@ -180,7 +179,7 @@ function init_pf_active(
             end
 
             # uniformely distribute coils
-            coils_distance = range(-(1 - 1 / nc), 1 - 1 / nc, length = nc)
+            coils_distance = range(-(1 - 0.25 / nc), 1 - 0.25 / nc, length = nc)
             r_coils = IMAS.interp(distance, valid_r)(coils_distance)
             z_coils = IMAS.interp(distance, valid_z)(coils_distance)
             z_coils = [abs(z) < 1E-6 ? 0 : z for z in z_coils]
