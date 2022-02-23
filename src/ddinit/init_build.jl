@@ -464,8 +464,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
         if layer.shape == -2
             h = [[r, z] for (r, z) in collect(zip(layer.outline.r, layer.outline.z))]
             hull = LazySets.convex_hull(h)
-            layer.outline.r = vcat([r for (r, z) in hull], hull[1][1])
-            layer.outline.z = vcat([z for (r, z) in hull], hull[1][2])
+            layer.outline.r, layer.outline.z = IMAS.resample_2d_line(vcat([r for (r, z) in hull], hull[1][1]), vcat([z for (r, z) in hull], hull[1][2]))
         end
         # handle shapes
     else
