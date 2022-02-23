@@ -33,7 +33,7 @@ function step(actor::simpleNBIactor; verbose=false)
         nbi_gaussian_vol = nbi_gaussian / integrate(volume_cp, nbi_gaussian)
         nbi_gaussian_area = nbi_gaussian / integrate(area_cp, nbi_gaussian)
 
-        ion_elec_ratio = sivukhin_fraction(beam_energy, cp1d)
+        ion_elec_ratio = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
         total_ion_energy = power_launched .* nbi_gaussian_vol .* ion_elec_ratio
         electrons_energy = power_launched .* nbi_gaussian_vol .* (1 .- ion_elec_ratio)
@@ -81,32 +81,4 @@ gfw_dict = {
 """
 function sgaussian(rho::Union{LinRange,Vector}, rho_0::Real, width::Real, order::Real = 1.0)
     return exp.(-((rho .- rho_0) .^ 2 / 2width^2) .^ order)
-end
-
-"""
-    Calculates the NBI power deposition fraction profile from sivukhin
-"""
-function sivukhin_fraction(beam_energy, cp1d)
-    Te = cp1d.electrons.temperature
-    ne = cp1d.electrons.density
-    rho = cp1d.grid.rho_tor_norm
-
-    W_crit = zeros(length(rho))
-    for ion in cp1d.ion
-        ni = ion.density
-        Zi = ion.element[1].z_n
-        mi = ion.element[1].a    
-        W_crit .+= Te .* 14.8 .* (mi^1.5 .* ni ./ ne .* Zi .* Zi ./ mi) .^ 0.666  # [P]
-    end
-
-    x = beam_energy ./ W_crit
-    y = x .* rho
-    f = integrate(y, vec(1.0 / (1.0 .+ y .^ 1.5)))
-    ion_elec_fraction = f ./ x
-
-    if any(ion_elec_fraction .> 1.0)
-        @warn("NBI power is going more to ions than electrons. Check that beam_energy $(beam_energy) in eV")
-    end
-
-    return ion_elec_fraction
 end
