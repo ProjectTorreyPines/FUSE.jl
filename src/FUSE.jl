@@ -35,7 +35,7 @@ function finalize(actor::AbstractActor)
     actor
 end
 include("actors/equilibrium_actor.jl")
-include("actors/coils_actor.jl")
+include("actors/pf_active_actor.jl")
 include("actors/build_actor.jl")
 include("actors/current_actor.jl")
 include("actors/sources_actor.jl")
