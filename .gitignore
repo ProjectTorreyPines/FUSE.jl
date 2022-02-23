@@ -31,3 +31,4 @@ Manifest.toml
 # temp/test files
 test.json
 asd.jl
+__NOTES__.jl
