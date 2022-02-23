@@ -8,8 +8,8 @@ import PolygonOps
 #  Shape functions  #
 #= =============== =#
 
-function error_layer_shape(shape_function_index)
-    error("layer.shape=$(shape_function_index) is invalid. Valid options are:
+function layer_shape_message(shape_function_index)
+    "layer.shape=$(shape_function_index) is invalid. Valid options are:
  -2: Offset & convex-hull
  -1: Offset
   1: Priceton D  (shape_parameters = [])
@@ -22,7 +22,7 @@ function error_layer_shape(shape_function_index)
 103: tripple-arc (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage, z_offset])
 104: miller      (shape_parameters = [elongation, triangularity, z_offset])
 105: spline      (shape_parameters = [hfact, rz..., z_offset])
-")
+"
 end
 
 function init_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, target_clearance)
@@ -74,14 +74,6 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
     return shape_parameters
 end
 
-function add_z_offset_parameter(func)
-    function (args...)
-        R, Z = func(args[1:end-1]...)
-        Z .+= args[end]
-        return R, Z
-    end
-end
-
 function shape_function(shape_function_index)
     func = nothing
     if shape_function_index in [-1, -2]
@@ -101,15 +93,24 @@ function shape_function(shape_function_index)
         end
     end
     if func === nothing
-        error_layer_shape(shape_function_index)
+        error(layer_shape_message(shape_function_index))
     end
-    if shape_function_index > 100
-        func = add_z_offset_parameter(func)
-    end
-    resampled_func(args...) = IMAS.resample_2d_line(func(args...)...)
-    return resampled_func
-end
 
+    # zoffset
+    zfunc = func
+    if shape_function_index > 100
+        zfunc(args...) = begin
+            R, Z = func(args[1:end-1]...)
+            Z .+= args[end]
+            return R, Z
+        end
+    end
+
+    # uniform resampling
+    resampled_zfunc(args...) = IMAS.resample_2d_line(zfunc(args...)...)
+
+    return resampled_zfunc
+end
 """
     optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
 
