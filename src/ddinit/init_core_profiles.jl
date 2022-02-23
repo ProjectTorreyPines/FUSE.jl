@@ -1,7 +1,7 @@
 function init_core_profiles(dd::IMAS.dd, par::Parameters)
     init_from = par.general.init_from
 
-    if init_from ==  :gasc
+    if init_from == :gasc
         gasc = GASC(par.gasc.filename, par.gasc.case)
         init_core_profiles(dd, gasc; bulk = par.core_profiles.bulk)
 
@@ -49,9 +49,9 @@ function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
     @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
     ion = resize!(cpt.ion, 2)
     element = resize!(ion.element, 1)
-    element.z_n =  gasc["INPUTS"]["impurities"]["impurityZ"]
+    element.z_n = gasc["INPUTS"]["impurities"]["impurityZ"]
     element.a = Int(ceil(gasc["INPUTS"]["impurities"]["impurityZ"] * 2.0))
-    ion.label = "imp"
+    ion.label = "lumped"
 
     # pedestal
     @ddtime dd.summary.local.pedestal.n_e.value = gasc["OUTPUTS"]["plasma parameters"]["neped"] * 1E20
@@ -63,16 +63,16 @@ function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
     # Set densities
     cpt.electrons.density = gasc["OUTPUTS"]["numerical profiles"]["neProf"] * gasc["OUTPUTS"]["plasma parameters"]["ne0"] * 1E20
     zimp1 = gasc["INPUTS"]["impurities"]["impurityZ"]
-    niFraction = zeros(2,length(cpt.grid.rho_tor_norm))
-    niFraction[2,:] .= (cpt.zeff .- 1.0) ./ (zimp1 * (zimp1 - 1.0))
-    niFraction[1,:] .= 1.0 .- zimp1 .* niFraction[2]
-    @assert all(niFraction .> 0.0) "zeff too high for the given bulk [$bulk] and impurity [$impurity] species"
+    niFraction = zeros(2, length(cpt.grid.rho_tor_norm))
+    niFraction[2, :] .= (cpt.zeff .- 1.0) ./ (zimp1 * (zimp1 - 1.0))
+    niFraction[1, :] .= 1.0 .- zimp1 .* niFraction[2]
+    @assert all(niFraction .> 0.0) "zeff too high for the impurity species with Z=" * string(gasc["INPUTS"]["impurities"]["impurityZ"])
     for i = 1:length(cpt.ion)
         cpt.ion[i].density = cpt.electrons.density .* niFraction[i]
     end
 
     # Set temperatures
-    Ti = gasc["OUTPUTS"]["numerical profiles"]["TiProf"] * gasc["INPUTS"]["plasma parameters"]["Ti0"]
+    Ti = gasc["OUTPUTS"]["numerical profiles"]["TiProf"] * gasc["INPUTS"]["plasma parameters"]["Ti0"] * 1E3
     cpt.electrons.temperature = Ti * gasc["INPUTS"]["plasma parameters"]["Tratio"]
     for i = 1:length(cpt.ion)
         cpt.ion[i].temperature = Ti

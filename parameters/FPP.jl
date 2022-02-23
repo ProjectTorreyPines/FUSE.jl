@@ -15,7 +15,6 @@ function Parameters(::Type{Val{:FPP}})
     par.core_profiles.rot_core = 0.0
 
     par.core_profiles.bulk = :DT
-    par.core_profiles.impurity = :Ne
 
     return par
 end

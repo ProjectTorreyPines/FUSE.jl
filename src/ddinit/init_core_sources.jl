@@ -59,8 +59,8 @@ end
 function init_core_sources(dd::IMAS.dd, gasc::GASC, par::Parameters)
     gasc = gasc.solution
 
-    heating_power = gasc["OUTPUTS"]["current drive"]["powerAux"]
-    cd_power = heating_power / gasc["INPUTS"]["current drive"]["auxCDPowerFactor"]
+    heating_power = gasc["OUTPUTS"]["current drive"]["powerAux"] * 1E6
+    cd_power = heating_power / gasc["INPUTS"]["current drive"]["auxCDPowerFactor"] * 1E6
     plug = heating_power / gasc["INPUTS"]["power efficiency"]["efficiencyAux"]
 
     cd_powers = Dict()
