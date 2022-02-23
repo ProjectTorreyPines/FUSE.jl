@@ -7,6 +7,7 @@ import AD_TAUENN
 mutable struct TaueNNactor <: AbstractActor
     dd::IMAS.dd
     parameters::AD_TAUENN.TauennParameters
+    outputs::AD_TAUENN.TauennOutputs
 end
 
 function TaueNNactor(dd::IMAS.dd; rho_fluxmatch = 0.6, eped_factor = 1.0, T_shaping = 1.8, temp_pedestal_ratio = 1.0, error=1E-2, use_tglfnn=true, kw...)
@@ -20,9 +21,10 @@ function TaueNNactor(dd::IMAS.dd; rho_fluxmatch = 0.6, eped_factor = 1.0, T_shap
     for param in keys(kw)
         setfield!(parameters, param, kw[param])
     end
-    return TaueNNactor(dd, parameters)
+    return TaueNNactor(dd, parameters, AD_TAUENN.TauennOutputs())
 end
 
 function step(actor::TaueNNactor; verbose = false)
-    return AD_TAUENN.tau_enn(actor.dd, actor.parameters; verbose)
+    actor.outputs = AD_TAUENN.tau_enn(actor.dd, actor.parameters; verbose)
+    return actor
 end
