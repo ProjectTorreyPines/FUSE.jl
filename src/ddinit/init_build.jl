@@ -406,15 +406,13 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
     # plug
     L = 0
     R = IMAS.get_build(bd, type = 1).start_radius
-    D = minimum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z)
-    U = maximum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z)
+    D = minimum(IMAS.get_build(bd, type = 5, hfs = 1).outline.z)
+    U = maximum(IMAS.get_build(bd, type = 5, hfs = 1).outline.z)
     bd.layer[1].outline.r, bd.layer[1].outline.z = rectangle_shape(L, R, D, U)
 
     # oh
     L = IMAS.get_build(bd, type = 1).start_radius
     R = IMAS.get_build(bd, type = 1).end_radius
-    D = minimum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z)
-    U = maximum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z)
     bd.layer[2].outline.r, bd.layer[2].outline.z = rectangle_shape(L, R, D, U)
 
     # cryostat
