@@ -33,31 +33,32 @@ function init_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     init_core_sources(dd, par)
     if do_plot
         display(plot(dd.core_sources))
+        display(plot(dd.core_sources; integrated = true))
     end
 
     return dd
 end
 
 function pf_optim_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
-    pfoptactor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model)
-    step(pfoptactor, λ_ψ = 1E-2, λ_null = 1E10, λ_currents = 1E6, λ_strike = 0.0, verbose = false, symmetric = false, maxiter = 1000, optimization_scheme = :rail)
-    finalize(pfoptactor)
+    actor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model)
+    step(actor, λ_ψ = 1E-2, λ_null = 1E10, λ_currents = 1E6, λ_strike = 0.0, verbose = false, symmetric = false, maxiter = 1000, optimization_scheme = :rail)
+    finalize(actor)
 
     if do_plot
-        display(plot(pfoptactor.trace, :cost))
-        display(plot(pfoptactor.trace, :params))
+        display(plot(actor.trace, :cost))
+        display(plot(actor.trace, :params))
 
     end
 
-    step(pfoptactor, λ_ψ = 1E-2, λ_null = 1E-2, λ_currents = 1E6, λ_strike = 0.0, verbose = false, symmetric = false, maxiter = 1000, optimization_scheme = :static)
-    finalize(pfoptactor)
+    step(actor, λ_ψ = 1E-2, λ_null = 1E-2, λ_currents = 1E6, λ_strike = 0.0, verbose = false, symmetric = false, maxiter = 1000, optimization_scheme = :static)
+    finalize(actor)
 
     if do_plot
-        display(plot(pfoptactor.pf_active, :currents, time_index = 1))
-        display(plot(pfoptactor, equilibrium = true, rail = true, time_index = 1))
+        display(plot(actor.pf_active, :currents, time_index = 1))
+        display(plot(actor, equilibrium = true, rail = true, time_index = 1))
 
-        display(plot(pfoptactor.pf_active, :currents, time_index = length(dd.equilibrium.time)))
-        display(plot(pfoptactor, equilibrium = true, time_index = length(dd.equilibrium.time)))
+        display(plot(actor.pf_active, :currents, time_index = length(dd.equilibrium.time)))
+        display(plot(actor, equilibrium = true, time_index = length(dd.equilibrium.time)))
     end
 
     return dd
@@ -65,11 +66,11 @@ end
 
 function transport_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     if do_plot
-        plot(dd.core_profiles; color = :gray, label="")
+        plot(dd.core_profiles; color = :gray, label = "")
     end
-    tauennactor = TaueNNactor(dd, use_tglfnn = false, error = 1E-2)
-    step(tauennactor; verbose = true)
-    finalize(tauennactor)
+    actor = TaueNNactor(dd, use_tglfnn = true, error = 1E-2)
+    step(actor; verbose = true)
+    finalize(actor)
     if do_plot
         display(plot!(dd.core_profiles))
     end
