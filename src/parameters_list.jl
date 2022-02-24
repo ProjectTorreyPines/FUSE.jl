@@ -20,6 +20,7 @@ function Parameters(group::Symbol; kw...)
 
     if group == :general
         general = par
+        general.casename = Entry(String, "", "Mnemonic name of the case being run")
         options = [
             :ods => "Load data from ODS saved in .json format",
             :scalars => "Initialize FUSE run form scalar FUSE parameters",

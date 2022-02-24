@@ -1,5 +1,6 @@
 function Parameters(::Type{Val{:ITER}}; init_from)
     par = Parameters()
+    par.general.casename = "ITER_$(init_from)"
     par.general.init_from = init_from
 
     if init_from == :ods

@@ -1,5 +1,6 @@
 function Parameters(::Type{Val{:CAT}})
     par = Parameters()
+    par.general.casename = "CAT"
     par.general.init_from = :ods
 
     par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "CAT_eq_ods.json")

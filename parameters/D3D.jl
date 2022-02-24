@@ -1,5 +1,6 @@
 function Parameters(::Type{Val{:D3D}})
     par = Parameters()
+    par.general.casename = "D3D"
     par.general.init_from = :ods
 
     par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "D3D_eq_ods.json")

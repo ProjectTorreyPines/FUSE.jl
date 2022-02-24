@@ -1,5 +1,6 @@
 function Parameters(::Type{Val{:FPP}})
     par = Parameters()
+    par.general.casename = "FPP"
     par.general.init_from = :gasc
 
     par.gasc.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPP_fBS_PBpR_scan.json")
