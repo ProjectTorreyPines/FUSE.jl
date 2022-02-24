@@ -33,11 +33,11 @@ function PFcoilsOptActor(
     bd::IMAS.build,
     pf::IMAS.pf_active;
     λ_regularize = 1E-13,
-    green_model = :simple)
+    green_model = :simple,
+    symmetric = false)
 
     # basic constructors
     eq_out = deepcopy(eq_in)
-    symmetric = false
 
     # constructor
     pfactor = PFcoilsOptActor(eq_in, eq_out, pf, bd, symmetric, λ_regularize, PFcoilsOptTrace(), green_model)

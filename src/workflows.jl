@@ -10,7 +10,7 @@ function init_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     init_build(dd, par)
     if do_plot
         plot(dd.equilibrium, color = :gray)
-        plot!(dd.build, outline = true)
+        plot!(dd.build)
         display(plot!(dd.build, cx = false))
     end
 
@@ -18,7 +18,7 @@ function init_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     init_pf_active(dd, par)
     if do_plot
         plot(dd.equilibrium, color = :gray)
-        plot!(dd.build, outline = true)
+        plot!(dd.build)
         plot!(dd.build.pf_coils_rail)
         display(plot!(dd.pf_active))
     end
@@ -39,19 +39,22 @@ function init_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     return dd
 end
 
-function pf_optim_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
-    actor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model)
-    step(actor, λ_ψ = 1E-2, λ_null = 1E10, λ_currents = 1E6, λ_strike = 0.0, verbose = false, symmetric = false, maxiter = 1000, optimization_scheme = :rail)
+function pf_optim_workflow(dd::IMAS.dd, par::Parameters; update_eq_in = false, do_plot = false)
+    # initialize actor
+    actor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model, symmetric = par.build.symmetric)
+
+    # optimize coil location only considering equilibria (disregard field-null)
+    step(actor, λ_ψ = 1E-2, λ_null = 1E10, λ_currents = 1E6, λ_strike = 0.0, verbose = false, maxiter = 1000, optimization_scheme = :rail)
     finalize(actor)
 
     if do_plot
         display(plot(actor.trace, :cost))
         display(plot(actor.trace, :params))
-
     end
 
-    step(actor, λ_ψ = 1E-2, λ_null = 1E-2, λ_currents = 1E6, λ_strike = 0.0, verbose = false, symmetric = false, maxiter = 1000, optimization_scheme = :static)
-    finalize(actor)
+    # find coil currents for both field-null and equilibria
+    step(actor, λ_ψ = 1E-2, λ_null = 1E-2, λ_currents = 1E6, λ_strike = 0.0, verbose = false, maxiter = 1000, optimization_scheme = :static)
+    finalize(actor; update_eq_in)
 
     if do_plot
         display(plot(actor.pf_active, :currents, time_index = 1))
@@ -62,6 +65,24 @@ function pf_optim_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     end
 
     return dd
+end
+
+function build_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
+    n = 2
+    for k in 1:2
+        pf_optim_workflow(dd::IMAS.dd, par::Parameters; update_eq_in = k != n, do_plot)
+        if k == n
+            break
+        end
+        init_build(dd, par)
+        init_pf_active(dd, par)
+    end
+    if do_plot
+        plot(dd.equilibrium, color = :gray)
+        plot!(dd.build)
+        plot!(dd.build.pf_coils_rail)
+        display(plot!(dd.pf_active))
+    end
 end
 
 function transport_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)

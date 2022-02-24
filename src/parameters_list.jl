@@ -76,6 +76,7 @@ function Parameters(group::Symbol; kw...)
     elseif group == :build
         build = par
         build.is_nuclear_facility = Entry(Bool, "", "Is this a nuclear facility")
+        build.symmetric = Entry(Bool, "", "Is the build up-down symmetric")
 
     elseif group == :gasc
         gasc = par

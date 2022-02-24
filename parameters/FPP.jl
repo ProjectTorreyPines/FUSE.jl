@@ -8,6 +8,7 @@ function Parameters(::Type{Val{:FPP}})
     par.gasc.no_small_gaps = true
 
     par.build.is_nuclear_facility = true
+    par.build.symmetric = false
 
     par.pf_active.n_oh_coils = 6
     par.pf_active.n_pf_coils_inside = 0
