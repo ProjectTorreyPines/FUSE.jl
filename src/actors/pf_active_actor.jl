@@ -1,14 +1,7 @@
 using Equilibrium
-
-#using StaticArrays
-#using Interpolations
 import Optim
 import AD_GS
 using LinearAlgebra
-#using Statistics
-#import Contour
-
-
 
 #= =============== =#
 #  PFcoilsOptActor  #
@@ -528,7 +521,12 @@ end
 
 Plot PFcoilsOptActor optimization cross-section
 """
-@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index = 1, equilibrium = true, build = true, coils_flux = false, rail = false, plot_r_buffer = 1.6)
+@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index = nothing, equilibrium = true, build = true, coils_flux = false, rail = false, plot_r_buffer = 1.6)
+
+    if time_index === nothing
+        time_index = length(pfactor.eq_out.time_slice)
+    end
+    time = pfactor.eq_out.time_slice[time_index].time
 
     # if there is no equilibrium then treat this as a field_null plot
     field_null = false
@@ -634,7 +632,7 @@ Plot PFcoilsOptActor optimization cross-section
 
     # plot pf_active coils
     @series begin
-        time_index --> time_index
+        time --> time
         pfactor.pf_active
     end
 
