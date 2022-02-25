@@ -113,7 +113,9 @@ function init_build(dd::IMAS.dd;
     pf_outside_tf::Bool = true,
     verbose::Bool = false)
 
-    if !(ismissing(dd.wall.description_2d, [1, :limiter, :unit, 1, :outline, :r]))
+    wall_available = (!ismissing(dd.wall.description_2d, [1, :limiter, :unit, 1, :outline, :r])) && (length(dd.wall.description_2d[1].limiter.unit[1].outline.r)>5)
+
+    if wall_available
         rmin = minimum(dd.wall.description_2d[1].limiter.unit[1].outline.r)
         rmax = maximum(dd.wall.description_2d[1].limiter.unit[1].outline.r)
     else
@@ -167,7 +169,7 @@ function init_build(dd::IMAS.dd;
     dd.build.tf.coils_n = 16
 
     # cross-section outlines
-    if !(ismissing(dd.wall.description_2d, [1, :limiter, :unit, 1, :outline, :r]))
+    if wall_available
         build_cx(dd.build, dd.wall.description_2d[1].limiter.unit[1].outline.r, dd.wall.description_2d[1].limiter.unit[1].outline.z, tf_shape_index)
     else
         build_cx(dd.build, eqt, tf_shape_index)
