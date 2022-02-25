@@ -88,11 +88,11 @@ function build_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     end
 end
 
-function transport_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
+function transport_workflow(dd::IMAS.dd, par::Parameters; do_plot = false, kw...)
     if do_plot
         plot(dd.core_profiles; color = :gray, label = "")
     end
-    actor = TaueNNactor(dd, use_tglfnn = true, error = 1E-2)
+    actor = TaueNNactor(dd; kw...)
     step(actor; verbose = true)
     finalize(actor)
     if do_plot
