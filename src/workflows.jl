@@ -36,6 +36,9 @@ function init_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
         display(plot(dd.core_sources; integrated = true))
     end
 
+    # initialize missing IDSs (if loading from ODS)
+    init_missing(dd, par)
+
     return dd
 end
 
