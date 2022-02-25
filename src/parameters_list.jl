@@ -7,9 +7,9 @@ function Parameters()
 end
 
 case_parameters = Symbol[]
-for filename in readdir(joinpath(dirname(@__FILE__), "..", "parameters"))
+for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
     push!(case_parameters, Symbol(splitext(filename)[1]))
-    include("../parameters/" * filename)
+    include("../cases/" * filename)
 end
 
 function Parameters(group::Symbol; kw...)
