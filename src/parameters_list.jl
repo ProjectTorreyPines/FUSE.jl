@@ -1,6 +1,6 @@
 function Parameters()
     par = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :nbi, :build, :gasc, :ods]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :nbi, :ec, :ic, :lh, :build, :gasc, :ods]
         setproperty!(par, item, Parameters(item))
     end
     return par
@@ -72,6 +72,18 @@ function Parameters(group::Symbol; kw...)
         nbi.beam_energy = Entry(Union{Real,Vector{Real}}, "eV", "Beam energy")
         nbi.beam_mass = Entry(Union{Real,Vector{Real}}, "AU", "Beam mass"; default = 2.0)
         nbi.toroidal_angle = Entry(Union{Real,Vector{Real}}, "rad", "toroidal angle of injection"; default = 0.0)
+
+    elseif group == :ec
+        ec = par
+        ec.power_launched = Entry(Union{Real,Vector{Real}}, "W", "EC launched power")
+
+    elseif group == :ic
+        ic = par
+        ic.power_launched = Entry(Union{Real,Vector{Real}}, "W", "IC launched power")
+
+    elseif group == :lh
+        lh = par
+        lh.power_launched = Entry(Union{Real,Vector{Real}}, "W", "LH launched power")
 
     elseif group == :build
         build = par
