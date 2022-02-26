@@ -63,12 +63,14 @@ end
 function Switch(options::Vector{T}, units::String, description::String; default = missing) where {T<:Pair{Symbol,Z}} where {Z<:Any}
     opts = Dict{Symbol,SwitchOption}()
     for (key, desc) in options
-        opts[key] = SwitchOption(key, units, desc)
+        opts[Symbol(key)] = SwitchOption(Symbol(key), units, desc)
     end
     return Switch(opts, units, description, default, default, default)
 end
 
 function Switch(options, ids::Type{T}, field::Symbol; default = missing) where {T<:IMAS.IDS}
+    for (key, desc) in options
+        opts[Symbol(key)] = SwitchOption(Symbol(key), units, desc)
     location = "$(IMAS._f2u(ids)).$(field)"
     info = IMAS.imas_info(location)
     return Switch(options, get(info, "units", ""), get(info, "documentation", ""); default)
@@ -207,6 +209,5 @@ function Base.show(io::IO, ::MIME"text/plain", p::Parameters)
 end
 
 function Base.ismissing(p::Parameters, field::Symbol)::Bool
-    return getfield(p, :_parameters)[field] === missing
+    return getfield(p, :_parameters)[field].value === missing
 end
-
