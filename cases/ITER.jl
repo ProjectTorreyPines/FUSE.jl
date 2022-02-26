@@ -26,6 +26,9 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.pf_active.n_pf_coils_inside = 0
     par.pf_active.n_pf_coils_outside = 6
 
+    par.tf.shape = 3
+    par.tf.n_coils = 18
+
     par.core_profiles.ne_ped = 9e19
     par.core_profiles.n_peaking = 1.5
     par.core_profiles.T_shaping = 1.8
@@ -40,7 +43,7 @@ function Parameters(::Type{Val{:ITER}}; init_from)
 
     par.ec.power_launched = 2 * 10e6
     par.ic.power_launched = 24 * 1e6
-    par.lh.power_launched = 0.
+    par.lh.power_launched = 0.0
 
     return par
 end

@@ -63,7 +63,6 @@ function init_lh_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
-
 function init_core_sources(dd::IMAS.dd, par::Parameters)
     init_from = par.general.init_from
 
@@ -107,6 +106,7 @@ function init_core_sources(dd::IMAS.dd, gasc::GASC, par::Parameters)
     gasc = gasc.solution
 
     injected_power = gasc["OUTPUTS"]["current drive"]["powerAux"] * 1E6
+    @assert gasc["INPUTS"]["current drive"]["auxCDPowerFactor"] >= 1.0
     cd_power = injected_power / gasc["INPUTS"]["current drive"]["auxCDPowerFactor"]
     heating_power = injected_power - cd_power
     plug_power = injected_power / gasc["INPUTS"]["power efficiency"]["efficiencyAux"]

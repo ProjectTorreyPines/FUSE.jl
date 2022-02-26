@@ -12,6 +12,9 @@ function Parameters(::Type{Val{:CAT}})
     par.pf_active.n_pf_coils_inside = 0
     par.pf_active.n_pf_coils_outside = 6
 
+    par.tf.shape = 3
+    par.tf.n_coils = 16
+
     par.core_profiles.ne_ped = 7E19
     par.core_profiles.n_peaking = 1.5
     par.core_profiles.T_shaping = 1.8

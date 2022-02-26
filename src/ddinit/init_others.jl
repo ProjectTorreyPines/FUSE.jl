@@ -6,7 +6,9 @@ function init_missing(dd::IMAS.dd, par::Parameters)
         for ids in keys(dd1)
             if length(keys(getproperty(dd, ids))) == 0
                 data = getproperty(dd1, ids)
-                dd.global_time = max(dd.global_time, maximum(data.time))
+                if !ismissing(data, :time)
+                    dd.global_time = max(dd.global_time, maximum(data.time))
+                end
                 setproperty!(dd, ids, data)
             end
         end

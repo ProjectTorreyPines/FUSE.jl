@@ -16,11 +16,11 @@ end
 
 Defines a parameter
 """
-function Entry(T, units::String, description::String; default = missing)
+function Entry(T, units::String, description::String; default=missing)
     return Entry{Union{Missing,T}}(units, description, default, default, default)
 end
 
-function Entry(T, ids::Type, field::Symbol; default = missing)
+function Entry(T, ids::Type, field::Symbol; default=missing)
     info = IMAS.imas_info(ids, field)
     return Entry(T, get(info, "units", ""), get(info, "documentation", ""); default)
 end
@@ -53,14 +53,14 @@ end
 
 Defines a switch
 """
-function Switch(options::Dict{Symbol,Union{SwitchOption,Entry}}, units::String, description::String; default = missing)
+function Switch(options::Dict{Symbol,Union{SwitchOption,Entry}}, units::String, description::String; default=missing)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
     return Switch(options, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default = missing) where {T<:Pair{Symbol,Z}} where {Z<:Any}
+function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair{Symbol,Z}} where {Z<:Any}
     opts = Dict{Symbol,SwitchOption}()
     for (key, desc) in options
         opts[Symbol(key)] = SwitchOption(Symbol(key), units, desc)
@@ -68,9 +68,23 @@ function Switch(options::Vector{T}, units::String, description::String; default 
     return Switch(opts, units, description, default, default, default)
 end
 
-function Switch(options, ids::Type{T}, field::Symbol; default = missing) where {T<:IMAS.IDS}
+function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair{Int,Z}} where {Z<:Any}
+    opts = Dict{Symbol,SwitchOption}()
     for (key, desc) in options
         opts[Symbol(key)] = SwitchOption(Symbol(key), units, desc)
+    end
+    return Switch(opts, units, description, default, default, default)
+end
+
+function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Union{Int,Symbol,String}}
+    opts = Dict{Symbol,SwitchOption}()
+    for key in options
+        opts[Symbol(key)] = SwitchOption(Symbol(key), units, key)
+    end
+    return Switch(opts, units, description, default, default, default)
+end
+
+function Switch(options, ids::Type{T}, field::Symbol; default=missing) where {T<:IMAS.IDS}
     location = "$(IMAS._f2u(ids)).$(field)"
     info = IMAS.imas_info(location)
     return Switch(options, get(info, "units", ""), get(info, "documentation", ""); default)
@@ -124,7 +138,7 @@ function Base.getproperty(p::Parameters, key::Symbol)
         error("Unrecognized type $(typeof(parameter))")
     end
 
-    if ismissing(value)
+    if value === missing
         throw(NotsetParameterException(key))
     end
 
@@ -134,7 +148,7 @@ end
 function Base.setproperty!(p::Parameters, key::Symbol, value)
     if typeof(value) <: Union{Parameter,Parameters}
         getfield(p, :_parameters)[key] = value
-        return
+        return value
     end
 
     _parameter = getfield(p, :_parameters)
@@ -165,7 +179,7 @@ function Base.show(io::IO, p::Parameters, depth::Int)
         parameter = _parameters[item]
         if typeof(parameter) <: Parameters
             printstyled(io, "$(' '^(2*depth))")
-            printstyled(io, "$(item)\n"; bold = true)
+            printstyled(io, "$(item)\n"; bold=true)
             show(io, parameter, depth + 1)
         else
             value = parameter.value
@@ -180,11 +194,11 @@ function Base.show(io::IO, p::Parameters, depth::Int)
                 color = :red
             end
             printstyled(io, "$(' '^(2*depth))")
-            printstyled(io, "$(item)"; color = color)
-            printstyled(io, " ➡ "; color = :red)
-            printstyled(io, "$(value)"; color = color)
+            printstyled(io, "$(item)"; color=color)
+            printstyled(io, " ➡ "; color=:red)
+            printstyled(io, "$(value)"; color=color)
             if length(units) > 0
-                printstyled(io, " [$(units)]"; color = color)
+                printstyled(io, " [$(units)]"; color=color)
             end
             printstyled(io, "\n")
         end

@@ -35,7 +35,7 @@ layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
-function init_build(bd::IMAS.build; verbose = false, layers...)
+function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
@@ -90,36 +90,43 @@ function init_build(bd::IMAS.build; verbose = false, layers...)
     return bd
 end
 
-function init_build(bd::IMAS.build, layers::AbstractDict; verbose = false)
+function init_radial_build(bd::IMAS.build, layers::AbstractDict; verbose = false)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
-    init_build(bd; verbose, nt...)
+    init_radial_build(bd; verbose, nt...)
+end
+
+function first_wall(wall::IMAS.wall)
+    if (!ismissing(wall.description_2d, [1, :limiter, :unit, 1, :outline, :r])) && (length(wall.description_2d[1].limiter.unit[1].outline.r)>5)
+        return wall.description_2d[1].limiter.unit[1].outline
+    else
+        return missing
+    end
 end
 
 """
-    init_build(
+    init_radial_build(
         bd::IMAS.build,
-        eq::IMAS.equilibrium;
-        tf_shape_index::Int = 3,
+        eqt=IMAS.equilibrium__time_slice;
         is_nuclear_facility::Bool = true,
         pf_inside_tf::Bool = false,
-        pf_outside_tf::Bool = true)
+        pf_outside_tf::Bool = true,
+        verbose::Bool = false)
 
 Initialization of build IDS based on equilibrium time_slice
 """
-function init_build(dd::IMAS.dd;
-    tf_shape_index::Int = 3,
+function init_radial_build(
+    bd::IMAS.build,
+    eqt::IMAS.equilibrium__time_slice,
+    wall::T where {T <: Union{IMAS.wall__description_2d___limiter__unit___outline, Missing}};
     is_nuclear_facility::Bool = true,
     pf_inside_tf::Bool = false,
     pf_outside_tf::Bool = true,
     verbose::Bool = false)
 
-    wall_available = (!ismissing(dd.wall.description_2d, [1, :limiter, :unit, 1, :outline, :r])) && (length(dd.wall.description_2d[1].limiter.unit[1].outline.r)>5)
-
-    if wall_available
-        rmin = minimum(dd.wall.description_2d[1].limiter.unit[1].outline.r)
-        rmax = maximum(dd.wall.description_2d[1].limiter.unit[1].outline.r)
+    if wall !== missing
+        rmin = minimum(wall.r)
+        rmax = maximum(wall.r)
     else
-        eqt = dd.equilibrium.time_slice[]
         rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
         rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
         gap = (rmax - rmin) / 20.0 # plasma-wall gap
@@ -131,7 +138,7 @@ function init_build(dd::IMAS.dd;
     if is_nuclear_facility
         n_hfs_layers = 6
         dr = rmin / n_hfs_layers
-        init_build(dd.build;
+        init_radial_build(bd;
             verbose,
             gap_OH = dr * 2.0,
             OH = dr,
@@ -151,7 +158,7 @@ function init_build(dd::IMAS.dd;
     else
         n_hfs_layers = 4.5
         dr = rmin / n_hfs_layers
-        init_build(dd.build;
+        init_radial_build(bd;
             verbose,
             gap_OH = dr * 2.0,
             OH = dr,
@@ -165,143 +172,130 @@ function init_build(dd::IMAS.dd;
             gap_cryostat = dr * (pf_outside_tf ? 3 : 1))
     end
 
-    # TF coils
-    dd.build.tf.coils_n = 16
-
-    # cross-section outlines
-    if wall_available
-        build_cx(dd.build, dd.wall.description_2d[1].limiter.unit[1].outline.r, dd.wall.description_2d[1].limiter.unit[1].outline.z, tf_shape_index)
-    else
-        build_cx(dd.build, eqt, tf_shape_index)
-    end
-
-    return dd.build
+    return bd
 end
 
-function init_build(dd::IMAS.dd, gasc::GASC;
+"""
+    init_radial_build(
+        bd::IMAS.build,
+        gasc::GASC;
+        no_small_gaps::Bool = true,
+        verbose::Bool = false)
+
+Initialization of radial build based on equilibrium GASC output
+"""
+function init_radial_build(
+    bd::IMAS.build,
+    gasc::GASC;
     no_small_gaps::Bool = true,
-    tf_shape_index::Int = 3,
     verbose::Bool = false)
     gasc = gasc.solution
 
     # build
     norm = gasc["OUTPUTS"]["radial build"]["innerPlasmaRadius"]
 
-    radial_build = DataStructures.OrderedDict()
-    radial_build["gap_OH"] = gasc["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
-    radial_build["OH"] = gasc["INPUTS"]["radial build"]["rbOH"] * norm
+    layers = DataStructures.OrderedDict()
+    layers["gap_OH"] = gasc["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
+    layers["OH"] = gasc["INPUTS"]["radial build"]["rbOH"] * norm
 
-    radial_build["hfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
-    radial_build["hfs_TF"] = gasc["INPUTS"]["radial build"]["rbTF"] * norm
+    layers["hfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
+    layers["hfs_TF"] = gasc["INPUTS"]["radial build"]["rbTF"] * norm
     if no_small_gaps
-        radial_build["hfs_TF"] += radial_build["hfs_gap_TF"]
-        pop!(radial_build, "hfs_gap_TF")
+        layers["hfs_TF"] += layers["hfs_gap_TF"]
+        pop!(layers, "hfs_gap_TF")
     end
 
-    radial_build["hfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
-    radial_build["hfs_shield"] = gasc["INPUTS"]["radial build"]["rbInnerShield"] * norm
+    layers["hfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+    layers["hfs_shield"] = gasc["INPUTS"]["radial build"]["rbInnerShield"] * norm
     if no_small_gaps
-        radial_build["hfs_shield"] += radial_build["hfs_gap_shield"]
-        pop!(radial_build, "hfs_gap_shield")
+        layers["hfs_shield"] += layers["hfs_gap_shield"]
+        pop!(layers, "hfs_gap_shield")
     end
-    radial_build["hfs_blanket"] = gasc["INPUTS"]["radial build"]["rbInnerBlanket"] * norm
+    layers["hfs_blanket"] = gasc["INPUTS"]["radial build"]["rbInnerBlanket"] * norm
 
-    radial_build["hfs_wall"] = gasc["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
-    radial_build["plasma"] = (gasc["INPUTS"]["radial build"]["majorRadius"] - sum(values(radial_build))) * 2
-    radial_build["lfs_wall"] = gasc["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
+    layers["hfs_wall"] = gasc["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
+    layers["plasma"] = (gasc["INPUTS"]["radial build"]["majorRadius"] - sum(values(layers))) * 2
+    layers["lfs_wall"] = gasc["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
 
-    radial_build["lfs_blanket"] = gasc["INPUTS"]["radial build"]["rbOuterBlanket"] * norm
-    radial_build["lfs_shield"] = gasc["INPUTS"]["radial build"]["rbOuterShield"] * norm
-    radial_build["lfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+    layers["lfs_blanket"] = gasc["INPUTS"]["radial build"]["rbOuterBlanket"] * norm
+    layers["lfs_shield"] = gasc["INPUTS"]["radial build"]["rbOuterShield"] * norm
+    layers["lfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
     if no_small_gaps
-        radial_build["lfs_shield"] += radial_build["lfs_gap_shield"]
-        pop!(radial_build, "lfs_gap_shield")
-    end
-
-    radial_build["lfs_TF"] = radial_build["hfs_TF"]
-    radial_build["lfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
-    if no_small_gaps
-        radial_build["lfs_TF"] += radial_build["lfs_gap_TF"]
-        pop!(radial_build, "lfs_gap_TF")
+        layers["lfs_shield"] += layers["lfs_gap_shield"]
+        pop!(layers, "lfs_gap_shield")
     end
 
-    radial_build["gap_cryostat"] = radial_build["gap_OH"] * 3
+    layers["lfs_TF"] = layers["hfs_TF"]
+    layers["lfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
+    if no_small_gaps
+        layers["lfs_TF"] += layers["lfs_gap_TF"]
+        pop!(layers, "lfs_gap_TF")
+    end
+
+    layers["gap_cryostat"] = layers["gap_OH"] * 3
 
     # thin layers can cause LibGEOS to crash
     min_fraction_thin_wall = 0.02
-    if no_small_gaps && (radial_build["hfs_wall"] < min_fraction_thin_wall * norm)
-        radial_build["hfs_blanket"] -= (min_fraction_thin_wall * norm - radial_build["hfs_wall"])
-        radial_build["hfs_wall"] = min_fraction_thin_wall * norm
+    if no_small_gaps && (layers["hfs_wall"] < min_fraction_thin_wall * norm)
+        layers["hfs_blanket"] -= (min_fraction_thin_wall * norm - layers["hfs_wall"])
+        layers["hfs_wall"] = min_fraction_thin_wall * norm
     end
-    if no_small_gaps && (radial_build["lfs_wall"] < min_fraction_thin_wall * norm)
-        radial_build["lfs_blanket"] -= (min_fraction_thin_wall * norm - radial_build["lfs_wall"])
-        radial_build["lfs_wall"] = min_fraction_thin_wall * norm
+    if no_small_gaps && (layers["lfs_wall"] < min_fraction_thin_wall * norm)
+        layers["lfs_blanket"] -= (min_fraction_thin_wall * norm - layers["lfs_wall"])
+        layers["lfs_wall"] = min_fraction_thin_wall * norm
     end
 
-    init_build(dd.build, radial_build; verbose)
+    init_radial_build(bd, layers; verbose)
 
-    # TF coils
-    dd.build.tf.coils_n = 16
-
-    # cross-section outlines
-    build_cx(dd.build, dd.equilibrium.time_slice[], tf_shape_index)
-
-    return dd
+    return bd
 end
-
 
 function init_build(dd::IMAS.dd, par::Parameters)
     init_from = par.general.init_from
 
     if init_from == :gasc
         gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_build(dd, gasc; par.gasc.no_small_gaps, tf_shape_index = 3)
+        init_radial_build(dd.build, gasc; no_small_gaps=par.gasc.no_small_gaps)
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
+        if length(keys(dd1.wall)) > 0
+            dd.wall = dd1.wall
+        end
         if length(keys(dd1.build)) > 0
             dd.build = dd1.build
         else
-            if length(keys(dd1.wall)) > 0
-                dd.wall = dd1.wall
-            end
             init_from = :scalars
         end
     end
 
     if init_from == :scalars
-        init_build(dd;
-            tf_shape_index = 3,
+        init_radial_build(
+            dd.build,
+            dd.equilibrium.time_slice[],
+            first_wall(dd.wall);
             is_nuclear_facility = par.build.is_nuclear_facility,
             pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
             pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
     end
+
+    # cross-section outlines
+    build_cx(dd; tf_shape_index=par.tf.shape)
+
+    # TF coils
+    dd.build.tf.coils_n = par.tf.n_coils
+    # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
+    dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = 2, hfs = 1).start_radius / dd.build.tf.coils_n
+
     return dd
 end
 
-function wall_miller_conformal(bd, layer_type, elongation, triangularity; n_points = 101)
-    if layer_type == -1
-        Rstart = IMAS.get_build(bd, type = layer_type).start_radius
-        Rend = IMAS.get_build(bd, type = layer_type).end_radius
-        line = miller_Rstart_Rend(Rstart, Rend, elongation, triangularity; n_points)
-        return line, line
-    else
-        Rstart_lfs = IMAS.get_build(bd, type = layer_type, hfs = -1).start_radius
-        Rend_lfs = IMAS.get_build(bd, type = layer_type, hfs = -1).end_radius
-        Rstart_hfs = IMAS.get_build(bd, type = layer_type, hfs = 1).start_radius
-        Rend_hfs = IMAS.get_build(bd, type = layer_type, hfs = 1).end_radius
-        inner_line = miller_Rstart_Rend(Rend_hfs, Rstart_lfs, elongation, triangularity; n_points)
-        outer_line = miller_Rstart_Rend(Rstart_hfs, Rend_lfs, elongation, triangularity; n_points)
-        return inner_line, outer_line
-    end
-end
-
 """
-    build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
+    wall_from_eq(dd)
 
-Translates 1D build to 2D cross-sections starting from equilibrium
+Generate first wall outline starting from an equilibrium
 """
-function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
+function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     # Inner radii of the plasma
     R_hfs_plasma = IMAS.get_build(bd, type = -1).start_radius
     R_lfs_plasma = IMAS.get_build(bd, type = -1).end_radius
@@ -362,8 +356,25 @@ function build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_in
     pr = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
     pz = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
 
-    # build cx
-    return build_cx(bd, pr, pz, tf_shape_index)
+    return pr,pz
+end
+
+"""
+    build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
+
+Translates 1D build to 2D cross-sections starting from equilibrium
+"""
+function build_cx(dd::IMAS.dd; tf_shape_index::Int)
+    wall = first_wall(dd.wall)
+    if wall === missing
+        pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
+        resize!(dd.wall.description_2d,1)
+        resize!(dd.wall.description_2d[1].limiter.unit,1)
+        dd.wall.description_2d[1].limiter.unit[1].outline.r = pr
+        dd.wall.description_2d[1].limiter.unit[1].outline.z = pz
+        wall = first_wall(dd.wall)
+    end
+    build_cx(dd.build, wall.r, wall.z, tf_shape_index)
 end
 
 """
@@ -424,8 +435,6 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
     U = maximum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z) + bd.layer[end].thickness
     bd.layer[end].outline.r, bd.layer[end].outline.z = rectangle_shape(L, R, D, U)
 
-    # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    bd.tf.thickness = 2 * π * IMAS.get_build(bd, type = 2, hfs = 1).start_radius / bd.tf.coils_n
     return bd
 end
 

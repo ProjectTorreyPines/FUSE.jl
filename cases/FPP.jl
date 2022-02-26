@@ -17,6 +17,9 @@ function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
     par.build.is_nuclear_facility = true
     par.build.symmetric = false
 
+    par.tf.shape = 3
+    par.tf.n_coils = 16
+
     par.pf_active.n_oh_coils = 6
     par.pf_active.n_pf_coils_inside = 0
     par.pf_active.n_pf_coils_outside = 6

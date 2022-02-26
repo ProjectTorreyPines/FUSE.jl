@@ -12,6 +12,9 @@ function Parameters(::Type{Val{:D3D}})
     par.pf_active.n_pf_coils_inside = 8
     par.pf_active.n_pf_coils_outside = 0
 
+    par.tf.shape = 3
+    par.tf.n_coils = 18
+
     par.core_profiles.ne_ped = 5E19
     par.core_profiles.n_peaking = 1.5
     par.core_profiles.T_shaping = 1.8
