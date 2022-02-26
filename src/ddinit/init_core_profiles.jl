@@ -87,13 +87,14 @@ function init_core_profiles(
     summary::IMAS.summary;
     ne_ped::Real,
     n_peaking::Real,
-    T_shaping::Real,
     w_ped::Real,
     zeff::Real,
     bulk::Symbol,
     impurity::Symbol,
     rot_core::Real,
     T_ratio::Real = 1.0,
+    T_shaping::Real = 1.8,
+    n_shaping::Real = 0.9,
     ngrid::Int = 101
 )
     cpt = resize!(cp.profiles_1d)
@@ -116,7 +117,7 @@ function init_core_profiles(
 
     # Set densities
     ne_core = n_peaking * ne_ped
-    cpt.electrons.density = AD_TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, 0.9, 0.9, w_ped)
+    cpt.electrons.density = AD_TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
 
     zimp1 = IMAS.ion_element(impurity).element[1].z_n
     niFraction = zeros(2)

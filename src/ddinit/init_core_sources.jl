@@ -23,9 +23,46 @@ function init_nbi(
         resize!(nbi_u.beamlets_group, 1)
         nbi_u.beamlets_group[1].angle = toroidal_angle[idx] / 360 * 2pi
     end
-    
+
     return dd
 end
+
+function init_ec_launchers(dd::IMAS.dd, par::Parameters)
+    return init_ec_launchers(dd, par.ec.power_launched)
+end
+
+function init_ec_launchers(dd::IMAS.dd, power_launched::Union{Real,Vector})
+    power_launched = [p for p in power_launched]
+    for idx in 1:length(power_launched)
+        resize!(dd.ec_launchers.launcher, idx)
+        @ddtime dd.ec_launchers.launcher[idx].power_launched.data = power_launched[idx]
+    end
+end
+
+function init_ic_antennas(dd::IMAS.dd, par::Parameters)
+    return init_ic_antennas(dd, par.ic.power_launched)
+end
+
+function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
+    power_launched = [p for p in power_launched]
+    for idx in 1:length(power_launched)
+        resize!(dd.ic_antennas.antenna, idx)
+        @ddtime dd.ic_antennas.antenna[idx].power_launched.data = power_launched[idx]
+    end
+end
+
+function init_lh_antennas(dd::IMAS.dd, par::Parameters)
+    return init_lh_antennas(dd, par.lh.power_launched)
+end
+
+function init_lh_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
+    power_launched = [p for p in power_launched]
+    for idx in 1:length(power_launched)
+        resize!(dd.lh_antennas.antenna, idx)
+        @ddtime dd.lh_antennas.antenna[idx].power_launched.data = power_launched[idx]
+    end
+end
+
 
 function init_core_sources(dd::IMAS.dd, par::Parameters)
     init_from = par.general.init_from
@@ -44,12 +81,29 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
     end
 
     if init_from == :scalars
-        if !ismissing(par.nbi,:beam_power)
-            init_nbi(dd, par)
+        for key in [:nbi, :ec, :ic, :lh]
+            if !ismissing(par.nbi, :beam_power) && key == :nbi      # this doenst' work
+                init_nbi(dd, par)
+                actor = simpleNBIactor(dd)
+            end
 
-            nbiactor = simpleNBIactor(dd)
-            FUSE.step(nbiactor)
-            FUSE.finalize(nbiactor)
+            if !ismissing(par.ec, :power_launched) && key == :ec        # this doenst' work
+                init_ec_launchers(dd, par)
+                actor = simpleECactor(dd)
+            end
+
+            if !ismissing(par.ic, :power_launched) && key == :ic            # this doenst' work
+                init_ic_antennas(dd, par)
+                actor = simpleICactor(dd)
+            end
+
+            if isa(par.lh.power_launched, Union{Real,Vector}) && key == :lh   # this doenst' work
+                init_lh_antennas(dd, par)
+                actor = simpleLHactor(dd)
+            end
+
+            FUSE.step(actor)
+            FUSE.finalize(actor)
         end
     end
 
