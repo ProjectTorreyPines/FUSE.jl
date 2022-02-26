@@ -10,7 +10,7 @@ mutable struct TaueNNactor <: AbstractActor
     outputs::AD_TAUENN.TauennOutputs
 end
 
-function TaueNNactor(dd::IMAS.dd; rho_fluxmatch = 0.6, eped_factor = 1.0, T_shaping = 1.8, temp_pedestal_ratio = 1.0, error=1E-2, use_tglfnn=true, kw...)
+function TaueNNactor(dd::IMAS.dd; rho_fluxmatch = 0.6, eped_factor = 1.0, T_shaping = 1.8, temp_pedestal_ratio = 1.0, error = 1E-2, use_tglfnn = true, kw...)
     parameters = AD_TAUENN.TauennParameters()
     parameters.eped_factor = eped_factor
     parameters.rho_fluxmatch = rho_fluxmatch

@@ -146,20 +146,21 @@ function finalize(
     empty!(eqt)
     eqt.boundary.geometric_axis.r = actor.S.R0
     eqt.boundary.geometric_axis.z = Z0
-    eqt.profiles_1d.psi = collect(range(Equilibrium.psi_limits(actor.S)..., length = ngrid)) * (tc["PSI"] * sign_Ip)
+    orig_psi = collect(range(Equilibrium.psi_limits(actor.S)..., length = ngrid))
+    eqt.profiles_1d.psi = orig_psi * (tc["PSI"] * sign_Ip)
 
-    eqt.profiles_1d.pressure = Equilibrium.pressure(actor.S, eqt.profiles_1d.psi)
-    eqt.profiles_1d.dpressure_dpsi = Equilibrium.pressure_gradient(actor.S, eqt.profiles_1d.psi) / (tc["PSI"] * sign_Ip)
+    eqt.profiles_1d.pressure = Equilibrium.pressure(actor.S, orig_psi)
+    eqt.profiles_1d.dpressure_dpsi = Equilibrium.pressure_gradient(actor.S, orig_psi) / (tc["PSI"] * sign_Ip)
 
-    eqt.profiles_1d.f = Equilibrium.poloidal_current(actor.S, eqt.profiles_1d.psi) * (tc["F"] * sign_Bt)
-    eqt.profiles_1d.f_df_dpsi = eqt.profiles_1d.f .* Equilibrium.poloidal_current_gradient(actor.S, eqt.profiles_1d.psi) * (tc["F"] * sign_Bt) / (tc["PSI"] * sign_Ip)
+    eqt.profiles_1d.f = - Equilibrium.poloidal_current(actor.S, orig_psi) * (tc["F"] * sign_Bt)
+    eqt.profiles_1d.f_df_dpsi = Equilibrium.poloidal_current(actor.S, orig_psi) .* Equilibrium.poloidal_current_gradient(actor.S, orig_psi) * (tc["F_FPRIME"] * sign_Bt * sign_Ip)
 
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
     eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length = ngrid)
     eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length = Int(ceil(ngrid * actor.S.kappa)))
 
-    eqt.profiles_2d[1].psi = [actor.S(rr, zz - Z0) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2] * (tc["PSI"] * sign_Ip)
+    eqt.profiles_2d[1].psi = [actor.S(rr, zz - Z0) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
 
     IMAS.flux_surfaces(eqt)
 

@@ -85,9 +85,10 @@ end
 Parses GASC output file in json format
 """
 function GASC(filename::String, case::Int)
-    gasc = GASC(filename, case + 1, JSON.parsefile(filename)["SOLUTIONS"][case])
+    case = case + 1
+    gasc = GASC(filename, case, JSON.parsefile(filename)["SOLUTIONS"][case])
     for item in keys(gasc.solution["OUTPUTS"]["numerical profiles"])
-        gasc.solution["OUTPUTS"]["numerical profiles"][item] = Vector{Real}(gasc.solution["OUTPUTS"]["numerical profiles"][item])
+        gasc.solution["OUTPUTS"]["numerical profiles"][item] = Vector{Float64}(gasc.solution["OUTPUTS"]["numerical profiles"][item])
     end
     return gasc
 end

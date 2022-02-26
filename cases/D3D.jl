@@ -6,6 +6,7 @@ function Parameters(::Type{Val{:D3D}})
     par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "D3D_eq_ods.json")
 
     par.build.is_nuclear_facility = false
+    par.build.symmetric = true
 
     par.pf_active.n_oh_coils = 10
     par.pf_active.n_pf_coils_inside = 8

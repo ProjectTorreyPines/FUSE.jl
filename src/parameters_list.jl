@@ -7,9 +7,9 @@ function Parameters()
 end
 
 case_parameters = Symbol[]
-for filename in readdir(joinpath(dirname(@__FILE__), "..", "parameters"))
+for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
     push!(case_parameters, Symbol(splitext(filename)[1]))
-    include("../parameters/" * filename)
+    include("../cases/" * filename)
 end
 
 function Parameters(group::Symbol; kw...)
@@ -88,6 +88,7 @@ function Parameters(group::Symbol; kw...)
     elseif group == :build
         build = par
         build.is_nuclear_facility = Entry(Bool, "", "Is this a nuclear facility")
+        build.symmetric = Entry(Bool, "", "Is the build up-down symmetric")
 
     elseif group == :gasc
         gasc = par

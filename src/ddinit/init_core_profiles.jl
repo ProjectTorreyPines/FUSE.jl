@@ -8,7 +8,8 @@ function init_core_profiles(dd::IMAS.dd, par::Parameters)
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
         if length(keys(dd1.core_profiles)) > 0
-            dd.core_sources = dd1.core_sources
+            dd.global_time = max(dd.global_time, maximum(dd1.core_profiles.time))
+            dd.core_profiles = dd1.core_profiles
         else
             init_from = :scalars
         end

@@ -114,6 +114,9 @@ function Base.getproperty(p::Parameters, key::Symbol)
     elseif typeof(parameter) <: Entry
         value = parameter.value
     elseif typeof(parameter) <: Switch
+        if parameter.value === missing
+            throw(NotsetParameterException(key))
+        end
         value = parameter.options[parameter.value].value
     else
         error("Unrecognized type $(typeof(parameter))")

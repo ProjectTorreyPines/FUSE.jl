@@ -3,8 +3,11 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.general.casename = "ITER_$(init_from)"
     par.general.init_from = init_from
 
+    par.build.is_nuclear_facility = true
+
     if init_from == :ods
         par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "ITER_eq_ods.json")
+        par.build.symmetric = false
     else
         par.equilibrium.R0 = 6.2
         par.equilibrium.ϵ = 0.32
@@ -16,9 +19,8 @@ function Parameters(::Type{Val{:ITER}}; init_from)
         par.equilibrium.βn = 2.0
         par.equilibrium.x_point = true
         par.equilibrium.symmetric = false
+        par.build.symmetric = true
     end
-
-    par.build.is_nuclear_facility = true
 
     par.pf_active.n_oh_coils = 6
     par.pf_active.n_pf_coils_inside = 0
