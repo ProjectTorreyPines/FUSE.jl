@@ -82,29 +82,24 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
     end
 
     if init_from == :scalars
-        for key in [:nbi, :ec, :ic, :lh]
-            if !ismissing(par.nbi, :beam_power) && key == :nbi      # this doenst' work
-                init_nbi(dd, par)
-                actor = simpleNBIactor(dd)
-            end
+        if !ismissing(par.nbi, :beam_power)
+            init_nbi(dd, par)
+            finalize(step(simpleNBIactor(dd)))
+        end
 
-            if !ismissing(par.ec, :power_launched) && key == :ec        # this doenst' work
-                init_ec_launchers(dd, par)
-                actor = simpleECactor(dd)
-            end
+        if !ismissing(par.ec, :power_launched)
+            init_ec_launchers(dd, par)
+            finalize(step(simpleECactor(dd)))
+        end
 
-            if !ismissing(par.ic, :power_launched) && key == :ic            # this doenst' work
-                init_ic_antennas(dd, par)
-                actor = simpleICactor(dd)
-            end
+        if !ismissing(par.ic, :power_launched)
+            init_ic_antennas(dd, par)
+            finalize(step(simpleICactor(dd)))
+        end
 
-            if isa(par.lh.power_launched, Union{Real,Vector}) && key == :lh   # this doenst' work
-                init_lh_antennas(dd, par)
-                actor = simpleLHactor(dd)
-            end
-
-            FUSE.step(actor)
-            FUSE.finalize(actor)
+        if isa(par.lh.power_launched, Union{Real,Vector})
+            init_lh_antennas(dd, par)
+            finalize(step(simpleLHactor(dd)))
         end
     end
 

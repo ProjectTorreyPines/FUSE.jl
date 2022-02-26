@@ -72,7 +72,7 @@ function gaussian_source_to_dd(isource,name, index, rho_cp, volume_cp, area_cp, 
 end
 
 
-function step(actor::simpleNBIactor; verbose=false)
+function step(actor::simpleNBIactor)
     for (idx, nbi_u) in enumerate(actor.dd.nbi.unit)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -97,9 +97,10 @@ function step(actor::simpleNBIactor; verbose=false)
         isource = resize!(cs.source, "identifier.name" => "beam_$idx")
         gaussian_source_to_dd(isource, "beam_$idx", 2, rho_cp, volume_cp, area_cp, power_launched, ion_electron_fraction, actor.rho_0[idx], actor.width[idx], 2; electrons_particles=beam_particles, momentum_tor=momentum_source, j_parallel=j_parallel)
     end
+    return actor
 end
 
-function step(actor::simpleECactor; verbose=false)
+function step(actor::simpleECactor)
     for (idx, ec_launcher) in enumerate(actor.dd.ec_launchers.launcher)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -111,7 +112,7 @@ function step(actor::simpleECactor; verbose=false)
         volume_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp]
         area_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area)[rho_cp]
 
-        ion_electron_fraction = 0.
+        ion_electron_fraction = 0.0
 
         ne_vol = integrate(volume_cp,cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol/1e19) * power_launched
@@ -119,9 +120,10 @@ function step(actor::simpleECactor; verbose=false)
         isource = resize!(cs.source, "identifier.name" => "ec_launcher_$idx")
         gaussian_source_to_dd(isource, "ec_launcher_$idx", 3, rho_cp, volume_cp, area_cp, power_launched, ion_electron_fraction, actor.rho_0[idx], actor.width[idx], 1; j_parallel=j_parallel)
     end
+    return actor
 end
 
-function step(actor::simpleICactor; verbose=false)
+function step(actor::simpleICactor)
     for (idx, ic_antenna) in enumerate(actor.dd.ic_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -141,9 +143,10 @@ function step(actor::simpleICactor; verbose=false)
         isource = resize!(cs.source, "identifier.name" => "ic_antenna_$idx")
         gaussian_source_to_dd(isource, "ic_antenna_$idx", 5, rho_cp, volume_cp, area_cp, power_launched, ion_electron_fraction, actor.rho_0[idx], actor.width[idx], 1; j_parallel=j_parallel)
     end
+    return actor
 end
 
-function step(actor::simpleLHactor; verbose=false)
+function step(actor::simpleLHactor)
     for (idx, lh_antenna) in enumerate(actor.dd.lh_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -155,7 +158,7 @@ function step(actor::simpleLHactor; verbose=false)
         volume_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp]
         area_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area)[rho_cp]
 
-        ion_electron_fraction = 0.25
+        ion_electron_fraction = 0.0
 
         ne_vol = integrate(volume_cp,cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol/1e19) * power_launched
@@ -163,6 +166,7 @@ function step(actor::simpleLHactor; verbose=false)
         isource = resize!(cs.source, "identifier.name" => "lh_antenna_$idx")
         gaussian_source_to_dd(isource, "lh_antenna_$idx", 4, rho_cp, volume_cp, area_cp, power_launched, ion_electron_fraction, actor.rho_0[idx], actor.width[idx], 1; j_parallel=j_parallel)
     end
+    return actor
 end
 
 function sgaussian(rho::Union{LinRange,Vector}, rho_0::Real, width::Real, order::Real = 1.0)
