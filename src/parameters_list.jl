@@ -68,22 +68,22 @@ function Parameters(group::Symbol; kw...)
 
     elseif group == :nbi
         nbi = par
-        nbi.beam_power = Entry(Union{Real,Vector{Real}}, "W", "Beam power")
-        nbi.beam_energy = Entry(Union{Real,Vector{Real}}, "eV", "Beam energy")
-        nbi.beam_mass = Entry(Union{Real,Vector{Real}}, "AU", "Beam mass"; default = 2.0)
-        nbi.toroidal_angle = Entry(Union{Real,Vector{Real}}, "rad", "toroidal angle of injection"; default = 0.0)
+        nbi.beam_power = Entry(Union{X,Vector{X}} where {X <: Real}, "W", "Beam power")
+        nbi.beam_energy = Entry(Union{X,Vector{X}} where {X <: Real}, "eV", "Beam energy")
+        nbi.beam_mass = Entry(Union{X,Vector{X}} where {X <: Real}, "AU", "Beam mass"; default = 2.0)
+        nbi.toroidal_angle = Entry(Union{X,Vector{X}} where {X <: Real}, "rad", "toroidal angle of injection"; default = 0.0)
 
     elseif group == :ec
         ec = par
-        ec.power_launched = Entry(Union{Real,Vector{Real}}, "W", "EC launched power")
+        ec.power_launched = Entry(Union{X,Vector{X}} where {X <: Real}, "W", "EC launched power")
 
     elseif group == :ic
         ic = par
-        ic.power_launched = Entry(Union{Real,Vector{Real}}, "W", "IC launched power")
+        ic.power_launched = Entry(Union{X,Vector{X}} where {X <: Real}, "W", "IC launched power")
 
     elseif group == :lh
         lh = par
-        lh.power_launched = Entry(Union{Real,Vector{Real}}, "W", "LH launched power")
+        lh.power_launched = Entry(Union{X,Vector{X}} where {X <: Real}, "W", "LH launched power")
 
     elseif group == :build
         build = par

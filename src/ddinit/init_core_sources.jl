@@ -82,22 +82,19 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
     end
 
     if init_from == :scalars
-        if !ismissing(par.nbi, :beam_power)
+        if !ismissing(par.nbi, :beam_power) && any(par.nbi.beam_power .> 0)
             init_nbi(dd, par)
             finalize(step(simpleNBIactor(dd)))
         end
-
-        if !ismissing(par.ec, :power_launched)
+        if !ismissing(par.ec, :power_launched) && any(par.ec.power_launched .> 0)
             init_ec_launchers(dd, par)
             finalize(step(simpleECactor(dd)))
         end
-
-        if !ismissing(par.ic, :power_launched)
+        if !ismissing(par.ic, :power_launched) && any(par.ic.power_launched .> 0)
             init_ic_antennas(dd, par)
             finalize(step(simpleICactor(dd)))
         end
-
-        if isa(par.lh.power_launched, Union{Real,Vector})
+        if !ismissing(par.lh, :power_launched) && any(par.lh.power_launched .> 0)
             init_lh_antennas(dd, par)
             finalize(step(simpleLHactor(dd)))
         end
@@ -120,8 +117,29 @@ function init_core_sources(dd::IMAS.dd, gasc::GASC, par::Parameters)
 
     par = deepcopy(par)
     par.general.init_from = :scalars
-    par.nbi.beam_power = heating_power # this will need to be expanded
-    par.nbi.beam_energy = 200e3
+    par.nbi.beam_power = Float64[]
+    par.nbi.beam_energy = Float64[]
+    if heating_power >0
+        push!(par.nbi.beam_power, heating_power)
+        push!(par.nbi.beam_energy, 200e3)
+    end
+    if cd_powers["NB"] >0
+        push!(par.nbi.beam_power, cd_powers["NB"])
+        push!(par.nbi.beam_energy, 200e3)
+    end
+    if cd_powers["NNB"] >0
+        push!(par.nbi.beam_power, cd_powers["NNB"])
+        push!(par.nbi.beam_energy, 1000e3)
+    end
+    par.lh.power_launched = Float64[]
+    if cd_powers["LH"] > 0
+        push!(par.lh.power_launched, cd_powers["LH"])
+    end
+    if cd_powers["HI"] > 0
+        push!(par.lh.power_launched, cd_powers["HI"])
+    end
+    par.ic.power_launched = cd_powers["FW"]
+    par.ec.power_launched = cd_powers["EC"]
 
     init_core_sources(dd, par)
     return dd
