@@ -17,6 +17,46 @@ end
 #= ========== =#
 #  init build  #
 #= ========== =#
+function init_build(dd::IMAS.dd, par::Parameters)
+    init_from = par.general.init_from
+
+    if init_from == :gasc
+        gasc = GASC(par.gasc.filename, par.gasc.case)
+        init_radial_build(dd.build, gasc; no_small_gaps=par.gasc.no_small_gaps)
+
+    elseif init_from == :ods
+        dd1 = IMAS.json2imas(par.ods.filename)
+        if length(keys(dd1.wall)) > 0
+            dd.wall = dd1.wall
+        end
+        if length(keys(dd1.build)) > 0
+            dd.build = dd1.build
+        else
+            init_from = :scalars
+        end
+    end
+
+    if init_from == :scalars
+        init_radial_build(
+            dd.build,
+            dd.equilibrium.time_slice[],
+            first_wall(dd.wall);
+            is_nuclear_facility = par.build.is_nuclear_facility,
+            pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
+            pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
+    end
+
+    # cross-section outlines
+    build_cx(dd; tf_shape_index=par.tf.shape)
+
+    # TF coils
+    dd.build.tf.coils_n = par.tf.n_coils
+    # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
+    dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = 2, hfs = 1).start_radius / dd.build.tf.coils_n
+
+    return dd
+end
+
 """
     init_build(bd::IMAS.build; verbose = false, layers...)
 
@@ -93,14 +133,6 @@ end
 function init_radial_build(bd::IMAS.build, layers::AbstractDict; verbose = false)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
     init_radial_build(bd; verbose, nt...)
-end
-
-function first_wall(wall::IMAS.wall)
-    if (!ismissing(wall.description_2d, [1, :limiter, :unit, 1, :outline, :r])) && (length(wall.description_2d[1].limiter.unit[1].outline.r)>5)
-        return wall.description_2d[1].limiter.unit[1].outline
-    else
-        return missing
-    end
 end
 
 """
@@ -250,44 +282,17 @@ function init_radial_build(
     return bd
 end
 
-function init_build(dd::IMAS.dd, par::Parameters)
-    init_from = par.general.init_from
+"""
+    first_wall(wall::IMAS.wall)
 
-    if init_from == :gasc
-        gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_radial_build(dd.build, gasc; no_small_gaps=par.gasc.no_small_gaps)
-
-    elseif init_from == :ods
-        dd1 = IMAS.json2imas(par.ods.filename)
-        if length(keys(dd1.wall)) > 0
-            dd.wall = dd1.wall
-        end
-        if length(keys(dd1.build)) > 0
-            dd.build = dd1.build
-        else
-            init_from = :scalars
-        end
+return outline of first wall
+"""
+function first_wall(wall::IMAS.wall)
+    if (!ismissing(wall.description_2d, [1, :limiter, :unit, 1, :outline, :r])) && (length(wall.description_2d[1].limiter.unit[1].outline.r)>5)
+        return wall.description_2d[1].limiter.unit[1].outline
+    else
+        return missing
     end
-
-    if init_from == :scalars
-        init_radial_build(
-            dd.build,
-            dd.equilibrium.time_slice[],
-            first_wall(dd.wall);
-            is_nuclear_facility = par.build.is_nuclear_facility,
-            pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
-            pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
-    end
-
-    # cross-section outlines
-    build_cx(dd; tf_shape_index=par.tf.shape)
-
-    # TF coils
-    dd.build.tf.coils_n = par.tf.n_coils
-    # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = 2, hfs = 1).start_radius / dd.build.tf.coils_n
-
-    return dd
 end
 
 """
@@ -360,9 +365,10 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 end
 
 """
-    build_cx(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, tf_shape_index::Int)
+    build_cx(dd::IMAS.dd; tf_shape_index::Int)
 
-Translates 1D build to 2D cross-sections starting from equilibrium
+Translates 1D build to 2D cross-sections starting either wall information
+If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
 function build_cx(dd::IMAS.dd; tf_shape_index::Int)
     wall = first_wall(dd.wall)
@@ -378,7 +384,7 @@ function build_cx(dd::IMAS.dd; tf_shape_index::Int)
 end
 
 """
-    build_cx(bd::IMAS.build, pr, pz, tf_shape_index::Int)
+    build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_shape_index::Int)
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
@@ -439,14 +445,10 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
 end
 
 """
-    build_cx(bd::IMAS.build, pr, pz, tf_shape_index::Int)
+    optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
 
-Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
+Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
-function build_cx(bd::IMAS.build, wl::IMAS.wall__description_2d___limiter__unit___outline, tf_shape_index::Int)
-    return build_cx(bd, wl.r, wl.z, tf_shape_index)
-end
-
 function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     # properties of current layer
     layer = bd.layer[layer_index]
