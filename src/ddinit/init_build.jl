@@ -54,6 +54,9 @@ function init_build(dd::IMAS.dd, par::Parameters)
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
     dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = 2, hfs = 1).start_radius / dd.build.tf.coils_n
 
+    # assign materials
+    assign_materials(dd, par)
+
     return dd
 end
 
@@ -93,7 +96,6 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
         layer.name = replace(String(layer_name), "_" => " ")
         if occursin("gap", lowercase(layer.name))
             layer.type = 0
-            layer.material = "vacuum"
         elseif uppercase(layer.name) == "OH"
             layer.type = 1
         elseif occursin("TF", uppercase(layer.name))
@@ -114,7 +116,6 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
         end
         if occursin("plasma", lowercase(layer.name))
             layer.type = -1
-            layer.material = "vacuum"
         end
         layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
         radius_end += layer.thickness
@@ -122,9 +123,6 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
             println("$(rpad(string(k),4)) $(rpad(layer.name, 17)) Δr=$(@sprintf("%3.3f",layer.thickness))    R=[$(@sprintf("%3.3f",radius_start)) <=> $(@sprintf("%3.3f",radius_end))]")
         end
         radius_start = radius_end
-    end
-    if ismissing(bd.layer[end], :material) || bd.layer[end].material != "vacuum"
-        error("Material of last layer ($(bd.layer[end].name)) must be `vacuum`")
     end
 
     return bd
@@ -502,3 +500,27 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     end
 end
 
+function assign_materials(dd::IMAS.dd, par::Parameters)
+    bd = dd.build
+    for layer in bd.layer
+        if  layer.type == 0 # gap
+            layer.material = "Vacuum"
+        elseif layer.type == 1 # OH
+            layer.material = par.material.wall
+        elseif layer.type == 2 # TF
+            layer.material = par.material.coils
+        elseif layer.type == 3 # shielz
+            layer.material = par.material.shield
+        elseif layer.type == 4 # blanket
+            layer.material = par.material.blanket
+        elseif layer.type == 5 # wall
+            layer.material = par.material.wall
+        elseif layer.type == -1 #plasma
+            layer.material = par.build.is_nuclear_facility ? "DT_plasma" : "DD_plasma"
+        end
+        display((layer.name,getfield(layer,:material)))
+    end
+    bd.oh.material = par.material.coils
+    bd.tf.material = par.material.coils
+    bd.pf_active.material = par.material.coils
+end

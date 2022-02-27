@@ -38,7 +38,7 @@ function init_pf_active(
     OH_layer = IMAS.get_build(bd, type = 1)
 
     empty!(pf_active)
-    resize!(bd.pf_coils_rail, length(n_coils))
+    resize!(bd.pf_active.rail, length(n_coils))
 
     # coils_cleareance is an array the lenght of the rails
     if coils_elements_area === nothing
@@ -60,13 +60,13 @@ function init_pf_active(
     r_oh = sum(extrema(OH_layer.outline.r)) / 2.0
     w_oh = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r) - 2 * coils_cleareance[1]
     z_ohcoils, h_oh = size_oh_coils(OH_layer.outline.z, coils_cleareance[1], n_coils[1])
-    bd.pf_coils_rail[1].name = "OH"
-    bd.pf_coils_rail[1].coils_number = n_coils[1]
-    bd.pf_coils_rail[1].coils_elements_area = coils_elements_area[1]
-    bd.pf_coils_rail[1].coils_cleareance = coils_cleareance[1]
-    bd.pf_coils_rail[1].outline.r = ones(length(z_ohcoils)) * r_oh
-    bd.pf_coils_rail[1].outline.z = z_ohcoils
-    bd.pf_coils_rail[1].outline.distance = range(-1, 1, length = n_coils[1])
+    bd.pf_active.rail[1].name = "OH"
+    bd.pf_active.rail[1].coils_number = n_coils[1]
+    bd.pf_active.rail[1].coils_elements_area = coils_elements_area[1]
+    bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
+    bd.pf_active.rail[1].outline.r = ones(length(z_ohcoils)) * r_oh
+    bd.pf_active.rail[1].outline.z = z_ohcoils
+    bd.pf_active.rail[1].outline.distance = range(-1, 1, length = n_coils[1])
     for z_oh in z_ohcoils
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
@@ -101,10 +101,10 @@ function init_pf_active(
             nc = n_coils[krail]
 
             # add rail info to build IDS
-            bd.pf_coils_rail[krail].name = replace(replace(layer.name, "hfs " => ""), "lfs " => "")
-            bd.pf_coils_rail[krail].coils_number = nc
-            bd.pf_coils_rail[krail].coils_elements_area = coils_elements_area[krail]
-            bd.pf_coils_rail[krail].coils_cleareance = coils_cleareance[krail]
+            bd.pf_active.rail[krail].name = replace(replace(layer.name, "hfs " => ""), "lfs " => "")
+            bd.pf_active.rail[krail].coils_number = nc
+            bd.pf_active.rail[krail].coils_elements_area = coils_elements_area[krail]
+            bd.pf_active.rail[krail].coils_cleareance = coils_cleareance[krail]
 
             # limit size of the pf_coils to fit in the vacuum region
             max_pf_inside_coil = (layer.end_radius - layer.start_radius - coils_cleareance[krail] * 2 * sqrt(2)) / sqrt(2)
@@ -132,9 +132,9 @@ function init_pf_active(
                 end
             end
             if length(valid_k) == 0
-                bd.pf_coils_rail[krail].outline.r = Real[]
-                bd.pf_coils_rail[krail].outline.z = Real[]
-                bd.pf_coils_rail[krail].outline.distance = Real[]
+                bd.pf_active.rail[krail].outline.r = Real[]
+                bd.pf_active.rail[krail].outline.z = Real[]
+                bd.pf_active.rail[krail].outline.distance = Real[]
                 error("Coils on PF rail #$(krail-1) are too big to fit.")
                 continue
             end
@@ -170,9 +170,9 @@ function init_pf_active(
             distance = (distance ./ distance[end]) .* 2.0 .- 1.0
 
             # add rail info to build IDS
-            bd.pf_coils_rail[krail].outline.r = valid_r
-            bd.pf_coils_rail[krail].outline.z = valid_z
-            bd.pf_coils_rail[krail].outline.distance = distance
+            bd.pf_active.rail[krail].outline.r = valid_r
+            bd.pf_active.rail[krail].outline.z = valid_z
+            bd.pf_active.rail[krail].outline.distance = distance
 
             if nc == 0
                 continue

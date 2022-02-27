@@ -29,5 +29,7 @@ function Parameters(::Type{Val{:CAT}})
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 0.0
 
+    par.material.coils = "Nb3Sn"
+
     return par
 end

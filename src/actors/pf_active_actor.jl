@@ -168,7 +168,7 @@ end
 # step
 function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
     distances = []
-    for rail in bd.pf_coils_rail
+    for rail in bd.pf_active.rail
         if rail.name !== "OH"
             # not symmetric
             if !symmetric
@@ -184,7 +184,7 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)::Vec
         end
     end
     oh_height_off = []
-    for rail in bd.pf_coils_rail
+    for rail in bd.pf_active.rail
         if rail.name == "OH"
             push!(oh_height_off, 1.0)
             if !symmetric
@@ -204,7 +204,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     else
         n_oh_params = 2
     end
-    if any(rail.name == "OH" for rail in bd.pf_coils_rail)
+    if any(rail.name == "OH" for rail in bd.pf_active.rail)
         oh_height_off = packed[end-n_oh_params:end-1]
         distances = packed[1:end-n_oh_params]
     else
@@ -217,7 +217,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
         koptim = 0
         koh = 0
 
-        for rail in bd.pf_coils_rail
+        for rail in bd.pf_active.rail
             if rail.name == "OH"
                 # mirror OH size when it reaches maximum extent of the rail
                 while (oh_height_off[1] < -1) || (oh_height_off[1] > 1)
@@ -640,7 +640,7 @@ Plot PFcoilsOptActor optimization cross-section
     if rail
         @series begin
             label --> (build ? "Coil opt. rail" : "")
-            pfactor.bd.pf_coils_rail
+            pfactor.bd.pf_active.rail
         end
     end
 

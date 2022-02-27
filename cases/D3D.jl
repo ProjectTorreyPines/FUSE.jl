@@ -29,5 +29,7 @@ function Parameters(::Type{Val{:D3D}})
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 20.0 / 180 * pi
 
+    par.material.coils = "copper"
+
     return par
 end

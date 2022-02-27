@@ -19,7 +19,7 @@ function init_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     if do_plot
         plot(dd.equilibrium, color = :gray)
         plot!(dd.build)
-        plot!(dd.build.pf_coils_rail)
+        plot!(dd.build.pf_active.rail)
         display(plot!(dd.pf_active))
     end
 
@@ -83,7 +83,7 @@ function build_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     if do_plot
         plot(dd.equilibrium, color = :gray)
         plot!(dd.build)
-        plot!(dd.build.pf_coils_rail)
+        plot!(dd.build.pf_active.rail)
         display(plot!(dd.pf_active))
     end
 end

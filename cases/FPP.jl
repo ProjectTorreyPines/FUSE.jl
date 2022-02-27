@@ -24,5 +24,9 @@ function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
     par.pf_active.n_pf_coils_inside = 0
     par.pf_active.n_pf_coils_outside = 6
 
+    par.material.coils = "ReBCO"
+    par.material.shield = "Tungsten"
+    par.material.blanket = "FLiBe"
+
     return par
 end
