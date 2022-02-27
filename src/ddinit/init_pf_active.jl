@@ -95,7 +95,7 @@ function init_pf_active(
     rmask, zmask, mask = IMAS.structures_mask(bd, ngrid = ngrid)
     dr = (rmask[2] - rmask[1])
     for (k, layer) in enumerate(bd.layer)
-        if ((layer.hfs == -1) || (k == length(bd.layer))) && !ismissing(layer, :material) && (layer.material == "vacuum")
+        if ((layer.hfs == -1) || (k == length(bd.layer))) && !ismissing(layer, :material) && (lowercase(layer.material) == "vacuum")
 
             krail += 1
             nc = n_coils[krail]
