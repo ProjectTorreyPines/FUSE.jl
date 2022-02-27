@@ -1,8 +1,8 @@
-import FusionMaterials
+using FusionMaterials: FusionMaterials
 
 function Parameters()
-    par = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods]
+    par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
         setproperty!(par, item, Parameters(item))
     end
     return par
@@ -18,7 +18,7 @@ function Parameters(group::Symbol; kw...)
     if group in case_parameters
         return Parameters(Val{group}; kw...)
     end
-    par = Parameters(Dict{Symbol,Union{Parameter,Parameters}}())
+    par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
 
     if group == :general
         general = par
@@ -29,6 +29,13 @@ function Parameters(group::Symbol; kw...)
             :gasc => "Initialize FUSE run form GASC output file saved in .json format",
         ]
         general.init_from = Switch(options, "", "Initialize run from")
+
+    elseif group == :material
+        material = par
+        material.coils = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Material used for the TF coils")
+        material.blanket = Switch(FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
+        material.wall = Switch(FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default="Steel, Stainless 316")
+        material.shield = Switch(FusionMaterials.available_materials("shield_materials"), "", "Material used for the shield")
 
     elseif group == :equilibrium
         equilibrium = par
@@ -69,21 +76,13 @@ function Parameters(group::Symbol; kw...)
         pf_active.n_oh_coils = Entry(Int, "", "Number of OH coils")
         pf_active.n_pf_coils_inside = Entry(Int, "", "Number of PF coils inside of the TF")
         pf_active.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")
-        pf_active.material = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Material used to for the PF coils")
 
     elseif group == :tf
         tf = par
         tf.n_coils = Entry(Int, "", "Number of TF coils")
-        tf.material = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Material used to for the TF coils")
-        options = [
-            1 => "PricetonD",
-            2 => "Rectangle",
-            3 => "TrippleArc",
-            4 => "Miller",
-            5 => "Spline"
-        ]
-#        tf.shape = Switch(options, "", "Shape of the TF coils"; default=:TrippleArc)
-        tf.shape = Entry(Int,"", "Shape of the TF coils"; default=3)
+        options = [1 => "PricetonD", 2 => "Rectangle", 3 => "TrippleArc", 4 => "Miller", 5 => "Spline"]
+        #        tf.shape = Switch(options, "", "Shape of the TF coils"; default=:TrippleArc)
+        tf.shape = Entry(Int, "", "Shape of the TF coils"; default=3)
 
     elseif group == :nbi
         nbi = par
@@ -118,8 +117,9 @@ function Parameters(group::Symbol; kw...)
     elseif group == :ods
         ods = par
         ods.filename = Entry(String, "", "ODS.json file from which equilibrium is loaded")
+
     else
-        throw(InexistentParameterException(group))
+        throw(InexistentParameterException(Symbol[group]))
     end
 
     return par
