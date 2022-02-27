@@ -31,7 +31,6 @@ end
 
 struct SwitchOption
     value::Any
-    units::String
     description::String
 end
 
@@ -40,12 +39,12 @@ end
 #= ================= =#
 
 mutable struct Switch <: Parameter
-    options::Dict{Symbol,Union{SwitchOption,Entry}}
+    options::Dict{T,SwitchOption} where {T<:Any}
     units::String
     description::String
-    value::Union{Missing,Symbol}
-    base::Union{Missing,Symbol}
-    default::Union{Missing,Symbol}
+    value::Any
+    base::Any
+    default::Any
 end
 
 """
@@ -53,33 +52,25 @@ end
 
 Defines a switch
 """
-function Switch(options::Dict{Symbol,Union{SwitchOption,Entry}}, units::String, description::String; default=missing)
+function Switch(options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
     return Switch(options, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair{Symbol,Z}} where {Z<:Any}
-    opts = Dict{Symbol,SwitchOption}()
+function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair}
+    opts = Dict{Any,SwitchOption}()
     for (key, desc) in options
-        opts[Symbol(key)] = SwitchOption(Symbol(key), units, desc)
+        opts[key] = SwitchOption(key, desc)
     end
     return Switch(opts, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair{Int,Z}} where {Z<:Any}
-    opts = Dict{Symbol,SwitchOption}()
-    for (key, desc) in options
-        opts[Symbol(key)] = SwitchOption(Symbol(key), units, desc)
-    end
-    return Switch(opts, units, description, default, default, default)
-end
-
-function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Union{Int,Symbol,String}}
-    opts = Dict{Symbol,SwitchOption}()
+function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Union{Symbol,String}}
+    opts = Dict{eltype(options),SwitchOption}()
     for key in options
-        opts[Symbol(key)] = SwitchOption(Symbol(key), units, key)
+        opts[key] = SwitchOption(key, "$key")
     end
     return Switch(opts, units, description, default, default, default)
 end
@@ -95,22 +86,32 @@ end
 #= ================= =#
 
 struct InexistentParameterException <: Exception
-    key::Symbol
+    path::Vector{Symbol}
 end
-Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: parameter $(e.key) does not exist")
+Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) does not exist")
 
 struct NotsetParameterException <: Exception
-    key::Symbol
+    path::Vector{Symbol}
+    options::Vector{Any}
 end
-Base.showerror(io::IO, e::NotsetParameterException) = print(io, "ERROR: parameter $(e.key) is not set")
+NotsetParameterException(path::Vector{Symbol}) = NotsetParameterException(path,[])
+function Base.showerror(io::IO, e::NotsetParameterException)
+    if length(e.options) > 0
+        print(io, "ERROR: Parameter $(join(e.path,".")) is not set. Valid options are: $(join(map(repr,e.options),", "))")
+    else
+        print(io, "ERROR: Parameter $(join(e.path,".")) is not set")
+    end
+end
 
 struct BadParameterException <: Exception
-    key::Symbol
-    valid::Vector{Symbol}
+    path::Vector{Symbol}
+    value::Any
+    options::Vector{Any}
 end
-Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: `$(repr(e.key))` is not one of the valid options: $(e.valid)")
+Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) value `$(repr(e.value))` is not one of the valid options: $(join(map(repr,e.options),", "))")
 
-struct Parameters
+mutable struct Parameters
+    _path::Vector{Symbol}
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
@@ -121,7 +122,7 @@ end
 function Base.getproperty(p::Parameters, key::Symbol)
     _parameter = getfield(p, :_parameters)
     if !(key in keys(_parameter))
-        throw(InexistentParameterException(key))
+        throw(InexistentParameterException(vcat(getfield(p, :_path), key)))
     end
     parameter = _parameter[key]
 
@@ -131,7 +132,7 @@ function Base.getproperty(p::Parameters, key::Symbol)
         value = parameter.value
     elseif typeof(parameter) <: Switch
         if parameter.value === missing
-            throw(NotsetParameterException(key))
+            throw(NotsetParameterException(vcat(getfield(p, :_path), key),collect(keys(parameter.options))))
         end
         value = parameter.options[parameter.value].value
     else
@@ -139,7 +140,7 @@ function Base.getproperty(p::Parameters, key::Symbol)
     end
 
     if value === missing
-        throw(NotsetParameterException(key))
+        throw(NotsetParameterException(vcat(getfield(p, :_path), key)))
     end
 
     return value
@@ -147,13 +148,16 @@ end
 
 function Base.setproperty!(p::Parameters, key::Symbol, value)
     if typeof(value) <: Union{Parameter,Parameters}
+        if typeof(value) <: Parameters
+            setfield!(value, :_path, vcat(getfield(p, :_path), key))
+        end
         getfield(p, :_parameters)[key] = value
         return value
     end
 
     _parameter = getfield(p, :_parameters)
     if !(key in keys(_parameter))
-        throw(InexistentParameterException(key))
+        throw(InexistentParameterException(vcat(getfield(p, :_path), key)))
     end
     parameter = _parameter[key]
 
@@ -165,7 +169,7 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
             value = value.first
         end
         if (value !== missing) && !(value in keys(parameter.options))
-            throw(BadParameterException(value, collect(keys(parameter.options))))
+            throw(BadParameterException(vcat(getfield(p, :_path), key), value, collect(keys(parameter.options))))
         end
         return parameter.value = value
     else
