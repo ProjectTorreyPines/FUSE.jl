@@ -42,7 +42,6 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.nbi.beam_energy = 1e6
     par.ec.power_launched = 2 * 10e6
     par.ic.power_launched = 24 * 1e6
-    par.lh.power_launched = 0.0
 
     par.material.coils = "Nb3Sn"
     par.material.shield = "Tungsten"

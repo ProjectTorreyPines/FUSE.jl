@@ -70,16 +70,19 @@ function pf_optim_workflow(dd::IMAS.dd, par::Parameters; update_eq_in = false, d
     return dd
 end
 
-function build_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
-    n = 2
-    for k in 1:2
-        pf_optim_workflow(dd::IMAS.dd, par::Parameters; update_eq_in = k != n, do_plot)
-        if k == n
-            break
-        end
+function build_workflow(dd::IMAS.dd, par::Parameters; rebuild_wall=(par.general.init_from != :ods), do_plot = false)
+    # optimize pf_active and update equilibrium
+    pf_optim_workflow(dd::IMAS.dd, par::Parameters; update_eq_in = true, do_plot)
+    
+    if rebuild_wall
+        # regenerate build based on new equilibrium
+        empty!(dd.wall)
         init_build(dd, par)
-        init_pf_active(dd, par)
+
+        # re-optimize pf_active
+        pf_optim_workflow(dd::IMAS.dd, par::Parameters; update_eq_in = false, do_plot=false)
     end
+
     if do_plot
         plot(dd.equilibrium, color = :gray)
         plot!(dd.build)
@@ -88,7 +91,7 @@ function build_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     end
 end
 
-function transport_workflow(dd::IMAS.dd, par::Parameters; do_plot = false, verbose=false, kw...)
+function transport_workflow(dd::IMAS.dd, par::Parameters; do_plot = false, verbose = false, kw...)
     if do_plot
         plot(dd.core_profiles; color = :gray, label = "")
     end

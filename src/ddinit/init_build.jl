@@ -509,7 +509,7 @@ function assign_materials(dd::IMAS.dd, par::Parameters)
             layer.material = par.material.wall
         elseif layer.type == 2 # TF
             layer.material = par.material.coils
-        elseif layer.type == 3 # shielz
+        elseif layer.type == 3 # shield
             layer.material = par.material.shield
         elseif layer.type == 4 # blanket
             layer.material = par.material.blanket
