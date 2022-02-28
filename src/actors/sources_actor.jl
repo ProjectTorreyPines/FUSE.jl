@@ -71,8 +71,15 @@ function gaussian_source_to_dd(
     gaussian_vol = gaussian / integrate(volume_cp, gaussian)
     gaussian_area = gaussian / integrate(area_cp, gaussian)
 
-    total_ion_energy = power_launched .* gaussian_vol .* ion_electron_fraction
     electrons_energy = power_launched .* gaussian_vol .* (1 .- ion_electron_fraction)
+    if sum(electrons_energy) == 0.0
+        electrons_energy = missing
+    end
+
+    total_ion_energy = power_launched .* gaussian_vol .* ion_electron_fraction
+    if sum(total_ion_energy) == 0.0
+        total_ion_energy = missing
+    end
 
     if electrons_particles !== missing
         electrons_particles = gaussian_vol .* electrons_particles

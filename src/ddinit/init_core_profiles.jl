@@ -52,7 +52,7 @@ function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
     element = resize!(ion.element, 1)
     element.z_n = gasc["INPUTS"]["impurities"]["impurityZ"]
     element.a = Int(ceil(gasc["INPUTS"]["impurities"]["impurityZ"] * 2.0))
-    ion.label = "lumped"
+    ion.label = "Impurity"
 
     # pedestal
     @ddtime dd.summary.local.pedestal.n_e.value = gasc["OUTPUTS"]["plasma parameters"]["neped"] * 1E20

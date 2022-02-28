@@ -518,7 +518,6 @@ function assign_materials(dd::IMAS.dd, par::Parameters)
         elseif layer.type == -1 #plasma
             layer.material = par.build.is_nuclear_facility ? "DT_plasma" : "DD_plasma"
         end
-        display((layer.name,getfield(layer,:material)))
     end
     bd.oh.material = par.material.coils
     bd.tf.material = par.material.coils
