@@ -115,6 +115,22 @@ mutable struct Parameters
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
+function Parameters()
+    par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
+        setproperty!(par, item, Parameters(item))
+    end
+    return par
+end
+
+function Parameters(::Nothing)
+    return Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
+end
+
+function Parameters(group::Symbol; kw...)
+    return Parameters(Val{group}; kw...)
+end
+
 function Base.fieldnames(p::Parameters)
     return collect(keys(getfield(p, :_parameters)))
 end
