@@ -115,14 +115,6 @@ mutable struct Parameters
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
-function Parameters()
-    par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
-        setproperty!(par, item, Parameters(item))
-    end
-    return par
-end
-
 function Parameters(::Nothing)
     return Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
 end
@@ -177,20 +169,30 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
     end
     parameter = _parameter[key]
 
-    if typeof(parameter) <: Entry
-        return parameter.value = value
-    elseif typeof(parameter) <: Switch
-        if typeof(value) <: Pair
-            parameter.options[value.first].value = value.second
-            value = value.first
+    if typeof(parameter) <: Switch
+        try
+            return parameter.value = value
+        catch e
+            if typeof(e) <: BadParameterException # retrhow the exception but add more to the path information
+                throw(BadParameterException(vcat(getfield(p, :_path), key), value, collect(keys(parameter.options))))
+            end
         end
-        if (value !== missing) && !(value in keys(parameter.options))
-            throw(BadParameterException(vcat(getfield(p, :_path), key), value, collect(keys(parameter.options))))
-        end
-        return parameter.value = value
     else
-        error("Unrecognized type $(typeof(parameter))")
+        return parameter.value = value
     end
+
+    return value
+end
+
+function Base.setproperty!(p::Switch, key::Symbol, value)
+    if typeof(value) <: Pair
+        p.options[value.first].value = value.second
+        value = value.first
+    end
+    if (value !== missing) && !(value in keys(p.options))
+        throw(BadParameterException([key], value, collect(keys(p.options))))
+    end
+    return setfield!(p, :value, value)
 end
 
 function Base.show(io::IO, p::Parameters, depth::Int)
@@ -205,18 +207,18 @@ function Base.show(io::IO, p::Parameters, depth::Int)
             value = parameter.value
             units = parameter.units
             if value === missing
-                continue
+                color = :yellow
             elseif value === parameter.default
-                color = :blue
+                color = :green
             elseif value === parameter.base
-                color = :black
+                color = :blue
             else
                 color = :red
             end
             printstyled(io, "$(' '^(2*depth))")
             printstyled(io, "$(item)"; color=color)
             printstyled(io, " ➡ "; color=:red)
-            printstyled(io, "$(value)"; color=color)
+            printstyled(io, "$(repr(value))"; color=color)
             if length(units) > 0
                 printstyled(io, " [$(units)]"; color=color)
             end

@@ -7,16 +7,21 @@ using Plots
 using Printf
 
 #= ======= =#
-#  INCLUDE  #
+#  UTILS  #
 #= ======= =#
 include("utils.jl")
-include("physics.jl")
 
 #= ========== =#
 #  PARAMETERS  #
 #= ========== =#
 include("parameters.jl")
 include("parameters_list.jl")
+
+#= ====================== =#
+#  PHYSICS and TECHNOLOGY  #
+#= ====================== =#
+include("physics.jl")
+include("technology.jl")
 
 #= ====== =#
 #  DDINIT  #

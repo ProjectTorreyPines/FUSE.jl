@@ -6,6 +6,14 @@ for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
     include("../cases/" * filename)
 end
 
+function Parameters()
+    par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
+        setproperty!(par, item, Parameters(item))
+    end
+    return par
+end
+
 function Parameters(::Type{Val{:general}})
     general = Parameters(nothing)
     general.casename = Entry(String, "", "Mnemonic name of the case being run")
@@ -20,9 +28,8 @@ end
 
 function Parameters(::Type{Val{:material}})
     material = Parameters(nothing)
-    material.coils = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Material used for the TF coils")
-    material.blanket = Switch(FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
     material.wall = Switch(FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default = "Steel, Stainless 316")
+    material.blanket = Switch(FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
     material.shield = Switch(FusionMaterials.available_materials("shield_materials"), "", "Material used for the shield")
     return material
 end
@@ -66,10 +73,11 @@ function Parameters(::Type{Val{:pf_active}})
         :corners => "like :simple, but PF coils have filaments at the four corners",
         :realistic => "hundreds of filaments per coil (very slow!)",
     ]
-    pf_active.green_model = Switch(options, "", "Model to be used for the Greens function table of the PF coils"; default = :simple)
+    pf_active.green_model = Switch(options, "", "Model used for the Greens function calculation"; default = :simple)
     pf_active.n_oh_coils = Entry(Int, "", "Number of OH coils")
     pf_active.n_pf_coils_inside = Entry(Int, "", "Number of PF coils inside of the TF")
     pf_active.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")
+    pf_active.technology = Entry(Parameters, "", "PF coil technology")
     return pf_active
 end
 
@@ -79,7 +87,14 @@ function Parameters(::Type{Val{:tf}})
     options = [1 => "PricetonD", 2 => "Rectangle", 3 => "TrippleArc", 4 => "Miller", 5 => "Spline"]
     #        tf.shape = Switch(options, "", "Shape of the TF coils"; default=:TrippleArc)
     tf.shape = Entry(Int, "", "Shape of the TF coils"; default = 3)
+    tf.technology = Entry(Parameters, "", "TF coil technology")
     return tf
+end
+
+function Parameters(::Type{Val{:oh}})
+    oh = Parameters(nothing)
+    oh.technology = Entry(Parameters, "", "OH coil technology")
+    return oh
 end
 
 function Parameters(::Type{Val{:nbi}})
@@ -96,7 +111,6 @@ function Parameters(::Type{Val{:ec}})
     ec.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "EC launched power")
     return ec
 end
-
 
 function Parameters(::Type{Val{:ic}})
     ic = Parameters(nothing)

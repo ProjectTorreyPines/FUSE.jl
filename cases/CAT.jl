@@ -11,9 +11,13 @@ function Parameters(::Type{Val{:CAT}})
     par.pf_active.n_oh_coils = 6
     par.pf_active.n_pf_coils_inside = 0
     par.pf_active.n_pf_coils_outside = 6
+    par.pf_active.technology = coil_technology(:ITER, :PF)
 
     par.tf.shape = 3
     par.tf.n_coils = 16
+    par.tf.technology = coil_technology(:ITER, :TF)
+
+    par.oh.technology = coil_technology(:ITER, :OH)
 
     par.core_profiles.ne_ped = 7E19
     par.core_profiles.n_peaking = 1.5
@@ -29,7 +33,5 @@ function Parameters(::Type{Val{:CAT}})
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 0.0
 
-    par.material.coils = "Nb3Sn"
-
-    return par
+    return set_new_base(par)
 end

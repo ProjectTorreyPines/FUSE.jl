@@ -219,44 +219,44 @@ function init_radial_build(
     gasc::GASC;
     no_small_gaps::Bool = true,
     verbose::Bool = false)
-    gasc = gasc.solution
+    gascsol = gasc.solution
 
     # build
-    norm = gasc["OUTPUTS"]["radial build"]["innerPlasmaRadius"]
+    norm = gascsol["OUTPUTS"]["radial build"]["innerPlasmaRadius"]
 
     layers = DataStructures.OrderedDict()
-    layers["gap_OH"] = gasc["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
-    layers["OH"] = gasc["INPUTS"]["radial build"]["rbOH"] * norm
+    layers["gap_OH"] = gascsol["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
+    layers["OH"] = gascsol["INPUTS"]["radial build"]["rbOH"] * norm
 
-    layers["hfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
-    layers["hfs_TF"] = gasc["INPUTS"]["radial build"]["rbTF"] * norm
+    layers["hfs_gap_TF"] = gascsol["INPUTS"]["radial build"]["gapTFOH"] * norm
+    layers["hfs_TF"] = gascsol["INPUTS"]["radial build"]["rbTF"] * norm
     if no_small_gaps
         layers["hfs_TF"] += layers["hfs_gap_TF"]
         pop!(layers, "hfs_gap_TF")
     end
 
-    layers["hfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
-    layers["hfs_shield"] = gasc["INPUTS"]["radial build"]["rbInnerShield"] * norm
+    layers["hfs_gap_shield"] = gascsol["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+    layers["hfs_shield"] = gascsol["INPUTS"]["radial build"]["rbInnerShield"] * norm
     if no_small_gaps
         layers["hfs_shield"] += layers["hfs_gap_shield"]
         pop!(layers, "hfs_gap_shield")
     end
-    layers["hfs_blanket"] = gasc["INPUTS"]["radial build"]["rbInnerBlanket"] * norm
+    layers["hfs_blanket"] = gascsol["INPUTS"]["radial build"]["rbInnerBlanket"] * norm
 
-    layers["hfs_wall"] = gasc["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
-    layers["plasma"] = (gasc["INPUTS"]["radial build"]["majorRadius"] - sum(values(layers))) * 2
-    layers["lfs_wall"] = gasc["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
+    layers["hfs_wall"] = gascsol["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
+    layers["plasma"] = (gascsol["INPUTS"]["radial build"]["majorRadius"] - sum(values(layers))) * 2
+    layers["lfs_wall"] = gascsol["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
 
-    layers["lfs_blanket"] = gasc["INPUTS"]["radial build"]["rbOuterBlanket"] * norm
-    layers["lfs_shield"] = gasc["INPUTS"]["radial build"]["rbOuterShield"] * norm
-    layers["lfs_gap_shield"] = gasc["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+    layers["lfs_blanket"] = gascsol["INPUTS"]["radial build"]["rbOuterBlanket"] * norm
+    layers["lfs_shield"] = gascsol["INPUTS"]["radial build"]["rbOuterShield"] * norm
+    layers["lfs_gap_shield"] = gascsol["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
     if no_small_gaps
         layers["lfs_shield"] += layers["lfs_gap_shield"]
         pop!(layers, "lfs_gap_shield")
     end
 
     layers["lfs_TF"] = layers["hfs_TF"]
-    layers["lfs_gap_TF"] = gasc["INPUTS"]["radial build"]["gapTFOH"] * norm
+    layers["lfs_gap_TF"] = gascsol["INPUTS"]["radial build"]["gapTFOH"] * norm
     if no_small_gaps
         layers["lfs_TF"] += layers["lfs_gap_TF"]
         pop!(layers, "lfs_gap_TF")
@@ -508,7 +508,7 @@ function assign_materials(dd::IMAS.dd, par::Parameters)
         elseif layer.type == 1 # OH
             layer.material = par.material.wall
         elseif layer.type == 2 # TF
-            layer.material = par.material.coils
+            layer.material = par.tf.technology.material
         elseif layer.type == 3 # shield
             layer.material = par.material.shield
         elseif layer.type == 4 # blanket
@@ -519,7 +519,7 @@ function assign_materials(dd::IMAS.dd, par::Parameters)
             layer.material = par.build.is_nuclear_facility ? "DT_plasma" : "DD_plasma"
         end
     end
-    bd.oh.material = par.material.coils
-    bd.tf.material = par.material.coils
-    bd.pf_active.material = par.material.coils
+    bd.tf.material = par.tf.technology.material
+    bd.oh.material = par.oh.technology.material
+    bd.pf_active.material = par.pf_active.technology.material
 end

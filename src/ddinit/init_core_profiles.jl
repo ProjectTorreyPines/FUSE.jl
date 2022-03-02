@@ -35,13 +35,13 @@ function init_core_profiles(dd::IMAS.dd, par::Parameters)
 end
 
 function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
-    gasc = gasc.solution
+    gascsol = gasc.solution
 
     cp = dd.core_profiles
     cpt = resize!(cp.profiles_1d)
 
-    cpt.grid.rho_tor_norm = gasc["OUTPUTS"]["numerical profiles"]["rProf"]
-    cpt.zeff = gasc["OUTPUTS"]["numerical profiles"]["ZeffProf"]
+    cpt.grid.rho_tor_norm = gascsol["OUTPUTS"]["numerical profiles"]["rProf"]
+    cpt.zeff = gascsol["OUTPUTS"]["numerical profiles"]["ZeffProf"]
     cpt.rotation_frequency_tor_sonic = cpt.grid.rho_tor_norm * 0.0 # < GASC has no notion of rotation
 
     # Set ions
@@ -50,31 +50,31 @@ function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
     @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
     ion = resize!(cpt.ion, 2)
     element = resize!(ion.element, 1)
-    element.z_n = gasc["INPUTS"]["impurities"]["impurityZ"]
-    element.a = Int(ceil(gasc["INPUTS"]["impurities"]["impurityZ"] * 2.0))
+    element.z_n = gascsol["INPUTS"]["impurities"]["impurityZ"]
+    element.a = Int(ceil(gascsol["INPUTS"]["impurities"]["impurityZ"] * 2.0))
     ion.label = "Impurity"
 
     # pedestal
-    @ddtime dd.summary.local.pedestal.n_e.value = gasc["OUTPUTS"]["plasma parameters"]["neped"] * 1E20
-    i_ped = argmin(abs.(gasc["OUTPUTS"]["numerical profiles"]["neProf"] .- gasc["OUTPUTS"]["plasma parameters"]["neped"] / gasc["OUTPUTS"]["plasma parameters"]["ne0"]))
-    rho_ped = gasc["OUTPUTS"]["numerical profiles"]["rProf"][i_ped]
+    @ddtime dd.summary.local.pedestal.n_e.value = gascsol["OUTPUTS"]["plasma parameters"]["neped"] * 1E20
+    i_ped = argmin(abs.(gascsol["OUTPUTS"]["numerical profiles"]["neProf"] .- gascsol["OUTPUTS"]["plasma parameters"]["neped"] / gascsol["OUTPUTS"]["plasma parameters"]["ne0"]))
+    rho_ped = gascsol["OUTPUTS"]["numerical profiles"]["rProf"][i_ped]
     @ddtime dd.summary.local.pedestal.position.rho_tor_norm = rho_ped
     @ddtime dd.summary.local.pedestal.zeff.value = cpt.zeff[i_ped]
 
     # Set densities
-    cpt.electrons.density = gasc["OUTPUTS"]["numerical profiles"]["neProf"] * gasc["OUTPUTS"]["plasma parameters"]["ne0"] * 1E20
-    zimp1 = gasc["INPUTS"]["impurities"]["impurityZ"]
+    cpt.electrons.density = gascsol["OUTPUTS"]["numerical profiles"]["neProf"] * gascsol["OUTPUTS"]["plasma parameters"]["ne0"] * 1E20
+    zimp1 = gascsol["INPUTS"]["impurities"]["impurityZ"]
     niFraction = zeros(2, length(cpt.grid.rho_tor_norm))
     niFraction[2, :] .= (cpt.zeff .- 1.0) ./ (zimp1 * (zimp1 - 1.0))
     niFraction[1, :] .= 1.0 .- zimp1 .* niFraction[2]
-    @assert all(niFraction .> 0.0) "zeff too high for the impurity species with Z=" * string(gasc["INPUTS"]["impurities"]["impurityZ"])
+    @assert all(niFraction .> 0.0) "zeff too high for the impurity species with Z=" * string(gascsol["INPUTS"]["impurities"]["impurityZ"])
     for i = 1:length(cpt.ion)
         cpt.ion[i].density = cpt.electrons.density .* niFraction[i]
     end
 
     # Set temperatures
-    Ti = gasc["OUTPUTS"]["numerical profiles"]["TiProf"] * gasc["INPUTS"]["plasma parameters"]["Ti0"] * 1E3
-    cpt.electrons.temperature = Ti * gasc["INPUTS"]["plasma parameters"]["Tratio"]
+    Ti = gascsol["OUTPUTS"]["numerical profiles"]["TiProf"] * gascsol["INPUTS"]["plasma parameters"]["Ti0"] * 1E3
+    cpt.electrons.temperature = Ti * gascsol["INPUTS"]["plasma parameters"]["Tratio"]
     for i = 1:length(cpt.ion)
         cpt.ion[i].temperature = Ti
     end

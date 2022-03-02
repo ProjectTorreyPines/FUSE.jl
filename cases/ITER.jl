@@ -25,9 +25,13 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.pf_active.n_oh_coils = 6
     par.pf_active.n_pf_coils_inside = 0
     par.pf_active.n_pf_coils_outside = 6
+    par.pf_active.technology = coil_technology(:ITER, :PF)
 
     par.tf.shape = 3
     par.tf.n_coils = 18
+    par.tf.technology = coil_technology(:ITER, :TF)
+
+    par.oh.technology = coil_technology(:ITER, :OH)
 
     par.core_profiles.ne_ped = 9e19
     par.core_profiles.n_peaking = 1.5
@@ -43,9 +47,8 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.ec.power_launched = 2 * 10e6
     par.ic.power_launched = 24 * 1e6
 
-    par.material.coils = "Nb3Sn"
     par.material.shield = "Tungsten"
     par.material.blanket = "lithium-lead"
 
-    return par
+    return set_new_base(par)
 end

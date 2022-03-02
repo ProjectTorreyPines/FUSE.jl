@@ -11,9 +11,13 @@ function Parameters(::Type{Val{:D3D}})
     par.pf_active.n_oh_coils = 10
     par.pf_active.n_pf_coils_inside = 8
     par.pf_active.n_pf_coils_outside = 0
+    par.pf_active.technology = coil_technology(:copper)
 
     par.tf.shape = 3
     par.tf.n_coils = 18
+    par.tf.technology = coil_technology(:copper)
+
+    par.oh.technology = coil_technology(:copper)
 
     par.core_profiles.ne_ped = 5E19
     par.core_profiles.n_peaking = 1.5
@@ -29,7 +33,5 @@ function Parameters(::Type{Val{:D3D}})
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 20.0 / 180 * pi
 
-    par.material.coils = "copper"
-
-    return par
+    return set_new_base(par)
 end

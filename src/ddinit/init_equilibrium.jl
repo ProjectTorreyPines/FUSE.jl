@@ -52,18 +52,18 @@ function init_equilibrium(
 end
 
 function init_equilibrium(dd::IMAS.dd, gasc::GASC; ngrid=129)
-    gasc = gasc.solution
+    gascsol = gasc.solution
 
-    R0 = gasc["INPUTS"]["radial build"]["majorRadius"]
+    R0 = gascsol["INPUTS"]["radial build"]["majorRadius"]
     Z0 = 0.0
-    ϵ = 1 / gasc["INPUTS"]["radial build"]["aspectRatio"]
-    κ = gasc["OUTPUTS"]["plasma parameters"]["elongation"]
-    δ = gasc["INPUTS"]["plasma parameters"]["triangularity"]
-    B0 = gasc["INPUTS"]["conductors"]["magneticFieldOnAxis"]
-    ip = gasc["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
-    βn = gasc["OUTPUTS"]["plasma parameters"]["betaN"]
-    x_point = gasc["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
-    symmetric = (mod(gasc["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
+    ϵ = 1 / gascsol["INPUTS"]["radial build"]["aspectRatio"]
+    κ = gascsol["OUTPUTS"]["plasma parameters"]["elongation"]
+    δ = gascsol["INPUTS"]["plasma parameters"]["triangularity"]
+    B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
+    ip = gascsol["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
+    βn = gascsol["OUTPUTS"]["plasma parameters"]["betaN"]
+    x_point = gascsol["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
+    symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
 
     # initialize dd
     init_equilibrium(dd.equilibrium; B0, R0, Z0, ϵ, κ, δ, βn = βn, ip, x_point = x_point)

@@ -103,17 +103,17 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
 end
 
 function init_core_sources(dd::IMAS.dd, gasc::GASC, par::Parameters)
-    gasc = gasc.solution
+    gascsol = gasc.solution
 
-    injected_power = gasc["OUTPUTS"]["current drive"]["powerAux"] * 1E6
-    @assert gasc["INPUTS"]["current drive"]["auxCDPowerFactor"] >= 1.0
-    cd_power = injected_power / gasc["INPUTS"]["current drive"]["auxCDPowerFactor"]
+    injected_power = gascsol["OUTPUTS"]["current drive"]["powerAux"] * 1E6
+    @assert gascsol["INPUTS"]["current drive"]["auxCDPowerFactor"] >= 1.0
+    cd_power = injected_power / gascsol["INPUTS"]["current drive"]["auxCDPowerFactor"]
     heating_power = injected_power - cd_power
-    plug_power = injected_power / gasc["INPUTS"]["power efficiency"]["efficiencyAux"]
+    plug_power = injected_power / gascsol["INPUTS"]["power efficiency"]["efficiencyAux"]
 
     cd_powers = Dict()
     for system in ["NNB", "NB", "LH", "FW", "EC", "HI"]
-        cd_powers[system] = cd_power * gasc["INPUTS"]["current drive"]["$(system)CDFraction"]
+        cd_powers[system] = cd_power * gascsol["INPUTS"]["current drive"]["$(system)CDFraction"]
     end
 
     par = deepcopy(par)
