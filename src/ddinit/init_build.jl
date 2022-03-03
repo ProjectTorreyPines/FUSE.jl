@@ -55,7 +55,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
     dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = 2, hfs = 1).start_radius / dd.build.tf.coils_n
 
     # assign materials
-    assign_materials(dd, par)
+    assign_build_layers_materials(dd, par)
 
     return dd
 end
@@ -500,7 +500,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     end
 end
 
-function assign_materials(dd::IMAS.dd, par::Parameters)
+function assign_build_layers_materials(dd::IMAS.dd, par::Parameters)
     bd = dd.build
     for layer in bd.layer
         if  layer.type == 0 # gap
@@ -519,7 +519,4 @@ function assign_materials(dd::IMAS.dd, par::Parameters)
             layer.material = par.build.is_nuclear_facility ? "DT_plasma" : "DD_plasma"
         end
     end
-    bd.tf.material = par.tf.technology.material
-    bd.oh.material = par.oh.technology.material
-    bd.pf_active.material = par.pf_active.technology.material
 end

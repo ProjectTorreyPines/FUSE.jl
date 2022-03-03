@@ -92,7 +92,7 @@ function pf_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     elongation = eqt.boundary.elongation
     plasmaCurrent = eqt.global_quantities.ip / 1E6 # in [MA]
     betaP = eqt.global_quantities.beta_pol
-    li = eqt.global_quantities.li_3 # what li ?
+    li = eqt.global_quantities.li_3 # what li does Stambaugh FST 2011 use?
 
     # ============================= #
     # estimate vertical field and its contribution to flux swing

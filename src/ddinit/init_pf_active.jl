@@ -224,12 +224,25 @@ function init_pf_active(dd::IMAS.dd, par::Parameters)
         end
         push!(n_coils, par.pf_active.n_pf_coils_outside)
         init_pf_active(dd.pf_active, dd.build, n_coils)
-
-        # # calculate currents
-        # pfoptactor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model)
-        # FUSE.step(pfoptactor, λ_ψ = 1E-2, λ_null = 1E+2, λ_currents = 1E5, verbose = false, optimization_scheme = :static)
-        # FUSE.finalize(pfoptactor; update_eq_in=false)
     end
 
+    assign_coils_materials(dd, par)
+
     return dd
+end
+
+function assign_coils_materials(dd::IMAS.dd, par::Parameters)
+    bd = dd.build
+    for coil_type in [:tf, :oh, :pf_active]
+        coil_tech = getproperty(bd, coil_type).technology
+        for property in fieldnames(IMAS.build__tf__technology)
+            if property == :_parent
+                continue
+            end
+            coil_params = getproperty(par, coil_type).technology
+            if !ismissing(coil_params, property)
+                setproperty!(coil_tech, property, getproperty(coil_params, property))
+            end
+        end
+    end
 end
