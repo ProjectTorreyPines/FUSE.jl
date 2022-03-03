@@ -1,11 +1,17 @@
 using FusionMaterials: FusionMaterials
 
+# load parameters from different case studies
 case_parameters = Symbol[]
 for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
     push!(case_parameters, Symbol(splitext(filename)[1]))
     include("../cases/" * filename)
 end
 
+"""
+    Parameters()
+
+Generates parameters 
+"""
 function Parameters()
     par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
     for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
@@ -77,7 +83,7 @@ function Parameters(::Type{Val{:pf_active}})
     pf_active.n_oh_coils = Entry(Int, "", "Number of OH coils")
     pf_active.n_pf_coils_inside = Entry(Int, "", "Number of PF coils inside of the TF")
     pf_active.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")
-    pf_active.technology = Entry(Parameters, "", "PF coil technology")
+    pf_active.technology = Parameters(:coil_technology)
     return pf_active
 end
 
@@ -87,13 +93,13 @@ function Parameters(::Type{Val{:tf}})
     options = [1 => "PricetonD", 2 => "Rectangle", 3 => "TrippleArc", 4 => "Miller", 5 => "Spline"]
     #        tf.shape = Switch(options, "", "Shape of the TF coils"; default=:TrippleArc)
     tf.shape = Entry(Int, "", "Shape of the TF coils"; default = 3)
-    tf.technology = Entry(Parameters, "", "TF coil technology")
+    tf.technology = Parameters(:coil_technology)
     return tf
 end
 
 function Parameters(::Type{Val{:oh}})
     oh = Parameters(nothing)
-    oh.technology = Entry(Parameters, "", "OH coil technology")
+    oh.technology = Parameters(:coil_technology)
     return oh
 end
 
@@ -143,4 +149,16 @@ function Parameters(::Type{Val{:ods}})
     ods = Parameters(nothing)
     ods.filename = Entry(String, "", "ODS.json file from which equilibrium is loaded")
     return ods
+end
+
+function Parameters(::Type{Val{:coil_technology}})
+    coil_tech = Parameters(nothing)
+    coil_tech.material = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Technology used for the coil.")
+    coil_tech.temperature = Entry(Real, "K", "Coil temperature")
+    coil_tech.thermal_strain = Entry(Real, "", "Fraction of thermal expansion strain over maximum total strain on coil")
+    coil_tech.JxB_strain = Entry(Real, "", "Fraction of maximum JxB strain over maximum total strain on coil")
+    coil_tech.fraction_stainless = Entry(Real, "", "Fraction of stainless steel in the coil cross-sectional areas"; default = 0.5)
+    coil_tech.fraction_void = Entry(Real, "", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor."; default = 0.1)
+    coil_tech.ratio_SC_to_copper = Entry(Real, "", "Fraction of superconductor to copper cross-sectional areas")
+    return coil_tech
 end

@@ -98,37 +98,35 @@ function YBCO_Jcrit(Bext, strain = 0.0, temperature = 20.0, ag_c = 0)
     return J_c, b
 end
 
+"""
+Calculates the critical current density of ReBCO superconducting tape.
+
+    ReBCO_Jcrit(
+        Bext, # : external magnetic field at conductor, Tesla
+        strain = 0.0, # : strain at conductor, percent
+        temperature = 20.0, # : temperature of conductor, K 
+        ag_c = 0) # : angle between external field and HTS tape normal vector, degrees. 0 is perp (worst-case), 90 is parallel (best-case). 
+
+OUTPUTS
+J_c : critical current density, A/m^2
+b   : ratio of peak magnetic field at conductor to SC critical magnetic field, T/T
+"""
 function ReBCO_Jcrit(Bext, strain = 0.0, temperature = 20.0, ag_c = 0)
-    fHTSinTape = 1.0 / 46.54 # fraction of REBCO tape that is YBCO superconductor
+    fHTSinTape = 1.0 / 46.54 # fraction of ReBCO tape that is YBCO superconductor
     J_c, b = YBCO_Jcrit(Bext, strain, temperature, ag_c)
     return J_c * fHTSinTape, b
 end
 
-function Parameters(::Type{Val{:copper_coil_tech}})
-    coil_tech = Parameters(nothing)
-    coil_tech.material = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Technology used for the coil.", default = "copper")
-    coil_tech.fraction_stainless = Entry(Real, "", "Fraction of stainless steel in the coil cross-sectional areas"; default = 0.5)
-    coil_tech.fraction_void = Entry(Real, "", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor."; default = 0.1)
-    return coil_tech
-end
+"""
+    coil_technology(technology::Symbol)
 
-function Parameters(::Type{Val{:sc_coil_tech}})
-    coil_tech = Parameters(nothing)
-    coil_tech.material = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Technology used for the coil.")
-    coil_tech.temperature = Entry(Real, "K", "Coil temperature")
-    coil_tech.thermal_strain = Entry(Real, "", "Fraction of thermal expansion strain over maximum total strain on coil")
-    coil_tech.JxB_strain = Entry(Real, "", "Fraction of maximum JxB strain over maximum total strain on coil")
-    coil_tech.fraction_stainless = Entry(Real, "", "Fraction of stainless steel in the coil cross-sectional areas"; default = 0.5)
-    coil_tech.fraction_void = Entry(Real, "", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor."; default = 0.1)
-    coil_tech.ratio_SC_to_copper = Entry(Real, "", "Fraction of superconductor to copper cross-sectional areas"; default = 1)
-    return coil_tech
-end
-
+Return coil parameters depending of technology [:copper, :LTS, :HTS]
+"""
 function coil_technology(technology::Symbol)
+    coil_tech = Parameters(:coil_technology)
     if technology == :copper
-        coil_tech = Parameters(Val{:copper_coil_tech})
+        coil_tech.material = "copper"
     elseif technology in [:LTS, :HTS]
-        coil_tech = Parameters(Val{:sc_coil_tech})
         if technology == :LTS
             coil_tech.temperature = 4.2
             coil_tech.material = "Nb3Sn"
@@ -136,12 +134,18 @@ function coil_technology(technology::Symbol)
             coil_tech.temperature = 20.0
             coil_tech.material = "ReBCO"
         end
+        coil_tech.ratio_SC_to_copper = 1.0
     else
         error("Supported coil tecnologies are [:copper, :LTS, :HTS")
     end
-    return coil_tech
+    return set_new_base!(coil_tech)
 end
 
+"""
+    coil_technology(gasc::GASC, coil_type::Symbol)
+
+Return coil parameters from GASC solution and coil type [:OH, :TF, :PF]
+"""
 function coil_technology(gasc::GASC, coil_type::Symbol)
     gascsol = gasc.solution
     if !(coil_type in [:OH, :TF, :PF])
@@ -160,9 +164,14 @@ function coil_technology(gasc::GASC, coil_type::Symbol)
     end
     coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoid$coil_type"]
     coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainless$coil_type"]
-    return coil_tech
+    return set_new_base!(coil_tech)
 end
 
+"""
+    coil_technology(machine::Symbol, coil_type::Symbol)
+
+Return coil parameters from machine and coil type [:OH, :TF, :PF]"
+"""
 function coil_technology(machine::Symbol, coil_type::Symbol)
     if !(coil_type in [:OH, :TF, :PF])
         error("Supported coil type are [:OH, :TF, :PF]")
@@ -185,10 +194,15 @@ function coil_technology(machine::Symbol, coil_type::Symbol)
     else
         error("Supported coil machines are [:ITER]")
     end
-    return coil_tech
+    return set_new_base!(coil_tech)
 end
 
-function coil_jcrit(Bext, coil_tech::Parameters)
+"""
+    coil_Jcrit(Bext, coil_tech::Parameters)
+
+Returns critical current given a coil technology and external magnetic field
+"""
+function coil_Jcrit(Bext, coil_tech::Parameters)
     if coil_tech.material == "copper"
         Jcrit = 100000.0 # A/m^2
         fraction_cable = 1.0 - coil_tech.fraction_stainless - coil_tech.fraction_void # fraction of coil that is LTS cabling

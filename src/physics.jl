@@ -1,6 +1,5 @@
 import ModelingToolkit
 import OrdinaryDiffEq
-import LazySets
 import Interpolations
 import PolygonOps
 

@@ -33,5 +33,5 @@ function Parameters(::Type{Val{:CAT}})
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 0.0
 
-    return set_new_base(par)
+    return set_new_base!(par)
 end

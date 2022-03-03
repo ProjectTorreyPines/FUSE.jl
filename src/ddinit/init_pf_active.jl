@@ -1,6 +1,3 @@
-
-
-
 const coils_turns_spacing = 0.05
 
 #= ================== =#

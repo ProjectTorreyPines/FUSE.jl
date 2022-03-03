@@ -50,5 +50,5 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.material.shield = "Tungsten"
     par.material.blanket = "lithium-lead"
 
-    return set_new_base(par)
+    return set_new_base!(par)
 end

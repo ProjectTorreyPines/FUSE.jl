@@ -33,5 +33,5 @@ function Parameters(::Type{Val{:D3D}})
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 20.0 / 180 * pi
 
-    return set_new_base(par)
+    return set_new_base!(par)
 end

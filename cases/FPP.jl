@@ -32,5 +32,5 @@ function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
     par.material.shield = "Tungsten"
     par.material.blanket = "FLiBe"
 
-    return set_new_base(par)
+    return set_new_base!(par)
 end

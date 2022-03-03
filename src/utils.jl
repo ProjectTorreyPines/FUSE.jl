@@ -36,23 +36,6 @@ function atan_eq(r, z, r0, z0)
     return r, z, θ
 end
 
-function two_curves_same_θ(r1, z1, r2, z2, scheme = :cubic)
-    r0 = (sum(r1) / length(r1) + sum(r2) / length(r2)) / 2.0
-    z0 = (sum(z1) / length(z1) + sum(z2) / length(z2)) / 2.0
-    r1, z1, θ1 = atan_eq(r1, z1, r0, z0)
-    r2, z2, θ2 = atan_eq(r2, z2, r0, z0)
-    if length(θ2) > length(θ1)
-        r1 = IMAS.interp(vcat(θ1 .- 2 * π, θ1, θ1 .+ 2 * π), vcat(r1, r1, r1), scheme = scheme).(θ2)
-        z1 = IMAS.interp(vcat(θ1 .- 2 * π, θ1, θ1 .+ 2 * π), vcat(z1, z1, z1), scheme = scheme).(θ2)
-        θ = θ2
-    else
-        r2 = IMAS.interp(vcat(θ2 .- 2 * π, θ2, θ2 .+ 2 * π), vcat(r2, r2, r2), scheme = scheme).(θ1)
-        z2 = IMAS.interp(vcat(θ2 .- 2 * π, θ2, θ2 .+ 2 * π), vcat(z2, z2, z2), scheme = scheme).(θ1)
-        θ = θ1
-    end
-    return r1, z1, r2, z2, θ
-end
-
 """
     minimum_distance_two_shapes(R_obj1, Z_obj1, R_obj2, Z_obj2)
 

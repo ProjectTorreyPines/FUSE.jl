@@ -1,8 +1,8 @@
 abstract type Parameter end
 
-#= ================= =#
-#   Scalar Parameter  #
-#= ================= =#
+#= ===== =#
+#  Entry  #
+#= ===== =#
 mutable struct Entry{T} <: Parameter
     units::String
     description::String
@@ -14,29 +14,25 @@ end
 """
     Entry(T, units::String, description::String; default = missing)
 
-Defines a parameter
+Defines a entry parameter
 """
-function Entry(T, units::String, description::String; default=missing)
+function Entry(T, units::String, description::String; default = missing)
     return Entry{Union{Missing,T}}(units, description, default, default, default)
 end
 
-function Entry(T, ids::Type, field::Symbol; default=missing)
+function Entry(T, ids::Type, field::Symbol; default = missing)
     info = IMAS.imas_info(ids, field)
     return Entry(T, get(info, "units", ""), get(info, "documentation", ""); default)
 end
 
-#= =============== =#
-#   Switch Option   #
-#= =============== =#
+#= ====== =#
+#  Switch  #
+#= ====== =#
 
 struct SwitchOption
     value::Any
     description::String
 end
-
-#= ================= =#
-#   Switch   #
-#= ================= =#
 
 mutable struct Switch <: Parameter
     options::Dict{T,SwitchOption} where {T<:Any}
@@ -50,16 +46,16 @@ end
 """
     Switch(options, units::String, description::String; default = missing)
 
-Defines a switch
+Defines a switch parameter
 """
-function Switch(options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
+function Switch(options::Dict{Any,SwitchOption}, units::String, description::String; default = missing)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
     return Switch(options, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair}
+function Switch(options::Vector{T}, units::String, description::String; default = missing) where {T<:Pair}
     opts = Dict{Any,SwitchOption}()
     for (key, desc) in options
         opts[key] = SwitchOption(key, desc)
@@ -67,7 +63,7 @@ function Switch(options::Vector{T}, units::String, description::String; default=
     return Switch(opts, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Union{Symbol,String}}
+function Switch(options::Vector{T}, units::String, description::String; default = missing) where {T<:Union{Symbol,String}}
     opts = Dict{eltype(options),SwitchOption}()
     for key in options
         opts[key] = SwitchOption(key, "$key")
@@ -75,40 +71,15 @@ function Switch(options::Vector{T}, units::String, description::String; default=
     return Switch(opts, units, description, default, default, default)
 end
 
-function Switch(options, ids::Type{T}, field::Symbol; default=missing) where {T<:IMAS.IDS}
+function Switch(options, ids::Type{T}, field::Symbol; default = missing) where {T<:IMAS.IDS}
     location = "$(IMAS._f2u(ids)).$(field)"
     info = IMAS.imas_info(location)
     return Switch(options, get(info, "units", ""), get(info, "documentation", ""); default)
 end
 
-#= ================= =#
-#   Fuse Parameters   #
-#= ================= =#
-
-struct InexistentParameterException <: Exception
-    path::Vector{Symbol}
-end
-Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) does not exist")
-
-struct NotsetParameterException <: Exception
-    path::Vector{Symbol}
-    options::Vector{Any}
-end
-NotsetParameterException(path::Vector{Symbol}) = NotsetParameterException(path,[])
-function Base.showerror(io::IO, e::NotsetParameterException)
-    if length(e.options) > 0
-        print(io, "ERROR: Parameter $(join(e.path,".")) is not set. Valid options are: $(join(map(repr,e.options),", "))")
-    else
-        print(io, "ERROR: Parameter $(join(e.path,".")) is not set")
-    end
-end
-
-struct BadParameterException <: Exception
-    path::Vector{Symbol}
-    value::Any
-    options::Vector{Any}
-end
-Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) value `$(repr(e.value))` is not one of the valid options: $(join(map(repr,e.options),", "))")
+#= ========== =#
+#  Parameters  #
+#= ========== =#
 
 mutable struct Parameters
     _path::Vector{Symbol}
@@ -140,7 +111,7 @@ function Base.getproperty(p::Parameters, key::Symbol)
         value = parameter.value
     elseif typeof(parameter) <: Switch
         if parameter.value === missing
-            throw(NotsetParameterException(vcat(getfield(p, :_path), key),collect(keys(parameter.options))))
+            throw(NotsetParameterException(vcat(getfield(p, :_path), key), collect(keys(parameter.options))))
         end
         value = parameter.options[parameter.value].value
     else
@@ -201,40 +172,40 @@ function Base.show(io::IO, p::Parameters, depth::Int)
         parameter = _parameters[item]
         if typeof(parameter) <: Parameters
             printstyled(io, "$(' '^(2*depth))")
-            printstyled(io, "$(item)\n"; bold=true)
+            printstyled(io, "$(item)\n"; bold = true)
             show(io, parameter, depth + 1)
         else
             value = parameter.value
             units = parameter.units
             if value === missing
                 color = :yellow
-            elseif value === parameter.default
+            elseif typeof(value) == typeof(parameter.default) && value == parameter.default
                 color = :green
-            elseif value === parameter.base
+            elseif typeof(value) == typeof(parameter.base) && value == parameter.base
                 color = :blue
             else
                 color = :red
             end
             printstyled(io, "$(' '^(2*depth))")
-            printstyled(io, "$(item)"; color=color)
-            printstyled(io, " ➡ "; color=:red)
-            printstyled(io, "$(repr(value))"; color=color)
-            if length(units) > 0
-                printstyled(io, " [$(units)]"; color=color)
+            printstyled(io, "$(item)"; color = color)
+            printstyled(io, " ➡ "; color = :red)
+            printstyled(io, "$(repr(value))"; color = color)
+            if length(units) > 0 && value !== missing
+                printstyled(io, " [$(units)]"; color = color)
             end
             printstyled(io, "\n")
         end
     end
 end
 
-function set_new_base(p::Parameters)
+function set_new_base!(p::Parameters)
     _parameters = getfield(p, :_parameters)
     for item in sort(collect(keys(_parameters)))
         parameter = _parameters[item]
         if typeof(parameter) <: Parameters
-            set_new_base(parameter)
+            set_new_base!(parameter)
         else
-            parameter.base = parameter.value
+            setfield!(parameter,:base, parameter.value)
         end
     end
     return p
@@ -247,3 +218,31 @@ end
 function Base.ismissing(p::Parameters, field::Symbol)::Bool
     return getfield(p, :_parameters)[field].value === missing
 end
+
+#= ================= =#
+#  Parameters errors  #
+#= ================= =#
+struct InexistentParameterException <: Exception
+    path::Vector{Symbol}
+end
+Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) does not exist")
+
+struct NotsetParameterException <: Exception
+    path::Vector{Symbol}
+    options::Vector{Any}
+end
+NotsetParameterException(path::Vector{Symbol}) = NotsetParameterException(path, [])
+function Base.showerror(io::IO, e::NotsetParameterException)
+    if length(e.options) > 0
+        print(io, "ERROR: Parameter $(join(e.path,".")) is not set. Valid options are: $(join(map(repr,e.options),", "))")
+    else
+        print(io, "ERROR: Parameter $(join(e.path,".")) is not set")
+    end
+end
+
+struct BadParameterException <: Exception
+    path::Vector{Symbol}
+    value::Any
+    options::Vector{Any}
+end
+Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) value `$(repr(e.value))` is not one of the valid options: $(join(map(repr,e.options),", "))")
