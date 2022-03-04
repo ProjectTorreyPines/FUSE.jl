@@ -253,8 +253,8 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                     optim_coils[koptim].height = height_oh
                 end
             else
-                r_interp = IMAS.interp1d(rail.outline.distance, rail.outline.r, extrapolation_bc = :flat)
-                z_interp = IMAS.interp1d(rail.outline.distance, rail.outline.z, extrapolation_bc = :flat)
+                r_interp = IMAS.interp1d(rail.outline.distance, rail.outline.r)
+                z_interp = IMAS.interp1d(rail.outline.distance, rail.outline.z)
                 # not symmetric
                 if !symmetric
                     dkcoil = rail.coils_number
