@@ -13,7 +13,7 @@ function Parameters(::Type{Val{:ITER}}; init_from)
         par.equilibrium.ϵ = 0.32
         par.equilibrium.κ = 1.85
         par.equilibrium.δ = 0.485
-        par.equilibrium.B0 = 5.3
+        par.equilibrium.B0 = -5.3
         par.equilibrium.Z0 = 0.4
         par.equilibrium.ip = 15e6
         par.equilibrium.βn = 2.0

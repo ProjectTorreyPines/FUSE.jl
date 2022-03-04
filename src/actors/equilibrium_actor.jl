@@ -44,7 +44,7 @@ function SolovevEquilibriumActor(eq::IMAS.equilibrium;
         xpoint = nothing
     end
 
-    S0 = solovev(B0, R0, ϵ, δ, κ, alpha, qstar, B0_dir = 1, Ip_dir = 1, symmetric = symmetric, xpoint = xpoint)
+    S0 = solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir = sign(B0), Ip_dir = 1, symmetric = symmetric, xpoint = xpoint)
 
     SolovevEquilibriumActor(eq, S0)
 end
@@ -92,7 +92,7 @@ function step(actor::SolovevEquilibriumActor; verbose = false)
 
     function cost(x)
         # NOTE: Ip/Beta calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
-        S = solovev(B0, R0, epsilon, delta, kappa, x[1], x[2], B0_dir = 1, Ip_dir = 1, symmetric = true, xpoint = nothing)
+        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir = sign(B0), Ip_dir = sign(target_ip), symmetric = true, xpoint = nothing)
         beta_cost = (Equilibrium.beta_n(S) - target_beta) / target_beta
         ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
         c = sqrt(beta_cost^2 + ip_cost^2)
@@ -105,7 +105,7 @@ function step(actor::SolovevEquilibriumActor; verbose = false)
         println(res)
     end
 
-    actor.S = solovev(B0, R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir = 1, Ip_dir = 1, symmetric = S0.symmetric, xpoint = S0.xpoint)
+    actor.S = solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir = sign(B0), Ip_dir = sign(target_ip), symmetric = S0.symmetric, xpoint = S0.xpoint)
 
     # @show Equilibrium.beta_t(actor.S)
     # @show Equilibrium.beta_p(actor.S)
@@ -152,7 +152,7 @@ function finalize(
     eqt.profiles_1d.pressure = Equilibrium.pressure(actor.S, orig_psi)
     eqt.profiles_1d.dpressure_dpsi = Equilibrium.pressure_gradient(actor.S, orig_psi) / (tc["PSI"] * sign_Ip)
 
-    eqt.profiles_1d.f = - Equilibrium.poloidal_current(actor.S, orig_psi) * (tc["F"] * sign_Bt)
+    eqt.profiles_1d.f = Equilibrium.poloidal_current(actor.S, orig_psi) * (tc["F"] * sign_Bt)
     eqt.profiles_1d.f_df_dpsi = Equilibrium.poloidal_current(actor.S, orig_psi) .* Equilibrium.poloidal_current_gradient(actor.S, orig_psi) * (tc["F_FPRIME"] * sign_Bt * sign_Ip)
 
     resize!(eqt.profiles_2d, 1)
