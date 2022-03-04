@@ -26,8 +26,8 @@ function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
 
     par.pf_active.n_oh_coils = 6
     par.pf_active.n_pf_coils_inside = 0
-    par.pf_active.n_pf_coils_outside = 6
     par.pf_active.technology = coil_technology(gasc, :PF)
+    par.pf_active.n_pf_coils_outside = 4
 
     par.material.shield = "Tungsten"
     par.material.blanket = "FLiBe"

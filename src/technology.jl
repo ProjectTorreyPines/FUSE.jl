@@ -202,7 +202,7 @@ end
 
 Returns critical current given a coil technology and external magnetic field
 """
-function coil_Jcrit(Bext, coil_tech::Parameters)
+function coil_Jcrit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
     if coil_tech.material == "copper"
         Jcrit = 100000.0 # A/m^2
         fraction_cable = 1.0 - coil_tech.fraction_stainless - coil_tech.fraction_void # fraction of coil that is LTS cabling

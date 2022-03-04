@@ -54,13 +54,17 @@ mutable struct GS_IMAS_pf_active__coil <: AD_GS.AbstractCoil
     height::Real
     turns_with_sign::Real
     spacing::Real
+    max_current_density::Function
     current_data::Vector{T} where {T<:Real}
     current_time::Vector{T} where {T<:Real}
     time_index::Int
     green_model::Symbol
 end
 
-function GS_IMAS_pf_active__coil(pf_active__coil, green_model)
+function GS_IMAS_pf_active__coil(
+    pf_active__coil::IMAS.pf_active__coil,
+    coil_tech::Union{IMAS.build__oh__technology,IMAS.build__pf_active__technology},
+    green_model::Symbol)
     return GS_IMAS_pf_active__coil(pf_active__coil,
         pf_active__coil.element[1].geometry.rectangle.r,
         pf_active__coil.element[1].geometry.rectangle.z,
@@ -68,6 +72,7 @@ function GS_IMAS_pf_active__coil(pf_active__coil, green_model)
         pf_active__coil.element[1].geometry.rectangle.height,
         pf_active__coil.element[1].turns_with_sign,
         get_spacing_from_turns(pf_active__coil),
+        Bext -> coil_Jcrit(Bext, coil_tech),
         pf_active__coil.current.data,
         pf_active__coil.current.time,
         1,
@@ -102,6 +107,11 @@ function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
     pf_active__coil.element[1].geometry.rectangle.width = coil.width
     pf_active__coil.element[1].geometry.rectangle.height = coil.height
     pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
+    pf_active__coil.b_field_max = [0.0, 50, 100] # for now current_limit_max is not varying
+    pf_active__coil.temperature = [0.0, 100]
+    pf_active__coil.current_limit_max = ones(3, 2) .* (coil.max_current_density(0.0) * area(coil))
+    pf_active__coil.b_field_max_timed.time = coil.current_time
+    pf_active__coil.b_field_max_timed.data = zeros(size(coil.current_time))
     pf_active__coil.current.time = coil.current_time
     pf_active__coil.current.data = coil.current_data
 end
@@ -117,8 +127,7 @@ function set_turns_from_spacing!(pf_active__coil::IMAS.pf_active__coil, spacing:
 end
 
 function set_turns_from_spacing!(pf_active__coil::IMAS.pf_active__coil, spacing::Real, s::Int)
-    area = (pf_active__coil.element[1].geometry.rectangle.width * pf_active__coil.element[1].geometry.rectangle.height)
-    pf_active__coil.element[1].turns_with_sign = s * Int(ceil(area / spacing^2))
+    pf_active__coil.element[1].turns_with_sign = s * Int(ceil(IMAS.area(pf_active__coil) / spacing^2))
 end
 
 function get_spacing_from_turns(coil::GS_IMAS_pf_active__coil)
@@ -128,6 +137,10 @@ end
 
 function get_spacing_from_turns(pf_active__coil::IMAS.pf_active__coil)
     return sqrt((pf_active__coil.element[1].geometry.rectangle.width * pf_active__coil.element[1].geometry.rectangle.height) / abs(pf_active__coil.element[1].turns_with_sign))
+end
+
+function area(coil::GS_IMAS_pf_active__coil)
+    return IMAS.area(coil.pf_active__coil)
 end
 
 """
@@ -282,7 +295,21 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_coils::Vector, fixed_coils::Vector, symmetric::Bool, λ_regularize::Real, λ_ψ::Real, λ_null::Real, λ_currents::Real, λ_strike::Real, bd::IMAS.build, maxiter::Int, verbose::Bool)
+function optimize_coils_rail(
+    eq::IMAS.equilibrium;
+    pinned_coils::Vector{GS_IMAS_pf_active__coil},
+    optim_coils::Vector{GS_IMAS_pf_active__coil},
+    fixed_coils::Vector{GS_IMAS_pf_active__coil},
+    symmetric::Bool,
+    λ_regularize::Real,
+    λ_ψ::Real,
+    λ_null::Real,
+    λ_currents::Real,
+    λ_strike::Real,
+    bd::IMAS.build,
+    maxiter::Int,
+    verbose::Bool)
+
     fixed_eqs = []
     weights = []
     for time_index in 1:length(eq.time_slice)
@@ -344,12 +371,14 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
                     coil.time_index = time_index
                 end
                 currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights = weight, λ_regularize = λ_regularize, return_cost = true)
+                current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
+                fraction_max_current_densities = abs.(current_densities ./ [coil.max_current_density(0.0) for coil in coils])
+                push!(all_cost_currents, norm((exp.(fraction_max_current_densities / λ_currents) .- 1.0) / (exp(1) - 1)) / length(currents))
                 if ismissing(eq.time_slice[time_index].global_quantities, :ip)
                     push!(all_cost_ψ, cost_ψ0 / λ_null)
                 else
                     push!(all_cost_ψ, cost_ψ0 / λ_ψ)
                 end
-                push!(all_cost_currents, norm((exp.(currents / λ_currents) .- 1.0) / (exp(1) - 1)) / length(currents))
             end
             cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
             cost_currents = norm(all_cost_currents) / length(all_cost_currents)
@@ -366,7 +395,7 @@ function optimize_coils_rail(eq::IMAS.equilibrium; pinned_coils::Vector, optim_c
 
         catch e
             println(e)
-            rethrow
+            rethrow()
         end
 
     end
@@ -404,15 +433,20 @@ function fixed_pinned_optim_coils(pfactor, optimization_scheme)
     fixed_coils = GS_IMAS_pf_active__coil[]
     pinned_coils = GS_IMAS_pf_active__coil[]
     optim_coils = GS_IMAS_pf_active__coil[]
-    for coil in pfactor.pf_active.coil
+    for (k, coil) in enumerate(pfactor.pf_active.coil)
+        if k <= pfactor.bd.pf_active.rail[1].coils_number
+            coil_tech = pfactor.bd.oh.technology
+        else
+            coil_tech = pfactor.bd.pf_active.technology
+        end
         if coil.identifier == "pinned"
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, pfactor.green_model))
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
         elseif (coil.identifier == "optim") && (optimization_scheme == :static)
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, pfactor.green_model))
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
         elseif coil.identifier == "optim"
-            push!(optim_coils, GS_IMAS_pf_active__coil(coil, pfactor.green_model))
+            push!(optim_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
         elseif coil.identifier == "fixed"
-            push!(fixed_coils, GS_IMAS_pf_active__coil(coil, pfactor.green_model))
+            push!(fixed_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
         else
             error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
         end
@@ -478,8 +512,13 @@ Update pfactor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
 function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0, update_eq_in = false)
     coils = GS_IMAS_pf_active__coil[]
-    for coil in pfactor.pf_active.coil
-        push!(coils, GS_IMAS_pf_active__coil(coil, pfactor.green_model))
+    for (k, coil) in enumerate(pfactor.pf_active.coil)
+        if k <= pfactor.bd.pf_active.rail[1].coils_number
+            coil_tech = pfactor.bd.oh.technology
+        else
+            coil_tech = pfactor.bd.pf_active.technology
+        end
+        push!(coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
     end
 
     # update equilibrium
@@ -561,9 +600,16 @@ Plot PFcoilsOptActor optimization cross-section
         R = range(xlim[1], xlim[2], length = ngrid)
         Z = range(ylim[1], ylim[2], length = Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
 
-        coils = [GS_IMAS_pf_active__coil(coil, pfactor.green_model) for coil in pfactor.pf_active.coil]
-        for coil in coils
+        coils = GS_IMAS_pf_active__coil[]
+        for (k, coil) in enumerate(pfactor.pf_active.coil)
+            if k <= pfactor.bd.pf_active.rail[1].coils_number
+                coil_tech = pfactor.bd.oh.technology
+            else
+                coil_tech = pfactor.bd.pf_active.technology
+            end
+            coil = GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model)
             coil.time_index = time_index
+            push!(coils, coil)
         end
 
         # ψ coil currents
@@ -681,16 +727,6 @@ Attributes:
             color --> :black
             # ylim --> [minimum(trace.cost_total[start_at:end]) / 10,maximum(trace.cost_total[start_at:end])]
             x, trace.cost_total[start_at:end]
-        end
-
-    elseif what == :currents
-        @series begin
-            label --> "Starting"
-            getfield(trace, what)[1, :]
-        end
-        @series begin
-            label --> "Final"
-            getfield(trace, what)[end, :]
         end
 
     elseif what == :params
