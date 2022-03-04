@@ -91,7 +91,15 @@ function Parameters(::Nothing)
 end
 
 function Parameters(group::Symbol; kw...)
-    return Parameters(Val{group}; kw...)
+    try
+        return Parameters(Val{group}; kw...)
+    catch e
+        if typeof(e) <: MethodError
+            throw(InexistentParameterException([group]))
+        else
+            rethrow()
+        end
+    end
 end
 
 function Base.fieldnames(p::Parameters)
@@ -205,7 +213,7 @@ function set_new_base!(p::Parameters)
         if typeof(parameter) <: Parameters
             set_new_base!(parameter)
         else
-            setfield!(parameter,:base, parameter.value)
+            setfield!(parameter, :base, parameter.value)
         end
     end
     return p
