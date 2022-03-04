@@ -104,8 +104,8 @@ function step(actor::simpleNBIactor)
         power_launched = @ddtime(nbi_u.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
-        volume_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp]
-        area_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area)[rho_cp]
+        volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
+        area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
         ion_electron_fraction = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
@@ -146,8 +146,8 @@ function step(actor::simpleECactor)
         power_launched = @ddtime(ec_launcher.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
-        volume_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp]
-        area_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area)[rho_cp]
+        volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
+        area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
         ion_electron_fraction = 0.0
 
@@ -182,8 +182,8 @@ function step(actor::simpleICactor)
         power_launched = @ddtime(ic_antenna.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
-        volume_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp]
-        area_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area)[rho_cp]
+        volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
+        area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
         ion_electron_fraction = 0.25
 
@@ -218,8 +218,8 @@ function step(actor::simpleLHactor)
         power_launched = @ddtime(lh_antenna.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
-        volume_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume)[rho_cp]
-        area_cp = IMAS.interp(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area)[rho_cp]
+        volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
+        area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
         ion_electron_fraction = 0.0
 

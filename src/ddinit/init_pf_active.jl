@@ -177,8 +177,8 @@ function init_pf_active(
 
             # uniformely distribute coils
             coils_distance = range(-(1 - 0.25 / nc), 1 - 0.25 / nc, length = nc)
-            r_coils = IMAS.interp(distance, valid_r)(coils_distance)
-            z_coils = IMAS.interp(distance, valid_z)(coils_distance)
+            r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
+            z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
             z_coils = [abs(z) < 1E-6 ? 0 : z for z in z_coils]
 
             # populate IMAS data structure

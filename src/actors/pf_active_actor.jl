@@ -54,7 +54,7 @@ mutable struct GS_IMAS_pf_active__coil <: AD_GS.AbstractCoil
     height::Real
     turns_with_sign::Real
     spacing::Real
-    max_current_density::Function
+    coil_tech::Union{IMAS.build__oh__technology,IMAS.build__pf_active__technology}
     current_data::Vector{T} where {T<:Real}
     current_time::Vector{T} where {T<:Real}
     time_index::Int
@@ -72,7 +72,7 @@ function GS_IMAS_pf_active__coil(
         pf_active__coil.element[1].geometry.rectangle.height,
         pf_active__coil.element[1].turns_with_sign,
         get_spacing_from_turns(pf_active__coil),
-        Bext -> coil_Jcrit(Bext, coil_tech),
+        coil_tech,
         pf_active__coil.current.data,
         pf_active__coil.current.time,
         1,
@@ -107,11 +107,11 @@ function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
     pf_active__coil.element[1].geometry.rectangle.width = coil.width
     pf_active__coil.element[1].geometry.rectangle.height = coil.height
     pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
-    pf_active__coil.b_field_max = [0.0, 50, 100] # for now current_limit_max is not varying
-    pf_active__coil.temperature = [0.0, 100]
-    pf_active__coil.current_limit_max = ones(3, 2) .* (coil.max_current_density(0.0) * area(coil))
+    pf_active__coil.b_field_max = range(0.1, 20, step=0.1)
+    pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
+    pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max , t in pf_active__coil.temperature ]
     pf_active__coil.b_field_max_timed.time = coil.current_time
-    pf_active__coil.b_field_max_timed.data = zeros(size(coil.current_time))
+    pf_active__coil.b_field_max_timed.data = ones(size(coil.current_time)) # for now fixed B at one Tesla
     pf_active__coil.current.time = coil.current_time
     pf_active__coil.current.data = coil.current_data
 end
@@ -253,8 +253,8 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                     optim_coils[koptim].height = height_oh
                 end
             else
-                r_interp = IMAS.interp(rail.outline.distance, rail.outline.r, extrapolation_bc = :flat)
-                z_interp = IMAS.interp(rail.outline.distance, rail.outline.z, extrapolation_bc = :flat)
+                r_interp = IMAS.interp1d(rail.outline.distance, rail.outline.r, extrapolation_bc = :flat)
+                z_interp = IMAS.interp1d(rail.outline.distance, rail.outline.z, extrapolation_bc = :flat)
                 # not symmetric
                 if !symmetric
                     dkcoil = rail.coils_number
@@ -372,8 +372,9 @@ function optimize_coils_rail(
                 end
                 currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights = weight, λ_regularize = λ_regularize, return_cost = true)
                 current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-                fraction_max_current_densities = abs.(current_densities ./ [coil.max_current_density(0.0) for coil in coils])
-                push!(all_cost_currents, norm((exp.(fraction_max_current_densities / λ_currents) .- 1.0) / (exp(1) - 1)) / length(currents))
+                b = 1.0  # for now fixed B at one Tesla
+                fraction_max_current_densities = abs.(current_densities ./ [coil_Jcrit(b, coil.coil_tech) for coil in coils])
+                push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
                 if ismissing(eq.time_slice[time_index].global_quantities, :ip)
                     push!(all_cost_ψ, cost_ψ0 / λ_null)
                 else
