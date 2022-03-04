@@ -25,7 +25,7 @@ using Test
 
     iter = FUSE.Parameters(:ITER; init_from=:scalars)
 
-    @test iter.equilibrium.B0 == 5.3
+    @test iter.equilibrium.B0 == -5.3
 
     @test (iter.general.init_from = :ods) == :ods
 
