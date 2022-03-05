@@ -42,17 +42,19 @@ function init_workflow(dd::IMAS.dd, par::Parameters; do_plot = false)
     return dd
 end
 
-function pf_optim_workflow(dd::IMAS.dd, par::Parameters; λ_currents=0.5, update_eq_in = false, do_plot = false)
+function pf_optim_workflow(dd::IMAS.dd, par::Parameters; λ_currents=0.5, maxiter=maxiter, update_eq_in = false, do_plot = false)
     # initialize actor
     actor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model, symmetric = par.build.symmetric)
 
-    # optimize coil location only considering equilibria (disregard field-null)
-    step(actor, λ_ψ = 1E-2, λ_null = 1E10, λ_currents=λ_currents, λ_strike = 0.0, verbose = false, maxiter = 1000, optimization_scheme = :rail)
-    finalize(actor)
+    if maxiter>0
+        # optimize coil location only considering equilibria (disregard field-null)
+        step(actor, λ_ψ = 1E-2, λ_null = 1E10, λ_currents=λ_currents, λ_strike = 0.0, verbose = false, maxiter = maxiter, optimization_scheme = :rail)
+        finalize(actor)
 
-    if do_plot
-        display(plot(actor.trace, :cost))
-        display(plot(actor.trace, :params))
+        if do_plot
+            display(plot(actor.trace, :cost))
+            display(plot(actor.trace, :params))
+        end
     end
 
     # find coil currents for both field-null and equilibria

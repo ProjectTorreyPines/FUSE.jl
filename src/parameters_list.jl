@@ -157,8 +157,8 @@ function Parameters(::Type{Val{:coil_technology}})
     coil_tech.temperature = Entry(Real, "K", "Coil temperature")
     coil_tech.thermal_strain = Entry(Real, "", "Fraction of thermal expansion strain over maximum total strain on coil")
     coil_tech.JxB_strain = Entry(Real, "", "Fraction of maximum JxB strain over maximum total strain on coil")
-    coil_tech.fraction_stainless = Entry(Real, "", "Fraction of stainless steel in the coil cross-sectional areas"; default = 0.5)
-    coil_tech.fraction_void = Entry(Real, "", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor."; default = 0.1)
+    coil_tech.fraction_stainless = Entry(Real, "", "Fraction of stainless steel in the coil cross-sectional areas")
+    coil_tech.fraction_void = Entry(Real, "", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor.")
     coil_tech.ratio_SC_to_copper = Entry(Real, "", "Fraction of superconductor to copper cross-sectional areas")
     return coil_tech
 end

@@ -1,4 +1,4 @@
-const coils_turns_spacing = 0.05
+const coils_turns_spacing = 0.03
 
 #= ================== =#
 #  init pf_active IDS  #
@@ -232,9 +232,8 @@ function init_pf_active(dd::IMAS.dd, par::Parameters)
 end
 
 function assign_coils_materials(dd::IMAS.dd, par::Parameters)
-    bd = dd.build
     for coil_type in [:tf, :oh, :pf_active]
-        coil_tech = getproperty(bd, coil_type).technology
+        coil_tech = getproperty(dd.build, coil_type).technology
         for property in fieldnames(IMAS.build__tf__technology)
             if property == :_parent
                 continue

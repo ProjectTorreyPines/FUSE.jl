@@ -149,12 +149,10 @@ end
 Calculates coil green function at given R and Z coordinate
 """
 function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
-    # fastest
-    if coil.green_model == :point
+    if coil.green_model == :point # fastest
         return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
-        # medium
-    elseif coil.green_model in [:corners, :simple]
+    elseif coil.green_model in [:corners, :simple] # medium
         if coil.pf_active__coil.name == "OH"
             n = 3
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length = n)
@@ -163,14 +161,15 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
                 push!(green, AD_GS.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
             end
             return sum(green)
+
         elseif coil.green_model == :corners
             return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
+
         elseif coil.green_model == :simple
             return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
         end
 
-        # slow
-    elseif coil.green_model == :realistic
+    elseif coil.green_model == :realistic # high-fidelity
         return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 
     else
