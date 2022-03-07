@@ -116,8 +116,8 @@ function oh_requirements(bd::IMAS.build, double_swing::Bool = true)
     # ============================= #
 
     # minimum requirements for OH
-    bd.oh.required.b_field = magneticFieldSolenoidBore
-    bd.oh.required.j = currentDensityOH * 1E6 # [A/m^2] ?
+    bd.oh.max_b_field = magneticFieldSolenoidBore
+    bd.oh.max_j = currentDensityOH * 1E6 # [A/m^2] ?
 end
 
 #= ======== =#
