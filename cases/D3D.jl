@@ -18,6 +18,7 @@ function Parameters(::Type{Val{:D3D}})
     par.tf.technology = coil_technology(:copper)
 
     par.oh.technology = coil_technology(:copper)
+    par.oh.flattop_duration = 5
 
     par.core_profiles.ne_ped = 5E19
     par.core_profiles.n_peaking = 1.5

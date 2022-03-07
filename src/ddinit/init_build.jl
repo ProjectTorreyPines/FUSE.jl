@@ -13,6 +13,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
     if init_from == :gasc
         gasc = GASC(par.gasc.filename, par.gasc.case)
         init_radial_build(dd.build, gasc; no_small_gaps=par.gasc.no_small_gaps)
+        par.oh.flattop_duration = gasc.solution["INPUTS"]["plasma parameters"]["flattopDuration"]
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
@@ -451,7 +452,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     oR = bd.layer[layer_index+1].outline.r
     oZ = bd.layer[layer_index+1].outline.z
 
-    # only update shape if that's not been set before
+    # only update shape if that is not been set before
     # this is to allow external overriding of default shape setting
     if ismissing(layer, :shape)
         layer.shape = tf_shape_index
