@@ -29,6 +29,7 @@ function init_core_profiles(dd::IMAS.dd, par::Parameters)
             ngrid = par.core_profiles.ngrid,
             bulk = par.core_profiles.bulk,
             impurity = par.core_profiles.impurity)
+        @ddtime dd.core_profiles.global_quantities.ejima = par.core_profiles.ejima
     end
 
     return dd
@@ -78,6 +79,9 @@ function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
     for i = 1:length(cpt.ion)
         cpt.ion[i].temperature = Ti
     end
+
+    # ejima
+    IMAS.set_time_array(dd.core_profiles.global_quantities, :ejima, gascsol["INPUTS"]["plasma parameters"]["ejimaCoeff"])
 
     return dd
 end

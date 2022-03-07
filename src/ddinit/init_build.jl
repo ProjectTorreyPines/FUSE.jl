@@ -4,16 +4,6 @@ import Contour
 import LazySets
 import DataStructures
 
-#= ================== =#
-#  init core_profiles  #
-#= ================== =#
-function init_core_profiles(cp::IMAS.core_profiles; kw...)
-    for item in keys(kw)
-        IMAS.set_time_array(cp.global_quantities, item, kw[item])
-    end
-    return cp
-end
-
 #= ========== =#
 #  init build  #
 #= ========== =#

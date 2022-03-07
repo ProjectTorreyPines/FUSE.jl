@@ -3,28 +3,30 @@
 #= ================ =#
 
 mutable struct FluxSwingActor <: AbstractActor
-    bd::IMAS.build
-    eqt::IMAS.equilibrium__time_slice
-    cp::IMAS.core_profiles
+    dd::IMAS.dd
 end
 
-function FluxSwingActor(dd::IMAS.dd)
-    return FluxSwingActor(dd.build, dd.equilibrium, dd.core_profiles)
-end
-
-function FluxSwingActor(bd::IMAS.build, eq::IMAS.equilibrium, cp::IMAS.core_profiles)
-    return FluxSwingActor(bd, eq.time_slice[], cp)
+function FluxSwingActor(dd::IMAS.dd, par::Parameters)
+    return FluxSwingActor(dd)
 end
 
 # step
-function step(flxactor::FluxSwingActor)
-    rampup_flux_requirements(flxactor.bd, flxactor.eqt, flxactor.cp)
-    flattop_flux_requirements(flxactor.bd, flxactor.eqt, flxactor.cp)
-    pf_flux_requirements(flxactor.bd, flxactor.eqt)
+function step(flxactor::FluxSwingActor, flattop_duration::Real)
+    bd = flxactor.dd.build
+    eqt = flxactor.dd.equilibrium.time_slice[]
+    cp = flxactor.dd.core_profiles
+    cp1d = cp.profiles_1d[]
+
+    bd.flux_swing_requirements.rampup = rampup_flux_requirements(eqt, cp)
+    bd.flux_swing_requirements.flattop = flattop_flux_requirements(cp1d, flattop_duration)
+    bd.flux_swing_requirements.pf = pf_flux_requirements(eqt)
+
+    oh_requirements(bd)
+    return flxactor
 end
 
 """
-    rampup_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+    rampup_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
 
 Estimate OH flux requirement during rampup
 
@@ -33,7 +35,7 @@ NOTES:
 * eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 * core_profiles is only used to get core_profiles.global_quantities.ejima
 """
-function rampup_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+function rampup_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
     # from IMAS dd to local variables
     majorRadius = eqt.boundary.geometric_axis.r
     minorRadius = eqt.boundary.minor_radius
@@ -52,32 +54,20 @@ function rampup_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_sl
     rampUpFlux = (ejima * 0.4 * pi * majorRadius + plasmaInductanceTotal) * plasmaCurrent
 
     # ============================= #
-    bd.flux_swing_requirements.rampup = abs(rampUpFlux)
+    return abs(rampUpFlux)
 end
 
 """
-    flattop_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+    flattop_flux_requirements(cp1d::IMAS.core_profiles__profiles_1d, flattop_duration)
 
 Estimate OH flux requirement during flattop 
-
-NOTES:
-* this is a dummy function right now!, we simply take 1/2 of the rampup
 """
-function flattop_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
-    # from IMAS dd to local variables
-
-    # ============================= #
-    #plasmaResistivity = calc_plasmaResitivity(IN['plasma parameters']['Ti0'],neLinAvg,effectiveZ,Tratio,St,Sn,1.0,1./aspectRatio)
-    #flattopFluxConsumption = 1.e6*plasmaResistivity * inductiveFraction * plasmaCurrent * flattopDuration
-
-    flattopFluxConsumption = 0.5 * bd.flux_swing_requirements.rampup
-
-    # ============================= #
-    bd.flux_swing_requirements.flattop = flattopFluxConsumption
+function flattop_flux_requirements(cp1d::IMAS.core_profiles__profiles_1d, flattop_duration::Real)
+    return integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel .* flattop_duration) # V*s
 end
 
 """
-    pf_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
+    pf_flux_requirements(eqt::IMAS.equilibrium__time_slice)
 
 Estimate vertical field from PF coils and its contribution to flux swing
 
@@ -85,7 +75,7 @@ NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 """
-function pf_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
+function pf_flux_requirements(eqt::IMAS.equilibrium__time_slice)
     # from IMAS dd to local variables
     majorRadius = eqt.boundary.geometric_axis.r
     minorRadius = eqt.boundary.minor_radius
@@ -100,7 +90,7 @@ function pf_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     fluxFromVerticalField = 0.8 * verticalFieldAtCenter * pi * (majorRadius^2 - (majorRadius - minorRadius)^2)
 
     # ============================= #
-    bd.flux_swing_requirements.pf = -abs(fluxFromVerticalField)
+    return -abs(fluxFromVerticalField)
 end
 
 """
@@ -114,7 +104,7 @@ NOTES:
 """
 function oh_requirements(bd::IMAS.build, double_swing::Bool = true)
     innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_build(bd, type = 1).start_radius, IMAS.get_build(bd, type = 1).end_radius)
-    totalOhFluxReq = bd.flux_swing_requirements.rampup.total + bd.flux_swing_requirements.flattop + bd.flux_swing_requirements.pf
+    totalOhFluxReq = bd.flux_swing_requirements.rampup + bd.flux_swing_requirements.flattop + bd.flux_swing_requirements.pf
 
     # ============================= #
 
@@ -127,7 +117,7 @@ function oh_requirements(bd::IMAS.build, double_swing::Bool = true)
 
     # minimum requirements for OH
     bd.oh.required.b_field = magneticFieldSolenoidBore
-    bd.oh.required.j = currentDensityOH
+    bd.oh.required.j = currentDensityOH * 1E6 # [A/m^2] ?
 end
 
 #= ======== =#
