@@ -91,15 +91,10 @@ function Parameters(::Nothing)
 end
 
 function Parameters(group::Symbol; kw...)
-    try
-        return Parameters(Val{group}; kw...)
-    catch e
-        if typeof(e) <: MethodError
-            throw(InexistentParameterException([group]))
-        else
-            rethrow()
-        end
+    if length(methods(Parameters, (Type{Val{group}},))) == 0
+        throw(InexistentParameterException([group]))
     end
+    return Parameters(Val{group}; kw...)
 end
 
 function Base.fieldnames(p::Parameters)
