@@ -21,8 +21,8 @@ function Entry(T, units::String, description::String; default = missing)
 end
 
 function Entry(T, ids::Type, field::Symbol; default = missing)
-    info = IMAS.imas_info(ids, field)
-    return Entry(T, get(info, "units", ""), get(info, "documentation", ""); default)
+    txt = IMAS.info(ids, field)
+    return Entry(T, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end
 
 #= ====== =#
@@ -73,8 +73,8 @@ end
 
 function Switch(options, ids::Type{T}, field::Symbol; default = missing) where {T<:IMAS.IDS}
     location = "$(IMAS._f2u(ids)).$(field)"
-    info = IMAS.imas_info(location)
-    return Switch(options, get(info, "units", ""), get(info, "documentation", ""); default)
+    txt = IMAS.info(location)
+    return Switch(options, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end
 
 #= ========== =#
