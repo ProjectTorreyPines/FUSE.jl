@@ -78,7 +78,7 @@ function from_imas(dd::IMAS.dd)
 end
 
 function η_imas(dd::IMAS.dd)
-    rho = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
-    η = 1.0 ./ dd.core_profiles.profiles_1d[1].conductivity_parallel
+    rho = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
+    η = 1.0 ./ dd.core_profiles.profiles_1d[].conductivity_parallel
     return QED.FE(rho, η)
 end
