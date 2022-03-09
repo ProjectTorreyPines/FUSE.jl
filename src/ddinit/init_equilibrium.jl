@@ -85,7 +85,7 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
-        if length(keys(dd1.equilibrium)) > 0
+        if !ismissing(dd1.equilibrium, :time) && length(keys(dd1.equilibrium.time)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))
             dd.equilibrium = dd1.equilibrium
         else
