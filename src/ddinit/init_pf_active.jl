@@ -14,15 +14,15 @@ function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height = 
 end
 
 """
-    init(pf_active::IMAS.pf_active, bd::IMAS.build, n_coils::Vector)
+    init_pf_active(
+        pf_active::IMAS.pf_active,
+        bd::IMAS.build,
+        n_coils::Vector{TI};
+        pf_coils_size::Union{Nothing,TR,Vector{TR}} = nothing,
+        coils_cleareance::Union{Nothing,TR,Vector{TR}} = nothing,
+        coils_elements_area::Union{Nothing,TR,Vector{TR}} = nothing) where {TI<:Int,TR<:Real}
 
 Use build layers outline to initialize PF coils distribution
-
-Attributes
- * n_coils: number of pf coils per coil-placement rail (the first one is the OH, and then one for each vacuum region)
- * pf_coils_size:  Size of the (square) coils (per PF rail)
- * coils_cleareance: Clereance that coils have from other structures (per rail)
- * coils_elements_area: Cross-sectional area taken up by individual filaments in a coil (per rail)
 """
 function init_pf_active(
     pf_active::IMAS.pf_active,

@@ -55,9 +55,8 @@ include("workflows.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export init, step, finalize
-export IMAS, is_missing, @ddtime, @coords, constants, ±
-export fuse_parameters, plasma_parameters, physics_models
+export step, finalize
+export IMAS, ismissing, @ddtime, constants, ±
 export Parameters
 
 end
