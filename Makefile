@@ -47,12 +47,12 @@ try Pkg.upgrade_manifest() catch end;\
 '
 
 install_IMASDD:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMAS" ]; then\
+	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMASDD" ]; then\
 		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/IMASDD.jl.git");';\
 	fi
 	julia -e '\
 using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/IMAS");\
+Pkg.activate("$(JULIA_PKG_DEVDIR)/IMASDD");\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
