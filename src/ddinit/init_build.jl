@@ -1,7 +1,6 @@
 import LibGEOS
 import Interpolations
 import Contour
-import LazySets
 import DataStructures
 
 #= ========== =#
@@ -328,7 +327,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
         append!(private_extrema, IMAS.intersection(a .* cos.(theta) .+ Rx, a .* sin.(theta) .+ Zx, pr, pz))
     end
     h = [[r, z] for (r, z) in vcat(collect(zip(rlcfs, zlcfs)), private_extrema)]
-    hull = LazySets.convex_hull(h)
+    hull = convex_hull(h)
     R = [r for (r, z) in hull]
     R[R.<R_hfs_plasma] .= R_hfs_plasma
     R[R.>R_lfs_plasma] .= R_lfs_plasma
@@ -465,7 +464,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
         layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
         if layer.shape == -2
             h = [[r, z] for (r, z) in collect(zip(layer.outline.r, layer.outline.z))]
-            hull = LazySets.convex_hull(h)
+            hull = convex_hull(h)
             layer.outline.r, layer.outline.z = IMAS.resample_2d_line(vcat([r for (r, z) in hull], hull[1][1]), vcat([z for (r, z) in hull], hull[1][2]))
         end
         # handle shapes

@@ -72,7 +72,7 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
-        if length(keys(dd1.core_sources)) > 0
+        if !ismissing(dd1.core_sources, :time) && length(keys(dd1.core_sources.time)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.core_sources.time))
             dd.core_sources = dd1.core_sources
         else

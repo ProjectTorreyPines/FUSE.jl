@@ -229,7 +229,7 @@ end
 Asymmetric rectangular contour
 layer[:].shape = 2
 """
-function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; n_points = 5)
+function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; n_points::Int = 5)
     if n_points == 5
         R = [r_start, r_end, r_end, r_start, r_start]
         Z = [z_low, z_low, z_high, z_high, z_low]
@@ -245,7 +245,7 @@ end
 
 Symmetric rectangular contour
 """
-function rectangle_shape(r_start::Real, r_end::Real, height::Real; n_points = 5)
+function rectangle_shape(r_start::Real, r_end::Real, height::Real; n_points::Int = 5)
     Δ = height / 2.0
     return rectangle_shape(r_start, r_end, -Δ, Δ; n_points)
 end
@@ -372,7 +372,7 @@ function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int = 101) where {T<
     return R, Z
 end
 
-function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points = 101)
+function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points::Int = 101)
     rz = collect(rz)
     R = rz[1:2:end]
     Z = rz[2:2:end]
