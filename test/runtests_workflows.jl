@@ -2,7 +2,7 @@ using Revise
 using FUSE
 using Test
 
-@testset "workflows" begin
+@testset "init_workflows" begin
 
     @testset "ITER_ods" begin
         dd = IMAS.dd()
@@ -22,9 +22,15 @@ using Test
         FUSE.init_workflow(dd, par)
     end
 
-    @testset "FPP" begin
+    @testset "FPP_gasc" begin
         dd = IMAS.dd()
-        par = FUSE.Parameters(:FPP)
+        par = FUSE.Parameters(:FPP, init_from = :gasc)
+        FUSE.init_workflow(dd, par)
+    end
+
+    @testset "FPP_ods" begin
+        dd = IMAS.dd()
+        par = FUSE.Parameters(:FPP, init_from = :ods)
         FUSE.init_workflow(dd, par)
     end
 
