@@ -8,6 +8,18 @@ all:
 	@echo ' - make update   : update FUSE and all of its dependencies'
 	@echo ''
 
+sysimage:
+	julia -e '\
+using Pkg;\
+Pkg.add("PackageCompiler");\
+Pkg.add("IJulia");\
+import PackageCompiler;\
+Pkg.activate(".");\
+PackageCompiler.create_sysimage(["Contour", "DataStructures", "EFIT", "ForwardDiff", "Interpolations", "JSON", "LibGEOS", "LinearAlgebra", "ModelingToolkit", "NumericalIntegration", "Optim", "OrdinaryDiffEq", "Plots", "PolygonOps", "Printf", "Random", "Revise", "StaticArrays", "Statistics", "Test"], sysimage_path="FUSEsysimage.so");\
+import IJulia;\
+IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
+'
+
 install: install_FUSE install_IJulia
 	julia -e '\
 using Pkg;\
