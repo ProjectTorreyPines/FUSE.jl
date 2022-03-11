@@ -142,7 +142,7 @@ function step(stressactor::StressesActor; bucked=false, noslip=false, plug=false
     f_struct_tf = bd.tf.technology.fraction_stainless
     f_struct_oh = bd.oh.technology.fraction_stainless
 
-    return solve_1D_solid_mechanics(
+    stressactor.dd.solid_mechanics.center_stack = solve_1D_solid_mechanics(
         R0,
         B0,
         R_tf_in,
@@ -165,4 +165,10 @@ function StressesActor(dd::IMAS.dd, par::Parameters)
     step(sactor; bucked=par.center_stack.bucked, noslip=par.center_stack.noslip, plug=par.center_stack.plug)
     finalize(sactor)
     return sactor
+end
+
+@recipe function plot_StressesActor(sactor::StressesActor)
+    @series begin
+        sactor.dd.solid_mechanics.center_stack.stress
+    end
 end

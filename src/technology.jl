@@ -227,27 +227,6 @@ function coil_Jcrit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMA
 end
 
 
-mutable struct solid_mechanics
-    axial_stress_tf_avg::Real
-    axial_stress_oh_avg::Real
-    axial_stress_pl_avg::Union{Real,Nothing}
-    r_tf::Vector{Real}
-    r_oh::Vector{Real}
-    r_pl::Union{Vector{Real},Nothing}
-    displacement_tf::Vector{Real}
-    displacement_oh::Vector{Real}
-    displacement_pl::Union{Vector{Real},Nothing}
-    vonmises_stress_tf::Vector{Real}
-    vonmises_stress_oh::Vector{Real}
-    vonmises_stress_pl::Union{Vector{Real},Nothing}
-    radial_stress_tf::Vector{Real}
-    radial_stress_oh::Vector{Real}
-    radial_stress_pl::Union{Vector{Real},Nothing}
-    hoop_stress_tf::Vector{Real}
-    hoop_stress_oh::Vector{Real}
-    hoop_stress_pl::Union{Vector{Real},Nothing}
-end
-
 """
     solve_1D_solid_mechanics(
         R0,                            # : (float) major radius at center of TF bore, meters
@@ -598,12 +577,12 @@ function solve_1D_solid_mechanics(
         axial_stress_pl_avg = 0.0
         vonmises_stress_pl = svm(radial_stress_pl, hoop_stress_pl, axial_stress_pl_avg)
     else
-        r_pl = nothing
-        displacement_pl = nothing
-        radial_stress_pl = nothing
-        hoop_stress_pl = nothing
-        axial_stress_pl_avg = nothing
-        vonmises_stress_pl = nothing
+        r_pl = missing
+        displacement_pl = missing
+        radial_stress_pl = missing
+        hoop_stress_pl = missing
+        axial_stress_pl_avg = missing
+        vonmises_stress_pl = missing
     end
 
     # apply structural composition fractions to get effective stress on structural materials
@@ -622,105 +601,31 @@ function solve_1D_solid_mechanics(
         vonmises_stress_pl *= 1.0 / f_struct_pl
     end
 
-    solid_mechanics(
-        axial_stress_tf_avg,
-        axial_stress_oh_avg,
-        axial_stress_pl_avg,
-        r_tf,
-        r_oh,
-        r_pl,
-        displacement_tf,
-        displacement_oh,
-        displacement_pl,
-        vonmises_stress_tf,
-        vonmises_stress_oh,
-        vonmises_stress_pl,
-        radial_stress_tf,
-        radial_stress_oh,
-        radial_stress_pl,
-        hoop_stress_tf,
-        hoop_stress_oh,
-        hoop_stress_pl)
+    cs = IMAS.solid_mechanics__center_stack()
 
-end
+    cs.grid.r_tf = r_tf
+    cs.grid.r_oh = r_oh
+    cs.grid.r_pl = r_pl
 
-@recipe function plot_solid_mechanics(out::solid_mechanics; vonmises = true, hoop = true, radial = true, linewidth = 1)
+    cs.displacement.tf = displacement_tf
+    cs.displacement.oh = displacement_oh
+    cs.displacement.pl = displacement_pl
 
-    legend_position --> :outerbottomright
-    ylabel --> "Stresses [MPa]"
-    xlabel --> "Radius [m]"
+    cs.stress.axial.tf = axial_stress_tf_avg
+    cs.stress.axial.oh = axial_stress_oh_avg
+    cs.stress.axial.pl = axial_stress_pl_avg
 
-    if vonmises
-        @series begin
-            label := "Von Mises"
-            linewidth := linewidth + 2
-            out.r_oh, out.vonmises_stress_oh ./ 1E6
-        end
-        @series begin
-            primary := false
-            linewidth := linewidth + 2
-            out.r_tf, out.vonmises_stress_tf ./ 1E6
-        end
-        if out.r_pl !== nothing
-            @series begin
-                primary := false
-                linewidth := linewidth + 2
-                out.r_pl, out.vonmises_stress_pl ./ 1E6
-            end
-        end
-    end
+    cs.stress.vonmises.tf = vonmises_stress_tf
+    cs.stress.vonmises.oh = vonmises_stress_oh
+    cs.stress.vonmises.pl = vonmises_stress_pl
 
-    if hoop
-        @series begin
-            label := "Hoop"
-            linestyle := :dash
-            linewidth := linewidth + 1
-            out.r_oh, out.hoop_stress_oh ./ 1E6
-        end
-        @series begin
-            primary := false
-            linestyle := :dash
-            linewidth := linewidth + 1
-            out.r_tf, out.hoop_stress_tf ./ 1E6
-        end
-        if out.r_pl !== nothing
-            @series begin
-                primary := false
-                linewidth := linewidth + 1
-                out.r_pl, out.hoop_stress_pl ./ 1E6
-            end
-        end
-    end
+    cs.stress.radial.tf = radial_stress_tf
+    cs.stress.radial.oh = radial_stress_oh
+    cs.stress.radial.pl = radial_stress_pl
 
-    if radial
-        @series begin
-            label := "Radial"
-            linewidth := linewidth + 1
-            out.r_oh, out.radial_stress_oh ./ 1E6
-        end
-        @series begin
-            primary := false
-            linewidth := linewidth + 1
-            out.r_tf, out.radial_stress_tf ./ 1E6
-        end
-        if out.r_pl !== nothing
-            @series begin
-                primary := false
-                linewidth := linewidth + 1
-                out.r_pl, out.radial_stress_pl ./ 1E6
-            end
-        end
-    end
+    cs.stress.hoop.tf = hoop_stress_tf
+    cs.stress.hoop.oh = hoop_stress_oh
+    cs.stress.hoop.pl = hoop_stress_pl
 
-    for radius in [out.r_oh[1], out.r_oh[end], out.r_tf[end]]
-        @series begin
-            seriestype --> :vline
-            linewidth --> 2
-            label --> ""
-            linestyle --> :dash
-            color --> :black
-            [radius]
-        end
-    end
-
+    return cs
 end
