@@ -133,7 +133,7 @@ function StressesActor(dd::IMAS.dd, par::Parameters)
     return StressesActor(dd)
 end
 
-function step(stressactor::StressesActor)
+function step(stressactor::StressesActor; bucked=false, noslip=false, plug=false)
     eq = stressactor.dd.equilibrium
     bd = stressactor.dd.build
 
@@ -155,22 +155,12 @@ function step(stressactor::StressesActor)
         Bz_cs,                     # : (float) axial field in solenoid bore, Tesla
         R_cs_in,                   # : (float) major radius of inboard edge of CS coil, meters
         R_cs_out;                  # : (float) major radius of outboard edge of CS coil, meters
-        axial_stress_tf_avg = nothing,# : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
-        axial_stress_cs_avg = nothing,# : (float) average axial stress in CS coil, Pa (if nothing, use constant fraction of hoop stress)
-        TFCSbucked = false,        # : (bool), flag for bucked boundary conditions between TF and CS (and center plug, if present)
-        noslip = false,            # : (bool), flag for no slip conditions between TF and CS (and center plug, if present)
-        doplug = false,            # : (bool), flag for center plug
+        bucked = bucked,           # : (bool), flag for bucked boundary conditions between TF and CS (and center plug, if present)
+        noslip = noslip,           # : (bool), flag for no slip conditions between TF and CS (and center plug, if present)
+        plug = plug,               # : (bool), flag for center plug
         f_struct_tf = f_struct_tf, # : (float), fraction of TF coil that is structural material
         f_struct_cs = f_struct_cs, # : (float), fraction of CS coil that is structural material
         f_struct_pl = 1.0,         # : (float), fraction of plug that is structural material
-        em_tf = 193103448275.0,    # : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
-        gam_tf = 0.33,             # : (float), Poisson"s ratio for TF coil, (default is stainless steel)
-        em_cs = 193103448275.0,    # : (float), modulus of elasticity for CS coil, Pa (default is stainless steel)
-        gam_cs = 0.33,             # : (float), Poisson"s ratio for CS coil, (default is stainless steel)
-        em_pl = 193103448275.0,    # : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
-        gam_pl = 0.33,             # : (float), Poisson"s ratio for center plug, (default is stainless steel)
-        f_tf_sash = 0.873,         # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
-        f_cs_sash = 0.37337,       # : (float), conversion factor from hoop stress to axial stress for CS coil (nominally 0.37337)
-        verbose = true             # : (bool), flag for verbose output to terminal
+        verbose = false            # : (bool), flag for verbose output to terminal
     )
 end
