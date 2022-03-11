@@ -229,90 +229,90 @@ end
 
 mutable struct solid_mechanics
     axial_stress_tf_avg::Real
-    axial_stress_cs_avg::Real
+    axial_stress_oh_avg::Real
     axial_stress_pl_avg::Union{Real,Nothing}
     r_tf::Vector{Real}
-    r_cs::Vector{Real}
+    r_oh::Vector{Real}
     r_pl::Union{Vector{Real},Nothing}
     displacement_tf::Vector{Real}
-    displacement_cs::Vector{Real}
+    displacement_oh::Vector{Real}
     displacement_pl::Union{Vector{Real},Nothing}
     vonmises_stress_tf::Vector{Real}
-    vonmises_stress_cs::Vector{Real}
+    vonmises_stress_oh::Vector{Real}
     vonmises_stress_pl::Union{Vector{Real},Nothing}
     radial_stress_tf::Vector{Real}
-    radial_stress_cs::Vector{Real}
+    radial_stress_oh::Vector{Real}
     radial_stress_pl::Union{Vector{Real},Nothing}
     hoop_stress_tf::Vector{Real}
-    hoop_stress_cs::Vector{Real}
+    hoop_stress_oh::Vector{Real}
     hoop_stress_pl::Union{Vector{Real},Nothing}
 end
 
 """
     solve_1D_solid_mechanics(
-        R0,                 # : (float) major radius at center of TF bore, meters
-        B0,                 # : (float) toroidal field at R0, Tesla
-        R_tf_in,            # : (float) major radius of inboard edge of TF coil core legs, meters
-        R_tf_out,           # : (float) major radius of outboard edge of TF coil core legs, meters
-        Bz_cs,              # : (float) axial field in solenoid bore, Tesla
-        R_cs_in,            # : (float) major radius of inboard edge of CS coil, meters
-        R_cs_out,           # : (float) major radius of outboard edge of CS coil, meters
-        axial_stress_tf_avg = nothing,   # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
-        axial_stress_cs_avg = nothing,   # : (float) average axial stress in CS coil, Pa (if nothing, use constant fraction of hoop stress)
-        bucked = false, # : (bool), flag for bucked boundary conditions between TF and CS (and center plug, if present)
-        noslip = false,     # : (bool), flag for no slip conditions between TF and CS (and center plug, if present)
-        plug = false,     # : (bool), flag for center plug
-        f_struct_tf = 1.0,   # : (float), fraction of TF coil that is structural material
-        f_struct_cs = 1.0,   # : (float), fraction of CS coil that is structural material
-        f_struct_pl = 1.0,   # : (float), fraction of plug that is structural material
-        em_tf = 193103448275.0,# : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
-        gam_tf = 0.33,        # : (float), Poisson"s ratio for TF coil, (default is stainless steel)
-        em_cs = 193103448275.0,# : (float), modulus of elasticity for CS coil, Pa (default is stainless steel)
-        gam_cs = 0.33,        # : (float), Poisson"s ratio for CS coil, (default is stainless steel)
-        em_pl = 193103448275.0,# : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
-        gam_pl = 0.33,        # : (float), Poisson"s ratio for center plug, (default is stainless steel)
-        f_tf_sash = 0.873,  # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
-        f_cs_sash = 0.37337,  # : (float), conversion factor from hoop stress to axial stress for CS coil (nominally 0.37337)
-        verbose = false,      # : (bool), flag for verbose output to terminal
-        return_profs = false, # : (bool), flag to include profiles of stress in output
+        R0,                            # : (float) major radius at center of TF bore, meters
+        B0,                            # : (float) toroidal field at R0, Tesla
+        R_tf_in,                       # : (float) major radius of inboard edge of TF coil core legs, meters
+        R_tf_out,                      # : (float) major radius of outboard edge of TF coil core legs, meters
+        Bz_oh,                         # : (float) axial field in solenoid bore, Tesla
+        R_oh_in,                       # : (float) major radius of inboard edge of OH coil, meters
+        R_oh_out,                      # : (float) major radius of outboard edge of OH coil, meters
+        axial_stress_tf_avg = nothing, # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
+        axial_stress_oh_avg = nothing, # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
+        bucked = false,                # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
+        noslip = false,                # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
+        plug = false,                  # : (bool), flag for center plug
+        f_struct_tf = 1.0,             # : (float), fraction of TF coil that is structural material
+        f_struct_oh = 1.0,             # : (float), fraction of OH coil that is structural material
+        f_struct_pl = 1.0,             # : (float), fraction of plug that is structural material
+        em_tf = 193103448275.0,        # : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
+        gam_tf = 0.33,                 # : (float), Poisson"s ratio for TF coil, (default is stainless steel)
+        em_oh = 193103448275.0,        # : (float), modulus of elasticity for OH coil, Pa (default is stainless steel)
+        gam_oh = 0.33,                 # : (float), Poisson"s ratio for OH coil, (default is stainless steel)
+        em_pl = 193103448275.0,        # : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
+        gam_pl = 0.33,                 # : (float), Poisson"s ratio for center plug, (default is stainless steel)
+        f_tf_sash = 0.873,             # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
+        f_oh_sash = 0.37337,           # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
+        verbose = false,               # : (bool), flag for verbose output to terminal
+        return_profs = false           # : (bool), flag to include profiles of stress in output
 )
 
-Uses Leuer 1D solid mechanics equations to solve for radial and hoop stresses in TF coil, CS coil, and center plug.
-Based on derivations in Engineering Physics Note "EPNjal17dec17_gasc_pt5_tf_cs_plug_buck" by Jim Leuer (Dec. 17, 2017)
+Uses Leuer 1D solid mechanics equations to solve for radial and hoop stresses in TF coil, OH coil, and center plug.
+Based on derivations in Engineering Physics Note "EPNjal17dec17_gasc_pt5_tf_oh_plug_buck" by Jim Leuer (Dec. 17, 2017)
 
-Returns radial, hoop, axial, and Von Mises stresses for TF, CS, and plug (Pascals)
-(optional) radial profiles of radial, hoop, axial, and Von Mises stresses for TF, CS, and plug (Pascals)
+Returns radial, hoop, axial, and Von Mises stresses for TF, OH, and plug (Pascals)
+(optional) radial profiles of radial, hoop, axial, and Von Mises stresses for TF, OH, and plug (Pascals)
 
 The tokamak radial buid is :
 
 || plug or void (0 < r < R1) || coil 1 (R1 < r < R2) || coil 2 (R3 < r < R4) || ----> plasma center (r = R0)
 """
 function solve_1D_solid_mechanics(
-    R0,                    # : (float) major radius at center of TF bore, meters
-    B0,                    # : (float) toroidal field at R0, Tesla
-    R_tf_in,               # : (float) major radius of inboard edge of TF coil core legs, meters
-    R_tf_out,              # : (float) major radius of outboard edge of TF coil core legs, meters
-    Bz_cs,                 # : (float) axial field in solenoid bore, Tesla
-    R_cs_in,               # : (float) major radius of inboard edge of CS coil, meters
-    R_cs_out;              # : (float) major radius of outboard edge of CS coil, meters
-    axial_stress_tf_avg = nothing,   # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
-    axial_stress_cs_avg = nothing,   # : (float) average axial stress in CS coil, Pa (if nothing, use constant fraction of hoop stress)
-    bucked = false,        # : (bool), flag for bucked boundary conditions between TF and CS (and center plug, if present)
-    noslip = false,        # : (bool), flag for no slip conditions between TF and CS (and center plug, if present)
-    plug = false,          # : (bool), flag for center plug
-    f_struct_tf = 1.0,     # : (float), fraction of TF coil that is structural material
-    f_struct_cs = 1.0,     # : (float), fraction of CS coil that is structural material
-    f_struct_pl = 1.0,     # : (float), fraction of plug that is structural material
-    em_tf = 193103448275.0,# : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
-    gam_tf = 0.33,         # : (float), Poisson"s ratio for TF coil, (default is stainless steel)
-    em_cs = 193103448275.0,# : (float), modulus of elasticity for CS coil, Pa (default is stainless steel)
-    gam_cs = 0.33,         # : (float), Poisson"s ratio for CS coil, (default is stainless steel)
-    em_pl = 193103448275.0,# : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
-    gam_pl = 0.33,         # : (float), Poisson"s ratio for center plug, (default is stainless steel)
-    f_tf_sash = 0.873,     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
-    f_cs_sash = 0.37337,   # : (float), conversion factor from hoop stress to axial stress for CS coil (nominally 0.37337)
-    n_points = 51,         # : (int), number of radial points
-    verbose = false        # : (bool), flag for verbose output to terminal
+    R0,                           # : (float) major radius at center of TF bore, meters
+    B0,                           # : (float) toroidal field at R0, Tesla
+    R_tf_in,                      # : (float) major radius of inboard edge of TF coil core legs, meters
+    R_tf_out,                     # : (float) major radius of outboard edge of TF coil core legs, meters
+    Bz_oh,                        # : (float) axial field in solenoid bore, Tesla
+    R_oh_in,                      # : (float) major radius of inboard edge of OH coil, meters
+    R_oh_out;                     # : (float) major radius of outboard edge of OH coil, meters
+    axial_stress_tf_avg = nothing,# : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
+    axial_stress_oh_avg = nothing,# : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
+    bucked = false,               # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
+    noslip = false,               # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
+    plug = false,                 # : (bool), flag for center plug
+    f_struct_tf = 1.0,            # : (float), fraction of TF coil that is structural material
+    f_struct_oh = 1.0,            # : (float), fraction of OH coil that is structural material
+    f_struct_pl = 1.0,            # : (float), fraction of plug that is structural material
+    em_tf = 193103448275.0,       # : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
+    gam_tf = 0.33,                # : (float), Poisson"s ratio for TF coil, (default is stainless steel)
+    em_oh = 193103448275.0,       # : (float), modulus of elasticity for OH coil, Pa (default is stainless steel)
+    gam_oh = 0.33,                # : (float), Poisson"s ratio for OH coil, (default is stainless steel)
+    em_pl = 193103448275.0,       # : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
+    gam_pl = 0.33,                # : (float), Poisson"s ratio for center plug, (default is stainless steel)
+    f_tf_sash = 0.873,            # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
+    f_oh_sash = 0.37337,          # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
+    n_points = 51,                # : (int), number of radial points
+    verbose = false               # : (bool), flag for verbose output to terminal
 )
 
     if verbose
@@ -321,38 +321,38 @@ function solve_1D_solid_mechanics(
         println("- B0 = ", B0)
         println("- R_tf_in = ", R_tf_in)
         println("- R_tf_out = ", R_tf_out)
-        println("- Bz_cs = ", Bz_cs)
-        println("- R_cs_in = ", R_cs_in)
-        println("- R_cs_out = ", R_cs_out)
+        println("- Bz_oh = ", Bz_oh)
+        println("- R_oh_in = ", R_oh_in)
+        println("- R_oh_out = ", R_oh_out)
         println("- axial_stress_tf_avg = ", axial_stress_tf_avg)
-        println("- axial_stress_cs_avg = ", axial_stress_cs_avg)
+        println("- axial_stress_oh_avg = ", axial_stress_oh_avg)
         println("- bucked = ", bucked)
         println("- noslip = ", noslip)
         println("- plug = ", plug)
         println("- f_struct_tf = ", f_struct_tf)
-        println("- f_struct_cs = ", f_struct_cs)
+        println("- f_struct_oh = ", f_struct_oh)
         println("- f_struct_pl = ", f_struct_pl)
     end
 
     # define structural constants
     embar_tf = em_tf / (1 - gam_tf^2)
-    embar_cs = em_cs / (1 - gam_cs^2)
+    embar_oh = em_oh / (1 - gam_oh^2)
     embar_pl = em_pl / (1 - gam_pl^2)
 
-    # define forcing constraints on TF and CS coils
+    # define forcing constraints on TF and OH coils
     C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
-    C_cs = -1.0 / embar_cs * Bz_cs^2 / (constants.μ_0 * (R_cs_out - R_cs_in)^2)
+    C_oh = -1.0 / embar_oh * Bz_oh^2 / (constants.μ_0 * (R_oh_out - R_oh_in)^2)
 
     # calculate centerlines, check radial build inputs for consistency 
     cl_tf = 0.5 * (R_tf_out + R_tf_in)
-    cl_cs = 0.5 * (R_cs_out + R_cs_in)
+    cl_oh = 0.5 * (R_oh_out + R_oh_in)
 
     # determine ordering of radial build
     if verbose
-        if cl_cs < cl_tf
-            println("* order = CS-TF")
+        if cl_oh < cl_tf
+            println("* order = OH-TF")
         else
-            println("* order = TF-CS")
+            println("* order = TF-OH")
         end
     end
 
@@ -360,24 +360,24 @@ function solve_1D_solid_mechanics(
     if R_tf_out < R_tf_in
         error("R_tf_out ({:.3f}) < R_tf_in ({:.3f})".format(R_tf_out, R_tf_in))
     end
-    if R_cs_out < R_cs_in
-        error("R_cs_out ({:.3f}) < R_cs_in ({:.3f})".format(R_cs_out, R_cs_in))
+    if R_oh_out < R_oh_in
+        error("R_oh_out ({:.3f}) < R_oh_in ({:.3f})".format(R_oh_out, R_oh_in))
     end
-    if (cl_cs > cl_tf) && ((R_tf_out - R_cs_in * (1 + 1e-3)) > 0)
-        error("* TF and CS are overlapping: R_cs_in ($R_cs_in) < R_tf_out ($R_tf_out)")
+    if (cl_oh > cl_tf) && ((R_tf_out - R_oh_in * (1 + 1e-3)) > 0)
+        error("* TF and OH are overlapping: R_oh_in ($R_oh_in) < R_tf_out ($R_tf_out)")
     end
-    if (cl_cs < cl_tf) && ((R_cs_out - R_tf_in * (1 + 1e-3)) > 0)
-        error("* TF and CS are overlapping: R_tf_in ($R_tf_in) < R_cs_out ($R_cs_out)")
+    if (cl_oh < cl_tf) && ((R_oh_out - R_tf_in * (1 + 1e-3)) > 0)
+        error("* TF and OH are overlapping: R_tf_in ($R_tf_in) < R_oh_out ($R_oh_out)")
     end
-    if bucked && (cl_cs < cl_tf) && (abs.(R_cs_out - R_tf_in) > R_tf_in * 1e-3)
-        error("* CS is bucked against TF, but R_cs_out ($R_cs_out) != R_tf_in ($R_tf_in)")
+    if bucked && (cl_oh < cl_tf) && (abs.(R_oh_out - R_tf_in) > R_tf_in * 1e-3)
+        error("* OH is bucked against TF, but R_oh_out ($R_oh_out) != R_tf_in ($R_tf_in)")
     end
 
-    # define radial functions in u/r and du/dr for TF and CS
+    # define radial functions in u/r and du/dr for TF and OH
     # u_tf/r   = C_tf * f_tf(r) + A_tf + B_tf/r^2
     # du_tf/dr = C_tf * g_tf(r) + A_tf - B_tf/r^2
-    # u_cs/r   = C_cs * f_cs(r) + A_cs + B_cs/r^2
-    # du_cs/dr = C_cs * g_cs(r) + A_cs - B_cs/r^2
+    # u_oh/r   = C_oh * f_oh(r) + A_oh + B_oh/r^2
+    # du_oh/dr = C_oh * g_oh(r) + A_oh - B_oh/r^2
     function f_tf(r)
         logr = log(r)
         try
@@ -402,21 +402,21 @@ function solve_1D_solid_mechanics(
         end
     end
 
-    function f_cs(r)
-        return 1.0 / 3.0 * R_cs_out * r - 1.0 / 8.0 * r^2
+    function f_oh(r)
+        return 1.0 / 3.0 * R_oh_out * r - 1.0 / 8.0 * r^2
     end
-    function g_cs(r)
-        return 2.0 / 3.0 * R_cs_out * r - 3.0 / 8.0 * r^2
+    function g_oh(r)
+        return 2.0 / 3.0 * R_oh_out * r - 3.0 / 8.0 * r^2
     end
 
     # define linear system of equations based on boundary conditions
     # M * X = Y
 
     if !bucked
-        ## free standing CS and TF coils
+        ## free standing OH and TF coils
         # radial stress = 0 at ALL coil edges
         if plug
-            error("TF and CS must be bucked to have a central plug")
+            error("TF and OH must be bucked to have a central plug")
         end
         if verbose
             println("* Free standing coils")
@@ -425,69 +425,69 @@ function solve_1D_solid_mechanics(
         M = zeros(4, 4)
         M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_in^2, 0.0, 0.0]
         M[2, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0]
-        M[3, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2]
-        M[4, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_out^2]
+        M[3, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_in^2]
+        M[4, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_out^2]
         Y = [-C_tf * (g_tf(R_tf_in) + gam_tf * f_tf(R_tf_in)),
             -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
-            -C_cs * (g_cs(R_cs_in) + gam_cs * f_cs(R_cs_in)),
-            -C_cs * (g_cs(R_cs_out) + gam_cs * f_cs(R_cs_out)),
+            -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
+            -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out)),
         ]
-        A_tf, B_tf, A_cs, B_cs = M \ Y
+        A_tf, B_tf, A_oh, B_oh = M \ Y
         A_pl = 0.0
 
-    elseif !plug && (cl_cs < cl_tf)
-        ## bucked CS and TF only (no plug)
-        # order must be "CS-TF"
-        # radial stress = 0 at R_cs_in and R_tf_out
-        # radial stresses and displacementes are equal at interface R_int ( == R_cs_out = R_tf_in )
+    elseif !plug && (cl_oh < cl_tf)
+        ## bucked OH and TF only (no plug)
+        # order must be "OH-TF"
+        # radial stress = 0 at R_oh_in and R_tf_out
+        # radial stresses and displacementes are equal at interface R_int ( == R_oh_out = R_tf_in )
         if verbose
-            println("* CS bucked against TF only")
+            println("* OH bucked against TF only")
         end
-        R_int = R_cs_out
+        R_int = R_oh_out
         M = zeros(4, 4)
         M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0]
-        M[2, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2]
+        M[2, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_in^2]
         M[3, :] = [1.0, 1.0 / R_int^2, -1.0, -1.0 / R_int^2]
-        M[4, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_cs * (1 + gam_cs), -embar_cs * (gam_cs - 1) / R_int^2]
+        M[4, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_oh * (1 + gam_oh), -embar_oh * (gam_oh - 1) / R_int^2]
 
         Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
-            -C_cs * (g_cs(R_cs_in) + gam_cs * f_cs(R_cs_in)),
-            C_cs * f_cs(R_int) - C_tf * f_tf(R_int),
-            embar_cs * C_cs * (g_cs(R_int) + gam_cs * f_cs(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
+            -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
+            C_oh * f_oh(R_int) - C_tf * f_tf(R_int),
+            embar_oh * C_oh * (g_oh(R_int) + gam_oh * f_oh(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
         ]
-        A_tf, B_tf, A_cs, B_cs = M \ Y
+        A_tf, B_tf, A_oh, B_oh = M \ Y
         A_pl = 0.0
 
-    elseif plug && (cl_cs < cl_tf)
-        ## bucked plug, CS, and TF
-        # order is "CS-TF"
+    elseif plug && (cl_oh < cl_tf)
+        ## bucked plug, OH, and TF
+        # order is "OH-TF"
         # radial stress = 0 at R_tf_out
-        # radial stresses and displacements are equal at plug-CS interface R_pl ( == R_cs_in) 
-        #  and CS-TF interface R_int ( == R_cs_out = R_tf_in )
+        # radial stresses and displacements are equal at plug-OH interface R_pl ( == R_oh_in) 
+        #  and OH-TF interface R_int ( == R_oh_out = R_tf_in )
         if verbose
-            println("* CS bucked against TF and plug")
+            println("* OH bucked against TF and plug")
         end
-        R_int = R_cs_out
-        R_pl = R_cs_in
+        R_int = R_oh_out
+        R_pl = R_oh_in
         M = zeros(5, 5)
         M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0, 0.0]
         M[2, :] = [1.0, 1.0 / R_int^2, -1.0, -1.0 / R_int^2, 0.0]
-        M[3, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_cs * (1 + gam_cs), -embar_cs * (gam_cs - 1) / R_int^2, 0.0]
+        M[3, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_oh * (1 + gam_oh), -embar_oh * (gam_oh - 1) / R_int^2, 0.0]
         M[4, :] = [0.0, 0.0, 1.0, 1.0 / R_pl^2, -1.0]
-        M[5, :] = [0.0, 0.0, embar_cs * (1 + gam_cs), embar_cs * (gam_cs - 1) / R_pl^2, -embar_pl * (1 + gam_pl)]
+        M[5, :] = [0.0, 0.0, embar_oh * (1 + gam_oh), embar_oh * (gam_oh - 1) / R_pl^2, -embar_pl * (1 + gam_pl)]
         Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
-            C_cs * f_cs(R_int) - C_tf * f_tf(R_int),
-            embar_cs * C_cs * (g_cs(R_int) + gam_cs * f_cs(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
-            -C_cs * f_cs(R_pl),
-            -embar_cs * C_cs * (g_cs(R_pl) + gam_cs * f_cs(R_pl)),
+            C_oh * f_oh(R_int) - C_tf * f_tf(R_int),
+            embar_oh * C_oh * (g_oh(R_int) + gam_oh * f_oh(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
+            -C_oh * f_oh(R_pl),
+            -embar_oh * C_oh * (g_oh(R_pl) + gam_oh * f_oh(R_pl)),
         ]
-        A_tf, B_tf, A_cs, B_cs, A_pl = M \ Y
+        A_tf, B_tf, A_oh, B_oh, A_pl = M \ Y
 
-    elseif plug && (cl_cs > cl_tf)
-        ## bucked TF aginst plug, CS is free standing
-        # order is "TF-CS"
+    elseif plug && (cl_oh > cl_tf)
+        ## bucked TF aginst plug, OH is free standing
+        # order is "TF-OH"
         # radial stress = 0 at R_tf_out
-        # radial stress = 0 at R_cs_in and R_cs_out
+        # radial stress = 0 at R_oh_in and R_oh_out
         # radial stresses and displacements are equal at plug-TF interface R_pl ( == R_tf_in)
         if verbose
             println("* TF bucked against plug")
@@ -495,17 +495,17 @@ function solve_1D_solid_mechanics(
         R_pl = R_tf_in
         M = zeros(5, 5)
         M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0, 0.0]
-        M[2, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2, 0.0]
-        M[3, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_out^2, 0.0]
+        M[2, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_in^2, 0.0]
+        M[3, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_out^2, 0.0]
         M[4, :] = [1.0, 1.0 / R_pl^2, 0.0, 0.0, -1.0]
         M[5, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_pl^2, 0.0, 0.0, -embar_pl * (1 + gam_pl)]
         Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
-            -C_cs * (g_cs(R_cs_in) + gam_cs * f_cs(R_cs_in)),
-            -C_cs * (g_cs(R_cs_out) + gam_cs * f_cs(R_cs_out)),
+            -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
+            -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out)),
             -C_tf * f_tf(R_pl),
             -embar_tf * C_tf * (g_tf(R_pl) + gam_tf * f_tf(R_pl)),
         ]
-        A_tf, B_tf, A_cs, B_cs, A_pl = M \ Y
+        A_tf, B_tf, A_oh, B_oh, A_pl = M \ Y
 
     else
         error("radial build inputs do not match known boundary conditions!!")
@@ -521,12 +521,12 @@ function solve_1D_solid_mechanics(
         return @. C_tf * g_tf(r) + A_tf - B_tf / r^2
     end
 
-    function u_cs(r)
-        return @. r * (C_cs * f_cs(r) + A_cs + B_cs / r^2)
+    function u_oh(r)
+        return @. r * (C_oh * f_oh(r) + A_oh + B_oh / r^2)
     end
 
-    function dudr_cs(r)
-        return @. C_cs * g_cs(r) + A_cs - B_cs / r^2
+    function dudr_oh(r)
+        return @. C_oh * g_oh(r) + A_oh - B_oh / r^2
     end
 
     function u_pl(r)
@@ -552,42 +552,42 @@ function solve_1D_solid_mechanics(
     ## calculate radial and hoop stresses
     # also estimate axial stresses if not given & modify due to noslip condition
     # default axial scalings taken from Bending free formula & GASC
-    r_cs = LinRange(R_cs_in, R_cs_out, n_points)
+    r_oh = LinRange(R_oh_in, R_oh_out, n_points)
     r_tf = LinRange(R_tf_in, R_tf_out, n_points)
 
-    displacement_cs = u_cs(r_cs)
+    displacement_oh = u_oh(r_oh)
     displacement_tf = u_tf(r_tf)
 
-    radial_stress_cs = sr(r_cs, em_cs, gam_cs, u_cs(r_cs), dudr_cs(r_cs))
+    radial_stress_oh = sr(r_oh, em_oh, gam_oh, u_oh(r_oh), dudr_oh(r_oh))
     radial_stress_tf = sr(r_tf, em_tf, gam_tf, u_tf(r_tf), dudr_tf(r_tf))
 
-    hoop_stress_cs = sh(r_cs, em_cs, gam_cs, u_cs(r_cs), dudr_cs(r_cs))
+    hoop_stress_oh = sh(r_oh, em_oh, gam_oh, u_oh(r_oh), dudr_oh(r_oh))
     hoop_stress_tf = sh(r_tf, em_tf, gam_tf, u_tf(r_tf), dudr_tf(r_tf))
 
     if axial_stress_tf_avg === nothing
         hoop_stress_tf_avg = Statistics.mean(hoop_stress_tf)
         axial_stress_tf_avg = -f_tf_sash * hoop_stress_tf_avg
     end
-    if axial_stress_cs_avg === nothing
-        hoop_stress_cs_avg = Statistics.mean(hoop_stress_cs)
-        axial_stress_cs_avg = -f_cs_sash * hoop_stress_cs_avg
+    if axial_stress_oh_avg === nothing
+        hoop_stress_oh_avg = Statistics.mean(hoop_stress_oh)
+        axial_stress_oh_avg = -f_oh_sash * hoop_stress_oh_avg
     end
 
     ## calculate Von Mises stress
     vonmises_stress_tf = svm(radial_stress_tf, hoop_stress_tf, axial_stress_tf_avg)
-    vonmises_stress_cs = svm(radial_stress_cs, hoop_stress_cs, axial_stress_cs_avg)
+    vonmises_stress_oh = svm(radial_stress_oh, hoop_stress_oh, axial_stress_oh_avg)
 
     if noslip
-        # calc cross-sectional areas of CS and TF
+        # calc cross-sectional areas of OH and TF
         cx_surf_tf = pi * (R_tf_out^2 - R_tf_in^2)
-        cx_surf_cs = pi * (R_cs_out^2 - R_cs_in^2)
+        cx_surf_oh = pi * (R_oh_out^2 - R_oh_in^2)
 
-        # average TF and CS axial stresses over combined TF & CS cross-sectional area, and sum
-        axial_stress_tf_comb = axial_stress_tf_avg * cx_surf_tf / (cx_surf_tf + cx_surf_cs)
-        axial_stress_cs_comb = axial_stress_cs_avg * cx_surf_cs / (cx_surf_tf + cx_surf_cs)
-        axial_stress_comb = axial_stress_tf_comb + axial_stress_cs_comb
+        # average TF and OH axial stresses over combined TF & OH cross-sectional area, and sum
+        axial_stress_tf_comb = axial_stress_tf_avg * cx_surf_tf / (cx_surf_tf + cx_surf_oh)
+        axial_stress_oh_comb = axial_stress_oh_avg * cx_surf_oh / (cx_surf_tf + cx_surf_oh)
+        axial_stress_comb = axial_stress_tf_comb + axial_stress_oh_comb
         axial_stress_tf_avg = axial_stress_comb
-        axial_stress_cs_avg = axial_stress_comb
+        axial_stress_oh_avg = axial_stress_comb
     end
 
     if plug
@@ -611,10 +611,10 @@ function solve_1D_solid_mechanics(
     hoop_stress_tf *= 1.0 / f_struct_tf
     axial_stress_tf_avg *= 1.0 / f_struct_tf
     vonmises_stress_tf *= 1.0 / f_struct_tf
-    radial_stress_cs *= 1.0 / f_struct_cs
-    hoop_stress_cs *= 1.0 / f_struct_cs
-    axial_stress_cs_avg *= 1.0 / f_struct_cs
-    vonmises_stress_cs *= 1.0 / f_struct_cs
+    radial_stress_oh *= 1.0 / f_struct_oh
+    hoop_stress_oh *= 1.0 / f_struct_oh
+    axial_stress_oh_avg *= 1.0 / f_struct_oh
+    vonmises_stress_oh *= 1.0 / f_struct_oh
     if plug
         radial_stress_pl *= 1.0 / f_struct_pl
         hoop_stress_pl *= 1.0 / f_struct_pl
@@ -624,22 +624,22 @@ function solve_1D_solid_mechanics(
 
     solid_mechanics(
         axial_stress_tf_avg,
-        axial_stress_cs_avg,
+        axial_stress_oh_avg,
         axial_stress_pl_avg,
         r_tf,
-        r_cs,
+        r_oh,
         r_pl,
         displacement_tf,
-        displacement_cs,
+        displacement_oh,
         displacement_pl,
         vonmises_stress_tf,
-        vonmises_stress_cs,
+        vonmises_stress_oh,
         vonmises_stress_pl,
         radial_stress_tf,
-        radial_stress_cs,
+        radial_stress_oh,
         radial_stress_pl,
         hoop_stress_tf,
-        hoop_stress_cs,
+        hoop_stress_oh,
         hoop_stress_pl)
 
 end
@@ -654,7 +654,7 @@ end
         @series begin
             label := "Von Mises"
             linewidth := linewidth + 2
-            out.r_cs, out.vonmises_stress_cs ./ 1E6
+            out.r_oh, out.vonmises_stress_oh ./ 1E6
         end
         @series begin
             primary := false
@@ -675,7 +675,7 @@ end
             label := "Hoop"
             linestyle := :dash
             linewidth := linewidth + 1
-            out.r_cs, out.hoop_stress_cs ./ 1E6
+            out.r_oh, out.hoop_stress_oh ./ 1E6
         end
         @series begin
             primary := false
@@ -696,7 +696,7 @@ end
         @series begin
             label := "Radial"
             linewidth := linewidth + 1
-            out.r_cs, out.radial_stress_cs ./ 1E6
+            out.r_oh, out.radial_stress_oh ./ 1E6
         end
         @series begin
             primary := false
@@ -712,7 +712,7 @@ end
         end
     end
 
-    for radius in [out.r_cs[1], out.r_cs[end], out.r_tf[end]]
+    for radius in [out.r_oh[1], out.r_oh[end], out.r_tf[end]]
         @series begin
             seriestype --> :vline
             linewidth --> 2

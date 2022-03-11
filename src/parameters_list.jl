@@ -14,7 +14,7 @@ Generates parameters
 """
 function Parameters()
     par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
         setproperty!(par, item, Parameters(item))
     end
     return par
@@ -104,6 +104,15 @@ function Parameters(::Type{Val{:oh}})
     oh.flattop_duration = Entry(Real, "s", "Duration of the flattop (use Inf for steady-state)")
     return oh
 end
+
+function Parameters(::Type{Val{:center_stack}})
+    center_stack = Parameters(nothing)
+    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default=false)
+    center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
+    center_stack.plug = Entry(Bool, "", "flag for center plug"; default=false)
+    return center_stack
+end
+
 
 function Parameters(::Type{Val{:nbi}})
     nbi = Parameters(nothing)
