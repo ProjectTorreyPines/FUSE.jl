@@ -128,11 +128,6 @@ mutable struct StressesActor <: AbstractActor
     dd::IMAS.dd
 end
 
-
-function StressesActor(dd::IMAS.dd, par::Parameters)
-    return StressesActor(dd)
-end
-
 function step(stressactor::StressesActor; bucked=false, noslip=false, plug=false)
     eq = stressactor.dd.equilibrium
     bd = stressactor.dd.build
@@ -141,26 +136,33 @@ function step(stressactor::StressesActor; bucked=false, noslip=false, plug=false
     B0 = maximum(eq.vacuum_toroidal_field.b0)
     R_tf_in = IMAS.get_build(bd, type = 2, hfs = 1).start_radius
     R_tf_out = IMAS.get_build(bd, type = 2, hfs = 1).end_radius
-    Bz_cs = bd.oh.max_b_field
-    R_cs_in = IMAS.get_build(bd, type = 1).start_radius
-    R_cs_out = IMAS.get_build(bd, type = 1).end_radius
+    Bz_oh = bd.oh.max_b_field
+    R_oh_in = IMAS.get_build(bd, type = 1).start_radius
+    R_oh_out = IMAS.get_build(bd, type = 1).end_radius
     f_struct_tf = bd.tf.technology.fraction_stainless
-    f_struct_cs = bd.oh.technology.fraction_stainless
+    f_struct_oh = bd.oh.technology.fraction_stainless
 
     return solve_1D_solid_mechanics(
-        R0,                        # : (float) major radius at center of TF bore, meters
-        B0,                        # : (float) toroidal field at R0, Tesla
-        R_tf_in,                   # : (float) major radius of inboard edge of TF coil core legs, meters
-        R_tf_out,                  # : (float) major radius of outboard edge of TF coil core legs, meters
-        Bz_cs,                     # : (float) axial field in solenoid bore, Tesla
-        R_cs_in,                   # : (float) major radius of inboard edge of CS coil, meters
-        R_cs_out;                  # : (float) major radius of outboard edge of CS coil, meters
-        bucked = bucked,           # : (bool), flag for bucked boundary conditions between TF and CS (and center plug, if present)
-        noslip = noslip,           # : (bool), flag for no slip conditions between TF and CS (and center plug, if present)
-        plug = plug,               # : (bool), flag for center plug
-        f_struct_tf = f_struct_tf, # : (float), fraction of TF coil that is structural material
-        f_struct_cs = f_struct_cs, # : (float), fraction of CS coil that is structural material
-        f_struct_pl = 1.0,         # : (float), fraction of plug that is structural material
-        verbose = false            # : (bool), flag for verbose output to terminal
+        R0,
+        B0,
+        R_tf_in,
+        R_tf_out,
+        Bz_oh,
+        R_oh_in,
+        R_oh_out;
+        bucked = bucked,
+        noslip = noslip,
+        plug = plug,
+        f_struct_tf = f_struct_tf,
+        f_struct_oh = f_struct_oh,
+        f_struct_pl = 1.0,
+        verbose = false
     )
+end
+
+function StressesActor(dd::IMAS.dd, par::Parameters)
+    sactor = StressesActor(dd)
+    step(sactor; bucked=par.center_stack.bucked, noslip=par.center_stack.noslip, plug=par.center_stack.plug)
+    finalize(sactor)
+    return sactor
 end

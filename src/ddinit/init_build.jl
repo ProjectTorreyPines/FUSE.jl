@@ -12,7 +12,6 @@ function init_build(dd::IMAS.dd, par::Parameters)
     if init_from == :gasc
         gasc = GASC(par.gasc.filename, par.gasc.case)
         init_radial_build(dd.build, gasc; no_small_gaps=par.gasc.no_small_gaps)
-        par.oh.flattop_duration = gasc.solution["INPUTS"]["plasma parameters"]["flattopDuration"]
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
