@@ -142,27 +142,33 @@ function step(stressactor::StressesActor; bucked=false, noslip=false, plug=false
     f_struct_tf = bd.tf.technology.fraction_stainless
     f_struct_oh = bd.oh.technology.fraction_stainless
 
-    stressactor.dd.solid_mechanics.center_stack = solve_1D_solid_mechanics(
-        R0,
-        B0,
-        R_tf_in,
-        R_tf_out,
-        Bz_oh,
-        R_oh_in,
-        R_oh_out;
-        bucked = bucked,
-        noslip = noslip,
-        plug = plug,
-        f_struct_tf = f_struct_tf,
-        f_struct_oh = f_struct_oh,
-        f_struct_pl = 1.0,
-        verbose = false
-    )
+    smcs = empty!(stressactor.dd.solid_mechanics.center_stack)
+
+    for oh_on in [true, false]
+        solve_1D_solid_mechanics!(
+            smcs,
+            R0,
+            B0,
+            R_tf_in,
+            R_tf_out,
+            oh_on ? Bz_oh : 0.0,
+            R_oh_in,
+            R_oh_out;
+            bucked = bucked,
+            noslip = noslip,
+            plug = plug,
+            f_struct_tf = f_struct_tf,
+            f_struct_oh = f_struct_oh,
+            f_struct_pl = 1.0,
+            verbose = false
+        )
+    end
+
 end
 
 function StressesActor(dd::IMAS.dd, par::Parameters)
     sactor = StressesActor(dd)
-    step(sactor; bucked=par.center_stack.bucked, noslip=par.center_stack.noslip, plug=par.center_stack.plug)
+    step(sactor; bucked = par.center_stack.bucked, noslip = par.center_stack.noslip, plug = par.center_stack.plug)
     finalize(sactor)
     return sactor
 end

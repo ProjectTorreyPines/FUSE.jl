@@ -228,7 +228,7 @@ end
 
 
 """
-    solve_1D_solid_mechanics(
+    solve_1D_solid_mechanics!(
         R0,                            # : (float) major radius at center of TF bore, meters
         B0,                            # : (float) toroidal field at R0, Tesla
         R_tf_in,                       # : (float) major radius of inboard edge of TF coil core legs, meters
@@ -266,7 +266,8 @@ The tokamak radial buid is :
 
 || plug or void (0 < r < R1) || coil 1 (R1 < r < R2) || coil 2 (R3 < r < R4) || ----> plasma center (r = R0)
 """
-function solve_1D_solid_mechanics(
+function solve_1D_solid_mechanics!(
+    smcs::IMAS.solid_mechanics__center_stack,
     R0,                           # : (float) major radius at center of TF bore, meters
     B0,                           # : (float) toroidal field at R0, Tesla
     R_tf_in,                      # : (float) major radius of inboard edge of TF coil core legs, meters
@@ -601,31 +602,32 @@ function solve_1D_solid_mechanics(
         vonmises_stress_pl *= 1.0 / f_struct_pl
     end
 
-    cs = IMAS.solid_mechanics__center_stack()
+    smcs.grid.r_tf = r_tf
+    smcs.grid.r_oh = r_oh
+    smcs.grid.r_pl = r_pl
 
-    cs.grid.r_tf = r_tf
-    cs.grid.r_oh = r_oh
-    cs.grid.r_pl = r_pl
+    # keep the worse case based on the Von Mises stresses
+    if ismissing(smcs.stress.vonmises,:tf) || maximum(abs.(smcs.stress.vonmises.tf)) < maximum(abs.(vonmises_stress_tf))
+        smcs.stress.vonmises.tf = vonmises_stress_tf
+        smcs.stress.axial.tf = axial_stress_tf_avg
+        smcs.stress.radial.tf = radial_stress_tf
+        smcs.stress.hoop.tf = hoop_stress_tf
+        smcs.displacement.tf = displacement_tf
+    end
+    if ismissing(smcs.stress.vonmises,:oh) || maximum(abs.(smcs.stress.vonmises.oh)) < maximum(abs.(vonmises_stress_oh))
+        smcs.stress.vonmises.oh = vonmises_stress_oh
+        smcs.stress.axial.oh = axial_stress_oh_avg
+        smcs.stress.radial.oh = radial_stress_oh
+        smcs.stress.hoop.oh = hoop_stress_oh
+        smcs.displacement.oh = displacement_oh
+    end
+    if plug && (ismissing(smcs.stress.vonmises,:pl) || maximum(abs.(smcs.stress.vonmises.pl)) < maximum(abs.(vonmises_stress_pl)))
+        smcs.stress.vonmises.pl = vonmises_stress_pl
+        smcs.stress.axial.pl = axial_stress_pl_avg
+        smcs.stress.radial.pl = radial_stress_pl
+        smcs.stress.hoop.pl = hoop_stress_pl
+        smcs.displacement.pl = displacement_pl
+    end
 
-    cs.displacement.tf = displacement_tf
-    cs.displacement.oh = displacement_oh
-    cs.displacement.pl = displacement_pl
-
-    cs.stress.axial.tf = axial_stress_tf_avg
-    cs.stress.axial.oh = axial_stress_oh_avg
-    cs.stress.axial.pl = axial_stress_pl_avg
-
-    cs.stress.vonmises.tf = vonmises_stress_tf
-    cs.stress.vonmises.oh = vonmises_stress_oh
-    cs.stress.vonmises.pl = vonmises_stress_pl
-
-    cs.stress.radial.tf = radial_stress_tf
-    cs.stress.radial.oh = radial_stress_oh
-    cs.stress.radial.pl = radial_stress_pl
-
-    cs.stress.hoop.tf = hoop_stress_tf
-    cs.stress.hoop.oh = hoop_stress_oh
-    cs.stress.hoop.pl = hoop_stress_pl
-
-    return cs
+    return smcs
 end
