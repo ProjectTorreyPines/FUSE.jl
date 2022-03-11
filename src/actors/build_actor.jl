@@ -134,41 +134,43 @@ function StressesActor(dd::IMAS.dd, par::Parameters)
 end
 
 function step(stressactor::StressesActor)
-    eq=stressactor.dd.equilibrium
-    bd=stressactor.dd.build
+    eq = stressactor.dd.equilibrium
+    bd = stressactor.dd.build
 
-    B0 = maximum(eq.vacuum_toroidal_field.b0)
     R0 = eq.vacuum_toroidal_field.r0
-    R_tf_in = IMAS.get_build(bd, type = 2, hfs=1).start_radius
-    R_tf_out = IMAS.get_build(bd, type = 2, hfs=1).end_radius
+    B0 = maximum(eq.vacuum_toroidal_field.b0)
+    R_tf_in = IMAS.get_build(bd, type = 2, hfs = 1).start_radius
+    R_tf_out = IMAS.get_build(bd, type = 2, hfs = 1).end_radius
     Bz_cs = bd.oh.max_b_field
     R_cs_in = IMAS.get_build(bd, type = 1).start_radius
     R_cs_out = IMAS.get_build(bd, type = 1).end_radius
+    f_struct_tf = bd.tf.technology.fraction_stainless
+    f_struct_cs = bd.oh.technology.fraction_stainless
 
     return solve_1D_solid_mechanics(
-        R0,                    # : (float) major radius at center of TF bore, meters
-        B0,                    # : (float) toroidal field at R0, Tesla
-        R_tf_in,               # : (float) major radius of inboard edge of TF coil core legs, meters
-        R_tf_out,              # : (float) major radius of outboard edge of TF coil core legs, meters
-        Bz_cs,                 # : (float) axial field in solenoid bore, Tesla
-        R_cs_in,               # : (float) major radius of inboard edge of CS coil, meters
-        R_cs_out;              # : (float) major radius of outboard edge of CS coil, meters
-        sz_tf_avg = nothing,   # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
-        sz_cs_avg = nothing,   # : (float) average axial stress in CS coil, Pa (if nothing, use constant fraction of hoop stress)
-        TFCSbucked = false,    # : (bool), flag for bucked boundary conditions between TF and CS (and center plug, if present)
-        noslip = false,        # : (bool), flag for no slip conditions between TF and CS (and center plug, if present)
-        doplug = false,        # : (bool), flag for center plug
-        f_struct_tf = 1.0,     # : (float), fraction of TF coil that is structural material
-        f_struct_cs = 1.0,     # : (float), fraction of CS coil that is structural material
-        f_struct_pl = 1.0,     # : (float), fraction of plug that is structural material
-        em_tf = 193103448275.0,# : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
-        gam_tf = 0.33,         # : (float), Poisson"s ratio for TF coil, (default is stainless steel)
-        em_cs = 193103448275.0,# : (float), modulus of elasticity for CS coil, Pa (default is stainless steel)
-        gam_cs = 0.33,         # : (float), Poisson"s ratio for CS coil, (default is stainless steel)
-        em_pl = 193103448275.0,# : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
-        gam_pl = 0.33,         # : (float), Poisson"s ratio for center plug, (default is stainless steel)
-        f_tf_sash = 0.873,     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
-        f_cs_sash = 0.37337,   # : (float), conversion factor from hoop stress to axial stress for CS coil (nominally 0.37337)
-        verbose = true         # : (bool), flag for verbose output to terminal
+        R0,                        # : (float) major radius at center of TF bore, meters
+        B0,                        # : (float) toroidal field at R0, Tesla
+        R_tf_in,                   # : (float) major radius of inboard edge of TF coil core legs, meters
+        R_tf_out,                  # : (float) major radius of outboard edge of TF coil core legs, meters
+        Bz_cs,                     # : (float) axial field in solenoid bore, Tesla
+        R_cs_in,                   # : (float) major radius of inboard edge of CS coil, meters
+        R_cs_out;                  # : (float) major radius of outboard edge of CS coil, meters
+        axial_stress_tf_avg = nothing,# : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
+        axial_stress_cs_avg = nothing,# : (float) average axial stress in CS coil, Pa (if nothing, use constant fraction of hoop stress)
+        TFCSbucked = false,        # : (bool), flag for bucked boundary conditions between TF and CS (and center plug, if present)
+        noslip = false,            # : (bool), flag for no slip conditions between TF and CS (and center plug, if present)
+        doplug = false,            # : (bool), flag for center plug
+        f_struct_tf = f_struct_tf, # : (float), fraction of TF coil that is structural material
+        f_struct_cs = f_struct_cs, # : (float), fraction of CS coil that is structural material
+        f_struct_pl = 1.0,         # : (float), fraction of plug that is structural material
+        em_tf = 193103448275.0,    # : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
+        gam_tf = 0.33,             # : (float), Poisson"s ratio for TF coil, (default is stainless steel)
+        em_cs = 193103448275.0,    # : (float), modulus of elasticity for CS coil, Pa (default is stainless steel)
+        gam_cs = 0.33,             # : (float), Poisson"s ratio for CS coil, (default is stainless steel)
+        em_pl = 193103448275.0,    # : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
+        gam_pl = 0.33,             # : (float), Poisson"s ratio for center plug, (default is stainless steel)
+        f_tf_sash = 0.873,         # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
+        f_cs_sash = 0.37337,       # : (float), conversion factor from hoop stress to axial stress for CS coil (nominally 0.37337)
+        verbose = true             # : (bool), flag for verbose output to terminal
     )
 end

@@ -228,42 +228,24 @@ end
 
 
 mutable struct solid_mechanics
-    vonmises_stress_tf_peak::Real
-    vonmises_stress_tf_avg::Real
-    vonmises_stress_cs_peak::Real
-    vonmises_stress_cs_avg::Real
-    vonmises_stress_pl_peak::Real
-    vonmises_stress_pl_avg::Real
-    radial_stress_tf_peak::Real
-    radial_stress_tf_avg::Real
-    radial_stress_cs_peak::Real
-    radial_stress_cs_avg::Real
-    radial_stress_pl_peak::Real
-    radial_stress_pl_avg::Real
-    hoop_stress_tf_peak::Real
-    hoop_stress_tf_avg::Real
-    hoop_stress_cs_peak::Real
-    hoop_stress_cs_avg::Real
-    hoop_stress_pl_peak::Real
-    hoop_stress_pl_avg::Real
-    axial_stress_tf_avg0::Real
-    axial_stress_cs_avg0::Real
-    axial_stress_pl_avg::Real
+    axial_stress_tf_avg::Real
+    axial_stress_cs_avg::Real
+    axial_stress_pl_avg::Union{Real,Nothing}
     r_tf::Vector{Real}
     r_cs::Vector{Real}
-    r_pl::Vector{Real}
+    r_pl::Union{Vector{Real},Nothing}
     displacement_tf_arr::Vector{Real}
     displacement_cs_arr::Vector{Real}
-    displacement_pl_arr::Vector{Real}
+    displacement_pl_arr::Union{Vector{Real},Nothing}
     vonmises_stress_tf_arr::Vector{Real}
     vonmises_stress_cs_arr::Vector{Real}
-    vonmises_stress_pl_arr::Vector{Real}
+    vonmises_stress_pl_arr::Union{Vector{Real},Nothing}
     radial_stress_tf_arr::Vector{Real}
     radial_stress_cs_arr::Vector{Real}
-    radial_stress_pl_arr::Vector{Real}
+    radial_stress_pl_arr::Union{Vector{Real},Nothing}
     hoop_stress_tf_arr::Vector{Real}
     hoop_stress_cs_arr::Vector{Real}
-    hoop_stress_pl_arr::Vector{Real}
+    hoop_stress_pl_arr::Union{Vector{Real},Nothing}
 end
 
 """
@@ -298,14 +280,12 @@ end
 Uses Leuer 1D solid mechanics equations to solve for radial and hoop stresses in TF coil, CS coil, and center plug.
 Based on derivations in Engineering Physics Note "EPNjal17dec17_gasc_pt5_tf_cs_plug_buck" by Jim Leuer (Dec. 17, 2017)
 
-Returns radial, hoop, axial, and Von Mises stresses (average and peak) for TF, CS, and plug (Pascals)
+Returns radial, hoop, axial, and Von Mises stresses for TF, CS, and plug (Pascals)
 (optional) radial profiles of radial, hoop, axial, and Von Mises stresses for TF, CS, and plug (Pascals)
 
 The tokamak radial buid is :
 
 || plug or void (0 < r < R1) || coil 1 (R1 < r < R2) || coil 2 (R3 < r < R4) || ----> plasma center (r = R0)
-
-NOTE: effect of structural composition fractions < 1 is only applied to Von Mises stress (not radial, hoop, or axial)!!
 """
 function solve_1D_solid_mechanics(
     R0,                    # : (float) major radius at center of TF bore, meters
@@ -331,6 +311,7 @@ function solve_1D_solid_mechanics(
     gam_pl = 0.33,         # : (float), Poisson"s ratio for center plug, (default is stainless steel)
     f_tf_sash = 0.873,     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
     f_cs_sash = 0.37337,   # : (float), conversion factor from hoop stress to axial stress for CS coil (nominally 0.37337)
+    n_points = 51,         # : (int), number of radial points
     verbose = false        # : (bool), flag for verbose output to terminal
 )
 
@@ -348,33 +329,31 @@ function solve_1D_solid_mechanics(
         println("- TFCSbucked = ", TFCSbucked)
         println("- noslip = ", noslip)
         println("- doplug = ", doplug)
-        println("- f_struct_tf", f_struct_tf)
-        println("- f_struct_cs", f_struct_cs)
-        println("- f_struct_pl", f_struct_pl)
+        println("- f_struct_tf = ", f_struct_tf)
+        println("- f_struct_cs = ", f_struct_cs)
+        println("- f_struct_pl = ", f_struct_pl)
     end
 
     # define structural constants
-    mu0 = 4e-7 * pi
     embar_tf = em_tf / (1 - gam_tf^2)
     embar_cs = em_cs / (1 - gam_cs^2)
     embar_pl = em_pl / (1 - gam_pl^2)
 
     # define forcing constraints on TF and CS coils
-    C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (mu0 * (R_tf_out^2 - R_tf_in^2)^2)
-    C_cs = -1.0 / embar_cs * Bz_cs^2 / (mu0 * (R_cs_out - R_cs_in)^2)
+    C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
+    C_cs = -1.0 / embar_cs * Bz_cs^2 / (constants.μ_0 * (R_cs_out - R_cs_in)^2)
 
-    # calc centerlines, check radial build inputs for consistency 
+    # calculate centerlines, check radial build inputs for consistency 
     cl_tf = 0.5 * (R_tf_out + R_tf_in)
     cl_cs = 0.5 * (R_cs_out + R_cs_in)
 
     # determine ordering of radial build
-    if cl_tf < cl_cs
-        order = "TF-CS"
-    else
-        order = "CS-TF"
-    end
     if verbose
-        println("* order = ", order)
+        if cl_cs < cl_tf
+            println("* order = CS-TF")
+        else
+            println("* order = TF-CS")
+        end
     end
 
     # check radial build inputs for consistency 
@@ -384,17 +363,14 @@ function solve_1D_solid_mechanics(
     if R_cs_out < R_cs_in
         error("R_cs_out ({:.3f}) < R_cs_in ({:.3f})".format(R_cs_out, R_cs_in))
     end
-    # order == "TF-CS" and R_cs_in < R_tf_out
-    if (order == "TF-CS") && ((R_tf_out - R_cs_in * (1 + 1e-3)) > 0)
-        println("* TF and CS are overlapping: R_cs_in ($R_cs_in) < R_tf_out ($R_tf_out)")
+    if (cl_cs > cl_tf) && ((R_tf_out - R_cs_in * (1 + 1e-3)) > 0)
+        error("* TF and CS are overlapping: R_cs_in ($R_cs_in) < R_tf_out ($R_tf_out)")
     end
-    # order == "CS-TF" and R_tf_in < R_cs_out
-    if (order == "CS-TF") && ((R_cs_out - R_tf_in * (1 + 1e-3)) > 0)
-        println("* TF and CS are overlapping: R_tf_in ($R_tf_in) < R_cs_out ($R_cs_out)")
+    if (cl_cs < cl_tf) && ((R_cs_out - R_tf_in * (1 + 1e-3)) > 0)
+        error("* TF and CS are overlapping: R_tf_in ($R_tf_in) < R_cs_out ($R_cs_out)")
     end
-    # TFCSbucked and order == "CS-TF" and R_cs_out != R_tf_in
-    if TFCSbucked && (order == "CS-TF") && (abs.(R_cs_out - R_tf_in) > R_tf_in * 1e-3)
-        println("* CS is bucked against TF, but R_cs_out ($R_cs_out) != R_tf_in ($R_tf_in)")
+    if TFCSbucked && (cl_cs < cl_tf) && (abs.(R_cs_out - R_tf_in) > R_tf_in * 1e-3)
+        error("* CS is bucked against TF, but R_cs_out ($R_cs_out) != R_tf_in ($R_tf_in)")
     end
 
     # define radial functions in u/r and du/dr for TF and CS
@@ -439,17 +415,18 @@ function solve_1D_solid_mechanics(
     if !TFCSbucked
         ## free standing CS and TF coils
         # radial stress = 0 at ALL coil edges
-        doplug = false
+        if doplug
+            error("TF and CS must be bucked to have a central plug")
+        end
         if verbose
             println("* Free standing coils")
         end
 
-        M = [
-            [1 + gam_tf, (gam_tf - 1) / R_tf_in^2, 0.0, 0.0];;
-            [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0];;
-            [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2];;
-            [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_out^2]
-        ]
+        M = zeros(4, 4)
+        M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_in^2, 0.0, 0.0]
+        M[2, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0]
+        M[3, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2]
+        M[4, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_out^2]
         Y = [-C_tf * (g_tf(R_tf_in) + gam_tf * f_tf(R_tf_in)),
             -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             -C_cs * (g_cs(R_cs_in) + gam_cs * f_cs(R_cs_in)),
@@ -458,7 +435,7 @@ function solve_1D_solid_mechanics(
         A_tf, B_tf, A_cs, B_cs = M \ Y
         A_pl = 0.0
 
-    elseif !doplug && (order == "CS-TF")
+    elseif !doplug && (cl_cs < cl_tf)
         ## bucked CS and TF only (no plug)
         # order must be "CS-TF"
         # radial stress = 0 at R_cs_in and R_tf_out
@@ -467,12 +444,12 @@ function solve_1D_solid_mechanics(
             println("* CS bucked against TF only")
         end
         R_int = R_cs_out
-        M = [
-            [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0];;
-            [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2];;
-            [1.0, 1.0 / R_int^2, -1.0, -1.0 / R_int^2];;
-            [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_cs * (1 + gam_cs), -embar_cs * (gam_cs - 1) / R_int^2]
-        ]
+        M = zeros(4, 4)
+        M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0]
+        M[2, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2]
+        M[3, :] = [1.0, 1.0 / R_int^2, -1.0, -1.0 / R_int^2]
+        M[4, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_cs * (1 + gam_cs), -embar_cs * (gam_cs - 1) / R_int^2]
+
         Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             -C_cs * (g_cs(R_cs_in) + gam_cs * f_cs(R_cs_in)),
             C_cs * f_cs(R_int) - C_tf * f_tf(R_int),
@@ -481,7 +458,7 @@ function solve_1D_solid_mechanics(
         A_tf, B_tf, A_cs, B_cs = M \ Y
         A_pl = 0.0
 
-    elseif doplug && (order == "CS-TF")
+    elseif doplug && (cl_cs < cl_tf)
         ## bucked plug, CS, and TF
         # order is "CS-TF"
         # radial stress = 0 at R_tf_out
@@ -492,13 +469,12 @@ function solve_1D_solid_mechanics(
         end
         R_int = R_cs_out
         R_pl = R_cs_in
-        M = [
-            [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0, 0.0];;
-            [1.0, 1.0 / R_int^2, -1.0, -1.0 / R_int^2, 0.0];;
-            [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_cs * (1 + gam_cs), -embar_cs * (gam_cs - 1) / R_int^2, 0.0];;
-            [0.0, 0.0, 1.0, 1.0 / R_pl^2, -1.0];;
-            [0.0, 0.0, embar_cs * (1 + gam_cs), embar_cs * (gam_cs - 1) / R_pl^2, -embar_pl * (1 + gam_pl)]
-        ]
+        M = zeros(5, 5)
+        M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0, 0.0]
+        M[2, :] = [1.0, 1.0 / R_int^2, -1.0, -1.0 / R_int^2, 0.0]
+        M[3, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_cs * (1 + gam_cs), -embar_cs * (gam_cs - 1) / R_int^2, 0.0]
+        M[4, :] = [0.0, 0.0, 1.0, 1.0 / R_pl^2, -1.0]
+        M[5, :] = [0.0, 0.0, embar_cs * (1 + gam_cs), embar_cs * (gam_cs - 1) / R_pl^2, -embar_pl * (1 + gam_pl)]
         Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             C_cs * f_cs(R_int) - C_tf * f_tf(R_int),
             embar_cs * C_cs * (g_cs(R_int) + gam_cs * f_cs(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
@@ -507,7 +483,7 @@ function solve_1D_solid_mechanics(
         ]
         A_tf, B_tf, A_cs, B_cs, A_pl = M \ Y
 
-    elseif doplug && (order == "TF-CS")
+    elseif doplug && (cl_cs > cl_tf)
         ## bucked TF aginst plug, CS is free standing
         # order is "TF-CS"
         # radial stress = 0 at R_tf_out
@@ -517,13 +493,12 @@ function solve_1D_solid_mechanics(
             println("* TF bucked against plug")
         end
         R_pl = R_tf_in
-        M = [
-            [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0, 0.0];;
-            [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2, 0.0];;
-            [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_out^2, 0.0];;
-            [1.0, 1.0 / R_pl^2, 0.0, 0.0, -1.0];;
-            [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_pl^2, 0.0, 0.0, -embar_pl * (1 + gam_pl)]
-        ]
+        M = zeros(5, 5)
+        M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0, 0.0]
+        M[2, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_in^2, 0.0]
+        M[3, :] = [0.0, 0.0, 1 + gam_cs, (gam_cs - 1) / R_cs_out^2, 0.0]
+        M[4, :] = [1.0, 1.0 / R_pl^2, 0.0, 0.0, -1.0]
+        M[5, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_pl^2, 0.0, 0.0, -embar_pl * (1 + gam_pl)]
         Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             -C_cs * (g_cs(R_cs_in) + gam_cs * f_cs(R_cs_in)),
             -C_cs * (g_cs(R_cs_out) + gam_cs * f_cs(R_cs_out)),
@@ -574,39 +549,33 @@ function solve_1D_solid_mechanics(
         return @. sqrt(((sh - sa)^2 + (sa - sr)^2 + (sr - sh)^2) / 2.0)
     end
 
-    ## calculate radial and hoop stresses (average and peak)
+    ## calculate radial and hoop stresses
     # also estimate axial stresses if not given & modify due to noslip condition
     # default axial scalings taken from Bending free formula & GASC
-    nr = 51
-    r_cs = LinRange(R_cs_in, R_cs_out, nr)
-    r_tf = LinRange(R_tf_in, R_tf_out, nr)
+    r_cs = LinRange(R_cs_in, R_cs_out, n_points)
+    r_tf = LinRange(R_tf_in, R_tf_out, n_points)
+
     displacement_cs_arr = u_cs(r_cs)
     displacement_tf_arr = u_tf(r_tf)
+
     radial_stress_cs_arr = sr(r_cs, em_cs, gam_cs, u_cs(r_cs), dudr_cs(r_cs))
     radial_stress_tf_arr = sr(r_tf, em_tf, gam_tf, u_tf(r_tf), dudr_tf(r_tf))
+
     hoop_stress_cs_arr = sh(r_cs, em_cs, gam_cs, u_cs(r_cs), dudr_cs(r_cs))
     hoop_stress_tf_arr = sh(r_tf, em_tf, gam_tf, u_tf(r_tf), dudr_tf(r_tf))
 
-    radial_stress_cs_avg = Statistics.mean(radial_stress_cs_arr)
-    radial_stress_tf_avg = Statistics.mean(radial_stress_tf_arr)
-    hoop_stress_cs_avg = Statistics.mean(hoop_stress_cs_arr)
-    hoop_stress_tf_avg = Statistics.mean(hoop_stress_tf_arr)
-
-    radial_stress_cs_peak = maximum(abs.(radial_stress_cs_arr))
-    radial_stress_tf_peak = maximum(abs.(radial_stress_tf_arr))
-    hoop_stress_cs_peak = maximum(abs.(hoop_stress_cs_arr))
-    hoop_stress_tf_peak = maximum(abs.(hoop_stress_tf_arr))
-
     if axial_stress_tf_avg === nothing
-        axial_stress_tf_avg0 = -f_tf_sash * hoop_stress_tf_avg
-    else
-        axial_stress_tf_avg0 = axial_stress_tf_avg
+        hoop_stress_tf_avg = Statistics.mean(hoop_stress_tf_arr)
+        axial_stress_tf_avg = -f_tf_sash * hoop_stress_tf_avg
     end
     if axial_stress_cs_avg === nothing
-        axial_stress_cs_avg0 = -f_cs_sash * hoop_stress_cs_avg
-    else
-        axial_stress_cs_avg0 = axial_stress_cs_avg
+        hoop_stress_cs_avg = Statistics.mean(hoop_stress_cs_arr)
+        axial_stress_cs_avg = -f_cs_sash * hoop_stress_cs_avg
     end
+
+    ## calculate Von Mises stress
+    vonmises_stress_tf_arr = svm(radial_stress_tf_arr, hoop_stress_tf_arr, axial_stress_tf_avg)
+    vonmises_stress_cs_arr = svm(radial_stress_cs_arr, hoop_stress_cs_arr, axial_stress_cs_avg)
 
     if noslip
         # calc cross-sectional areas of CS and TF
@@ -614,110 +583,48 @@ function solve_1D_solid_mechanics(
         cx_surf_cs = pi * (R_cs_out^2 - R_cs_in^2)
 
         # average TF and CS axial stresses over combined TF & CS cross-sectional area, and sum
-        axial_stress_tf_comb = axial_stress_tf_avg0 * cx_surf_tf / (cx_surf_tf + cx_surf_cs)
-        axial_stress_cs_comb = axial_stress_cs_avg0 * cx_surf_cs / (cx_surf_tf + cx_surf_cs)
+        axial_stress_tf_comb = axial_stress_tf_avg * cx_surf_tf / (cx_surf_tf + cx_surf_cs)
+        axial_stress_cs_comb = axial_stress_cs_avg * cx_surf_cs / (cx_surf_tf + cx_surf_cs)
         axial_stress_comb = axial_stress_tf_comb + axial_stress_cs_comb
-        axial_stress_tf_avg0 = axial_stress_comb
-        axial_stress_cs_avg0 = axial_stress_comb
+        axial_stress_tf_avg = axial_stress_comb
+        axial_stress_cs_avg = axial_stress_comb
     end
 
     if doplug
-        r_pl = LinRange(0, R_pl, nr)[2:end]
+        r_pl = LinRange(0, R_pl, n_points)[2:end]
         displacement_pl_arr = u_pl(r_pl)
         radial_stress_pl_arr = sr(r_pl, em_pl, gam_pl, u_pl(r_pl), dudr_pl(r_pl))
         hoop_stress_pl_arr = sh(r_pl, em_pl, gam_pl, u_pl(r_pl), dudr_pl(r_pl))
-        radial_stress_pl_avg = Statistics.mean(radial_stress_pl_arr)
-        hoop_stress_pl_avg = Statistics.mean(hoop_stress_pl_arr)
-        radial_stress_pl_peak = maximum(abs.(radial_stress_pl_arr))
-        hoop_stress_pl_peak = maximum(abs.(hoop_stress_pl_arr))
         axial_stress_pl_avg = 0.0
-    else
-        r_pl = [0.0]
-        displacement_pl_arr = [0.0]
-        radial_stress_pl_arr = [0.0]
-        hoop_stress_pl_arr = [0.0]
-        radial_stress_pl_avg = 0.0
-        hoop_stress_pl_avg = 0.0
-        radial_stress_pl_peak = 0.0
-        hoop_stress_pl_peak = 0.0
-        axial_stress_pl_avg = 0.0
-    end
-
-    ## calculate Von Mises stress (average and peak)
-    vonmises_stress_tf_arr = svm(radial_stress_tf_arr, hoop_stress_tf_arr, axial_stress_tf_avg0)
-    vonmises_stress_cs_arr = svm(radial_stress_cs_arr, hoop_stress_cs_arr, axial_stress_cs_avg0)
-
-    vonmises_stress_tf_avg = Statistics.mean(vonmises_stress_tf_arr)
-    vonmises_stress_cs_avg = Statistics.mean(vonmises_stress_cs_arr)
-
-    vonmises_stress_tf_peak = maximum(abs.(vonmises_stress_tf_arr))
-    vonmises_stress_cs_peak = maximum(abs.(vonmises_stress_cs_arr))
-
-    if doplug
         vonmises_stress_pl_arr = svm(radial_stress_pl_arr, hoop_stress_pl_arr, axial_stress_pl_avg)
-        vonmises_stress_pl_avg = Statistics.mean(vonmises_stress_cs_arr)
-        vonmises_stress_pl_peak = maximum(abs.(vonmises_stress_cs_arr))
     else
-        vonmises_stress_pl_arr = [0.0]
-        vonmises_stress_pl_avg = 0.0
-        vonmises_stress_pl_peak = 0.0
+        r_pl = nothing
+        displacement_pl_arr = nothing
+        radial_stress_pl_arr = nothing
+        hoop_stress_pl_arr = nothing
+        axial_stress_pl_avg = nothing
+        vonmises_stress_pl_arr = nothing
     end
 
-    # apply structural composition fractions to get effective Von Mises stress on structural materials
+    # apply structural composition fractions to get effective stress on structural materials
     radial_stress_tf_arr *= 1.0 / f_struct_tf
-    radial_stress_tf_avg *= 1.0 / f_struct_tf
-    radial_stress_tf_peak *= 1.0 / f_struct_tf
     hoop_stress_tf_arr *= 1.0 / f_struct_tf
-    hoop_stress_tf_avg *= 1.0 / f_struct_tf
-    hoop_stress_tf_peak *= 1.0 / f_struct_tf
-    axial_stress_tf_avg0 *= 1.0 / f_struct_tf
+    axial_stress_tf_avg *= 1.0 / f_struct_tf
     vonmises_stress_tf_arr *= 1.0 / f_struct_tf
-    vonmises_stress_tf_avg *= 1.0 / f_struct_tf
-    vonmises_stress_tf_peak *= 1.0 / f_struct_tf
-
     radial_stress_cs_arr *= 1.0 / f_struct_cs
-    radial_stress_cs_avg *= 1.0 / f_struct_cs
-    radial_stress_cs_peak *= 1.0 / f_struct_cs
     hoop_stress_cs_arr *= 1.0 / f_struct_cs
-    hoop_stress_cs_avg *= 1.0 / f_struct_cs
-    hoop_stress_cs_peak *= 1.0 / f_struct_cs
-    axial_stress_cs_avg0 *= 1.0 / f_struct_cs
+    axial_stress_cs_avg *= 1.0 / f_struct_cs
     vonmises_stress_cs_arr *= 1.0 / f_struct_cs
-    vonmises_stress_cs_avg *= 1.0 / f_struct_cs
-    vonmises_stress_cs_peak *= 1.0 / f_struct_cs
-
-    radial_stress_pl_arr *= 1.0 / f_struct_pl
-    radial_stress_pl_avg *= 1.0 / f_struct_pl
-    radial_stress_pl_peak *= 1.0 / f_struct_pl
-    hoop_stress_pl_arr *= 1.0 / f_struct_pl
-    hoop_stress_pl_avg *= 1.0 / f_struct_pl
-    hoop_stress_pl_peak *= 1.0 / f_struct_pl
-    axial_stress_pl_avg *= 1.0 / f_struct_pl
-    vonmises_stress_pl_arr *= 1.0 / f_struct_pl
-    vonmises_stress_pl_avg *= 1.0 / f_struct_pl
-    vonmises_stress_pl_peak *= 1.0 / f_struct_pl
+    if doplug
+        radial_stress_pl_arr *= 1.0 / f_struct_pl
+        hoop_stress_pl_arr *= 1.0 / f_struct_pl
+        axial_stress_pl_avg *= 1.0 / f_struct_pl
+        vonmises_stress_pl_arr *= 1.0 / f_struct_pl
+    end
 
     solid_mechanics(
-        vonmises_stress_tf_peak,
-        vonmises_stress_tf_avg,
-        vonmises_stress_cs_peak,
-        vonmises_stress_cs_avg,
-        vonmises_stress_pl_peak,
-        vonmises_stress_pl_avg,
-        radial_stress_tf_peak,
-        radial_stress_tf_avg,
-        radial_stress_cs_peak,
-        radial_stress_cs_avg,
-        radial_stress_pl_peak,
-        radial_stress_pl_avg,
-        hoop_stress_tf_peak,
-        hoop_stress_tf_avg,
-        hoop_stress_cs_peak,
-        hoop_stress_cs_avg,
-        hoop_stress_pl_peak,
-        hoop_stress_pl_avg,
-        axial_stress_tf_avg0,
-        axial_stress_cs_avg0,
+        axial_stress_tf_avg,
+        axial_stress_cs_avg,
         axial_stress_pl_avg,
         r_tf,
         r_cs,
@@ -737,24 +644,83 @@ function solve_1D_solid_mechanics(
 
 end
 
-@recipe function plot_solid_mechanics(out::solid_mechanics)
-    @series begin
-        label := "CS radial"
-        out.r_cs,out.radial_stress_cs_arr
-    end
-    @series begin
-        label := "CS hoop"
-        out.r_cs,out.hoop_stress_cs_arr
-    end
-    @series begin
-        label := "TF radial"
-        out.r_tf,out.radial_stress_tf_arr
-    end
-    @series begin
-        label := "TF hoop"
-        out.r_cs,out.hoop_stress_tf_arr
+@recipe function plot_solid_mechanics(out::solid_mechanics; vonmises = true, hoop = true, radial = true, linewidth = 1)
+
+    legend_position --> :outerbottomright
+    ylabel --> "Stresses [MPa]"
+    xlabel --> "Radius [m]"
+
+    if vonmises
+        @series begin
+            label := "Von Mises"
+            linewidth := linewidth + 2
+            out.r_cs, out.vonmises_stress_cs_arr ./ 1E6
+        end
+        @series begin
+            primary := false
+            linewidth := linewidth + 2
+            out.r_tf, out.vonmises_stress_tf_arr ./ 1E6
+        end
+        if out.r_pl !== nothing
+            @series begin
+                primary := false
+                linewidth := linewidth + 2
+                out.r_pl, out.vonmises_stress_pl_arr ./ 1E6
+            end
+        end
     end
 
-    # ax[0].plot(out1['r_cs'],out1['radial_stress_cs_arr']/1e6,lw=lw,c='b',label='CS: No CS current')
-    # ax[0].plot(out1['r_tf'],out1['radial_stress_tf_arr']/1e6,lw=lw,c='r',label='TF: No CS current')
+    if hoop
+        @series begin
+            label := "Hoop"
+            linestyle := :dash
+            linewidth := linewidth + 1
+            out.r_cs, out.hoop_stress_cs_arr ./ 1E6
+        end
+        @series begin
+            primary := false
+            linestyle := :dash
+            linewidth := linewidth + 1
+            out.r_tf, out.hoop_stress_tf_arr ./ 1E6
+        end
+        if out.r_pl !== nothing
+            @series begin
+                primary := false
+                linewidth := linewidth + 1
+                out.r_pl, out.hoop_stress_pl_arr ./ 1E6
+            end
+        end
+    end
+
+    if radial
+        @series begin
+            label := "Radial"
+            linewidth := linewidth + 1
+            out.r_cs, out.radial_stress_cs_arr ./ 1E6
+        end
+        @series begin
+            primary := false
+            linewidth := linewidth + 1
+            out.r_tf, out.radial_stress_tf_arr ./ 1E6
+        end
+        if out.r_pl !== nothing
+            @series begin
+                primary := false
+                linewidth := linewidth + 1
+                out.r_pl, out.radial_stress_pl_arr ./ 1E6
+            end
+        end
+    end
+
+    for radius in [out.r_cs[1], out.r_cs[end], out.r_tf[end]]
+        @series begin
+            seriestype --> :vline
+            linewidth --> 2
+            label --> ""
+            linestyle --> :dash
+            color --> :black
+            [radius]
+        end
+    end
+
 end
