@@ -101,7 +101,7 @@ function init_pf_active(
             continue
         elseif (k == length(bd.layer)) && n_coils[end] > 0
             #pass
-        elseif layer.hfs == Int(_hfs_)
+        elseif layer.fs == Int(_hfs_)
             continue
         elseif !contains(lowercase(layer.name), "coils")
             continue
@@ -123,7 +123,7 @@ function init_pf_active(
         # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
         coil_size = pf_coils_size[krail]
         dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
-        inner_layer = IMAS.get_build(bd, identifier = bd.layer[k-1].identifier, hfs = _hfs_)
+        inner_layer = IMAS.get_build(bd, identifier = bd.layer[k-1].identifier, fs = _hfs_)
         poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), dcoil)
         rail_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         rail_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]

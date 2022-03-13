@@ -4,7 +4,7 @@ import Contour
 import DataStructures
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_
-import IMAS: BuildLayerSide, _lfs_, _single_, _hfs_
+import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_
 
 #= ========== =#
 #  init build  #
@@ -44,7 +44,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
     # TF coils
     dd.build.tf.coils_n = par.tf.n_coils
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = _tf_, hfs = _hfs_).start_radius / dd.build.tf.coils_n
+    dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = _tf_, fs = _hfs_).start_radius / dd.build.tf.coils_n
 
     # assign materials
     assign_build_layers_materials(dd, par)
@@ -67,7 +67,7 @@ NOTE: layer[:].type and layer[:].material follows from naming of layers
 *   5 wall....: first wall
 *  -1 ...plasma...: 
 
-layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
+layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
@@ -106,11 +106,11 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
             layer.type = Int(_vessel_)
         end
         if occursin("hfs", lowercase(layer.name))
-            layer.hfs = Int(_hfs_)
+            layer.fs = Int(_hfs_)
         elseif occursin("lfs", lowercase(layer.name))
-            layer.hfs = Int(_lfs_)
+            layer.fs = Int(_lfs_)
         else
-            layer.hfs = Int(_single_)
+            layer.fs = Int(_lhfs_)
         end
 
         layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
@@ -433,8 +433,8 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
     # plug
     L = 0
     R = IMAS.get_build(bd, type = _oh_).start_radius
-    D = minimum(IMAS.get_build(bd, type = _wall_, hfs = _hfs_).outline.z)
-    U = maximum(IMAS.get_build(bd, type = _wall_, hfs = _hfs_).outline.z)
+    D = minimum(IMAS.get_build(bd, type = _wall_, fs = _hfs_).outline.z)
+    U = maximum(IMAS.get_build(bd, type = _wall_, fs = _hfs_).outline.z)
     bd.layer[1].outline.r, bd.layer[1].outline.z = rectangle_shape(L, R, D, U)
 
     # oh
@@ -445,8 +445,8 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
     # cryostat
     L = 0
     R = bd.layer[end].end_radius
-    D = minimum(IMAS.get_build(bd, type = _tf_, hfs = _hfs_).outline.z) - bd.layer[end].thickness
-    U = maximum(IMAS.get_build(bd, type = _tf_, hfs = _hfs_).outline.z) + bd.layer[end].thickness
+    D = minimum(IMAS.get_build(bd, type = _tf_, fs = _hfs_).outline.z) - bd.layer[end].thickness
+    U = maximum(IMAS.get_build(bd, type = _tf_, fs = _hfs_).outline.z) + bd.layer[end].thickness
     bd.layer[end].outline.r, bd.layer[end].outline.z = rectangle_shape(L, R, D, U)
 
     return bd
@@ -462,9 +462,9 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     layer = bd.layer[layer_index]
     id = bd.layer[layer_index].identifier
     r_start = layer.start_radius
-    r_end = IMAS.get_build(bd, identifier = layer.identifier, hfs = _lfs_).end_radius
+    r_end = IMAS.get_build(bd, identifier = layer.identifier, fs = _lfs_).end_radius
     hfs_thickness = layer.thickness
-    lfs_thickness = IMAS.get_build(bd, identifier = id, hfs = _lfs_).thickness
+    lfs_thickness = IMAS.get_build(bd, identifier = id, fs = _lfs_).thickness
     target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
 
     # obstruction

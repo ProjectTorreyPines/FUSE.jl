@@ -103,7 +103,8 @@ NOTES:
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
 function oh_requirements(bd::IMAS.build, double_swing::Bool = true)
-    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_build(bd, type = 1).start_radius, IMAS.get_build(bd, type = 1).end_radius)
+    innerSolenoidRadius = IMAS.get_build(bd, type = _oh_).start_radius
+    outerSolenoidRadius = IMAS.get_build(bd, type = _oh_).end_radius
     totalOhFluxReq = bd.flux_swing_requirements.rampup + bd.flux_swing_requirements.flattop + bd.flux_swing_requirements.pf
 
     # ============================= #
@@ -134,11 +135,11 @@ function step(stressactor::StressesActor; bucked = false, noslip = false, plug =
 
     R0 = eq.vacuum_toroidal_field.r0
     B0 = maximum(eq.vacuum_toroidal_field.b0)
-    R_tf_in = IMAS.get_build(bd, type = 2, hfs = 1).start_radius
-    R_tf_out = IMAS.get_build(bd, type = 2, hfs = 1).end_radius
+    R_tf_in = IMAS.get_build(bd, type = _tf_, fs = _hfs_).start_radius
+    R_tf_out = IMAS.get_build(bd, type = _tf_, fs = _hfs_).end_radius
     Bz_oh = bd.oh.max_b_field
-    R_oh_in = IMAS.get_build(bd, type = 1).start_radius
-    R_oh_out = IMAS.get_build(bd, type = 1).end_radius
+    R_oh_in = IMAS.get_build(bd, type = _oh_).start_radius
+    R_oh_out = IMAS.get_build(bd, type = _oh_).end_radius
     f_struct_tf = bd.tf.technology.fraction_stainless
     f_struct_oh = bd.oh.technology.fraction_stainless
 
