@@ -128,7 +128,7 @@ mutable struct StressesActor <: AbstractActor
     dd::IMAS.dd
 end
 
-function step(stressactor::StressesActor; bucked=false, noslip=false, plug=false)
+function step(stressactor::StressesActor; bucked = false, noslip = false, plug = false)
     eq = stressactor.dd.equilibrium
     bd = stressactor.dd.build
 

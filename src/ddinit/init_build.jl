@@ -11,7 +11,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
 
     if init_from == :gasc
         gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_radial_build(dd.build, gasc; no_small_gaps=par.gasc.no_small_gaps)
+        init_radial_build(dd.build, gasc; no_small_gaps = par.gasc.no_small_gaps)
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
@@ -36,7 +36,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
     end
 
     # cross-section outlines
-    build_cx(dd; tf_shape_index=par.tf.shape)
+    build_cx(dd; tf_shape_index = par.tf.shape)
 
     # TF coils
     dd.build.tf.coils_n = par.tf.n_coils
@@ -58,9 +58,10 @@ NOTE: layer[:].type and layer[:].material follows from naming of layers
 *   0 ...gap... : vacuum
 *   1 OH: ohmic coil
 *   2 TF: toroidal field coil
+*   6 vessel...: vacuum vessel
 *   3 shield...: neutron shield
 *   4 blanket...: neutron blanket
-*   5 wall....: 
+*   5 wall....: first wall
 *  -1 ...plasma...: 
 
 layer[:].hfs is set depending on if "hfs" or "lfs" appear in the name
@@ -85,6 +86,9 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
         layer.name = replace(String(layer_name), "_" => " ")
         if occursin("gap", lowercase(layer.name))
             layer.type = 0
+        end
+        if occursin("plasma", lowercase(layer.name))
+            layer.type = -1
         elseif uppercase(layer.name) == "OH"
             layer.type = 1
         elseif occursin("TF", uppercase(layer.name))
@@ -95,6 +99,8 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
             layer.type = 4
         elseif occursin("wall", lowercase(layer.name))
             layer.type = 5
+        elseif occursin("vessel", lowercase(layer.name))
+            layer.type = 6
         end
         if occursin("hfs", lowercase(layer.name))
             layer.hfs = 1
@@ -103,9 +109,7 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
         else
             layer.hfs = 0
         end
-        if occursin("plasma", lowercase(layer.name))
-            layer.type = -1
-        end
+
         layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
         radius_end += layer.thickness
         if verbose
@@ -136,7 +140,7 @@ Initialization of build IDS based on equilibrium time_slice
 function init_radial_build(
     bd::IMAS.build,
     eqt::IMAS.equilibrium__time_slice,
-    wall::T where {T <: Union{IMAS.wall__description_2d___limiter__unit___outline, Missing}};
+    wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
     is_nuclear_facility::Bool = true,
     pf_inside_tf::Bool = false,
     pf_outside_tf::Bool = true,
@@ -155,14 +159,15 @@ function init_radial_build(
     end
 
     if is_nuclear_facility
-        n_hfs_layers = 6
+        n_hfs_layers = 6.125
         dr = rmin / n_hfs_layers
         init_radial_build(bd;
             verbose,
             gap_OH = dr * 2.0,
             OH = dr,
             hfs_TF = dr,
-            gap_hfs_TF_shield = pf_inside_tf ? 0 : -1,
+            gap_hfs_vacuum_vessel = dr / 8.0,
+            gap_hfs_coils = pf_inside_tf ? 0 : -1,
             hfs_shield = dr / 2.0,
             hfs_blanket = dr,
             hfs_wall = dr / 2.0,
@@ -170,7 +175,8 @@ function init_radial_build(
             lfs_wall = dr / 2.0,
             lfs_blanket = dr * 2,
             lfs_shield = dr / 2.0,
-            gap_lfs_TF_shield = dr * (pf_inside_tf ? 4 : -1),
+            gap_lfs_coils = dr * (pf_inside_tf ? 4 : -1),
+            gap_lfs_vacuum_vessel = dr / 8.0,
             lfs_TF = dr,
             gap_cryostat = dr * (pf_outside_tf ? 5 : 1))
 
@@ -182,11 +188,11 @@ function init_radial_build(
             gap_OH = dr * 2.0,
             OH = dr,
             hfs_TF = dr,
-            gap_hfs_TF_wall = pf_inside_tf ? 0 : -1,
+            gap_hfs_coils = pf_inside_tf ? 0 : -1,
             hfs_wall = dr / 2.0,
             plasma = rmax - rmin,
             lfs_wall = dr / 2.0,
-            gap_lfs_TF_wall = dr * (pf_inside_tf ? 2.25 : -1),
+            gap_lfs_coils = dr * (pf_inside_tf ? 2.25 : -1),
             lfs_TF = dr,
             gap_cryostat = dr * (pf_outside_tf ? 3 : 1))
     end
@@ -207,10 +213,10 @@ function init_radial_build(
     bd::IMAS.build,
     gasc::GASC;
     no_small_gaps::Bool = true,
+    vacuum_vessel::Float64 = 0.1,
     verbose::Bool = false)
     gascsol = gasc.solution
 
-    # build
     norm = gascsol["OUTPUTS"]["radial build"]["innerPlasmaRadius"]
 
     layers = DataStructures.OrderedDict()
@@ -224,24 +230,32 @@ function init_radial_build(
         pop!(layers, "hfs_gap_TF")
     end
 
+    if vacuum_vessel > 0.0
+        layers["gap_hfs_vacuum_vessel"] = gascsol["INPUTS"]["radial build"]["rbInnerBlanket"] * norm * vacuum_vessel
+    end
+
     layers["hfs_gap_shield"] = gascsol["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
     layers["hfs_shield"] = gascsol["INPUTS"]["radial build"]["rbInnerShield"] * norm
     if no_small_gaps
         layers["hfs_shield"] += layers["hfs_gap_shield"]
         pop!(layers, "hfs_gap_shield")
     end
-    layers["hfs_blanket"] = gascsol["INPUTS"]["radial build"]["rbInnerBlanket"] * norm
+    layers["hfs_blanket"] = gascsol["INPUTS"]["radial build"]["rbInnerBlanket"] * norm * (1 - vacuum_vessel)
 
     layers["hfs_wall"] = gascsol["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
     layers["plasma"] = (gascsol["INPUTS"]["radial build"]["majorRadius"] - sum(values(layers))) * 2
     layers["lfs_wall"] = gascsol["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
 
-    layers["lfs_blanket"] = gascsol["INPUTS"]["radial build"]["rbOuterBlanket"] * norm
+    layers["lfs_blanket"] = gascsol["INPUTS"]["radial build"]["rbOuterBlanket"] * norm * (1 - vacuum_vessel)
     layers["lfs_shield"] = gascsol["INPUTS"]["radial build"]["rbOuterShield"] * norm
     layers["lfs_gap_shield"] = gascsol["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
     if no_small_gaps
         layers["lfs_shield"] += layers["lfs_gap_shield"]
         pop!(layers, "lfs_gap_shield")
+    end
+
+    if vacuum_vessel > 0.0
+        layers["gap_lfs_vacuum_vessel"] = gascsol["INPUTS"]["radial build"]["rbOuterBlanket"] * norm * vacuum_vessel
     end
 
     layers["lfs_TF"] = layers["hfs_TF"]
@@ -254,6 +268,7 @@ function init_radial_build(
     layers["gap_cryostat"] = layers["gap_OH"] * 3
 
     # thin layers can cause LibGEOS to crash
+    # if wall is too thin, then thicken it at the expense of the blanket
     min_fraction_thin_wall = 0.02
     if no_small_gaps && (layers["hfs_wall"] < min_fraction_thin_wall * norm)
         layers["hfs_blanket"] -= (min_fraction_thin_wall * norm - layers["hfs_wall"])
@@ -275,7 +290,7 @@ end
 return outline of first wall
 """
 function first_wall(wall::IMAS.wall)
-    if (!ismissing(wall.description_2d, [1, :limiter, :unit, 1, :outline, :r])) && (length(wall.description_2d[1].limiter.unit[1].outline.r)>5)
+    if (!ismissing(wall.description_2d, [1, :limiter, :unit, 1, :outline, :r])) && (length(wall.description_2d[1].limiter.unit[1].outline.r) > 5)
         return wall.description_2d[1].limiter.unit[1].outline
     else
         return missing
@@ -287,7 +302,7 @@ end
 
 Generate first wall outline starting from an equilibrium
 """
-function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
+function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real = 1.0)
     # Inner radii of the plasma
     R_hfs_plasma = IMAS.get_build(bd, type = -1).start_radius
     R_lfs_plasma = IMAS.get_build(bd, type = -1).end_radius
@@ -323,7 +338,10 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
         end
         Rx = pr[index]
         Zx = pz[index]
-        append!(private_extrema, IMAS.intersection(a .* cos.(theta) .+ Rx, a .* sin.(theta) .+ Zx, pr, pz))
+        a *= divertor_length_length_multiplier
+        cr = a .* cos.(theta) .+ Rx
+        cz = a .* sin.(theta) .+ Zx
+        append!(private_extrema, IMAS.intersection(cr, cz, pr, pz))
     end
     h = [[r, z] for (r, z) in vcat(collect(zip(rlcfs, zlcfs)), private_extrema)]
     hull = convex_hull(h)
@@ -348,7 +366,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     pr = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
     pz = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
 
-    return pr,pz
+    return pr, pz
 end
 
 """
@@ -361,8 +379,8 @@ function build_cx(dd::IMAS.dd; tf_shape_index::Int)
     wall = first_wall(dd.wall)
     if wall === missing
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
-        resize!(dd.wall.description_2d,1)
-        resize!(dd.wall.description_2d[1].limiter.unit,1)
+        resize!(dd.wall.description_2d, 1)
+        resize!(dd.wall.description_2d[1].limiter.unit, 1)
         dd.wall.description_2d[1].limiter.unit[1].outline.r = pr
         dd.wall.description_2d[1].limiter.unit[1].outline.z = pz
         wall = first_wall(dd.wall)
@@ -492,12 +510,14 @@ end
 function assign_build_layers_materials(dd::IMAS.dd, par::Parameters)
     bd = dd.build
     for layer in bd.layer
-        if  layer.type == 0 # gap
+        if layer.type == 0 # gap
             layer.material = "Vacuum"
         elseif layer.type == 1 # OH
             layer.material = par.material.wall
         elseif layer.type == 2 # TF
             layer.material = par.tf.technology.material
+        elseif layer.type == 6 # vessel
+            layer.material = layer.material = "Water, Liquid"
         elseif layer.type == 3 # shield
             layer.material = par.material.shield
         elseif layer.type == 4 # blanket
