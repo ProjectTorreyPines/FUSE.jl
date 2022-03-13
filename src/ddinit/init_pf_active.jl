@@ -35,7 +35,7 @@ function init_pf_active(
     coils_cleareance::Union{Nothing,TR,Vector{TR}} = nothing,
     coils_elements_area::Union{Nothing,TR,Vector{TR}} = nothing) where {TI<:Int,TR<:Real}
 
-    OH_layer = IMAS.get_build(bd, type = 1)
+    OH_layer = IMAS.get_build(bd, type = _oh_)
 
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))
@@ -90,7 +90,7 @@ function init_pf_active(
     end
 
     # Now add actual PF coils to regions of vacuum
-    oh_index = IMAS.get_build(bd, type = 1, return_index = true)
+    oh_index = IMAS.get_build(bd, type = _oh_, return_index = true)
     krail = 1
     ngrid = 257
     rmask, zmask, mask = IMAS.structures_mask(bd, ngrid = ngrid)
@@ -101,7 +101,7 @@ function init_pf_active(
             continue
         elseif (k == length(bd.layer)) && n_coils[end] > 0
             #pass
-        elseif layer.hfs == 1
+        elseif layer.hfs == Int(_hfs_)
             continue
         elseif !contains(lowercase(layer.name), "coils")
             continue
@@ -123,7 +123,7 @@ function init_pf_active(
         # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
         coil_size = pf_coils_size[krail]
         dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
-        inner_layer = IMAS.get_build(bd, identifier = bd.layer[k-1].identifier, hfs = 1)
+        inner_layer = IMAS.get_build(bd, identifier = bd.layer[k-1].identifier, hfs = _hfs_)
         poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), dcoil)
         rail_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         rail_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]

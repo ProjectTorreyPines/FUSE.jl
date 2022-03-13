@@ -3,6 +3,9 @@ import Interpolations
 import Contour
 import DataStructures
 
+import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_
+import IMAS: BuildLayerSide, _lfs_, _single_, _hfs_
+
 #= ========== =#
 #  init build  #
 #= ========== =#
@@ -41,7 +44,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
     # TF coils
     dd.build.tf.coils_n = par.tf.n_coils
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = 2, hfs = 1).start_radius / dd.build.tf.coils_n
+    dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = _tf_, hfs = _hfs_).start_radius / dd.build.tf.coils_n
 
     # assign materials
     assign_build_layers_materials(dd, par)
@@ -85,29 +88,29 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
         layer.thickness = layer_thickness
         layer.name = replace(String(layer_name), "_" => " ")
         if occursin("gap", lowercase(layer.name))
-            layer.type = 0
+            layer.type = Int(_gap_)
         end
         if occursin("plasma", lowercase(layer.name))
-            layer.type = -1
+            layer.type = Int(_plasma_)
         elseif uppercase(layer.name) == "OH"
-            layer.type = 1
+            layer.type = Int(_oh_)
         elseif occursin("TF", uppercase(layer.name))
-            layer.type = 2
+            layer.type = Int(_tf_)
         elseif occursin("shield", lowercase(layer.name))
-            layer.type = 3
+            layer.type = Int(_shield_)
         elseif occursin("blanket", lowercase(layer.name))
-            layer.type = 4
+            layer.type = Int(_blanket_)
         elseif occursin("wall", lowercase(layer.name))
-            layer.type = 5
+            layer.type = Int(_wall_)
         elseif occursin("vessel", lowercase(layer.name))
-            layer.type = 6
+            layer.type = Int(_vessel_)
         end
         if occursin("hfs", lowercase(layer.name))
-            layer.hfs = 1
+            layer.hfs = Int(_hfs_)
         elseif occursin("lfs", lowercase(layer.name))
-            layer.hfs = -1
+            layer.hfs = Int(_lfs_)
         else
-            layer.hfs = 0
+            layer.hfs = Int(_single_)
         end
 
         layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
@@ -304,8 +307,8 @@ Generate first wall outline starting from an equilibrium
 """
 function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real = 1.0)
     # Inner radii of the plasma
-    R_hfs_plasma = IMAS.get_build(bd, type = -1).start_radius
-    R_lfs_plasma = IMAS.get_build(bd, type = -1).end_radius
+    R_hfs_plasma = IMAS.get_build(bd, type = _plasma_).start_radius
+    R_lfs_plasma = IMAS.get_build(bd, type = _plasma_).end_radius
 
     # Plasma as buffered convex-hull polygon of LCFS and strike points
     ψb = IMAS.find_psi_boundary(eqt)
@@ -395,15 +398,15 @@ Translates 1D build to 2D cross-sections starting from R and Z coordinates of pl
 """
 function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_shape_index::Int)
     # plasma
-    IMAS.get_build(bd, type = -1).outline.r = pr
-    IMAS.get_build(bd, type = -1).outline.z = pz
+    IMAS.get_build(bd, type = _plasma_).outline.r = pr
+    IMAS.get_build(bd, type = _plasma_).outline.z = pz
 
     # all layers between plasma and OH
     plasma_to_oh = []
     valid = false
     for (k, layer) in reverse(collect(enumerate(bd.layer)))
         # stop once you see the OH
-        if layer.type == 1
+        if layer.type == Int(_oh_)
             valid = false
             break
         end
@@ -411,14 +414,14 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
             push!(plasma_to_oh, k)
         end
         # valid starting from the plasma
-        if layer.type == -1
+        if layer.type == Int(_plasma_)
             valid = true
         end
     end
     shape_set = false
     for (n, k) in enumerate(plasma_to_oh)
         # layer that preceeds the TF (or shield) sets the TF (and shield) shape
-        if (!shape_set) && (n < length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [2, 3])
+        if (!shape_set) && (n < length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [Int(_tf_), Int(_shield_)])
             FUSE.optimize_shape(bd, k, tf_shape_index)
             shape_set = true
             # everything else is conformal convex hull
@@ -429,21 +432,21 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
 
     # plug
     L = 0
-    R = IMAS.get_build(bd, type = 1).start_radius
-    D = minimum(IMAS.get_build(bd, type = 5, hfs = 1).outline.z)
-    U = maximum(IMAS.get_build(bd, type = 5, hfs = 1).outline.z)
+    R = IMAS.get_build(bd, type = _oh_).start_radius
+    D = minimum(IMAS.get_build(bd, type = _wall_, hfs = _hfs_).outline.z)
+    U = maximum(IMAS.get_build(bd, type = _wall_, hfs = _hfs_).outline.z)
     bd.layer[1].outline.r, bd.layer[1].outline.z = rectangle_shape(L, R, D, U)
 
     # oh
-    L = IMAS.get_build(bd, type = 1).start_radius
-    R = IMAS.get_build(bd, type = 1).end_radius
+    L = IMAS.get_build(bd, type = _oh_).start_radius
+    R = IMAS.get_build(bd, type = _oh_).end_radius
     bd.layer[2].outline.r, bd.layer[2].outline.z = rectangle_shape(L, R, D, U)
 
     # cryostat
     L = 0
     R = bd.layer[end].end_radius
-    D = minimum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z) - bd.layer[end].thickness
-    U = maximum(IMAS.get_build(bd, type = 2, hfs = 1).outline.z) + bd.layer[end].thickness
+    D = minimum(IMAS.get_build(bd, type = _tf_, hfs = _hfs_).outline.z) - bd.layer[end].thickness
+    U = maximum(IMAS.get_build(bd, type = _tf_, hfs = _hfs_).outline.z) + bd.layer[end].thickness
     bd.layer[end].outline.r, bd.layer[end].outline.z = rectangle_shape(L, R, D, U)
 
     return bd
@@ -459,9 +462,9 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     layer = bd.layer[layer_index]
     id = bd.layer[layer_index].identifier
     r_start = layer.start_radius
-    r_end = IMAS.get_build(bd, identifier = layer.identifier, hfs = -1).end_radius
+    r_end = IMAS.get_build(bd, identifier = layer.identifier, hfs = _lfs_).end_radius
     hfs_thickness = layer.thickness
-    lfs_thickness = IMAS.get_build(bd, identifier = id, hfs = -1).thickness
+    lfs_thickness = IMAS.get_build(bd, identifier = id, hfs = _lfs_).thickness
     target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
 
     # obstruction
@@ -510,22 +513,22 @@ end
 function assign_build_layers_materials(dd::IMAS.dd, par::Parameters)
     bd = dd.build
     for layer in bd.layer
-        if layer.type == 0 # gap
-            layer.material = "Vacuum"
-        elseif layer.type == 1 # OH
-            layer.material = par.material.wall
-        elseif layer.type == 2 # TF
-            layer.material = par.tf.technology.material
-        elseif layer.type == 6 # vessel
-            layer.material = layer.material = "Water, Liquid"
-        elseif layer.type == 3 # shield
-            layer.material = par.material.shield
-        elseif layer.type == 4 # blanket
-            layer.material = par.material.blanket
-        elseif layer.type == 5 # wall
-            layer.material = par.material.wall
-        elseif layer.type == -1 #plasma
+        if layer.type == Int(_plasma_)
             layer.material = par.build.is_nuclear_facility ? "DT_plasma" : "DD_plasma"
+        elseif layer.type == Int(_gap_)
+            layer.material = "Vacuum"
+        elseif layer.type == Int(_oh_)
+            layer.material = par.material.wall
+        elseif layer.type == Int(_tf_)
+            layer.material = par.tf.technology.material
+        elseif layer.type == Int(_shield_)
+            layer.material = par.material.shield
+        elseif layer.type == Int(_blanket_)
+            layer.material = par.material.blanket
+        elseif layer.type == Int(_wall_)
+            layer.material = par.material.wall
+        elseif layer.type == Int(_vessel_)
+            layer.material = layer.material = "Water, Liquid"
         end
     end
 end
