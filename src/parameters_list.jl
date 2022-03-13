@@ -91,9 +91,8 @@ end
 function Parameters(::Type{Val{:tf}})
     tf = Parameters(nothing)
     tf.n_coils = Entry(Int, "", "Number of TF coils")
-    options = [1 => "PricetonD", 2 => "Rectangle", 3 => "TrippleArc", 4 => "Miller", 5 => "Spline"]
-    #        tf.shape = Switch(options, "", "Shape of the TF coils"; default=:TrippleArc)
-    tf.shape = Entry(Int, "", "Shape of the TF coils"; default = 3)
+    options = [:princeton_D, :rectangle, :triple_arc, :miller, :spline]
+    tf.shape = Switch(options, "", "Shape of the TF coils"; default=:triple_arc)
     tf.technology = Parameters(:coil_technology)
     return tf
 end

@@ -16,7 +16,7 @@ function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
 
     par.build.symmetric = false
 
-    par.tf.shape = 3
+    par.tf.shape = :triple_arc
     par.tf.n_coils = 16
 
     par.pf_active.n_oh_coils = 6

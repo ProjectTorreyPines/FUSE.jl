@@ -13,7 +13,7 @@ function Parameters(::Type{Val{:D3D}})
     par.pf_active.n_pf_coils_outside = 0
     par.pf_active.technology = coil_technology(:copper)
 
-    par.tf.shape = 3
+    par.tf.shape = :triple_arc
     par.tf.n_coils = 18
     par.tf.technology = coil_technology(:copper)
 

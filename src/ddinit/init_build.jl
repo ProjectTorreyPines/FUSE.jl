@@ -5,6 +5,7 @@ import DataStructures
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_
+import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_, _rectangle_, _triple_arc_, _miller_, _spline_
 
 #= ========== =#
 #  init build  #
@@ -39,7 +40,8 @@ function init_build(dd::IMAS.dd, par::Parameters)
     end
 
     # cross-section outlines
-    build_cx(dd; tf_shape_index = par.tf.shape)
+    sh = Symbol("_$(par.tf.shape)_")
+    build_cx(dd; tf_shape = @eval($sh))
 
     # TF coils
     dd.build.tf.coils_n = par.tf.n_coils
@@ -378,7 +380,7 @@ end
 Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
-function build_cx(dd::IMAS.dd; tf_shape_index::Int)
+function build_cx(dd::IMAS.dd; tf_shape::BuildLayerShape)
     wall = first_wall(dd.wall)
     if wall === missing
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
@@ -388,7 +390,7 @@ function build_cx(dd::IMAS.dd; tf_shape_index::Int)
         dd.wall.description_2d[1].limiter.unit[1].outline.z = pz
         wall = first_wall(dd.wall)
     end
-    build_cx(dd.build, wall.r, wall.z, tf_shape_index)
+    build_cx(dd.build, wall.r, wall.z, tf_shape)
 end
 
 """
@@ -396,7 +398,7 @@ end
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_shape_index::Int)
+function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_shape::BuildLayerShape)
     # plasma
     IMAS.get_build(bd, type = _plasma_).outline.r = pr
     IMAS.get_build(bd, type = _plasma_).outline.z = pz
@@ -422,11 +424,11 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
     for (n, k) in enumerate(plasma_to_oh)
         # layer that preceeds the TF (or shield) sets the TF (and shield) shape
         if (!shape_set) && (n < length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [Int(_tf_), Int(_shield_)])
-            FUSE.optimize_shape(bd, k, tf_shape_index)
+            FUSE.optimize_shape(bd, k, tf_shape)
             shape_set = true
             # everything else is conformal convex hull
         else
-            FUSE.optimize_shape(bd, k, -2)
+            FUSE.optimize_shape(bd, k, _convex_hull_)
         end
     end
 
@@ -453,11 +455,11 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
 end
 
 """
-    optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
+    optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerShape)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
-function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
+function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerShape)
     # properties of current layer
     layer = bd.layer[layer_index]
     id = bd.layer[layer_index].identifier
@@ -474,7 +476,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape_index::Int)
     # only update shape if that is not been set before
     # this is to allow external overriding of default shape setting
     if ismissing(layer, :shape)
-        layer.shape = tf_shape_index
+        layer.shape = Int(tf_shape)
     end
 
     # handle offset and offset & convex-hull
