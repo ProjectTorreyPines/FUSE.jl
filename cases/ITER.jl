@@ -27,7 +27,7 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.pf_active.n_pf_coils_outside = 6
     par.pf_active.technology = coil_technology(:ITER, :PF)
 
-    par.tf.shape = :triple_arc
+    par.tf.shape = :princeton_D
     par.tf.n_coils = 18
     par.tf.technology = coil_technology(:ITER, :TF)
 
