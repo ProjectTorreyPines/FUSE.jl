@@ -236,8 +236,6 @@ function Parameters(gasc::GASC)
     par.general.casename = gasc.solution["INPUTS"]["NAME"]["device_name"]
     par.general.init_from = :gasc
 
-    par.build.is_nuclear_facility = true
-
     par.tf.technology = coil_technology(gasc, :TF)
     par.oh.technology = coil_technology(gasc, :OH)
     par.pf_active.technology = coil_technology(gasc, :PF)

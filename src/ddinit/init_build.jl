@@ -35,7 +35,9 @@ function init_build(dd::IMAS.dd, par::Parameters)
                 dd.build,
                 dd.equilibrium.time_slice[],
                 first_wall(dd.wall);
-                is_nuclear_facility = par.build.is_nuclear_facility,
+                shield=par.build.shield,
+                blanket=par.build.blanket,
+                vessel=par.build.vessel,
                 pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
                 pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
         else
@@ -136,10 +138,13 @@ function init_radial_build(bd::IMAS.build, layers::AbstractDict; verbose = false
 end
 
 """
-    init_radial_build(
+    function init_radial_build(
         bd::IMAS.build,
-        eqt=IMAS.equilibrium__time_slice;
-        is_nuclear_facility::Bool = true,
+        eqt::IMAS.equilibrium__time_slice,
+        wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
+        blanket::Float64 = 1.0,
+        shield::Float64 = 0.5,
+        vessel::Float64 = .125,
         pf_inside_tf::Bool = false,
         pf_outside_tf::Bool = true,
         verbose::Bool = false)
@@ -150,7 +155,9 @@ function init_radial_build(
     bd::IMAS.build,
     eqt::IMAS.equilibrium__time_slice,
     wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
-    is_nuclear_facility::Bool = true,
+    blanket::Float64 = 1.0,
+    shield::Float64 = 0.5,
+    vessel::Float64 = .125,
     pf_inside_tf::Bool = false,
     pf_outside_tf::Bool = true,
     verbose::Bool = false)
@@ -172,24 +179,28 @@ function init_radial_build(
     layers[:gap_OH] = 2.0
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
-    if is_nuclear_facility
-        layers[:gap_hfs_vacuum_vessel] = 0.125
+    if vessel > 0.0
+        layers[:gap_hfs_vacuum_vessel] = vessel
     end
     layers[:gap_hfs_coils] = pf_inside_tf ? 0 : -1
-    if is_nuclear_facility
-        layers[:hfs_shield] = 0.5
-        layers[:hfs_blanket] = 1.0
+    if shield > 0.0
+        layers[:hfs_shield] = shield
+    end
+    if blanket > 0.0
+        layers[:hfs_blanket] = blanket
     end
     layers[:hfs_wall] = 0.5
     layers[:plasma] = rmax - rmin
     layers[:lfs_wall] = 0.5
-    if is_nuclear_facility
-        layers[:lfs_blanket] = 2.0
-        layers[:lfs_shield] = 0.5
+    if blanket > 0.0
+        layers[:lfs_blanket] = blanket * 2.0
+    end
+    if shield > 0.0
+        layers[:lfs_shield] = shield
     end
     layers[:gap_lfs_coils] = 1.0 * (pf_inside_tf ? 2.25 : -1)
-    if is_nuclear_facility
-        layers[:gap_lfs_vacuum_vessel] = 0.125
+    if vessel > 0.0
+        layers[:gap_lfs_vacuum_vessel] = vessel
     end
     layers[:lfs_TF] = 1.0
     layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 5 : 1)
@@ -557,7 +568,7 @@ function assign_build_layers_materials(dd::IMAS.dd, par::Parameters)
     bd = dd.build
     for layer in bd.layer
         if layer.type == Int(_plasma_)
-            layer.material = par.build.is_nuclear_facility ? "DT_plasma" : "DD_plasma"
+            layer.material = any([layer.type in [Int(_blanket_),Int(_shield_)] for layer in dd.build.layer]) ? "DT_plasma" : "DD_plasma"
         elseif layer.type == Int(_gap_)
             layer.material = "Vacuum"
         elseif layer.type == Int(_oh_)

@@ -3,7 +3,9 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.general.casename = "ITER_$(init_from)"
     par.general.init_from = init_from
 
-    par.build.is_nuclear_facility = true
+    par.build.blanket = 0.0
+    par.build.shield = 0.5
+    par.build.vessel = 0.125
 
     if init_from == :ods
         par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "ITER_eq_ods.json")
@@ -27,7 +29,7 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.pf_active.n_pf_coils_outside = 6
     par.pf_active.technology = coil_technology(:ITER, :PF)
 
-    par.tf.shape = :princeton_D
+    par.tf.shape = :triple_arc
     par.tf.n_coils = 18
     par.tf.technology = coil_technology(:ITER, :TF)
 

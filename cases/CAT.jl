@@ -5,7 +5,9 @@ function Parameters(::Type{Val{:CAT}})
 
     par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "CAT_eq_ods.json")
 
-    par.build.is_nuclear_facility = false
+    par.build.blanket = 1.0
+    par.build.shield = 0.5
+    par.build.vessel = 0.125
     par.build.symmetric = true
 
     par.pf_active.n_oh_coils = 6
