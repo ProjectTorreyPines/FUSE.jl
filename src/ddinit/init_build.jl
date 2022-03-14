@@ -222,32 +222,45 @@ function init_radial_build(
     verbose::Bool = false)
     gascsol = gasc.solution
 
-    norm = gascsol["OUTPUTS"]["radial build"]["innerPlasmaRadius"]
+    majorRadius = gascsol["INPUTS"]["radial build"]["majorRadius"]
+    aspectRatio = gascsol["INPUTS"]["radial build"]["aspectRatio"]
+    minorRadius = majorRadius/aspectRatio
+    innerPlasmaRadius = majorRadius - minorRadius
+    norm = innerPlasmaRadius
 
     layers = DataStructures.OrderedDict()
-    layers["gap_OH"] = gascsol["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
-    layers["OH"] = gascsol["INPUTS"]["radial build"]["rbOH"] * norm
+    for run in 1:2
+        layers["gap_OH"] = gascsol["OUTPUTS"]["radial build"]["innerSolenoidRadius"]
+        layers["OH"] = gascsol["INPUTS"]["radial build"]["rbOH"] * norm
 
-    layers["hfs_gap_TF"] = gascsol["INPUTS"]["radial build"]["gapTFOH"] * norm
-    layers["hfs_TF"] = gascsol["INPUTS"]["radial build"]["rbTF"] * norm
-    if no_small_gaps
-        layers["hfs_TF"] += layers["hfs_gap_TF"]
-        pop!(layers, "hfs_gap_TF")
+        layers["hfs_gap_TF"] = gascsol["INPUTS"]["radial build"]["gapTFOH"] * norm
+        layers["hfs_TF"] = gascsol["INPUTS"]["radial build"]["rbTF"] * norm
+        if no_small_gaps
+            layers["hfs_TF"] += layers["hfs_gap_TF"]
+            pop!(layers, "hfs_gap_TF")
+        end
+
+        if vacuum_vessel > 0.0
+            layers["gap_hfs_vacuum_vessel"] = gascsol["INPUTS"]["radial build"]["rbInnerBlanket"] * norm * vacuum_vessel
+        end
+
+        layers["hfs_gap_shield"] = gascsol["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
+        layers["hfs_shield"] = gascsol["INPUTS"]["radial build"]["rbInnerShield"] * norm
+        if no_small_gaps
+            layers["hfs_shield"] += layers["hfs_gap_shield"]
+            pop!(layers, "hfs_gap_shield")
+        end
+        layers["hfs_blanket"] = gascsol["INPUTS"]["radial build"]["rbInnerBlanket"] * norm * (1 - vacuum_vessel)
+
+        layers["hfs_wall"] = gascsol["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
+
+        if run == 1
+            between_OH_and_plasma = sum(values(layers))
+            empty!(layers)
+            layers["gap_OH"] = innerPlasmaRadius - between_OH_and_plasma
+        end
     end
 
-    if vacuum_vessel > 0.0
-        layers["gap_hfs_vacuum_vessel"] = gascsol["INPUTS"]["radial build"]["rbInnerBlanket"] * norm * vacuum_vessel
-    end
-
-    layers["hfs_gap_shield"] = gascsol["INPUTS"]["radial build"]["gapBlanketCoil"] * norm
-    layers["hfs_shield"] = gascsol["INPUTS"]["radial build"]["rbInnerShield"] * norm
-    if no_small_gaps
-        layers["hfs_shield"] += layers["hfs_gap_shield"]
-        pop!(layers, "hfs_gap_shield")
-    end
-    layers["hfs_blanket"] = gascsol["INPUTS"]["radial build"]["rbInnerBlanket"] * norm * (1 - vacuum_vessel)
-
-    layers["hfs_wall"] = gascsol["INPUTS"]["radial build"]["gapInnerBlanketWall"] * norm
     layers["plasma"] = (gascsol["INPUTS"]["radial build"]["majorRadius"] - sum(values(layers))) * 2
     layers["lfs_wall"] = gascsol["INPUTS"]["radial build"]["gapOuterBlanketWall"] * norm
 
