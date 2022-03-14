@@ -22,22 +22,6 @@ function Parameters(::Type{Val{:ITER}}; init_from)
         par.build.symmetric = true
     end
 
-    Dict(
-    "gap_OH"                => 0.556784,
-    "OH"                    => 0.36256,
-    "hfs_TF"                => 0.492911,
-    "gap_hfs_vacuum_vessel" => 0.1,
-    "hfs_shield"            => 0.319696,
-    "hfs_blanket"           => 0.870937,
-    "hfs_wall"              => 0.0581266,
-    "plasma"                => 3.31269,
-    "lfs_wall"              => 0.0581266,
-    "lfs_blanket"           => 0.870937,
-    "lfs_shield"            => 0.319696,
-    "gap_lfs_vacuum_vessel" => 0.1,
-    "lfs_TF"                => 0.521975,
-    "gap_cryostat"          => 1.67035}
-
     par.pf_active.n_oh_coils = 6
     par.pf_active.n_pf_coils_inside = 0
     par.pf_active.n_pf_coils_outside = 6
