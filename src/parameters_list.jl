@@ -142,6 +142,7 @@ end
 
 function Parameters(::Type{Val{:build}})
     build = Parameters(nothing)
+    build.layers = Entry(Dict, "m", "List of layers thicknesses in radial build")
     build.is_nuclear_facility = Entry(Bool, "", "Is this a nuclear facility")
     build.symmetric = Entry(Bool, "", "Is the build up-down symmetric")
     return build
