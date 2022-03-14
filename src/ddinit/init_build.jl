@@ -50,7 +50,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
     # TF coils
     dd.build.tf.coils_n = par.tf.n_coils
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    dd.build.tf.thickness = 2 * π * IMAS.get_build(dd.build, type = _tf_, fs = _hfs_).start_radius / dd.build.tf.coils_n
+    dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type = _tf_, fs = _hfs_).start_radius / dd.build.tf.coils_n
 
     # assign materials
     assign_build_layers_materials(dd, par)
