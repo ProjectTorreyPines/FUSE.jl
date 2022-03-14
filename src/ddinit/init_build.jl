@@ -122,7 +122,7 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
         layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
         radius_end += layer.thickness
         if verbose
-            println("$(rpad(string(k),4)) $(rpad(layer.name, 17)) Δr=$(@sprintf("%3.3f",layer.thickness))    R=[$(@sprintf("%3.3f",radius_start)) <=> $(@sprintf("%3.3f",radius_end))]")
+            display("$(rpad(string(k),4)) $(rpad(layer.name, 27)) Δr=$(@sprintf("%3.3f",layer.thickness))    R=[$(@sprintf("%3.3f",radius_start)) <=> $(@sprintf("%3.3f",radius_end))]")
         end
         radius_start = radius_end
     end
@@ -167,44 +167,52 @@ function init_radial_build(
         rmax += gap
     end
 
+    # express layer thicknesses as fractions
+    layers = DataStructures.OrderedDict()
+    layers[:gap_OH] = 2.0
+    layers[:OH] = 1.0
+    layers[:hfs_TF] = 1.0
     if is_nuclear_facility
-        n_hfs_layers = 6.125
-        dr = rmin / n_hfs_layers
-        init_radial_build(bd;
-            verbose,
-            gap_OH = dr * 2.0,
-            OH = dr,
-            hfs_TF = dr,
-            gap_hfs_vacuum_vessel = dr / 8.0,
-            gap_hfs_coils = pf_inside_tf ? 0 : -1,
-            hfs_shield = dr / 2.0,
-            hfs_blanket = dr,
-            hfs_wall = dr / 2.0,
-            plasma = rmax - rmin,
-            lfs_wall = dr / 2.0,
-            lfs_blanket = dr * 2,
-            lfs_shield = dr / 2.0,
-            gap_lfs_coils = dr * (pf_inside_tf ? 4 : -1),
-            gap_lfs_vacuum_vessel = dr / 8.0,
-            lfs_TF = dr,
-            gap_cryostat = dr * (pf_outside_tf ? 5 : 1))
-
-    else
-        n_hfs_layers = 4.5
-        dr = rmin / n_hfs_layers
-        init_radial_build(bd;
-            verbose,
-            gap_OH = dr * 2.0,
-            OH = dr,
-            hfs_TF = dr,
-            gap_hfs_coils = pf_inside_tf ? 0 : -1,
-            hfs_wall = dr / 2.0,
-            plasma = rmax - rmin,
-            lfs_wall = dr / 2.0,
-            gap_lfs_coils = dr * (pf_inside_tf ? 2.25 : -1),
-            lfs_TF = dr,
-            gap_cryostat = dr * (pf_outside_tf ? 3 : 1))
+        layers[:gap_hfs_vacuum_vessel] = 0.125
     end
+    layers[:gap_hfs_coils] = pf_inside_tf ? 0 : -1
+    if is_nuclear_facility
+        layers[:hfs_shield] = 0.5
+        layers[:hfs_blanket] = 1.0
+    end
+    layers[:hfs_wall] = 0.5
+    layers[:plasma] = rmax - rmin
+    layers[:lfs_wall] = 0.5
+    if is_nuclear_facility
+        layers[:lfs_blanket] = 2.0
+        layers[:lfs_shield] = 0.5
+    end
+    layers[:gap_lfs_coils] = 1.0 * (pf_inside_tf ? 2.25 : -1)
+    if is_nuclear_facility
+        layers[:gap_lfs_vacuum_vessel] = 0.125
+    end
+    layers[:lfs_TF] = 1.0
+    layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 5 : 1)
+
+    # from fractions to meters
+    n_hfs_layers = 0.0
+    for layer in keys(layers)
+        if layer == :plasma
+            break
+        end
+        if layers[layer] > 0
+            n_hfs_layers += layers[layer]
+        end
+    end
+    dr = rmin / n_hfs_layers
+    for layer in keys(layers)
+        if layer != :plasma
+            layers[layer] = layers[layer] * dr
+        end
+    end
+
+    # radial build
+    init_radial_build(bd; verbose, layers...)
 
     return bd
 end
