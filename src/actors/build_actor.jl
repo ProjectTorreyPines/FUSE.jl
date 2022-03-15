@@ -136,7 +136,7 @@ function tf_requirements(bd::IMAS.build, eq::IMAS.equilibrium)
 
     bd.tf.max_b_field = B0 * R0 / hfsTF.end_radius
     bd.tf.max_j = current_TF / TF_cx_area
-    #bd.tf.critical_j = coil_Jcrit(bd.tf.max_b_field, bd.tf.technology)
+    bd.tf.critical_j = coil_Jcrit(bd.tf.max_b_field, bd.tf.technology)
 end
 
 #= ======== =#
