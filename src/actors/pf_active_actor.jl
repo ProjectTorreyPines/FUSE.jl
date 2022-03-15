@@ -32,7 +32,7 @@ function PFcoilsOptActor(
     eq_in::IMAS.equilibrium,
     bd::IMAS.build,
     pf::IMAS.pf_active;
-    λ_regularize = 1E-13,
+    λ_regularize = 1E-3,
     green_model = :simple,
     symmetric = false)
 
@@ -469,9 +469,9 @@ end
     step(pfactor::PFcoilsOptActor;
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
-        λ_ψ=1E-2,
+        λ_ψ=1E-3,
         λ_null=1,
-        λ_currents=1E5,
+        λ_currents=0.5,
         λ_strike=1,
         maxiter=10000,
         optimization_scheme=:rail,
@@ -481,10 +481,10 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 """
 function step(pfactor::PFcoilsOptActor;
     symmetric = pfactor.symmetric,
-    λ_regularize = pfactor.λ_regularize,
+    λ_regularize = 1E-3,
     λ_ψ = 1E-2,
     λ_null = 1,
-    λ_currents = 1E5,
+    λ_currents = 0.5,
     λ_strike = 1,
     maxiter = 10000,
     optimization_scheme = :rail,
