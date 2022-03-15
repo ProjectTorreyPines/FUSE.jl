@@ -109,9 +109,9 @@ function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
     pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
     pf_active__coil.b_field_max = range(0.1, 20, step=0.1)
     pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
-    pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max , t in pf_active__coil.temperature ]
+    pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
     pf_active__coil.b_field_max_timed.time = coil.current_time
-    pf_active__coil.b_field_max_timed.data = ones(size(coil.current_time)) # for now fixed B at one Tesla
+    pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, current) for current in coil.current_data]
     pf_active__coil.current.time = coil.current_time
     pf_active__coil.current.data = coil.current_data
 end
@@ -292,6 +292,29 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     end
 
     return 10^λ_regularize
+end
+
+"""
+    PF coil critical current from self-field alone
+
+NOTE: infinite wire approximation
+"""
+function coil_Jcrit(coil::GS_IMAS_pf_active__coil, current)
+    return coil_Jcrit(coil_selfB(coil, current), coil.coil_tech)
+end
+
+"""
+    PF coil self-induced magnetic field
+
+NOTE: infinite wire approximation
+"""
+function coil_selfB(coil::GS_IMAS_pf_active__coil, current)
+    b = abs.(constants.μ_0 * current * coil.turns_with_sign / (2pi * min(coil.width, coil.height)))
+    if b < 0.1
+        return 0.1
+    else
+        return b
+    end
 end
 
 function optimize_coils_rail(
