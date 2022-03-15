@@ -487,8 +487,8 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
     # plug
     L = 0
     R = IMAS.get_build(bd, type = _oh_).start_radius
-    D = minimum(IMAS.get_build(bd, type = _wall_, fs = _hfs_).outline.z)
-    U = maximum(IMAS.get_build(bd, type = _wall_, fs = _hfs_).outline.z)
+    D = minimum(IMAS.get_build(bd, type = _tf_, fs = _hfs_).outline.z)
+    U = maximum(IMAS.get_build(bd, type = _tf_, fs = _hfs_).outline.z)
     bd.layer[1].outline.r, bd.layer[1].outline.z = rectangle_shape(L, R, D, U)
 
     # oh
