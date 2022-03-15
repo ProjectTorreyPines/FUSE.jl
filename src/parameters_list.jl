@@ -142,7 +142,7 @@ end
 
 function Parameters(::Type{Val{:build}})
     build = Parameters(nothing)
-    build.layers = Entry(Dict, "m", "List of layers thicknesses in radial build")
+    build.layers = Entry(DataStructures.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
     build.blanket = Entry(Float64, "", "Fraction of blanket in radial build")
     build.shield = Entry(Float64, "", "Fraction of shield in radial build")
     build.vessel = Entry(Float64, "", "Fraction of vessel in radial build")

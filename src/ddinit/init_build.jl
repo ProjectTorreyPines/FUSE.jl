@@ -41,7 +41,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
                 pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
                 pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
         else
-            init_radial_build(dd.build, par.build.layers; verbose = true)
+            init_radial_build(dd.build, par.build.layers; verbose = false)
         end
     end
 
