@@ -348,6 +348,8 @@ function optimize_coils_rail(
     packed = pack_rail(bd, λ_regularize, symmetric)
     trace = PFcoilsOptTrace()
 
+    oh_indexes = [coil.pf_active__coil.name == "OH" for coil in vcat(pinned_coils, optim_coils)]
+
     packed_tmp = [packed]
     function placement_cost(packed; do_trace = false)
         try
@@ -365,25 +367,34 @@ function optimize_coils_rail(
 
             all_cost_ψ = []
             all_cost_currents = []
+            all_cost_oh = []
             for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs, weights))
                 for coil in vcat(pinned_coils, optim_coils, fixed_coils)
                     coil.time_index = time_index
                 end
                 currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights = weight, λ_regularize = λ_regularize, return_cost = true)
                 current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-                b = 1.0  # for now fixed B at one Tesla
-                fraction_max_current_densities = abs.(current_densities ./ [coil_Jcrit(b, coil.coil_tech) for coil in coils])
+                max_current_densities = [coil_Jcrit(coil, coil.current) for coil in coils]
+                fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
+                #OH cost
+                oh_current_densities = current_densities[oh_indexes]
+                avg_oh = Statistics.mean(oh_current_densities)
+                cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
+                #currents cost
                 push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
+                # boundary cost
                 if ismissing(eq.time_slice[time_index].global_quantities, :ip)
                     push!(all_cost_ψ, cost_ψ0 / λ_null)
+                    push!(all_cost_oh, 0.0)
                 else
                     push!(all_cost_ψ, cost_ψ0 / λ_ψ)
+                    push!(all_cost_oh, cost_oh)
                 end
             end
             cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
             cost_currents = norm(all_cost_currents) / length(all_cost_currents)
-            cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_1to1^2)
-
+            cost_oh = norm(all_cost_oh) / length(all_cost_oh)
+            cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2)
             if do_trace
                 push!(trace.params, packed)
                 push!(trace.cost_ψ, cost_ψ)
@@ -426,7 +437,7 @@ end
 
 Returns tuple of GS_IMAS_pf_active__coil coils organized by their function:
 - fixed: fixed position and current
-- pinned: coisl with fixed position but current is optimized
+- pinned: coils with fixed position but current is optimized
 - optim: coils that have theri position and current optimized
 """
 function fixed_pinned_optim_coils(pfactor, optimization_scheme)
