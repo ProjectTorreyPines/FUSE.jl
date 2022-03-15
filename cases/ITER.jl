@@ -35,7 +35,7 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     layers[:plasma] = 4.51
     layers[:lfs_wall] = 0.06
     layers[:lfs_shield] = 0.40
-    layers[:gap_lfs_vacuum_vessel] = 0.77
+    layers[:gap_lfs_vacuum_vessel] = 1.05
     layers[:lfs_TF] = 1.10
     layers[:gap_cryostat] = 2.34
 
