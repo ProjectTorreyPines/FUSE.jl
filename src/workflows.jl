@@ -48,17 +48,18 @@ function pf_optim_workflow(dd::IMAS.dd, par::Parameters; λ_currents=0.5, maxite
 
     if maxiter>0
         # optimize coil location only considering equilibria (disregard field-null)
-        step(actor, λ_ψ = 1E-2, λ_null = 1E10, λ_currents=λ_currents, λ_strike = 0.0, verbose = false, maxiter = maxiter, optimization_scheme = :rail)
+        step(actor, λ_ψ = 1E-2, λ_null = 1E+2, λ_currents=λ_currents, λ_strike = 0.0, verbose = false, maxiter = maxiter, optimization_scheme = :rail)
         finalize(actor)
 
         if do_plot
             display(plot(actor.trace, :cost))
             display(plot(actor.trace, :params))
         end
+    else
+        # find coil currents for both field-null and equilibria
+        step(actor, λ_ψ = 1E-2, λ_null = 1E-2, λ_currents=λ_currents, λ_strike = 0.0, verbose = false, maxiter = 1000, optimization_scheme = :static)
     end
 
-    # find coil currents for both field-null and equilibria
-    step(actor, λ_ψ = 1E-2, λ_null = 1E-2, λ_currents=λ_currents, λ_strike = 0.0, verbose = false, maxiter = 1000, optimization_scheme = :static)
     finalize(actor; update_eq_in)
 
     if do_plot
