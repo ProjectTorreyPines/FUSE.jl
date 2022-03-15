@@ -35,9 +35,9 @@ function init_build(dd::IMAS.dd, par::Parameters)
                 dd.build,
                 dd.equilibrium.time_slice[],
                 first_wall(dd.wall);
-                shield=par.build.shield,
-                blanket=par.build.blanket,
-                vessel=par.build.vessel,
+                shield = par.build.shield,
+                blanket = par.build.blanket,
+                vessel = par.build.vessel,
                 pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
                 pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
         else
@@ -157,7 +157,7 @@ function init_radial_build(
     wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
     blanket::Float64 = 1.0,
     shield::Float64 = 0.5,
-    vessel::Float64 = .125,
+    vessel::Float64 = 0.125,
     pf_inside_tf::Bool = false,
     pf_outside_tf::Bool = true,
     verbose::Bool = false)
@@ -302,7 +302,7 @@ function gascrb2layers(
         end
     end
 
-    layers["plasma"] = (gascrb["majorRadius"] - sum(values(layers))) * 2
+    layers["plasma"] = (gascrb["majorRadius"] - sum(values(layers))) * 2 + (gascrb["gapIn"] + gascrb["gapOut"]) * norm
     layers["lfs_wall"] = gascrb["gapOuterBlanketWall"] * norm
 
     layers["lfs_blanket"] = gascrb["rbOuterBlanket"] * norm * (1 - vacuum_vessel)
@@ -568,7 +568,7 @@ function assign_build_layers_materials(dd::IMAS.dd, par::Parameters)
     bd = dd.build
     for layer in bd.layer
         if layer.type == Int(_plasma_)
-            layer.material = any([layer.type in [Int(_blanket_),Int(_shield_)] for layer in dd.build.layer]) ? "DT_plasma" : "DD_plasma"
+            layer.material = any([layer.type in [Int(_blanket_), Int(_shield_)] for layer in dd.build.layer]) ? "DT_plasma" : "DD_plasma"
         elseif layer.type == Int(_gap_)
             layer.material = "Vacuum"
         elseif layer.type == Int(_oh_)
