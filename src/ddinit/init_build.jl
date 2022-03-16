@@ -46,8 +46,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
     end
 
     # cross-section outlines
-    sh = Symbol("_$(par.tf.shape)_")
-    build_cx(dd; tf_shape = @eval($sh))
+    build_cx(dd, par.tf.shape)
 
     # TF coils
     dd.build.tf.coils_n = par.tf.n_coils
@@ -432,7 +431,7 @@ end
 Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
-function build_cx(dd::IMAS.dd; tf_shape::BuildLayerShape)
+function build_cx(dd::IMAS.dd, tf_shape::BuildLayerShape)
     wall = first_wall(dd.wall)
     if wall === missing
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
@@ -442,7 +441,11 @@ function build_cx(dd::IMAS.dd; tf_shape::BuildLayerShape)
         dd.wall.description_2d[1].limiter.unit[1].outline.z = pz
         wall = first_wall(dd.wall)
     end
-    build_cx(dd.build, wall.r, wall.z, tf_shape)
+    return build_cx(dd.build, wall.r, wall.z, tf_shape)
+end
+
+function build_cx(dd::IMAS.dd, tf_shape::Symbol)
+    return build_cx(dd, to_enum(tf_shape))
 end
 
 """

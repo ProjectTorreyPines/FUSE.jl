@@ -1,17 +1,20 @@
-#= ================ =#
-#  flux-swing actor #
-#= ================ =#
+#= ========== =#
+#  flux-swing #
+#= ========== =#
 
 mutable struct FluxSwingActor <: AbstractActor
     dd::IMAS.dd
+    flattop_duration::Real
 end
 
 function FluxSwingActor(dd::IMAS.dd, par::Parameters)
-    return FluxSwingActor(dd)
+    actor = FluxSwingActor(dd, par.oh.flattop_duration)
+    step(actor)
+    finalize(actor)
+    return actor
 end
 
-# step
-function step(flxactor::FluxSwingActor, flattop_duration::Real)
+function step(flxactor::FluxSwingActor)
     bd = flxactor.dd.build
     eq = flxactor.dd.equilibrium
     eqt = eq.time_slice[]
@@ -19,11 +22,11 @@ function step(flxactor::FluxSwingActor, flattop_duration::Real)
     cp1d = cp.profiles_1d[]
 
     bd.flux_swing_requirements.rampup = rampup_flux_requirements(eqt, cp)
-    bd.flux_swing_requirements.flattop = flattop_flux_requirements(cp1d, flattop_duration)
+    bd.flux_swing_requirements.flattop = flattop_flux_requirements(cp1d, flxactor.flattop_duration)
     bd.flux_swing_requirements.pf = pf_flux_requirements(eqt)
-    oh_requirements(bd)
 
-    tf_requirements(bd, eq)
+    oh_peakJ(bd)
+    tf_peakJ(bd, eq)
 
     return flxactor
 end
@@ -96,7 +99,7 @@ function pf_flux_requirements(eqt::IMAS.equilibrium__time_slice)
 end
 
 """
-    oh_requirements(bd::IMAS.build, double_swing::Bool=true)
+    oh_peakJ(bd::IMAS.build, double_swing::Bool=true)
 
 Evaluate OH current density and B_field required for rampup and flattop
 
@@ -104,7 +107,7 @@ NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
-function oh_requirements(bd::IMAS.build, double_swing::Bool = true)
+function oh_peakJ(bd::IMAS.build, double_swing::Bool = true)
     innerSolenoidRadius = IMAS.get_build(bd, type = _oh_).start_radius
     outerSolenoidRadius = IMAS.get_build(bd, type = _oh_).end_radius
     totalOhFluxReq = bd.flux_swing_requirements.rampup + bd.flux_swing_requirements.flattop + bd.flux_swing_requirements.pf
@@ -121,11 +124,11 @@ function oh_requirements(bd::IMAS.build, double_swing::Bool = true)
 end
 
 """
-    tf_requirements(bd::IMAS.build)
+    tf_peakJ(bd::IMAS.build)
 
 Evaluate TF current density given a B_field
 """
-function tf_requirements(bd::IMAS.build, eq::IMAS.equilibrium)
+function tf_peakJ(bd::IMAS.build, eq::IMAS.equilibrium)
     hfsTF = IMAS.get_build(bd, type = _tf_, fs = _hfs_)
     B0 = abs(maximum(eq.vacuum_toroidal_field.b0))
     R0 = eq.vacuum_toroidal_field.r0
@@ -140,14 +143,24 @@ function tf_requirements(bd::IMAS.build, eq::IMAS.equilibrium)
 end
 
 #= ======== =#
-#  Stresses  #
+#  stresses  #
 #= ======== =#
 
 mutable struct StressesActor <: AbstractActor
     dd::IMAS.dd
+    bucked::Bool
+    noslip::Bool
+    plug::Bool
 end
 
-function step(stressactor::StressesActor; bucked = false, noslip = false, plug = false)
+function StressesActor(dd::IMAS.dd, par::Parameters)
+    actor = StressesActor(dd, par.center_stack.bucked, par.center_stack.noslip, par.center_stack.plug)
+    step(actor)
+    finalize(actor)
+    return actor
+end
+
+function step(stressactor::StressesActor)
     eq = stressactor.dd.equilibrium
     bd = stressactor.dd.build
 
@@ -173,9 +186,9 @@ function step(stressactor::StressesActor; bucked = false, noslip = false, plug =
             oh_on ? Bz_oh : 0.0,
             R_oh_in,
             R_oh_out;
-            bucked = bucked,
-            noslip = noslip,
-            plug = plug,
+            bucked = stressactor.bucked,
+            noslip = stressactor.noslip,
+            plug = stressactor.plug,
             f_struct_tf = f_struct_tf,
             f_struct_oh = f_struct_oh,
             f_struct_pl = 1.0,
@@ -185,15 +198,100 @@ function step(stressactor::StressesActor; bucked = false, noslip = false, plug =
 
 end
 
-function StressesActor(dd::IMAS.dd, par::Parameters)
-    sactor = StressesActor(dd)
-    step(sactor; bucked = par.center_stack.bucked, noslip = par.center_stack.noslip, plug = par.center_stack.plug)
-    finalize(sactor)
-    return sactor
-end
-
 @recipe function plot_StressesActor(sactor::StressesActor)
     @series begin
         sactor.dd.solid_mechanics.center_stack.stress
     end
+end
+
+#= ====== =#
+#  sizing  #
+#= ====== =#
+
+mutable struct OHTFsizingActor <: AbstractActor
+    stresses_actor::StressesActor
+    fluxswing_actor::FluxSwingActor
+end
+
+function OHTFsizingActor(dd::IMAS.dd, par::Parameters; kw...)
+    fluxswing_actor = FluxSwingActor(dd, par)
+    stresses_actor = StressesActor(dd, par)
+    actor = OHTFsizingActor(stresses_actor, fluxswing_actor)
+    step(actor; kw...)
+    finalize(actor)
+    return actor
+end
+
+function step(actor::OHTFsizingActor; verbose=false)
+
+    function cost(x0)
+        plug.thickness, OH.thickness, TFlfs.thickness = map(abs,x0)
+        TFhfs.thickness = TFlfs.thickness
+
+        step(actor.stresses_actor)
+        step(actor.fluxswing_actor)
+
+        c = log10(dd.build.oh.critical_j / dd.build.oh.max_j)^2
+        c += log10(dd.build.tf.critical_j / dd.build.tf.max_j)^2
+        c += log10(stainless_steel.yield_strength / maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh))^2
+        c += log10(stainless_steel.yield_strength / maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf))^2
+        if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
+            c += log10(stainless_steel.yield_strength / maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl))^2
+        end
+        c = sqrt(c)
+        display((plug.thickness, OH.thickness, TFlfs.thickness, c))
+        return c
+    end
+    @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
+    dd = actor.stresses_actor.dd
+
+    plug = dd.build.layer[1]
+    OH = IMAS.get_build(dd.build, type = _oh_)
+    TFlfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
+    TFhfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
+
+    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFlfs.thickness], Optim.Newton(), Optim.Options(time_limit = 30, iterations = 1, g_tol = 1E-4); autodiff = :forward)
+    plug.thickness, OH.thickness, TFlfs.thickness = map(abs,res.minimizer)
+    TFhfs.thickness = TFlfs.thickness
+
+    if verbose
+        @show dd.build.oh.max_j
+        @show dd.build.oh.critical_j
+        @show dd.build.tf.max_j
+        @show dd.build.tf.critical_j
+        @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh)
+        @show stainless_steel.yield_strength
+        @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf)
+        @show stainless_steel.yield_strength
+    end
+
+    return actor
+end
+
+function cost_lt(x, value)
+    exp((x - value) / value)
+end
+
+function cost_gt(x, value)
+    exp((-x + value) / value)
+end
+
+#= ============= =#
+#  cross-section  #
+#= ============= =#
+
+mutable struct CXbuildActor <: AbstractActor
+    dd::IMAS.dd
+    tf_shape::IMAS.BuildLayerShape
+end
+
+function CXbuildActor(dd::IMAS.dd, par::Parameters; kw...)
+    actor = CXbuildActor(dd, to_enum(par.tf.shape))
+    step(actor; kw...)
+    finalize(actor)
+    return actor
+end
+
+function step(cx_actor::CXbuildActor)
+    build_cx(cx_actor.dd, cx_actor.tf_shape)
 end

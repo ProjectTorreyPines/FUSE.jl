@@ -76,6 +76,13 @@ function GASC(filename::String, case::Int)
     return gasc
 end
 
+"""
+    returns enum from symbol
+"""
+function to_enum(smbl::Symbol)
+    smbl = Symbol("_$(smbl)_")
+    return @eval($smbl)
+end
 
 # ******************************************
 # Convex Hull
