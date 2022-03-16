@@ -222,21 +222,29 @@ function OHTFsizingActor(dd::IMAS.dd, par::Parameters; kw...)
     return actor
 end
 
-function step(actor::OHTFsizingActor; verbose=false)
+function step(actor::OHTFsizingActor; verbose = false)
+
+    function clb(x)
+        display((plug.thickness, OH.thickness, TFlfs.thickness))
+        false
+    end
 
     function cost(x0)
-        plug.thickness, OH.thickness, TFlfs.thickness = map(abs,x0)
-        TFhfs.thickness = TFlfs.thickness
+
+        plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
+        TFlfs.thickness = TFhfs.thickness
 
         step(actor.stresses_actor)
         step(actor.fluxswing_actor)
 
-        c = log10(dd.build.oh.critical_j / dd.build.oh.max_j)^2
-        c += log10(dd.build.tf.critical_j / dd.build.tf.max_j)^2
-        c += log10(stainless_steel.yield_strength / maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh))^2
-        c += log10(stainless_steel.yield_strength / maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf))^2
+        c = (1 - dd.build.oh.max_j / dd.build.oh.critical_j)^2
+        c += (1 - maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh / stainless_steel.yield_strength))^2
+
+        c += (1 - dd.build.tf.max_j / dd.build.tf.critical_j)^2
+        c += (1 - maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) / stainless_steel.yield_strength)^2
+
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-            c += log10(stainless_steel.yield_strength / maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl))^2
+            c += (1 - maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) / stainless_steel.yield_strength)^2
         end
         c = sqrt(c)
         return c
@@ -246,12 +254,12 @@ function step(actor::OHTFsizingActor; verbose=false)
 
     plug = dd.build.layer[1]
     OH = IMAS.get_build(dd.build, type = _oh_)
-    TFlfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
     TFhfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
+    TFlfs = IMAS.get_build(dd.build, type = _tf_, fs = _lfs_)
 
-    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFlfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 30, iterations = 1, g_tol = 1E-4); autodiff = :forward)
-    plug.thickness, OH.thickness, TFlfs.thickness = map(abs,res.minimizer)
-    TFhfs.thickness = TFlfs.thickness
+    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 30, iterations = 100, g_tol = 1E-4, callback = clb); autodiff = :forward)
+    plug.thickness, OH.thickness, TFhfs.thickness = map(abs, res.minimizer)
+    TFlfs.thickness = TFhfs.thickness
 
     if verbose
         @show dd.build.oh.max_j
