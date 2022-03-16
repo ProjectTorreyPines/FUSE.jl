@@ -239,7 +239,6 @@ function step(actor::OHTFsizingActor; verbose=false)
             c += log10(stainless_steel.yield_strength / maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl))^2
         end
         c = sqrt(c)
-        display((plug.thickness, OH.thickness, TFlfs.thickness, c))
         return c
     end
     @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
@@ -250,7 +249,7 @@ function step(actor::OHTFsizingActor; verbose=false)
     TFlfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
     TFhfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
 
-    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFlfs.thickness], Optim.Newton(), Optim.Options(time_limit = 30, iterations = 1, g_tol = 1E-4); autodiff = :forward)
+    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFlfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 30, iterations = 1, g_tol = 1E-4); autodiff = :forward)
     plug.thickness, OH.thickness, TFlfs.thickness = map(abs,res.minimizer)
     TFhfs.thickness = TFlfs.thickness
 
