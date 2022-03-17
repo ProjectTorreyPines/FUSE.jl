@@ -1,4 +1,5 @@
-using JSON
+import JSON
+import ForwardDiff
 
 function unwrap(v, inplace = false)
     unwrapped = inplace ? v : copy(v)
