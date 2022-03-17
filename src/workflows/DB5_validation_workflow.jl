@@ -22,7 +22,17 @@ function run_equilibrium_for_database(dd, case)
     eqt1d.area .*= case[:AREA] / eqt1d.area[end]
 end
 
-function validation_workflow(n_samples::Union{Real,Symbol} = 10; save_directory::String = "", show_equilibrium = false, plot_database = true)
+"""
+    function validation_workflow(
+        n_samples::Union{Real,Symbol},
+        save_directory::String,
+        show_equilibrium::Bool,
+        plot_database::Bool)
+
+Runs n_samples of the HDB5 database and stores results in save_directory
+"""
+
+function validation_workflow(n_samples::Union{Real,Symbol} = 10; save_directory::String = "", show_dd_plots = false, plot_database = true)
 
     # Set up the database to run
     run_df = init_dataframe_HDB5()
@@ -53,8 +63,10 @@ function validation_workflow(n_samples::Union{Real,Symbol} = 10; save_directory:
             FUSE.transport_workflow(dd, par, transport_model = :tglfnn, verbose = false)
             run_equilibrium_for_database(dd, case)
 
-            if show_equilibrium
+            if show_dd_plots
                 display(plot(dd.equilibrium, psi_levels_out = [], label = case_name))
+                display(plot(dd.core_profiles))
+                display(plot(dd.core_sources))
             end
 
             if !isempty(save_directory)
