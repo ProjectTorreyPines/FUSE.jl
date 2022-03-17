@@ -107,11 +107,11 @@ function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
     pf_active__coil.element[1].geometry.rectangle.width = coil.width
     pf_active__coil.element[1].geometry.rectangle.height = coil.height
     pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
-    pf_active__coil.b_field_max = range(0.1, 20, step=0.1)
+    pf_active__coil.b_field_max = range(0.1, 30, step = 0.1)
     pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
     pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
     pf_active__coil.b_field_max_timed.time = coil.current_time
-    pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, current) for current in coil.current_data]
+    pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, time_index) for time_index in 1:length(coil.current_time)]
     pf_active__coil.current.time = coil.current_time
     pf_active__coil.current.data = coil.current_data
 end
@@ -295,21 +295,24 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
 end
 
 """
-    PF coil critical current from self-field alone
-
+    coil_Jcrit(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
+PF coil critical current from self-field alone
 NOTE: infinite wire approximation
 """
-function coil_Jcrit(coil::GS_IMAS_pf_active__coil, current)
-    return coil_Jcrit(coil_selfB(coil, current), coil.coil_tech)
+function coil_Jcrit(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
+    return coil_Jcrit(coil_selfB(coil, time_index), coil.coil_tech)
 end
 
 """
-    PF coil self-induced magnetic field
-
+    coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
+PF coil self-induced magnetic field
 NOTE: infinite wire approximation
 """
-function coil_selfB(coil::GS_IMAS_pf_active__coil, current)
-    b = abs.(constants.μ_0 * current * coil.turns_with_sign / (2pi * min(coil.width, coil.height)))
+function coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
+    if time_index == 0
+        time_index = coil.time_index
+    end
+    b = abs.(constants.μ_0 * coil.current_data[time_index] * coil.turns_with_sign / (2pi * min(coil.width, coil.height)))
     if b < 0.1
         return 0.1
     else
@@ -397,7 +400,7 @@ function optimize_coils_rail(
                 end
                 currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights = weight, λ_regularize = λ_regularize, return_cost = true)
                 current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-                max_current_densities = [coil_Jcrit(coil, coil.current) for coil in coils]
+                max_current_densities = [coil_Jcrit(coil) for coil in coils]
                 fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
                 #OH cost
                 oh_current_densities = current_densities[oh_indexes]
@@ -492,7 +495,7 @@ end
     step(pfactor::PFcoilsOptActor;
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
-        λ_ψ=1E-3,
+        λ_ψ=1E-2,
         λ_null=1,
         λ_currents=0.5,
         λ_strike=1,
