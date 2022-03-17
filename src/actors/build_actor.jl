@@ -222,32 +222,36 @@ function OHTFsizingActor(dd::IMAS.dd, par::Parameters; kw...)
     return actor
 end
 
-function step(actor::OHTFsizingActor; verbose = false)
+function step(actor::OHTFsizingActor; verbose = false, tolerance = 0.5)
 
     function clb(x)
         display((plug.thickness, OH.thickness, TFlfs.thickness))
         false
+        if verbose
+            display((force_float(plug.thickness), force_float(OH.thickness), force_float(TFlfs.thickness)))
+            false
+        end
     end
 
     function cost(x0)
-
         plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
         TFlfs.thickness = TFhfs.thickness
 
-        step(actor.stresses_actor)
         step(actor.fluxswing_actor)
+        step(actor.stresses_actor)
 
-        c = (1 - dd.build.oh.max_j / dd.build.oh.critical_j)^2
-        c += (1 - maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh / stainless_steel.yield_strength))^2
+        # ratios to evenly split the cost among different objectives
+        jtf2joh_ratio = dd.build.tf.critical_j / dd.build.oh.critical_j
+        stress2j_ratio = (dd.build.tf.critical_j + dd.build.oh.critical_j) / 2.0 / stainless_steel.yield_strength
 
-        c += (1 - dd.build.tf.max_j / dd.build.tf.critical_j)^2
-        c += (1 - maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) / stainless_steel.yield_strength)^2
-
+        c = ((1 - (1 + tolerance) * dd.build.oh.max_j / dd.build.oh.critical_j) * jtf2joh_ratio)^2
+        c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh / stainless_steel.yield_strength)) * stress2j_ratio)^2
+        c += (1 - (1 + tolerance) * dd.build.tf.max_j / dd.build.tf.critical_j)^2
+        c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) / stainless_steel.yield_strength) * stress2j_ratio)^2
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-            c += (1 - maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) / stainless_steel.yield_strength)^2
+            c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) / stainless_steel.yield_strength) * stress2j_ratio)^2
         end
-        c = sqrt(c)
-        return c
+        return sqrt(c)
     end
     @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
     dd = actor.stresses_actor.dd
@@ -257,11 +261,14 @@ function step(actor::OHTFsizingActor; verbose = false)
     TFhfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
     TFlfs = IMAS.get_build(dd.build, type = _tf_, fs = _lfs_)
 
-    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 30, iterations = 100, g_tol = 1E-4, callback = clb); autodiff = :forward)
+    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 30, iterations = 100, g_tol = 1E-6, callback = clb); autodiff = :forward)
     plug.thickness, OH.thickness, TFhfs.thickness = map(abs, res.minimizer)
     TFlfs.thickness = TFhfs.thickness
+    step(actor.fluxswing_actor)
+    step(actor.stresses_actor)
 
     if verbose
+        display(res)
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
         @show dd.build.tf.max_j
@@ -273,14 +280,6 @@ function step(actor::OHTFsizingActor; verbose = false)
     end
 
     return actor
-end
-
-function cost_lt(x, value)
-    exp((x - value) / value)
-end
-
-function cost_gt(x, value)
-    exp((-x + value) / value)
 end
 
 #= ============= =#

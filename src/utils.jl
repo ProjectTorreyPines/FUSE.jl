@@ -1,14 +1,5 @@
 using JSON
 
-function no_Dual(x)
-    if typeof(x) <: ForwardDiff.Dual
-        x = x.value
-        return no_Dual(x)
-    else
-        return x
-    end
-end
-
 function unwrap(v, inplace = false)
     unwrapped = inplace ? v : copy(v)
     for i = 2:length(v)
@@ -120,4 +111,11 @@ function halfhull(points::Vector{Point})
         end
     end
     halfhull
+end
+
+function IMAS.force_float(x::ForwardDiff.Dual)
+    ## we purposly do not do it recursively since generally
+    ## ForwardDiff.Dual of ForwardDiff.Dual is an indication of someghing going wrong
+    # return force_float(x.value)
+    return x.value
 end
