@@ -1,27 +1,33 @@
-#= ================ =#
-#  flux-swing actor #
-#= ================ =#
+#= ========== =#
+#  flux-swing #
+#= ========== =#
 
 mutable struct FluxSwingActor <: AbstractActor
     dd::IMAS.dd
+    flattop_duration::Real
 end
 
 function FluxSwingActor(dd::IMAS.dd, par::Parameters)
-    return FluxSwingActor(dd)
+    actor = FluxSwingActor(dd, par.oh.flattop_duration)
+    step(actor)
+    finalize(actor)
+    return actor
 end
 
-# step
-function step(flxactor::FluxSwingActor, flattop_duration::Real)
+function step(flxactor::FluxSwingActor)
     bd = flxactor.dd.build
-    eqt = flxactor.dd.equilibrium.time_slice[]
+    eq = flxactor.dd.equilibrium
+    eqt = eq.time_slice[]
     cp = flxactor.dd.core_profiles
     cp1d = cp.profiles_1d[]
 
     bd.flux_swing_requirements.rampup = rampup_flux_requirements(eqt, cp)
-    bd.flux_swing_requirements.flattop = flattop_flux_requirements(cp1d, flattop_duration)
+    bd.flux_swing_requirements.flattop = flattop_flux_requirements(cp1d, flxactor.flattop_duration)
     bd.flux_swing_requirements.pf = pf_flux_requirements(eqt)
 
-    oh_requirements(bd)
+    oh_peakJ(bd)
+    tf_peakJ(bd, eq)
+
     return flxactor
 end
 
@@ -36,15 +42,17 @@ NOTES:
 * core_profiles is only used to get core_profiles.global_quantities.ejima
 """
 function rampup_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+
+    ###### what equilibrium time-slice should we use to evaluate rampup flux requirements?
+
     # from IMAS dd to local variables
     majorRadius = eqt.boundary.geometric_axis.r
     minorRadius = eqt.boundary.minor_radius
     elongation = eqt.boundary.elongation
     plasmaCurrent = eqt.global_quantities.ip / 1E6 # in [MA]
-    li = eqt.global_quantities.li_3 # what li ?
+    li = eqt.global_quantities.li_3 # what li
     ejima = @ddtime cp.global_quantities.ejima
 
-    # ============================= #
     # evaluate plasma inductance
     plasmaInductanceInternal = 0.4 * 0.5 * pi * majorRadius * li
     plasmaInductanceExternal = 0.4 * pi * majorRadius * (log(8.0 * majorRadius / minorRadius / sqrt(elongation)) - 2.0)
@@ -53,7 +61,6 @@ function rampup_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp::IMAS.co
     # estimate rampup flux requirement
     rampUpFlux = (ejima * 0.4 * pi * majorRadius + plasmaInductanceTotal) * plasmaCurrent
 
-    # ============================= #
     return abs(rampUpFlux)
 end
 
@@ -84,17 +91,15 @@ function pf_flux_requirements(eqt::IMAS.equilibrium__time_slice)
     betaP = eqt.global_quantities.beta_pol
     li = eqt.global_quantities.li_3 # what li does Stambaugh FST 2011 use?
 
-    # ============================= #
     # estimate vertical field and its contribution to flux swing
     verticalFieldAtCenter = 0.1 * plasmaCurrent / majorRadius * (log(8.0 * majorRadius / (minorRadius * sqrt(elongation))) - 1.5 + betaP + 0.5 * li)
     fluxFromVerticalField = 0.8 * verticalFieldAtCenter * pi * (majorRadius^2 - (majorRadius - minorRadius)^2)
 
-    # ============================= #
     return -abs(fluxFromVerticalField)
 end
 
 """
-    oh_requirements(bd::IMAS.build, double_swing::Bool=true)
+    oh_peakJ(bd::IMAS.build, double_swing::Bool=true)
 
 Evaluate OH current density and B_field required for rampup and flattop
 
@@ -102,261 +107,189 @@ NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
-function oh_requirements(bd::IMAS.build, double_swing::Bool = true)
-    innerSolenoidRadius, outerSolenoidRadius = (IMAS.get_build(bd, type = 1).start_radius, IMAS.get_build(bd, type = 1).end_radius)
+function oh_peakJ(bd::IMAS.build, double_swing::Bool = true)
+    innerSolenoidRadius = IMAS.get_build(bd, type = _oh_).start_radius
+    outerSolenoidRadius = IMAS.get_build(bd, type = _oh_).end_radius
     totalOhFluxReq = bd.flux_swing_requirements.rampup + bd.flux_swing_requirements.flattop + bd.flux_swing_requirements.pf
-
-    # ============================= #
 
     # Calculate magnetic field at solenoid bore required to match flux swing request
     RiRoFactor = innerSolenoidRadius / outerSolenoidRadius
     magneticFieldSolenoidBore = 3.0 * totalOhFluxReq / pi / outerSolenoidRadius^2 / (RiRoFactor^2 + RiRoFactor + 1.0) / (double_swing ? 2 : 1)
     currentDensityOH = magneticFieldSolenoidBore / (0.4 * pi * outerSolenoidRadius * (1 - innerSolenoidRadius / outerSolenoidRadius))
 
-    # ============================= #
-
     # minimum requirements for OH
     bd.oh.max_b_field = magneticFieldSolenoidBore
-    bd.oh.max_j = currentDensityOH * 1E6 # [A/m^2] ?
+    bd.oh.max_j = currentDensityOH * 1E6
+    bd.oh.critical_j = coil_Jcrit(bd.oh.max_b_field, bd.oh.technology)
+end
+
+"""
+    tf_peakJ(bd::IMAS.build)
+
+Evaluate TF current density given a B_field
+"""
+function tf_peakJ(bd::IMAS.build, eq::IMAS.equilibrium)
+    hfsTF = IMAS.get_build(bd, type = _tf_, fs = _hfs_)
+    B0 = abs(maximum(eq.vacuum_toroidal_field.b0))
+    R0 = eq.vacuum_toroidal_field.r0
+
+    # current in the TF coils
+    current_TF = B0 * R0 * 2pi / constants.μ_0 / bd.tf.coils_n
+    TF_cx_area = hfsTF.thickness * bd.tf.wedge_thickness
+
+    bd.tf.max_b_field = B0 * R0 / hfsTF.end_radius
+    bd.tf.max_j = current_TF / TF_cx_area
+    bd.tf.critical_j = coil_Jcrit(bd.tf.max_b_field, bd.tf.technology)
 end
 
 #= ======== =#
-#  Stresses  #
+#  stresses  #
 #= ======== =#
 
-function stress_calculations(dd::IMAS.dd)
-    error("not completed yet")
-    bd = dd.build
-    B0_TF = dd.build.tf_b_field_max
-    R0_TF = sum((IMAS.get_build(bd, type = -1).start_radius, IMAS.get_build(bd, type = -1).end_radius)) / 2.0
-    Rtf1 = IMAS.get_build(bd, type = 2).start_radius
-    Rtf2 = IMAS.get_build(bd, type = 2).end_radius
-    B0_OH = dd.build.oh_b_field_max
-    R_sol1 = IMAS.get_build(bd, type = 1).start_radius
-    R_sol2 = IMAS.get_build(bd, type = 1).end_radius
-    s_ax_ave = something
-    f_t_ss_tot_in = something
-    f_oh_cu_in = something
-    f_oh_sa_sh_in = something
-    ibuck = something
-    stress_calculations(B0_TF, R0_TF, Rtf1, Rtf2, B0_OH, R_sol1, R_sol2, s_ax_ave, f_t_ss_tot_in, f_oh_cu_in, f_oh_sa_sh_in, ibuck)
+mutable struct StressesActor <: AbstractActor
+    dd::IMAS.dd
+    bucked::Bool
+    noslip::Bool
+    plug::Bool
 end
 
+function StressesActor(dd::IMAS.dd, par::Parameters)
+    actor = StressesActor(dd, par.center_stack.bucked, par.center_stack.noslip, par.center_stack.plug)
+    step(actor)
+    finalize(actor)
+    return actor
+end
 
-function stress_calculations(
-    B0_TF, # magnetic field on axis
-    R0_TF, # major radius
-    Rtf1,  # inner radius TF
-    Rtf2,  # outer radius TF
-    B0_OH, # magnetic field solenoid bore
-    R_sol1,  # inner solenoid radius
-    R_sol2,  # outer solenoid radius
-    s_ax_ave,   # average stress axial TF
-    f_t_ss_tot_in, # fraction copper + fraction stainless TF
-    f_oh_cu_in, # fraction copper + fraction stainless OH
-    f_oh_sa_sh_in, # 0.37337
-    ibuck) # has plug
+function step(stressactor::StressesActor)
+    eq = stressactor.dd.equilibrium
+    bd = stressactor.dd.build
 
-    plug_switch = 1
-    if ibuck > 1
-        plug_switch = ibuck - 1
+    R0 = eq.vacuum_toroidal_field.r0
+    B0 = maximum(eq.vacuum_toroidal_field.b0)
+    R_tf_in = IMAS.get_build(bd, type = _tf_, fs = _hfs_).start_radius
+    R_tf_out = IMAS.get_build(bd, type = _tf_, fs = _hfs_).end_radius
+    Bz_oh = bd.oh.max_b_field
+    R_oh_in = IMAS.get_build(bd, type = _oh_).start_radius
+    R_oh_out = IMAS.get_build(bd, type = _oh_).end_radius
+    f_struct_tf = bd.tf.technology.fraction_stainless
+    f_struct_oh = bd.oh.technology.fraction_stainless
+
+    smcs = empty!(stressactor.dd.solid_mechanics.center_stack)
+
+    for oh_on in [true, false]
+        solve_1D_solid_mechanics!(
+            smcs,
+            R0,
+            B0,
+            R_tf_in,
+            R_tf_out,
+            oh_on ? Bz_oh : 0.0,
+            R_oh_in,
+            R_oh_out;
+            bucked = stressactor.bucked,
+            noslip = stressactor.noslip,
+            plug = stressactor.plug,
+            f_struct_tf = f_struct_tf,
+            f_struct_oh = f_struct_oh,
+            f_struct_pl = 1.0,
+            n_points = 5,
+            verbose = false
+        )
     end
 
-    robo_tf = B0_TF * R0_TF
-    mu0 = 4 * pi * 0.0000001
-    r_2 = 0.5 * (Rtf1 + R_sol2)
-    r_3 = Rtf2
-    em_tf = 193103448275.862
-    g_tf = 0.33
-    s_t_hoop_ave = -2 / 3 * robo_tf^2 * (2 * r_2 + r_3) / (mu0 * (r_3 - r_2) * (r_3 + r_2)^2)
-    f_t_ax_hoop = -s_ax_ave / s_t_hoop_ave
-    area_t_ax = pi * (Rtf2^2 - Rtf1^2)
-    f_t_ax = s_ax_ave * area_t_ax
-    sw_sip1_noslp2 = 1
+end
 
-    b_cs = [0.0, B0_OH]
+@recipe function plot_StressesActor(sactor::StressesActor)
+    @series begin
+        sactor.dd.solid_mechanics.center_stack.stress
+    end
+end
 
-    Rcs_i = R_sol1
-    Rcs_o = r_2
+#= ====== =#
+#  sizing  #
+#= ====== =#
 
-    s_c_hoop_ave = b_cs^2 / 6 / mu0 * (Rcs_o + 2 * Rcs_i) / (Rcs_o - Rcs_i)
-    f_c_ax_hoop = f_oh_sa_sh_in
-    s_c_ax_ave = -f_c_ax_hoop * s_c_hoop_ave
-    area_c_ax = pi * (Rcs_o^2 - Rcs_i^2)
-    f_c_ax = s_c_ax_ave * area_c_ax
+mutable struct OHTFsizingActor <: AbstractActor
+    stresses_actor::StressesActor
+    fluxswing_actor::FluxSwingActor
+end
 
-    em_tf = em_tf
-    g_tf = g_tf
-    s_p_ax_ave = 0
-    area_p_ax = pi * (Rcs_i^2)
-    f_p_ax = s_p_ax_ave * area_p_ax
+function OHTFsizingActor(dd::IMAS.dd, par::Parameters; kw...)
+    fluxswing_actor = FluxSwingActor(dd, par)
+    stresses_actor = StressesActor(dd, par)
+    actor = OHTFsizingActor(stresses_actor, fluxswing_actor)
+    step(actor; kw...)
+    finalize(actor)
+    return actor
+end
 
-    if sw_sip1_noslp2 <= 1
-        area_t_ax_use = area_t_ax
-    else
-        if plug_switch <= 1
-            area_t_ax_use = area_t_ax + area_c_ax
-        else
-            area_t_ax_use = area_t_ax + area_c_ax + area_p_ax
+function step(actor::OHTFsizingActor; verbose = false, tolerance = 0.2)
+
+    function cost(x0)
+        plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
+        TFlfs.thickness = TFhfs.thickness
+
+        step(actor.fluxswing_actor)
+        step(actor.stresses_actor)
+
+        # ratios to evenly split the cost among different objectives
+        jtf2joh_ratio = dd.build.tf.critical_j / dd.build.oh.critical_j
+        stress2j_ratio = (dd.build.tf.critical_j + dd.build.oh.critical_j) / 2.0 / stainless_steel.yield_strength
+
+        c = ((1 - (1 + tolerance) * dd.build.oh.max_j / dd.build.oh.critical_j) * jtf2joh_ratio)^2
+        c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh / stainless_steel.yield_strength)) * stress2j_ratio)^2
+        c += (1 - (1 + tolerance) * dd.build.tf.max_j / dd.build.tf.critical_j)^2
+        c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) / stainless_steel.yield_strength) * stress2j_ratio)^2
+        if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
+            c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) / stainless_steel.yield_strength) * stress2j_ratio)^2
         end
+        return sqrt(c)
     end
-    if sw_sip1_noslp2 <= 1
-        f_t_ax_use = f_t_ax
-    else
-        if plug_switch <= 1
-            f_t_ax_use = f_t_ax + f_c_ax
-        else
-            f_t_ax_use = f_t_ax + f_c_ax + f_p_ax
-        end
-    end
+    @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
+    dd = actor.stresses_actor.dd
 
-    s_t_ax_use_nov = f_t_ax_use / area_t_ax_use
-    f_t_ss_tot = f_t_ss_tot_in
-    s_t_ax_void = s_t_ax_use_nov / f_t_ss_tot
-    sw_cs_use = 0
+    plug = dd.build.layer[1]
+    OH = IMAS.get_build(dd.build, type = _oh_)
+    TFhfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
+    TFlfs = IMAS.get_build(dd.build, type = _tf_, fs = _lfs_)
 
-    if sw_sip1_noslp2 <= 1
-        area_c_ax_use = area_c_ax
-    else
-        if plug_switch <= 1
-            area_c_ax_use = area_t_ax + area_c_ax
-        else
-            area_c_ax_use = area_t_ax + area_c_ax + area_p_ax
-        end
-    end
+    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 60, iterations = 1000, g_tol = 1E-6); autodiff = :forward)
+    plug.thickness, OH.thickness, TFhfs.thickness = map(abs, res.minimizer)
+    TFlfs.thickness = TFhfs.thickness
+    step(actor.fluxswing_actor)
+    step(actor.stresses_actor)
 
-    if sw_sip1_noslp2 <= 1
-        f_c_ax_use = f_c_ax
-    else
-        if plug_switch <= 1
-            f_c_ax_use = f_t_ax + f_c_ax
-        else
-            f_c_ax_use = f_t_ax + f_c_ax + f_p_ax
-        end
-    end
-    s_c_ax_use_nov = f_c_ax_use / area_c_ax_use
-
-    frac_c_ss_tot = f_oh_cu_in
-    s_c_ax_void = s_c_ax_use_nov / frac_c_ss_tot
-
-    if sw_sip1_noslp2 <= 1
-        area_p_ax_use = area_p_ax
-    else
-        if plug_switch <= 1
-            area_p_ax_use = area_t_ax + area_c_ax
-        else
-            area_p_ax_use = area_t_ax + area_c_ax + area_p_ax
-        end
+    if verbose
+        display(res)
+        @show dd.build.oh.max_j
+        @show dd.build.oh.critical_j
+        @show dd.build.tf.max_j
+        @show dd.build.tf.critical_j
+        @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh)
+        @show stainless_steel.yield_strength
+        @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf)
+        @show stainless_steel.yield_strength
     end
 
-    if sw_sip1_noslp2 <= 1
-        f_p_ax_use = f_p_ax
-    else
-        if plug_switch <= 1
-            f_p_ax_use = f_t_ax + f_c_ax
-        else
-            f_p_ax_use = f_t_ax + f_c_ax + f_p_ax
-        end
-    end
+    return actor
+end
 
-    s_p_ax_use_nov = f_p_ax_use / area_p_ax_use
-    frac_p_ss_tot = 1
-    s_p_ax_void = s_p_ax_use_nov / frac_p_ss_tot
-    C_T = 2 * (1 - g_tf^2) * (R0_TF * B0_TF)^2 / (mu0 * em_tf * (r_3^2 - r_2^2)^2)
-    C_C = -(1 - g_tf^2) * b_cs^2 / mu0 / em_tf / (Rcs_o - Rcs_i)^2
-    C_P = C_C
-    Ebar_tf = em_tf / (1 - g_tf^2)
-    Ebar_cs = em_tf / (1 - g_tf^2)
-    Ebar_pl = em_tf / (1 - g_tf^2)
-    Ebar_cp = Ebar_cs / Ebar_pl / (1 + g_tf)
-    Cts3 = Ebar_tf * C_T * ((3 + g_tf) / 8 * r_3^2 - r_2^2 / 2 * ((1 + g_tf) * log(r_3) + (1 - g_tf) / 2))
-    Ats3 = Ebar_tf * (1 + g_tf)
-    Bts3 = -Ebar_tf * (1 - g_tf) / r_3^2
-    Cbar_ts3 = -Cts3 / Bts3
-    Abar_ts3 = -Ats3 / Bts3
-    Ctu2 = C_T * (r_2^2 / 8 - r_2^2 * (log(r_2) / 2 - 1.0 / 4.0))
-    Atu2 = 1
-    Btu2 = 1 / r_2^2
-    Cts2 = Ebar_tf * C_T * ((3 + g_tf) / 8 * r_2^2 - r_2^2 / 2 * ((1 + g_tf) * log(r_2) + (1 - g_tf) / 2))
-    Ats2 = Ebar_tf * (1 + g_tf)
-    Bts2 = -Ebar_tf * (1 - g_tf) / r_2^2
-    Atu = Atu2 + Btu2 * Abar_ts3
-    Ats = Ats2 + Bts2 * Abar_ts3
-    Ccs1 = Ebar_cs * C_C * (Rcs_o * Rcs_i / 3 * (2 + g_tf) - Rcs_i^2 / 8 * (3 + g_tf))
-    Acs1 = Ebar_cs * (1 + g_tf)
-    Bcs1 = -Ebar_cs * (1 - g_tf) / Rcs_i^2
-    Cbar_cs1 = -Ccs1 / Bcs1
-    Abar_cs1 = -Acs1 / Bcs1
-    CC1 = C_C * (Ebar_cp * ((2 + g_tf) / 3 * Rcs_i * Rcs_o - (3 + g_tf) / 8 * Rcs_i^2) - (Rcs_i * Rcs_o / 3 - Rcs_i^2 / 8))
-    Ac1 = Ebar_cp * (1 + g_tf) - 1
-    Bc1 = -Ebar_cp * (1 - g_tf) / Rcs_i^2 - 1 / Rcs_i^2
-    Cbar_c1 = -CC1 / Bc1
-    Abar_c1 = -Ac1 / Bc1
-    if plug_switch# == 2
-        Cbar_c1_use = Cbar_c1
-        Abar_c1_use = Abar_c1
-    else
-        Cbar_c1_use = Cbar_cs1
-        Abar_c1_use = Abar_cs1
-    end
+#= ============= =#
+#  cross-section  #
+#= ============= =#
 
-    Ccu2 = C_C * (Rcs_o^2 / 3 - Rcs_o^2 / 8)
-    Acu2 = 1
-    Bcu2 = 1 / Rcs_o^2
-    Ccs2 = Ebar_cs * C_C * (Rcs_o * Rcs_o / 3 * (2 + g_tf) - Rcs_o^2 / 8 * (3 + g_tf))
-    Acs2 = Ebar_cs * (1 + g_tf)
-    Bcs2 = -Ebar_cs * (1 - g_tf) / Rcs_o^2
-    Cu = Ctu2 + Btu2 * Cbar_ts3 - (Ccu2 + Bcu2 * Cbar_c1_use)
-    Cs = Cts2 + Bts2 * Cbar_ts3 - (Ccs2 + Bcs2 * Cbar_c1_use)
-    Acu = Acu2 + Bcu2 * Abar_c1_use
-    Acs = Acs2 + Bcs2 * Abar_c1_use
-    A_T = (Acu * Cs - Acs * Cu) / (Acs * Atu - Acu * Ats)
-    B_T = Cbar_ts3 + Abar_ts3 * A_T
-    A_C = (Atu * Cs - Ats * Cu) / (Acs * Atu - Acu * Ats)
-    B_C = Cbar_c1_use + Abar_c1_use * A_C
+mutable struct CXbuildActor <: AbstractActor
+    dd::IMAS.dd
+    tf_shape::IMAS.BuildLayerShape
+end
 
-    if plug_switch# == 2:
-        A_P = C_C * (Rcs_o * Rcs_i / 3 - Rcs_i^2 / 8) + A_C + B_C / Rcs_i^2
-    else
-        A_P = 0.0
-    end
-    B_P = 0
-    R_min_t = r_2
-    u_r_rmin_t = C_T * (R_min_t^2 / 8 - r_2^2 / 2 * (log(R_min_t) - 0.5)) + A_T + B_T / R_min_t^2
-    du_dr_rmin_t = C_T * (3 * R_min_t^2 / 8 - r_2^2 / 2 * (log(R_min_t) + 0.5)) + A_T - B_T / R_min_t^2
-    sr_rmin_t = em_tf / (1 - g_tf^2) * (C_T * ((3 + g_tf) / 8 * R_min_t^2 - r_2^2 / 2 * (log(R_min_t) * (1 + g_tf) + (1 - g_tf) / 2)) + A_T * (1 + g_tf) - B_T * (1 - g_tf) / R_min_t^2)
-    sh_rmin_t = em_tf / (1 - g_tf^2) * (C_T * ((1 + 3 * g_tf) / 8 * R_min_t^2 - r_2^2 / 2 * (log(R_min_t) * (1 + g_tf) - (1 - g_tf) / 2)) + A_T * (1 + g_tf) + B_T * (1 - g_tf) / R_min_t^2)
-    svm_t = np.sqrt(((sh_rmin_t - s_t_ax_use_nov)^2 + (s_t_ax_use_nov - sr_rmin_t)^2 + (sr_rmin_t - sh_rmin_t)^2) / 2)
-    svm_vd_t = svm_t / f_t_ss_tot
-    svm_vd_mp_t = svm_vd_t * 0.000001
-    svm_vd_ksi_t = svm_vd_t * 0.000000145
-    R_min_c = Rcs_i
-    u_r_min_c = C_C * (Rcs_o * R_min_c / 3 - R_min_c^2 / 8) + A_C + B_C / R_min_c^2
-    du_dr_rmin_c = C_C * (2 * Rcs_o * R_min_c / 3 - 3 * R_min_c^2 / 8) + A_C - B_C / R_min_c^2
-    sr_rmin_c = em_tf / (1 - g_tf^2) * (C_C * (Rcs_o * R_min_c / 3 * (2 + g_tf) - (3 + g_tf) / 8 * R_min_c^2) + A_C * (1 + g_tf) - B_C * (1 - g_tf) / R_min_c^2)
-    sh_rmin_c = em_tf / (1 - g_tf^2) * (C_C * (Rcs_o * R_min_c / 3 * (1 + 2 * g_tf) - (1 + 3 * g_tf) / 8 * R_min_c^2) + A_C * (1 + g_tf) + B_C * (1 - g_tf) / R_min_c^2)
-    svm_c = np.sqrt(((sh_rmin_c - s_c_ax_use_nov)^2 + (s_c_ax_use_nov - sr_rmin_c)^2 + (sr_rmin_c - sh_rmin_c)^2) / 2)
-    svm_vd_c = svm_c / frac_c_ss_tot
-    svm_vd_mp_c = svm_vd_c * 0.000001
-    svm_vd_ksi_c = svm_vd_c * 0.000000145
-    #    print (svm_vd_ksi_c)
-    R_min_p = 0
-    u_r_rmin_p = A_P
-    du_dr_rmin_p = A_P
-    sr_rmin_p = em_tf * (1 + g_tf) / (1 - g_tf^2) * A_P
-    sh_rmin_p = sr_rmin_p
-    svm_p = np.sqrt(((sh_rmin_p - s_p_ax_use_nov)^2 + (s_p_ax_use_nov - sr_rmin_p)^2 + (sr_rmin_p - sh_rmin_p)^2) / 2)
-    svm_vd_p = svm_p / frac_p_ss_tot
-    svm_vd_mp_p = svm_vd_p * 0.000001
-    svm_vd_ksi_p = svm_vd_p * 0.000000145
+function CXbuildActor(dd::IMAS.dd, par::Parameters; kw...)
+    actor = CXbuildActor(dd, to_enum(par.tf.shape))
+    step(actor; kw...)
+    finalize(actor)
+    return actor
+end
 
-    vals = Dict()
-    vals["TF Hoop Stress"] = maximum(sh_rmin_t)
-    vals["TF Fraction SS"] = maximum(f_t_ss_tot)
-    vals["TF Von Mises Stress"] = maximum(svm_vd_t)
-    vals["OH Von Mises Stress"] = maximum(svm_vd_c)
-    vals["Plug Von Mises Stress"] = maximum(svm_vd_p)
-    vals["OH Buck Switch"] = 0
-
-    return (vals)
+function step(cx_actor::CXbuildActor)
+    build_cx(cx_actor.dd, cx_actor.tf_shape)
 end

@@ -1,13 +1,5 @@
-using JSON
-
-function no_Dual(x)
-    if typeof(x) <: ForwardDiff.Dual
-        x = x.value
-        return no_Dual(x)
-    else
-        return x
-    end
-end
+import JSON
+import ForwardDiff
 
 function unwrap(v, inplace = false)
     unwrapped = inplace ? v : copy(v)
@@ -76,6 +68,33 @@ function GASC(filename::String, case::Int)
     return gasc
 end
 
+"""
+    returns enum from symbol
+"""
+function to_enum(smbl::Symbol)
+    smbl = Symbol("_$(smbl)_")
+    return @eval($smbl)
+end
+
+"""
+    same_length_vectors(args...)
+
+Returns scalars and vectors as vectors of the same lengths
+For example:
+
+    same_length_vectors(1, [2], [3,3,6], [4,4,4,4,4,4])
+    
+    4-element Vector{Vector{Int64}}:
+    [1, 1, 1, 1, 1, 1]
+    [2, 2, 2, 2, 2, 2]
+    [3, 3, 6, 3, 3, 6]
+    [4, 4, 4, 4, 4, 4]
+"""
+function same_length_vectors(args...)
+    n = maximum(map(length, args))
+    args = collect(map(x -> isa(x, Vector) ? x : [x], args))
+    args = map(x -> vcat([x for k = 1:n]...)[1:n], args)
+end
 
 # ******************************************
 # Convex Hull
@@ -113,4 +132,11 @@ function halfhull(points::Vector{Point})
         end
     end
     halfhull
+end
+
+function IMAS.force_float(x::ForwardDiff.Dual)
+    ## we purposly do not do it recursively since generally
+    ## ForwardDiff.Dual of ForwardDiff.Dual is an indication of someghing going wrong
+    # return force_float(x.value)
+    return x.value
 end

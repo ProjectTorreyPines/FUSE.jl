@@ -6,18 +6,18 @@ end
 
 function init_nbi(
     dd::IMAS.dd,
-    beam_power::Union{Real,Vector},
+    power_launched::Union{Real,Vector},
     beam_energy::Union{Real,Vector},
     beam_mass::Union{Real,Vector},
     toroidal_angle::Union{Real,Vector})
 
-    beam_power, beam_energy, beam_mass, toroidal_angle = IMAS.same_length_vectors(beam_power, beam_energy, beam_mass, toroidal_angle)
+    power_launched, beam_energy, beam_mass, toroidal_angle = same_length_vectors(power_launched, beam_energy, beam_mass, toroidal_angle)
 
-    for idx in 1:length(beam_power)
+    for idx in 1:length(power_launched)
         resize!(dd.nbi.unit, idx)
         nbi_u = dd.nbi.unit[idx]
         @ddtime(nbi_u.energy.data = beam_energy[idx])
-        @ddtime(nbi_u.power_launched.data = beam_power[idx])
+        @ddtime(nbi_u.power_launched.data = power_launched[idx])
         nbi_u.species.a = beam_mass[idx]
         # 1 beamlet
         resize!(nbi_u.beamlets_group, 1)
@@ -32,7 +32,7 @@ function init_ec_launchers(dd::IMAS.dd, par::Parameters)
 end
 
 function init_ec_launchers(dd::IMAS.dd, power_launched::Union{Real,Vector})
-    power_launched = [p for p in power_launched]
+    (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
         resize!(dd.ec_launchers.launcher, idx)
         @ddtime dd.ec_launchers.launcher[idx].power_launched.data = power_launched[idx]
@@ -44,7 +44,7 @@ function init_ic_antennas(dd::IMAS.dd, par::Parameters)
 end
 
 function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
-    power_launched = [p for p in power_launched]
+    (power_launched,)  = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
         resize!(dd.ic_antennas.antenna, idx)
         @ddtime dd.ic_antennas.antenna[idx].power_launched.data = power_launched[idx]
@@ -56,7 +56,7 @@ function init_lh_antennas(dd::IMAS.dd, par::Parameters)
 end
 
 function init_lh_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
-    power_launched = [p for p in power_launched]
+    (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
         resize!(dd.lh_antennas.antenna, idx)
         @ddtime dd.lh_antennas.antenna[idx].power_launched.data = power_launched[idx]

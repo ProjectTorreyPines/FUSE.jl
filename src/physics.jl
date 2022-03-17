@@ -28,17 +28,17 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
     height = maximum(z_obstruction) - minimum(z_obstruction) + target_clearance * 2.0
     z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
     shape_parameters = nothing
-    if shape_function_index in [-1, -2]
+    if shape_function_index in [Int(_offset_), Int(_convex_hull_)]
         return nothing
     else
         shape_index_mod = mod(shape_function_index, 100)
-        if shape_index_mod == 1
+        if shape_index_mod == Int(_princeton_D_)
             shape_parameters = Real[]
-        elseif shape_index_mod == 2
+        elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
-        elseif shape_index_mod == 3
+        elseif shape_index_mod == Int(_triple_arc_)
             shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
-        elseif shape_index_mod == 4
+        elseif shape_index_mod == Int(_miller_)
             _, imaxr = findmax(r_obstruction)
             _, iminr = findmin(r_obstruction)
             _, imaxz = findmax(z_obstruction)
@@ -54,7 +54,7 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
             triup = (R - r_at_max_z) / a
             tridown = (R - r_at_min_z) / a
             shape_parameters = [elongation, (triup + tridown) / 2.0]
-        elseif shape_index_mod == 5
+        elseif shape_index_mod == Int(_spline_)
             n = 2
             R = range(r_start, r_end, length = 2 + n)[2:end-1]
             Z = range(height / 2.0, height / 2.0, length = 2 + n)[2:end-1]
@@ -75,19 +75,19 @@ end
 
 function shape_function(shape_function_index)
     func = nothing
-    if shape_function_index in [-1, -2]
+    if shape_function_index in [Int(_offset_), Int(_convex_hull_)]
         return nothing
     else
         shape_index_mod = mod(shape_function_index, 100)
-        if shape_index_mod in 1
+        if shape_index_mod in Int(_princeton_D_)
             func = princeton_D
-        elseif shape_index_mod == 2
+        elseif shape_index_mod == Int(_rectangle_)
             func = (r_start, r_end, height) -> rectangle_shape(r_start, r_end, height; n_points = 100)
-        elseif shape_index_mod == 3
-            func = tripple_arc
-        elseif shape_index_mod == 4
+        elseif shape_index_mod == Int(_triple_arc_)
+            func = triple_arc
+        elseif shape_index_mod == Int(_miller_)
             func = miller_Rstart_Rend
-        elseif shape_index_mod == 5
+        elseif shape_index_mod == Int(_spline_)
             func = spline_shape
         end
     end
@@ -251,7 +251,7 @@ function rectangle_shape(r_start::Real, r_end::Real, height::Real; n_points::Int
 end
 
 """
-    function tripple_arc(r_start::Real,
+    function triple_arc(r_start::Real,
         r_end::Real,
         height::Real,
         small_radius::Real,
@@ -266,7 +266,7 @@ TrippleArc contour
 Angles are in degrees
 height, small_radius, mid_radius, small_coverage, mid_coverage are 10^exponent (to ensure positiveness)
 """
-function tripple_arc(r_start::Real,
+function triple_arc(r_start::Real,
     r_end::Real,
     height::Real,
     small_radius::Real,
@@ -383,7 +383,6 @@ function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points::
     z = vcat(h, Z, 0, -reverse(Z), -h)
     return spline_shape(r, z; n_points = n_points)
 end
-
 
 function xy_polygon(x, y)
     if (x[1] != x[end]) && (x[1] ≈ x[end])

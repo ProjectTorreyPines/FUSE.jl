@@ -28,6 +28,9 @@ Manifest.toml
 .ipynb_checkpoints
 .DS_Store
 
+#sysimages
+*sysimage.so
+
 # temp/test files
 test.json
 asd.jl

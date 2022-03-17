@@ -32,7 +32,7 @@ function PFcoilsOptActor(
     eq_in::IMAS.equilibrium,
     bd::IMAS.build,
     pf::IMAS.pf_active;
-    λ_regularize = 1E-13,
+    λ_regularize = 1E-3,
     green_model = :simple,
     symmetric = false)
 
@@ -109,9 +109,9 @@ function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
     pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
     pf_active__coil.b_field_max = range(0.1, 20, step=0.1)
     pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
-    pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max , t in pf_active__coil.temperature ]
+    pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
     pf_active__coil.b_field_max_timed.time = coil.current_time
-    pf_active__coil.b_field_max_timed.data = ones(size(coil.current_time)) # for now fixed B at one Tesla
+    pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, current) for current in coil.current_data]
     pf_active__coil.current.time = coil.current_time
     pf_active__coil.current.data = coil.current_data
 end
@@ -294,6 +294,29 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
+"""
+    PF coil critical current from self-field alone
+
+NOTE: infinite wire approximation
+"""
+function coil_Jcrit(coil::GS_IMAS_pf_active__coil, current)
+    return coil_Jcrit(coil_selfB(coil, current), coil.coil_tech)
+end
+
+"""
+    PF coil self-induced magnetic field
+
+NOTE: infinite wire approximation
+"""
+function coil_selfB(coil::GS_IMAS_pf_active__coil, current)
+    b = abs.(constants.μ_0 * current * coil.turns_with_sign / (2pi * min(coil.width, coil.height)))
+    if b < 0.1
+        return 0.1
+    else
+        return b
+    end
+end
+
 function optimize_coils_rail(
     eq::IMAS.equilibrium;
     pinned_coils::Vector{GS_IMAS_pf_active__coil},
@@ -327,7 +350,7 @@ function optimize_coils_rail(
             fixed_eq = IMAS2Equilibrium(eqt)
             # private flux regions
             private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-            vessel = IMAS.get_build(bd, type = -1, hfs = 0)
+            vessel = IMAS.get_build(bd, type = _plasma_)
             Rx = []
             Zx = []
             for (pr, pz) in private
@@ -348,6 +371,8 @@ function optimize_coils_rail(
     packed = pack_rail(bd, λ_regularize, symmetric)
     trace = PFcoilsOptTrace()
 
+    oh_indexes = [coil.pf_active__coil.name == "OH" for coil in vcat(pinned_coils, optim_coils)]
+
     packed_tmp = [packed]
     function placement_cost(packed; do_trace = false)
         try
@@ -365,25 +390,34 @@ function optimize_coils_rail(
 
             all_cost_ψ = []
             all_cost_currents = []
+            all_cost_oh = []
             for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs, weights))
                 for coil in vcat(pinned_coils, optim_coils, fixed_coils)
                     coil.time_index = time_index
                 end
                 currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights = weight, λ_regularize = λ_regularize, return_cost = true)
                 current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-                b = 1.0  # for now fixed B at one Tesla
-                fraction_max_current_densities = abs.(current_densities ./ [coil_Jcrit(b, coil.coil_tech) for coil in coils])
+                max_current_densities = [coil_Jcrit(coil, coil.current) for coil in coils]
+                fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
+                #OH cost
+                oh_current_densities = current_densities[oh_indexes]
+                avg_oh = Statistics.mean(oh_current_densities)
+                cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
+                #currents cost
                 push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
+                # boundary cost
                 if ismissing(eq.time_slice[time_index].global_quantities, :ip)
                     push!(all_cost_ψ, cost_ψ0 / λ_null)
+                    push!(all_cost_oh, 0.0)
                 else
                     push!(all_cost_ψ, cost_ψ0 / λ_ψ)
+                    push!(all_cost_oh, cost_oh)
                 end
             end
             cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
             cost_currents = norm(all_cost_currents) / length(all_cost_currents)
-            cost = sqrt(cost_ψ^2 + cost_currents^2 + cost_1to1^2)
-
+            cost_oh = norm(all_cost_oh) / length(all_cost_oh)
+            cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2)
             if do_trace
                 push!(trace.params, packed)
                 push!(trace.cost_ψ, cost_ψ)
@@ -426,7 +460,7 @@ end
 
 Returns tuple of GS_IMAS_pf_active__coil coils organized by their function:
 - fixed: fixed position and current
-- pinned: coisl with fixed position but current is optimized
+- pinned: coils with fixed position but current is optimized
 - optim: coils that have theri position and current optimized
 """
 function fixed_pinned_optim_coils(pfactor, optimization_scheme)
@@ -458,9 +492,9 @@ end
     step(pfactor::PFcoilsOptActor;
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
-        λ_ψ=1E-2,
+        λ_ψ=1E-3,
         λ_null=1,
-        λ_currents=1E5,
+        λ_currents=0.5,
         λ_strike=1,
         maxiter=10000,
         optimization_scheme=:rail,
@@ -470,10 +504,10 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 """
 function step(pfactor::PFcoilsOptActor;
     symmetric = pfactor.symmetric,
-    λ_regularize = pfactor.λ_regularize,
+    λ_regularize = 1E-3,
     λ_ψ = 1E-2,
     λ_null = 1,
-    λ_currents = 1E5,
+    λ_currents = 0.5,
     λ_strike = 1,
     maxiter = 10000,
     optimization_scheme = :rail,

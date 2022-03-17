@@ -15,7 +15,7 @@ Generates parameters
 """
 function Parameters()
     par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
         setproperty!(par, item, Parameters(item))
     end
     return par
@@ -92,9 +92,8 @@ end
 function Parameters(::Type{Val{:tf}})
     tf = Parameters(nothing)
     tf.n_coils = Entry(Int, "", "Number of TF coils")
-    options = [1 => "PricetonD", 2 => "Rectangle", 3 => "TrippleArc", 4 => "Miller", 5 => "Spline"]
-    #        tf.shape = Switch(options, "", "Shape of the TF coils"; default=:TrippleArc)
-    tf.shape = Entry(Int, "", "Shape of the TF coils"; default = 3)
+    options = [:princeton_D, :rectangle, :triple_arc, :miller, :spline]
+    tf.shape = Switch(options, "", "Shape of the TF coils"; default=:triple_arc)
     tf.technology = Parameters(:coil_technology)
     return tf
 end
@@ -105,6 +104,15 @@ function Parameters(::Type{Val{:oh}})
     oh.flattop_duration = Entry(Real, "s", "Duration of the flattop (use Inf for steady-state)")
     return oh
 end
+
+function Parameters(::Type{Val{:center_stack}})
+    center_stack = Parameters(nothing)
+    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default=false)
+    center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
+    center_stack.plug = Entry(Bool, "", "flag for center plug"; default=false)
+    return center_stack
+end
+
 
 function Parameters(::Type{Val{:nbi}})
     nbi = Parameters(nothing)
@@ -135,7 +143,10 @@ end
 
 function Parameters(::Type{Val{:build}})
     build = Parameters(nothing)
-    build.is_nuclear_facility = Entry(Bool, "", "Is this a nuclear facility")
+    build.layers = Entry(DataStructures.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
+    build.blanket = Entry(Float64, "", "Fraction of blanket in radial build")
+    build.shield = Entry(Float64, "", "Fraction of shield in radial build")
+    build.vessel = Entry(Float64, "", "Fraction of vessel in radial build")
     build.symmetric = Entry(Bool, "", "Is the build up-down symmetric")
     return build
 end

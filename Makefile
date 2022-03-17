@@ -8,6 +8,18 @@ all:
 	@echo ' - make update   : update FUSE and all of its dependencies'
 	@echo ''
 
+sysimage:
+	julia -e '\
+using Pkg;\
+Pkg.add("PackageCompiler");\
+Pkg.add("IJulia");\
+import PackageCompiler;\
+Pkg.activate(".");\
+PackageCompiler.create_sysimage(["Contour", "DataStructures", "EFIT", "ForwardDiff", "Interpolations", "JSON", "LibGEOS", "LinearAlgebra", "ModelingToolkit", "NumericalIntegration", "Optim", "OrdinaryDiffEq", "Plots", "PolygonOps", "Printf", "Random", "Revise", "StaticArrays", "Statistics", "Test"], sysimage_path="FUSEsysimage.so");\
+import IJulia;\
+IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
+'
+
 install: install_FUSE install_IJulia
 	julia -e '\
 using Pkg;\
@@ -47,12 +59,12 @@ try Pkg.upgrade_manifest() catch end;\
 '
 
 install_IMASDD:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMAS" ]; then\
+	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMASDD" ]; then\
 		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/IMASDD.jl.git");';\
 	fi
 	julia -e '\
 using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/IMAS");\
+Pkg.activate("$(JULIA_PKG_DEVDIR)/IMASDD");\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
