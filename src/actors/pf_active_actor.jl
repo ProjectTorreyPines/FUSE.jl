@@ -504,7 +504,7 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 """
 function step(pfactor::PFcoilsOptActor;
     symmetric = pfactor.symmetric,
-    λ_regularize = 1E-3,
+    λ_regularize = pfactor.λ_regularize,
     λ_ψ = 1E-2,
     λ_null = 1,
     λ_currents = 0.5,
