@@ -70,7 +70,7 @@ function validation_workflow(n_samples::Union{Real,Symbol} = 10; save_directory:
             end
 
             if !isempty(save_directory)
-                imas2json(dd, joinpath(save_directory, case_name))
+                IMAS.imas2json(dd, joinpath(save_directory, "$case_name.json"))
             end
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
 
@@ -81,15 +81,15 @@ function validation_workflow(n_samples::Union{Real,Symbol} = 10; save_directory:
     end
     run_df[!, :τ_fuse] = tau_FUSE
     if plot_database
-        x_ylim = [1e-2, 10]
-        println("Number of failed runs $(length(failed_runs_ids)), out of 1000")
+        x_ylim = [1e-2, 10.]
+        println("Number of failed runs $(length(failed_runs_ids)), out of $(length(run_df[:,"TOK"]))")
         plot(run_df[:, :TAUTH], run_df[:, :τ_fuse], seriestype = :scatter, xaxis = :log, yaxis = :log, ylim = x_ylim, xlim = x_ylim, xlabel = "τ_e_exp [s]", ylabel = "τ_e_FUSE [s]", label = nothing)
         plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]], linestyle = :dash, label = "+50%")
         plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]], linestyle = :dash, label = "-50%", legend = :topleft)
         display(plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]], label = nothing))
     end
     if !isempty(save_directory)
-        CSV.write(joinpath(save_directory, "dataframe.csv", run_df))
+        CSV.write(joinpath(save_directory, "dataframe.csv"), run_df)
     end
     return run_df
 end
