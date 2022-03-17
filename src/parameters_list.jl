@@ -1,6 +1,7 @@
 using FusionMaterials: FusionMaterials
 
 # load parameters from different case studies
+# NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
 case_parameters = Symbol[]
 for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
     push!(case_parameters, Symbol(splitext(filename)[1]))

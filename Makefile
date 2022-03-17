@@ -24,7 +24,7 @@ Pkg.add("IJulia");\
 Pkg.build("IJulia");\
 '
 
-install_FUSE: install_IMASDD install_IMAS install_FusionMaterials install_AD_GS install_Equilibrium install_TAUENN install_QED
+install_FUSE: install_IMAS install_IMASDD install_FusionMaterials install_AD_GS install_Equilibrium install_TAUENN install_QED
 	if [ ! -d "$(JULIA_PKG_DEVDIR)/FUSE" ]; then ln -s $(CURRENTDIR) $(JULIA_PKG_DEVDIR)/FUSE; fi
 	julia -e '\
 using Pkg;\
@@ -47,12 +47,12 @@ try Pkg.upgrade_manifest() catch end;\
 '
 
 install_IMASDD:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMASDD" ]; then\
+	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMAS" ]; then\
 		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/IMASDD.jl.git");';\
 	fi
 	julia -e '\
 using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/IMASDD");\
+Pkg.activate("$(JULIA_PKG_DEVDIR)/IMAS");\
 Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
@@ -103,7 +103,7 @@ Pkg.resolve();\
 try Pkg.upgrade_manifest() catch end;\
 '
 
-install_TAUENN: install_IMASDD install_IMAS  install_CoordinateConventions install_TGLFNN install_EPEDNN
+install_TAUENN: install_IMAS install_IMASDD install_CoordinateConventions install_TGLFNN install_EPEDNN
 	if [ ! -d "$(JULIA_PKG_DEVDIR)/AD_TAUENN" ]; then ln -s $(CURRENTDIR) $(JULIA_PKG_DEVDIR)/AD_TAUENN; fi
 	julia -e '\
 using Pkg;\
