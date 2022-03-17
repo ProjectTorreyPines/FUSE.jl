@@ -301,7 +301,7 @@ function solve_1D_solid_mechanics!(
     gam_pl = stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for center plug, (default is stainless steel)
     f_tf_sash = 0.873,                     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
     f_oh_sash = 0.37337,                   # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
-    n_points = 51,                         # : (int), number of radial points
+    n_points = 21,                         # : (int), number of radial points
     verbose = false                        # : (bool), flag for verbose output to terminal
 )
 
@@ -424,7 +424,7 @@ function solve_1D_solid_mechanics!(
             -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
             -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out)),
         ]
-        A_tf, B_tf, A_oh, B_oh = inv(M) * Y
+        A_tf, B_tf, A_oh, B_oh = M \ Y
         A_pl = 0.0
 
     elseif !plug && (cl_oh < cl_tf)
@@ -549,12 +549,14 @@ function solve_1D_solid_mechanics!(
 
     displacement_oh = u_oh(r_oh)
     displacement_tf = u_tf(r_tf)
+    ddiplacementdr_oh = dudr_oh(r_oh)
+    ddiplacementdr_tf = dudr_tf(r_tf)
 
-    radial_stress_oh = sr(r_oh, em_oh, gam_oh, u_oh(r_oh), dudr_oh(r_oh))
-    radial_stress_tf = sr(r_tf, em_tf, gam_tf, u_tf(r_tf), dudr_tf(r_tf))
+    radial_stress_oh = sr(r_oh, em_oh, gam_oh, displacement_oh, ddiplacementdr_oh)
+    radial_stress_tf = sr(r_tf, em_tf, gam_tf, displacement_tf, ddiplacementdr_tf)
 
-    hoop_stress_oh = sh(r_oh, em_oh, gam_oh, u_oh(r_oh), dudr_oh(r_oh))
-    hoop_stress_tf = sh(r_tf, em_tf, gam_tf, u_tf(r_tf), dudr_tf(r_tf))
+    hoop_stress_oh = sh(r_oh, em_oh, gam_oh, displacement_oh, ddiplacementdr_oh)
+    hoop_stress_tf = sh(r_tf, em_tf, gam_tf, displacement_tf, ddiplacementdr_tf)
 
     if axial_stress_tf_avg === nothing
         hoop_stress_tf_avg = Statistics.mean(hoop_stress_tf)
