@@ -10,7 +10,13 @@ mutable struct simpleNBIactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function simpleNBIactor(dd::IMAS.dd, width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
+function simpleNBIactor(dd::IMAS.dd, par::Parameters; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
+    actor = simpleNBIactor(dd; width, rho_0, current_efficiency)
+    step(actor)
+    finalize(actor)
+end
+
+function simpleNBIactor(dd::IMAS.dd; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
     nbeam = ones(length(dd.nbi.unit))
     return simpleNBIactor(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
 end
@@ -69,7 +75,13 @@ mutable struct simpleECactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function simpleECactor(dd::IMAS.dd, width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
+function simpleECactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
+    actor = simpleECactor(dd; width, rho_0, current_efficiency)
+    step(actor)
+    finalize(actor)
+end
+
+function simpleECactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
     n_launchers = ones(length(dd.ec_launchers.launcher))
     return simpleECactor(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
 end
@@ -120,7 +132,13 @@ mutable struct simpleICactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function simpleICactor(dd::IMAS.dd, width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
+function simpleICactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
+    actor = simpleICactor(dd; width, rho_0, current_efficiency)
+    step(actor)
+    finalize(actor)
+end
+
+function simpleICactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
     n_antennas = ones(length(dd.ic_antennas.antenna))
     return simpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
 end
@@ -171,7 +189,13 @@ mutable struct simpleLHactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function simpleLHactor(dd::IMAS.dd, width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
+function simpleLHactor(dd::IMAS.dd, par::Parameters; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
+    actor = simpleLHactor(dd; width, rho_0, current_efficiency)
+    step(actor)
+    finalize(actor)
+end
+
+function simpleLHactor(dd::IMAS.dd; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
     n_antennas = ones(length(dd.lh_antennas.antenna))
     return simpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
 end

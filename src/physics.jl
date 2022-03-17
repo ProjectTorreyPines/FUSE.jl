@@ -384,7 +384,6 @@ function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points::
     return spline_shape(r, z; n_points = n_points)
 end
 
-
 function xy_polygon(x, y)
     if (x[1] != x[end]) && (x[1] ≈ x[end])
         x[end] = x[1]

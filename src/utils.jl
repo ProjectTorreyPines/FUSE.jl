@@ -76,6 +76,26 @@ function to_enum(smbl::Symbol)
     return @eval($smbl)
 end
 
+"""
+    same_length_vectors(args...)
+
+Returns scalars and vectors as vectors of the same lengths
+For example:
+
+    same_length_vectors(1, [2], [3,3,6], [4,4,4,4,4,4])
+    
+    4-element Vector{Vector{Int64}}:
+    [1, 1, 1, 1, 1, 1]
+    [2, 2, 2, 2, 2, 2]
+    [3, 3, 6, 3, 3, 6]
+    [4, 4, 4, 4, 4, 4]
+"""
+function same_length_vectors(args...)
+    n = maximum(map(length, args))
+    args = collect(map(x -> isa(x, Vector) ? x : [x], args))
+    args = map(x -> vcat([x for k = 1:n]...)[1:n], args)
+end
+
 # ******************************************
 # Convex Hull
 # ******************************************
