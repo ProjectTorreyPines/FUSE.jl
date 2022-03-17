@@ -192,6 +192,7 @@ function step(stressactor::StressesActor)
             f_struct_tf = f_struct_tf,
             f_struct_oh = f_struct_oh,
             f_struct_pl = 1.0,
+            n_points = 5,
             verbose = false
         )
     end
@@ -222,16 +223,7 @@ function OHTFsizingActor(dd::IMAS.dd, par::Parameters; kw...)
     return actor
 end
 
-function step(actor::OHTFsizingActor; verbose = false, tolerance = 0.5)
-
-    function clb(x)
-        display((plug.thickness, OH.thickness, TFlfs.thickness))
-        false
-        if verbose
-            display((force_float(plug.thickness), force_float(OH.thickness), force_float(TFlfs.thickness)))
-            false
-        end
-    end
+function step(actor::OHTFsizingActor; verbose = false, tolerance = 0.2)
 
     function cost(x0)
         plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
@@ -261,7 +253,7 @@ function step(actor::OHTFsizingActor; verbose = false, tolerance = 0.5)
     TFhfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
     TFlfs = IMAS.get_build(dd.build, type = _tf_, fs = _lfs_)
 
-    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 30, iterations = 100, g_tol = 1E-6, callback = clb); autodiff = :forward)
+    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 60, iterations = 1000, g_tol = 1E-6); autodiff = :forward)
     plug.thickness, OH.thickness, TFhfs.thickness = map(abs, res.minimizer)
     TFlfs.thickness = TFhfs.thickness
     step(actor.fluxswing_actor)

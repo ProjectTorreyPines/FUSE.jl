@@ -301,7 +301,7 @@ function solve_1D_solid_mechanics!(
     gam_pl = stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for center plug, (default is stainless steel)
     f_tf_sash = 0.873,                     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
     f_oh_sash = 0.37337,                   # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
-    n_points = 21,                         # : (int), number of radial points
+    n_points = 21,                          # : (int), number of radial points
     verbose = false                        # : (bool), flag for verbose output to terminal
 )
 
@@ -587,8 +587,9 @@ function solve_1D_solid_mechanics!(
     if plug
         r_pl = LinRange(0, R_pl, n_points)[2:end]
         displacement_pl = u_pl(r_pl)
-        radial_stress_pl = sr(r_pl, em_pl, gam_pl, u_pl(r_pl), dudr_pl(r_pl))
-        hoop_stress_pl = sh(r_pl, em_pl, gam_pl, u_pl(r_pl), dudr_pl(r_pl))
+        ddiplacementdr_pl = dudr_pl(r_pl)
+        radial_stress_pl = sr(r_pl, em_pl, gam_pl, displacement_pl, ddiplacementdr_pl)
+        hoop_stress_pl = sh(r_pl, em_pl, gam_pl, displacement_pl, ddiplacementdr_pl)
         axial_stress_pl_avg = 0.0
         vonmises_stress_pl = svm(radial_stress_pl, hoop_stress_pl, axial_stress_pl_avg)
     else
