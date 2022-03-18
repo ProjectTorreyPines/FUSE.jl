@@ -330,6 +330,7 @@ function optimize_coils_rail(
     maxiter::Int,
     verbose::Bool)
 
+    R0 = eq.vacuum_toroidal_field.r0
     fixed_eqs = []
     weights = []
     for time_index in 1:length(eq.time_slice)
@@ -401,10 +402,6 @@ function optimize_coils_rail(
                 pf_max_current_densities = [coil_Jcrit(coil_selfB(coil), coil.coil_tech) for coil in coils[oh_indexes.==false]]
                 max_current_densities = vcat(oh_max_current_densities, pf_max_current_densities)
                 fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
-                #OH cost
-                oh_current_densities = current_densities[oh_indexes]
-                avg_oh = Statistics.mean(oh_current_densities)
-                cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
                 #currents cost
                 push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
                 # boundary cost
@@ -412,6 +409,10 @@ function optimize_coils_rail(
                     push!(all_cost_ψ, cost_ψ0 / λ_null)
                     push!(all_cost_oh, 0.0)
                 else
+                    #OH cost
+                    oh_current_densities = current_densities[oh_indexes]
+                    avg_oh = Statistics.mean(oh_current_densities)
+                    cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
                     push!(all_cost_ψ, cost_ψ0 / λ_ψ)
                     push!(all_cost_oh, cost_oh)
                 end
@@ -419,7 +420,17 @@ function optimize_coils_rail(
             cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
             cost_currents = norm(all_cost_currents) / length(all_cost_currents)
             cost_oh = norm(all_cost_oh) / length(all_cost_oh)
-            cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2)
+            #spacing
+            cost_spacing = 0.0
+            for (k1, c1) in enumerate(optim_coils)
+                for (k2, c2) in enumerate(optim_coils)
+                    if k1 < k2
+                        cost_spacing += 1.0 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
+                    end
+                end
+            end
+            cost_spacing = cost_spacing / R0
+            cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2 + 100*cost_spacing^2)
             if do_trace
                 push!(trace.params, packed)
                 push!(trace.cost_ψ, cost_ψ)
