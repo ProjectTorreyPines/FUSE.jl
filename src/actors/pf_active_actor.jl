@@ -347,14 +347,16 @@ function optimize_coils_rail(
         else
             fixed_eq = IMAS2Equilibrium(eqt)
             # private flux regions
-            private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-            vessel = IMAS.get_build(bd, type = _plasma_)
             Rx = []
             Zx = []
-            for (pr, pz) in private
-                pvx, pvy = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz; as_list_of_points = false)
-                append!(Rx, pvx)
-                append!(Zx, pvy)
+            if λ_strike > 0
+                private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
+                vessel = IMAS.get_build(bd, type = _plasma_)
+                for (pr, pz) in private
+                    pvx, pvy = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz; as_list_of_points = false)
+                    append!(Rx, pvx)
+                    append!(Zx, pvy)
+                end
             end
             # find ψp
             Bp_fac, ψp, Rp, Zp = AD_GS.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx)
