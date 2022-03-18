@@ -100,7 +100,7 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value)
     end
 end
 
-function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
+function transfer_info_GS_coil_to_IMAS(bd::IMAS.build, coil::GS_IMAS_pf_active__coil)
     pf_active__coil = coil.pf_active__coil
     pf_active__coil.element[1].geometry.rectangle.r = coil.r
     pf_active__coil.element[1].geometry.rectangle.z = coil.z
@@ -111,7 +111,11 @@ function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
     pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
     pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
     pf_active__coil.b_field_max_timed.time = coil.current_time
-    pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, time_index) for time_index in 1:length(coil.current_time)]
+    if pf_active__coil.name == "OH"
+        pf_active__coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in 1:length(coil.current_time)]
+    else
+        pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, time_index) for time_index in 1:length(coil.current_time)]
+    end
     pf_active__coil.current.time = coil.current_time
     pf_active__coil.current.data = coil.current_data
 end
@@ -295,20 +299,11 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
 end
 
 """
-    coil_Jcrit(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
-PF coil critical current from self-field alone
-NOTE: infinite wire approximation
-"""
-function coil_Jcrit(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
-    return coil_Jcrit(coil_selfB(coil, time_index), coil.coil_tech)
-end
-
-"""
     coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
 PF coil self-induced magnetic field
 NOTE: infinite wire approximation
 """
-function coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
+function coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int = 0)
     if time_index == 0
         time_index = coil.time_index
     end
@@ -400,7 +395,9 @@ function optimize_coils_rail(
                 end
                 currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights = weight, λ_regularize = λ_regularize, return_cost = true)
                 current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-                max_current_densities = [coil_Jcrit(coil) for coil in coils]
+                oh_max_current_densities = [coil_Jcrit(bd.oh.max_b_field, coil.coil_tech) for coil in coils[oh_indexes]]
+                pf_max_current_densities = [coil_Jcrit(coil_selfB(coil), coil.coil_tech) for coil in coils[oh_indexes.==false]]
+                max_current_densities = vcat(oh_max_current_densities, pf_max_current_densities)
                 fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
                 #OH cost
                 oh_current_densities = current_densities[oh_indexes]
@@ -535,7 +532,7 @@ function step(pfactor::PFcoilsOptActor;
 
     # transfer the results to IMAS.pf_active
     for coil in coils
-        transfer_info_GS_coil_to_IMAS(coil)
+        transfer_info_GS_coil_to_IMAS(bd, coil)
     end
 
     return pfactor
