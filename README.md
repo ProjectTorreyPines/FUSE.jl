@@ -3,19 +3,23 @@
 Getting started
 ===============
 
-1. Clone the FUSE repository in your Julia development directory:
+1. Add GA IR&D Julia registry
     ```julia
-    ] develop "git@github.com:ProjectTorreyPines/FUSE.jl.git"
-    ```
-    this will clone FUSE.jl in the the `FUSE` development folders under `~/.julia/dev`
-  
-2. Install all FUSE dependencies:
-    ```bash
-    cd ~/.julia/dev/FUSE
-    make install
+    pkg> registry add git@github.com:ProjectTorreyPines/GAregistry.git
     ```
 
-3. Update FUSE and dependencies to latest version
+2. Add FUSE as development package (this will clone FUSE.jl in the the `FUSE` development folders under `~/.julia/dev`)
+    ```julia
+    pkg> develop FUSE
+    ```
+    
+3. Add FUSE dependencies as development packages:
+    ```bash
+    cd ~/.julia/dev/FUSE
+    make develop
+    ```
+
+3. Pull latest changes for FUSE its dependencies
     ```bash
     cd ~/.julia/dev/FUSE
     make update
