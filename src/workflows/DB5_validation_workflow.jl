@@ -2,6 +2,10 @@ import Random
 
 include("load_plot_dataframe.jl")
 
+"""
+    run_equilibrium_for_database(dd::IMAS.dd, par::Parameters)
+runs the SolovevEquilibriumActor by setting the beta from the core_profiles and adjusting the area and volume based on par.equilibrium.
+"""
 function run_equilibrium_for_database(dd, par)
     # Set beta_normal from equilbrium to the kinetic beta_n
     if !isempty(dd.core_profiles.profiles_1d)
@@ -22,13 +26,11 @@ function run_equilibrium_for_database(dd, par)
 end
 
 """
-    function validation_workflow(
-        n_samples::Union{Real,Symbol},
-        save_directory::String,
-        show_equilibrium::Bool,
-        plot_database::Bool)
-
-Runs n_samples of the HDB5 database and stores results in save_directory
+    simple_equilibrium_transport_workflow(dd::IMAS.dd,
+                                par::Parameters,
+                                save_directory::String,
+                                show_dd_plots :: Bool)
+Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
 function simple_equilibrium_transport_workflow(dd, par; save_directory::String = missing, show_dd_plots = false)
     FUSE.init_equilibrium(dd, par)
@@ -50,10 +52,21 @@ function simple_equilibrium_transport_workflow(dd, par; save_directory::String =
     return dd
 end
 
+"""
+    function validation_workflow(
+        n_samples_per_tokamak::Union{Real,Symbol}, # setting this to :all runs the whole database
+        save_directory::String,
+        show_dd_plots::Bool,
+        plot_database::Bool)
+
+Runs n_samples of the HDB5 database and stores results in save_directory
+"""
+
 function validation_workflow(n_samples_per_tokamak::Union{Real,Symbol} = 10; save_directory::String = "", show_dd_plots = false, plot_database = true)
 
     # Set up the database to run
     run_df = load_dataframe(joinpath(dirname(abspath(@__FILE__)), "..", "..", "sample", "HDB5_compressed.csv"))
+    # For description of variables see https://osf.io/593q6/
     signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH"]
     run_df = run_df[:, signal_names]
     run_df = run_df[DataFrames.completecases(run_df), :]

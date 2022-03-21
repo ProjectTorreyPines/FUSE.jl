@@ -10,7 +10,13 @@ function R_squared(x,y)
     return 1 - sum((x .- y).^2) / sum((x .- Statistics.mean(x)).^2)
 end
 
-function plot_x_y_regression(dataframe::DataFrames.DataFrame, x_name, y_name)
+"""
+    plot_x_y_regression(dataframe::DataFrame
+     x_name :: Union{String, Symbol},
+     y_name :: Union{String, Symbol})
+Plots x vs y regression plot in log-form on x_name and y_name in the dataframe
+"""
+function plot_x_y_regression(dataframe::DataFrames.DataFrame, x_name::Union{String, Symbol}, y_name::Union{String, Symbol})
     if x_name == "TAUTH"
         x_ylim = [5e-3,1e1]
     else
