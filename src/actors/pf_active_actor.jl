@@ -1,6 +1,6 @@
 using Equilibrium
 import Optim
-import AD_GS
+import VacuumFields
 using LinearAlgebra
 
 #= =============== =#
@@ -45,8 +45,8 @@ function PFcoilsOptActor(
     return pfactor
 end
 
-# Dispatching AD_GS on IMAS.pf_active__coil
-mutable struct GS_IMAS_pf_active__coil <: AD_GS.AbstractCoil
+# Dispatching VacuumFields on IMAS.pf_active__coil
+mutable struct GS_IMAS_pf_active__coil <: VacuumFields.AbstractCoil
     pf_active__coil::IMAS.pf_active__coil
     r::Real
     z::Real
@@ -100,18 +100,22 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value)
     end
 end
 
-function transfer_info_GS_coil_to_IMAS(coil::GS_IMAS_pf_active__coil)
+function transfer_info_GS_coil_to_IMAS(bd::IMAS.build, coil::GS_IMAS_pf_active__coil)
     pf_active__coil = coil.pf_active__coil
     pf_active__coil.element[1].geometry.rectangle.r = coil.r
     pf_active__coil.element[1].geometry.rectangle.z = coil.z
     pf_active__coil.element[1].geometry.rectangle.width = coil.width
     pf_active__coil.element[1].geometry.rectangle.height = coil.height
     pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
-    pf_active__coil.b_field_max = range(0.1, 20, step=0.1)
+    pf_active__coil.b_field_max = range(0.1, 30, step = 0.1)
     pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
     pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
     pf_active__coil.b_field_max_timed.time = coil.current_time
-    pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, current) for current in coil.current_data]
+    if pf_active__coil.name == "OH"
+        pf_active__coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in 1:length(coil.current_time)]
+    else
+        pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, time_index) for time_index in 1:length(coil.current_time)]
+    end
     pf_active__coil.current.time = coil.current_time
     pf_active__coil.current.data = coil.current_data
 end
@@ -144,13 +148,13 @@ function area(coil::GS_IMAS_pf_active__coil)
 end
 
 """
-    AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+    VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
 
 Calculates coil green function at given R and Z coordinate
 """
-function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
     if coil.green_model == :point # fastest
-        return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+        return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     elseif coil.green_model in [:corners, :simple] # medium
         if coil.pf_active__coil.name == "OH"
@@ -158,19 +162,19 @@ function AD_GS.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length = n)
             green = []
             for z in z_filaments
-                push!(green, AD_GS.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
+                push!(green, VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
             end
             return sum(green)
 
         elseif coil.green_model == :corners
-            return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
+            return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
 
         elseif coil.green_model == :simple
-            return AD_GS.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+            return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
         end
 
     elseif coil.green_model == :realistic # high-fidelity
-        return AD_GS.Green(AD_GS.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+        return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 
     else
         error("GS_IMAS_pf_active__coil coil.green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
@@ -295,21 +299,15 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
 end
 
 """
-    PF coil critical current from self-field alone
-
+    coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
+PF coil self-induced magnetic field
 NOTE: infinite wire approximation
 """
-function coil_Jcrit(coil::GS_IMAS_pf_active__coil, current)
-    return coil_Jcrit(coil_selfB(coil, current), coil.coil_tech)
-end
-
-"""
-    PF coil self-induced magnetic field
-
-NOTE: infinite wire approximation
-"""
-function coil_selfB(coil::GS_IMAS_pf_active__coil, current)
-    b = abs.(constants.μ_0 * current * coil.turns_with_sign / (2pi * min(coil.width, coil.height)))
+function coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int = 0)
+    if time_index == 0
+        time_index = coil.time_index
+    end
+    b = abs.(constants.μ_0 * coil.current_data[time_index] * coil.turns_with_sign / (2pi * min(coil.width, coil.height)))
     if b < 0.1
         return 0.1
     else
@@ -332,6 +330,7 @@ function optimize_coils_rail(
     maxiter::Int,
     verbose::Bool)
 
+    R0 = eq.vacuum_toroidal_field.r0
     fixed_eqs = []
     weights = []
     for time_index in 1:length(eq.time_slice)
@@ -339,7 +338,7 @@ function optimize_coils_rail(
         # field nulls
         if ismissing(eqt.global_quantities, :ip)
             # find ψp
-            Bp_fac, ψp, Rp, Zp = AD_GS.field_null_on_boundary(eqt.global_quantities.psi_boundary,
+            Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(eqt.global_quantities.psi_boundary,
                 eqt.boundary.outline.r,
                 eqt.boundary.outline.z,
                 fixed_coils)
@@ -349,17 +348,19 @@ function optimize_coils_rail(
         else
             fixed_eq = IMAS2Equilibrium(eqt)
             # private flux regions
-            private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-            vessel = IMAS.get_build(bd, type = _plasma_)
             Rx = []
             Zx = []
-            for (pr, pz) in private
-                pvx, pvy = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz; as_list_of_points = false)
-                append!(Rx, pvx)
-                append!(Zx, pvy)
+            if λ_strike > 0
+                private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
+                vessel = IMAS.get_build(bd, type = _plasma_)
+                for (pr, pz) in private
+                    pvx, pvy = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz; as_list_of_points = false)
+                    append!(Rx, pvx)
+                    append!(Zx, pvy)
+                end
             end
             # find ψp
-            Bp_fac, ψp, Rp, Zp = AD_GS.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx)
+            Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             # give each strike point the same weight as the lcfs
             weight = Rp .* 0.0 .+ 1.0
@@ -395,14 +396,12 @@ function optimize_coils_rail(
                 for coil in vcat(pinned_coils, optim_coils, fixed_coils)
                     coil.time_index = time_index
                 end
-                currents, cost_ψ0 = AD_GS.currents_to_match_ψp(fixed_eq..., coils, weights = weight, λ_regularize = λ_regularize, return_cost = true)
+                currents, cost_ψ0 = VacuumFields.currents_to_match_ψp(fixed_eq..., coils, weights = weight, λ_regularize = λ_regularize, return_cost = true)
                 current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-                max_current_densities = [coil_Jcrit(coil, coil.current) for coil in coils]
+                oh_max_current_densities = [coil_Jcrit(bd.oh.max_b_field, coil.coil_tech) for coil in coils[oh_indexes]]
+                pf_max_current_densities = [coil_Jcrit(coil_selfB(coil), coil.coil_tech) for coil in coils[oh_indexes.==false]]
+                max_current_densities = vcat(oh_max_current_densities, pf_max_current_densities)
                 fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
-                #OH cost
-                oh_current_densities = current_densities[oh_indexes]
-                avg_oh = Statistics.mean(oh_current_densities)
-                cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
                 #currents cost
                 push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
                 # boundary cost
@@ -410,6 +409,10 @@ function optimize_coils_rail(
                     push!(all_cost_ψ, cost_ψ0 / λ_null)
                     push!(all_cost_oh, 0.0)
                 else
+                    #OH cost
+                    oh_current_densities = current_densities[oh_indexes]
+                    avg_oh = Statistics.mean(oh_current_densities)
+                    cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
                     push!(all_cost_ψ, cost_ψ0 / λ_ψ)
                     push!(all_cost_oh, cost_oh)
                 end
@@ -417,7 +420,17 @@ function optimize_coils_rail(
             cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
             cost_currents = norm(all_cost_currents) / length(all_cost_currents)
             cost_oh = norm(all_cost_oh) / length(all_cost_oh)
-            cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2)
+            #spacing
+            cost_spacing = 0.0
+            for (k1, c1) in enumerate(optim_coils)
+                for (k2, c2) in enumerate(optim_coils)
+                    if k1 < k2
+                        cost_spacing += 1.0 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
+                    end
+                end
+            end
+            cost_spacing = cost_spacing / R0
+            cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2 + 100*cost_spacing^2)
             if do_trace
                 push!(trace.params, packed)
                 push!(trace.cost_ψ, cost_ψ)
@@ -492,7 +505,7 @@ end
     step(pfactor::PFcoilsOptActor;
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
-        λ_ψ=1E-3,
+        λ_ψ=1E-2,
         λ_null=1,
         λ_currents=0.5,
         λ_strike=1,
@@ -504,7 +517,7 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 """
 function step(pfactor::PFcoilsOptActor;
     symmetric = pfactor.symmetric,
-    λ_regularize = 1E-3,
+    λ_regularize = pfactor.λ_regularize,
     λ_ψ = 1E-2,
     λ_null = 1,
     λ_currents = 0.5,
@@ -532,7 +545,7 @@ function step(pfactor::PFcoilsOptActor;
 
     # transfer the results to IMAS.pf_active
     for coil in coils
-        transfer_info_GS_coil_to_IMAS(coil)
+        transfer_info_GS_coil_to_IMAS(bd, coil)
     end
 
     return pfactor
@@ -564,13 +577,13 @@ function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0, update_e
             coil.time_index = time_index
         end
 
-        # convert equilibrium to Equilibrium.jl format, since this is what AD_GS uses
+        # convert equilibrium to Equilibrium.jl format, since this is what VacuumFields uses
         EQfixed = IMAS2Equilibrium(pfactor.eq_in.time_slice[time_index])
 
         # # update ψ map
         R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length = length(EQfixed.r))
         Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length = length(EQfixed.z))
-        ψ_f2f = AD_GS.fixed2free(EQfixed, coils, R, Z)
+        ψ_f2f = VacuumFields.fixed2free(EQfixed, coils, R, Z)
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
@@ -648,7 +661,7 @@ Plot PFcoilsOptActor optimization cross-section
 
         # ψ coil currents
         ψbound = pfactor.eq_out.time_slice[time_index].global_quantities.psi_boundary
-        ψ = AD_GS.coils_flux(2 * pi, coils, R, Z)
+        ψ = VacuumFields.coils_flux(2 * pi, coils, R, Z)
 
         ψmin = minimum(x -> isnan(x) ? Inf : x, ψ)
         ψmax = maximum(x -> isnan(x) ? -Inf : x, ψ)

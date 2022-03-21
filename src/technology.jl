@@ -229,12 +229,10 @@ end
 """
 Material properties of stainless steel
 """
-Base.@kwdef mutable struct StainlessSteelProperties
-    yield_strength = 800E6 # Pa
-    young_modulus = 193103448275.0 # Pa
-    poisson_ratio = 0.33
-end
-const stainless_steel = StainlessSteelProperties()
+const stainless_steel = (
+    yield_strength = 800E6, # Pa
+    young_modulus = 193103448275.0, # Pa
+    poisson_ratio = 0.33)
 
 """
     function solve_1D_solid_mechanics!(

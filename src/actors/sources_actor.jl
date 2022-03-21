@@ -3,25 +3,25 @@ import NumericalIntegration: integrate
 #= === =#
 #  NBI  #
 #= === =#
-mutable struct simpleNBIactor <: AbstractActor
+mutable struct SimpleNBIactor <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-function simpleNBIactor(dd::IMAS.dd, par::Parameters; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
-    actor = simpleNBIactor(dd; width, rho_0, current_efficiency)
+function SimpleNBIactor(dd::IMAS.dd, par::Parameters; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
+    actor = SimpleNBIactor(dd; width, rho_0, current_efficiency)
     step(actor)
     finalize(actor)
 end
 
-function simpleNBIactor(dd::IMAS.dd; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
+function SimpleNBIactor(dd::IMAS.dd; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
     nbeam = ones(length(dd.nbi.unit))
-    return simpleNBIactor(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
+    return SimpleNBIactor(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
 end
 
-function step(actor::simpleNBIactor)
+function step(actor::SimpleNBIactor)
     for (idx, nbi_u) in enumerate(actor.dd.nbi.unit)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -68,25 +68,25 @@ end
 #= == =#
 #  EC  #
 #= == =#
-mutable struct simpleECactor <: AbstractActor
+mutable struct SimpleECactor <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-function simpleECactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
-    actor = simpleECactor(dd; width, rho_0, current_efficiency)
+function SimpleECactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
+    actor = SimpleECactor(dd; width, rho_0, current_efficiency)
     step(actor)
     finalize(actor)
 end
 
-function simpleECactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
+function SimpleECactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
     n_launchers = ones(length(dd.ec_launchers.launcher))
-    return simpleECactor(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
+    return SimpleECactor(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
 end
 
-function step(actor::simpleECactor)
+function step(actor::SimpleECactor)
     for (idx, ec_launcher) in enumerate(actor.dd.ec_launchers.launcher)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -125,25 +125,25 @@ end
 #= == =#
 #  IC  #
 #= == =#
-mutable struct simpleICactor <: AbstractActor
+mutable struct SimpleICactor <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-function simpleICactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
-    actor = simpleICactor(dd; width, rho_0, current_efficiency)
+function SimpleICactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
+    actor = SimpleICactor(dd; width, rho_0, current_efficiency)
     step(actor)
     finalize(actor)
 end
 
-function simpleICactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
+function SimpleICactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
     n_antennas = ones(length(dd.ic_antennas.antenna))
-    return simpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
+    return SimpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
 end
 
-function step(actor::simpleICactor)
+function step(actor::SimpleICactor)
     for (idx, ic_antenna) in enumerate(actor.dd.ic_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -182,25 +182,25 @@ end
 #= == =#
 #  LH  #
 #= == =#
-mutable struct simpleLHactor <: AbstractActor
+mutable struct SimpleLHactor <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-function simpleLHactor(dd::IMAS.dd, par::Parameters; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
-    actor = simpleLHactor(dd; width, rho_0, current_efficiency)
+function SimpleLHactor(dd::IMAS.dd, par::Parameters; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
+    actor = SimpleLHactor(dd; width, rho_0, current_efficiency)
     step(actor)
     finalize(actor)
 end
 
-function simpleLHactor(dd::IMAS.dd; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
+function SimpleLHactor(dd::IMAS.dd; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
     n_antennas = ones(length(dd.lh_antennas.antenna))
-    return simpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
+    return SimpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
 end
 
-function step(actor::simpleLHactor)
+function step(actor::SimpleLHactor)
     for (idx, lh_antenna) in enumerate(actor.dd.lh_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]

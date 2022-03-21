@@ -35,17 +35,16 @@ Returns minimum distance between two shapes
 """
 function minimum_distance_two_shapes(R_obj1, Z_obj1, R_obj2, Z_obj2)
     R_obj1, Z_obj1, R_obj2, Z_obj2 = promote(R_obj1, Z_obj1, R_obj2, Z_obj2)
-    distance = zeros(eltype(R_obj1), length(R_obj1), length(R_obj2))
-    for (k1, (r_1, z_1)) in enumerate(zip(R_obj1, Z_obj1))
-        for (k2, (r_2, z_2)) in enumerate(zip(R_obj2, Z_obj2))
-            d = (r_1 - r_2)^2 + (z_1 - z_2)^2
-            if d == 0.0
-                return 0.0
+    distance = Inf
+    for k1 in 1:length(R_obj1)
+        for k2 in 1:length(R_obj2)
+            @inbounds d = (R_obj1[k1] - R_obj2[k2])^2 + (Z_obj1[k1] - Z_obj2[k2])^2
+            if distance > d
+                distance = d
             end
-            @inbounds distance[k1, k2] = d
         end
     end
-    return sqrt(minimum(distance))
+    return sqrt(distance)
 end
 
 struct GASC
