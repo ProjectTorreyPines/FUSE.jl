@@ -223,7 +223,7 @@ function OHTFsizingActor(dd::IMAS.dd, par::Parameters; kw...)
     return actor
 end
 
-function step(actor::OHTFsizingActor; verbose = false, tolerance = 0.2)
+function step(actor::OHTFsizingActor; verbose = false, j_tolerance = 0.4, stress_tolerance=0.2)
 
     function cost(x0)
         plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
@@ -236,15 +236,16 @@ function step(actor::OHTFsizingActor; verbose = false, tolerance = 0.2)
         jtf2joh_ratio = dd.build.tf.critical_j / dd.build.oh.critical_j
         stress2j_ratio = (dd.build.tf.critical_j + dd.build.oh.critical_j) / 2.0 / stainless_steel.yield_strength
 
-        c = ((1 - (1 + tolerance) * dd.build.oh.max_j / dd.build.oh.critical_j) * jtf2joh_ratio)^2
-        c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh / stainless_steel.yield_strength)) * stress2j_ratio)^2
-        c += (1 - (1 + tolerance) * dd.build.tf.max_j / dd.build.tf.critical_j)^2
-        c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) / stainless_steel.yield_strength) * stress2j_ratio)^2
+        c = ((1 - (1 + j_tolerance) * dd.build.oh.max_j / dd.build.oh.critical_j) * jtf2joh_ratio)^2
+        c += ((1 - (1 + stress_tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh / stainless_steel.yield_strength)) * stress2j_ratio)^2
+        c += (1 - (1 + j_tolerance) * dd.build.tf.max_j / dd.build.tf.critical_j)^2
+        c += ((1 - (1 + stress_tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) / stainless_steel.yield_strength) * stress2j_ratio)^2
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-            c += ((1 - (1 + tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) / stainless_steel.yield_strength) * stress2j_ratio)^2
+            c += ((1 - (1 + stress_tolerance) * maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) / stainless_steel.yield_strength) * stress2j_ratio)^2
         end
         return sqrt(c)
     end
+    
     @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
     dd = actor.stresses_actor.dd
 
