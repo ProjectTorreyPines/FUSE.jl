@@ -6,6 +6,7 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.build.blanket = 0.0
     par.build.shield = 0.5
     par.build.vessel = 0.125
+    par.material.shield = "Tungsten"
 
     if init_from == :ods
         par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "ITER_eq_ods.json")
@@ -64,9 +65,6 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.nbi.beam_energy = 1e6
     par.ec.power_launched = 2 * 10e6
     par.ic.power_launched = 24 * 1e6
-
-    par.material.shield = "Tungsten"
-    par.material.blanket = "lithium-lead"
 
     return set_new_base!(par)
 end
