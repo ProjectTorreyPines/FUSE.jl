@@ -107,9 +107,9 @@ NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
-function oh_peakJ(bd::IMAS.build, double_swing::Bool = true)
-    innerSolenoidRadius = IMAS.get_build(bd, type = _oh_).start_radius
-    outerSolenoidRadius = IMAS.get_build(bd, type = _oh_).end_radius
+function oh_peakJ(bd::IMAS.build, double_swing::Bool=true)
+    innerSolenoidRadius = IMAS.get_build(bd, type=_oh_).start_radius
+    outerSolenoidRadius = IMAS.get_build(bd, type=_oh_).end_radius
     totalOhFluxReq = bd.flux_swing_requirements.rampup + bd.flux_swing_requirements.flattop + bd.flux_swing_requirements.pf
 
     # Calculate magnetic field at solenoid bore required to match flux swing request
@@ -129,7 +129,7 @@ end
 Evaluate TF current density given a B_field
 """
 function tf_peakJ(bd::IMAS.build, eq::IMAS.equilibrium)
-    hfsTF = IMAS.get_build(bd, type = _tf_, fs = _hfs_)
+    hfsTF = IMAS.get_build(bd, type=_tf_, fs=_hfs_)
     B0 = abs(maximum(eq.vacuum_toroidal_field.b0))
     R0 = eq.vacuum_toroidal_field.r0
 
@@ -166,11 +166,11 @@ function step(stressactor::StressesActor)
 
     R0 = eq.vacuum_toroidal_field.r0
     B0 = maximum(eq.vacuum_toroidal_field.b0)
-    R_tf_in = IMAS.get_build(bd, type = _tf_, fs = _hfs_).start_radius
-    R_tf_out = IMAS.get_build(bd, type = _tf_, fs = _hfs_).end_radius
+    R_tf_in = IMAS.get_build(bd, type=_tf_, fs=_hfs_).start_radius
+    R_tf_out = IMAS.get_build(bd, type=_tf_, fs=_hfs_).end_radius
     Bz_oh = bd.oh.max_b_field
-    R_oh_in = IMAS.get_build(bd, type = _oh_).start_radius
-    R_oh_out = IMAS.get_build(bd, type = _oh_).end_radius
+    R_oh_in = IMAS.get_build(bd, type=_oh_).start_radius
+    R_oh_out = IMAS.get_build(bd, type=_oh_).end_radius
     f_struct_tf = bd.tf.technology.fraction_stainless
     f_struct_oh = bd.oh.technology.fraction_stainless
 
@@ -186,14 +186,14 @@ function step(stressactor::StressesActor)
             oh_on ? Bz_oh : 0.0,
             R_oh_in,
             R_oh_out;
-            bucked = stressactor.bucked,
-            noslip = stressactor.noslip,
-            plug = stressactor.plug,
-            f_struct_tf = f_struct_tf,
-            f_struct_oh = f_struct_oh,
-            f_struct_pl = 1.0,
-            n_points = 5,
-            verbose = false
+            bucked=stressactor.bucked,
+            noslip=stressactor.noslip,
+            plug=stressactor.plug,
+            f_struct_tf=f_struct_tf,
+            f_struct_oh=f_struct_oh,
+            f_struct_pl=1.0,
+            n_points=5,
+            verbose=false
         )
     end
 
@@ -223,7 +223,7 @@ function OHTFsizingActor(dd::IMAS.dd, par::Parameters; kw...)
     return actor
 end
 
-function step(actor::OHTFsizingActor; verbose = false, j_tolerance = 0.4, stress_tolerance=0.2)
+function step(actor::OHTFsizingActor; verbose=false, j_tolerance=0.4, stress_tolerance=0.2)
 
     function cost(x0)
         plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
@@ -245,16 +245,16 @@ function step(actor::OHTFsizingActor; verbose = false, j_tolerance = 0.4, stress
         end
         return sqrt(c)
     end
-    
+
     @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
     dd = actor.stresses_actor.dd
 
     plug = dd.build.layer[1]
-    OH = IMAS.get_build(dd.build, type = _oh_)
-    TFhfs = IMAS.get_build(dd.build, type = _tf_, fs = _hfs_)
-    TFlfs = IMAS.get_build(dd.build, type = _tf_, fs = _lfs_)
+    OH = IMAS.get_build(dd.build, type=_oh_)
+    TFhfs = IMAS.get_build(dd.build, type=_tf_, fs=_hfs_)
+    TFlfs = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_)
 
-    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit = 60, iterations = 1000, g_tol = 1E-6); autodiff = :forward)
+    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000, g_tol=1E-6); autodiff=:forward)
     plug.thickness, OH.thickness, TFhfs.thickness = map(abs, res.minimizer)
     TFlfs.thickness = TFhfs.thickness
     step(actor.fluxswing_actor)
@@ -284,8 +284,15 @@ mutable struct CXbuildActor <: AbstractActor
     tf_shape::IMAS.BuildLayerShape
 end
 
-function CXbuildActor(dd::IMAS.dd, par::Parameters; kw...)
-    actor = CXbuildActor(dd, to_enum(par.tf.shape))
+function CXbuildActor(dd::IMAS.dd, tf_shape::Symbol)
+    CXbuildActor(dd, to_enum(tf_shape))
+end
+
+function CXbuildActor(dd::IMAS.dd, par::Parameters; rebuild_wall=(par.general.init_from != :ods), kw...)
+    if rebuild_wall # regenerate build based on new equilibrium
+        empty!(dd.wall)
+    end
+    actor = CXbuildActor(dd, par.tf.shape)
     step(actor; kw...)
     finalize(actor)
     return actor

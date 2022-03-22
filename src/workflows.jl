@@ -73,26 +73,6 @@ function pf_optim_workflow(dd::IMAS.dd, par::Parameters; λ_currents=0.5, maxite
     return dd
 end
 
-function build_workflow(dd::IMAS.dd, par::Parameters; rebuild_wall=(par.general.init_from != :ods), do_plot = false)
-    # optimize pf_active and update equilibrium
-    pf_optim_workflow(dd::IMAS.dd, par::Parameters; update_eq_in = true, do_plot)
-    
-    if rebuild_wall
-        # regenerate build based on new equilibrium
-        empty!(dd.wall)
-        init_build(dd, par)
-
-        # re-optimize pf_active
-        pf_optim_workflow(dd::IMAS.dd, par::Parameters; update_eq_in = false, do_plot=false)
-    end
-
-    if do_plot
-        plot(dd.equilibrium, color = :gray)
-        plot!(dd.build)
-        plot!(dd.build.pf_active.rail)
-        display(plot!(dd.pf_active))
-    end
-end
 
 function transport_workflow(dd::IMAS.dd, par::Parameters; do_plot = false, verbose = false, kw...)
     if do_plot
