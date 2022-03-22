@@ -343,7 +343,7 @@ function optimize_coils_rail(
                 eqt.boundary.outline.z,
                 fixed_coils)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
-            push!(weights, nothing)
+            push!(weights, Float64[])
             # solutions with plasma
         else
             fixed_eq = IMAS2Equilibrium(eqt)
