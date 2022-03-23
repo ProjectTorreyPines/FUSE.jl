@@ -10,8 +10,10 @@ mutable struct SolovevEquilibriumActor <: AbstractActor
     S::SolovevEquilibrium
 end
 
-function SolovevEquilibriumActor(dd::IMAS.dd; kw...)
-    return SolovevEquilibriumActor(dd.equilibrium; kw...)
+function SolovevEquilibriumActor(dd::IMAS.dd; par::Parameters; verbose = false)
+    actor = SolovevEquilibriumActor(dd.equilibrium)
+    step(actor; verbose)
+    finalize(actor)
 end
 
 """
