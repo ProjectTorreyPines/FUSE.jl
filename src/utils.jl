@@ -1,13 +1,5 @@
-using JSON
-
-function no_Dual(x)
-    if typeof(x) <: ForwardDiff.Dual
-        x = x.value
-        return no_Dual(x)
-    else
-        return x
-    end
-end
+import JSON
+import ForwardDiff
 
 function unwrap(v, inplace = false)
     unwrapped = inplace ? v : copy(v)
@@ -43,17 +35,16 @@ Returns minimum distance between two shapes
 """
 function minimum_distance_two_shapes(R_obj1, Z_obj1, R_obj2, Z_obj2)
     R_obj1, Z_obj1, R_obj2, Z_obj2 = promote(R_obj1, Z_obj1, R_obj2, Z_obj2)
-    distance = zeros(eltype(R_obj1), length(R_obj1), length(R_obj2))
-    for (k1, (r_1, z_1)) in enumerate(zip(R_obj1, Z_obj1))
-        for (k2, (r_2, z_2)) in enumerate(zip(R_obj2, Z_obj2))
-            d = (r_1 - r_2)^2 + (z_1 - z_2)^2
-            if d == 0.0
-                return 0.0
+    distance = Inf
+    for k1 in 1:length(R_obj1)
+        for k2 in 1:length(R_obj2)
+            @inbounds d = (R_obj1[k1] - R_obj2[k2])^2 + (Z_obj1[k1] - Z_obj2[k2])^2
+            if distance > d
+                distance = d
             end
-            @inbounds distance[k1, k2] = d
         end
     end
-    return sqrt(minimum(distance))
+    return sqrt(distance)
 end
 
 struct GASC
@@ -76,6 +67,37 @@ function GASC(filename::String, case::Int)
     return gasc
 end
 
+"""
+    returns enum from symbol
+"""
+function to_enum(smbl::Symbol)::Enum
+    smbl = Symbol("_$(smbl)_")
+    return @eval($smbl)
+end
+
+function to_enum(smbl::T where {T <: Enum})
+    return smbl
+end
+
+"""
+    same_length_vectors(args...)
+
+Returns scalars and vectors as vectors of the same lengths
+For example:
+
+    same_length_vectors(1, [2], [3,3,6], [4,4,4,4,4,4])
+    
+    4-element Vector{Vector{Int64}}:
+    [1, 1, 1, 1, 1, 1]
+    [2, 2, 2, 2, 2, 2]
+    [3, 3, 6, 3, 3, 6]
+    [4, 4, 4, 4, 4, 4]
+"""
+function same_length_vectors(args...)
+    n = maximum(map(length, args))
+    args = collect(map(x -> isa(x, Vector) ? x : [x], args))
+    args = map(x -> vcat([x for k = 1:n]...)[1:n], args)
+end
 
 # ******************************************
 # Convex Hull
@@ -113,4 +135,11 @@ function halfhull(points::Vector{Point})
         end
     end
     halfhull
+end
+
+function IMAS.force_float(x::ForwardDiff.Dual)
+    ## we purposly do not do it recursively since generally
+    ## ForwardDiff.Dual of ForwardDiff.Dual is an indication of someghing going wrong
+    # return force_float(x.value)
+    return x.value
 end

@@ -1,99 +1,27 @@
 import NumericalIntegration: integrate
 
-#= ================== =#
-#  simple H&CD actors  #
-#= ================== =#
-mutable struct simpleNBIactor <: AbstractActor
+#= === =#
+#  NBI  #
+#= === =#
+mutable struct SimpleNBIactor <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-mutable struct simpleECactor <: AbstractActor
-    dd::IMAS.dd
-    width::Vector{Real}
-    rho_0::Vector{Real}
-    current_efficiency::Vector{Real}
+function SimpleNBIactor(dd::IMAS.dd, par::Parameters; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
+    actor = SimpleNBIactor(dd; width, rho_0, current_efficiency)
+    step(actor)
+    finalize(actor)
 end
 
-mutable struct simpleICactor <: AbstractActor
-    dd::IMAS.dd
-    width::Vector{Real}
-    rho_0::Vector{Real}
-    current_efficiency::Vector{Real}
-end
-
-mutable struct simpleLHactor <: AbstractActor
-    dd::IMAS.dd
-    width::Vector{Real}
-    rho_0::Vector{Real}
-    current_efficiency::Vector{Real}
-end
-
-function simpleNBIactor(dd::IMAS.dd, width::Real=0.3, rho_0::Real=0.0, current_efficiency::Real=0.3)
+function SimpleNBIactor(dd::IMAS.dd; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
     nbeam = ones(length(dd.nbi.unit))
-    return simpleNBIactor(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
+    return SimpleNBIactor(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
 end
 
-function simpleECactor(dd::IMAS.dd, width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.2)
-    n_launchers = ones(length(dd.ec_launchers.launcher))
-    return simpleECactor(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
-end
-
-function simpleICactor(dd::IMAS.dd, width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.125)
-    n_antennas = ones(length(dd.ic_antennas.antenna))
-    return simpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
-end
-
-function simpleLHactor(dd::IMAS.dd, width::Real=0.15, rho_0::Real=0.6, current_efficiency::Real=0.4)
-    n_antennas = ones(length(dd.lh_antennas.antenna))
-    return simpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
-end
-
-function gaussian_source_to_dd(
-    isource,
-    name,
-    index,
-    rho_cp,
-    volume_cp,
-    area_cp,
-    power_launched,
-    ion_electron_fraction,
-    rho_0,
-    width,
-    gauss_order;
-    electrons_particles=missing,
-    momentum_tor=missing,
-    j_parallel=missing,
-)
-    gaussian = sgaussian(rho_cp, rho_0, width, gauss_order)
-    gaussian_vol = gaussian / integrate(volume_cp, gaussian)
-    gaussian_area = gaussian / integrate(area_cp, gaussian)
-
-    electrons_energy = power_launched .* gaussian_vol .* (1 .- ion_electron_fraction)
-    if sum(electrons_energy) == 0.0
-        electrons_energy = missing
-    end
-
-    total_ion_energy = power_launched .* gaussian_vol .* ion_electron_fraction
-    if sum(total_ion_energy) == 0.0
-        total_ion_energy = missing
-    end
-
-    if electrons_particles !== missing
-        electrons_particles = gaussian_vol .* electrons_particles
-    end
-    if momentum_tor !== missing
-        momentum_tor = gaussian_area .* momentum_tor
-    end
-    if j_parallel !== missing
-        j_parallel = gaussian_area .* j_parallel
-    end
-    return IMAS.new_source(isource, index, name, rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
-end
-
-function step(actor::simpleNBIactor)
+function step(actor::SimpleNBIactor)
     for (idx, nbi_u) in enumerate(actor.dd.nbi.unit)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -129,15 +57,36 @@ function step(actor::simpleNBIactor)
             actor.rho_0[idx],
             actor.width[idx],
             2;
-            electrons_particles=beam_particles,
-            momentum_tor=momentum_source,
-            j_parallel=j_parallel,
+            electrons_particles = beam_particles,
+            momentum_tor = momentum_source,
+            j_parallel = j_parallel
         )
     end
     return actor
 end
 
-function step(actor::simpleECactor)
+#= == =#
+#  EC  #
+#= == =#
+mutable struct SimpleECactor <: AbstractActor
+    dd::IMAS.dd
+    width::Vector{Real}
+    rho_0::Vector{Real}
+    current_efficiency::Vector{Real}
+end
+
+function SimpleECactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
+    actor = SimpleECactor(dd; width, rho_0, current_efficiency)
+    step(actor)
+    finalize(actor)
+end
+
+function SimpleECactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
+    n_launchers = ones(length(dd.ec_launchers.launcher))
+    return SimpleECactor(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
+end
+
+function step(actor::SimpleECactor)
     for (idx, ec_launcher) in enumerate(actor.dd.ec_launchers.launcher)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -167,13 +116,34 @@ function step(actor::simpleECactor)
             actor.rho_0[idx],
             actor.width[idx],
             1;
-            j_parallel=j_parallel,
+            j_parallel = j_parallel
         )
     end
     return actor
 end
 
-function step(actor::simpleICactor)
+#= == =#
+#  IC  #
+#= == =#
+mutable struct SimpleICactor <: AbstractActor
+    dd::IMAS.dd
+    width::Vector{Real}
+    rho_0::Vector{Real}
+    current_efficiency::Vector{Real}
+end
+
+function SimpleICactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
+    actor = SimpleICactor(dd; width, rho_0, current_efficiency)
+    step(actor)
+    finalize(actor)
+end
+
+function SimpleICactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
+    n_antennas = ones(length(dd.ic_antennas.antenna))
+    return SimpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
+end
+
+function step(actor::SimpleICactor)
     for (idx, ic_antenna) in enumerate(actor.dd.ic_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -203,13 +173,34 @@ function step(actor::simpleICactor)
             actor.rho_0[idx],
             actor.width[idx],
             1;
-            j_parallel=j_parallel,
+            j_parallel = j_parallel
         )
     end
     return actor
 end
 
-function step(actor::simpleLHactor)
+#= == =#
+#  LH  #
+#= == =#
+mutable struct SimpleLHactor <: AbstractActor
+    dd::IMAS.dd
+    width::Vector{Real}
+    rho_0::Vector{Real}
+    current_efficiency::Vector{Real}
+end
+
+function SimpleLHactor(dd::IMAS.dd, par::Parameters; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
+    actor = SimpleLHactor(dd; width, rho_0, current_efficiency)
+    step(actor)
+    finalize(actor)
+end
+
+function SimpleLHactor(dd::IMAS.dd; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
+    n_antennas = ones(length(dd.lh_antennas.antenna))
+    return SimpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
+end
+
+function step(actor::SimpleLHactor)
     for (idx, lh_antenna) in enumerate(actor.dd.lh_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -239,12 +230,57 @@ function step(actor::simpleLHactor)
             actor.rho_0[idx],
             actor.width[idx],
             1;
-            j_parallel=j_parallel,
+            j_parallel = j_parallel
         )
     end
     return actor
 end
 
-function sgaussian(rho::Union{LinRange,Vector}, rho_0::Real, width::Real, order::Real=1.0)
+#= ========= =#
+#  functions  #
+#= ========= =#
+function gaussian_source_to_dd(
+    isource,
+    name,
+    index,
+    rho_cp,
+    volume_cp,
+    area_cp,
+    power_launched,
+    ion_electron_fraction,
+    rho_0,
+    width,
+    gauss_order;
+    electrons_particles = missing,
+    momentum_tor = missing,
+    j_parallel = missing
+)
+    gaussian = sgaussian(rho_cp, rho_0, width, gauss_order)
+    gaussian_vol = gaussian / integrate(volume_cp, gaussian)
+    gaussian_area = gaussian / integrate(area_cp, gaussian)
+
+    electrons_energy = power_launched .* gaussian_vol .* (1 .- ion_electron_fraction)
+    if sum(electrons_energy) == 0.0
+        electrons_energy = missing
+    end
+
+    total_ion_energy = power_launched .* gaussian_vol .* ion_electron_fraction
+    if sum(total_ion_energy) == 0.0
+        total_ion_energy = missing
+    end
+
+    if electrons_particles !== missing
+        electrons_particles = gaussian_vol .* electrons_particles
+    end
+    if momentum_tor !== missing
+        momentum_tor = gaussian_area .* momentum_tor
+    end
+    if j_parallel !== missing
+        j_parallel = gaussian_area .* j_parallel
+    end
+    return IMAS.new_source(isource, index, name, rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
+end
+
+function sgaussian(rho::Union{LinRange,Vector}, rho_0::Real, width::Real, order::Real = 1.0)
     return exp.(-((rho .- rho_0) .^ 2 / 2width^2) .^ order)
 end

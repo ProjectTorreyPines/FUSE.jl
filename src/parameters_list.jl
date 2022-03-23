@@ -1,6 +1,7 @@
 using FusionMaterials: FusionMaterials
 
 # load parameters from different case studies
+# NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
 case_parameters = Symbol[]
 for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
     push!(case_parameters, Symbol(splitext(filename)[1]))
@@ -14,7 +15,7 @@ Generates parameters
 """
 function Parameters()
     par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
         setproperty!(par, item, Parameters(item))
     end
     return par
@@ -45,6 +46,10 @@ function Parameters(::Type{Val{:equilibrium}})
     equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
     equilibrium.R0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
     equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default = 0.0)
+
+    equilibrium.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default = missing)
+    equilibrium.area = Entry(Real, "m²", "Scalar area to match (optional)"; default = missing)
+
     equilibrium.ϵ = Entry(Real, "", "Plasma aspect ratio")
     equilibrium.δ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :triangularity)
     equilibrium.κ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :elongation)
@@ -68,7 +73,7 @@ function Parameters(::Type{Val{:core_profiles}})
     core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default = 101)
     core_profiles.bulk = Entry(Symbol, "", "Bulk ion species")
     core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
-    core_profiles.ejima = Entry(Real, "", "Ejima coefficient"; default=0.4)
+    core_profiles.ejima = Entry(Real, "", "Ejima coefficient"; default = 0.4)
     return core_profiles
 end
 
@@ -91,9 +96,8 @@ end
 function Parameters(::Type{Val{:tf}})
     tf = Parameters(nothing)
     tf.n_coils = Entry(Int, "", "Number of TF coils")
-    options = [1 => "PricetonD", 2 => "Rectangle", 3 => "TrippleArc", 4 => "Miller", 5 => "Spline"]
-    #        tf.shape = Switch(options, "", "Shape of the TF coils"; default=:TrippleArc)
-    tf.shape = Entry(Int, "", "Shape of the TF coils"; default = 3)
+    options = [:princeton_D, :rectangle, :triple_arc, :miller, :spline]
+    tf.shape = Switch(options, "", "Shape of the TF coils"; default = :triple_arc)
     tf.technology = Parameters(:coil_technology)
     return tf
 end
@@ -105,9 +109,18 @@ function Parameters(::Type{Val{:oh}})
     return oh
 end
 
+function Parameters(::Type{Val{:center_stack}})
+    center_stack = Parameters(nothing)
+    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default = false)
+    center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default = false)
+    center_stack.plug = Entry(Bool, "", "flag for center plug"; default = false)
+    return center_stack
+end
+
+
 function Parameters(::Type{Val{:nbi}})
     nbi = Parameters(nothing)
-    nbi.beam_power = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "Beam power")
+    nbi.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "Beam power")
     nbi.beam_energy = Entry(Union{X,Vector{X}} where {X<:Real}, "eV", "Beam energy")
     nbi.beam_mass = Entry(Union{X,Vector{X}} where {X<:Real}, "AU", "Beam mass"; default = 2.0)
     nbi.toroidal_angle = Entry(Union{X,Vector{X}} where {X<:Real}, "rad", "toroidal angle of injection"; default = 0.0)
@@ -134,7 +147,10 @@ end
 
 function Parameters(::Type{Val{:build}})
     build = Parameters(nothing)
-    build.is_nuclear_facility = Entry(Bool, "", "Is this a nuclear facility")
+    build.layers = Entry(DataStructures.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
+    build.blanket = Entry(Float64, "", "Fraction of blanket in radial build")
+    build.shield = Entry(Float64, "", "Fraction of shield in radial build")
+    build.vessel = Entry(Float64, "", "Fraction of vessel in radial build")
     build.symmetric = Entry(Bool, "", "Is the build up-down symmetric")
     return build
 end

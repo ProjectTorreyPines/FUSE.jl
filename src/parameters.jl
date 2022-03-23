@@ -174,7 +174,7 @@ function Base.show(io::IO, p::Parameters, depth::Int)
     for item in sort(collect(keys(_parameters)))
         parameter = _parameters[item]
         if typeof(parameter) <: Parameters
-            printstyled(io, "$(' '^(2*depth))")
+            printstyled(io, "$(" "^(2*depth))")
             printstyled(io, "$(item)\n"; bold = true)
             show(io, parameter, depth + 1)
         else
@@ -189,7 +189,7 @@ function Base.show(io::IO, p::Parameters, depth::Int)
             else
                 color = :red
             end
-            printstyled(io, "$(' '^(2*depth))")
+            printstyled(io, "$(" "^(2*depth))")
             printstyled(io, "$(item)"; color = color)
             printstyled(io, " ➡ "; color = :red)
             printstyled(io, "$(repr(value))"; color = color)

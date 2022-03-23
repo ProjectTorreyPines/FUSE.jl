@@ -1,163 +1,46 @@
+JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
 JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
 CURRENTDIR = $(shell pwd)
 
 all:
 	@echo 'FUSE makefile help'
 	@echo ''
-	@echo ' - make install  : install FUSE and all of its dependencies'
-	@echo ' - make update   : update FUSE and all of its dependencies'
+	@echo ' - make develop  : install FUSE and its PTP dependencies to $(JULIA_PKG_DEVDIR)'
+	@echo ' - make update   : git pull FUSE and its PTP dependencies'
 	@echo ''
 
-install: install_FUSE install_IJulia
+sysimage:
 	julia -e '\
 using Pkg;\
-Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN", "QED"]);\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
+Pkg.add("PackageCompiler");\
+Pkg.add("IJulia");\
+import PackageCompiler;\
+Pkg.activate(".");\
+PackageCompiler.create_sysimage(["Contour", "DataStructures", "EFIT", "ForwardDiff", "Interpolations", "JSON", "LibGEOS", "LinearAlgebra", "ModelingToolkit", "NumericalIntegration", "Optim", "OrdinaryDiffEq", "Plots", "PolygonOps", "Printf", "Random", "Revise", "StaticArrays", "Statistics", "Test"], sysimage_path="FUSEsysimage.so");\
+import IJulia;\
+IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
 '
 
-install_IJulia:
+registry:
+	cd $(JULIA_PKG_REGDIR);\
+	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
+
+develop: registry
+	julia -e '\
+using Pkg;\
+Pkg.activate(".");\
+Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED"]);\
+'
+
+IJulia:
 	julia -e '\
 using Pkg;\
 Pkg.add("IJulia");\
 Pkg.build("IJulia");\
 '
 
-install_FUSE: install_IMAS install_IMASDD install_FusionMaterials install_AD_GS install_Equilibrium install_TAUENN install_QED
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/FUSE" ]; then ln -s $(CURRENTDIR) $(JULIA_PKG_DEVDIR)/FUSE; fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/FUSE");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "FusionMaterials", "AD_GS", "Equilibrium", "AD_TAUENN", "AD_EPEDNN", "AD_TGLFNN", "QED"]);\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_IMAS: install_IMASDD install_CoordinateConventions
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMAS" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/IMAS.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/IMAS");\
-Pkg.develop(["IMASDD", "CoordinateConventions"]);\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_IMASDD:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMAS" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/IMASDD.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/IMAS");\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_IMASDD: install_CoordinateConventions
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/IMASDD" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/IMASDD.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/IMASDD");\
-Pkg.develop(["CoordinateConventions"]);\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-
-install_CoordinateConventions:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/CoordinateConventions" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/CoordinateConventions.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/CoordinateConventions");\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_FusionMaterials:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/FusionMaterials" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/FusionMaterials.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/FusionMaterials");\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_AD_GS: install_Equilibrium
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/AD_GS" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/AD_GS.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/AD_GS");\
-Pkg.develop(["Equilibrium", "CoordinateConventions"]);\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_Equilibrium: install_CoordinateConventions
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/Equilibrium" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/Equilibrium.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/Equilibrium");\
-Pkg.develop(["CoordinateConventions"]);\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_TAUENN: install_IMAS install_IMASDD install_CoordinateConventions install_TGLFNN install_EPEDNN
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/AD_TAUENN" ]; then ln -s $(CURRENTDIR) $(JULIA_PKG_DEVDIR)/AD_TAUENN; fi
-	julia -e '\
-using Pkg;\
-Pkg.activate("$(JULIA_PKG_DEVDIR)/AD_TAUENN");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "AD_TGLFNN", "AD_EPEDNN"]);\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_TGLFNN:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/AD_TGLFNN" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/AD_TGLFNN.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_EPEDNN:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/AD_EPEDNN" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/AD_EPEDNN.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-install_QED:
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/QED" ]; then\
-		julia -e 'using Pkg; Pkg.develop(url="git@github.com:ProjectTorreyPines/QED.jl.git");';\
-	fi
-	julia -e '\
-using Pkg;\
-Pkg.resolve();\
-try Pkg.upgrade_manifest() catch end;\
-'
-
-update: update_FUSE update_IMAS update_IMASDD update_CoordinateConventions update_FusionMaterials update_AD_GS update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN update_QED
-	make install
+update: develop
+	make -j 100 update_FUSE update_IMAS update_IMASDD update_CoordinateConventions update_FusionMaterials update_VacuumFields update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN update_QED
 
 update_FUSE:
 	cd $(JULIA_PKG_DEVDIR)/FUSE; git fetch; git pull
@@ -174,20 +57,20 @@ update_CoordinateConventions:
 update_FusionMaterials:
 	cd $(JULIA_PKG_DEVDIR)/FusionMaterials; git fetch; git pull
 
-update_AD_GS:
-	cd $(JULIA_PKG_DEVDIR)/AD_GS; git fetch; git pull
+update_VacuumFields:
+	cd $(JULIA_PKG_DEVDIR)/VacuumFields; git fetch; git pull
 
 update_Equilibrium:
 	cd $(JULIA_PKG_DEVDIR)/Equilibrium; git fetch; git pull
 
 update_TAUENN:
-	cd $(JULIA_PKG_DEVDIR)/AD_TAUENN; git fetch; git pull
+	cd $(JULIA_PKG_DEVDIR)/TAUENN; git fetch; git pull
 
 update_TGLFNN:
-	cd $(JULIA_PKG_DEVDIR)/AD_TGLFNN; git fetch; git pull
+	cd $(JULIA_PKG_DEVDIR)/TGLFNN; git fetch; git pull
 
 update_EPEDNN:
-	cd $(JULIA_PKG_DEVDIR)/AD_EPEDNN; git fetch; git pull
+	cd $(JULIA_PKG_DEVDIR)/EPEDNN; git fetch; git pull
 
 update_QED:
 	cd $(JULIA_PKG_DEVDIR)/QED; git fetch; git pull

@@ -51,37 +51,11 @@ function init_equilibrium(
     return eq
 end
 
-function init_equilibrium(dd::IMAS.dd, gasc::GASC; ngrid=129)
-    gascsol = gasc.solution
-
-    R0 = gascsol["INPUTS"]["radial build"]["majorRadius"]
-    Z0 = 0.0
-    ϵ = 1 / gascsol["INPUTS"]["radial build"]["aspectRatio"]
-    κ = gascsol["OUTPUTS"]["plasma parameters"]["elongation"]
-    δ = gascsol["INPUTS"]["plasma parameters"]["triangularity"]
-    B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
-    ip = gascsol["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
-    βn = gascsol["OUTPUTS"]["plasma parameters"]["betaN"]
-    x_point = gascsol["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
-    symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
-
-    # initialize dd
-    init_equilibrium(dd.equilibrium; B0, R0, Z0, ϵ, κ, δ, βn = βn, ip, x_point = x_point)
-
-    # equilibrium solver
-    eqactor = SolovevEquilibriumActor(dd, symmetric = symmetric)
-    step(eqactor, verbose = false)
-    finalize(eqactor; ngrid, rlims=(maximum([R0 * (1 - ϵ * 2), 0.0]), R0 * (1 + ϵ * 2)), zlims=(-R0 * ϵ * κ * 1.5, R0 * ϵ * κ * 1.5))
-
-    return dd
-end
-
 function init_equilibrium(dd::IMAS.dd, par::Parameters)
     init_from = par.general.init_from
 
     if init_from == :gasc
-        gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_equilibrium(dd, gasc; ngrid = par.equilibrium.ngrid)
+        init_from = :scalars
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
@@ -89,7 +63,7 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
             dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))
             dd.equilibrium = dd1.equilibrium
         else
-            init_from == :scalars
+            init_from = :scalars
         end
     end
 
@@ -108,9 +82,7 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
             x_point = par.equilibrium.x_point)
 
         # equilibrium
-        eqactor = SolovevEquilibriumActor(dd, symmetric = par.equilibrium.symmetric)
-        step(eqactor, verbose = false)
-        finalize(eqactor, ngrid = par.equilibrium.ngrid)
+        SolovevEquilibriumActor(dd, par)
     end
 
 

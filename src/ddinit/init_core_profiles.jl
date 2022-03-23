@@ -122,7 +122,7 @@ function init_core_profiles(
 
     # Set densities
     ne_core = n_peaking * ne_ped
-    cpt.electrons.density = AD_TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
+    cpt.electrons.density = TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
 
     zimp1 = IMAS.ion_element(impurity).element[1].z_n
     niFraction = zeros(2)
@@ -142,7 +142,7 @@ function init_core_profiles(
 
     Te_core = 10.0 * betaN * abs(Bt * (Ip / 1e6)) / a / (ne_core / 1e20) / (2.0 * 1.6e1 * 4.0 * pi * 1.0e-4)
     Te_ped = Te_core / 4
-    cpt.electrons.temperature = AD_TAUENN.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
+    cpt.electrons.temperature = TAUENN.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cpt.ion)
         cpt.ion[i].temperature = cpt.electrons.temperature ./ T_ratio
     end
