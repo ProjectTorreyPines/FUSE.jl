@@ -1,6 +1,7 @@
 using FusionMaterials: FusionMaterials
 
 # load parameters from different case studies
+# NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
 case_parameters = Symbol[]
 for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
     push!(case_parameters, Symbol(splitext(filename)[1]))
@@ -45,6 +46,10 @@ function Parameters(::Type{Val{:equilibrium}})
     equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
     equilibrium.R0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
     equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default = 0.0)
+
+    equilibrium.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default = missing)
+    equilibrium.area = Entry(Real, "m²", "Scalar area to match (optional)"; default = missing)
+
     equilibrium.ϵ = Entry(Real, "", "Plasma aspect ratio")
     equilibrium.δ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :triangularity)
     equilibrium.κ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :elongation)
@@ -68,7 +73,7 @@ function Parameters(::Type{Val{:core_profiles}})
     core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default = 101)
     core_profiles.bulk = Entry(Symbol, "", "Bulk ion species")
     core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
-    core_profiles.ejima = Entry(Real, "", "Ejima coefficient"; default=0.4)
+    core_profiles.ejima = Entry(Real, "", "Ejima coefficient"; default = 0.4)
     return core_profiles
 end
 
@@ -92,7 +97,7 @@ function Parameters(::Type{Val{:tf}})
     tf = Parameters(nothing)
     tf.n_coils = Entry(Int, "", "Number of TF coils")
     options = [:princeton_D, :rectangle, :triple_arc, :miller, :spline]
-    tf.shape = Switch(options, "", "Shape of the TF coils"; default=:triple_arc)
+    tf.shape = Switch(options, "", "Shape of the TF coils"; default = :triple_arc)
     tf.technology = Parameters(:coil_technology)
     return tf
 end
@@ -106,9 +111,9 @@ end
 
 function Parameters(::Type{Val{:center_stack}})
     center_stack = Parameters(nothing)
-    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default=false)
-    center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
-    center_stack.plug = Entry(Bool, "", "flag for center plug"; default=false)
+    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default = false)
+    center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default = false)
+    center_stack.plug = Entry(Bool, "", "flag for center plug"; default = false)
     return center_stack
 end
 
