@@ -9,6 +9,9 @@ function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
 
     if init_from == :ods
         par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "fpp_gasc_59_step.json")
+        par.build.blanket = .9
+        par.build.shield = 0.5
+        par.build.vessel = 0.125
     else
         par.core_profiles.rot_core = 0.0
         par.core_profiles.bulk = :DT

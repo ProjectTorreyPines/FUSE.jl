@@ -40,6 +40,7 @@ abstract type AbstractActor end
 function finalize(actor::AbstractActor)
     actor
 end
+include(joinpath("actors", "init_actor.jl"))
 include(joinpath("actors", "equilibrium_actor.jl"))
 include(joinpath("actors", "pf_active_actor.jl"))
 include(joinpath("actors", "build_actor.jl"))
