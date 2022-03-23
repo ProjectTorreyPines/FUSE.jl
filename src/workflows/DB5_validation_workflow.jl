@@ -1,6 +1,7 @@
 import Random
 import DataFrames
 import CSV
+import ProgressMeter
 
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
@@ -61,16 +62,9 @@ function transport_validation_workflow(
     show_dd_plots=false,
     plot_database=true)
 
-    # Set up the database to run
-    # For description of variables see https://osf.io/593q6/
-    run_df = load_dataframe(joinpath(dirname(abspath(@__FILE__)), "..", "..", "sample", "HDB5_compressed.csv"))
-    signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH"]
-    # subselect on the signals of interest
-    run_df = run_df[:, signal_names]
-    # only retain cases for which all signals have data
-    run_df = run_df[DataFrames.completecases(run_df), :]
-    # some basic filters
-    run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
+    # load HDB5 database
+    run_df = load_hdb5()
+
     # pick cases at random
     if n_samples_per_tokamak !== :all
         tok_list = unique(run_df[:, "TOK"])
@@ -83,16 +77,18 @@ function transport_validation_workflow(
     run_df[!, "TAUTH_fuse"] = tau_FUSE = Vector{Union{Real,Missing}}(missing, length(run_df[:, "TOK"]))
     tbl = DataFrames.Tables.rowtable(run_df)
     failed_runs_ids = Int[]
-    for (idx, data_row) in enumerate(DataFrames.Tables.rows(tbl))
+    p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed = true)
+    for idx in 1:length(DataFrames.Tables.rows(tbl))
         try
             dd = IMAS.dd()
-            par = Parameters(:HDB5; data_row)
+            par = Parameters(run_df[idx,:])
             simple_equilibrium_transport_workflow(dd, par; save_directory, show_dd_plots)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
         catch e
             push!(failed_runs_ids, idx)
             @error e
         end
+        ProgressMeter.next!(p)
     end
     println("Failed runs: $(length(failed_runs_ids)) out of $(length(run_df[:,"TOK"]))")
 
@@ -108,8 +104,23 @@ function transport_validation_workflow(
     return run_df
 end
 
-function load_dataframe(filename::String)
-    return CSV.read(filename, DataFrames.DataFrame)
+function load_hdb5(tokamak::T=missing,
+                   extra_signal_names = T[]) where {T <: Union{Missing,String,Symbol}}
+    # Set up the database to run
+    # For description of variables see https://osf.io/593q6/
+    run_df = CSV.read(joinpath(dirname(abspath(@__FILE__)), "..", "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
+    signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
+    signal_names = vcat(signal_names, extra_signal_names)
+    # subselect on the signals of interest
+    run_df = run_df[:, signal_names]
+    # only retain cases for which all signals have data
+    run_df = run_df[DataFrames.completecases(run_df), :]
+    # some basic filters
+    run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
+    if tokamak !== missing
+        run_df = run_df[run_df.TOK.==String(tokamak),:]
+    end
+    return run_df
 end
 
 function R_squared(x, y)
@@ -127,7 +138,7 @@ Plot regression in log-form on x_name and y_name in the dataframe
 """
 function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
     x_name = name
-    y_name = "$name_fuse"
+    y_name = "$(name)_fuse"
     if x_name == "TAUTH"
         x_ylim = [5e-3, 1e1]
     else

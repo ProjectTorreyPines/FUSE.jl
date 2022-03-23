@@ -31,7 +31,7 @@ function Parameters(::Type{Val{:D3D}})
     par.core_profiles.bulk = :D
     par.core_profiles.impurity = :C
 
-    par.nbi.beam_power = 5E6
+    par.nbi.power_launched = 5E6
     par.nbi.beam_energy = 80e3
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 20.0 / 180 * pi

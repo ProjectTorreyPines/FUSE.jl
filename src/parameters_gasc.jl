@@ -32,6 +32,7 @@ function gasc_2_equilibrium(par::Parameters, gasc::GASC)
     par.equilibrium.ip = gascsol["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
     par.equilibrium.x_point = gascsol["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
     par.equilibrium.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
+    return par
 end
 
 function gasc_2_sources_par(par::Parameters, gasc::GASC)
@@ -48,18 +49,18 @@ function gasc_2_sources_par(par::Parameters, gasc::GASC)
         cd_powers[system] = cd_power * gascsol["INPUTS"]["current drive"]["$(system)CDFraction"]
     end
 
-    par.nbi.beam_power = Float64[]
+    par.nbi.power_launched = Float64[]
     par.nbi.beam_energy = Float64[]
     if heating_power >0
-        push!(par.nbi.beam_power, heating_power)
+        push!(par.nbi.power_launched, heating_power)
         push!(par.nbi.beam_energy, 200e3)
     end
     if cd_powers["NB"] >0
-        push!(par.nbi.beam_power, cd_powers["NB"])
+        push!(par.nbi.power_launched, cd_powers["NB"])
         push!(par.nbi.beam_energy, 200e3)
     end
     if cd_powers["NNB"] >0
-        push!(par.nbi.beam_power, cd_powers["NNB"])
+        push!(par.nbi.power_launched, cd_powers["NNB"])
         push!(par.nbi.beam_energy, 1000e3)
     end
     par.lh.power_launched = Float64[]
@@ -89,6 +90,7 @@ function gasc_2_build(par::Parameters, gasc::GASC; no_small_gaps::Bool, vacuum_v
     par.center_stack.plug = gascsol["INPUTS"]["radial build"]["hasPlug"]
 
     par.oh.flattop_duration = gascsol["INPUTS"]["plasma parameters"]["flattopDuration"]
+    return par
 end
 
 """

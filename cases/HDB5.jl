@@ -1,14 +1,14 @@
 import DataFrames
 import CSV
 
-function Parameters(::Type{Val{:HDB5}}, filename::String, case_number::Integer)
-    run_df = CSV.read(filename, DataFrames.DataFrame)
-    data_row = run_df[case_number, :]
-    Parameters(:HDB5; data_row)
+# For description of cases/variables see https://osf.io/593q6/
+function Parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}, case::Integer)
+    data_row = load_hdb5(tokamak)[case, :]
+    Parameters(data_row)
 end
 
-function Parameters(::Type{Val{:HDB5}}; data_row::Union{NamedTuple,AbstractDict})
-    par = Parameters()
+function Parameters(data_row::DataFrames.DataFrameRow)
+    par = Parameters()  
     par.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT]))"
     par.general.init_from = :scalars
 
@@ -23,8 +23,8 @@ function Parameters(::Type{Val{:HDB5}}; data_row::Union{NamedTuple,AbstractDict}
     par.equilibrium.area = data_row[:AREA]
     par.equilibrium.volume = data_row[:VOL]
     par.equilibrium.ip = abs(data_row[:IP])
-    par.equilibrium.x_point = false
-    par.equilibrium.symmetric = true
+    par.equilibrium.x_point = contains("SN", data_row[:CONFIG]) || contains("DN", data_row[:CONFIG])
+    par.equilibrium.symmetric = !contains("SN", data_row[:CONFIG])
 
     # Core_profiles parameters
     par.core_profiles.ne_ped = data_row[:NEL] / 1.3
@@ -39,7 +39,7 @@ function Parameters(::Type{Val{:HDB5}}; data_row::Union{NamedTuple,AbstractDict}
 
     # nbi
     if data_row[:PNBI] + data_row[:POHM] > 0.0
-        par.nbi.beam_power = data_row[:PNBI] + data_row[:POHM]
+        par.nbi.power_launched = data_row[:PNBI] + data_row[:POHM]
         if data_row[:PNBI] == 0.0
             par.nbi.beam_energy = 1e9
         else

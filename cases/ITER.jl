@@ -61,7 +61,7 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.core_profiles.bulk = :DT
     par.core_profiles.impurity = :Ne
 
-    par.nbi.beam_power = 2 * 16.7e6
+    par.nbi.power_launched = 2 * 16.7e6
     par.nbi.beam_energy = 1e6
     par.ec.power_launched = 2 * 10e6
     par.ic.power_launched = 24 * 1e6

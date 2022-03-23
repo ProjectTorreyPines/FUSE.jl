@@ -120,7 +120,7 @@ end
 
 function Parameters(::Type{Val{:nbi}})
     nbi = Parameters(nothing)
-    nbi.beam_power = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "Beam power")
+    nbi.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "Beam power")
     nbi.beam_energy = Entry(Union{X,Vector{X}} where {X<:Real}, "eV", "Beam energy")
     nbi.beam_mass = Entry(Union{X,Vector{X}} where {X<:Real}, "AU", "Beam mass"; default = 2.0)
     nbi.toroidal_angle = Entry(Union{X,Vector{X}} where {X<:Real}, "rad", "toroidal angle of injection"; default = 0.0)

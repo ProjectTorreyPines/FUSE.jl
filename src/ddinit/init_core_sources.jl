@@ -1,7 +1,7 @@
 import NumericalIntegration: cumul_integrate
 
 function init_nbi(dd::IMAS.dd, par::Parameters)
-    return init_nbi(dd, par.nbi.beam_power, par.nbi.beam_energy, par.nbi.beam_mass, par.nbi.toroidal_angle)
+    return init_nbi(dd, par.nbi.power_launched, par.nbi.beam_energy, par.nbi.beam_mass, par.nbi.toroidal_angle)
 end
 
 function init_nbi(
@@ -81,7 +81,7 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
     end
 
     if init_from == :scalars
-        if !ismissing(par.nbi, :beam_power) && any(par.nbi.beam_power .> 0)
+        if !ismissing(par.nbi, :power_launched) && any(par.nbi.power_launched .> 0)
             init_nbi(dd, par)
             finalize(step(SimpleNBIactor(dd)))
         end

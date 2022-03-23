@@ -33,7 +33,7 @@ function Parameters(::Type{Val{:CAT}})
     par.core_profiles.bulk = :DT
     par.core_profiles.impurity = :Ne
 
-    par.nbi.beam_power = 20E6
+    par.nbi.power_launched = 20E6
     par.nbi.beam_energy = 200e3
     par.nbi.beam_mass = 2
     par.nbi.toroidal_angle = 0.0
