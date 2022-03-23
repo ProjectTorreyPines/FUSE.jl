@@ -222,33 +222,6 @@ function Base.ismissing(p::Parameters, field::Symbol)::Bool
     return getfield(p, :_parameters)[field].value === missing
 end
 
-"""
-    Parameters(gasc::GASC)
-
-Map GASC solution to FUSE input parameters
-"""
-function Parameters(gasc::GASC)
-    par = Parameters()
-    par.gasc.filename = gasc.filename
-    par.gasc.case = gasc.case
-
-    gascsol = gasc.solution
-    par.general.casename = gasc.solution["INPUTS"]["NAME"]["device_name"]
-    par.general.init_from = :gasc
-
-    par.tf.technology = coil_technology(gasc, :TF)
-    par.oh.technology = coil_technology(gasc, :OH)
-    par.pf_active.technology = coil_technology(gasc, :PF)
-
-    par.center_stack.bucked = gascsol["INPUTS"]["radial build"]["isBucked"]
-    par.center_stack.noslip = gascsol["INPUTS"]["radial build"]["nonSlip"]
-    par.center_stack.plug = gascsol["INPUTS"]["radial build"]["hasPlug"]
-
-    par.oh.flattop_duration = gasc.solution["INPUTS"]["plasma parameters"]["flattopDuration"]
-
-    return set_new_base!(par)
-end
-
 #= ================= =#
 #  Parameters errors  #
 #= ================= =#

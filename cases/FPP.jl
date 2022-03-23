@@ -17,8 +17,6 @@ function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
         par.core_profiles.bulk = :DT
     end
 
-    par.build.symmetric = false
-
     par.tf.shape = :triple_arc
     par.tf.n_coils = 16
 

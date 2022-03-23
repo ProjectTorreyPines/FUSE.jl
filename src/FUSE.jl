@@ -16,6 +16,7 @@ include("utils.jl")
 #= ========== =#
 include("parameters.jl")
 include("parameters_list.jl")
+include("parameters_gasc.jl")
 
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
@@ -26,6 +27,7 @@ include("technology.jl")
 #= ====== =#
 #  DDINIT  #
 #= ====== =#
+include(joinpath("ddinit", "init.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
@@ -40,7 +42,6 @@ abstract type AbstractActor end
 function finalize(actor::AbstractActor)
     actor
 end
-include(joinpath("actors", "init_actor.jl"))
 include(joinpath("actors", "equilibrium_actor.jl"))
 include(joinpath("actors", "pf_active_actor.jl"))
 include(joinpath("actors", "build_actor.jl"))

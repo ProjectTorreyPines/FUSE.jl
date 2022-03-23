@@ -149,32 +149,6 @@ function coil_technology(technology::Symbol)
 end
 
 """
-    coil_technology(gasc::GASC, coil_type::Symbol)
-
-Return coil parameters from GASC solution and coil type [:OH, :TF, :PF]
-"""
-function coil_technology(gasc::GASC, coil_type::Symbol)
-    gascsol = gasc.solution
-    if !(coil_type in [:OH, :TF, :PF])
-        error("Supported coil type are [:OH, :TF, :PF]")
-    end
-    if gascsol["INPUTS"]["conductors"]["superConducting"] == "copper"
-        coil_tech = coil_technology(:copper)
-    else
-        if gascsol["INPUTS"]["conductors"]["superConducting"] == "LTS"
-            coil_tech = coil_technology(:LTS)
-        elseif gascsol["INPUTS"]["conductors"]["superConducting"] == "HTS"
-            coil_tech = coil_technology(:HTS)
-        end
-        coil_tech.thermal_strain = gascsol["INPUTS"]["conductors"]["structuralStrain$coil_type"]
-        coil_tech.JxB_strain = gascsol["INPUTS"]["conductors"]["structuralStrain$coil_type"]
-    end
-    coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoid$coil_type"]
-    coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainless$coil_type"]
-    return set_new_base!(coil_tech)
-end
-
-"""
     coil_technology(machine::Symbol, coil_type::Symbol)
 
 Return coil parameters from machine and coil type [:OH, :TF, :PF]"

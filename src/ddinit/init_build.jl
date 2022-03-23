@@ -14,8 +14,7 @@ function init_build(dd::IMAS.dd, par::Parameters)
     init_from = par.general.init_from
 
     if init_from == :gasc
-        gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_radial_build(dd.build, gasc; no_small_gaps = par.gasc.no_small_gaps)
+        init_from = :scalars
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
@@ -225,119 +224,6 @@ function init_radial_build(
     init_radial_build(bd; verbose, layers...)
 
     return bd
-end
-
-"""
-    init_radial_build(
-        bd::IMAS.build,
-        gasc::GASC;
-        no_small_gaps::Bool = true,
-        verbose::Bool = false)
-
-Initialization of radial build based on equilibrium GASC output
-"""
-function init_radial_build(
-    bd::IMAS.build,
-    gasc::GASC;
-    no_small_gaps::Bool = true,
-    vacuum_vessel::Float64 = 0.1,
-    verbose::Bool = false)
-
-    layers = gascrb2layers(gasc.solution["INPUTS"]["radial build"]; no_small_gaps, vacuum_vessel)
-
-    init_radial_build(bd, layers; verbose)
-
-    return bd
-end
-
-"""
-    function gascrb2layers(
-        gascrb::Dict;
-        no_small_gaps::Bool = true,
-        vacuum_vessel::Float64 = 0.1)
-
-Convert GASC ["INPUTS"]["radial build"] to FUSE build layers dictionary
-"""
-function gascrb2layers(
-    gascrb::Dict;
-    no_small_gaps::Bool = true,
-    vacuum_vessel::Float64 = 0.1)
-
-    majorRadius = gascrb["majorRadius"]
-    aspectRatio = gascrb["aspectRatio"]
-    minorRadius = majorRadius / aspectRatio
-    innerPlasmaRadius = majorRadius - minorRadius
-    norm = innerPlasmaRadius
-
-    layers = DataStructures.OrderedDict()
-    for run in 1:2
-        layers["OH"] = gascrb["rbOH"] * norm
-
-        layers["hfs_gap_TF"] = gascrb["gapTFOH"] * norm
-        layers["hfs_TF"] = gascrb["rbTF"] * norm
-        if no_small_gaps
-            layers["hfs_TF"] += layers["hfs_gap_TF"]
-            pop!(layers, "hfs_gap_TF")
-        end
-
-        if vacuum_vessel > 0.0
-            layers["gap_hfs_vacuum_vessel"] = gascrb["rbInnerBlanket"] * norm * vacuum_vessel
-        end
-
-        layers["hfs_gap_shield"] = gascrb["gapBlanketCoil"] * norm
-        layers["hfs_shield"] = gascrb["rbInnerShield"] * norm
-        if no_small_gaps
-            layers["hfs_shield"] += layers["hfs_gap_shield"]
-            pop!(layers, "hfs_gap_shield")
-        end
-        layers["hfs_blanket"] = gascrb["rbInnerBlanket"] * norm * (1 - vacuum_vessel)
-
-        layers["hfs_wall"] = gascrb["gapInnerBlanketWall"] * norm
-
-        if run == 1
-            between_gapOH_and_plasma = sum(values(layers))
-            empty!(layers)
-            layers["gap_OH"] = innerPlasmaRadius - between_gapOH_and_plasma
-        end
-    end
-
-    layers["plasma"] = (gascrb["majorRadius"] - sum(values(layers))) * 2 + (gascrb["gapIn"] + gascrb["gapOut"]) * norm
-    layers["lfs_wall"] = gascrb["gapOuterBlanketWall"] * norm
-
-    layers["lfs_blanket"] = gascrb["rbOuterBlanket"] * norm * (1 - vacuum_vessel)
-    layers["lfs_shield"] = gascrb["rbOuterShield"] * norm
-    layers["lfs_gap_shield"] = gascrb["gapBlanketCoil"] * norm
-    if no_small_gaps
-        layers["lfs_shield"] += layers["lfs_gap_shield"]
-        pop!(layers, "lfs_gap_shield")
-    end
-
-    if vacuum_vessel > 0.0
-        layers["gap_lfs_vacuum_vessel"] = gascrb["rbOuterBlanket"] * norm * vacuum_vessel
-    end
-
-    layers["lfs_TF"] = layers["hfs_TF"]
-    layers["lfs_gap_TF"] = gascrb["gapTFOH"] * norm
-    if no_small_gaps
-        layers["lfs_TF"] += layers["lfs_gap_TF"]
-        pop!(layers, "lfs_gap_TF")
-    end
-
-    layers["gap_cryostat"] = layers["gap_OH"] * 3
-
-    # thin layers can cause LibGEOS to crash
-    # if wall is too thin, then thicken it at the expense of the blanket
-    min_fraction_thin_wall = 0.02
-    if no_small_gaps && (layers["hfs_wall"] < min_fraction_thin_wall * norm)
-        layers["hfs_blanket"] -= (min_fraction_thin_wall * norm - layers["hfs_wall"])
-        layers["hfs_wall"] = min_fraction_thin_wall * norm
-    end
-    if no_small_gaps && (layers["lfs_wall"] < min_fraction_thin_wall * norm)
-        layers["lfs_blanket"] -= (min_fraction_thin_wall * norm - layers["lfs_wall"])
-        layers["lfs_wall"] = min_fraction_thin_wall * norm
-    end
-
-    return layers
 end
 
 """

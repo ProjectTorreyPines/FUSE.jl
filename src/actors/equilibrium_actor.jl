@@ -10,14 +10,17 @@ mutable struct SolovevEquilibriumActor <: AbstractActor
     S::SolovevEquilibrium
 end
 
-function SolovevEquilibriumActor(dd::IMAS.dd; par::Parameters; verbose = false)
-    actor = SolovevEquilibriumActor(dd.equilibrium)
+function SolovevEquilibriumActor(dd::IMAS.dd, par::Parameters; verbose = false)
+    actor = SolovevEquilibriumActor(dd.equilibrium, symmetric = par.equilibrium.symmetric)
     step(actor; verbose)
-    finalize(actor)
+    finalize(actor, ngrid = par.equilibrium.ngrid)
 end
 
 """
-    function SolovevEquilibriumActor(dd::IMAS.dd, qstar=1.5, alpha=0.0, symmetric=true)
+    function SolovevEquilibriumActor(eq::IMAS.equilibrium;
+        qstar = 1.5,
+        alpha = 0.0,
+        symmetric = true)
 
 Constructor for the SolovevEquilibriumActor structure
 “One size fits all” analytic solutions to the Grad–Shafranov equation
@@ -131,7 +134,7 @@ function finalize(
     actor::SolovevEquilibriumActor;
     ngrid::Int = 129,
     rlims::NTuple{2,<:Real} = (maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
-    zlims::NTuple{2,<:Real} = (-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2)
+    zlims::NTuple{2,<:Real} = (-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
 )::IMAS.equilibrium__time_slice
 
     tc = transform_cocos(3, 11)

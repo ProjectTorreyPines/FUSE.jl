@@ -67,10 +67,10 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
     init_from = par.general.init_from
 
     if init_from == :gasc
-        gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_core_sources(dd, gasc, par)
+        init_from = :scalars
+    end
 
-    elseif init_from == :ods
+    if init_from == :ods
         dd1 = IMAS.json2imas(par.ods.filename)
         if !ismissing(dd1.core_sources, :time) && length(keys(dd1.core_sources.time)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.core_sources.time))
@@ -102,46 +102,3 @@ function init_core_sources(dd::IMAS.dd, par::Parameters)
     return dd
 end
 
-function init_core_sources(dd::IMAS.dd, gasc::GASC, par::Parameters)
-    gascsol = gasc.solution
-
-    injected_power = gascsol["OUTPUTS"]["current drive"]["powerAux"] * 1E6
-    @assert gascsol["INPUTS"]["current drive"]["auxCDPowerFactor"] >= 1.0
-    cd_power = injected_power / gascsol["INPUTS"]["current drive"]["auxCDPowerFactor"]
-    heating_power = injected_power - cd_power
-    plug_power = injected_power / gascsol["INPUTS"]["power efficiency"]["efficiencyAux"]
-
-    cd_powers = Dict()
-    for system in ["NNB", "NB", "LH", "FW", "EC", "HI"]
-        cd_powers[system] = cd_power * gascsol["INPUTS"]["current drive"]["$(system)CDFraction"]
-    end
-
-    par = deepcopy(par)
-    par.general.init_from = :scalars
-    par.nbi.beam_power = Float64[]
-    par.nbi.beam_energy = Float64[]
-    if heating_power >0
-        push!(par.nbi.beam_power, heating_power)
-        push!(par.nbi.beam_energy, 200e3)
-    end
-    if cd_powers["NB"] >0
-        push!(par.nbi.beam_power, cd_powers["NB"])
-        push!(par.nbi.beam_energy, 200e3)
-    end
-    if cd_powers["NNB"] >0
-        push!(par.nbi.beam_power, cd_powers["NNB"])
-        push!(par.nbi.beam_energy, 1000e3)
-    end
-    par.lh.power_launched = Float64[]
-    if cd_powers["LH"] > 0
-        push!(par.lh.power_launched, cd_powers["LH"])
-    end
-    if cd_powers["HI"] > 0
-        push!(par.lh.power_launched, cd_powers["HI"])
-    end
-    par.ic.power_launched = cd_powers["FW"]
-    par.ec.power_launched = cd_powers["EC"]
-
-    init_core_sources(dd, par)
-    return dd
-end
