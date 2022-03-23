@@ -1,7 +1,6 @@
 import Random
 import DataFrames
 import CSV
-import Statistics
 
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
@@ -12,7 +11,7 @@ import Statistics
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
 function simple_equilibrium_transport_workflow(dd, par; save_directory::String=missing, show_dd_plots=false)
-    FUSE.init_equilibrium(dd, par)
+    FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
 
@@ -24,7 +23,7 @@ function simple_equilibrium_transport_workflow(dd, par; save_directory::String=m
         dd.equilibrium.time_slice[].global_quantities.beta_normal = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
     end
 
-    # run equilibrium actor
+    # run equilibrium actor with the updated beta
     FUSE.SolovevEquilibriumActor(dd, par)
 
     # correct equilibrium volume and area
@@ -81,7 +80,7 @@ function transport_validation_workflow(
     end
 
     # Run simple_equilibrium_transport_workflow on each of the selected cases
-    run_df[!, :τ_fuse] = tau_FUSE = Vector{Union{Real,Missing}}(missing, length(run_df[:, "TOK"]))
+    run_df[!, "TAUTH_fuse"] = tau_FUSE = Vector{Union{Real,Missing}}(missing, length(run_df[:, "TOK"]))
     tbl = DataFrames.Tables.rowtable(run_df)
     failed_runs_ids = Int[]
     for (idx, data_row) in enumerate(DataFrames.Tables.rows(tbl))
@@ -98,7 +97,7 @@ function transport_validation_workflow(
     println("Failed runs: $(length(failed_runs_ids)) out of $(length(run_df[:,"TOK"]))")
 
     if plot_database
-        plot_x_y_regression(run_df, "TAUTH", "τ_fuse")
+        plot_x_y_regression(run_df, "TAUTH")
     end
 
     # save all input data as well as predicted tau to CSV file
@@ -114,7 +113,7 @@ function load_dataframe(filename::String)
 end
 
 function R_squared(x, y)
-    return 1 - sum((x .- y) .^ 2) / sum((x .- Statistics.mean(x)) .^ 2)
+    return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x)/length(x)) .^ 2)
 end
 
 function mean_relative_error(x, y)
@@ -122,11 +121,13 @@ function mean_relative_error(x, y)
 end
 
 """
-    plot_x_y_regression(dataframe::DataFrames.DataFrame, x_name::Union{String,Symbol}="TAUTH", y_name::Union{String,Symbol}="τ_fuse")
+    plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
 
 Plot regression in log-form on x_name and y_name in the dataframe
 """
-function plot_x_y_regression(dataframe::DataFrames.DataFrame, x_name::Union{String,Symbol}="TAUTH", y_name::Union{String,Symbol}="τ_fuse")
+function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
+    x_name = name
+    y_name = "$name_fuse"
     if x_name == "TAUTH"
         x_ylim = [5e-3, 1e1]
     else
@@ -143,7 +144,7 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, x_name::Union{Stri
     return p
 end
 
-function plot_x_y_regression(filename::String, x_name::Union{String,Symbol}="TAUTH", y_name::Union{String,Symbol}="τ_fuse")
+function plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
     dataframe = CSV.read(filename, DataFrames.DataFrame)
-    plot_x_y_regression(dataframe, x_name, y_name)
+    plot_x_y_regression(dataframe, name)
 end
