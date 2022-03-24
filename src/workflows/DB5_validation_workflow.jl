@@ -57,13 +57,14 @@ end
 Runs n_samples of the HDB5 database (https://osf.io/593q6) and stores results in save_directory
 """
 function transport_validation_workflow(
+    tokamak::Union{String,Symbol}=:all,
     n_samples_per_tokamak::Union{Integer,Symbol}=10;
     save_directory::String="",
     show_dd_plots=false,
     plot_database=true)
 
     # load HDB5 database
-    run_df = load_hdb5()
+    run_df = load_hdb5(tokamak=tokamak)
 
     # pick cases at random
     if n_samples_per_tokamak !== :all
@@ -101,25 +102,6 @@ function transport_validation_workflow(
         CSV.write(joinpath(save_directory, "dataframe.csv"), run_df)
     end
 
-    return run_df
-end
-
-function load_hdb5(tokamak::T=missing,
-                   extra_signal_names = T[]) where {T <: Union{Missing,String,Symbol}}
-    # Set up the database to run
-    # For description of variables see https://osf.io/593q6/
-    run_df = CSV.read(joinpath(dirname(abspath(@__FILE__)), "..", "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
-    signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
-    signal_names = vcat(signal_names, extra_signal_names)
-    # subselect on the signals of interest
-    run_df = run_df[:, signal_names]
-    # only retain cases for which all signals have data
-    run_df = run_df[DataFrames.completecases(run_df), :]
-    # some basic filters
-    run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
-    if tokamak !== missing
-        run_df = run_df[run_df.TOK.==String(tokamak),:]
-    end
     return run_df
 end
 
