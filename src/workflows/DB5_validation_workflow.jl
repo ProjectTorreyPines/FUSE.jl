@@ -17,7 +17,7 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; sav
     FUSE.init_core_sources(dd, par)
 
     # run transport actor
-    FUSE.TauennActor(dd, par, transport_model=:tglfnn, verbose=false)
+    FUSE.TauennActor(dd, par, transport_model=:h98y2, verbose=false)
 
     # Set beta_normal from equilbrium to the kinetic beta_n
     if !isempty(dd.core_profiles.profiles_1d)
@@ -64,7 +64,7 @@ function transport_validation_workflow(
     plot_database=true)
 
     # load HDB5 database
-    run_df = load_hdb5(tokamak=tokamak)
+    run_df = load_hdb5(tokamak)
 
     # pick cases at random
     if n_samples_per_tokamak !== :all
