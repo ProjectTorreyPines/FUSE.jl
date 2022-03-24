@@ -5,13 +5,13 @@ import ProgressMeter
 
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
-                                par::Parameters,
+                                par::Parameters;
                                 save_directory::String,
-                                show_dd_plots :: Bool)
+                                do_plot :: Bool)
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd, par; save_directory::String=missing, show_dd_plots=false)
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false)
     FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
@@ -35,7 +35,7 @@ function simple_equilibrium_transport_workflow(dd, par; save_directory::String=m
         dd.equilibrium.time_slice[].profiles_1d.area .*= par.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
     end
 
-    if show_dd_plots
+    if do_plot
         display(plot(dd.equilibrium, psi_levels_out=[], label=par.general.casename))
         display(plot(dd.core_profiles))
         display(plot(dd.core_sources))
@@ -82,7 +82,7 @@ function transport_validation_workflow(
         try
             dd = IMAS.dd()
             par = Parameters(run_df[idx,:])
-            simple_equilibrium_transport_workflow(dd, par; save_directory, show_dd_plots)
+            simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
         catch e
             push!(failed_runs_ids, idx)
