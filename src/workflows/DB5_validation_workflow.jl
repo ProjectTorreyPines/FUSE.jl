@@ -5,19 +5,19 @@ import ProgressMeter
 
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
-                                par::Parameters,
+                                par::Parameters;
                                 save_directory::String,
-                                show_dd_plots :: Bool)
+                                do_plot :: Bool)
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd, par; save_directory::String=missing, show_dd_plots=false)
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false)
     FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
 
     # run transport actor
-    FUSE.TauennActor(dd, par, transport_model=:tglfnn, verbose=false)
+    FUSE.TauennActor(dd, par, transport_model=:h98y2, verbose=false)
 
     # Set beta_normal from equilbrium to the kinetic beta_n
     if !isempty(dd.core_profiles.profiles_1d)
@@ -35,7 +35,7 @@ function simple_equilibrium_transport_workflow(dd, par; save_directory::String=m
         dd.equilibrium.time_slice[].profiles_1d.area .*= par.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
     end
 
-    if show_dd_plots
+    if do_plot
         display(plot(dd.equilibrium, psi_levels_out=[], label=par.general.casename))
         display(plot(dd.core_profiles))
         display(plot(dd.core_sources))
@@ -57,13 +57,14 @@ end
 Runs n_samples of the HDB5 database (https://osf.io/593q6) and stores results in save_directory
 """
 function transport_validation_workflow(
+    tokamak::Union{String,Symbol}=:all,
     n_samples_per_tokamak::Union{Integer,Symbol}=10;
     save_directory::String="",
     show_dd_plots=false,
     plot_database=true)
 
     # load HDB5 database
-    run_df = load_hdb5()
+    run_df = load_hdb5(tokamak)
 
     # pick cases at random
     if n_samples_per_tokamak !== :all
@@ -82,7 +83,7 @@ function transport_validation_workflow(
         try
             dd = IMAS.dd()
             par = Parameters(run_df[idx,:])
-            simple_equilibrium_transport_workflow(dd, par; save_directory, show_dd_plots)
+            simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
         catch e
             push!(failed_runs_ids, idx)
@@ -101,25 +102,6 @@ function transport_validation_workflow(
         CSV.write(joinpath(save_directory, "dataframe.csv"), run_df)
     end
 
-    return run_df
-end
-
-function load_hdb5(tokamak::T=missing,
-                   extra_signal_names = T[]) where {T <: Union{Missing,String,Symbol}}
-    # Set up the database to run
-    # For description of variables see https://osf.io/593q6/
-    run_df = CSV.read(joinpath(dirname(abspath(@__FILE__)), "..", "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
-    signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
-    signal_names = vcat(signal_names, extra_signal_names)
-    # subselect on the signals of interest
-    run_df = run_df[:, signal_names]
-    # only retain cases for which all signals have data
-    run_df = run_df[DataFrames.completecases(run_df), :]
-    # some basic filters
-    run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
-    if tokamak !== missing
-        run_df = run_df[run_df.TOK.==String(tokamak),:]
-    end
     return run_df
 end
 

@@ -27,7 +27,7 @@ function init_equilibrium(
     δ::Real,
     βn::Real,
     ip::Real,
-    x_point::Union{Vector,NTuple{2},Bool} = false)
+    x_point::Union{AbstractVector,NTuple{2},Bool} = false)
 
     eqt = resize!(eq.time_slice)
     eqt.boundary.minor_radius = ϵ * R0
@@ -40,7 +40,7 @@ function init_equilibrium(
     if x_point === true
         x_point = (R0 * (1 - 1.1 * δ * ϵ), -R0 * 1.1 * κ * ϵ)
     end
-    if isa(x_point, Union{Vector,Tuple})
+    if isa(x_point, Union{AbstractVector,Tuple})
         resize!(eqt.boundary.x_point, 1)
         eqt.boundary.x_point[1].r = x_point[1]
         eqt.boundary.x_point[1].z = x_point[2]
