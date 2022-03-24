@@ -11,13 +11,13 @@ import ProgressMeter
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false)
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true)
     FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
 
     # run transport actor
-    FUSE.TauennActor(dd, par, transport_model=:h98y2, verbose=false)
+    FUSE.TauennActor(dd, par; transport_model=:tglfnn, warn_nn_train_bounds, verbose=false)
 
     # Set beta_normal from equilbrium to the kinetic beta_n
     if !isempty(dd.core_profiles.profiles_1d)
@@ -75,7 +75,7 @@ function transport_validation_workflow(
     end
 
     # Run simple_equilibrium_transport_workflow on each of the selected cases
-    run_df[!, "TAUTH_fuse"] = tau_FUSE = Vector{Union{Real,Missing}}(missing, length(run_df[:, "TOK"]))
+    run_df[!, "TAUTH_fuse"] = tau_FUSE = [NaN for k in 1:length(run_df[:, "TOK"])]
     tbl = DataFrames.Tables.rowtable(run_df)
     failed_runs_ids = Int[]
     p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed = true)
@@ -83,11 +83,10 @@ function transport_validation_workflow(
         try
             dd = IMAS.dd()
             par = Parameters(run_df[idx,:])
-            simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots)
+            simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots, warn_nn_train_bounds=false)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
-        catch e
+        catch
             push!(failed_runs_ids, idx)
-            @error e
         end
         ProgressMeter.next!(p)
     end

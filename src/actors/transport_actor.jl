@@ -23,14 +23,8 @@ function TauennActor(dd::IMAS.dd, par::Parameters; do_plot = false, verbose = fa
     return dd
 end
 
-function TauennActor(dd::IMAS.dd; rho_fluxmatch = 0.6, eped_factor = 1.0, T_shaping = 1.8, temp_pedestal_ratio = 1.0, error = 1E-2, transport_model = :tglfnn, kw...)
+function TauennActor(dd::IMAS.dd; kw...)
     tauenn_parameters = TAUENN.TauennParameters()
-    tauenn_parameters.eped_factor = eped_factor
-    tauenn_parameters.rho_fluxmatch = rho_fluxmatch
-    tauenn_parameters.T_shaping = T_shaping
-    tauenn_parameters.temp_pedestal_ratio = temp_pedestal_ratio
-    tauenn_parameters.transport_model = transport_model
-    tauenn_parameters.error = error
     for key in keys(kw)
         setfield!(tauenn_parameters, key, kw[key])
     end
