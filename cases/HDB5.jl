@@ -24,7 +24,7 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     par.equilibrium.volume = data_row[:VOL]
     par.equilibrium.ip = abs(data_row[:IP])
     par.equilibrium.x_point = contains("SN", data_row[:CONFIG]) || contains("DN", data_row[:CONFIG])
-    par.equilibrium.symmetric = !contains("SN", data_row[:CONFIG])
+    par.equilibrium.symmetric = !par.equilibrium.x_point || !contains("SN", data_row[:CONFIG])
 
     # Core_profiles parameters
     par.core_profiles.ne_ped = data_row[:NEL] / 1.3
