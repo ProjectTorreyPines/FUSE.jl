@@ -99,7 +99,8 @@ function transport_validation_workflow(;
     end
 
     failed_df = run_df[failed_runs_ids, :]
-    run_df = run_df[DataFrames.completecases(run_df), :]
+    goof_runs_ids = [k for (k,v) in enumerate(tau_FUSE) if !isnan(v)]
+    run_df = run_df[goof_runs_ids, :]
 
     if plot_database
         plot_x_y_regression(run_df, "TAUTH")
