@@ -79,7 +79,7 @@ function transport_validation_workflow(
     tbl = DataFrames.Tables.rowtable(run_df)
     failed_runs_ids = Int[]
     p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed = true)
-    for idx in 1:length(DataFrames.Tables.rows(tbl))
+    Base.Threads.@threads for idx in 1:length(DataFrames.Tables.rows(tbl))
         try
             dd = IMAS.dd()
             par = Parameters(run_df[idx,:])
