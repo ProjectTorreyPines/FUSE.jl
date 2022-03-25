@@ -56,9 +56,9 @@ end
 
 Runs n_samples of the HDB5 database (https://osf.io/593q6) and stores results in save_directory
 """
-function transport_validation_workflow(
+function transport_validation_workflow(;
     tokamak::Union{String,Symbol}=:all,
-    n_samples_per_tokamak::Union{Integer,Symbol}=10;
+    n_samples_per_tokamak::Union{Integer,Symbol}=10,
     save_directory::String="",
     show_dd_plots=false,
     plot_database=true)
@@ -75,37 +75,41 @@ function transport_validation_workflow(
     end
 
     # Run simple_equilibrium_transport_workflow on each of the selected cases
-    run_df[!, "TAUTH_fuse"] = tau_FUSE = [NaN for k in 1:length(run_df[:, "TOK"])]
+    run_df[!, "TAUTH_fuse"] = tau_FUSE = Float64[NaN for k in 1:length(run_df[:, "TOK"])]
     tbl = DataFrames.Tables.rowtable(run_df)
-    failed_runs_ids = []
-    p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed = true)
-    Base.Threads.@threads for idx in 1:length(DataFrames.Tables.rows(tbl))
+    failed_runs_ids = Int[]
+    p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
+    #Base.Threads.@threads
+    for idx in 1:length(DataFrames.Tables.rows(tbl))
         try
             dd = IMAS.dd()
-            par = Parameters(run_df[idx,:])
+            par = Parameters(run_df[idx, :])
             simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots, warn_nn_train_bounds=false)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
-        catch e
-            push!(failed_runs_ids, e)
+        catch
+            push!(failed_runs_ids, idx)
         end
         ProgressMeter.next!(p)
     end
     println("Failed runs: $(length(failed_runs_ids)) out of $(length(run_df[:,"TOK"]))")
-
-    if plot_database
-        plot_x_y_regression(run_df, "TAUTH")
-    end
 
     # save all input data as well as predicted tau to CSV file
     if !isempty(save_directory)
         CSV.write(joinpath(save_directory, "dataframe.csv"), run_df)
     end
 
-    return run_df, failed_runs_ids
+    failed_df = run_df[failed_runs_ids, :]
+    run_df = run_df[DataFrames.completecases(run_df), :]
+
+    if plot_database
+        plot_x_y_regression(run_df, "TAUTH")
+    end
+
+    return run_df, failed_df
 end
 
 function R_squared(x, y)
-    return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x)/length(x)) .^ 2)
+    return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x) / length(x)) .^ 2)
 end
 
 function mean_relative_error(x, y)
@@ -125,7 +129,7 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String
     else
         x_ylim = [minimum(abs.(dataframe[:, x_name])) / 1e1, maximum(dataframe[:, x_name]) * 1e1]
     end
-    DataFrames.dropmissing!(dataframe)
+    dataframe = dataframe[DataFrames.completecases(dataframe), :]
     R² = round(R_squared(dataframe[:, x_name], dataframe[:, y_name]), digits=2)
     MRE = round(100 * mean_relative_error(dataframe[:, x_name], dataframe[:, y_name]), digits=2)
     p = plot(dataframe[:, x_name], dataframe[:, y_name], seriestype=:scatter, xaxis=:log, yaxis=:log, ylim=x_ylim, xlim=x_ylim, xlabel=x_name, ylabel=y_name, label="mean_relative_error = $MRE %")
