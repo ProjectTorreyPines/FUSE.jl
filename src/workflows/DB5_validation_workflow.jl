@@ -77,16 +77,16 @@ function transport_validation_workflow(
     # Run simple_equilibrium_transport_workflow on each of the selected cases
     run_df[!, "TAUTH_fuse"] = tau_FUSE = [NaN for k in 1:length(run_df[:, "TOK"])]
     tbl = DataFrames.Tables.rowtable(run_df)
-    failed_runs_ids = Int[]
+    failed_runs_ids = []
     p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed = true)
-    for idx in 1:length(DataFrames.Tables.rows(tbl))
+    Base.Threads.@threads for idx in 1:length(DataFrames.Tables.rows(tbl))
         try
             dd = IMAS.dd()
             par = Parameters(run_df[idx,:])
             simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots, warn_nn_train_bounds=false)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
-        catch
-            push!(failed_runs_ids, idx)
+        catch e
+            push!(failed_runs_ids, e)
         end
         ProgressMeter.next!(p)
     end
@@ -101,7 +101,7 @@ function transport_validation_workflow(
         CSV.write(joinpath(save_directory, "dataframe.csv"), run_df)
     end
 
-    return run_df
+    return run_df, failed_runs_ids
 end
 
 function R_squared(x, y)
