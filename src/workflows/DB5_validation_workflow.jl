@@ -87,8 +87,7 @@ function transport_validation_workflow(;
     tbl = DataFrames.Tables.rowtable(run_df)
     failed_runs_ids = Int[]
     p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
-    #Base.Threads.@threads
-    for idx in 1:length(DataFrames.Tables.rows(tbl))
+    Base.Threads.@threads for idx in 1:length(DataFrames.Tables.rows(tbl))
         try
             dd = IMAS.dd()
             par = Parameters(run_df[idx, :])
@@ -106,12 +105,15 @@ function transport_validation_workflow(;
     println("Failed runs: $(length(failed_runs_ids)) out of $(length(run_df[:,"TOK"]))")
     run_df[:,"TAUTH_fuse"] = tau_FUSE
 
+    failed_df = run_df[failed_runs_ids, :]
+
     # save all input data as well as predicted tau to CSV file
     if !isempty(save_directory)
         CSV.write(joinpath(save_directory, "dataframe.csv"), run_df)
+        CSV.write(joinpath(save_directory, "failed_runs_dataframe.csv"), failed_df)
     end
 
-    failed_df = run_df[failed_runs_ids, :]
+
 
     if plot_database
         plot_x_y_regression(run_df, "TAUTH")
