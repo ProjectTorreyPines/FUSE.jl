@@ -33,7 +33,7 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize core profiles
-    if !ismissing(par.core_profiles, :bulk)
+    if !ismissing(par.core_profiles, :bulk) || par.general.init_from == :ods
         init_core_profiles(dd, par)
         if do_plot
             display(plot(dd.core_profiles))

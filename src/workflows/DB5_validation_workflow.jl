@@ -11,13 +11,18 @@ import ProgressMeter
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true)
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn)
     FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
 
+    # Add ohmic power to core_sources 
+    if !isempty(par.oh.ohmic_heating)
+        IMAS.simple_ohmic_heating_profile!(dd, par.oh.ohmic_heating)
+    end
+
     # run transport actor
-    FUSE.TauennActor(dd, par; transport_model=:tglfnn, warn_nn_train_bounds, verbose=false)
+    FUSE.TauennActor(dd, par; transport_model=transport_model, warn_nn_train_bounds, verbose=false)
 
     # Set beta_normal from equilbrium to the kinetic beta_n
     if !isempty(dd.core_profiles.profiles_1d)
@@ -61,21 +66,24 @@ function transport_validation_workflow(;
     n_samples_per_tokamak::Union{Integer,Symbol}=10,
     save_directory::String="",
     show_dd_plots=false,
-    plot_database=true)
+    plot_database=true,
+    verbose=false)
 
     # load HDB5 database
     run_df = load_hdb5(tokamak)
+    run_df = run_df[run_df.TOK .!= "ASDEX",:]
 
     # pick cases at random
     if n_samples_per_tokamak !== :all
         tok_list = unique(run_df[:, "TOK"])
+        display(@show tok_list)
         run_df = DataFrames.reduce(
             vcat, [run_df[run_df.TOK.==tok, :][Random.shuffle(1:DataFrames.nrow(run_df[run_df.TOK.==tok, :]))[1:minimum([n_samples_per_tokamak, length(run_df[run_df.TOK.==tok, :][:, "TOK"])])], :] for tok in tok_list]
         )
     end
 
     # Run simple_equilibrium_transport_workflow on each of the selected cases
-    run_df[!, "TAUTH_fuse"] = tau_FUSE = Float64[NaN for k in 1:length(run_df[:, "TOK"])]
+    tau_FUSE = zeros(length(run_df[:,"TOK"]))
     tbl = DataFrames.Tables.rowtable(run_df)
     failed_runs_ids = Int[]
     p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
@@ -86,12 +94,17 @@ function transport_validation_workflow(;
             par = Parameters(run_df[idx, :])
             simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots, warn_nn_train_bounds=false)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
-        catch
+            if verbose
+                display(println("τ_fuse = $(@ddtime(dd.summary.global_quantities.tau_energy.value)) τ_hdb5 = $(run_df[idx, :TAUTH])"))
+            end
+        catch e
             push!(failed_runs_ids, idx)
+            display(@show e)
         end
         ProgressMeter.next!(p)
     end
     println("Failed runs: $(length(failed_runs_ids)) out of $(length(run_df[:,"TOK"]))")
+    run_df[:,"TAUTH_fuse"] = tau_FUSE
 
     # save all input data as well as predicted tau to CSV file
     if !isempty(save_directory)
@@ -99,7 +112,6 @@ function transport_validation_workflow(;
     end
 
     failed_df = run_df[failed_runs_ids, :]
-    run_df = run_df[DataFrames.completecases(run_df), :]
 
     if plot_database
         plot_x_y_regression(run_df, "TAUTH")

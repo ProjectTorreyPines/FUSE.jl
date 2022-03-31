@@ -23,8 +23,8 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     par.equilibrium.area = data_row[:AREA]
     par.equilibrium.volume = data_row[:VOL]
     par.equilibrium.ip = abs(data_row[:IP])
-    par.equilibrium.x_point = contains("SN", data_row[:CONFIG]) || contains("DN", data_row[:CONFIG])
-    par.equilibrium.symmetric = !par.equilibrium.x_point || !contains("SN", data_row[:CONFIG])
+    par.equilibrium.x_point = false
+    par.equilibrium.symmetric = true
 
     # Core_profiles parameters
     par.core_profiles.ne_ped = data_row[:NEL] / 1.3
@@ -38,15 +38,21 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     par.core_profiles.impurity = :C
 
     # nbi
-    if data_row[:PNBI] + data_row[:POHM] > 0.0
-        par.nbi.power_launched = data_row[:PNBI] + data_row[:POHM]
-        if data_row[:PNBI] == 0.0
-            par.nbi.beam_energy = 1e9
-        else
+    if data_row[:PNBI] > 0
+        par.nbi.power_launched = data_row[:PNBI]
+        if data_row[:ENBI] > 0
             par.nbi.beam_energy = data_row[:ENBI]
+        else
+            par.nbi.beam_energy = 100e3
         end
         par.nbi.beam_mass = 2
         par.nbi.toroidal_angle = 0.0
+    end
+
+    # ohmic 
+
+    if data_row[:POHM] > 0
+        par.oh.ohmic_heating = data_row[:POHM]
     end
 
     if data_row[:PECRH] > 0
@@ -76,4 +82,4 @@ function load_hdb5(tokamak::T=:all, extra_signal_names=T[]) where {T<:Union{Stri
         run_df = run_df[run_df.TOK.==String(tokamak), :]
     end
     return run_df
-end
+end                                                                                                                                                                                                   

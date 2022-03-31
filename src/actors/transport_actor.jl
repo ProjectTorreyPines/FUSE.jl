@@ -20,6 +20,9 @@ function TauennActor(dd::IMAS.dd, par::Parameters; do_plot = false, verbose = fa
     if do_plot
         display(plot!(dd.core_profiles))
     end
+    if verbose
+        display(actor.tauenn_parameters)
+    end
     return dd
 end
 
