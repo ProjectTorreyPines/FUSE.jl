@@ -106,7 +106,6 @@ function Parameters(::Type{Val{:oh}})
     oh = Parameters(nothing)
     oh.technology = Parameters(:coil_technology)
     oh.flattop_duration = Entry(Real, "s", "Duration of the flattop (use Inf for steady-state)")
-    oh.ohmic_heating =  Entry(Real, "W", "Amount of ohmic heating absorbed in the plasma")
     return oh
 end
 

@@ -17,9 +17,7 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; sav
     FUSE.init_core_sources(dd, par)
 
     # Add ohmic power to core_sources 
-    if !isempty(par.oh.ohmic_heating)
-        IMAS.simple_ohmic_heating_profile!(dd, par.oh.ohmic_heating)
-    end
+    IMAS.ohmic_power_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
 
     # run transport actor
     FUSE.TauennActor(dd, par; transport_model=transport_model, warn_nn_train_bounds, verbose=false)
@@ -71,7 +69,6 @@ function transport_validation_workflow(;
 
     # load HDB5 database
     run_df = load_hdb5(tokamak)
-    run_df = run_df[run_df.TOK .!= "ASDEX",:]
 
     # pick cases at random
     if n_samples_per_tokamak !== :all
