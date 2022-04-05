@@ -52,11 +52,11 @@ function Parameters(::Type{Val{:ITER}}; init_from)
     par.oh.technology = coil_technology(:ITER, :OH)
     par.oh.flattop_duration = 1000
 
-    par.core_profiles.ne_ped = 9e19
+    par.core_profiles.ne_ped = 7e19
     par.core_profiles.n_peaking = 1.5
     par.core_profiles.T_shaping = 1.8
-    par.core_profiles.w_ped = 0.08
-    par.core_profiles.zeff = 2.5
+    par.core_profiles.w_ped = 0.04
+    par.core_profiles.zeff = 1.5
     par.core_profiles.rot_core = 0.0
     par.core_profiles.bulk = :DT
     par.core_profiles.impurity = :Ne
