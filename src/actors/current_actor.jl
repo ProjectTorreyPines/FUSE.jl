@@ -37,6 +37,7 @@ function finalize(actor::QEDcurrentActor)
     newtime = actor.initial_time + actor.tmax
     resize!(dd.equilibrium.time_slice, newtime)
     dd.equilibrium.time_slice[newtime] = new = deepcopy(eqt)
+    push!(dd.equilibrium.vacuum_toroidal_field.b0,dd.equilibrium.vacuum_toroidal_field.b0[end])
 
     dΡ_dρ = new.profiles_1d.rho_tor[end]
     ρ = new.profiles_1d.rho_tor / dΡ_dρ
@@ -48,33 +49,26 @@ function finalize(actor::QEDcurrentActor)
     new
 end
 
-
 # utils
 function from_imas(dd::IMAS.dd)
     eqt = dd.equilibrium.time_slice[]
+    rho_tor = eqt.profiles_1d.rho_tor
+    B0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
+    gm1 = eqt.profiles_1d.gm1
+    f = eqt.profiles_1d.f
+    dvolume_drho_tor = eqt.profiles_1d.dvolume_drho_tor
+    q = eqt.profiles_1d.q
+    j_tor = eqt.profiles_1d.j_tor
+    gm9 = eqt.profiles_1d.gm9
 
-    dΡ_dρ = eqt.profiles_1d.rho_tor[end]
-    ρ = eqt.profiles_1d.rho_tor / dΡ_dρ
-
-    B₀ = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
-
-    fsa_R⁻² = QED.FE(ρ, eqt.profiles_1d.gm1)
-    F = QED.FE(ρ, eqt.profiles_1d.f)
-
-    # Require dV_dρ=0 on-axis
-    tmp = dΡ_dρ .* eqt.profiles_1d.dvolume_drho_tor
-    tmp[1] = 0.0
-    dV_dρ = QED.FE(ρ, tmp)
-
-    ι = QED.FE(ρ, 1.0 ./ eqt.profiles_1d.q)
-    JtoR = QED.FE(ρ, eqt.profiles_1d.j_tor .* eqt.profiles_1d.gm9)
-
-    JBni = nothing
-    if !ismissing(dd.core_profiles.profiles_1d[], :j_non_inductive)
-        JBni = QED.FE(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].j_non_inductive .* B₀)
+    if !isempty(dd.core_profiles.profiles_1d) && !ismissing(dd.core_profiles.profiles_1d[],:j_non_inductive)
+        prof1d = dd.core_profiles.profiles_1d[]
+        ρ_j_non_inductive = (prof1d.grid.rho_tor_norm, prof1d.j_non_inductive)
+    else
+        ρ_j_non_inductive = nothing
     end
 
-    return QED.QED_state(ρ, dΡ_dρ, B₀, fsa_R⁻², F, dV_dρ, ι, JtoR, JBni = JBni)
+    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive)
 end
 
 function η_imas(dd::IMAS.dd)
