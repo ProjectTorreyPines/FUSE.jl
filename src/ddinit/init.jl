@@ -1,16 +1,19 @@
 """
     init(dd::IMAS.dd, par::Parameters; do_plot = false)
 
-Initialize all IDSs if it is not populated
+Initialize all IDSs if there are parameters for it or is initialized from ods
 """
 function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     ods_items = []
+    # Check what is in the ods to load
     if par.general.init_from == :ods
         ods_items = keys(IMAS.json2imas(par.ods.filename))
     end
 
     # initialize equilibrium
-    init_equilibrium(dd, par)
+    if !ismissing(par.equilibrium.B0) || :equilibrium ∈ ods_items
+        init_equilibrium(dd, par)
+    end
     if do_plot
         plot(dd.equilibrium.time_slice[end])
         display(plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z))

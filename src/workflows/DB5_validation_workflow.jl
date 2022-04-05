@@ -17,7 +17,7 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; sav
     FUSE.init_core_sources(dd, par)
 
     # Add ohmic power to core_sources 
-    IMAS.ohmic_power_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
+    IMAS.ohmic_power_steady_state!(dd)
 
     # run transport actor
     FUSE.TauennActor(dd, par; transport_model=transport_model, warn_nn_train_bounds, verbose=false)
