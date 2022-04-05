@@ -1,9 +1,14 @@
 """
     init(dd::IMAS.dd, par::Parameters; do_plot = false)
 
-Initialize all IDSs
+Initialize all IDSs if it is not populated
 """
 function init(dd::IMAS.dd, par::Parameters; do_plot=false)
+    ods_items = []
+    if par.general.init_from == :ods
+        ods_items = keys(IMAS.json2imas(par.ods.filename))
+    end
+
     # initialize equilibrium
     init_equilibrium(dd, par)
     if do_plot
@@ -12,7 +17,7 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize build
-    if !ismissing(par.build, :vessel) || !ismissing(par.build, :layers)
+    if !ismissing(par.build, :vessel) || !ismissing(par.build, :layers) || :build ∈ ods_items
         init_build(dd, par)
         if do_plot
             plot(dd.equilibrium, color=:gray)
@@ -22,7 +27,7 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize oh and pf coils
-    if !ismissing(par.pf_active, :n_oh_coils)
+    if !ismissing(par.pf_active, :n_oh_coils) || :pf_active ∈ ods_items
         init_pf_active(dd, par)
         if do_plot
             plot(dd.equilibrium, color=:gray)
@@ -33,7 +38,7 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize core profiles
-    if !ismissing(par.core_profiles, :bulk) || par.general.init_from == :ods
+    if !ismissing(par.core_profiles, :bulk) || :core_profiles ∈ ods_items
         init_core_profiles(dd, par)
         if do_plot
             display(plot(dd.core_profiles))
@@ -41,7 +46,7 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize core sources
-    if !ismissing(par.ec, :power_launched) || !ismissing(par.ic, :power_launched) || !ismissing(par.lh, :power_launched) || !ismissing(par.nbi, :power_launched)
+    if !ismissing(par.ec, :power_launched) || !ismissing(par.ic, :power_launched) || !ismissing(par.lh, :power_launched) || !ismissing(par.nbi, :power_launched) || :core_sources ∈ ods_items
         init_core_sources(dd, par)
         if do_plot
             display(plot(dd.core_sources))
