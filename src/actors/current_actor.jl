@@ -16,7 +16,7 @@ function QEDcurrentActor(dd::IMAS.dd)
     QEDcurrentActor(dd, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), 0.0)
 end
 
-function step(actor::QEDcurrentActor, tmax, Nt, Vedge = nothing, Ip = nothing; resume=false)
+function step(actor::QEDcurrentActor, tmax, Nt, Vedge=nothing, Ip=nothing; resume=false)
     if resume
         if actor.QO !== missing
             actor.QI = actor.QO
@@ -37,7 +37,7 @@ function finalize(actor::QEDcurrentActor)
     newtime = actor.initial_time + actor.tmax
     resize!(dd.equilibrium.time_slice, newtime)
     dd.equilibrium.time_slice[newtime] = new = deepcopy(eqt)
-    push!(dd.equilibrium.vacuum_toroidal_field.b0,dd.equilibrium.vacuum_toroidal_field.b0[end])
+    push!(dd.equilibrium.vacuum_toroidal_field.b0, dd.equilibrium.vacuum_toroidal_field.b0[end])
 
     dΡ_dρ = new.profiles_1d.rho_tor[end]
     ρ = new.profiles_1d.rho_tor / dΡ_dρ
@@ -61,7 +61,7 @@ function from_imas(dd::IMAS.dd)
     j_tor = eqt.profiles_1d.j_tor
     gm9 = eqt.profiles_1d.gm9
 
-    if !isempty(dd.core_profiles.profiles_1d) && !ismissing(dd.core_profiles.profiles_1d[],:j_non_inductive)
+    if !isempty(dd.core_profiles.profiles_1d) && !ismissing(dd.core_profiles.profiles_1d[], :j_non_inductive)
         prof1d = dd.core_profiles.profiles_1d[]
         ρ_j_non_inductive = (prof1d.grid.rho_tor_norm, prof1d.j_non_inductive)
     else
@@ -71,8 +71,9 @@ function from_imas(dd::IMAS.dd)
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive)
 end
 
-function η_imas(dd::IMAS.dd)
-    rho = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
-    η = 1.0 ./ dd.core_profiles.profiles_1d[].conductivity_parallel
-    return QED.FE(rho, η)
+function η_imas(dd::IMAS.dd; use_log=true)
+    prof1d = dd.core_profiles.profiles_1d[]
+    rho = prof1d.grid.rho_tor_norm
+    η = 1.0 ./ prof1d.conductivity_parallel
+    return QED.η_imas(rho, η; use_log)
 end
