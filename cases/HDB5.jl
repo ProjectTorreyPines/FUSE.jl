@@ -9,7 +9,7 @@ end
 
 function Parameters(data_row::DataFrames.DataFrameRow)
     par = Parameters()
-    par.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT]))"
+    par.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     par.general.init_from = :scalars
 
     # Equilibrium parameters
@@ -23,8 +23,28 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     par.equilibrium.area = data_row[:AREA]
     par.equilibrium.volume = data_row[:VOL]
     par.equilibrium.ip = abs(data_row[:IP])
-    par.equilibrium.x_point = false
-    par.equilibrium.symmetric = true
+
+    # Determine x-points
+    if data_row[:CONFIG] == "SN"
+        # upper single null
+        xpoint = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]),  data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
+        symmetric = false
+    elseif data_row[:CONFIG] == "SN(L)"
+        # lower single null
+        xpoint = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]),  -data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
+        symmetric = false
+    elseif data_row[:CONFIG] == "DN"
+        # double null
+        xpoint = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]),  data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
+        symmetric = true
+    else
+        # no x-points
+        xpoint = false
+        symmetric = true
+    end
+
+    par.equilibrium.x_point = xpoint
+    par.equilibrium.symmetric = symmetric
 
     # Core_profiles parameters
     par.core_profiles.ne_ped = data_row[:NEL] / 1.3
@@ -47,12 +67,6 @@ function Parameters(data_row::DataFrames.DataFrameRow)
         end
         par.nbi.beam_mass = 2
         par.nbi.toroidal_angle = 0.0
-    end
-
-    # ohmic 
-
-    if data_row[:POHM] > 0
-        par.oh.ohmic_heating = data_row[:POHM]
     end
 
     if data_row[:PECRH] > 0
@@ -78,8 +92,8 @@ function load_hdb5(tokamak::T=:all, extra_signal_names=T[]) where {T<:Union{Stri
     run_df = run_df[DataFrames.completecases(run_df), :]
     # some basic filters
     run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
-    if !(Symbol(tokamak) in [:all,:any])
+    if !(Symbol(tokamak) in [:all, :any])
         run_df = run_df[run_df.TOK.==String(tokamak), :]
     end
     return run_df
-end                                                                                                                                                                                                   
+end
