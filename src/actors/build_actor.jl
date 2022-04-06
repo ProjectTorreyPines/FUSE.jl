@@ -22,7 +22,7 @@ function step(flxactor::FluxSwingActor)
     cp1d = cp.profiles_1d[]
 
     bd.flux_swing_requirements.rampup = rampup_flux_requirements(eqt, cp)
-    bd.flux_swing_requirements.flattop = flattop_flux_requirements(cp1d, flxactor.flattop_duration)
+    bd.flux_swing_requirements.flattop = flattop_flux_requirements(eqt, cp1d, flxactor.flattop_duration)
     bd.flux_swing_requirements.pf = pf_flux_requirements(eqt)
 
     oh_peakJ(bd)
@@ -65,12 +65,17 @@ function rampup_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp::IMAS.co
 end
 
 """
-    flattop_flux_requirements(cp1d::IMAS.core_profiles__profiles_1d, flattop_duration)
+    flattop_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, flattop_duration::Real)
 
-Estimate OH flux requirement during flattop 
+Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function flattop_flux_requirements(cp1d::IMAS.core_profiles__profiles_1d, flattop_duration::Real)
-    return integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel .* flattop_duration) # V*s
+function flattop_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, flattop_duration::Real)
+    if ismissing(cp1d, :j_ohmic)
+        j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d)
+    else
+        j_ohmic = cp1d.j_ohmic
+    end
+    return integrate(cp1d.grid.area, j_ohmic ./ cp1d.conductivity_parallel .* flattop_duration) # V*s
 end
 
 """

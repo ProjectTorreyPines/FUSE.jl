@@ -27,7 +27,7 @@ function init_equilibrium(
     δ::Real,
     βn::Real,
     ip::Real,
-    x_point::Union{AbstractVector,NTuple{2},Bool} = false)
+    x_point::Union{AbstractVector,NTuple{2},Bool}=false)
 
     eqt = resize!(eq.time_slice)
     eqt.boundary.minor_radius = ϵ * R0
@@ -71,20 +71,19 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
         # init equilibrium
         init_equilibrium(
             dd.equilibrium;
-            B0 = par.equilibrium.B0,
-            R0 = par.equilibrium.R0,
-            Z0 = par.equilibrium.Z0,
-            ϵ = par.equilibrium.ϵ,
-            κ = par.equilibrium.κ,
-            δ = par.equilibrium.δ,
-            βn = par.equilibrium.βn,
-            ip = par.equilibrium.ip,
-            x_point = par.equilibrium.x_point)
+            B0=par.equilibrium.B0,
+            R0=par.equilibrium.R0,
+            Z0=par.equilibrium.Z0,
+            ϵ=par.equilibrium.ϵ,
+            κ=par.equilibrium.κ,
+            δ=par.equilibrium.δ,
+            βn=par.equilibrium.βn,
+            ip=par.equilibrium.ip,
+            x_point=par.equilibrium.x_point)
 
         # equilibrium
         SolovevEquilibriumActor(dd, par)
     end
-
 
     # field null surface
     if par.equilibrium.field_null_surface > 0.0
@@ -102,7 +101,7 @@ end
 
 Return field null surface by scaling an existing equilibrium time_slice
 """
-function field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real = 0.25, abs_psi_boundary::Real = 0.1)
+function field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real=0.25, abs_psi_boundary::Real=0.1)
     eqb = IMAS.equilibrium__time_slice()
     eqb.global_quantities.psi_boundary = sign(eqt.profiles_1d.psi[1] - eqt.profiles_1d.psi[end]) * abs_psi_boundary
     eqb.boundary.outline.r, eqb.boundary.outline.z, _ = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[1] * (1 - scale) + eqt.profiles_1d.psi[end] * scale)
