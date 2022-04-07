@@ -15,8 +15,8 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
         init_equilibrium(dd, par)
     end
     if do_plot
-        plot(dd.equilibrium.time_slice[end])
-        display(plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z))
+        plot(dd.equilibrium.time_slice[end]; x_point=true)
+        display(plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z,label="Field null"))
     end
 
     # initialize build
