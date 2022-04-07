@@ -102,7 +102,7 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
 
     function cost(x)
         # NOTE: Ip/Beta calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
-        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir = sign(B0), Ip_dir = 1, symmetric = true, xpoint = nothing)
+        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir = sign(B0), Ip_dir = 1, symmetric = true, x_point = nothing)
         beta_cost = (Equilibrium.beta_n(S) - target_beta) / target_beta
         ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
         c = sqrt(beta_cost^2 + ip_cost^2)
