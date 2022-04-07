@@ -1,6 +1,6 @@
-authors = ["Orso Meneghini <orso82@gmail.com>"]
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
+authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.1.1"
 
 [deps]
@@ -12,6 +12,7 @@ DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 EFIT = "cda752c5-6b03-55a3-9e33-132a441b0c17"
 EPEDNN = "e64856f0-3bb8-4376-b4b7-c03396503991"
 Equilibrium = "187daef3-cca3-527a-8725-7379bc760182"
+FiniteElementHermite = "6ce10167-d368-4c0e-af34-9787cdd175e5"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 FusionMaterials = "4c86da02-02c8-4634-8460-96566129f8e0"
 IMAS = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
