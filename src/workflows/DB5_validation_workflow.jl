@@ -17,7 +17,8 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; sav
     FUSE.init_core_sources(dd, par)
 
     # Set j_ohmic to steady_state ohmic current 
-    IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
+    IMAS.j_ohmic_steady_state!(dd.core_profiles.profiles_1d[])
+
     # Add ohmic heating
     IMAS.ohmic_source!(dd)
 
