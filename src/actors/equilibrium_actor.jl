@@ -146,7 +146,8 @@ function finalize(
 
     eq = actor.eq
     eqt = eq.time_slice[]
-    sign_Ip = sign(eqt.global_quantities.ip)
+    ip = eqt.global_quantities.ip
+    sign_Ip = sign(ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
 
     Z0 = eqt.boundary.geometric_axis.z
@@ -159,6 +160,8 @@ function finalize(
     @ddtime eq.vacuum_toroidal_field.b0 = actor.S.B0 * sign_Bt
 
     empty!(eqt)
+    
+    eqt.global_quantities.ip = ip
     eqt.boundary.geometric_axis.r = actor.S.R0
     eqt.boundary.geometric_axis.z = Z0
     orig_psi = collect(range(Equilibrium.psi_limits(actor.S)..., length=ngrid))
