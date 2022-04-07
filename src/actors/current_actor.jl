@@ -32,21 +32,30 @@ end
 
 function finalize(actor::QEDcurrentActor)
     dd = actor.dd
+
     eqt = dd.equilibrium.time_slice[]
-
     newtime = actor.initial_time + actor.tmax
-    resize!(dd.equilibrium.time_slice, newtime)
-    dd.equilibrium.time_slice[newtime] = new = deepcopy(eqt)
-    push!(dd.equilibrium.vacuum_toroidal_field.b0, dd.equilibrium.vacuum_toroidal_field.b0[end])
+    resize!(dd.equilibrium.time_slice, Float64(newtime))
+    dd.equilibrium.time_slice[newtime] = eqt_new = deepcopy(eqt)
 
-    dΡ_dρ = new.profiles_1d.rho_tor[end]
-    ρ = new.profiles_1d.rho_tor / dΡ_dρ
+    dΡ_dρ = eqt_new.profiles_1d.rho_tor[end]
+    ρ = eqt_new.profiles_1d.rho_tor / dΡ_dρ
 
-    new.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
-    new.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ new.profiles_1d.gm9
-    new.time = newtime
+    eqt_new.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
+    eqt_new.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt_new.profiles_1d.gm9
+    eqt_new.time = newtime
 
-    new
+    # if dd has core_profiles set cp1d.j_total from equilibrium (and set j_ohmic as expression)
+    if !isempty(dd.core_profiles.profiles_1d)
+        cp1d_new = cp1d = dd.core_profiles.profiles_1d[]
+        if cp1d.time < newtime
+            resize!(dd.core_profiles.profiles_1d, Float64(newtime))
+            dd.core_profiles.profiles_1d[newtime] = cp1d_new = deepcopy(cp1d)
+        end
+        IMAS.j_total_from_equilibrium!(cp1d_new)
+    end
+
+    return dd
 end
 
 # utils
