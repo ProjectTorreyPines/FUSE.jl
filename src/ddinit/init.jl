@@ -11,7 +11,7 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize equilibrium
-    if !ismissing(par.equilibrium.B0) || :equilibrium ∈ ods_items
+    if !ismissing(par.equilibrium, :B0) || :equilibrium ∈ ods_items
         init_equilibrium(dd, par)
     end
     if do_plot
