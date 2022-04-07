@@ -11,7 +11,7 @@ mutable struct SolovevEquilibriumActor <: AbstractActor
 end
 
 function SolovevEquilibriumActor(dd::IMAS.dd, par::Parameters; verbose=false)
-    actor = SolovevEquilibriumActor(dd.equilibrium, x_point=par.equilibrium.x_point, symmetric=par.equilibrium.symmetric)
+    actor = SolovevEquilibriumActor(dd.equilibrium)
     step(actor; verbose)
     finalize(actor, ngrid=par.equilibrium.ngrid)
 end
@@ -32,9 +32,7 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
 function SolovevEquilibriumActor(eq::IMAS.equilibrium;
     qstar=1.5,
-    alpha=0.0,
-    x_point=missing,
-    symmetric=true) # symmetric should really be passed/detected through IMAS
+    alpha=0.0)
 
     eqt = eq.time_slice[]
     a = eqt.boundary.minor_radius
@@ -44,13 +42,19 @@ function SolovevEquilibriumActor(eq::IMAS.equilibrium;
     ϵ = a / R0
     B0 = @ddtime eq.vacuum_toroidal_field.b0
 
+    # check number of x_points
+    if mod(length(eqt.boundary.x_point), 2) == 0
+        symmetric = true
+    else
+        symmetric = false
+    end
+
     if length(eqt.boundary.x_point) > 0
-        x_point = (eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z)
+        x_point = (eqt.boundary.x_point[1].r, -abs(eqt.boundary.x_point[1].z))
     else
         x_point = nothing
     end
-    @show x_point
-    S0 = solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir=sign(B0), Ip_dir=1, symmetric=symmetric, x_point=x_point)
+    S0 = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
     SolovevEquilibriumActor(eq, S0)
 end
@@ -144,7 +148,12 @@ function finalize(
     eqt = eq.time_slice[]
     sign_Ip = sign(eqt.global_quantities.ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
+
     Z0 = eqt.boundary.geometric_axis.z
+    flip_z = 1.0
+    if mod(length(eqt.boundary.x_point), 2) == 1 && eqt.boundary.x_point[1].z > Z0
+        flip_z = -1.0
+    end
 
     eq.vacuum_toroidal_field.r0 = actor.S.R0
     @ddtime eq.vacuum_toroidal_field.b0 = actor.S.B0 * sign_Bt
@@ -166,8 +175,7 @@ function finalize(
     eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
     eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * actor.S.kappa)))
 
-    eqt.profiles_2d[1].psi = [actor.S(rr, zz - Z0) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
-
+    eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
     IMAS.flux_surfaces(eqt)
 
     return eqt

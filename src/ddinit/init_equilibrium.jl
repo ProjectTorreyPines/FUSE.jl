@@ -13,7 +13,8 @@
         δ::Real,
         βn::Real,
         ip::Real,
-        x_point::Union{Vector,NTuple{2},Bool} = false)
+        x_point::Union{Vector,NTuple{2},Bool} = false,
+        symmetric::Bool=true)
 
 Initialize equilibrium IDS based on some basic Miller geometry parameters
 """
@@ -27,7 +28,8 @@ function init_equilibrium(
     δ::Real,
     βn::Real,
     ip::Real,
-    x_point::Union{AbstractVector,NTuple{2},Bool}=false)
+    x_point::Union{AbstractVector,NTuple{2},Bool}=false,
+    symmetric::Bool=true)
 
     eqt = resize!(eq.time_slice)
     eqt.boundary.minor_radius = ϵ * R0
@@ -44,6 +46,11 @@ function init_equilibrium(
         resize!(eqt.boundary.x_point, 1)
         eqt.boundary.x_point[1].r = x_point[1]
         eqt.boundary.x_point[1].z = x_point[2]
+        if symmetric
+            resize!(eqt.boundary.x_point, 2)
+            eqt.boundary.x_point[2].r = x_point[1]
+            eqt.boundary.x_point[2].z = -x_point[2]
+        end
     end
     eq.vacuum_toroidal_field.r0 = R0
     @ddtime eq.vacuum_toroidal_field.b0 = B0
@@ -79,7 +86,8 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
             δ=par.equilibrium.δ,
             βn=par.equilibrium.βn,
             ip=par.equilibrium.ip,
-            x_point=par.equilibrium.x_point)
+            x_point=par.equilibrium.x_point,
+            symmetric=par.equilibrium.symmetric)
 
         # equilibrium
         SolovevEquilibriumActor(dd, par)

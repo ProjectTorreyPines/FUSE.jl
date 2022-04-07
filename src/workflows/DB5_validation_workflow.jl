@@ -16,8 +16,10 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; sav
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
 
-    # Add ohmic power to core_sources 
-    IMAS.ohmic_power_steady_state!(dd)
+    # Set j_ohmic to steady_state ohmic current 
+    IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
+    # Add ohmic heating
+    IMAS.ohmic_source!(dd)
 
     # run transport actor
     FUSE.TauennActor(dd, par; transport_model=transport_model, warn_nn_train_bounds, verbose=false)
@@ -73,7 +75,6 @@ function transport_validation_workflow(;
     # pick cases at random
     if n_samples_per_tokamak !== :all
         tok_list = unique(run_df[:, "TOK"])
-        display(@show tok_list)
         run_df = DataFrames.reduce(
             vcat, [run_df[run_df.TOK.==tok, :][Random.shuffle(1:DataFrames.nrow(run_df[run_df.TOK.==tok, :]))[1:minimum([n_samples_per_tokamak, length(run_df[run_df.TOK.==tok, :][:, "TOK"])])], :] for tok in tok_list]
         )
@@ -95,7 +96,9 @@ function transport_validation_workflow(;
             end
         catch e
             push!(failed_runs_ids, idx)
-            display(@show e)
+            if verbose
+                display(@show e)
+            end
         end
         ProgressMeter.next!(p)
     end
@@ -109,8 +112,6 @@ function transport_validation_workflow(;
         CSV.write(joinpath(save_directory, "dataframe.csv"), run_df)
         CSV.write(joinpath(save_directory, "failed_runs_dataframe.csv"), failed_df)
     end
-
-
 
     if plot_database
         plot_x_y_regression(run_df, "TAUTH")

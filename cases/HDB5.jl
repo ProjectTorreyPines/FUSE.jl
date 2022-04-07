@@ -13,7 +13,7 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     par.general.init_from = :scalars
 
     # Equilibrium parameters
-    par.equilibrium.B0 = abs(data_row[:BT])
+    par.equilibrium.B0 = data_row[:BT]
     par.equilibrium.R0 = data_row[:RGEO]
     par.equilibrium.Z0 = 0.0
     par.equilibrium.ϵ = data_row[:AMIN] / data_row[:RGEO]
@@ -22,28 +22,30 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     par.equilibrium.βn = 1.0
     par.equilibrium.area = data_row[:AREA]
     par.equilibrium.volume = data_row[:VOL]
-    par.equilibrium.ip = abs(data_row[:IP])
+    par.equilibrium.ip = data_row[:IP]
+
+    x_point = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]), data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
 
     # Determine x-points
     if data_row[:CONFIG] == "SN"
         # upper single null
-        xpoint = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]),  data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
+        x_point = (x_point[1], x_point[2])
         symmetric = false
     elseif data_row[:CONFIG] == "SN(L)"
         # lower single null
-        xpoint = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]),  -data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
+        x_point = (x_point[1], -x_point[2])
         symmetric = false
     elseif data_row[:CONFIG] == "DN"
         # double null
-        xpoint = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]),  data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
+        x_point = (x_point[1], x_point[2])
         symmetric = true
     else
         # no x-points
-        xpoint = false
+        x_point = false
         symmetric = true
     end
 
-    par.equilibrium.x_point = xpoint
+    par.equilibrium.x_point = x_point
     par.equilibrium.symmetric = symmetric
 
     # Core_profiles parameters
@@ -76,7 +78,6 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     if data_row[:PICRH] > 0
         par.ic.power_launched = data_row[:PICRH]
     end
-
     return par
 end
 
