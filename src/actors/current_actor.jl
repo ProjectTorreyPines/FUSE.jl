@@ -75,5 +75,5 @@ function η_imas(dd::IMAS.dd; use_log=true)
     prof1d = dd.core_profiles.profiles_1d[]
     rho = prof1d.grid.rho_tor_norm
     η = 1.0 ./ prof1d.conductivity_parallel
-    return QED.η_imas(rho, η; use_log)
+    return QED.η_FE(rho, η; use_log)
 end
