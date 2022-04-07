@@ -29,6 +29,7 @@ Pkg.build("IJulia");\
 
 update: develop
 	make -j 100 update_FUSE update_IMAS update_IMASDD update_CoordinateConventions update_FusionMaterials update_VacuumFields update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN update_QED update_FiniteElementHermite
+	julia -e 'using Pkg; Pkg.activate("."); Pkg.precompile()'
 
 update_FUSE:
 	cd $(JULIA_PKG_DEVDIR)/FUSE; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
