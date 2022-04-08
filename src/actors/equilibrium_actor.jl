@@ -10,10 +10,10 @@ mutable struct SolovevEquilibriumActor <: AbstractActor
     S::SolovevEquilibrium
 end
 
-function SolovevEquilibriumActor(dd::IMAS.dd, par::Parameters; verbose = false)
-    actor = SolovevEquilibriumActor(dd.equilibrium, symmetric = par.equilibrium.symmetric)
+function SolovevEquilibriumActor(dd::IMAS.dd, par::Parameters; verbose=false)
+    actor = SolovevEquilibriumActor(dd.equilibrium)
     step(actor; verbose)
-    finalize(actor, ngrid = par.equilibrium.ngrid)
+    finalize(actor, ngrid=par.equilibrium.ngrid)
 end
 
 """
@@ -31,9 +31,8 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 - alpha: Constant affecting the pressure
 """
 function SolovevEquilibriumActor(eq::IMAS.equilibrium;
-    qstar = 1.5,
-    alpha = 0.0,
-    symmetric = true) # symmetric should really be passed/detected through IMAS
+    qstar=1.5,
+    alpha=0.0)
 
     eqt = eq.time_slice[]
     a = eqt.boundary.minor_radius
@@ -43,13 +42,19 @@ function SolovevEquilibriumActor(eq::IMAS.equilibrium;
     ϵ = a / R0
     B0 = @ddtime eq.vacuum_toroidal_field.b0
 
-    if length(eqt.boundary.x_point) > 0
-        xpoint = (eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z)
+    # check number of x_points
+    if mod(length(eqt.boundary.x_point), 2) == 0
+        symmetric = true
     else
-        xpoint = nothing
+        symmetric = false
     end
 
-    S0 = solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir = sign(B0), Ip_dir = 1, symmetric = symmetric, xpoint = xpoint)
+    if length(eqt.boundary.x_point) > 0
+        x_point = (eqt.boundary.x_point[1].r, -abs(eqt.boundary.x_point[1].z))
+    else
+        x_point = nothing
+    end
+    S0 = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
     SolovevEquilibriumActor(eq, S0)
 end
@@ -60,11 +65,11 @@ end
 Convert IMAS.equilibrium__time_slice to Equilibrium.jl EFIT structure
 """
 function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
-    dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length = length(eqt.profiles_2d[1].grid.dim1))
+    dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
     @assert collect(dim1) ≈ eqt.profiles_2d[1].grid.dim1
-    dim2 = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length = length(eqt.profiles_2d[1].grid.dim2))
+    dim2 = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
     @assert collect(dim2) ≈ eqt.profiles_2d[1].grid.dim2
-    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length = length(eqt.profiles_1d.psi))
+    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length=length(eqt.profiles_1d.psi))
     @assert collect(psi) ≈ eqt.profiles_1d.psi
 
     Equilibrium.efit(Equilibrium.cocos(11), # COCOS
@@ -86,7 +91,7 @@ end
 
 Non-linear optimization to obtain a target `ip` and `beta_normal`
 """
-function step(actor::SolovevEquilibriumActor; verbose = false)
+function step(actor::SolovevEquilibriumActor; verbose=false)
     S0 = actor.S
 
     eqt = actor.eq.time_slice[]
@@ -97,20 +102,20 @@ function step(actor::SolovevEquilibriumActor; verbose = false)
 
     function cost(x)
         # NOTE: Ip/Beta calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
-        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir = sign(B0), Ip_dir = 1, symmetric = true, xpoint = nothing)
+        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir = sign(B0), Ip_dir = 1, symmetric = true, x_point = nothing)
         beta_cost = (Equilibrium.beta_n(S) - target_beta) / target_beta
         ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
         c = sqrt(beta_cost^2 + ip_cost^2)
         return c
     end
 
-    res = Optim.optimize(cost, [alpha, qstar], Optim.NelderMead(), Optim.Options(g_tol = 1E-3))
+    res = Optim.optimize(cost, [alpha, qstar], Optim.NelderMead(), Optim.Options(g_tol=1E-3))
 
     if verbose
         println(res)
     end
 
-    actor.S = solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir = sign(B0), Ip_dir = 1, symmetric = S0.symmetric, xpoint = S0.xpoint)
+    actor.S = solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir= 1, symmetric=S0.symmetric, x_point=S0.x_point)
 
     # @show Equilibrium.beta_t(actor.S)
     # @show Equilibrium.beta_p(actor.S)
@@ -132,9 +137,9 @@ Store SolovevEquilibriumActor data in IMAS.equilibrium format
 """
 function finalize(
     actor::SolovevEquilibriumActor;
-    ngrid::Int = 129,
-    rlims::NTuple{2,<:Real} = (maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
-    zlims::NTuple{2,<:Real} = (-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
+    ngrid::Int=129,
+    rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
+    zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
 )::IMAS.equilibrium__time_slice
 
     tc = transform_cocos(3, 11)
@@ -144,7 +149,12 @@ function finalize(
     ip = eqt.global_quantities.ip
     sign_Ip = sign(ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
+
     Z0 = eqt.boundary.geometric_axis.z
+    flip_z = 1.0
+    if mod(length(eqt.boundary.x_point), 2) == 1 && eqt.boundary.x_point[1].z > Z0
+        flip_z = -1.0
+    end
 
     eq.vacuum_toroidal_field.r0 = actor.S.R0
     @ddtime eq.vacuum_toroidal_field.b0 = actor.S.B0 * sign_Bt
@@ -154,7 +164,7 @@ function finalize(
     eqt.global_quantities.ip = ip
     eqt.boundary.geometric_axis.r = actor.S.R0
     eqt.boundary.geometric_axis.z = Z0
-    orig_psi = collect(range(Equilibrium.psi_limits(actor.S)..., length = ngrid))
+    orig_psi = collect(range(Equilibrium.psi_limits(actor.S)..., length=ngrid))
     eqt.profiles_1d.psi = orig_psi * (tc["PSI"] * sign_Ip)
 
     eqt.profiles_1d.pressure = Equilibrium.pressure(actor.S, orig_psi)
@@ -165,11 +175,10 @@ function finalize(
 
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
-    eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length = ngrid)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length = Int(ceil(ngrid * actor.S.kappa)))
+    eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * actor.S.kappa)))
 
-    eqt.profiles_2d[1].psi = [actor.S(rr, zz - Z0) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
-
+    eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
     IMAS.flux_surfaces(eqt)
 
     return eqt

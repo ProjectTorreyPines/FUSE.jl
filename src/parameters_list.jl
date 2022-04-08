@@ -35,7 +35,7 @@ end
 
 function Parameters(::Type{Val{:material}})
     material = Parameters(nothing)
-    material.wall = Switch(FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default = "Steel, Stainless 316")
+    material.wall = Switch(FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default="Steel, Stainless 316")
     material.blanket = Switch(FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
     material.shield = Switch(FusionMaterials.available_materials("shield_materials"), "", "Material used for the shield")
     return material
@@ -45,20 +45,20 @@ function Parameters(::Type{Val{:equilibrium}})
     equilibrium = Parameters(nothing)
     equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
     equilibrium.R0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
-    equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default = 0.0)
+    equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default=0.0)
 
-    equilibrium.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default = missing)
-    equilibrium.area = Entry(Real, "m²", "Scalar area to match (optional)"; default = missing)
+    equilibrium.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
+    equilibrium.area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
 
     equilibrium.ϵ = Entry(Real, "", "Plasma aspect ratio")
     equilibrium.δ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :triangularity)
     equilibrium.κ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :elongation)
     equilibrium.βn = Entry(Real, IMAS.equilibrium__time_slice___global_quantities, :beta_normal)
     equilibrium.ip = Entry(Real, IMAS.equilibrium__time_slice___global_quantities, :ip)
-    equilibrium.x_point = Entry(Bool, IMAS.equilibrium__time_slice___boundary, :x_point)
+    equilibrium.x_point = Entry(Union{NTuple{2},Bool}, IMAS.equilibrium__time_slice___boundary, :x_point)
     equilibrium.symmetric = Entry(Bool, "", "Is plasma up-down symmetric")
-    equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default = 129)
-    equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default = 0.25)#, min=0.0, max=1.0)
+    equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
+    equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)#, min=0.0, max=1.0)
     return equilibrium
 end
 
@@ -70,10 +70,10 @@ function Parameters(::Type{Val{:core_profiles}})
     core_profiles.w_ped = Entry(Real, "", "Pedestal width expressed in fraction of ψₙ")
     core_profiles.zeff = Entry(Real, "", "Effective ion charge")
     core_profiles.rot_core = Entry(Real, IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
-    core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default = 101)
+    core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default=101)
     core_profiles.bulk = Entry(Symbol, "", "Bulk ion species")
     core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
-    core_profiles.ejima = Entry(Real, "", "Ejima coefficient"; default = 0.4)
+    core_profiles.ejima = Entry(Real, "", "Ejima coefficient"; default=0.4)
     return core_profiles
 end
 
@@ -85,7 +85,7 @@ function Parameters(::Type{Val{:pf_active}})
         :corners => "like :simple, but PF coils have filaments at the four corners",
         :realistic => "hundreds of filaments per coil (very slow!)",
     ]
-    pf_active.green_model = Switch(options, "", "Model used for the Greens function calculation"; default = :simple)
+    pf_active.green_model = Switch(options, "", "Model used for the Greens function calculation"; default=:simple)
     pf_active.n_oh_coils = Entry(Int, "", "Number of OH coils")
     pf_active.n_pf_coils_inside = Entry(Int, "", "Number of PF coils inside of the TF")
     pf_active.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")
@@ -97,7 +97,7 @@ function Parameters(::Type{Val{:tf}})
     tf = Parameters(nothing)
     tf.n_coils = Entry(Int, "", "Number of TF coils")
     options = [:princeton_D, :rectangle, :triple_arc, :miller, :spline]
-    tf.shape = Switch(options, "", "Shape of the TF coils"; default = :triple_arc)
+    tf.shape = Switch(options, "", "Shape of the TF coils"; default=:triple_arc)
     tf.technology = Parameters(:coil_technology)
     return tf
 end
@@ -111,9 +111,9 @@ end
 
 function Parameters(::Type{Val{:center_stack}})
     center_stack = Parameters(nothing)
-    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default = false)
-    center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default = false)
-    center_stack.plug = Entry(Bool, "", "flag for center plug"; default = false)
+    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default=false)
+    center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
+    center_stack.plug = Entry(Bool, "", "flag for center plug"; default=false)
     return center_stack
 end
 
@@ -122,8 +122,8 @@ function Parameters(::Type{Val{:nbi}})
     nbi = Parameters(nothing)
     nbi.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "Beam power")
     nbi.beam_energy = Entry(Union{X,Vector{X}} where {X<:Real}, "eV", "Beam energy")
-    nbi.beam_mass = Entry(Union{X,Vector{X}} where {X<:Real}, "AU", "Beam mass"; default = 2.0)
-    nbi.toroidal_angle = Entry(Union{X,Vector{X}} where {X<:Real}, "rad", "toroidal angle of injection"; default = 0.0)
+    nbi.beam_mass = Entry(Union{X,Vector{X}} where {X<:Real}, "AU", "Beam mass"; default=2.0)
+    nbi.toroidal_angle = Entry(Union{X,Vector{X}} where {X<:Real}, "rad", "toroidal angle of injection"; default=0.0)
     return nbi
 end
 
@@ -159,7 +159,7 @@ function Parameters(::Type{Val{:gasc}})
     gasc = Parameters(nothing)
     gasc.filename = Entry(String, "", "Output GASC .json file from which data will be loaded")
     gasc.case = Entry(Int, "", "Number of the GASC run to load")
-    gasc.no_small_gaps = Entry(Bool, "", "Remove small gaps from the GASC radial build"; default = true)
+    gasc.no_small_gaps = Entry(Bool, "", "Remove small gaps from the GASC radial build"; default=true)
     return gasc
 end
 

@@ -139,7 +139,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         cost_inside = sum(inpoly) / cost_area
 
         # target clearance  O(1)
-        minimum_distance = minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
+        minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
         cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
 
         # favor up/down symmetric solutions

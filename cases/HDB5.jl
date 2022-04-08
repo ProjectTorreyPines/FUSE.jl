@@ -9,11 +9,11 @@ end
 
 function Parameters(data_row::DataFrames.DataFrameRow)
     par = Parameters()
-    par.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT]))"
+    par.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     par.general.init_from = :scalars
 
     # Equilibrium parameters
-    par.equilibrium.B0 = abs(data_row[:BT])
+    par.equilibrium.B0 = data_row[:BT]
     par.equilibrium.R0 = data_row[:RGEO]
     par.equilibrium.Z0 = 0.0
     par.equilibrium.ϵ = data_row[:AMIN] / data_row[:RGEO]
@@ -22,9 +22,31 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     par.equilibrium.βn = 1.0
     par.equilibrium.area = data_row[:AREA]
     par.equilibrium.volume = data_row[:VOL]
-    par.equilibrium.ip = abs(data_row[:IP])
-    par.equilibrium.x_point = contains("SN", data_row[:CONFIG]) || contains("DN", data_row[:CONFIG])
-    par.equilibrium.symmetric = !par.equilibrium.x_point || !contains("SN", data_row[:CONFIG])
+    par.equilibrium.ip = data_row[:IP]
+
+    x_point = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]), data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
+
+    # Determine x-points
+    if data_row[:CONFIG] == "SN"
+        # upper single null
+        x_point = (x_point[1], x_point[2])
+        symmetric = false
+    elseif data_row[:CONFIG] == "SN(L)"
+        # lower single null
+        x_point = (x_point[1], -x_point[2])
+        symmetric = false
+    elseif data_row[:CONFIG] == "DN"
+        # double null
+        x_point = (x_point[1], x_point[2])
+        symmetric = true
+    else
+        # no x-points
+        x_point = false
+        symmetric = true
+    end
+
+    par.equilibrium.x_point = x_point
+    par.equilibrium.symmetric = symmetric
 
     # Core_profiles parameters
     par.core_profiles.ne_ped = data_row[:NEL] / 1.3
@@ -38,12 +60,12 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     par.core_profiles.impurity = :C
 
     # nbi
-    if data_row[:PNBI] + data_row[:POHM] > 0.0
-        par.nbi.power_launched = data_row[:PNBI] + data_row[:POHM]
-        if data_row[:PNBI] == 0.0
-            par.nbi.beam_energy = 1e9
-        else
+    if data_row[:PNBI] > 0
+        par.nbi.power_launched = data_row[:PNBI]
+        if data_row[:ENBI] > 0
             par.nbi.beam_energy = data_row[:ENBI]
+        else
+            par.nbi.beam_energy = 100e3
         end
         par.nbi.beam_mass = 2
         par.nbi.toroidal_angle = 0.0
@@ -56,7 +78,6 @@ function Parameters(data_row::DataFrames.DataFrameRow)
     if data_row[:PICRH] > 0
         par.ic.power_launched = data_row[:PICRH]
     end
-
     return par
 end
 
@@ -72,7 +93,7 @@ function load_hdb5(tokamak::T=:all, extra_signal_names=T[]) where {T<:Union{Stri
     run_df = run_df[DataFrames.completecases(run_df), :]
     # some basic filters
     run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
-    if !(Symbol(tokamak) in [:all,:any])
+    if !(Symbol(tokamak) in [:all, :any])
         run_df = run_df[run_df.TOK.==String(tokamak), :]
     end
     return run_df
