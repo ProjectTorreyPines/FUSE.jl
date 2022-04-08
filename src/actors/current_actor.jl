@@ -52,7 +52,7 @@ function finalize(actor::QEDcurrentActor)
             resize!(dd.core_profiles.profiles_1d, Float64(newtime))
             dd.core_profiles.profiles_1d[newtime] = cp1d_new = deepcopy(cp1d)
         end
-        IMAS.j_total_from_equilibrium!(cp1d_new)
+        IMAS.j_total_from_equilibrium!(eqt_new, cp1d_new)
     end
 
     return dd

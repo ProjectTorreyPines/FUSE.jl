@@ -11,19 +11,16 @@ import ProgressMeter
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn)
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
     FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
 
     # Set j_ohmic to steady_state ohmic current 
-    IMAS.j_ohmic_steady_state!(dd.core_profiles.profiles_1d[])
-
-    # Add ohmic heating
-    IMAS.ohmic_source!(dd)
+    IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
 
     # run transport actor
-    FUSE.TauennActor(dd, par; transport_model=transport_model, warn_nn_train_bounds, verbose=false)
+    FUSE.TauennActor(dd, par; transport_model=transport_model, warn_nn_train_bounds, verbose=verbose)
 
     # Set beta_normal from equilbrium to the kinetic beta_n
     if !isempty(dd.core_profiles.profiles_1d)
