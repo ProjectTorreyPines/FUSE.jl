@@ -69,6 +69,7 @@ function init_equilibrium(dd::IMAS.dd, par::Parameters)
         if !ismissing(dd1.equilibrium, :time) && length(keys(dd1.equilibrium.time)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))
             dd.equilibrium = dd1.equilibrium
+            IMAS.flux_surfaces(dd.equilibrium.time_slice[])
         else
             init_from = :scalars
         end
