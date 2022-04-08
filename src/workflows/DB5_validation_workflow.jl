@@ -13,10 +13,19 @@ Initializes and runs simple equilibrium, core_sources and transport actors and s
 """
 function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
     FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
+
+    # correct equilibrium volume and area
+    if !ismissing(par.equilibrium, :volume)
+        dd.equilibrium.time_slice[].profiles_1d.volume .*= par.equilibrium.volume / dd.equilibrium.time_slice[].profiles_1d.volume[end]
+    end
+    if !ismissing(par.equilibrium, :area)
+        dd.equilibrium.time_slice[].profiles_1d.area .*= par.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
+    end
+
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
 
-    # Set j_ohmic to steady_state ohmic current 
+    # Set j_ohmic to steady state
     IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
 
     # run transport actor
