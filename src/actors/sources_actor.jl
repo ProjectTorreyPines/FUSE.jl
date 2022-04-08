@@ -43,6 +43,7 @@ function step(actor::SimpleNBIactor)
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel .*= sign(eqt.global_quantities.ip)
 
         name = "nbi"
         if length(actor.dd.ic_antennas.antenna) > 1
@@ -107,6 +108,7 @@ function step(actor::SimpleECactor)
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel .*= sign(eqt.global_quantities.ip)
 
         name = "ec"
         if length(actor.dd.ic_antennas.antenna) > 1
@@ -169,6 +171,7 @@ function step(actor::SimpleICactor)
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel .*= sign(eqt.global_quantities.ip)
 
         name = "ic"
         if length(actor.dd.ic_antennas.antenna) > 1
@@ -231,6 +234,7 @@ function step(actor::SimpleLHactor)
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel .*= sign(eqt.global_quantities.ip)
 
         name = "lh"
         if length(actor.dd.ic_antennas.antenna) > 1
