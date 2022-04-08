@@ -44,10 +44,15 @@ function step(actor::SimpleNBIactor)
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
 
-        isource = resize!(cs.source, "identifier.name" => "beam_$idx")
+        name = "nbi"
+        if length(actor.dd.ic_antennas.antenna) > 1
+            name = "nbi_$idx"
+        end
+
+        isource = resize!(cs.source, "identifier.name" => name)
         gaussian_source_to_dd(
             isource,
-            "beam_$idx",
+            name,
             2,
             rho_cp,
             volume_cp,
@@ -103,10 +108,15 @@ function step(actor::SimpleECactor)
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
 
-        isource = resize!(cs.source, "identifier.name" => "ec_launcher_$idx")
+        name = "ec"
+        if length(actor.dd.ic_antennas.antenna) > 1
+            name = "ec_$idx"
+        end
+
+        isource = resize!(cs.source, "identifier.name" => name)
         gaussian_source_to_dd(
             isource,
-            "ec_launcher_$idx",
+            name,
             3,
             rho_cp,
             volume_cp,
@@ -160,10 +170,15 @@ function step(actor::SimpleICactor)
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
 
-        isource = resize!(cs.source, "identifier.name" => "ic_antenna_$idx")
+        name = "ic"
+        if length(actor.dd.ic_antennas.antenna) > 1
+            name = "ic_$idx"
+        end
+
+        isource = resize!(cs.source, "identifier.name" => name)
         gaussian_source_to_dd(
             isource,
-            "ic_antenna_$idx",
+            name,
             5,
             rho_cp,
             volume_cp,
@@ -217,10 +232,15 @@ function step(actor::SimpleLHactor)
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
 
-        isource = resize!(cs.source, "identifier.name" => "lh_antenna_$idx")
+        name = "lh"
+        if length(actor.dd.ic_antennas.antenna) > 1
+            name = "lh_$idx"
+        end
+
+        isource = resize!(cs.source, "identifier.name" => name)
         gaussian_source_to_dd(
             isource,
-            "lh_antenna_$idx",
+            name,
             4,
             rho_cp,
             volume_cp,
