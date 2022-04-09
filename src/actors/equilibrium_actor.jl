@@ -2,27 +2,25 @@ using Equilibrium
 import ForwardDiff
 import Optim
 
-#= ======================= =#
-#  SolovevEquilibriumActor  #
-#= ======================= =#
-mutable struct SolovevEquilibriumActor <: AbstractActor
+#= ============ =#
+#  SolovevActor  #
+#= ============ =#
+mutable struct SolovevActor <: AbstractActor
     eq::IMAS.equilibrium
     S::SolovevEquilibrium
 end
 
-function SolovevEquilibriumActor(dd::IMAS.dd, par::Parameters; verbose=false)
-    actor = SolovevEquilibriumActor(dd.equilibrium)
-    step(actor; verbose)
-    finalize(actor, ngrid=par.equilibrium.ngrid)
+function SolovevActor(dd::IMAS.dd, par::ActorParameters)
+    par = par.SolovevActor
+    actor = SolovevActor(dd.equilibrium)
+    step(actor; par.verbose)
+    finalize(actor, ngrid=par.ngrid)
 end
 
 """
-    function SolovevEquilibriumActor(eq::IMAS.equilibrium;
-        qstar = 1.5,
-        alpha = 0.0,
-        symmetric = true)
+    function SolovevActor(eq::IMAS.equilibrium; qstar = 1.5, alpha = 0.0)
 
-Constructor for the SolovevEquilibriumActor structure
+Constructor for the SolovevActor structure
 “One size fits all” analytic solutions to the Grad–Shafranov equation
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 
@@ -30,10 +28,7 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 
 - alpha: Constant affecting the pressure
 """
-function SolovevEquilibriumActor(eq::IMAS.equilibrium;
-    qstar=1.5,
-    alpha=0.0)
-
+function SolovevActor(eq::IMAS.equilibrium; qstar=1.5, alpha=0.0)
     eqt = eq.time_slice[]
     a = eqt.boundary.minor_radius
     R0 = eqt.boundary.geometric_axis.r
@@ -56,7 +51,7 @@ function SolovevEquilibriumActor(eq::IMAS.equilibrium;
     end
     S0 = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
-    SolovevEquilibriumActor(eq, S0)
+    SolovevActor(eq, S0)
 end
 
 """
@@ -87,11 +82,11 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
 end
 
 """
-    step(actor::SolovevEquilibriumActor; verbose=false)
+    step(actor::SolovevActor; verbose=false)
 
 Non-linear optimization to obtain a target `ip` and `beta_normal`
 """
-function step(actor::SolovevEquilibriumActor; verbose=false)
+function step(actor::SolovevActor; verbose=false)
     S0 = actor.S
 
     eqt = actor.eq.time_slice[]
@@ -102,7 +97,7 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
 
     function cost(x)
         # NOTE: Ip/Beta calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
-        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir = sign(B0), Ip_dir = 1, symmetric = true, x_point = nothing)
+        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
         beta_cost = (Equilibrium.beta_n(S) - target_beta) / target_beta
         ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
         c = sqrt(beta_cost^2 + ip_cost^2)
@@ -115,7 +110,7 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
         println(res)
     end
 
-    actor.S = solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir= 1, symmetric=S0.symmetric, x_point=S0.x_point)
+    actor.S = solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
 
     # @show Equilibrium.beta_t(actor.S)
     # @show Equilibrium.beta_p(actor.S)
@@ -127,16 +122,16 @@ end
 
 """
     function finalize(
-        actor::SolovevEquilibriumActor;
+        actor::SolovevActor;
         ngrid::Int = 129,
         rlims::NTuple{2,<:Real} = (maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
         zlims::NTuple{2,<:Real} = (-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2)
     )::IMAS.equilibrium__time_slice
 
-Store SolovevEquilibriumActor data in IMAS.equilibrium format
+Store SolovevActor data in IMAS.equilibrium format
 """
 function finalize(
-    actor::SolovevEquilibriumActor;
+    actor::SolovevActor;
     ngrid::Int=129,
     rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
     zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
@@ -160,7 +155,7 @@ function finalize(
     @ddtime eq.vacuum_toroidal_field.b0 = actor.S.B0 * sign_Bt
 
     empty!(eqt)
-    
+
     eqt.global_quantities.ip = ip
     eqt.boundary.geometric_axis.r = actor.S.R0
     eqt.boundary.geometric_axis.z = Z0

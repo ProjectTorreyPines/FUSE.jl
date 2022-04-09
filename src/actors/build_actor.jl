@@ -150,7 +150,6 @@ end
 #= ======== =#
 #  stresses  #
 #= ======== =#
-
 mutable struct StressesActor <: AbstractActor
     dd::IMAS.dd
     bucked::Bool
@@ -158,7 +157,7 @@ mutable struct StressesActor <: AbstractActor
     plug::Bool
 end
 
-function StressesActor(dd::IMAS.dd, par::Parameters)
+function StressesActor(dd::IMAS.dd, par::ActorParameters)
     actor = StressesActor(dd, par.center_stack.bucked, par.center_stack.noslip, par.center_stack.plug)
     step(actor)
     finalize(actor)

@@ -10,7 +10,7 @@ mutable struct SimpleNBIactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function SimpleNBIactor(dd::IMAS.dd, par::Parameters; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
+function SimpleNBIactor(dd::IMAS.dd, par::ActorParameters; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
     actor = SimpleNBIactor(dd; width, rho_0, current_efficiency)
     step(actor)
     finalize(actor)
@@ -81,7 +81,7 @@ mutable struct SimpleECactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function SimpleECactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
+function SimpleECactor(dd::IMAS.dd, par::ActorParameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
     actor = SimpleECactor(dd; width, rho_0, current_efficiency)
     step(actor)
     finalize(actor)
@@ -144,7 +144,7 @@ mutable struct SimpleICactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function SimpleICactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
+function SimpleICactor(dd::IMAS.dd, par::ActorParameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
     actor = SimpleICactor(dd; width, rho_0, current_efficiency)
     step(actor)
     finalize(actor)
@@ -207,7 +207,7 @@ mutable struct SimpleLHactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function SimpleLHactor(dd::IMAS.dd, par::Parameters; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
+function SimpleLHactor(dd::IMAS.dd, par::ActorParameters; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
     actor = SimpleLHactor(dd; width, rho_0, current_efficiency)
     step(actor)
     finalize(actor)

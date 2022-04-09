@@ -107,23 +107,23 @@ function InitParameters(group::Symbol; kw...)
     return InitParameters(Val{group}; kw...)
 end
 
-#= ============== =#
-#  ModelParameters  #
-#= ============== =#
-mutable struct ModelParameters <: Parameters
+#= =============== =#
+#  ActorParameters  #
+#= =============== =#
+mutable struct ActorParameters <: Parameters
     _path::Vector{Symbol}
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
-function ModelParameters(::Nothing)
-    return ModelParameters(Symbol[], Dict{Symbol,Union{Parameter,ModelParameters}}())
+function ActorParameters(::Nothing)
+    return ActorParameters(Symbol[], Dict{Symbol,Union{Parameter,ActorParameters}}())
 end
 
-function ModelParameters(group::Symbol; kw...)
-    if length(methods(ModelParameters, (Type{Val{group}},))) == 0
-        throw(InexistentParameterException(ModelParameters, [group]))
+function ActorParameters(group::Symbol; kw...)
+    if length(methods(ActorParameters, (Type{Val{group}},))) == 0
+        throw(InexistentParameterException(ActorParameters, [group]))
     end
-    return ModelParameters(Val{group}; kw...)
+    return ActorParameters(Val{group}; kw...)
 end
 
 #= ========== =#

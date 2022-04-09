@@ -11,7 +11,7 @@ end
 """
     InitParameters()
 
-Generates parameters 
+Generates initalization parameters 
 """
 function InitParameters()
     par = InitParameters(Symbol[], Dict{Symbol,Union{Parameter,InitParameters}}())
