@@ -1,4 +1,5 @@
 abstract type Parameter end
+abstract type Parameters end
 
 #= ===== =#
 #  Entry  #
@@ -16,11 +17,11 @@ end
 
 Defines a entry parameter
 """
-function Entry(T, units::String, description::String; default = missing)
+function Entry(T, units::String, description::String; default=missing)
     return Entry{Union{Missing,T}}(units, description, default, default, default)
 end
 
-function Entry(T, ids::Type, field::Symbol; default = missing)
+function Entry(T, ids::Type, field::Symbol; default=missing)
     txt = IMAS.info(ids, field)
     return Entry(T, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end
@@ -28,7 +29,6 @@ end
 #= ====== =#
 #  Switch  #
 #= ====== =#
-
 struct SwitchOption
     value::Any
     description::String
@@ -48,14 +48,14 @@ end
 
 Defines a switch parameter
 """
-function Switch(options::Dict{Any,SwitchOption}, units::String, description::String; default = missing)
+function Switch(options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
     return Switch(options, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default = missing) where {T<:Pair}
+function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair}
     opts = Dict{Any,SwitchOption}()
     for (key, desc) in options
         opts[key] = SwitchOption(key, desc)
@@ -63,7 +63,7 @@ function Switch(options::Vector{T}, units::String, description::String; default 
     return Switch(opts, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default = missing) where {T<:Union{Symbol,String}}
+function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Union{Symbol,String}}
     opts = Dict{eltype(options),SwitchOption}()
     for key in options
         opts[key] = SwitchOption(key, "$key")
@@ -71,18 +71,26 @@ function Switch(options::Vector{T}, units::String, description::String; default 
     return Switch(opts, units, description, default, default, default)
 end
 
-function Switch(options, ids::Type{T}, field::Symbol; default = missing) where {T<:IMAS.IDS}
+function Switch(options, ids::Type{T}, field::Symbol; default=missing) where {T<:IMAS.IDS}
     location = "$(IMAS._f2u(ids)).$(field)"
     txt = IMAS.info(location)
     return Switch(options, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end
 
-#= ========== =#
-#  Parameters  #
-#= ========== =#
+function Base.setproperty!(p::Switch, key::Symbol, value)
+    if typeof(value) <: Pair
+        p.options[value.first].value = value.second
+        value = value.first
+    end
+    if (value !== missing) && !(value in keys(p.options))
+        throw(BadParameterException([key], value, collect(keys(p.options))))
+    end
+    return setfield!(p, :value, value)
+end
 
-abstract type Parameters end
-
+#= ============== =#
+#  InitParameters  #
+#= ============== =#
 mutable struct InitParameters <: Parameters
     _path::Vector{Symbol}
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
@@ -99,6 +107,9 @@ function InitParameters(group::Symbol; kw...)
     return InitParameters(Val{group}; kw...)
 end
 
+#= ============== =#
+#  ModelParameters  #
+#= ============== =#
 mutable struct ModelParameters <: Parameters
     _path::Vector{Symbol}
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
@@ -115,6 +126,9 @@ function ModelParameters(group::Symbol; kw...)
     return ModelParameters(Val{group}; kw...)
 end
 
+#= ========== =#
+#  Parameters  #
+#= ========== =#
 function Base.fieldnames(p::Parameters)
     return collect(keys(getfield(p, :_parameters)))
 end
@@ -176,24 +190,13 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
     return value
 end
 
-function Base.setproperty!(p::Switch, key::Symbol, value)
-    if typeof(value) <: Pair
-        p.options[value.first].value = value.second
-        value = value.first
-    end
-    if (value !== missing) && !(value in keys(p.options))
-        throw(BadParameterException([key], value, collect(keys(p.options))))
-    end
-    return setfield!(p, :value, value)
-end
-
 function Base.show(io::IO, p::Parameters, depth::Int)
     _parameters = getfield(p, :_parameters)
     for item in sort(collect(keys(_parameters)))
         parameter = _parameters[item]
         if typeof(parameter) <: Parameters
             printstyled(io, "$(" "^(2*depth))")
-            printstyled(io, "$(item)\n"; bold = true)
+            printstyled(io, "$(item)\n"; bold=true)
             show(io, parameter, depth + 1)
         else
             value = parameter.value
@@ -208,11 +211,11 @@ function Base.show(io::IO, p::Parameters, depth::Int)
                 color = :red
             end
             printstyled(io, "$(" "^(2*depth))")
-            printstyled(io, "$(item)"; color = color)
-            printstyled(io, " ➡ "; color = :red)
-            printstyled(io, "$(repr(value))"; color = color)
+            printstyled(io, "$(item)"; color=color)
+            printstyled(io, " ➡ "; color=:red)
+            printstyled(io, "$(repr(value))"; color=color)
             if length(units) > 0 && value !== missing
-                printstyled(io, " [$(units)]"; color = color)
+                printstyled(io, " [$(units)]"; color=color)
             end
             printstyled(io, "\n")
         end
