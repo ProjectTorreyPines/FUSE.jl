@@ -11,17 +11,8 @@ import ProgressMeter
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, verbose::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn)
     FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
-
-    # correct equilibrium volume and area
-    if !ismissing(par.equilibrium, :volume)
-        dd.equilibrium.time_slice[].profiles_1d.volume .*= par.equilibrium.volume / dd.equilibrium.time_slice[].profiles_1d.volume[end]
-    end
-    if !ismissing(par.equilibrium, :area)
-        dd.equilibrium.time_slice[].profiles_1d.area .*= par.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
-    end
-
     FUSE.init_core_profiles(dd, par)
     FUSE.init_core_sources(dd, par)
 
@@ -38,14 +29,6 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; sav
 
     # run equilibrium actor with the updated beta
     FUSE.SolovevEquilibriumActor(dd, par)
-
-    # correct equilibrium volume and area
-    if !ismissing(par.equilibrium, :volume)
-        dd.equilibrium.time_slice[].profiles_1d.volume .*= par.equilibrium.volume / dd.equilibrium.time_slice[].profiles_1d.volume[end]
-    end
-    if !ismissing(par.equilibrium, :area)
-        dd.equilibrium.time_slice[].profiles_1d.area .*= par.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
-    end
 
     if do_plot
         display(plot(dd.equilibrium, psi_levels_out=[], label=par.general.casename))
@@ -86,7 +69,7 @@ function transport_validation_workflow(;
             vcat, [run_df[run_df.TOK.==tok, :][Random.shuffle(1:DataFrames.nrow(run_df[run_df.TOK.==tok, :]))[1:minimum([n_samples_per_tokamak, length(run_df[run_df.TOK.==tok, :][:, "TOK"])])], :] for tok in tok_list]
         )
     end
-
+    
     # Run simple_equilibrium_transport_workflow on each of the selected cases
     tau_FUSE = zeros(length(run_df[:,"TOK"]))
     tbl = DataFrames.Tables.rowtable(run_df)

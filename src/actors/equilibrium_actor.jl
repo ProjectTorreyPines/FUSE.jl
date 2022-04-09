@@ -13,7 +13,8 @@ end
 function SolovevEquilibriumActor(dd::IMAS.dd, par::Parameters; verbose=false)
     actor = SolovevEquilibriumActor(dd.equilibrium)
     step(actor; verbose)
-    finalize(actor, ngrid=par.equilibrium.ngrid)
+    finalize(actor, ngrid=par.equilibrium.ngrid, volume=evalmissing(par.equilibrium, :volume), area=evalmissing(par.equilibrium, :area))
+    # Volume area correction
 end
 
 """
@@ -102,7 +103,7 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
 
     function cost(x)
         # NOTE: Ip/Beta calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
-        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir = sign(B0), Ip_dir = 1, symmetric = true, x_point = nothing)
+        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
         beta_cost = (Equilibrium.beta_n(S) - target_beta) / target_beta
         ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
         c = sqrt(beta_cost^2 + ip_cost^2)
@@ -115,7 +116,7 @@ function step(actor::SolovevEquilibriumActor; verbose=false)
         println(res)
     end
 
-    actor.S = solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir= 1, symmetric=S0.symmetric, x_point=S0.x_point)
+    actor.S = solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
 
     # @show Equilibrium.beta_t(actor.S)
     # @show Equilibrium.beta_p(actor.S)
@@ -138,6 +139,8 @@ Store SolovevEquilibriumActor data in IMAS.equilibrium format
 function finalize(
     actor::SolovevEquilibriumActor;
     ngrid::Int=129,
+    volume::Union{Missing,Real}=missing,
+    area::Union{Missing,Real}=missing,
     rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
     zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
 )::IMAS.equilibrium__time_slice
@@ -160,7 +163,7 @@ function finalize(
     @ddtime eq.vacuum_toroidal_field.b0 = actor.S.B0 * sign_Bt
 
     empty!(eqt)
-    
+
     eqt.global_quantities.ip = ip
     eqt.boundary.geometric_axis.r = actor.S.R0
     eqt.boundary.geometric_axis.z = Z0
@@ -180,6 +183,14 @@ function finalize(
 
     eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
     IMAS.flux_surfaces(eqt)
+
+    # correct equilibrium volume and area
+    if !ismissing(volume)
+        eqt.profiles_1d.volume .*= volume / eqt.profiles_1d.volume[end]
+    end
+    if !ismissing(area)
+        eqt.profiles_1d.area .*= area / eqt.profiles_1d.area[end]
+    end
 
     return eqt
 end

@@ -222,6 +222,10 @@ function Base.ismissing(p::Parameters, field::Symbol)::Bool
     return getfield(p, :_parameters)[field].value === missing
 end
 
+function evalmissing(p::Parameters, field::Symbol)
+    return getfield(p, :_parameters)[field].value
+end
+
 #= ================= =#
 #  Parameters errors  #
 #= ================= =#
