@@ -1,5 +1,5 @@
-function Parameters(::Type{Val{:CAT}})
-    par = Parameters()
+function InitParameters(::Type{Val{:CAT}})
+    par = InitParameters()
     par.general.casename = "CAT"
     par.general.init_from = :ods
 

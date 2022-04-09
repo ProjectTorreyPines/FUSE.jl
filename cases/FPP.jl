@@ -1,7 +1,7 @@
-function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
+function InitParameters(::Type{Val{:FPP}}; init_from::Symbol)
     gasc = GASC(joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPP_fBS_PBpR_scan.json"), 59)
 
-    par = Parameters(gasc)
+    par = InitParameters(gasc)
     par.general.casename = "FPP_$(init_from)"
     par.general.init_from = init_from
 

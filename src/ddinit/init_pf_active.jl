@@ -213,7 +213,7 @@ function init_pf_active(
     return pf_active
 end
 
-function init_pf_active(dd::IMAS.dd, par::Parameters)
+function init_pf_active(dd::IMAS.dd, par::InitParameters)
     init_from = par.general.init_from
 
     if init_from == :gasc
@@ -243,7 +243,7 @@ function init_pf_active(dd::IMAS.dd, par::Parameters)
     return dd
 end
 
-function assign_coils_materials(dd::IMAS.dd, par::Parameters)
+function assign_coils_materials(dd::IMAS.dd, par::InitParameters)
     for coil_type in [:tf, :oh, :pf_active]
         coil_tech = getproperty(dd.build, coil_type).technology
         for property in fieldnames(IMAS.build__tf__technology)

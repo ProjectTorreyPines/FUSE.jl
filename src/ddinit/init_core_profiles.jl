@@ -1,4 +1,4 @@
-function init_core_profiles(dd::IMAS.dd, par::Parameters)
+function init_core_profiles(dd::IMAS.dd, par::InitParameters)
     init_from = par.general.init_from
 
     if init_from == :gasc

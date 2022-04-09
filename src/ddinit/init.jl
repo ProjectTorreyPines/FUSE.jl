@@ -1,9 +1,9 @@
 """
-    init(dd::IMAS.dd, par::Parameters; do_plot = false)
+    init(dd::IMAS.dd, par::InitParameters; do_plot = false)
 
 Initialize all IDSs if there are parameters for it or is initialized from ods
 """
-function init(dd::IMAS.dd, par::Parameters; do_plot=false)
+function init(dd::IMAS.dd, par::InitParameters; do_plot=false)
     ods_items = []
     # Check what is in the ods to load
     if par.general.init_from == :ods

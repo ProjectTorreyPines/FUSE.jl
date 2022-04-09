@@ -1,5 +1,5 @@
-function Parameters(::Type{Val{:ITER}}; init_from)
-    par = Parameters()
+function InitParameters(::Type{Val{:ITER}}; init_from)
+    par = InitParameters()
     par.general.casename = "ITER_$(init_from)"
     par.general.init_from = init_from
 

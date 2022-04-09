@@ -453,7 +453,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerSh
     end
 end
 
-function assign_build_layers_materials(dd::IMAS.dd, par::Parameters)
+function assign_build_layers_materials(dd::IMAS.dd, par::InitParameters)
     bd = dd.build
     for layer in bd.layer
         if layer.type == Int(_plasma_)

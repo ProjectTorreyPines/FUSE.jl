@@ -5,13 +5,13 @@ import ProgressMeter
 
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
-                                par::Parameters;
+                                par::InitParameters;
                                 save_directory::String,
                                 do_plot :: Bool)
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::InitParameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
     FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
 
     # correct equilibrium volume and area
@@ -95,7 +95,7 @@ function transport_validation_workflow(;
     Base.Threads.@threads for idx in 1:length(DataFrames.Tables.rows(tbl))
         try
             dd = IMAS.dd()
-            par = Parameters(run_df[idx, :])
+            par = InitParameters(run_df[idx, :])
             simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots, warn_nn_train_bounds=false)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
             if verbose

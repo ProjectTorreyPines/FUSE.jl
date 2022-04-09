@@ -125,7 +125,7 @@ end
 Return coil parameters depending of technology [:copper, :LTS, :HTS]
 """
 function coil_technology(technology::Symbol)
-    coil_tech = Parameters(:coil_technology)
+    coil_tech = InitParameters(:coil_technology)
     if technology == :copper
         coil_tech.material = "copper"
         coil_tech.temperature = 293.0

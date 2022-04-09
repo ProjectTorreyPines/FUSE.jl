@@ -1,5 +1,5 @@
-function Parameters(::Type{Val{:D3D}})
-    par = Parameters()
+function InitParameters(::Type{Val{:D3D}})
+    par = InitParameters()
     par.general.casename = "D3D"
     par.general.init_from = :ods
 

@@ -2,10 +2,10 @@ using Revise
 using FUSE
 using Test
 
-@testset "parameters" begin
-    par = FUSE.Parameters()
+@testset "InitParameters" begin
+    par = FUSE.InitParameters()
 
-    @test typeof(par.equilibrium) <: FUSE.Parameters
+    @test typeof(par.equilibrium) <: FUSE.InitParameters
 
     @test_throws FUSE.NotsetParameterException par.equilibrium.B0
 
@@ -19,11 +19,11 @@ using Test
 
     @test_throws FUSE.InexistentParameterException par.equilibrium.does_not_exist = 1.0
 
-    @test fieldnames(par.equilibrium) == fieldnames(FUSE.Parameters(:equilibrium))
+    @test fieldnames(par.equilibrium) == fieldnames(FUSE.InitParameters(:equilibrium))
 
-    @test_throws FUSE.InexistentParameterException FUSE.Parameters(:does_not_exist)
+    @test_throws FUSE.InexistentParameterException FUSE.InitParameters(:does_not_exist)
 
-    iter = FUSE.Parameters(:ITER; init_from=:scalars)
+    iter = FUSE.InitParameters(:ITER; init_from=:scalars)
 
     @test iter.equilibrium.B0 == -5.3
 
@@ -31,7 +31,7 @@ using Test
 
     @test_throws FUSE.BadParameterException iter.general.init_from = :odsa
 
-    @test_throws FUSE.InexistentParameterException FUSE.Parameters(:inexistent_group)
+    @test_throws FUSE.InexistentParameterException FUSE.InitParameters(:inexistent_group)
 
-    @test_throws UndefKeywordError FUSE.Parameters(:ITER)
+    @test_throws UndefKeywordError FUSE.InitParameters(:ITER)
 end

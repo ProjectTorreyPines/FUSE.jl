@@ -1,10 +1,10 @@
 """
-    Parameters(gasc::GASC)
+    InitParameters(gasc::GASC)
 
 Map GASC inputs and solution to FUSE input scalar parameters
 """
-function Parameters(gasc::GASC; no_small_gaps::Bool=true, vacuum_vessel::Float64=0.1)
-    par = Parameters()
+function InitParameters(gasc::GASC; no_small_gaps::Bool=true, vacuum_vessel::Float64=0.1)
+    par = InitParameters()
 
     par.gasc.filename = gasc.filename
     par.gasc.case = gasc.case

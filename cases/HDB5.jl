@@ -2,13 +2,13 @@ import DataFrames
 import CSV
 
 # For description of cases/variables see https://osf.io/593q6/
-function Parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer)
+function InitParameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer)
     data_row = load_hdb5(tokamak)[case, :]
-    Parameters(data_row)
+    InitParameters(data_row)
 end
 
-function Parameters(data_row::DataFrames.DataFrameRow)
-    par = Parameters()
+function InitParameters(data_row::DataFrames.DataFrameRow)
+    par = InitParameters()
     par.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     par.general.init_from = :scalars
 

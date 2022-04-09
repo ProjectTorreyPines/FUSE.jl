@@ -81,20 +81,38 @@ end
 #  Parameters  #
 #= ========== =#
 
-mutable struct Parameters
+abstract type Parameters end
+
+mutable struct InitParameters <: Parameters
     _path::Vector{Symbol}
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
-function Parameters(::Nothing)
-    return Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
+function InitParameters(::Nothing)
+    return InitParameters(Symbol[], Dict{Symbol,Union{Parameter,InitParameters}}())
 end
 
-function Parameters(group::Symbol; kw...)
-    if length(methods(Parameters, (Type{Val{group}},))) == 0
-        throw(InexistentParameterException([group]))
+function InitParameters(group::Symbol; kw...)
+    if length(methods(InitParameters, (Type{Val{group}},))) == 0
+        throw(InexistentParameterException(InitParameters, [group]))
     end
-    return Parameters(Val{group}; kw...)
+    return InitParameters(Val{group}; kw...)
+end
+
+mutable struct ModelParameters <: Parameters
+    _path::Vector{Symbol}
+    _parameters::Dict{Symbol,Union{Parameter,Parameters}}
+end
+
+function ModelParameters(::Nothing)
+    return ModelParameters(Symbol[], Dict{Symbol,Union{Parameter,ModelParameters}}())
+end
+
+function ModelParameters(group::Symbol; kw...)
+    if length(methods(ModelParameters, (Type{Val{group}},))) == 0
+        throw(InexistentParameterException(ModelParameters, [group]))
+    end
+    return ModelParameters(Val{group}; kw...)
 end
 
 function Base.fieldnames(p::Parameters)
@@ -104,7 +122,7 @@ end
 function Base.getproperty(p::Parameters, key::Symbol)
     _parameter = getfield(p, :_parameters)
     if !(key in keys(_parameter))
-        throw(InexistentParameterException(vcat(getfield(p, :_path), key)))
+        throw(InexistentParameterException(typeof(p), vcat(getfield(p, :_path), key)))
     end
     parameter = _parameter[key]
 
@@ -139,7 +157,7 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
 
     _parameter = getfield(p, :_parameters)
     if !(key in keys(_parameter))
-        throw(InexistentParameterException(vcat(getfield(p, :_path), key)))
+        throw(InexistentParameterException(typeof(p), vcat(getfield(p, :_path), key)))
     end
     parameter = _parameter[key]
 
@@ -226,9 +244,10 @@ end
 #  Parameters errors  #
 #= ================= =#
 struct InexistentParameterException <: Exception
+    parameter_type::DataType
     path::Vector{Symbol}
 end
-Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) does not exist")
+Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: $(e.parameter_type) $(join(e.path,".")) does not exist")
 
 struct NotsetParameterException <: Exception
     path::Vector{Symbol}

@@ -1,6 +1,6 @@
 import NumericalIntegration: cumul_integrate
 
-function init_nbi(dd::IMAS.dd, par::Parameters)
+function init_nbi(dd::IMAS.dd, par::InitParameters)
     return init_nbi(dd, par.nbi.power_launched, par.nbi.beam_energy, par.nbi.beam_mass, par.nbi.toroidal_angle)
 end
 
@@ -27,7 +27,7 @@ function init_nbi(
     return dd
 end
 
-function init_ec_launchers(dd::IMAS.dd, par::Parameters)
+function init_ec_launchers(dd::IMAS.dd, par::InitParameters)
     return init_ec_launchers(dd, par.ec.power_launched)
 end
 
@@ -39,7 +39,7 @@ function init_ec_launchers(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
-function init_ic_antennas(dd::IMAS.dd, par::Parameters)
+function init_ic_antennas(dd::IMAS.dd, par::InitParameters)
     return init_ic_antennas(dd, par.ic.power_launched)
 end
 
@@ -51,7 +51,7 @@ function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
-function init_lh_antennas(dd::IMAS.dd, par::Parameters)
+function init_lh_antennas(dd::IMAS.dd, par::InitParameters)
     return init_lh_antennas(dd, par.lh.power_launched)
 end
 
@@ -63,7 +63,7 @@ function init_lh_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
-function init_core_sources(dd::IMAS.dd, par::Parameters)
+function init_core_sources(dd::IMAS.dd, par::InitParameters)
     init_from = par.general.init_from
 
     if init_from == :gasc

@@ -1,4 +1,4 @@
-function init_missing(dd::IMAS.dd, par::Parameters)
+function init_missing(dd::IMAS.dd, par::InitParameters)
     init_from = par.general.init_from
 
     if init_from == :ods
