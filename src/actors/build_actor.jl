@@ -4,11 +4,10 @@
 
 mutable struct FluxSwingActor <: AbstractActor
     dd::IMAS.dd
-    flattop_duration::Real
 end
 
 function FluxSwingActor(dd::IMAS.dd, act::ActorParameters)
-    actor = FluxSwingActor(dd, act.oh.flattop_duration)
+    actor = FluxSwingActor(dd)
     step(actor)
     finalize(actor)
     return actor
@@ -22,7 +21,7 @@ function step(flxactor::FluxSwingActor)
     cp1d = cp.profiles_1d[]
 
     bd.flux_swing_requirements.rampup = rampup_flux_requirements(eqt, cp)
-    bd.flux_swing_requirements.flattop = flattop_flux_requirements(eqt, cp1d, flxactor.flattop_duration)
+    bd.flux_swing_requirements.flattop = flattop_flux_requirements(eqt, cp1d, bd.oh.flattop_duration)
     bd.flux_swing_requirements.pf = pf_flux_requirements(eqt)
 
     oh_peakJ(bd)
@@ -152,13 +151,10 @@ end
 #= ======== =#
 mutable struct StressesActor <: AbstractActor
     dd::IMAS.dd
-    bucked::Bool
-    noslip::Bool
-    plug::Bool
 end
 
 function StressesActor(dd::IMAS.dd, act::ActorParameters)
-    actor = StressesActor(dd, act.center_stack.bucked, act.center_stack.noslip, act.center_stack.plug)
+    actor = StressesActor(dd)
     step(actor)
     finalize(actor)
     return actor
@@ -167,6 +163,7 @@ end
 function step(stressactor::StressesActor)
     eq = stressactor.dd.equilibrium
     bd = stressactor.dd.build
+    sm = stressactor.dd.solid_mechanics
 
     R0 = eq.vacuum_toroidal_field.r0
     B0 = maximum(eq.vacuum_toroidal_field.b0)
@@ -178,11 +175,14 @@ function step(stressactor::StressesActor)
     f_struct_tf = bd.tf.technology.fraction_stainless
     f_struct_oh = bd.oh.technology.fraction_stainless
 
-    smcs = empty!(stressactor.dd.solid_mechanics.center_stack)
+    bucked = sm.center_stack.bucked == 1
+    noslip = sm.center_stack.noslip == 1
+    plug = sm.center_stack.plug == 1
+    empty!(sm.center_stack)
 
     for oh_on in [true, false]
         solve_1D_solid_mechanics!(
-            smcs,
+            sm.center_stack,
             R0,
             B0,
             R_tf_in,
@@ -190,9 +190,9 @@ function step(stressactor::StressesActor)
             oh_on ? Bz_oh : 0.0,
             R_oh_in,
             R_oh_out;
-            bucked=stressactor.bucked,
-            noslip=stressactor.noslip,
-            plug=stressactor.plug,
+            bucked=bucked,
+            noslip=noslip,
+            plug=plug,
             f_struct_tf=f_struct_tf,
             f_struct_oh=f_struct_oh,
             f_struct_pl=1.0,
@@ -218,11 +218,20 @@ mutable struct OHTFsizingActor <: AbstractActor
     fluxswing_actor::FluxSwingActor
 end
 
-function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorParameters(::Type{Val{:OHTFsizingActor}})
+    par = ActorParameters(nothing)
+    par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
+    par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
+    par.verbose = Entry(Bool, "", "verbose"; default=false)
+    return par
+end
+
+function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters)
+    par = act.OHTFsizingActor
     fluxswing_actor = FluxSwingActor(dd, act)
     stresses_actor = StressesActor(dd, act)
     actor = OHTFsizingActor(stresses_actor, fluxswing_actor)
-    step(actor; kw...)
+    step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance)
     finalize(actor)
     return actor
 end
@@ -285,23 +294,26 @@ end
 
 mutable struct CXbuildActor <: AbstractActor
     dd::IMAS.dd
-    tf_shape::IMAS.BuildLayerShape
 end
 
-function CXbuildActor(dd::IMAS.dd, tf_shape::Symbol)
-    CXbuildActor(dd, to_enum(tf_shape))
+function ActorParameters(::Type{Val{:CXbuildActor}})
+    par = ActorParameters(nothing)
+    par.rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
+    par.verbose = Entry(Bool, "", "verbose"; default=false)
+    return par
 end
 
-function CXbuildActor(dd::IMAS.dd, act::ActorParameters; rebuild_wall=(act.general.init_from != :ods), kw...)
-    if rebuild_wall # regenerate build based on new equilibrium
+function CXbuildActor(dd::IMAS.dd, act::ActorParameters)
+    par = act.CXbuildActor
+    if par.rebuild_wall # regenerate build based on new equilibrium
         empty!(dd.wall)
     end
-    actor = CXbuildActor(dd, act.tf.shape)
-    step(actor; kw...)
+    actor = CXbuildActor(dd)
+    step(actor)
     finalize(actor)
     return actor
 end
 
 function step(cx_actor::CXbuildActor)
-    build_cx(cx_actor.dd, cx_actor.tf_shape)
+    build_cx(cx_actor.dd)
 end

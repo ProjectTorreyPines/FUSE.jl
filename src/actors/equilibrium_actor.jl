@@ -10,8 +10,15 @@ mutable struct SolovevActor <: AbstractActor
     S::SolovevEquilibrium
 end
 
-function SolovevActor(dd::IMAS.dd, par::ActorParameters)
-    par = par.SolovevActor
+function ActorParameters(::Type{Val{:SolovevActor}})
+    par = ActorParameters(nothing)
+    par.ngrid = Entry(Integer, "", "ngrid"; default=129)
+    par.verbose = Entry(Bool, "", "verbose"; default=false)
+    return par
+end
+
+function SolovevActor(dd::IMAS.dd, act::ActorParameters)
+    par = act.SolovevActor
     actor = SolovevActor(dd.equilibrium)
     step(actor; par.verbose)
     finalize(actor, ngrid=par.ngrid)
