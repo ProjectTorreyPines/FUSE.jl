@@ -1,8 +1,8 @@
-function init_missing(dd::IMAS.dd, par::InitParameters)
-    init_from = par.general.init_from
+function init_missing(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
+    init_from = ini.general.init_from
 
     if init_from == :ods
-        dd1 = IMAS.json2imas(par.ods.filename)
+        dd1 = IMAS.json2imas(ini.ods.filename)
         for ids in keys(dd1)
             if length(keys(getproperty(dd, ids))) == 0
                 data = getproperty(dd1, ids)

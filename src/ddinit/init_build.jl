@@ -10,14 +10,14 @@ import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_, _rectangle
 #= ========== =#
 #  init build  #
 #= ========== =#
-function init_build(dd::IMAS.dd, par::Parameters)
-    init_from = par.general.init_from
+function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
+    init_from = ini.general.init_from
 
     if init_from == :gasc
         init_from = :scalars
 
     elseif init_from == :ods
-        dd1 = IMAS.json2imas(par.ods.filename)
+        dd1 = IMAS.json2imas(ini.ods.filename)
         if length(keys(dd1.wall)) > 0
             dd.wall = dd1.wall
         end
@@ -29,31 +29,31 @@ function init_build(dd::IMAS.dd, par::Parameters)
     end
 
     if init_from == :scalars
-        if ismissing(par.build, :layers)
+        if ismissing(ini.build, :layers)
             init_radial_build(
                 dd.build,
                 dd.equilibrium.time_slice[],
                 first_wall(dd.wall);
-                shield = par.build.shield,
-                blanket = par.build.blanket,
-                vessel = par.build.vessel,
-                pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
-                pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
+                shield = ini.build.shield,
+                blanket = ini.build.blanket,
+                vessel = ini.build.vessel,
+                pf_inside_tf = (ini.pf_active.n_pf_coils_inside > 0),
+                pf_outside_tf = (ini.pf_active.n_pf_coils_outside > 0))
         else
-            init_radial_build(dd.build, par.build.layers; verbose = false)
+            init_radial_build(dd.build, ini.build.layers; verbose = false)
         end
     end
 
     # cross-section outlines
-    build_cx(dd, par.tf.shape)
+    build_cx(dd, ini.tf.shape)
 
     # TF coils
-    dd.build.tf.coils_n = par.tf.n_coils
+    dd.build.tf.coils_n = ini.tf.n_coils
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
     dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type = _tf_, fs = _hfs_).start_radius / dd.build.tf.coils_n
 
     # assign materials
-    assign_build_layers_materials(dd, par)
+    assign_build_layers_materials(dd, ini)
 
     return dd
 end
@@ -453,7 +453,7 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerSh
     end
 end
 
-function assign_build_layers_materials(dd::IMAS.dd, par::InitParameters)
+function assign_build_layers_materials(dd::IMAS.dd, ini::InitParameters)
     bd = dd.build
     for layer in bd.layer
         if layer.type == Int(_plasma_)
@@ -461,15 +461,15 @@ function assign_build_layers_materials(dd::IMAS.dd, par::InitParameters)
         elseif layer.type == Int(_gap_)
             layer.material = "Vacuum"
         elseif layer.type == Int(_oh_)
-            layer.material = par.material.wall
+            layer.material = ini.material.wall
         elseif layer.type == Int(_tf_)
-            layer.material = par.tf.technology.material
+            layer.material = ini.tf.technology.material
         elseif layer.type == Int(_shield_)
-            layer.material = par.material.shield
+            layer.material = ini.material.shield
         elseif layer.type == Int(_blanket_)
-            layer.material = par.material.blanket
+            layer.material = ini.material.blanket
         elseif layer.type == Int(_wall_)
-            layer.material = par.material.wall
+            layer.material = ini.material.wall
         elseif layer.type == Int(_vessel_)
             layer.material = layer.material = "Water, Liquid"
         end

@@ -10,7 +10,7 @@ mutable struct TauennActor <: AbstractActor
     tauenn_outputs::TAUENN.TauennOutputs
 end
 
-function TauennActor(dd::IMAS.dd, par::ActorParameters; do_plot = false, verbose = false, kw...)
+function TauennActor(dd::IMAS.dd, act::ActorParameters; do_plot = false, verbose = false, kw...)
     if do_plot
         plot(dd.core_profiles; color = :gray, label = "")
     end

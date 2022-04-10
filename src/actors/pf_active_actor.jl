@@ -45,8 +45,8 @@ function PFcoilsOptActor(
     return pfactor
 end
 
-function PFcoilsOptActor(dd::IMAS.dd, par::Parameters; λ_currents=0.5, only_currents::Bool=false, update_equilibrium::Bool = false, do_plot = false, verbose=false)
-    actor = PFcoilsOptActor(dd; green_model = par.pf_active.green_model, symmetric = par.build.symmetric)
+function PFcoilsOptActor(dd::IMAS.dd, act::ActorParameters; λ_currents=0.5, only_currents::Bool=false, update_equilibrium::Bool = false, do_plot = false, verbose=false)
+    actor = PFcoilsOptActor(dd; green_model = act.pf_active.green_model, symmetric = act.build.symmetric)
 
     if !only_currents
         # optimize coil location only considering equilibria (disregard field-null)

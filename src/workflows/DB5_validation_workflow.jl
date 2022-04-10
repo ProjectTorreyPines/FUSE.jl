@@ -23,8 +23,8 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::InitParameters,
         dd.equilibrium.time_slice[].profiles_1d.area .*= ini.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
     end
 
-    FUSE.init_core_profiles(dd, ini)
-    FUSE.init_core_sources(dd, ini)
+    FUSE.init_core_profiles(dd, ini, act)
+    FUSE.init_core_sources(dd, ini, act)
 
     # Set j_ohmic to steady state
     IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])

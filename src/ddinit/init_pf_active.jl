@@ -213,14 +213,14 @@ function init_pf_active(
     return pf_active
 end
 
-function init_pf_active(dd::IMAS.dd, par::InitParameters)
-    init_from = par.general.init_from
+function init_pf_active(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
+    init_from = ini.general.init_from
 
     if init_from == :gasc
         init_from = :scalars
 
     elseif init_from == :ods
-        dd1 = IMAS.json2imas(par.ods.filename)
+        dd1 = IMAS.json2imas(ini.ods.filename)
         if length(keys(dd1.pf_active)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.pf_active.time))
             dd.pf_active = dd1.pf_active
@@ -230,27 +230,27 @@ function init_pf_active(dd::IMAS.dd, par::InitParameters)
     end
 
     if init_from == :scalars
-        n_coils = [par.pf_active.n_oh_coils]
+        n_coils = [ini.pf_active.n_oh_coils]
         if any([contains(lowercase(layer.name), "coils") for layer in dd.build.layer])
-            push!(n_coils, par.pf_active.n_pf_coils_inside)
+            push!(n_coils, ini.pf_active.n_pf_coils_inside)
         end
-        push!(n_coils, par.pf_active.n_pf_coils_outside)
+        push!(n_coils, ini.pf_active.n_pf_coils_outside)
         init_pf_active(dd.pf_active, dd.build, n_coils)
     end
 
-    assign_coils_materials(dd, par)
+    assign_coils_materials(dd, ini)
 
     return dd
 end
 
-function assign_coils_materials(dd::IMAS.dd, par::InitParameters)
+function assign_coils_materials(dd::IMAS.dd, ini::InitParameters)
     for coil_type in [:tf, :oh, :pf_active]
         coil_tech = getproperty(dd.build, coil_type).technology
         for property in fieldnames(IMAS.build__tf__technology)
             if property == :_parent
                 continue
             end
-            coil_params = getproperty(par, coil_type).technology
+            coil_params = getproperty(ini, coil_type).technology
             if !ismissing(coil_params, property)
                 setproperty!(coil_tech, property, getproperty(coil_params, property))
             end

@@ -7,8 +7,8 @@ mutable struct FluxSwingActor <: AbstractActor
     flattop_duration::Real
 end
 
-function FluxSwingActor(dd::IMAS.dd, par::Parameters)
-    actor = FluxSwingActor(dd, par.oh.flattop_duration)
+function FluxSwingActor(dd::IMAS.dd, act::ActorParameters)
+    actor = FluxSwingActor(dd, act.oh.flattop_duration)
     step(actor)
     finalize(actor)
     return actor
@@ -157,8 +157,8 @@ mutable struct StressesActor <: AbstractActor
     plug::Bool
 end
 
-function StressesActor(dd::IMAS.dd, par::ActorParameters)
-    actor = StressesActor(dd, par.center_stack.bucked, par.center_stack.noslip, par.center_stack.plug)
+function StressesActor(dd::IMAS.dd, act::ActorParameters)
+    actor = StressesActor(dd, act.center_stack.bucked, act.center_stack.noslip, act.center_stack.plug)
     step(actor)
     finalize(actor)
     return actor
@@ -218,9 +218,9 @@ mutable struct OHTFsizingActor <: AbstractActor
     fluxswing_actor::FluxSwingActor
 end
 
-function OHTFsizingActor(dd::IMAS.dd, par::Parameters; kw...)
-    fluxswing_actor = FluxSwingActor(dd, par)
-    stresses_actor = StressesActor(dd, par)
+function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
+    fluxswing_actor = FluxSwingActor(dd, act)
+    stresses_actor = StressesActor(dd, act)
     actor = OHTFsizingActor(stresses_actor, fluxswing_actor)
     step(actor; kw...)
     finalize(actor)
@@ -292,11 +292,11 @@ function CXbuildActor(dd::IMAS.dd, tf_shape::Symbol)
     CXbuildActor(dd, to_enum(tf_shape))
 end
 
-function CXbuildActor(dd::IMAS.dd, par::Parameters; rebuild_wall=(par.general.init_from != :ods), kw...)
+function CXbuildActor(dd::IMAS.dd, act::ActorParameters; rebuild_wall=(act.general.init_from != :ods), kw...)
     if rebuild_wall # regenerate build based on new equilibrium
         empty!(dd.wall)
     end
-    actor = CXbuildActor(dd, par.tf.shape)
+    actor = CXbuildActor(dd, act.tf.shape)
     step(actor; kw...)
     finalize(actor)
     return actor
