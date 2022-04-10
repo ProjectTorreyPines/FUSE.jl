@@ -15,7 +15,7 @@ function init(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; do_plot=fa
         init_equilibrium(dd, ini, act)
         if do_plot
             plot(dd.equilibrium.time_slice[end]; x_point=true)
-            display(plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z,label="Field null"))
+            display(plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z, label="Field null"))
         end
     end
 
@@ -61,4 +61,12 @@ function init(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; do_plot=fa
     init_missing(dd, ini, act)
 
     return dd
+end
+
+function init(case::Symbol; do_plot=false, kw...)
+    ini = FUSE.InitParameters(case; kw...)
+    act = FUSE.ActorParameters()
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act; do_plot=do_plot)
+    return dd, act
 end
