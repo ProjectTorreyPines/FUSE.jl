@@ -304,15 +304,15 @@ end
 
 function CXbuildActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.CXbuildActor(kw...)
-    if par.rebuild_wall # regenerate build based on new equilibrium
-        empty!(dd.wall)
-    end
     actor = CXbuildActor(dd)
-    step(actor)
+    step(actor; rebuild_wall=par.rebuild_wall)
     finalize(actor)
     return actor
 end
 
-function step(cx_actor::CXbuildActor)
+function step(cx_actor::CXbuildActor; rebuild_wall::Bool=false)
+    if rebuild_wall
+        empty!(dd.wall)
+    end
     build_cx(cx_actor.dd)
 end
