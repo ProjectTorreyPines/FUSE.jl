@@ -2,27 +2,28 @@ import DataFrames
 import CSV
 
 # For description of cases/variables see https://osf.io/593q6/
-function Parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer)
+function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer)
     data_row = load_hdb5(tokamak)[case, :]
-    Parameters(data_row)
+    case_parameters(data_row)
 end
 
-function Parameters(data_row::DataFrames.DataFrameRow)
-    par = Parameters()
-    par.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
-    par.general.init_from = :scalars
+function case_parameters(data_row::DataFrames.DataFrameRow)
+    ini = InitParameters()
+    act = ActorParameters()
+    ini.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
+    ini.general.init_from = :scalars
 
     # Equilibrium parameters
-    par.equilibrium.B0 = data_row[:BT]
-    par.equilibrium.R0 = data_row[:RGEO]
-    par.equilibrium.Z0 = 0.0
-    par.equilibrium.ϵ = data_row[:AMIN] / data_row[:RGEO]
-    par.equilibrium.κ = data_row[:KAPPA]
-    par.equilibrium.δ = data_row[:DELTA]
-    par.equilibrium.βn = 1.0
-    par.equilibrium.area = data_row[:AREA]
-    par.equilibrium.volume = data_row[:VOL]
-    par.equilibrium.ip = data_row[:IP]
+    ini.equilibrium.B0 = data_row[:BT]
+    ini.equilibrium.R0 = data_row[:RGEO]
+    ini.equilibrium.Z0 = 0.0
+    ini.equilibrium.ϵ = data_row[:AMIN] / data_row[:RGEO]
+    ini.equilibrium.κ = data_row[:KAPPA]
+    ini.equilibrium.δ = data_row[:DELTA]
+    ini.equilibrium.βn = 1.0
+    ini.equilibrium.area = data_row[:AREA]
+    ini.equilibrium.volume = data_row[:VOL]
+    ini.equilibrium.ip = data_row[:IP]
 
     x_point = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]), data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
 
@@ -45,40 +46,41 @@ function Parameters(data_row::DataFrames.DataFrameRow)
         symmetric = true
     end
 
-    par.equilibrium.x_point = x_point
-    par.equilibrium.symmetric = symmetric
+    ini.equilibrium.x_point = x_point
+    ini.equilibrium.symmetric = symmetric
 
     # Core_profiles parameters
-    par.core_profiles.ne_ped = data_row[:NEL] / 1.3
-    par.core_profiles.n_peaking = 1.5
-    par.core_profiles.T_shaping = 1.8
-    par.core_profiles.w_ped = 0.03
-    par.core_profiles.zeff = data_row[:ZEFF]
-    par.core_profiles.rot_core = 50e3
-    par.core_profiles.ngrid = 201
-    par.core_profiles.bulk = :D
-    par.core_profiles.impurity = :C
+    ini.core_profiles.ne_ped = data_row[:NEL] / 1.3
+    ini.core_profiles.n_peaking = 1.5
+    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.w_ped = 0.03
+    ini.core_profiles.zeff = data_row[:ZEFF]
+    ini.core_profiles.rot_core = 50e3
+    ini.core_profiles.ngrid = 201
+    ini.core_profiles.bulk = :D
+    ini.core_profiles.impurity = :C
 
     # nbi
     if data_row[:PNBI] > 0
-        par.nbi.power_launched = data_row[:PNBI]
+        ini.nbi.power_launched = data_row[:PNBI]
         if data_row[:ENBI] > 0
-            par.nbi.beam_energy = data_row[:ENBI]
+            ini.nbi.beam_energy = data_row[:ENBI]
         else
-            par.nbi.beam_energy = 100e3
+            ini.nbi.beam_energy = 100e3
         end
-        par.nbi.beam_mass = 2
-        par.nbi.toroidal_angle = 0.0
+        ini.nbi.beam_mass = 2
+        ini.nbi.toroidal_angle = 0.0
     end
 
     if data_row[:PECRH] > 0
-        par.ec.power_launched = data_row[:PECRH]
+        ini.ec.power_launched = data_row[:PECRH]
     end
 
     if data_row[:PICRH] > 0
-        par.ic.power_launched = data_row[:PICRH]
+        ini.ic.power_launched = data_row[:PICRH]
     end
-    return par
+
+    return set_new_base!(ini), set_new_base!(act)
 end
 
 function load_hdb5(tokamak::T=:all, extra_signal_names=T[]) where {T<:Union{String,Symbol}}

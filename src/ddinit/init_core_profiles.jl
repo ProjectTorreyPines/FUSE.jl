@@ -1,12 +1,12 @@
-function init_core_profiles(dd::IMAS.dd, par::Parameters)
-    init_from = par.general.init_from
+function init_core_profiles(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
+    init_from = ini.general.init_from
 
     if init_from == :gasc
-        gasc = GASC(par.gasc.filename, par.gasc.case)
-        init_core_profiles(dd, gasc; bulk = par.core_profiles.bulk)
+        gasc = GASC(ini.gasc.filename, ini.gasc.case)
+        init_core_profiles(dd, gasc; bulk = ini.core_profiles.bulk)
 
     elseif init_from == :ods
-        dd1 = IMAS.json2imas(par.ods.filename)
+        dd1 = IMAS.json2imas(ini.ods.filename)
         if !ismissing(dd1.core_profiles, :time) && length(keys(dd1.core_profiles.time)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.core_profiles.time))
             dd.core_profiles = dd1.core_profiles
@@ -20,16 +20,16 @@ function init_core_profiles(dd::IMAS.dd, par::Parameters)
             dd.core_profiles,
             dd.equilibrium,
             dd.summary;
-            ne_ped = par.core_profiles.ne_ped,
-            n_peaking = par.core_profiles.n_peaking,
-            T_shaping = par.core_profiles.T_shaping,
-            w_ped = par.core_profiles.w_ped,
-            zeff = par.core_profiles.zeff,
-            rot_core = par.core_profiles.rot_core,
-            ngrid = par.core_profiles.ngrid,
-            bulk = par.core_profiles.bulk,
-            impurity = par.core_profiles.impurity)
-        @ddtime dd.core_profiles.global_quantities.ejima = par.core_profiles.ejima
+            ne_ped = ini.core_profiles.ne_ped,
+            n_peaking = ini.core_profiles.n_peaking,
+            T_shaping = ini.core_profiles.T_shaping,
+            w_ped = ini.core_profiles.w_ped,
+            zeff = ini.core_profiles.zeff,
+            rot_core = ini.core_profiles.rot_core,
+            ngrid = ini.core_profiles.ngrid,
+            bulk = ini.core_profiles.bulk,
+            impurity = ini.core_profiles.impurity)
+        @ddtime dd.core_profiles.global_quantities.ejima = ini.core_profiles.ejima
     end
 
     return dd

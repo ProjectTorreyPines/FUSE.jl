@@ -1,31 +1,35 @@
-function Parameters(::Type{Val{:FPP}}; init_from::Symbol)
+function case_parameters(::Type{Val{:FPP}}; init_from::Symbol)
     gasc = GASC(joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPP_fBS_PBpR_scan.json"), 59)
 
-    par = Parameters(gasc)
-    par.general.casename = "FPP_$(init_from)"
-    par.general.init_from = init_from
+    ini = InitParameters(gasc)
+    act = ActorParameters()
 
-    par.gasc.no_small_gaps = true
+    ini.general.casename = "FPP_$(init_from)"
+    ini.general.init_from = init_from
+
+    ini.gasc.no_small_gaps = true
 
     if init_from == :ods
-        par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "fpp_gasc_59_step.json")
-        par.build.blanket = .9
-        par.build.shield = 0.5
-        par.build.vessel = 0.125
+        ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "fpp_gasc_59_step.json")
+        ini.build.blanket = .9
+        ini.build.shield = 0.5
+        ini.build.vessel = 0.125
     else
-        par.core_profiles.rot_core = 0.0
-        par.core_profiles.bulk = :DT
+        ini.core_profiles.rot_core = 0.0
+        ini.core_profiles.bulk = :DT
     end
 
-    par.tf.shape = :triple_arc
-    par.tf.n_coils = 16
+    ini.tf.shape = :triple_arc
+    ini.tf.n_coils = 16
 
-    par.pf_active.n_oh_coils = 6
-    par.pf_active.n_pf_coils_inside = 0
-    par.pf_active.n_pf_coils_outside = 4
+    ini.pf_active.n_oh_coils = 6
+    ini.pf_active.n_pf_coils_inside = 0
+    ini.pf_active.n_pf_coils_outside = 4
 
-    par.material.shield = "Tungsten"
-    par.material.blanket = "FLiBe"
+    ini.material.shield = "Tungsten"
+    ini.material.blanket = "FLiBe"
 
-    return set_new_base!(par)
+    act.PFcoilsOptActor.symmetric = true
+
+    return set_new_base!(ini), set_new_base!(act)
 end

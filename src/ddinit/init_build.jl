@@ -10,14 +10,14 @@ import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_, _rectangle
 #= ========== =#
 #  init build  #
 #= ========== =#
-function init_build(dd::IMAS.dd, par::Parameters)
-    init_from = par.general.init_from
+function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
+    init_from = ini.general.init_from
 
     if init_from == :gasc
         init_from = :scalars
 
     elseif init_from == :ods
-        dd1 = IMAS.json2imas(par.ods.filename)
+        dd1 = IMAS.json2imas(ini.ods.filename)
         if length(keys(dd1.wall)) > 0
             dd.wall = dd1.wall
         end
@@ -29,31 +29,42 @@ function init_build(dd::IMAS.dd, par::Parameters)
     end
 
     if init_from == :scalars
-        if ismissing(par.build, :layers)
+        if ismissing(ini.build, :layers)
             init_radial_build(
                 dd.build,
                 dd.equilibrium.time_slice[],
                 first_wall(dd.wall);
-                shield = par.build.shield,
-                blanket = par.build.blanket,
-                vessel = par.build.vessel,
-                pf_inside_tf = (par.pf_active.n_pf_coils_inside > 0),
-                pf_outside_tf = (par.pf_active.n_pf_coils_outside > 0))
+                shield=ini.build.shield,
+                blanket=ini.build.blanket,
+                vessel=ini.build.vessel,
+                pf_inside_tf=(ini.pf_active.n_pf_coils_inside > 0),
+                pf_outside_tf=(ini.pf_active.n_pf_coils_outside > 0))
         else
-            init_radial_build(dd.build, par.build.layers; verbose = false)
+            init_radial_build(dd.build, ini.build.layers; verbose=false)
         end
     end
 
-    # cross-section outlines
-    build_cx(dd, par.tf.shape)
+    # set the TF shape
+    dd.build.tf.shape = Int(to_enum(ini.tf.shape))
+
+    # 2D build cross-section
+    build_cx(dd)
+
+    # flattop duration
+    dd.build.oh.flattop_duration = ini.oh.flattop_duration
 
     # TF coils
-    dd.build.tf.coils_n = par.tf.n_coils
+    dd.build.tf.coils_n = ini.tf.n_coils
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type = _tf_, fs = _hfs_).start_radius / dd.build.tf.coils_n
+    dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type=_tf_, fs=_hfs_).start_radius / dd.build.tf.coils_n
+
+    # center stack solid mechanics
+    dd.solid_mechanics.center_stack.bucked = Int(ini.center_stack.bucked)
+    dd.solid_mechanics.center_stack.noslip = Int(ini.center_stack.noslip)
+    dd.solid_mechanics.center_stack.plug = Int(ini.center_stack.plug)
 
     # assign materials
-    assign_build_layers_materials(dd, par)
+    assign_build_layers_materials(dd, ini)
 
     return dd
 end
@@ -77,7 +88,7 @@ layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
-function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
+function init_radial_build(bd::IMAS.build; verbose::Bool=false, layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
@@ -130,7 +141,7 @@ function init_radial_build(bd::IMAS.build; verbose::Bool = false, layers...)
     return bd
 end
 
-function init_radial_build(bd::IMAS.build, layers::AbstractDict; verbose = false)
+function init_radial_build(bd::IMAS.build, layers::AbstractDict; verbose=false)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
     init_radial_build(bd; verbose, nt...)
 end
@@ -153,12 +164,12 @@ function init_radial_build(
     bd::IMAS.build,
     eqt::IMAS.equilibrium__time_slice,
     wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
-    blanket::Float64 = 1.0,
-    shield::Float64 = 0.5,
-    vessel::Float64 = 0.125,
-    pf_inside_tf::Bool = false,
-    pf_outside_tf::Bool = true,
-    verbose::Bool = false)
+    blanket::Float64=1.0,
+    shield::Float64=0.5,
+    vessel::Float64=0.125,
+    pf_inside_tf::Bool=false,
+    pf_outside_tf::Bool=true,
+    verbose::Bool=false)
 
     if wall !== missing
         rmin = minimum(wall.r)
@@ -244,10 +255,10 @@ end
 
 Generate first wall outline starting from an equilibrium
 """
-function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real = 1.0)
+function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real=1.0)
     # Inner radii of the plasma
-    R_hfs_plasma = IMAS.get_build(bd, type = _plasma_).start_radius
-    R_lfs_plasma = IMAS.get_build(bd, type = _plasma_).end_radius
+    R_hfs_plasma = IMAS.get_build(bd, type=_plasma_).start_radius
+    R_lfs_plasma = IMAS.get_build(bd, type=_plasma_).end_radius
 
     # Plasma as buffered convex-hull polygon of LCFS and strike points
     ψb = IMAS.find_psi_boundary(eqt)
@@ -256,7 +267,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     r_in, z_in, _ = IMAS.flux_surface(eqt, ψb * (1 - δψ) + ψa * δψ, true)
     Z0 = eqt.global_quantities.magnetic_axis.z
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
-    theta = range(0.0, 2 * pi, length = 101)
+    theta = range(0.0, 2 * pi, length=101)
     private_extrema = []
     private = IMAS.flux_surface(eqt, ψb, false)
     a = 0
@@ -312,12 +323,12 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
 end
 
 """
-    build_cx(dd::IMAS.dd; tf_shape_index::Int)
+    build_cx(dd::IMAS.dd)
 
 Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
-function build_cx(dd::IMAS.dd, tf_shape::BuildLayerShape)
+function build_cx(dd::IMAS.dd)
     wall = first_wall(dd.wall)
     if wall === missing
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
@@ -327,22 +338,18 @@ function build_cx(dd::IMAS.dd, tf_shape::BuildLayerShape)
         dd.wall.description_2d[1].limiter.unit[1].outline.z = pz
         wall = first_wall(dd.wall)
     end
-    return build_cx(dd.build, wall.r, wall.z, tf_shape)
-end
-
-function build_cx(dd::IMAS.dd, tf_shape::Symbol)
-    return build_cx(dd, to_enum(tf_shape))
+    return build_cx(dd.build, wall.r, wall.z)
 end
 
 """
-    build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_shape_index::Int)
+    build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_shape::BuildLayerShape)
+function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     # plasma
-    IMAS.get_build(bd, type = _plasma_).outline.r = pr
-    IMAS.get_build(bd, type = _plasma_).outline.z = pz
+    IMAS.get_build(bd, type=_plasma_).outline.r = pr
+    IMAS.get_build(bd, type=_plasma_).outline.z = pz
 
     # all layers between plasma and OH
     plasma_to_oh = []
@@ -363,9 +370,9 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
     end
     shape_set = false
     for (n, k) in enumerate(plasma_to_oh)
-        # layer that preceeds the TF (or shield) sets the TF (and shield) shape
+        # layer that is inside of the TF (or shield) sets the TF (and shield) shape
         if (!shape_set) && (n < length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [Int(_tf_), Int(_shield_)])
-            FUSE.optimize_shape(bd, k, tf_shape)
+            FUSE.optimize_shape(bd, k, BuildLayerShape(bd.tf.shape))
             shape_set = true
             # everything else is conformal convex hull
         else
@@ -375,21 +382,21 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}, tf_s
 
     # plug
     L = 0
-    R = IMAS.get_build(bd, type = _oh_).start_radius
-    D = minimum(IMAS.get_build(bd, type = _tf_, fs = _hfs_).outline.z)
-    U = maximum(IMAS.get_build(bd, type = _tf_, fs = _hfs_).outline.z)
+    R = IMAS.get_build(bd, type=_oh_).start_radius
+    D = minimum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z)
+    U = maximum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z)
     bd.layer[1].outline.r, bd.layer[1].outline.z = rectangle_shape(L, R, D, U)
 
     # oh
-    L = IMAS.get_build(bd, type = _oh_).start_radius
-    R = IMAS.get_build(bd, type = _oh_).end_radius
+    L = IMAS.get_build(bd, type=_oh_).start_radius
+    R = IMAS.get_build(bd, type=_oh_).end_radius
     bd.layer[2].outline.r, bd.layer[2].outline.z = rectangle_shape(L, R, D, U)
 
     # cryostat
     L = 0
     R = bd.layer[end].end_radius
-    D = minimum(IMAS.get_build(bd, type = _tf_, fs = _hfs_).outline.z) - bd.layer[end].thickness
-    U = maximum(IMAS.get_build(bd, type = _tf_, fs = _hfs_).outline.z) + bd.layer[end].thickness
+    D = minimum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z) - bd.layer[end].thickness
+    U = maximum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z) + bd.layer[end].thickness
     bd.layer[end].outline.r, bd.layer[end].outline.z = rectangle_shape(L, R, D, U)
 
     return bd
@@ -405,9 +412,9 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerSh
     layer = bd.layer[layer_index]
     id = bd.layer[layer_index].identifier
     r_start = layer.start_radius
-    r_end = IMAS.get_build(bd, identifier = layer.identifier, fs = _lfs_).end_radius
+    r_end = IMAS.get_build(bd, identifier=layer.identifier, fs=_lfs_).end_radius
     hfs_thickness = layer.thickness
-    lfs_thickness = IMAS.get_build(bd, identifier = id, fs = _lfs_).thickness
+    lfs_thickness = IMAS.get_build(bd, identifier=id, fs=_lfs_).thickness
     target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
 
     # obstruction
@@ -453,23 +460,25 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerSh
     end
 end
 
-function assign_build_layers_materials(dd::IMAS.dd, par::Parameters)
+function assign_build_layers_materials(dd::IMAS.dd, ini::InitParameters)
     bd = dd.build
-    for layer in bd.layer
-        if layer.type == Int(_plasma_)
+    for (k,layer) in enumerate(bd.layer)
+        if k==1 && ini.center_stack.plug
+            layer.material = ini.material.wall
+        elseif layer.type == Int(_plasma_)
             layer.material = any([layer.type in [Int(_blanket_), Int(_shield_)] for layer in dd.build.layer]) ? "DT_plasma" : "DD_plasma"
         elseif layer.type == Int(_gap_)
             layer.material = "Vacuum"
         elseif layer.type == Int(_oh_)
-            layer.material = par.material.wall
+            layer.material = ini.material.wall
         elseif layer.type == Int(_tf_)
-            layer.material = par.tf.technology.material
+            layer.material = ini.tf.technology.material
         elseif layer.type == Int(_shield_)
-            layer.material = par.material.shield
+            layer.material = ini.material.shield
         elseif layer.type == Int(_blanket_)
-            layer.material = par.material.blanket
+            layer.material = ini.material.blanket
         elseif layer.type == Int(_wall_)
-            layer.material = par.material.wall
+            layer.material = ini.material.wall
         elseif layer.type == Int(_vessel_)
             layer.material = layer.material = "Water, Liquid"
         end

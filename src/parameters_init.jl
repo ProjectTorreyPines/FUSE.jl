@@ -1,28 +1,20 @@
 using FusionMaterials: FusionMaterials
 
-# load parameters from different case studies
-# NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
-case_parameters = Symbol[]
-for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
-    push!(case_parameters, Symbol(splitext(filename)[1]))
-    include("../cases/" * filename)
-end
-
 """
-    Parameters()
+    InitParameters()
 
-Generates parameters 
+Generates initalization parameters 
 """
-function Parameters()
-    par = Parameters(Symbol[], Dict{Symbol,Union{Parameter,Parameters}}())
+function InitParameters()
+    par = InitParameters(Symbol[], Dict{Symbol,Union{Parameter,InitParameters}}())
     for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
-        setproperty!(par, item, Parameters(item))
+        setproperty!(par, item, InitParameters(item))
     end
     return par
 end
 
-function Parameters(::Type{Val{:general}})
-    general = Parameters(nothing)
+function InitParameters(::Type{Val{:general}})
+    general = InitParameters(nothing)
     general.casename = Entry(String, "", "Mnemonic name of the case being run")
     options = [
         :ods => "Load data from ODS saved in .json format",
@@ -33,16 +25,16 @@ function Parameters(::Type{Val{:general}})
     return general
 end
 
-function Parameters(::Type{Val{:material}})
-    material = Parameters(nothing)
+function InitParameters(::Type{Val{:material}})
+    material = InitParameters(nothing)
     material.wall = Switch(FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default="Steel, Stainless 316")
     material.blanket = Switch(FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
     material.shield = Switch(FusionMaterials.available_materials("shield_materials"), "", "Material used for the shield")
     return material
 end
 
-function Parameters(::Type{Val{:equilibrium}})
-    equilibrium = Parameters(nothing)
+function InitParameters(::Type{Val{:equilibrium}})
+    equilibrium = InitParameters(nothing)
     equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
     equilibrium.R0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
     equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default=0.0)
@@ -62,8 +54,8 @@ function Parameters(::Type{Val{:equilibrium}})
     return equilibrium
 end
 
-function Parameters(::Type{Val{:core_profiles}})
-    core_profiles = Parameters(nothing)
+function InitParameters(::Type{Val{:core_profiles}})
+    core_profiles = InitParameters(nothing)
     core_profiles.ne_ped = Entry(Real, "m^-3", "Pedestal electron density")
     core_profiles.n_peaking = Entry(Real, "", "Ratio of core/pedestal densities")
     core_profiles.T_shaping = Entry(Real, "", "Temperature shaping factor")
@@ -77,40 +69,33 @@ function Parameters(::Type{Val{:core_profiles}})
     return core_profiles
 end
 
-function Parameters(::Type{Val{:pf_active}})
-    pf_active = Parameters(nothing)
-    options = [
-        :point => "one filament per coil",
-        :simple => "like :point, but OH coils have three filaments",
-        :corners => "like :simple, but PF coils have filaments at the four corners",
-        :realistic => "hundreds of filaments per coil (very slow!)",
-    ]
-    pf_active.green_model = Switch(options, "", "Model used for the Greens function calculation"; default=:simple)
+function InitParameters(::Type{Val{:pf_active}})
+    pf_active = InitParameters(nothing)
     pf_active.n_oh_coils = Entry(Int, "", "Number of OH coils")
     pf_active.n_pf_coils_inside = Entry(Int, "", "Number of PF coils inside of the TF")
     pf_active.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")
-    pf_active.technology = Parameters(:coil_technology)
+    pf_active.technology = InitParameters(:coil_technology)
     return pf_active
 end
 
-function Parameters(::Type{Val{:tf}})
-    tf = Parameters(nothing)
+function InitParameters(::Type{Val{:tf}})
+    tf = InitParameters(nothing)
     tf.n_coils = Entry(Int, "", "Number of TF coils")
     options = [:princeton_D, :rectangle, :triple_arc, :miller, :spline]
     tf.shape = Switch(options, "", "Shape of the TF coils"; default=:triple_arc)
-    tf.technology = Parameters(:coil_technology)
+    tf.technology = InitParameters(:coil_technology)
     return tf
 end
 
-function Parameters(::Type{Val{:oh}})
-    oh = Parameters(nothing)
-    oh.technology = Parameters(:coil_technology)
+function InitParameters(::Type{Val{:oh}})
+    oh = InitParameters(nothing)
+    oh.technology = InitParameters(:coil_technology)
     oh.flattop_duration = Entry(Real, "s", "Duration of the flattop (use Inf for steady-state)")
     return oh
 end
 
-function Parameters(::Type{Val{:center_stack}})
-    center_stack = Parameters(nothing)
+function InitParameters(::Type{Val{:center_stack}})
+    center_stack = InitParameters(nothing)
     center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default=false)
     center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
     center_stack.plug = Entry(Bool, "", "flag for center plug"; default=false)
@@ -118,8 +103,8 @@ function Parameters(::Type{Val{:center_stack}})
 end
 
 
-function Parameters(::Type{Val{:nbi}})
-    nbi = Parameters(nothing)
+function InitParameters(::Type{Val{:nbi}})
+    nbi = InitParameters(nothing)
     nbi.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "Beam power")
     nbi.beam_energy = Entry(Union{X,Vector{X}} where {X<:Real}, "eV", "Beam energy")
     nbi.beam_mass = Entry(Union{X,Vector{X}} where {X<:Real}, "AU", "Beam mass"; default=2.0)
@@ -127,26 +112,26 @@ function Parameters(::Type{Val{:nbi}})
     return nbi
 end
 
-function Parameters(::Type{Val{:ec}})
-    ec = Parameters(nothing)
+function InitParameters(::Type{Val{:ec}})
+    ec = InitParameters(nothing)
     ec.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "EC launched power")
     return ec
 end
 
-function Parameters(::Type{Val{:ic}})
-    ic = Parameters(nothing)
+function InitParameters(::Type{Val{:ic}})
+    ic = InitParameters(nothing)
     ic.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "IC launched power")
     return ic
 end
 
-function Parameters(::Type{Val{:lh}})
-    lh = Parameters(nothing)
+function InitParameters(::Type{Val{:lh}})
+    lh = InitParameters(nothing)
     lh.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "LH launched power")
     return lh
 end
 
-function Parameters(::Type{Val{:build}})
-    build = Parameters(nothing)
+function InitParameters(::Type{Val{:build}})
+    build = InitParameters(nothing)
     build.layers = Entry(DataStructures.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
     build.blanket = Entry(Float64, "", "Fraction of blanket in radial build")
     build.shield = Entry(Float64, "", "Fraction of shield in radial build")
@@ -155,22 +140,22 @@ function Parameters(::Type{Val{:build}})
     return build
 end
 
-function Parameters(::Type{Val{:gasc}})
-    gasc = Parameters(nothing)
+function InitParameters(::Type{Val{:gasc}})
+    gasc = InitParameters(nothing)
     gasc.filename = Entry(String, "", "Output GASC .json file from which data will be loaded")
     gasc.case = Entry(Int, "", "Number of the GASC run to load")
     gasc.no_small_gaps = Entry(Bool, "", "Remove small gaps from the GASC radial build"; default=true)
     return gasc
 end
 
-function Parameters(::Type{Val{:ods}})
-    ods = Parameters(nothing)
+function InitParameters(::Type{Val{:ods}})
+    ods = InitParameters(nothing)
     ods.filename = Entry(String, "", "ODS.json file from which equilibrium is loaded")
     return ods
 end
 
-function Parameters(::Type{Val{:coil_technology}})
-    coil_tech = Parameters(nothing)
+function InitParameters(::Type{Val{:coil_technology}})
+    coil_tech = InitParameters(nothing)
     coil_tech.material = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Technology used for the coil.")
     coil_tech.temperature = Entry(Real, "K", "Coil temperature")
     coil_tech.thermal_strain = Entry(Real, "", "Fraction of thermal expansion strain over maximum total strain on coil")

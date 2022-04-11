@@ -1,27 +1,27 @@
 """
-    init(dd::IMAS.dd, par::Parameters; do_plot = false)
+    init(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; do_plot=false)
 
 Initialize all IDSs if there are parameters for it or is initialized from ods
 """
-function init(dd::IMAS.dd, par::Parameters; do_plot=false)
+function init(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; do_plot=false)
     ods_items = []
     # Check what is in the ods to load
-    if par.general.init_from == :ods
-        ods_items = keys(IMAS.json2imas(par.ods.filename))
+    if ini.general.init_from == :ods
+        ods_items = keys(IMAS.json2imas(ini.ods.filename))
     end
 
     # initialize equilibrium
-    if !ismissing(par.equilibrium, :B0) || :equilibrium ∈ ods_items
-        init_equilibrium(dd, par)
-    end
-    if do_plot
-        plot(dd.equilibrium.time_slice[end]; x_point=true)
-        display(plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z,label="Field null"))
+    if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
+        init_equilibrium(dd, ini, act)
+        if do_plot
+            plot(dd.equilibrium.time_slice[end]; x_point=true)
+            display(plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z, label="Field null"))
+        end
     end
 
     # initialize build
-    if !ismissing(par.build, :vessel) || !ismissing(par.build, :layers) || :build ∈ ods_items
-        init_build(dd, par)
+    if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || :build ∈ ods_items
+        init_build(dd, ini, act)
         if do_plot
             plot(dd.equilibrium, color=:gray)
             plot!(dd.build)
@@ -30,8 +30,8 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize oh and pf coils
-    if !ismissing(par.pf_active, :n_oh_coils) || :pf_active ∈ ods_items
-        init_pf_active(dd, par)
+    if !ismissing(ini.pf_active, :n_oh_coils) || :pf_active ∈ ods_items
+        init_pf_active(dd, ini, act)
         if do_plot
             plot(dd.equilibrium, color=:gray)
             plot!(dd.build)
@@ -41,16 +41,16 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize core profiles
-    if !ismissing(par.core_profiles, :bulk) || :core_profiles ∈ ods_items
-        init_core_profiles(dd, par)
+    if !ismissing(ini.core_profiles, :bulk) || :core_profiles ∈ ods_items
+        init_core_profiles(dd, ini, act)
         if do_plot
             display(plot(dd.core_profiles))
         end
     end
 
     # initialize core sources
-    if !ismissing(par.ec, :power_launched) || !ismissing(par.ic, :power_launched) || !ismissing(par.lh, :power_launched) || !ismissing(par.nbi, :power_launched) || :core_sources ∈ ods_items
-        init_core_sources(dd, par)
+    if !ismissing(ini.ec, :power_launched) || !ismissing(ini.ic, :power_launched) || !ismissing(ini.lh, :power_launched) || !ismissing(ini.nbi, :power_launched) || :core_sources ∈ ods_items
+        init_core_sources(dd, ini, act)
         if do_plot
             display(plot(dd.core_sources))
             display(plot(dd.core_sources; integrated=true))
@@ -58,7 +58,14 @@ function init(dd::IMAS.dd, par::Parameters; do_plot=false)
     end
 
     # initialize missing IDSs (if loading from ODS)
-    init_missing(dd, par)
+    init_missing(dd, ini, act)
 
     return dd
+end
+
+function init(case::Symbol; do_plot=false, kw...)
+    ini, act = FUSE.case_parameters(case; kw...)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act; do_plot=do_plot)
+    return dd, ini, act
 end

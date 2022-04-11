@@ -125,7 +125,7 @@ end
 Return coil parameters depending of technology [:copper, :LTS, :HTS]
 """
 function coil_technology(technology::Symbol)
-    coil_tech = Parameters(:coil_technology)
+    coil_tech = InitParameters(:coil_technology)
     if technology == :copper
         coil_tech.material = "copper"
         coil_tech.temperature = 293.0
@@ -259,9 +259,9 @@ function solve_1D_solid_mechanics!(
     R_oh_out;                              # : (float) major radius of outboard edge of OH coil, meters
     axial_stress_tf_avg = nothing,         # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
     axial_stress_oh_avg = nothing,         # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
-    bucked = false,                        # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
-    noslip = false,                        # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
-    plug = false,                          # : (bool), flag for center plug
+    bucked::Bool = false,                  # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
+    noslip::Bool = false,                  # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
+    plug::Bool = false,                    # : (bool), flag for center plug
     f_struct_tf = 1.0,                     # : (float), fraction of TF coil that is structural material
     f_struct_oh = 1.0,                     # : (float), fraction of OH coil that is structural material
     f_struct_pl = 1.0,                     # : (float), fraction of plug that is structural material
@@ -273,8 +273,8 @@ function solve_1D_solid_mechanics!(
     gam_pl = stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for center plug, (default is stainless steel)
     f_tf_sash = 0.873,                     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
     f_oh_sash = 0.37337,                   # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
-    n_points = 21,                          # : (int), number of radial points
-    verbose = false                        # : (bool), flag for verbose output to terminal
+    n_points::Integer = 21,                # : (int), number of radial points
+    verbose::Bool = false                  # : (bool), flag for verbose output to terminal
 )
 
     tp = typeof(promote(R0, B0, R_tf_in, R_tf_out, Bz_oh, R_oh_in,R_oh_out)[1])
@@ -588,6 +588,10 @@ function solve_1D_solid_mechanics!(
         axial_stress_pl_avg *= 1.0 / f_struct_pl
         vonmises_stress_pl *= 1.0 / f_struct_pl
     end
+
+    smcs.bucked = Int(bucked)
+    smcs.noslip = Int(noslip)
+    smcs.plug = Int(plug)
 
     smcs.grid.r_tf = r_tf
     smcs.grid.r_oh = r_oh

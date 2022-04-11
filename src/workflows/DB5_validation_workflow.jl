@@ -5,31 +5,32 @@ import ProgressMeter
 
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
-                                par::Parameters;
+                                ini::InitParameters;
+                                act::ActorParameters;
                                 save_directory::String,
                                 do_plot :: Bool)
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
-    FUSE.init_equilibrium(dd, par) # already solves the equilibrium once
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
+    FUSE.init_equilibrium(dd, ini, act) # already solves the equilibrium once
 
     # correct equilibrium volume and area
-    if !ismissing(par.equilibrium, :volume)
-        dd.equilibrium.time_slice[].profiles_1d.volume .*= par.equilibrium.volume / dd.equilibrium.time_slice[].profiles_1d.volume[end]
+    if !ismissing(ini.equilibrium, :volume)
+        dd.equilibrium.time_slice[].profiles_1d.volume .*= ini.equilibrium.volume / dd.equilibrium.time_slice[].profiles_1d.volume[end]
     end
-    if !ismissing(par.equilibrium, :area)
-        dd.equilibrium.time_slice[].profiles_1d.area .*= par.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
+    if !ismissing(ini.equilibrium, :area)
+        dd.equilibrium.time_slice[].profiles_1d.area .*= ini.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
     end
 
-    FUSE.init_core_profiles(dd, par)
-    FUSE.init_core_sources(dd, par)
+    FUSE.init_core_profiles(dd, ini, act)
+    FUSE.init_core_sources(dd, ini, act)
 
     # Set j_ohmic to steady state
     IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
 
     # run transport actor
-    FUSE.TauennActor(dd, par; transport_model=transport_model, warn_nn_train_bounds, verbose=verbose)
+    FUSE.TauennActor(dd, act; transport_model=transport_model, warn_nn_train_bounds, verbose=verbose)
 
     # Set beta_normal from equilbrium to the kinetic beta_n
     if !isempty(dd.core_profiles.profiles_1d)
@@ -37,24 +38,24 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, par::Parameters; sav
     end
 
     # run equilibrium actor with the updated beta
-    FUSE.SolovevEquilibriumActor(dd, par)
+    FUSE.SolovevActor(dd, act)
 
     # correct equilibrium volume and area
-    if !ismissing(par.equilibrium, :volume)
-        dd.equilibrium.time_slice[].profiles_1d.volume .*= par.equilibrium.volume / dd.equilibrium.time_slice[].profiles_1d.volume[end]
+    if !ismissing(ini.equilibrium, :volume)
+        dd.equilibrium.time_slice[].profiles_1d.volume .*= ini.equilibrium.volume / dd.equilibrium.time_slice[].profiles_1d.volume[end]
     end
-    if !ismissing(par.equilibrium, :area)
-        dd.equilibrium.time_slice[].profiles_1d.area .*= par.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
+    if !ismissing(ini.equilibrium, :area)
+        dd.equilibrium.time_slice[].profiles_1d.area .*= ini.equilibrium.area / dd.equilibrium.time_slice[].profiles_1d.area[end]
     end
 
     if do_plot
-        display(plot(dd.equilibrium, psi_levels_out=[], label=par.general.casename))
+        display(plot(dd.equilibrium, psi_levels_out=[], label=ini.general.casename))
         display(plot(dd.core_profiles))
         display(plot(dd.core_sources))
     end
 
     if !isempty(save_directory)
-        IMAS.imas2json(dd, joinpath(save_directory, "$(par.general.casename).json"))
+        IMAS.imas2json(dd, joinpath(save_directory, "$(ini.general.casename).json"))
     end
     return dd
 end
@@ -95,8 +96,9 @@ function transport_validation_workflow(;
     Base.Threads.@threads for idx in 1:length(DataFrames.Tables.rows(tbl))
         try
             dd = IMAS.dd()
-            par = Parameters(run_df[idx, :])
-            simple_equilibrium_transport_workflow(dd, par; save_directory, do_plot=show_dd_plots, warn_nn_train_bounds=false)
+            ini = InitParameters(run_df[idx, :])
+            act = ActorParameters()
+            simple_equilibrium_transport_workflow(dd, ini, act; save_directory, do_plot=show_dd_plots, warn_nn_train_bounds=false)
             tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
             if verbose
                 display(println("τ_fuse = $(@ddtime(dd.summary.global_quantities.tau_energy.value)) τ_hdb5 = $(run_df[idx, :TAUTH])"))
