@@ -11,7 +11,7 @@ function ActorParameters(::Type{Val{:FluxSwingActor}})
     return par
 end
 
-function FluxSwingActor(dd::IMAS.dd, act::ActorParameters)
+function FluxSwingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.FluxSwingActor(kw...)
     actor = FluxSwingActor(dd)
     step(actor)
@@ -234,17 +234,24 @@ function ActorParameters(::Type{Val{:OHTFsizingActor}})
     par = ActorParameters(nothing)
     par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
     par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
+    par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
 
 function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.OHTFsizingActor(kw...)
+    if par.do_plot
+        plot(dd.build)
+    end
     fluxswing_actor = FluxSwingActor(dd, act)
     stresses_actor = StressesActor(dd, act)
     actor = OHTFsizingActor(stresses_actor, fluxswing_actor)
     step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance)
     finalize(actor)
+    if par.do_plot
+        display(plot!(dd.build; cx=false))
+    end
     return actor
 end
 
@@ -311,14 +318,21 @@ end
 function ActorParameters(::Type{Val{:CXbuildActor}})
     par = ActorParameters(nothing)
     par.rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
+    par.do_plot = Entry(Bool, "", "plot"; default=false)
     return par
 end
 
 function CXbuildActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.CXbuildActor(kw...)
+    if par.do_plot
+        plot(dd.build; cx=false)
+    end
     actor = CXbuildActor(dd)
     step(actor; rebuild_wall=par.rebuild_wall)
     finalize(actor)
+    if par.do_plot
+        display(plot!(dd.build))
+    end
     return actor
 end
 
