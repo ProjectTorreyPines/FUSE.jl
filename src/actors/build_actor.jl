@@ -6,7 +6,13 @@ mutable struct FluxSwingActor <: AbstractActor
     dd::IMAS.dd
 end
 
+function ActorParameters(::Type{Val{:FluxSwingActor}})
+    par = ActorParameters(nothing)
+    return par
+end
+
 function FluxSwingActor(dd::IMAS.dd, act::ActorParameters)
+    par = act.FluxSwingActor(kw...)
     actor = FluxSwingActor(dd)
     step(actor)
     finalize(actor)
@@ -153,7 +159,13 @@ mutable struct StressesActor <: AbstractActor
     dd::IMAS.dd
 end
 
-function StressesActor(dd::IMAS.dd, act::ActorParameters)
+function ActorParameters(::Type{Val{:StressesActor}})
+    par = ActorParameters(nothing)
+    return par
+end
+
+function StressesActor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.StressesActor(kw...)
     actor = StressesActor(dd)
     step(actor)
     finalize(actor)

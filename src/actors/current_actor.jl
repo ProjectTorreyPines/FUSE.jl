@@ -12,11 +12,18 @@ mutable struct QEDcurrentActor <: AbstractActor
     tmax
 end
 
-# function QEDcurrentActor(dd::IMAS.dd, par::ActorParameters)
-#     actor = QEDcurrentActor(dd)
-#     step(actor; ...)
-#     finalize(actor)
-# end
+function ActorParameters(::Type{Val{:QEDcurrentActor}})
+    par = ActorParameters(nothing)
+    return par
+end
+
+function QEDcurrentActor(dd::IMAS.dd, act::ActorParameters)
+    par = act.QEDcurrentActor(kw...)
+    actor = QEDcurrentActor(dd)
+    step(actor)
+    finalize(actor)
+    return actor
+end
 
 function QEDcurrentActor(dd::IMAS.dd)
     QEDcurrentActor(dd, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), 0.0)
