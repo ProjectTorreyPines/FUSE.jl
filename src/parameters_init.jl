@@ -38,10 +38,6 @@ function InitParameters(::Type{Val{:equilibrium}})
     equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
     equilibrium.R0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
     equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default=0.0)
-
-    equilibrium.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
-    equilibrium.area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
-
     equilibrium.ϵ = Entry(Real, "", "Plasma aspect ratio")
     equilibrium.δ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :triangularity)
     equilibrium.κ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :elongation)
