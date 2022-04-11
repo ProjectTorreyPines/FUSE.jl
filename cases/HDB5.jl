@@ -21,9 +21,10 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.equilibrium.κ = data_row[:KAPPA]
     ini.equilibrium.δ = data_row[:DELTA]
     ini.equilibrium.βn = 1.0
-    ini.equilibrium.area = data_row[:AREA]
-    ini.equilibrium.volume = data_row[:VOL]
     ini.equilibrium.ip = data_row[:IP]
+
+    act.SolovevActor.area = data_row[:AREA]
+    act.SolovevActor.volume = data_row[:VOL]
 
     x_point = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]), data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
 

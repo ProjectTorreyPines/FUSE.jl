@@ -256,6 +256,7 @@ function (par::Parameters)(kw...)
         end
     end
     return par
+end
 
 function evalmissing(p::Parameters, field::Symbol)
     return getfield(p, :_parameters)[field].value
