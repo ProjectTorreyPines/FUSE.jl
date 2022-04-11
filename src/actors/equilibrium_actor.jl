@@ -13,6 +13,8 @@ end
 function ActorParameters(::Type{Val{:SolovevActor}})
     par = ActorParameters(nothing)
     par.ngrid = Entry(Integer, "", "ngrid"; default=129)
+    par.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
+    par.area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
@@ -21,7 +23,7 @@ function SolovevActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.SolovevActor(kw...)
     actor = SolovevActor(dd.equilibrium)
     step(actor; par.verbose)
-    finalize(actor, ngrid=par.ngrid)
+    finalize(actor, ngrid=par.ngrid, volume=evalmissing(par, :volume), area=evalmissing(par, :area))
 end
 
 """
@@ -140,6 +142,8 @@ Store SolovevActor data in IMAS.equilibrium format
 function finalize(
     actor::SolovevActor;
     ngrid::Int=129,
+    volume::Union{Missing,Real}=missing,
+    area::Union{Missing,Real}=missing,
     rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
     zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
 )::IMAS.equilibrium__time_slice
@@ -182,6 +186,14 @@ function finalize(
 
     eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
     IMAS.flux_surfaces(eqt)
+
+    # correct equilibrium volume and area
+    if !ismissing(volume)
+        eqt.profiles_1d.volume .*= volume / eqt.profiles_1d.volume[end]
+    end
+    if !ismissing(area)
+        eqt.profiles_1d.area .*= area / eqt.profiles_1d.area[end]
+    end
 
     return eqt
 end
