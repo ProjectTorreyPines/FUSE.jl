@@ -135,7 +135,7 @@ end
 
 function Base.getproperty(p::Parameters, key::Symbol)
     _parameter = getfield(p, :_parameters)
-    if !(key in keys(_parameter))
+    if key ∉ keys(_parameter)
         throw(InexistentParameterException(typeof(p), vcat(getfield(p, :_path), key)))
     end
     parameter = _parameter[key]
@@ -243,6 +243,21 @@ function Base.ismissing(p::Parameters, field::Symbol)::Bool
     return getfield(p, :_parameters)[field].value === missing
 end
 
+"""
+    (par::Parameters)(kw...)
+
+This functor is used to override the parameters at function call
+"""
+function (par::Parameters)(kw...)
+    if !isempty(kw)
+        par = deepcopy(par)
+        for (key, value) in kw
+            setproperty!(par, key, value)
+        end
+    end
+    return par
+end
+
 #= ================= =#
 #  Parameters errors  #
 #= ================= =#
@@ -271,3 +286,18 @@ struct BadParameterException <: Exception
     options::Vector{Any}
 end
 Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) value `$(repr(e.value))` is not one of the valid options: $(join(map(repr,e.options),", "))")
+
+#= ============ =#
+#  case studies  #
+#= ============ =#
+# NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
+for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
+    include("../cases/" * filename)
+end
+
+function case_parameters(case::Symbol; kw...)
+    if length(methods(case_parameters, (Type{Val{case}},))) == 0
+        throw(InexistentParameterException(case_parameters, [case]))
+    end
+    return case_parameters(Val{case}; kw...)
+end

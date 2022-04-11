@@ -64,9 +64,8 @@ function init(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; do_plot=fa
 end
 
 function init(case::Symbol; do_plot=false, kw...)
-    ini = FUSE.InitParameters(case; kw...)
-    act = FUSE.ActorParameters()
+    ini, act = FUSE.case_parameters(case; kw...)
     dd = IMAS.dd()
     FUSE.init(dd, ini, act; do_plot=do_plot)
-    return dd, act
+    return dd, ini, act
 end

@@ -1,13 +1,5 @@
 using FusionMaterials: FusionMaterials
 
-# load parameters from different case studies
-# NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
-case_parameters = Symbol[]
-for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
-    push!(case_parameters, Symbol(splitext(filename)[1]))
-    include("../cases/" * filename)
-end
-
 """
     InitParameters()
 
@@ -79,13 +71,6 @@ end
 
 function InitParameters(::Type{Val{:pf_active}})
     pf_active = InitParameters(nothing)
-    options = [
-        :point => "one filament per coil",
-        :simple => "like :point, but OH coils have three filaments",
-        :corners => "like :simple, but PF coils have filaments at the four corners",
-        :realistic => "hundreds of filaments per coil (very slow!)",
-    ]
-    pf_active.green_model = Switch(options, "", "Model used for the Greens function calculation"; default=:simple)
     pf_active.n_oh_coils = Entry(Int, "", "Number of OH coils")
     pf_active.n_pf_coils_inside = Entry(Int, "", "Number of PF coils inside of the TF")
     pf_active.n_pf_coils_outside = Entry(Int, "", "Number of PF coils outside of the TF")

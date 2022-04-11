@@ -226,8 +226,8 @@ function ActorParameters(::Type{Val{:OHTFsizingActor}})
     return par
 end
 
-function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters)
-    par = act.OHTFsizingActor
+function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.OHTFsizingActor(kw...)
     fluxswing_actor = FluxSwingActor(dd, act)
     stresses_actor = StressesActor(dd, act)
     actor = OHTFsizingActor(stresses_actor, fluxswing_actor)
@@ -299,12 +299,11 @@ end
 function ActorParameters(::Type{Val{:CXbuildActor}})
     par = ActorParameters(nothing)
     par.rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
 
-function CXbuildActor(dd::IMAS.dd, act::ActorParameters)
-    par = act.CXbuildActor
+function CXbuildActor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.CXbuildActor(kw...)
     if par.rebuild_wall # regenerate build based on new equilibrium
         empty!(dd.wall)
     end

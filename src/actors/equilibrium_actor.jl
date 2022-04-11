@@ -17,8 +17,8 @@ function ActorParameters(::Type{Val{:SolovevActor}})
     return par
 end
 
-function SolovevActor(dd::IMAS.dd, act::ActorParameters)
-    par = act.SolovevActor
+function SolovevActor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.SolovevActor(kw...)
     actor = SolovevActor(dd.equilibrium)
     step(actor; par.verbose)
     finalize(actor, ngrid=par.ngrid)

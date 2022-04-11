@@ -1,41 +1,41 @@
 """
-    InitParameters(gasc::GASC)
+    case_parameters(gasc::GASC)
 
 Map GASC inputs and solution to FUSE input scalar parameters
 """
 function InitParameters(gasc::GASC; no_small_gaps::Bool=true, vacuum_vessel::Float64=0.1)
-    par = InitParameters()
+    ini = InitParameters()
 
-    par.gasc.filename = gasc.filename
-    par.gasc.case = gasc.case
-    par.general.casename = gasc.solution["INPUTS"]["NAME"]["device_name"]
-    par.general.init_from = :gasc
+    ini.gasc.filename = gasc.filename
+    ini.gasc.case = gasc.case
+    ini.general.casename = gasc.solution["INPUTS"]["NAME"]["device_name"]
+    ini.general.init_from = :gasc
 
-    gasc_2_build(par, gasc; no_small_gaps, vacuum_vessel)
+    gasc_2_build(ini, gasc; no_small_gaps, vacuum_vessel)
 
-    gasc_2_equilibrium(par, gasc)
+    gasc_2_equilibrium(ini, gasc)
 
-    gasc_2_sources_par(par, gasc)
+    gasc_2_sources_par(ini, gasc)
 
-    return set_new_base!(par)
+    return set_new_base!(ini)
 end
 
-function gasc_2_equilibrium(par::Parameters, gasc::GASC)
+function gasc_2_equilibrium(ini::InitParameters, gasc::GASC)
     gascsol = gasc.solution
-    par.equilibrium.B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
-    par.equilibrium.R0 = gascsol["INPUTS"]["radial build"]["majorRadius"]
-    par.equilibrium.Z0 = 0.0
-    par.equilibrium.ϵ = 1 / gascsol["INPUTS"]["radial build"]["aspectRatio"]
-    par.equilibrium.κ = gascsol["OUTPUTS"]["plasma parameters"]["elongation"]
-    par.equilibrium.δ = gascsol["INPUTS"]["plasma parameters"]["triangularity"]
-    par.equilibrium.βn = gascsol["OUTPUTS"]["plasma parameters"]["betaN"]
-    par.equilibrium.ip = gascsol["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
-    par.equilibrium.x_point = gascsol["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
-    par.equilibrium.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
-    return par
+    ini.equilibrium.B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
+    ini.equilibrium.R0 = gascsol["INPUTS"]["radial build"]["majorRadius"]
+    ini.equilibrium.Z0 = 0.0
+    ini.equilibrium.ϵ = 1 / gascsol["INPUTS"]["radial build"]["aspectRatio"]
+    ini.equilibrium.κ = gascsol["OUTPUTS"]["plasma parameters"]["elongation"]
+    ini.equilibrium.δ = gascsol["INPUTS"]["plasma parameters"]["triangularity"]
+    ini.equilibrium.βn = gascsol["OUTPUTS"]["plasma parameters"]["betaN"]
+    ini.equilibrium.ip = gascsol["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
+    ini.equilibrium.x_point = gascsol["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
+    ini.equilibrium.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
+    return ini
 end
 
-function gasc_2_sources_par(par::Parameters, gasc::GASC)
+function gasc_2_sources_par(ini::InitParameters, gasc::GASC)
     gascsol = gasc.solution
 
     injected_power = gascsol["OUTPUTS"]["current drive"]["powerAux"] * 1E6
@@ -49,48 +49,48 @@ function gasc_2_sources_par(par::Parameters, gasc::GASC)
         cd_powers[system] = cd_power * gascsol["INPUTS"]["current drive"]["$(system)CDFraction"]
     end
 
-    par.nbi.power_launched = Float64[]
-    par.nbi.beam_energy = Float64[]
+    ini.nbi.power_launched = Float64[]
+    ini.nbi.beam_energy = Float64[]
     if heating_power >0
-        push!(par.nbi.power_launched, heating_power)
-        push!(par.nbi.beam_energy, 200e3)
+        push!(ini.nbi.power_launched, heating_power)
+        push!(ini.nbi.beam_energy, 200e3)
     end
     if cd_powers["NB"] >0
-        push!(par.nbi.power_launched, cd_powers["NB"])
-        push!(par.nbi.beam_energy, 200e3)
+        push!(ini.nbi.power_launched, cd_powers["NB"])
+        push!(ini.nbi.beam_energy, 200e3)
     end
     if cd_powers["NNB"] >0
-        push!(par.nbi.power_launched, cd_powers["NNB"])
-        push!(par.nbi.beam_energy, 1000e3)
+        push!(ini.nbi.power_launched, cd_powers["NNB"])
+        push!(ini.nbi.beam_energy, 1000e3)
     end
-    par.lh.power_launched = Float64[]
+    ini.lh.power_launched = Float64[]
     if cd_powers["LH"] > 0
-        push!(par.lh.power_launched, cd_powers["LH"])
+        push!(ini.lh.power_launched, cd_powers["LH"])
     end
     if cd_powers["HI"] > 0
-        push!(par.lh.power_launched, cd_powers["HI"])
+        push!(ini.lh.power_launched, cd_powers["HI"])
     end
-    par.ic.power_launched = cd_powers["FW"]
-    par.ec.power_launched = cd_powers["EC"]
+    ini.ic.power_launched = cd_powers["FW"]
+    ini.ec.power_launched = cd_powers["EC"]
 
-    return par
+    return ini
 end
 
-function gasc_2_build(par::Parameters, gasc::GASC; no_small_gaps::Bool, vacuum_vessel::Float64)
+function gasc_2_build(ini::InitParameters, gasc::GASC; no_small_gaps::Bool, vacuum_vessel::Float64)
     gascsol = gasc.solution
-    par.build.layers = gasc_to_layers(gascsol["INPUTS"]["radial build"]; no_small_gaps, vacuum_vessel)
-    par.build.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
+    ini.build.layers = gasc_to_layers(gascsol["INPUTS"]["radial build"]; no_small_gaps, vacuum_vessel)
+    ini.build.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
 
-    par.tf.technology = coil_technology(gasc, :TF)
-    par.oh.technology = coil_technology(gasc, :OH)
-    par.pf_active.technology = coil_technology(gasc, :PF)
+    ini.tf.technology = coil_technology(gasc, :TF)
+    ini.oh.technology = coil_technology(gasc, :OH)
+    ini.pf_active.technology = coil_technology(gasc, :PF)
 
-    par.center_stack.bucked = gascsol["INPUTS"]["radial build"]["isBucked"]
-    par.center_stack.noslip = gascsol["INPUTS"]["radial build"]["nonSlip"]
-    par.center_stack.plug = gascsol["INPUTS"]["radial build"]["hasPlug"]
+    ini.center_stack.bucked = gascsol["INPUTS"]["radial build"]["isBucked"]
+    ini.center_stack.noslip = gascsol["INPUTS"]["radial build"]["nonSlip"]
+    ini.center_stack.plug = gascsol["INPUTS"]["radial build"]["hasPlug"]
 
-    par.oh.flattop_duration = gascsol["INPUTS"]["plasma parameters"]["flattopDuration"]
-    return par
+    ini.oh.flattop_duration = gascsol["INPUTS"]["plasma parameters"]["flattopDuration"]
+    return ini
 end
 
 """

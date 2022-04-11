@@ -1,40 +1,43 @@
-function InitParameters(::Type{Val{:D3D}})
-    par = InitParameters()
-    par.general.casename = "D3D"
-    par.general.init_from = :ods
+function case_parameters(::Type{Val{:D3D}})
+    ini = InitParameters()
+    act = ActorParameters()
 
-    par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "D3D_eq_ods.json")
+    ini.general.casename = "D3D"
+    ini.general.init_from = :ods
 
-    par.build.blanket = 0.0
-    par.build.shield = 0.0
-    par.build.vessel = 0.0
-    par.build.symmetric = true
+    ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "D3D_eq_ods.json")
 
-    par.pf_active.n_oh_coils = 10
-    par.pf_active.n_pf_coils_inside = 8
-    par.pf_active.n_pf_coils_outside = 0
-    par.pf_active.technology = coil_technology(:copper)
+    ini.build.blanket = 0.0
+    ini.build.shield = 0.0
+    ini.build.vessel = 0.0
 
-    par.tf.shape = :triple_arc
-    par.tf.n_coils = 18
-    par.tf.technology = coil_technology(:copper)
+    ini.pf_active.n_oh_coils = 10
+    ini.pf_active.n_pf_coils_inside = 8
+    ini.pf_active.n_pf_coils_outside = 0
+    ini.pf_active.technology = coil_technology(:copper)
 
-    par.oh.technology = coil_technology(:copper)
-    par.oh.flattop_duration = 5
+    ini.tf.shape = :triple_arc
+    ini.tf.n_coils = 18
+    ini.tf.technology = coil_technology(:copper)
 
-    par.core_profiles.ne_ped = 5E19
-    par.core_profiles.n_peaking = 1.5
-    par.core_profiles.T_shaping = 1.8
-    par.core_profiles.w_ped = 0.08
-    par.core_profiles.zeff = 2.0
-    par.core_profiles.rot_core = 5E3
-    par.core_profiles.bulk = :D
-    par.core_profiles.impurity = :C
+    ini.oh.technology = coil_technology(:copper)
+    ini.oh.flattop_duration = 5
 
-    par.nbi.power_launched = 5E6
-    par.nbi.beam_energy = 80e3
-    par.nbi.beam_mass = 2
-    par.nbi.toroidal_angle = 20.0 / 180 * pi
+    ini.core_profiles.ne_ped = 5E19
+    ini.core_profiles.n_peaking = 1.5
+    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.w_ped = 0.08
+    ini.core_profiles.zeff = 2.0
+    ini.core_profiles.rot_core = 5E3
+    ini.core_profiles.bulk = :D
+    ini.core_profiles.impurity = :C
 
-    return set_new_base!(par)
+    ini.nbi.power_launched = 5E6
+    ini.nbi.beam_energy = 80e3
+    ini.nbi.beam_mass = 2
+    ini.nbi.toroidal_angle = 20.0 / 180 * pi
+
+    act.PFcoilsOptActor.symmetric = true
+
+    return set_new_base!(ini), set_new_base!(act)
 end
