@@ -15,8 +15,9 @@ include("utils.jl")
 #  PARAMETERS  #
 #= ========== =#
 include("parameters.jl")
-include("parameters_list.jl")
+include("parameters_init.jl")
 include("parameters_gasc.jl")
+include("parameters_actor.jl")
 
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #

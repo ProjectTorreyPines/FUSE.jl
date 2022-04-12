@@ -10,8 +10,17 @@ mutable struct SimpleNBIactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function SimpleNBIactor(dd::IMAS.dd, par::Parameters; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
-    actor = SimpleNBIactor(dd; width, rho_0, current_efficiency)
+function ActorParameters(::Type{Val{:SimpleNBIactor}})
+    par = ActorParameters(nothing)
+    par.width = Entry(Real,"","Width of the deposition profile";default=0.3)
+    par.rho_0 = Entry(Real,"","Radial location of the deposition profile";default=0.0)
+    par.current_efficiency = Entry(Real,"A/W","Current drive efficiency";default=0.3)
+    return par
+end
+
+function SimpleNBIactor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.SimpleNBIactor(kw...)
+    actor = SimpleNBIactor(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
 end
@@ -81,8 +90,17 @@ mutable struct SimpleECactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function SimpleECactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
-    actor = SimpleECactor(dd; width, rho_0, current_efficiency)
+function ActorParameters(::Type{Val{:SimpleECactor}})
+    par = ActorParameters(nothing)
+    par.width = Entry(Real,"","Width of the deposition profile";default=0.1)
+    par.rho_0 = Entry(Real,"","Radial location of the deposition profile";default=0.0)
+    par.current_efficiency = Entry(Real,"A/W","Current drive efficiency";default=0.2)
+    return par
+end
+
+function SimpleECactor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.SimpleECactor(kw...)
+    actor = SimpleECactor(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
 end
@@ -144,8 +162,17 @@ mutable struct SimpleICactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function SimpleICactor(dd::IMAS.dd, par::Parameters; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
-    actor = SimpleICactor(dd; width, rho_0, current_efficiency)
+function ActorParameters(::Type{Val{:SimpleICactor}})
+    par = ActorParameters(nothing)
+    par.width = Entry(Real,"","Width of the deposition profile";default=0.1)
+    par.rho_0 = Entry(Real,"","Radial location of the deposition profile";default=0.0)
+    par.current_efficiency = Entry(Real,"A/W","Current drive efficiency";default=0.125)
+    return par
+end
+
+function SimpleICactor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.SimpleICactor(kw...)
+    actor = SimpleICactor(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
 end
@@ -207,8 +234,17 @@ mutable struct SimpleLHactor <: AbstractActor
     current_efficiency::Vector{Real}
 end
 
-function SimpleLHactor(dd::IMAS.dd, par::Parameters; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
-    actor = SimpleLHactor(dd; width, rho_0, current_efficiency)
+function ActorParameters(::Type{Val{:SimpleLHactor}})
+    par = ActorParameters(nothing)
+    par.width = Entry(Real,"","Width of the deposition profile";default=0.15)
+    par.rho_0 = Entry(Real,"","Radial location of the deposition profile";default=0.6)
+    par.current_efficiency = Entry(Real,"A/W","Current drive efficiency";default=0.4)
+    return par
+end
+
+function SimpleLHactor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.SimpleLHactor(kw...)
+    actor = SimpleLHactor(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
 end

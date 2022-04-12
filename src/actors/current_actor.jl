@@ -1,5 +1,8 @@
 import QED
 
+#= =============== =#
+#  QEDcurrentActor  #
+#= =============== =#
 mutable struct QEDcurrentActor <: AbstractActor
     dd::IMAS.dd
     QI::QED.QED_state
@@ -9,9 +12,19 @@ mutable struct QEDcurrentActor <: AbstractActor
     tmax
 end
 
-#= =============== =#
-#  QEDcurrentActor  #
-#= =============== =#
+function ActorParameters(::Type{Val{:QEDcurrentActor}})
+    par = ActorParameters(nothing)
+    return par
+end
+
+function QEDcurrentActor(dd::IMAS.dd, act::ActorParameters)
+    par = act.QEDcurrentActor(kw...)
+    actor = QEDcurrentActor(dd)
+    step(actor)
+    finalize(actor)
+    return actor
+end
+
 function QEDcurrentActor(dd::IMAS.dd)
     QEDcurrentActor(dd, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), 0.0)
 end

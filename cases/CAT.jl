@@ -1,42 +1,45 @@
-function Parameters(::Type{Val{:CAT}})
-    par = Parameters()
-    par.general.casename = "CAT"
-    par.general.init_from = :ods
+function case_parameters(::Type{Val{:CAT}})
+    ini = InitParameters()
+    act = ActorParameters()
 
-    par.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "CAT_eq_ods.json")
+    ini.general.casename = "CAT"
+    ini.general.init_from = :ods
 
-    par.build.symmetric = true
-    par.build.blanket = 1.0
-    par.build.shield = 0.5
-    par.build.vessel = 0.125
-    par.material.shield = "Tungsten"
-    par.material.blanket = "FLiBe"
+    ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "CAT_eq_ods.json")
 
-    par.pf_active.n_oh_coils = 6
-    par.pf_active.n_pf_coils_inside = 0
-    par.pf_active.n_pf_coils_outside = 6
-    par.pf_active.technology = coil_technology(:ITER, :PF)
+    ini.build.blanket = 1.0
+    ini.build.shield = 0.5
+    ini.build.vessel = 0.125
+    ini.material.shield = "Tungsten"
+    ini.material.blanket = "FLiBe"
 
-    par.tf.shape = :triple_arc
-    par.tf.n_coils = 16
-    par.tf.technology = coil_technology(:ITER, :TF)
+    ini.pf_active.n_oh_coils = 6
+    ini.pf_active.n_pf_coils_inside = 0
+    ini.pf_active.n_pf_coils_outside = 6
+    ini.pf_active.technology = coil_technology(:ITER, :PF)
 
-    par.oh.technology = coil_technology(:ITER, :OH)
-    par.oh.flattop_duration = 1000
+    ini.tf.shape = :triple_arc
+    ini.tf.n_coils = 16
+    ini.tf.technology = coil_technology(:ITER, :TF)
 
-    par.core_profiles.ne_ped = 7E19
-    par.core_profiles.n_peaking = 1.5
-    par.core_profiles.T_shaping = 1.8
-    par.core_profiles.w_ped = 0.08
-    par.core_profiles.zeff = 2.5
-    par.core_profiles.rot_core = 0.0
-    par.core_profiles.bulk = :DT
-    par.core_profiles.impurity = :Ne
+    ini.oh.technology = coil_technology(:ITER, :OH)
+    ini.oh.flattop_duration = 1000
 
-    par.nbi.power_launched = 20E6
-    par.nbi.beam_energy = 200e3
-    par.nbi.beam_mass = 2
-    par.nbi.toroidal_angle = 0.0
+    ini.core_profiles.ne_ped = 7E19
+    ini.core_profiles.n_peaking = 1.5
+    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.w_ped = 0.08
+    ini.core_profiles.zeff = 2.5
+    ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.bulk = :DT
+    ini.core_profiles.impurity = :Ne
 
-    return set_new_base!(par)
+    ini.nbi.power_launched = 20E6
+    ini.nbi.beam_energy = 200e3
+    ini.nbi.beam_mass = 2
+    ini.nbi.toroidal_angle = 0.0
+
+    act.PFcoilsOptActor.symmetric = true
+
+    return set_new_base!(ini), set_new_base!(act)
 end
