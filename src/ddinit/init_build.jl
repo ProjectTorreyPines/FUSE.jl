@@ -347,35 +347,27 @@ end
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
 function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
-    # plasma
+    # plasma pr/pz scaled to 1D radial build
+    start_radius = IMAS.get_build(bd, type=_plasma_).start_radius
+    end_radius = IMAS.get_build(bd, type=_plasma_).end_radius
+    pr1 = minimum(pr)
+    pr2 = maximum(pr)
+    fact = (end_radius - start_radius) / (pr2 - pr1)
+    pz .= pz .* fact
+    pr .= (pr .- pr1) .* fact .+ start_radius
     IMAS.get_build(bd, type=_plasma_).outline.r = pr
     IMAS.get_build(bd, type=_plasma_).outline.z = pz
 
     # all layers between plasma and OH
-    plasma_to_oh = []
-    valid = false
-    for (k, layer) in reverse(collect(enumerate(bd.layer)))
-        # stop once you see the OH
-        if layer.type == Int(_oh_)
-            valid = false
-            break
-        end
-        if valid
-            push!(plasma_to_oh, k)
-        end
-        # valid starting from the plasma
-        if layer.type == Int(_plasma_)
-            valid = true
-        end
-    end
+    plasma_to_oh = IMAS.get_build(bd, type=_plasma_, return_index=true)-1:-1:(IMAS.get_build(bd, type=_oh_, return_index=true)+1)
     shape_set = false
     for (n, k) in enumerate(plasma_to_oh)
-        # layer that is inside of the TF (or shield) sets the TF (and shield) shape
         if (!shape_set) && (n < length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [Int(_tf_), Int(_shield_)])
+            # layer that is inside of the TF (or shield) sets the TF (and shield) shape
             FUSE.optimize_shape(bd, k, BuildLayerShape(bd.tf.shape))
             shape_set = true
-            # everything else is conformal convex hull
         else
+            # everything else is conformal convex hull
             FUSE.optimize_shape(bd, k, _convex_hull_)
         end
     end
@@ -462,8 +454,8 @@ end
 
 function assign_build_layers_materials(dd::IMAS.dd, ini::InitParameters)
     bd = dd.build
-    for (k,layer) in enumerate(bd.layer)
-        if k==1 && ini.center_stack.plug
+    for (k, layer) in enumerate(bd.layer)
+        if k == 1 && ini.center_stack.plug
             layer.material = ini.material.wall
         elseif layer.type == Int(_plasma_)
             layer.material = any([layer.type in [Int(_blanket_), Int(_shield_)] for layer in dd.build.layer]) ? "DT_plasma" : "DD_plasma"

@@ -234,6 +234,7 @@ function ActorParameters(::Type{Val{:OHTFsizingActor}})
     par = ActorParameters(nothing)
     par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
     par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
+    par.fixed_plasma_start_radius = Entry(Bool, "", "Pad/trim center stack layers so not to move plasma start radius"; default=false)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
@@ -247,7 +248,7 @@ function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     fluxswing_actor = FluxSwingActor(dd, act)
     stresses_actor = StressesActor(dd, act)
     actor = OHTFsizingActor(stresses_actor, fluxswing_actor)
-    step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance)
+    step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_plasma_start_radius=par.fixed_plasma_start_radius)
     finalize(actor)
     if par.do_plot
         display(plot!(dd.build; cx=false))
@@ -255,7 +256,7 @@ function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::OHTFsizingActor; verbose=false, j_tolerance=0.4, stress_tolerance=0.2)
+function step(actor::OHTFsizingActor; verbose::Bool=false, j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_plasma_start_radius::Bool=false)
 
     function cost(x0)
         plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
@@ -281,13 +282,29 @@ function step(actor::OHTFsizingActor; verbose=false, j_tolerance=0.4, stress_tol
     @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
     dd = actor.stresses_actor.dd
 
+    # init
     plug = dd.build.layer[1]
     OH = IMAS.get_build(dd.build, type=_oh_)
     TFhfs = IMAS.get_build(dd.build, type=_tf_, fs=_hfs_)
     TFlfs = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_)
+    iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true)-1
+    old_plasma_radius = dd.build.layer[iplasma].start_radius
 
+    # optimize
     res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000, g_tol=1E-6); autodiff=:forward)
+
+    # assign
     plug.thickness, OH.thickness, TFhfs.thickness = map(abs, res.minimizer)
+    new_plasma_radius = dd.build.layer[iplasma].start_radius
+    if fixed_plasma_start_radius
+        # If we need to keep the plasma at a fixed radius, then we redistribute 
+        # the changes in center stack thickness proportionally among layers
+        delta = old_plasma_radius - new_plasma_radius
+        new_thicknesses = [dd.build.layer[k].thickness for k in 2:iplasma]
+        for k in 2:iplasma
+            dd.build.layer[k].thickness *= (1 + delta / sum(new_thicknesses))
+        end
+    end
     TFlfs.thickness = TFhfs.thickness
     step(actor.fluxswing_actor)
     step(actor.stresses_actor)
@@ -324,21 +341,19 @@ end
 
 function CXbuildActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.CXbuildActor(kw...)
-    if par.do_plot
-        plot(dd.build; cx=false)
-    end
     actor = CXbuildActor(dd)
     step(actor; rebuild_wall=par.rebuild_wall)
     finalize(actor)
     if par.do_plot
-        display(plot!(dd.build))
+        plot(dd.build)
+        display(plot!(dd.build; cx=false))
     end
     return actor
 end
 
-function step(cx_actor::CXbuildActor; rebuild_wall::Bool=false)
+function step(cx_actor::CXbuildActor; rebuild_wall::Bool=true)
     if rebuild_wall
-        empty!(dd.wall)
+        empty!(cx_actor.dd.wall)
     end
     build_cx(cx_actor.dd)
 end
