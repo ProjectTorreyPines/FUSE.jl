@@ -10,6 +10,8 @@ all:
 	@echo ''
 
 registry:
+	julia -e 'using Pkg;Pkg.add("Revise")' # call this first to make sure General registry gets installed
+	if [ ! -d "$(JULIA_PKG_REGDIR)" ]; then mkdir -p $(JULIA_PKG_REGDIR); fi
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
 
