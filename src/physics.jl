@@ -398,3 +398,18 @@ function xy_polygon(x, y)
     coords = [collect(map(collect, zip(x, y)))]
     return LibGEOS.Polygon(coords)
 end
+
+"""
+    P_LH_threshold_from_scalars(Bt0::Real, nel::Real,surface_area::Real)
+Calculates the L to H transition threshold according to 2008 scaling law
+"""
+function P_LH_threshold_from_scalars(Bt0::Real, nel::Real, surface_area::Real)
+    return 0.049 * abs(Bt0)^0.8 * nel^0.72 * surface_area^0.94
+end
+```
+    approximate_surface_area(a::Real, R::Real ,κ::Real, δ::Real)
+Approximation of the surface area of a miller geometry flux surface    
+```
+function approximate_surface_area(a::Real, R::Real ,κ::Real, δ::Real)
+    return  2pi^2 * R * a^2 * κ * (1. - 0.151 * δ * a / R) / (2pi*R) # m²
+end
