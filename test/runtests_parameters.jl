@@ -23,15 +23,25 @@ using Test
 
     @test_throws FUSE.InexistentParameterException FUSE.InitParameters(:does_not_exist)
 
-    iter = FUSE.InitParameters(:ITER; init_from=:scalars)
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
 
-    @test iter.equilibrium.B0 == -5.3
+    @test typeof(ini) <: FUSE.InitParameters
 
-    @test (iter.general.init_from = :ods) == :ods
+    @test typeof(act) <: FUSE.ActorParameters
 
-    @test_throws FUSE.BadParameterException iter.general.init_from = :odsa
+    @test ini.equilibrium.B0 == -5.3
+
+    @test (ini.general.init_from = :ods) == :ods
+
+    @test_throws FUSE.BadParameterException ini.general.init_from = :odsa
 
     @test_throws FUSE.InexistentParameterException FUSE.InitParameters(:inexistent_group)
 
-    @test_throws UndefKeywordError FUSE.InitParameters(:ITER)
+    @test_throws UndefKeywordError FUSE.case_parameters(:ITER)
+
+    for par in subtypes(FUSE.AbstractActor)
+        par = Symbol(replace(string(par), "FUSE." => ""))
+        @test ActorParameters(par) <: FUSE.ActorParameters
+    end
+
 end

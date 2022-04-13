@@ -48,7 +48,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
     ini.pf_active.n_pf_coils_outside = 6
     ini.pf_active.technology = coil_technology(:ITER, :PF)
 
-    ini.tf.shape = :triple_arc
+    ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 18
     ini.tf.technology = coil_technology(:ITER, :TF)
 
