@@ -53,8 +53,15 @@ function InitParameters(gasc::GASC; no_small_gaps::Bool=true)
 
     gasc_2_sources_par(ini, gasc, Val{gasc.version})
 
+    gasc_2_core_profiles(ini, gasc)
+
     return set_new_base!(ini)
 end
+
+function gasc_2_core_profiles(ini::InitParameters, gasc::GASC)
+    ini.core_profiles.zeff = gascsol["OUTPUTS"]['impurities']['effectiveZ']
+    ini.core_profiles.ne_ped = gascsol["OUTPUTS"]["plasma parameters"]["neped"] * 1e20
+    ini.core_profiles.ne_vol_avg = gascsol["OUTPUTS"]['plasma parameters']['neVolAvg'] * 1e20
 
 function gasc_2_equilibrium(ini::InitParameters, gasc::GASC)
     gascsol = gasc.solution
