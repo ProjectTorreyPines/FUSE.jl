@@ -78,7 +78,6 @@ function gasc_2_sources_par(ini::InitParameters, gasc::GASC, version::Type{Val{0
     @assert gascsol["INPUTS"]["current drive"]["auxCDPowerFactor"] >= 1.0
     cd_power = injected_power / gascsol["INPUTS"]["current drive"]["auxCDPowerFactor"]
     heating_power = injected_power - cd_power
-    plug_power = injected_power / gascsol["INPUTS"]["power efficiency"]["efficiencyAux"]
 
     cd_powers = Dict()
     for system in ["NNB", "NB", "LH", "FW", "EC", "HI"]
@@ -115,38 +114,62 @@ end
 function gasc_2_sources_par(ini::InitParameters, gasc::GASC, version::Type{Val{1}})
     gascsol = gasc.solution
 
-    fractions = gascsol["INPUTS"]["current drive"]
-    cd_powers = gascsol["OUTPUTS"]["current drive"]
+    inputs = gascsol["INPUTS"]["current drive"]
+    outputs = gascsol["OUTPUTS"]["current drive"]
 
+    cd_powers = Float64[]
     ini.nbi.power_launched = Float64[]
     ini.nbi.beam_energy = Float64[]
-    if cd_powers["CDpowerNBCD"] > 0
-        push!(ini.nbi.power_launched, cd_powers["CDpowerNBCD"] * 1E6 * fractions["NBCDFraction"])
+    if outputs["CDpowerNBCD"] > 0
+        pow = outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]
+        push!(cd_powers, pow)
+        push!(ini.nbi.power_launched, pow)
         push!(ini.nbi.beam_energy, 200e3)
     end
-    if cd_powers["CDpowerNNBCD"] > 0
-        push!(ini.nbi.power_launched, cd_powers["CDpowerNNBCD"] * 1E6 * fractions["NNBCDFraction"])
+    if outputs["CDpowerNNBCD"] > 0
+        pow = outputs["CDpowerNNBCD"] * 1E6 * inputs["NNBCDFraction"]
+        push!(cd_powers, pow)
+        push!(ini.nbi.power_launched, pow)
         push!(ini.nbi.beam_energy, 1000e3)
     end
 
     ini.lh.power_launched = Float64[]
-    if cd_powers["CDpowerLHCD"] > 0
-        push!(ini.lh.power_launched, cd_powers["CDpowerLHCD"] * 1E6 * fractions["LHCDFraction"])
+    if outputs["CDpowerLHCD"] > 0
+        pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
+        push!(cd_powers, pow)
+        push!(ini.lh.power_launched, pow)
     end
-    if cd_powers["CDpowerHICD"] > 0
-        push!(ini.lh.power_launched, cd_powers["CDpowerHICD"] * 1E6 * fractions["HICDFraction"])
+    if outputs["CDpowerHICD"] > 0
+        pow = outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"]
+        push!(cd_powers, pow)
+        push!(ini.lh.power_launched, pow)
     end
 
     ini.ec.power_launched = Float64[]
-    if cd_powers["CDpowerECCD"] > 0
-        push!(ini.ec.power_launched, cd_powers["CDpowerECCD"] * 1E6 * fractions["ECCDFraction"])
+    if outputs["CDpowerECCD"] > 0
+        pow = outputs["CDpowerECCD"] * 1E6 * inputs["ECCDFraction"]
+        push!(cd_powers, pow)
+        push!(ini.ec.power_launched, pow)
     end
 
     ini.ic.power_launched = Float64[]
-    if cd_powers["CDpowerFWCD"] > 0
-        push!(ini.ic.power_launched, cd_powers["CDpowerFWCD"] * 1E6 * fractions["FWCDFraction"])
+    if outputs["CDpowerFWCD"] > 0
+        pow = outputs["CDpowerFWCD"] * 1E6 * inputs["FWCDFraction"]
+        push!(cd_powers, pow)
+        push!(ini.ic.power_launched, pow)
     end
 
+    # GASC heating power is assumed to be deposited in the core.
+    # We use an NBI source as a proxy, which mostly deposits
+    # in the core and heats mostly the ions.
+    @assert inputs["auxCDPowerFactor"] >= 1.0
+    cd_power = sum(cd_powers)
+    injected_power = cd_power * inputs["auxCDPowerFactor"] *1.1
+    heating_power = injected_power - cd_power
+    if heating_power > 0
+        push!(ini.nbi.power_launched, heating_power)
+        push!(ini.nbi.beam_energy, 200e3)
+    end
     return ini
 end
 
