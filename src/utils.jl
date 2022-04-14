@@ -1,4 +1,3 @@
-import JSON
 import ForwardDiff
 
 function unwrap(v, inplace = false)
@@ -26,26 +25,6 @@ function atan_eq(r, z, r0, z0)
         θ = reverse(θ)
     end
     return r, z, θ
-end
-
-struct GASC
-    filename::String
-    case::Int
-    solution::Dict
-end
-
-"""
-    GASC(filename::String, case::Int)
-
-Parses GASC output file in json format
-"""
-function GASC(filename::String, case::Int)
-    case = case + 1
-    gasc = GASC(filename, case, JSON.parsefile(filename)["SOLUTIONS"][case])
-    for item in keys(gasc.solution["OUTPUTS"]["numerical profiles"])
-        gasc.solution["OUTPUTS"]["numerical profiles"][item] = Vector{Float64}(gasc.solution["OUTPUTS"]["numerical profiles"][item])
-    end
-    return gasc
 end
 
 """

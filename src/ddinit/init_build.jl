@@ -48,7 +48,7 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
     dd.build.tf.shape = Int(to_enum(ini.tf.shape))
 
     # 2D build cross-section
-    build_cx(dd)
+    CXbuildActor(dd, act)
 
     # flattop duration
     dd.build.oh.flattop_duration = ini.oh.flattop_duration
@@ -88,7 +88,7 @@ layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
-function init_radial_build(bd::IMAS.build; verbose::Bool=false, layers...)
+function init_radial_build(bd::IMAS.build; verbose::Bool, layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
@@ -104,10 +104,9 @@ function init_radial_build(bd::IMAS.build; verbose::Bool=false, layers...)
         layer = bd.layer[k]
         layer.thickness = layer_thickness
         layer.name = replace(String(layer_name), "_" => " ")
-        if occursin("gap", lowercase(layer.name))
+        if occursin("gap ", lowercase(layer.name))
             layer.type = Int(_gap_)
-        end
-        if occursin("plasma", lowercase(layer.name))
+        elseif lowercase(layer.name)=="plasma"
             layer.type = Int(_plasma_)
         elseif uppercase(layer.name) == "OH"
             layer.type = Int(_oh_)
@@ -141,7 +140,7 @@ function init_radial_build(bd::IMAS.build; verbose::Bool=false, layers...)
     return bd
 end
 
-function init_radial_build(bd::IMAS.build, layers::AbstractDict; verbose=false)
+function init_radial_build(bd::IMAS.build, layers::AbstractDict; verbose::Bool)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
     init_radial_build(bd; verbose, nt...)
 end

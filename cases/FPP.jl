@@ -1,5 +1,27 @@
-function case_parameters(::Type{Val{:FPP}}; init_from::Symbol)
-    gasc = GASC(joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPP_fBS_PBpR_scan.json"), 59)
+"""
+To generate a JSON file from a GASC run:
+
+```python
+    filename = "path_to_the_gasc_output.pkl"
+    casename = os.path.splitext(os.path.basename(filename))[1]
+    json = OMFITjson(casename + ".json", objects_encode=False)
+    json.update(OMFITpickle(filename))
+```
+"""
+
+function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1, init_from::Symbol)
+    if version == :v0
+        filename = "FPPv0.0_fBS_PBpR_scan.json"
+        case = 59
+    elseif version == :v1
+        filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
+        case = 0
+    elseif version == :v1_demount
+        filename = "FPPv1.0_aspectRatio3.5_PBpR35_demount.json"
+        case = 0
+    end
+
+    gasc = GASC(joinpath(dirname(abspath(@__FILE__)), "..", "sample", filename), case)
 
     ini = InitParameters(gasc)
     act = ActorParameters()

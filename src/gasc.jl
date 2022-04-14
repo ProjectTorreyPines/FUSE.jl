@@ -1,21 +1,57 @@
+import JSON
+
+struct GASC
+    filename::String
+    case::Int
+    solution::Dict
+    version::Int
+end
+
+"""
+    GASC(filename::String, case::Int)
+
+Parses GASC output file in json format
+"""
+function GASC(filename::String, case::Int)
+    # from python to julia indexing
+    case_j = case + 1
+    # parse data
+    data = JSON.parsefile(filename)
+    # identify version of GASC output
+    version = 0
+    if "boundaryInnerTF" in keys(data["SOLUTIONS"][case_j]["OUTPUTS"]["numerical profiles"])
+        version = 1
+    end
+    # GASC struct
+    gasc = GASC(filename, case, data["SOLUTIONS"][case_j], version)
+    # convert list of floats to arrays 
+    for item in keys(gasc.solution["OUTPUTS"]["numerical profiles"])
+        if item in ["boundaryInnerTF", "boundaryOuterTF"]
+        else
+            gasc.solution["OUTPUTS"]["numerical profiles"][item] = Vector{Float64}(gasc.solution["OUTPUTS"]["numerical profiles"][item])
+        end
+    end
+    return gasc
+end
+
 """
     case_parameters(gasc::GASC)
 
 Map GASC inputs and solution to FUSE input scalar parameters
 """
-function InitParameters(gasc::GASC; no_small_gaps::Bool=true, vacuum_vessel::Float64=0.1)
+function InitParameters(gasc::GASC; no_small_gaps::Bool=true)
     ini = InitParameters()
 
     ini.gasc.filename = gasc.filename
     ini.gasc.case = gasc.case
-    ini.general.casename = gasc.solution["INPUTS"]["NAME"]["device_name"]
+    ini.general.casename = "GASC"
     ini.general.init_from = :gasc
 
-    gasc_2_build(ini, gasc; no_small_gaps, vacuum_vessel)
+    gasc_2_build(ini, gasc; no_small_gaps)
 
     gasc_2_equilibrium(ini, gasc)
 
-    gasc_2_sources_par(ini, gasc)
+    gasc_2_sources_par(ini, gasc, Val{gasc.version})
 
     return set_new_base!(ini)
 end
@@ -35,7 +71,7 @@ function gasc_2_equilibrium(ini::InitParameters, gasc::GASC)
     return ini
 end
 
-function gasc_2_sources_par(ini::InitParameters, gasc::GASC)
+function gasc_2_sources_par(ini::InitParameters, gasc::GASC, version::Type{Val{0}})
     gascsol = gasc.solution
 
     injected_power = gascsol["OUTPUTS"]["current drive"]["powerAux"] * 1E6
@@ -51,15 +87,15 @@ function gasc_2_sources_par(ini::InitParameters, gasc::GASC)
 
     ini.nbi.power_launched = Float64[]
     ini.nbi.beam_energy = Float64[]
-    if heating_power >0
+    if heating_power > 0
         push!(ini.nbi.power_launched, heating_power)
         push!(ini.nbi.beam_energy, 200e3)
     end
-    if cd_powers["NB"] >0
+    if cd_powers["NB"] > 0
         push!(ini.nbi.power_launched, cd_powers["NB"])
         push!(ini.nbi.beam_energy, 200e3)
     end
-    if cd_powers["NNB"] >0
+    if cd_powers["NNB"] > 0
         push!(ini.nbi.power_launched, cd_powers["NNB"])
         push!(ini.nbi.beam_energy, 1000e3)
     end
@@ -76,9 +112,46 @@ function gasc_2_sources_par(ini::InitParameters, gasc::GASC)
     return ini
 end
 
-function gasc_2_build(ini::InitParameters, gasc::GASC; no_small_gaps::Bool, vacuum_vessel::Float64)
+function gasc_2_sources_par(ini::InitParameters, gasc::GASC, version::Type{Val{1}})
     gascsol = gasc.solution
-    ini.build.layers = gasc_to_layers(gascsol["INPUTS"]["radial build"]; no_small_gaps, vacuum_vessel)
+
+    cd_powers = gascsol["OUTPUTS"]["current drive"]
+
+    ini.nbi.power_launched = Float64[]
+    ini.nbi.beam_energy = Float64[]
+    if cd_powers["CDpowerNBCD"] > 0
+        push!(ini.nbi.power_launched, cd_powers["CDpowerNBCD"])
+        push!(ini.nbi.beam_energy, 200e3)
+    end
+    if cd_powers["CDpowerNNBCD"] > 0
+        push!(ini.nbi.power_launched, cd_powers["CDpowerNNBCD"])
+        push!(ini.nbi.beam_energy, 1000e3)
+    end
+
+    ini.lh.power_launched = Float64[]
+    if cd_powers["CDpowerLHCD"] > 0
+        push!(ini.lh.power_launched, cd_powers["CDpowerLHCD"])
+    end
+    if cd_powers["CDpowerHICD"] > 0
+        push!(ini.lh.power_launched, cd_powers["CDpowerHICD"])
+    end
+
+    ini.ec.power_launched = Float64[]
+    if cd_powers["CDpowerECCD"] > 0
+        push!(ini.ec.power_launched, cd_powers["CDpowerECCD"])
+    end
+
+    ini.ic.power_launched = Float64[]
+    if cd_powers["CDpowerFWCD"] > 0
+        push!(ini.ic.power_launched, cd_powers["CDpowerFWCD"])
+    end
+
+    return ini
+end
+
+function gasc_2_build(ini::InitParameters, gasc::GASC; no_small_gaps::Bool)
+    gascsol = gasc.solution
+    ini.build.layers = gasc_to_layers(gascsol, Val{gasc.version}; no_small_gaps)
     ini.build.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
 
     ini.tf.technology = coil_technology(gasc, :TF)
@@ -94,18 +167,15 @@ function gasc_2_build(ini::InitParameters, gasc::GASC; no_small_gaps::Bool, vacu
 end
 
 """
-    function gasc_to_layers(
+    function gasc_to_layers_v0(
         gascrb::Dict;
         no_small_gaps::Bool = true,
         vacuum_vessel::Float64 = 0.1)
 
 Convert GASC ["INPUTS"]["radial build"] to FUSE build layers dictionary
 """
-function gasc_to_layers(
-    gascrb::Dict;
-    no_small_gaps::Bool,
-    vacuum_vessel::Float64)
-
+function gasc_to_layers(gascol::Dict, version::Type{Val{0}}; no_small_gaps::Bool, vacuum_vessel::Float64=0.1)
+    gascrb = gascol["INPUTS"]["radial build"]
     majorRadius = gascrb["majorRadius"]
     aspectRatio = gascrb["aspectRatio"]
     minorRadius = majorRadius / aspectRatio
@@ -184,13 +254,92 @@ function gasc_to_layers(
 end
 
 """
+    function gasc_to_layers(
+        gascrb::Dict;
+        no_small_gaps::Bool = true,
+        vacuum_vessel::Float64 = 0.1)
+
+Convert GASC ["INPUTS"]["radial build"] to FUSE build layers dictionary
+"""
+function gasc_to_layers(gascsol::Dict, version::Type{Val{1}}; no_small_gaps::Bool)
+    gascrb = gascsol["OUTPUTS"]["radial build"]
+
+    layers = DataStructures.OrderedDict()
+    mapper = Dict(
+        "OH" => "OH",
+        "TF" => "TF",
+        "LTShield" => "low_temp_shield",
+        "VV" => "vacuum_vessel",
+        "HTShield" => "high_temp_shield",
+        "Blanket" => "blanket",
+        "Plasma" => "plasma")
+
+    gasc_layers = [
+        "RiOH",
+        "RoOH",
+        "RiInnerTF",
+        "RoInnerTF",
+        "RiInnerLTShield",
+        "RoInnerLTShield",
+        "RiInnerVV",
+        "RoInnerVV",
+        "RiInnerHTShield",
+        "RoInnerHTShield",
+        "RiInnerBlanket",
+        "RoInnerBlanket",
+        "RiPlasma",
+        "RoPlasma",
+        "RiOuterBlanket",
+        "RoOuterBlanket",
+        "RiOuterHTShield",
+        "RoOuterHTShield",
+        "RiOuterVV",
+        "RoOuterVV",
+        "RiOuterLTShield",
+        "RoOuterLTShield",
+        "RiOuterTF",
+        "RoOuterTF"]
+
+    layers["gap_OH"] = gascrb["RiOH"]
+    for k in 2:length(gasc_layers)
+        g1 = gasc_layers[k-1]
+        g2 = gasc_layers[k]
+        d = gascrb[replace(g2, "InnerTF" => "TF")] - gascrb[replace(g1, "InnerTF" => "TF")]
+        f1 = mapper[replace(replace(replace(replace(g1, "Ri" => ""), "Ro" => ""), "Inner" => ""), "Outer" => "")]
+        f2 = mapper[replace(replace(replace(replace(g2, "Ri" => ""), "Ro" => ""), "Inner" => ""), "Outer" => "")]
+        if startswith(g1, "Ri")
+            if contains(g1, "Inner")
+                f1 = "hfs_" * f1
+            elseif contains(g1, "Outer")
+                f1 = "lfs_" * f1
+            end
+            f = f1
+            layers[f1] = d
+        elseif startswith(g1, "Ro") && d > 0
+            if contains(g2, "Outer")
+                f = "lfs_gap_$(f1)_$(f2)"
+            else
+                f = "hfs_gap_$(f2)_$(f1)"
+            end
+            layers[f] = d
+        end
+    end
+    if "hfs_gap_TF_OH" in keys(layers)
+        layers["lfs_gap_TF_OH"] = layers["hfs_gap_TF_OH"]
+    end
+    layers["gap_cryostat"] = layers["gap_OH"] * 3
+
+    return layers
+end
+
+"""
     coil_technology(gasc::GASC, coil_type::Symbol)
 
 Return coil parameters from GASC solution and coil type [:OH, :TF, :PF]
 """
 function coil_technology(gasc::GASC, coil_type::Symbol)
     gascsol = gasc.solution
-    if !(coil_type in [:OH, :TF, :PF])
+    if coil_type ∉ [:OH, :TF, :PF]
         error("Supported coil type are [:OH, :TF, :PF]")
     end
     if gascsol["INPUTS"]["conductors"]["superConducting"] == "copper"
@@ -201,10 +350,20 @@ function coil_technology(gasc::GASC, coil_type::Symbol)
         elseif gascsol["INPUTS"]["conductors"]["superConducting"] == "HTS"
             coil_tech = coil_technology(:HTS)
         end
-        coil_tech.thermal_strain = gascsol["INPUTS"]["conductors"]["structuralStrain$coil_type"]
-        coil_tech.JxB_strain = gascsol["INPUTS"]["conductors"]["structuralStrain$coil_type"]
+        if "thermalStrain$coil_type" ∉ keys(gascsol["INPUTS"]["conductors"])
+            coil_tech.thermal_strain = 0.0
+            coil_tech.JxB_strain = 0.0
+        else
+            coil_tech.thermal_strain = gascsol["INPUTS"]["conductors"]["thermalStrain$coil_type"]
+            coil_tech.JxB_strain = gascsol["INPUTS"]["conductors"]["structuralStrain$coil_type"]
+        end
     end
-    coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoid$coil_type"]
-    coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainless$coil_type"]
+    if "fractionVoid$coil_type" ∉ keys(gascsol["INPUTS"]["conductors"])
+        coil_tech.fraction_void = 0.1
+        coil_tech.fraction_stainless = 0.5
+    else
+        coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoid$coil_type"]
+        coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainless$coil_type"]
+    end
     return set_new_base!(coil_tech)
 end

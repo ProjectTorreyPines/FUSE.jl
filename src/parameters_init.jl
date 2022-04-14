@@ -77,7 +77,7 @@ end
 function InitParameters(::Type{Val{:tf}})
     tf = InitParameters(nothing)
     tf.n_coils = Entry(Int, "", "Number of TF coils")
-    options = [:princeton_D_exact, :princeton_D_approx, :princeton_D_scaled, :rectangle, :triple_arc, :miller, :spline]
+    options = [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :triple_arc, :miller, :spline]
     tf.shape = Switch(options, "", "Shape of the TF coils"; default=:princeton_D_scaled)
     tf.technology = InitParameters(:coil_technology)
     return tf

@@ -16,8 +16,11 @@ include("utils.jl")
 #= ========== =#
 include("parameters.jl")
 include("parameters_init.jl")
-include("parameters_gasc.jl")
-include("parameters_actor.jl")
+
+#= ============== =#
+#  GASC interface  #
+#= ============== =#
+include("gasc.jl")
 
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
