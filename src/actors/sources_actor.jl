@@ -12,9 +12,9 @@ end
 
 function ActorParameters(::Type{Val{:SimpleNBIactor}})
     par = ActorParameters(nothing)
-    par.width = Entry(Real,"","Width of the deposition profile";default=0.3)
-    par.rho_0 = Entry(Real,"","Radial location of the deposition profile";default=0.0)
-    par.current_efficiency = Entry(Real,"A/W","Current drive efficiency";default=0.3)
+    par.width = Entry(Real, "", "Width of the deposition profile"; default=0.3)
+    par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
+    par.current_efficiency = Entry(Real, "A/W", "Current drive efficiency"; default=0.3)
     return par
 end
 
@@ -25,7 +25,7 @@ function SimpleNBIactor(dd::IMAS.dd, act::ActorParameters; kw...)
     finalize(actor)
 end
 
-function SimpleNBIactor(dd::IMAS.dd; width::Real = 0.3, rho_0::Real = 0.0, current_efficiency::Real = 0.3)
+function SimpleNBIactor(dd::IMAS.dd; width::Real=0.3, rho_0::Real=0.0, current_efficiency::Real=0.3)
     nbeam = ones(length(dd.nbi.unit))
     return SimpleNBIactor(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
 end
@@ -72,9 +72,9 @@ function step(actor::SimpleNBIactor)
             actor.rho_0[idx],
             actor.width[idx],
             2;
-            electrons_particles = beam_particles,
-            momentum_tor = momentum_source,
-            j_parallel = j_parallel
+            electrons_particles=beam_particles,
+            momentum_tor=momentum_source,
+            j_parallel=j_parallel
         )
     end
     return actor
@@ -92,9 +92,9 @@ end
 
 function ActorParameters(::Type{Val{:SimpleECactor}})
     par = ActorParameters(nothing)
-    par.width = Entry(Real,"","Width of the deposition profile";default=0.1)
-    par.rho_0 = Entry(Real,"","Radial location of the deposition profile";default=0.0)
-    par.current_efficiency = Entry(Real,"A/W","Current drive efficiency";default=0.2)
+    par.width = Entry(Real, "", "Width of the deposition profile"; default=0.1)
+    par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
+    par.current_efficiency = Entry(Real, "A/W", "Current drive efficiency"; default=0.2)
     return par
 end
 
@@ -105,7 +105,7 @@ function SimpleECactor(dd::IMAS.dd, act::ActorParameters; kw...)
     finalize(actor)
 end
 
-function SimpleECactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.2)
+function SimpleECactor(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.2)
     n_launchers = ones(length(dd.ec_launchers.launcher))
     return SimpleECactor(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
 end
@@ -146,7 +146,7 @@ function step(actor::SimpleECactor)
             actor.rho_0[idx],
             actor.width[idx],
             1;
-            j_parallel = j_parallel
+            j_parallel=j_parallel
         )
     end
     return actor
@@ -164,9 +164,9 @@ end
 
 function ActorParameters(::Type{Val{:SimpleICactor}})
     par = ActorParameters(nothing)
-    par.width = Entry(Real,"","Width of the deposition profile";default=0.1)
-    par.rho_0 = Entry(Real,"","Radial location of the deposition profile";default=0.0)
-    par.current_efficiency = Entry(Real,"A/W","Current drive efficiency";default=0.125)
+    par.width = Entry(Real, "", "Width of the deposition profile"; default=0.1)
+    par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
+    par.current_efficiency = Entry(Real, "A/W", "Current drive efficiency"; default=0.125)
     return par
 end
 
@@ -177,7 +177,7 @@ function SimpleICactor(dd::IMAS.dd, act::ActorParameters; kw...)
     finalize(actor)
 end
 
-function SimpleICactor(dd::IMAS.dd; width::Real = 0.1, rho_0::Real = 0.0, current_efficiency::Real = 0.125)
+function SimpleICactor(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.125)
     n_antennas = ones(length(dd.ic_antennas.antenna))
     return SimpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
 end
@@ -218,7 +218,7 @@ function step(actor::SimpleICactor)
             actor.rho_0[idx],
             actor.width[idx],
             1;
-            j_parallel = j_parallel
+            j_parallel=j_parallel
         )
     end
     return actor
@@ -236,9 +236,9 @@ end
 
 function ActorParameters(::Type{Val{:SimpleLHactor}})
     par = ActorParameters(nothing)
-    par.width = Entry(Real,"","Width of the deposition profile";default=0.15)
-    par.rho_0 = Entry(Real,"","Radial location of the deposition profile";default=0.6)
-    par.current_efficiency = Entry(Real,"A/W","Current drive efficiency";default=0.4)
+    par.width = Entry(Real, "", "Width of the deposition profile"; default=0.15)
+    par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.6)
+    par.current_efficiency = Entry(Real, "A/W", "Current drive efficiency"; default=0.4)
     return par
 end
 
@@ -249,7 +249,7 @@ function SimpleLHactor(dd::IMAS.dd, act::ActorParameters; kw...)
     finalize(actor)
 end
 
-function SimpleLHactor(dd::IMAS.dd; width::Real = 0.15, rho_0::Real = 0.6, current_efficiency::Real = 0.4)
+function SimpleLHactor(dd::IMAS.dd; width::Real=0.15, rho_0::Real=0.6, current_efficiency::Real=0.4)
     n_antennas = ones(length(dd.lh_antennas.antenna))
     return SimpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
 end
@@ -290,7 +290,7 @@ function step(actor::SimpleLHactor)
             actor.rho_0[idx],
             actor.width[idx],
             1;
-            j_parallel = j_parallel
+            j_parallel=j_parallel
         )
     end
     return actor
@@ -311,9 +311,9 @@ function gaussian_source_to_dd(
     rho_0,
     width,
     gauss_order;
-    electrons_particles = missing,
-    momentum_tor = missing,
-    j_parallel = missing
+    electrons_particles=missing,
+    momentum_tor=missing,
+    j_parallel=missing
 )
     gaussian = sgaussian(rho_cp, rho_0, width, gauss_order)
     gaussian_vol = gaussian / integrate(volume_cp, gaussian)
@@ -341,6 +341,6 @@ function gaussian_source_to_dd(
     return IMAS.new_source(isource, index, name, rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
 end
 
-function sgaussian(rho::Union{LinRange,Vector}, rho_0::Real, width::Real, order::Real = 1.0)
+function sgaussian(rho::Union{LinRange,Vector}, rho_0::Real, width::Real, order::Real=1.0)
     return exp.(-((rho .- rho_0) .^ 2 / 2width^2) .^ order)
 end

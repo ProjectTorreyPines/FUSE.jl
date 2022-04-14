@@ -3,7 +3,7 @@ const coils_turns_spacing = 0.03
 #= ================== =#
 #  init pf_active IDS  #
 #= ================== =#
-function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height = 1.0, offset = 0.0)
+function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
     Δrail = maximum(rail_outline_z) - minimum(rail_outline_z)
     Δclear = coils_cleareance * coils_number
     Δcoil = (height * Δrail - Δclear) / coils_number
@@ -31,11 +31,11 @@ function init_pf_active(
     pf_active::IMAS.pf_active,
     bd::IMAS.build,
     n_coils::Vector{TI};
-    pf_coils_size::Union{Nothing,TR,Vector{TR}} = nothing,
-    coils_cleareance::Union{Nothing,TR,Vector{TR}} = nothing,
-    coils_elements_area::Union{Nothing,TR,Vector{TR}} = nothing) where {TI<:Int,TR<:Real}
+    pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
+    coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing,
+    coils_elements_area::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
 
-    OH_layer = IMAS.get_build(bd, type = _oh_)
+    OH_layer = IMAS.get_build(bd, type=_oh_)
 
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))
@@ -66,7 +66,7 @@ function init_pf_active(
     bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
     bd.pf_active.rail[1].outline.r = ones(length(z_ohcoils)) * r_oh
     bd.pf_active.rail[1].outline.z = z_ohcoils
-    bd.pf_active.rail[1].outline.distance = range(-1, 1, length = n_coils[1])
+    bd.pf_active.rail[1].outline.distance = range(-1, 1, length=n_coils[1])
     for z_oh in z_ohcoils
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
@@ -90,10 +90,10 @@ function init_pf_active(
     end
 
     # Now add actual PF coils to regions of vacuum
-    oh_index = IMAS.get_build(bd, type = _oh_, return_index = true)
+    oh_index = IMAS.get_build(bd, type=_oh_, return_index=true)
     krail = 1
     ngrid = 257
-    rmask, zmask, mask = IMAS.structures_mask(bd, ngrid = ngrid)
+    rmask, zmask, mask = IMAS.structures_mask(bd, ngrid=ngrid)
     dr = (rmask[2] - rmask[1])
     for (k, layer) in enumerate(bd.layer)
 
@@ -123,7 +123,7 @@ function init_pf_active(
         # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
         coil_size = pf_coils_size[krail]
         dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
-        inner_layer = IMAS.get_build(bd, identifier = bd.layer[k-1].identifier, fs = _hfs_)
+        inner_layer = IMAS.get_build(bd, identifier=bd.layer[k-1].identifier, fs=_hfs_)
         poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), dcoil)
         rail_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         rail_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
@@ -189,7 +189,7 @@ function init_pf_active(
         end
 
         # uniformely distribute coils
-        coils_distance = range(-(1 - 0.25 / nc), 1 - 0.25 / nc, length = nc)
+        coils_distance = range(-(1 - 0.25 / nc), 1 - 0.25 / nc, length=nc)
         r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
         z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
         z_coils = [abs(z) < 1E-6 ? 0 : z for z in z_coils]

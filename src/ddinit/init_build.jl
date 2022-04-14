@@ -106,7 +106,7 @@ function init_radial_build(bd::IMAS.build; verbose::Bool, layers...)
         layer.name = replace(String(layer_name), "_" => " ")
         if occursin("gap ", lowercase(layer.name))
             layer.type = Int(_gap_)
-        elseif lowercase(layer.name)=="plasma"
+        elseif lowercase(layer.name) == "plasma"
             layer.type = Int(_plasma_)
         elseif uppercase(layer.name) == "OH"
             layer.type = Int(_oh_)

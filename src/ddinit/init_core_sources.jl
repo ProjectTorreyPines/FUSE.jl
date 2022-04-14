@@ -44,7 +44,7 @@ function init_ic_antennas(dd::IMAS.dd, ini::InitParameters)
 end
 
 function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
-    (power_launched,)  = same_length_vectors(power_launched)
+    (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
         resize!(dd.ic_antennas.antenna, idx)
         @ddtime dd.ic_antennas.antenna[idx].power_launched.data = power_launched[idx]

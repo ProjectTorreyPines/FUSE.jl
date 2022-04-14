@@ -70,9 +70,9 @@ function transport_validation_workflow(;
             vcat, [run_df[run_df.TOK.==tok, :][Random.shuffle(1:DataFrames.nrow(run_df[run_df.TOK.==tok, :]))[1:minimum([n_samples_per_tokamak, length(run_df[run_df.TOK.==tok, :][:, "TOK"])])], :] for tok in tok_list]
         )
     end
-    
+
     # Run simple_equilibrium_transport_workflow on each of the selected cases
-    tau_FUSE = zeros(length(run_df[:,"TOK"]))
+    tau_FUSE = zeros(length(run_df[:, "TOK"]))
     tbl = DataFrames.Tables.rowtable(run_df)
     failed_runs_ids = Int[]
     p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
@@ -95,7 +95,7 @@ function transport_validation_workflow(;
         ProgressMeter.next!(p)
     end
     println("Failed runs: $(length(failed_runs_ids)) out of $(length(run_df[:,"TOK"]))")
-    run_df[:,"TAUTH_fuse"] = tau_FUSE
+    run_df[:, "TAUTH_fuse"] = tau_FUSE
 
     failed_df = run_df[failed_runs_ids, :]
 

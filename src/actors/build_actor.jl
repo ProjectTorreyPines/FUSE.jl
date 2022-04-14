@@ -287,7 +287,7 @@ function step(actor::OHTFsizingActor; verbose::Bool=false, j_tolerance::Real=0.4
     OH = IMAS.get_build(dd.build, type=_oh_)
     TFhfs = IMAS.get_build(dd.build, type=_tf_, fs=_hfs_)
     TFlfs = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_)
-    iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true)-1
+    iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true) - 1
     old_plasma_radius = dd.build.layer[iplasma].start_radius
 
     # optimize

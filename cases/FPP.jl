@@ -33,7 +33,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1, init_from::Symb
 
     if init_from == :ods
         ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "fpp_gasc_59_step.json")
-        ini.build.blanket = .9
+        ini.build.blanket = 0.9
         ini.build.shield = 0.5
         ini.build.vessel = 0.125
     else

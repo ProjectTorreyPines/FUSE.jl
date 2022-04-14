@@ -1,6 +1,6 @@
 import ForwardDiff
 
-function unwrap(v, inplace = false)
+function unwrap(v, inplace=false)
     unwrapped = inplace ? v : copy(v)
     for i = 2:length(v)
         while (unwrapped[i] - unwrapped[i-1] >= pi)
@@ -35,7 +35,7 @@ function to_enum(smbl::Symbol)::Enum
     return @eval($smbl)
 end
 
-function to_enum(smbl::T where {T <: Enum})
+function to_enum(smbl::T where {T<:Enum})
     return smbl
 end
 
@@ -83,7 +83,7 @@ function grahamscan(points::Vector{Point})
 end
 
 function convex_hull(xy::Vector)
-    return [(k.x,k.y) for k in grahamscan([Point(xx,yx) for (xx,yx) in xy])]
+    return [(k.x, k.y) for k in grahamscan([Point(xx, yx) for (xx, yx) in xy])]
 end
 
 function halfhull(points::Vector{Point})

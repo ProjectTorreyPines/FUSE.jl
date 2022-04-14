@@ -3,7 +3,7 @@ function init_core_profiles(dd::IMAS.dd, ini::InitParameters, act::ActorParamete
 
     if init_from == :gasc
         gasc = GASC(ini.gasc.filename, ini.gasc.case)
-        init_core_profiles(dd, gasc; bulk = ini.core_profiles.bulk)
+        init_core_profiles(dd, gasc; bulk=ini.core_profiles.bulk)
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
@@ -20,22 +20,22 @@ function init_core_profiles(dd::IMAS.dd, ini::InitParameters, act::ActorParamete
             dd.core_profiles,
             dd.equilibrium,
             dd.summary;
-            ne_ped = ini.core_profiles.ne_ped,
-            n_peaking = ini.core_profiles.n_peaking,
-            T_shaping = ini.core_profiles.T_shaping,
-            w_ped = ini.core_profiles.w_ped,
-            zeff = ini.core_profiles.zeff,
-            rot_core = ini.core_profiles.rot_core,
-            ngrid = ini.core_profiles.ngrid,
-            bulk = ini.core_profiles.bulk,
-            impurity = ini.core_profiles.impurity)
+            ne_ped=ini.core_profiles.ne_ped,
+            n_peaking=ini.core_profiles.n_peaking,
+            T_shaping=ini.core_profiles.T_shaping,
+            w_ped=ini.core_profiles.w_ped,
+            zeff=ini.core_profiles.zeff,
+            rot_core=ini.core_profiles.rot_core,
+            ngrid=ini.core_profiles.ngrid,
+            bulk=ini.core_profiles.bulk,
+            impurity=ini.core_profiles.impurity)
         @ddtime dd.core_profiles.global_quantities.ejima = ini.core_profiles.ejima
     end
 
     return dd
 end
 
-function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk = :DT)
+function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk=:DT)
     gascsol = gasc.solution
 
     cp = dd.core_profiles
@@ -97,10 +97,10 @@ function init_core_profiles(
     bulk::Symbol,
     impurity::Symbol,
     rot_core::Real,
-    T_ratio::Real = 1.0,
-    T_shaping::Real = 1.8,
-    n_shaping::Real = 0.9,
-    ngrid::Int = 101
+    T_ratio::Real=1.0,
+    T_shaping::Real=1.8,
+    n_shaping::Real=0.9,
+    ngrid::Int=101
 )
     cpt = resize!(cp.profiles_1d)
 

@@ -18,7 +18,7 @@ OUTPUTS
 J_c : engineering critical current density, A/m^2
 b   : ratio of external magnetic field at conductor to SC critical magnetic field, T/T
 """
-function Nb3Sn_Jcrit(Bext, strain = 0.0, temperature = 4.2)
+function Nb3Sn_Jcrit(Bext, strain=0.0, temperature=4.2)
     #Table 6 in Lu et al., Supercond. Sci. Technol. 21 (2008) 105016
     A0 = 29330000
     Bc00 = 28.45
@@ -71,7 +71,7 @@ OUTPUTS
 J_c : critical current density, A/m^2
 b   : ratio of peak magnetic field at conductor to SC critical magnetic field, T/T
 """
-function YBCO_Jcrit(Bext, strain = 0.0, temperature = 20.0, ag_c = 0)
+function YBCO_Jcrit(Bext, strain=0.0, temperature=20.0, ag_c=0)
     # Equation 2-4, Table 1 in T.S. Lee 2015 FED
     Bcrit = 68.5
     Tcrit = 87.6
@@ -113,7 +113,7 @@ OUTPUTS
 J_c : critical current density, A/m^2
 b   : ratio of peak magnetic field at conductor to SC critical magnetic field, T/T
 """
-function ReBCO_Jcrit(Bext, strain = 0.0, temperature = 20.0, ag_c = 0)
+function ReBCO_Jcrit(Bext, strain=0.0, temperature=20.0, ag_c=0)
     fHTSinTape = 1.0 / 46.54 # fraction of ReBCO tape that is YBCO superconductor
     J_c, b = YBCO_Jcrit(Bext, strain, temperature, ag_c)
     return J_c * fHTSinTape, b
@@ -204,9 +204,9 @@ end
 Material properties of stainless steel
 """
 const stainless_steel = (
-    yield_strength = 800E6, # Pa
-    young_modulus = 193103448275.0, # Pa
-    poisson_ratio = 0.33)
+    yield_strength=800E6, # Pa
+    young_modulus=193103448275.0, # Pa
+    poisson_ratio=0.33)
 
 """
     function solve_1D_solid_mechanics!(
@@ -257,27 +257,27 @@ function solve_1D_solid_mechanics!(
     Bz_oh,                                 # : (float) axial field in solenoid bore, Tesla
     R_oh_in,                               # : (float) major radius of inboard edge of OH coil, meters
     R_oh_out;                              # : (float) major radius of outboard edge of OH coil, meters
-    axial_stress_tf_avg = nothing,         # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
-    axial_stress_oh_avg = nothing,         # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
-    bucked::Bool = false,                  # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
-    noslip::Bool = false,                  # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
-    plug::Bool = false,                    # : (bool), flag for center plug
-    f_struct_tf = 1.0,                     # : (float), fraction of TF coil that is structural material
-    f_struct_oh = 1.0,                     # : (float), fraction of OH coil that is structural material
-    f_struct_pl = 1.0,                     # : (float), fraction of plug that is structural material
-    em_tf = stainless_steel.young_modulus, # : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
-    gam_tf = stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for TF coil, (default is stainless steel)
-    em_oh = stainless_steel.young_modulus, # : (float), modulus of elasticity for OH coil, Pa (default is stainless steel)
-    gam_oh = stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for OH coil, (default is stainless steel)
-    em_pl = stainless_steel.young_modulus, # : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
-    gam_pl = stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for center plug, (default is stainless steel)
-    f_tf_sash = 0.873,                     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
-    f_oh_sash = 0.37337,                   # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
-    n_points::Integer = 21,                # : (int), number of radial points
-    verbose::Bool = false                  # : (bool), flag for verbose output to terminal
+    axial_stress_tf_avg=nothing,         # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
+    axial_stress_oh_avg=nothing,         # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
+    bucked::Bool=false,                  # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
+    noslip::Bool=false,                  # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
+    plug::Bool=false,                    # : (bool), flag for center plug
+    f_struct_tf=1.0,                     # : (float), fraction of TF coil that is structural material
+    f_struct_oh=1.0,                     # : (float), fraction of OH coil that is structural material
+    f_struct_pl=1.0,                     # : (float), fraction of plug that is structural material
+    em_tf=stainless_steel.young_modulus, # : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
+    gam_tf=stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for TF coil, (default is stainless steel)
+    em_oh=stainless_steel.young_modulus, # : (float), modulus of elasticity for OH coil, Pa (default is stainless steel)
+    gam_oh=stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for OH coil, (default is stainless steel)
+    em_pl=stainless_steel.young_modulus, # : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
+    gam_pl=stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for center plug, (default is stainless steel)
+    f_tf_sash=0.873,                     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
+    f_oh_sash=0.37337,                   # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
+    n_points::Integer=21,                # : (int), number of radial points
+    verbose::Bool=false                  # : (bool), flag for verbose output to terminal
 )
 
-    tp = typeof(promote(R0, B0, R_tf_in, R_tf_out, Bz_oh, R_oh_in,R_oh_out)[1])
+    tp = typeof(promote(R0, B0, R_tf_in, R_tf_out, Bz_oh, R_oh_in, R_oh_out)[1])
 
     if verbose
         println("solve_1D_solid_mechanics:")
