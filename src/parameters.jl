@@ -286,6 +286,48 @@ function evalmissing(p::Parameters, field::Symbol)
     return getfield(p, :_parameters)[field].value
 end
 
+"""
+    par2dict(par::FUSE.Parameters)
+
+Convert FUSE parameters to dictionary
+"""
+function par2dict(par::FUSE.Parameters)
+    ret = Dict()
+    return par2dict(par,ret)
+end
+
+function par2dict(par::FUSE.Parameters, ret::AbstractDict)
+    data = getfield(par, :_parameters)
+    return par2dict(data,ret)
+end
+
+function par2dict(data::AbstractDict, ret::AbstractDict)
+    for item in keys(data)
+        if typeof(data[item]) <: FUSE.Parameters
+            ret[item] = Dict()
+            par2dict(data[item], ret[item])
+        elseif typeof(data[item]) <: FUSE.Parameter
+            ret[item] = Dict()
+            ret[item][:value] = data[item].value
+            ret[item][:units] = data[item].units
+            ret[item][:description] = data[item].description
+        end
+    end
+    return ret
+end
+
+"""
+    par2json(@nospecialize(par::FUSE.Parameters), filename::String; kw...)
+
+Save the FUSE parameters to a JSON file with give `filename`
+`kw` arguments are passed to the JSON.print function
+"""
+function par2json(@nospecialize(par::FUSE.Parameters), filename::String; kw...)
+    open(filename, "w") do io
+        JSON.print(io, par2dict(par); kw...)
+    end
+end
+
 #= ================= =#
 #  Parameters errors  #
 #= ================= =#
