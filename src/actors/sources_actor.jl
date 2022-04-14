@@ -51,8 +51,8 @@ function step(actor::SimpleNBIactor)
             sin(nbi_u.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
-        j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
-        j_parallel .*= sign(eqt.global_quantities.ip)
+        j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel *= sign(eqt.global_quantities.ip)
 
         name = "nbi"
         if length(actor.dd.ic_antennas.antenna) > 1
@@ -125,8 +125,8 @@ function step(actor::SimpleECactor)
         ion_electron_fraction = 0.0
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
-        j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
-        j_parallel .*= sign(eqt.global_quantities.ip)
+        j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel *= sign(eqt.global_quantities.ip)
 
         name = "ec"
         if length(actor.dd.ic_antennas.antenna) > 1
@@ -197,8 +197,8 @@ function step(actor::SimpleICactor)
         ion_electron_fraction = 0.25
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
-        j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
-        j_parallel .*= sign(eqt.global_quantities.ip)
+        j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel *= sign(eqt.global_quantities.ip)
 
         name = "ic"
         if length(actor.dd.ic_antennas.antenna) > 1
@@ -269,8 +269,8 @@ function step(actor::SimpleLHactor)
         ion_electron_fraction = 0.0
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
-        j_parallel = actor.current_efficiency / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
-        j_parallel .*= sign(eqt.global_quantities.ip)
+        j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel *= sign(eqt.global_quantities.ip)
 
         name = "lh"
         if length(actor.dd.ic_antennas.antenna) > 1
