@@ -12,7 +12,7 @@ function layer_shape_message(shape_function_index)
  -2: Offset & convex-hull
  -1: Offset
   1: Priceton D exact  (shape_parameters = [])
-  2: Priceton D        (shape_parameters = [])
+  2: Priceton D approx(shape_parameters = [])
   3: Priceton D scaled (shape_parameters = [height])
   4: rectangle         (shape_parameters = [height])
   5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])

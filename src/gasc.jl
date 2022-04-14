@@ -115,35 +115,36 @@ end
 function gasc_2_sources_par(ini::InitParameters, gasc::GASC, version::Type{Val{1}})
     gascsol = gasc.solution
 
+    fractions = gascsol["INPUTS"]["current drive"]
     cd_powers = gascsol["OUTPUTS"]["current drive"]
 
     ini.nbi.power_launched = Float64[]
     ini.nbi.beam_energy = Float64[]
     if cd_powers["CDpowerNBCD"] > 0
-        push!(ini.nbi.power_launched, cd_powers["CDpowerNBCD"])
+        push!(ini.nbi.power_launched, cd_powers["CDpowerNBCD"] * 1E6 * fractions["NBCDFraction"])
         push!(ini.nbi.beam_energy, 200e3)
     end
     if cd_powers["CDpowerNNBCD"] > 0
-        push!(ini.nbi.power_launched, cd_powers["CDpowerNNBCD"])
+        push!(ini.nbi.power_launched, cd_powers["CDpowerNNBCD"] * 1E6 * fractions["NNBCDFraction"])
         push!(ini.nbi.beam_energy, 1000e3)
     end
 
     ini.lh.power_launched = Float64[]
     if cd_powers["CDpowerLHCD"] > 0
-        push!(ini.lh.power_launched, cd_powers["CDpowerLHCD"])
+        push!(ini.lh.power_launched, cd_powers["CDpowerLHCD"] * 1E6 * fractions["LHCDFraction"])
     end
     if cd_powers["CDpowerHICD"] > 0
-        push!(ini.lh.power_launched, cd_powers["CDpowerHICD"])
+        push!(ini.lh.power_launched, cd_powers["CDpowerHICD"] * 1E6 * fractions["HICDFraction"])
     end
 
     ini.ec.power_launched = Float64[]
     if cd_powers["CDpowerECCD"] > 0
-        push!(ini.ec.power_launched, cd_powers["CDpowerECCD"])
+        push!(ini.ec.power_launched, cd_powers["CDpowerECCD"] * 1E6 * fractions["ECCDFraction"])
     end
 
     ini.ic.power_launched = Float64[]
     if cd_powers["CDpowerFWCD"] > 0
-        push!(ini.ic.power_launched, cd_powers["CDpowerFWCD"])
+        push!(ini.ic.power_launched, cd_powers["CDpowerFWCD"] * 1E6 * fractions["FWCDFraction"])
     end
 
     return ini

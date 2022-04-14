@@ -32,6 +32,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1, init_from::Symb
     ini.gasc.no_small_gaps = true
 
     if init_from == :ods
+        @assert version == :v0 "Can only init_from=:ods with version=:v0"
         ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "fpp_gasc_59_step.json")
         ini.build.blanket = 0.9
         ini.build.shield = 0.5
