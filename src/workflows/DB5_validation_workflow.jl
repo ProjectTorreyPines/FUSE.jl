@@ -107,9 +107,9 @@ function transport_validation_workflow(;
     end
 
     if n_processors > 1
-        outs = OUTS=pmap(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
+        ProgressMeter.@showprogress pmap(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
     else
-        outs = OUTS=map(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
+        ProgressMeter.@showprogress map(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
     end
 
 #    p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
