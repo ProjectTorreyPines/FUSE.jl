@@ -79,6 +79,7 @@ function InitParameters(::Type{Val{:tf}})
     tf.n_coils = Entry(Int, "", "Number of TF coils")
     options = [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :triple_arc, :miller, :spline]
     tf.shape = Switch(options, "", "Shape of the TF coils"; default=:princeton_D_scaled)
+    tf.ripple = Entry(Real, "", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
     tf.technology = InitParameters(:coil_technology)
     return tf
 end
