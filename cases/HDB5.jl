@@ -16,21 +16,6 @@ function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any,
     case_parameters(data_row)
 end
 
-function run_HDB5_from_data_row(data_row)
-    try
-        dd=IMAS.dd()
-        ini,act=FUSE.case_parameters(data_row)
-        dd = FUSE.simple_equilibrium_transport_workflow(dd, ini, act)
-        data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
-        data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
-        data_row[:error_message] = ""
-    catch e
-        data_row[:TAUTH_fuse] = NaN
-        data_row[:T0_fuse] = NaN
-        data_row[:error_message] = e
-    end
-    return data_row
-end
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
     ini = InitParameters()
@@ -118,7 +103,7 @@ function load_hdb5(tokamak::T=:all; maximum_ohmic_fraction=0.25, database_id=mis
         return run_df[run_df.database_id .== database_id, :]
     end
 
-    signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH","AUXHEAT", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
+    signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
     signal_names = vcat(signal_names, extra_signal_names)
     # subselect on the signals of interest
     run_df = run_df[:, signal_names]
