@@ -39,24 +39,25 @@ end
 
 Map GASC inputs and solution to FUSE input scalar parameters
 """
-function InitParameters(gasc::GASC; no_small_gaps::Bool=true)
+function case_parameters(gasc::GASC)
     ini = InitParameters()
+    act = ActorParameters()
 
     ini.gasc.filename = gasc.filename
     ini.gasc.case = gasc.case
     ini.general.casename = "GASC"
     ini.general.init_from = :gasc
 
-    gasc_2_build(ini, gasc; no_small_gaps)
+    gasc_2_build(gasc, ini, act)
 
-    gasc_2_equilibrium(ini, gasc)
+    gasc_2_equilibrium(gasc, ini, act)
 
-    gasc_2_sources_par(ini, gasc, Val{gasc.version})
+    gasc_2_sources(gasc, ini, act)
 
-    return set_new_base!(ini)
+    return set_new_base!(ini), set_new_base!(act)
 end
 
-function gasc_2_equilibrium(ini::InitParameters, gasc::GASC)
+function gasc_2_equilibrium(gasc::GASC, ini::InitParameters, act::ActorParameters)
     gascsol = gasc.solution
     ini.equilibrium.B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
     ini.equilibrium.R0 = gascsol["INPUTS"]["radial build"]["majorRadius"]
@@ -71,47 +72,7 @@ function gasc_2_equilibrium(ini::InitParameters, gasc::GASC)
     return ini
 end
 
-function gasc_2_sources_par(ini::InitParameters, gasc::GASC, version::Type{Val{0}})
-    gascsol = gasc.solution
-
-    injected_power = gascsol["OUTPUTS"]["current drive"]["powerAux"] * 1E6
-    @assert gascsol["INPUTS"]["current drive"]["auxCDPowerFactor"] >= 1.0
-    cd_power = injected_power / gascsol["INPUTS"]["current drive"]["auxCDPowerFactor"]
-    heating_power = injected_power - cd_power
-
-    cd_powers = Dict()
-    for system in ["NNB", "NB", "LH", "FW", "EC", "HI"]
-        cd_powers[system] = cd_power * gascsol["INPUTS"]["current drive"]["$(system)CDFraction"]
-    end
-
-    ini.nbi.power_launched = Float64[]
-    ini.nbi.beam_energy = Float64[]
-    if heating_power > 0
-        push!(ini.nbi.power_launched, heating_power)
-        push!(ini.nbi.beam_energy, 200e3)
-    end
-    if cd_powers["NB"] > 0
-        push!(ini.nbi.power_launched, cd_powers["NB"])
-        push!(ini.nbi.beam_energy, 200e3)
-    end
-    if cd_powers["NNB"] > 0
-        push!(ini.nbi.power_launched, cd_powers["NNB"])
-        push!(ini.nbi.beam_energy, 1000e3)
-    end
-    ini.lh.power_launched = Float64[]
-    if cd_powers["LH"] > 0
-        push!(ini.lh.power_launched, cd_powers["LH"])
-    end
-    if cd_powers["HI"] > 0
-        push!(ini.lh.power_launched, cd_powers["HI"])
-    end
-    ini.ic.power_launched = cd_powers["FW"]
-    ini.ec.power_launched = cd_powers["EC"]
-
-    return ini
-end
-
-function gasc_2_sources_par(ini::InitParameters, gasc::GASC, version::Type{Val{1}})
+function gasc_2_sources(gasc::GASC, ini::InitParameters, act::ActorParameters)
     gascsol = gasc.solution
 
     inputs = gascsol["INPUTS"]["current drive"]
@@ -173,9 +134,9 @@ function gasc_2_sources_par(ini::InitParameters, gasc::GASC, version::Type{Val{1
     return ini
 end
 
-function gasc_2_build(ini::InitParameters, gasc::GASC; no_small_gaps::Bool)
+function gasc_2_build(gasc::GASC, ini::InitParameters, act::ActorParameters)
     gascsol = gasc.solution
-    ini.build.layers = gasc_to_layers(gascsol, Val{gasc.version}; no_small_gaps)
+    ini.build.layers = gasc_to_layers(gascsol)
     ini.build.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
 
     ini.tf.technology = coil_technology(gasc, :TF)
@@ -191,101 +152,11 @@ function gasc_2_build(ini::InitParameters, gasc::GASC; no_small_gaps::Bool)
 end
 
 """
-    function gasc_to_layers_v0(
-        gascrb::Dict;
-        no_small_gaps::Bool = true,
-        vacuum_vessel::Float64 = 0.1)
+    function gasc_to_layers(gascsol::Dict)
 
 Convert GASC ["INPUTS"]["radial build"] to FUSE build layers dictionary
 """
-function gasc_to_layers(gascol::Dict, version::Type{Val{0}}; no_small_gaps::Bool, vacuum_vessel::Float64=0.1)
-    gascrb = gascol["INPUTS"]["radial build"]
-    majorRadius = gascrb["majorRadius"]
-    aspectRatio = gascrb["aspectRatio"]
-    minorRadius = majorRadius / aspectRatio
-    innerPlasmaRadius = majorRadius - minorRadius
-    norm = innerPlasmaRadius
-
-    layers = DataStructures.OrderedDict()
-    for run in 1:2
-        layers["OH"] = gascrb["rbOH"] * norm
-
-        layers["hfs_gap_TF"] = gascrb["gapTFOH"] * norm
-        layers["hfs_TF"] = gascrb["rbTF"] * norm
-        if no_small_gaps
-            layers["hfs_TF"] += layers["hfs_gap_TF"]
-            pop!(layers, "hfs_gap_TF")
-        end
-
-        if vacuum_vessel > 0.0
-            layers["gap_hfs_vacuum_vessel"] = gascrb["rbInnerBlanket"] * norm * vacuum_vessel
-        end
-
-        layers["hfs_gap_shield"] = gascrb["gapBlanketCoil"] * norm
-        layers["hfs_shield"] = gascrb["rbInnerShield"] * norm
-        if no_small_gaps
-            layers["hfs_shield"] += layers["hfs_gap_shield"]
-            pop!(layers, "hfs_gap_shield")
-        end
-        layers["hfs_blanket"] = gascrb["rbInnerBlanket"] * norm * (1 - vacuum_vessel)
-
-        layers["hfs_wall"] = gascrb["gapInnerBlanketWall"] * norm
-
-        if run == 1
-            between_gapOH_and_plasma = sum(values(layers))
-            empty!(layers)
-            layers["gap_OH"] = innerPlasmaRadius - between_gapOH_and_plasma
-        end
-    end
-
-    layers["plasma"] = (gascrb["majorRadius"] - sum(values(layers))) * 2 + (gascrb["gapIn"] + gascrb["gapOut"]) * norm
-    layers["lfs_wall"] = gascrb["gapOuterBlanketWall"] * norm
-
-    layers["lfs_blanket"] = gascrb["rbOuterBlanket"] * norm * (1 - vacuum_vessel)
-    layers["lfs_shield"] = gascrb["rbOuterShield"] * norm
-    layers["lfs_gap_shield"] = gascrb["gapBlanketCoil"] * norm
-    if no_small_gaps
-        layers["lfs_shield"] += layers["lfs_gap_shield"]
-        pop!(layers, "lfs_gap_shield")
-    end
-
-    if vacuum_vessel > 0.0
-        layers["gap_lfs_vacuum_vessel"] = gascrb["rbOuterBlanket"] * norm * vacuum_vessel
-    end
-
-    layers["lfs_TF"] = layers["hfs_TF"]
-    layers["lfs_gap_TF"] = gascrb["gapTFOH"] * norm
-    if no_small_gaps
-        layers["lfs_TF"] += layers["lfs_gap_TF"]
-        pop!(layers, "lfs_gap_TF")
-    end
-
-    layers["gap_cryostat"] = layers["gap_OH"] * 3
-
-    # thin layers can cause LibGEOS to crash
-    # if wall is too thin, then thicken it at the expense of the blanket
-    min_fraction_thin_wall = 0.02
-    if no_small_gaps && (layers["hfs_wall"] < min_fraction_thin_wall * norm)
-        layers["hfs_blanket"] -= (min_fraction_thin_wall * norm - layers["hfs_wall"])
-        layers["hfs_wall"] = min_fraction_thin_wall * norm
-    end
-    if no_small_gaps && (layers["lfs_wall"] < min_fraction_thin_wall * norm)
-        layers["lfs_blanket"] -= (min_fraction_thin_wall * norm - layers["lfs_wall"])
-        layers["lfs_wall"] = min_fraction_thin_wall * norm
-    end
-
-    return layers
-end
-
-"""
-    function gasc_to_layers(
-        gascrb::Dict;
-        no_small_gaps::Bool = true,
-        vacuum_vessel::Float64 = 0.1)
-
-Convert GASC ["INPUTS"]["radial build"] to FUSE build layers dictionary
-"""
-function gasc_to_layers(gascsol::Dict, version::Type{Val{1}}; no_small_gaps::Bool)
+function gasc_to_layers(gascsol::Dict)
     gascrb = gascsol["OUTPUTS"]["radial build"]
 
     layers = DataStructures.OrderedDict()
