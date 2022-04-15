@@ -8,11 +8,18 @@ function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any,
 end
 
 function run_HDB5_from_data_row(data_row)
-    dd=IMAS.dd()
-    ini,act=FUSE.case_parameters(data_row)
-    dd = FUSE.simple_equilibrium_transport_workflow(dd, ini, act)
-    data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
-    data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
+    try
+        dd=IMAS.dd()
+        ini,act=FUSE.case_parameters(data_row)
+        dd = FUSE.simple_equilibrium_transport_workflow(dd, ini, act)
+        data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
+        data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
+        data_row[:error_message] = ""
+    catch e
+        data_row[:TAUTH_fuse] = NaN
+        data_row[:T0_fuse] = NaN
+        data_row[:error_message] = e
+    end
     return data_row
 end
 
