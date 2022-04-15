@@ -67,21 +67,21 @@ function PFcoilsOptActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.PFcoilsOptActor(kw...)
     actor = PFcoilsOptActor(dd; green_model=par.green_model, symmetric=par.symmetric)
 
-    if !only_currents
+    if !par.only_currents
         # optimize coil location only considering equilibria (disregard field-null)
-        step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=λ_currents, λ_strike=0.0, verbose=par.verbose, maxiter=1000, optimization_scheme=:rail)
+        step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=par.λ_currents, λ_strike=0.0, verbose=par.verbose, maxiter=1000, optimization_scheme=:rail)
         finalize(actor)
 
-        if do_plot
+        if par.do_plot
             display(plot(actor.trace, :cost))
             display(plot(actor.trace, :params))
         end
     else
         # find coil currents for both field-null and equilibria
-        step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=λ_currents, verbose=false, maxiter=1000, optimization_scheme=:static)
+        step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=par.λ_currents, verbose=par.verbose, maxiter=1000, optimization_scheme=:static)
     end
 
-    if do_plot
+    if par.do_plot
         # field null time slice
         display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[1]))
         display(plot(actor, equilibrium=true, rail=true, time_index=1))
