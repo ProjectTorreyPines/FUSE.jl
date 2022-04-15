@@ -3,6 +3,7 @@ import DataFrames
 import CSV
 import ProgressMeter
 import Dates
+import Distributed
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
                                 ini::InitParameters;
@@ -100,17 +101,7 @@ function transport_validation_workflow(;
 	run_df[:,"error_message"] = ["" for i in 1:n_cases]
 
     # Run simple_equilibrium_transport_workflow on each of the selected cases
-    try
-        global n_processors = nprocs()
-    catch
-        global n_processors = 1
-    end
-
-    if n_processors > 1
-        ProgressMeter.@showprogress pmap(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
-    else
-        ProgressMeter.@showprogress map(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
-    end
+    ProgressMeter.@showprogress Distributed.pmap(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
 
 #    p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
 #    ProgressMeter.next!(p)
