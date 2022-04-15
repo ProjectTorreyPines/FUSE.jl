@@ -131,7 +131,7 @@ function transport_validation_workflow(;
         plot_x_y_regression(run_df, "TAUTH")
     end
 
-    return run_df
+    return run_df, failed_df
 end
 
 function R_squared(x, y)
