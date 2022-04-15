@@ -2,7 +2,7 @@ import Random
 import DataFrames
 import CSV
 import ProgressMeter
-
+import Dates
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
                                 ini::InitParameters;
@@ -43,6 +43,26 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::InitParameters,
     return dd
 end
 
+function run_HDB5_from_data_row(data_row,act::Union{ActorParameters,Missing}=missing,verbose::Bool=false, do_plot::Bool=false)
+    try
+        dd=IMAS.dd()
+        ini,ACT=FUSE.case_parameters(data_row)
+        if ismissing(act)
+            act=ACT
+        end
+        dd = FUSE.simple_equilibrium_transport_workflow(dd, ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
+        data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
+        data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
+        data_row[:error_message] = ""
+    catch e
+        data_row[:TAUTH_fuse] = NaN
+        data_row[:T0_fuse] = NaN
+        data_row[:error_message] = "$e"
+    end
+    return data_row
+end
+
+
 """
     function transport_validation_workflow(
         n_samples_per_tokamak::Union{Integer,Symbol}, # setting this to :all runs the whole database
@@ -58,7 +78,8 @@ function transport_validation_workflow(;
     save_directory::String="",
     show_dd_plots=false,
     plot_database=true,
-    verbose=false)
+    verbose=false,
+    act=missing)
 
     # load HDB5 database
     run_df = load_hdb5(tokamak)
@@ -71,45 +92,46 @@ function transport_validation_workflow(;
         )
     end
 
-    # Run simple_equilibrium_transport_workflow on each of the selected cases
-    tau_FUSE = zeros(length(run_df[:, "TOK"]))
-    tbl = DataFrames.Tables.rowtable(run_df)
-    failed_runs_ids = Int[]
-    p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
-    Base.Threads.@threads for idx in 1:length(DataFrames.Tables.rows(tbl))
-        try
-            dd = IMAS.dd()
-            ini = InitParameters(run_df[idx, :])
-            act = ActorParameters()
-            simple_equilibrium_transport_workflow(dd, ini, act; save_directory, do_plot=show_dd_plots, warn_nn_train_bounds=false)
-            tau_FUSE[idx] = @ddtime(dd.summary.global_quantities.tau_energy.value)
-            if verbose
-                display(println("τ_fuse = $(@ddtime(dd.summary.global_quantities.tau_energy.value)) τ_hdb5 = $(run_df[idx, :TAUTH])"))
-            end
-        catch e
-            push!(failed_runs_ids, idx)
-            if verbose
-                display(@show e)
-            end
-        end
-        ProgressMeter.next!(p)
-    end
-    println("Failed runs: $(length(failed_runs_ids)) out of $(length(run_df[:,"TOK"]))")
-    run_df[:, "TAUTH_fuse"] = tau_FUSE
+    n_cases = length(run_df.TOK)
 
-    failed_df = run_df[failed_runs_ids, :]
+    # Outputs to store
+	run_df[:,"TAUTH_fuse"] = zeros(n_cases)
+	run_df[:,"T0_fuse"] = zeros(n_cases)
+	run_df[:,"error_message"] = ["" for i in 1:n_cases]
+
+    # Run simple_equilibrium_transport_workflow on each of the selected cases
+    try
+        global n_processors = nprocs()
+    catch
+        global n_processors = 1
+    end
+
+    if n_processors > 1
+        outs = OUTS=pmap(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
+    else
+        outs = OUTS=map(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
+    end
+
+#    p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
+#    ProgressMeter.next!(p)
+
+    failed_df = filter(:TAUTH_fuse => isnan,run_df)
+    run_df = filter(:TAUTH_fuse => !isnan,run_df)
+
+    println("Failed runs: $(length(failed_df.TOK)) out of $(length(run_df.TOK))")
+    println("Mean Relative error $(MRE = round(100 * mean_relative_error(run_df[:, :TAUTH], run_df[:, :TAUTH_fuse]), digits=2))%")
 
     # save all input data as well as predicted tau to CSV file
     if !isempty(save_directory)
-        CSV.write(joinpath(save_directory, "dataframe.csv"), run_df)
-        CSV.write(joinpath(save_directory, "failed_runs_dataframe.csv"), failed_df)
+        CSV.write(joinpath(save_directory, "dataframe_$(Dates.now()).csv"), run_df)
+        CSV.write(joinpath(save_directory, "failed_runs_dataframe_$(Dates.now()).csv"), failed_df)
     end
 
     if plot_database
         plot_x_y_regression(run_df, "TAUTH")
     end
 
-    return run_df, failed_df
+    return run_df
 end
 
 function R_squared(x, y)
