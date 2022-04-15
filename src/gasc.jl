@@ -60,9 +60,9 @@ end
 
 function gasc_2_core_profiles(ini::InitParameters, gasc::GASC)
     gascsol = gasc.solution
-    ini.core_profiles.zeff = gascsol["OUTPUTS"]['impurities']['effectiveZ']
+    ini.core_profiles.zeff = gascsol["OUTPUTS"]["impurities"]["effectiveZ"]
     ini.core_profiles.ne_ped = gascsol["OUTPUTS"]["plasma parameters"]["neped"] * 1e20
-    ini.core_profiles.ne_vol_avg = gascsol["OUTPUTS"]['plasma parameters']['neVolAvg'] * 1e20
+    ini.core_profiles.ne_vol_avg = gascsol["OUTPUTS"]["plasma parameters"]["neVolAvg"] * 1e20
     return ini
 end
 
