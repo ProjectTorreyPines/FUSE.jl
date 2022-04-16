@@ -262,3 +262,19 @@ function coil_technology(gasc::GASC, coil_type::Symbol)
     end
     return set_new_base!(coil_tech)
 end
+
+function compare(dd::IMAS.dd, gasc::GASC)
+    df = DataFrames.DataFrame(code=["FUSE", "GASC"])
+
+    # collisionless bootstrap coefficient
+    FUSE = IMAS.collisionless_bootstrap_coefficient(dd)
+    GASC = gasc.solution["INPUTS"]["plasma parameters"]["user_bootstrapCoefficient"]
+    df.Cbs = [FUSE, GASC]
+
+    # fusion power [MW]
+    FUSE = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6
+    GASC = gasc.solution["OUTPUTS"]["power balance"]["powerFusion"]
+    df.Pfusion = [FUSE, GASC]
+
+    df
+end
