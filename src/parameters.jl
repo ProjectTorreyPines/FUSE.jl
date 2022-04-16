@@ -282,6 +282,12 @@ function (par::Parameters)(kw...)
     return par
 end
 
+"""
+    evalmissing(p::Parameters, field::Symbol) 
+
+Return parameter value or `missing` if parameter is missing
+NOTE: This is useful because accessing a `missing` parameter would raise an error
+"""
 function evalmissing(p::Parameters, field::Symbol)
     return getfield(p, :_parameters)[field].value
 end

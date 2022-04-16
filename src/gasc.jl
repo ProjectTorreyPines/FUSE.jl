@@ -125,7 +125,7 @@ function gasc_2_sources(gasc::GASC, ini::InitParameters, act::ActorParameters)
     # in the core and heats mostly the ions.
     @assert inputs["auxCDPowerFactor"] >= 1.0
     cd_power = sum(cd_powers)
-    injected_power = cd_power * inputs["auxCDPowerFactor"] *1.1
+    injected_power = cd_power * inputs["auxCDPowerFactor"]
     heating_power = injected_power - cd_power
     if heating_power > 0
         push!(ini.nbi.power_launched, heating_power)
