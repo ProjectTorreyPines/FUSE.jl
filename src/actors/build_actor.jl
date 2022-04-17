@@ -19,11 +19,11 @@ function FluxSwingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(flxactor::FluxSwingActor)
-    bd = flxactor.dd.build
-    eq = flxactor.dd.equilibrium
+function step(actor::FluxSwingActor)
+    bd = actor.dd.build
+    eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
-    cp = flxactor.dd.core_profiles
+    cp = actor.dd.core_profiles
     cp1d = cp.profiles_1d[]
 
     bd.flux_swing_requirements.rampup = rampup_flux_requirements(eqt, cp)
@@ -33,7 +33,7 @@ function step(flxactor::FluxSwingActor)
     oh_peakJ(bd)
     tf_peakJ(bd, eq)
 
-    return flxactor
+    return actor
 end
 
 """
