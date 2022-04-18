@@ -470,6 +470,9 @@ function xy_polygon(x, y)
 end
 
 function silo(r_start, r_end, height_start, height_end)
+    height_start = abs(height_start)
+    height_end = abs(height_end)
+    height_end = min(max(height_end,height_start*0.95),height_start*0.75)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0, pi / 2, r_start, height_end)
     vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end
