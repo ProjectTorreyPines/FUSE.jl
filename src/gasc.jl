@@ -55,7 +55,8 @@ function case_parameters(gasc::GASC)
     gasc_2_sources(gasc, ini, act)
 
     gasc_2_core_profiles(gasc, ini, act)
-    return set_new_base!(ini)
+
+    return set_new_base!(ini), set_new_base!(act)
 end
 
 function gasc_2_core_profiles(gasc::GASC, ini::InitParameters, act::ActorParameters)
