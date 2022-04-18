@@ -101,13 +101,10 @@ function transport_validation_workflow(;
 	run_df[:,"error_message"] = ["" for i in 1:n_cases]
 
     # Run simple_equilibrium_transport_workflow on each of the selected cases
-    @showprogress data_rows = pmap(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
+    data_rows = @showprogress pmap(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
     for k in 1:length(data_rows)
         run_df[k,:] = data_rows[k]
     end
-
-#    p = ProgressMeter.Progress(length(DataFrames.Tables.rows(tbl)); showspeed=true)
-#    ProgressMeter.next!(p)
 
     failed_df = filter(:TAUTH_fuse => isnan,run_df)
     run_df = filter(:TAUTH_fuse => !isnan,run_df)
