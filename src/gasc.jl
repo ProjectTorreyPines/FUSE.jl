@@ -143,7 +143,7 @@ function gasc_2_sources(gasc::GASC, ini::InitParameters, act::ActorParameters)
     # in the core and heats mostly the ions.
     @assert inputs["auxCDPowerFactor"] >= 1.0
     cd_power = sum(cd_powers)
-    injected_power = cd_power * inputs["auxCDPowerFactor"] * 1.1
+    injected_power = cd_power * inputs["auxCDPowerFactor"]
     heating_power = injected_power - cd_power
     if heating_power > 0
         push!(ini.nbi.power_launched, heating_power)
@@ -227,20 +227,20 @@ function gasc_to_layers(gascsol::Dict)
                 f1 = "lfs_" * f1
             end
             f = f1
-            layers[f1] = d
+            f = replace(f, r".fs_gap_TF_OH"=>"gap_TF_OH")
+            layers[f] = d
         elseif startswith(g1, "Ro") && d > 0
             if contains(g2, "Outer")
                 f = "lfs_gap_$(f1)_$(f2)"
             else
                 f = "hfs_gap_$(f2)_$(f1)"
             end
+            f = replace(f, r".fs_gap_TF_OH"=>"gap_TF_OH")
             layers[f] = d
         end
     end
-    if "hfs_gap_TF_OH" in keys(layers)
-        layers["lfs_gap_TF_OH"] = layers["hfs_gap_TF_OH"]
-    end
-    layers["gap_cryostat"] = layers["gap_OH"] * 3
+    layers["gap_cryostat"] = layers["OH"] * 4
+    layers["cryostat"] = layers["lfs_low_temp_shield"]
 
     return layers
 end
@@ -279,4 +279,20 @@ function coil_technology(gasc::GASC, coil_type::Symbol)
         coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainless$coil_type"]
     end
     return set_new_base!(coil_tech)
+end
+
+function compare(dd::IMAS.dd, gasc::GASC)
+    df = DataFrames.DataFrame(code=["FUSE", "GASC"])
+
+    # collisionless bootstrap coefficient
+    FUSE = IMAS.collisionless_bootstrap_coefficient(dd)
+    GASC = gasc.solution["INPUTS"]["plasma parameters"]["user_bootstrapCoefficient"]
+    df.Cbs = [FUSE, GASC]
+
+    # fusion power [MW]
+    FUSE = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6
+    GASC = gasc.solution["OUTPUTS"]["power balance"]["powerFusion"]
+    df.Pfusion = [FUSE, GASC]
+
+    df
 end

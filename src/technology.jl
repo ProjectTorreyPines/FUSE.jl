@@ -127,7 +127,7 @@ Return coil parameters depending of technology [:copper, :LTS, :HTS]
 function coil_technology(technology::Symbol)
     coil_tech = InitParameters(:coil_technology)
     if technology == :copper
-        coil_tech.material = "copper"
+        coil_tech.material = "Copper"
         coil_tech.temperature = 293.0
         coil_tech.fraction_stainless = 0.0
         coil_tech.fraction_void = 0.1
@@ -184,7 +184,7 @@ end
 Returns critical current given a coil technology and external magnetic field
 """
 function coil_Jcrit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
-    if coil_tech.material == "copper"
+    if coil_tech.material == "Copper"
         Jcrit = 18.5e6 # A/m^2
         fraction_cable = 1.0 - coil_tech.fraction_stainless - coil_tech.fraction_void # fraction of coil that is LTS cabling
         return Jcrit * fraction_cable # A/m^2

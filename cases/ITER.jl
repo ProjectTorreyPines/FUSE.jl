@@ -12,7 +12,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
     if init_from == :ods
         ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "ITER_eq_ods.json")
         act.CXbuildActor.rebuild_wall = false
-        act.OHTFsizingActor.fixed_plasma_start_radius = true
+        act.HFSsizingActor.fixed_plasma_start_radius = true
     else
         ini.equilibrium.R0 = 6.2
         ini.equilibrium.ϵ = 0.32
@@ -25,7 +25,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
         ini.equilibrium.x_point = true
         ini.equilibrium.symmetric = false
         act.CXbuildActor.rebuild_wall = true
-        act.OHTFsizingActor.fixed_plasma_start_radius = true
+        act.HFSsizingActor.fixed_plasma_start_radius = true
     end
 
     # explicitly set thickness of 
@@ -42,6 +42,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
     layers[:gap_lfs_vacuum_vessel] = 1.05
     layers[:lfs_TF] = 1.10
     layers[:gap_cryostat] = 2.34
+    layers[:cryostat] = 0.30
 
     ini.pf_active.n_oh_coils = 6
     ini.pf_active.n_pf_coils_inside = 0
