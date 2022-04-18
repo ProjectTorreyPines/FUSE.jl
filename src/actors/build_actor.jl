@@ -123,8 +123,8 @@ function oh_peakJ(bd::IMAS.build, double_swing::Bool=true)
     totalOhFluxReq = bd.flux_swing_requirements.rampup + bd.flux_swing_requirements.flattop + bd.flux_swing_requirements.pf
 
     # Calculate magnetic field at solenoid bore required to match flux swing request
-    RiRoFactor = innerSolenoidRadius / outerSolenoidRadius
-    magneticFieldSolenoidBore = 3.0 * totalOhFluxReq / pi / outerSolenoidRadius^2 / (RiRoFactor^2 + RiRoFactor + 1.0) / (double_swing ? 2 : 1)
+    RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
+    magneticFieldSolenoidBore = 3.0 * totalOhFluxReq / pi / outerSolenoidRadius^2 / (RiRo_factor^2 + RiRo_factor + 1.0) / (double_swing ? 2 : 1)
     currentDensityOH = magneticFieldSolenoidBore / (0.4 * pi * outerSolenoidRadius * (1 - innerSolenoidRadius / outerSolenoidRadius))
 
     # minimum requirements for OH
@@ -172,10 +172,10 @@ function StressesActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(stressactor::StressesActor)
-    eq = stressactor.dd.equilibrium
-    bd = stressactor.dd.build
-    sm = stressactor.dd.solid_mechanics
+function step(actor::StressesActor)
+    eq = actor.dd.equilibrium
+    bd = actor.dd.build
+    sm = actor.dd.solid_mechanics
 
     R0 = eq.vacuum_toroidal_field.r0
     B0 = maximum(eq.vacuum_toroidal_field.b0)
@@ -215,22 +215,80 @@ function step(stressactor::StressesActor)
 
 end
 
-@recipe function plot_StressesActor(sactor::StressesActor)
+@recipe function plot_StressesActor(actor::StressesActor)
     @series begin
-        sactor.dd.solid_mechanics.center_stack.stress
+        actor.dd.solid_mechanics.center_stack.stress
     end
+end
+
+#= ====== =#
+#  ripple  #
+#= ====== =#
+mutable struct LFSsizingActor <: AbstractActor
+    dd::IMAS.dd
+end
+
+function ActorParameters(::Type{Val{:LFSsizingActor}})
+    par = ActorParameters(nothing)
+    par.do_plot = Entry(Bool, "", "plot"; default=false)
+    par.verbose = Entry(Bool, "", "verbose"; default=false)
+    return par
+end
+
+function LFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.LFSsizingActor(kw...)
+    if par.do_plot
+        plot(dd.build)
+    end
+    actor = LFSsizingActor(dd)
+    step(actor; par.verbose)
+    finalize(actor)
+    if par.do_plot
+        display(plot!(dd.build; cx=false))
+    end
+    return actor
+end
+
+function step(actor::LFSsizingActor; verbose::Bool=false)
+    dd = actor.dd
+
+    new_TF_radius = IMAS.R_tf_ripple(IMAS.get_build(dd.build, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
+
+    itf = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_, return_index=true) - 1
+    iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true) + 1
+
+    # resize layers proportionally
+    # start from the vacuum gaps before resizing the material layers
+    for vac in [true, false]
+        old_TF_radius = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_).start_radius
+        delta = new_TF_radius - old_TF_radius
+        if verbose
+            println("TF radius changed by $delta [m]")
+        end
+        thicknesses = [dd.build.layer[k].thickness for k in iplasma:itf if !vac || lowercase(dd.build.layer[k].material) == "vacuum"]
+        for k in iplasma:itf
+            if !vac || lowercase(dd.build.layer[k].material) == "vacuum"
+                dd.build.layer[k].thickness *= (1 + delta / sum(thicknesses))
+                hfs_thickness = IMAS.get_build(dd.build, identifier=dd.build.layer[k].identifier, fs=_hfs_).thickness
+                if dd.build.layer[k].thickness < hfs_thickness
+                    dd.build.layer[k].thickness = hfs_thickness
+                end
+            end
+        end
+    end
+
 end
 
 #= ====== =#
 #  sizing  #
 #= ====== =#
 
-mutable struct OHTFsizingActor <: AbstractActor
+mutable struct HFSsizingActor <: AbstractActor
     stresses_actor::StressesActor
     fluxswing_actor::FluxSwingActor
 end
 
-function ActorParameters(::Type{Val{:OHTFsizingActor}})
+function ActorParameters(::Type{Val{:HFSsizingActor}})
     par = ActorParameters(nothing)
     par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
     par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
@@ -240,14 +298,14 @@ function ActorParameters(::Type{Val{:OHTFsizingActor}})
     return par
 end
 
-function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.OHTFsizingActor(kw...)
+function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.HFSsizingActor(kw...)
     if par.do_plot
         plot(dd.build)
     end
     fluxswing_actor = FluxSwingActor(dd, act)
     stresses_actor = StressesActor(dd, act)
-    actor = OHTFsizingActor(stresses_actor, fluxswing_actor)
+    actor = HFSsizingActor(stresses_actor, fluxswing_actor)
     step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_plasma_start_radius=par.fixed_plasma_start_radius)
     finalize(actor)
     if par.do_plot
@@ -256,7 +314,7 @@ function OHTFsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::OHTFsizingActor; verbose::Bool=false, j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_plasma_start_radius::Bool=false)
+function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_plasma_start_radius::Bool=false)
 
     function cost(x0)
         plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
@@ -299,10 +357,13 @@ function step(actor::OHTFsizingActor; verbose::Bool=false, j_tolerance::Real=0.4
     if fixed_plasma_start_radius
         # If we need to keep the plasma at a fixed radius, then we redistribute 
         # the changes in center stack thickness proportionally among layers
-        delta = old_plasma_radius - new_plasma_radius
-        new_thicknesses = [dd.build.layer[k].thickness for k in 2:iplasma]
+        # NOTE: we do not modify the thicknesses of the vacuum gaps
+        delta = new_plasma_radius - old_plasma_radius
+        thicknesses = [dd.build.layer[k].thickness for k in 2:iplasma if lowercase(dd.build.layer[k].material) != "vacuum"]
         for k in 2:iplasma
-            dd.build.layer[k].thickness *= (1 + delta / sum(new_thicknesses))
+            if lowercase(dd.build.layer[k].material) != "vacuum"
+                dd.build.layer[k].thickness *= (1 + delta / sum(thicknesses))
+            end
         end
     end
     TFlfs.thickness = TFhfs.thickness
@@ -351,9 +412,9 @@ function CXbuildActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(cx_actor::CXbuildActor; rebuild_wall::Bool=true)
+function step(actor::CXbuildActor; rebuild_wall::Bool=true)
     if rebuild_wall
-        empty!(cx_actor.dd.wall)
+        empty!(actor.dd.wall)
     end
-    build_cx(cx_actor.dd)
+    build_cx(actor.dd)
 end

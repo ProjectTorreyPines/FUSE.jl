@@ -10,10 +10,7 @@ To generate a JSON file from a GASC run:
 """
 
 function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1, init_from::Symbol)
-    if version == :v0
-        filename = "FPPv0.0_fBS_PBpR_scan.json"
-        case = 59
-    elseif version == :v1
+    if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
     elseif version == :v1_demount
@@ -22,9 +19,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1, init_from::Symb
     end
 
     gasc = GASC(joinpath(dirname(abspath(@__FILE__)), "..", "sample", filename), case)
-
-    ini = InitParameters(gasc)
-    act = ActorParameters()
+    ini, act = case_parameters(gasc)
 
     ini.general.casename = "FPP_$(init_from)"
     ini.general.init_from = init_from
@@ -42,15 +37,17 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1, init_from::Symb
         ini.core_profiles.bulk = :DT
     end
 
+#    ini.oh.flattop_duration = 1000
+
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 16
 
     ini.pf_active.n_oh_coils = 6
     ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 4
+    ini.pf_active.n_pf_coils_outside = 8
 
     ini.material.shield = "Tungsten"
-    ini.material.blanket = "FLiBe"
+    ini.material.blanket = "lithium-lead"
 
     act.PFcoilsOptActor.symmetric = true
 

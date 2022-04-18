@@ -33,7 +33,7 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
             init_radial_build(
                 dd.build,
                 dd.equilibrium.time_slice[],
-                first_wall(dd.wall);
+                IMAS.first_wall(dd.wall);
                 shield=ini.build.shield,
                 blanket=ini.build.blanket,
                 vessel=ini.build.vessel,
@@ -57,6 +57,8 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
     dd.build.tf.coils_n = ini.tf.n_coils
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
     dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type=_tf_, fs=_hfs_).start_radius / dd.build.tf.coils_n
+    # ripple
+    dd.build.tf.ripple = ini.tf.ripple
 
     # center stack solid mechanics
     dd.solid_mechanics.center_stack.bucked = Int(ini.center_stack.bucked)
@@ -237,19 +239,6 @@ function init_radial_build(
 end
 
 """
-    first_wall(wall::IMAS.wall)
-
-return outline of first wall
-"""
-function first_wall(wall::IMAS.wall)
-    if (!ismissing(wall.description_2d, [1, :limiter, :unit, 1, :outline, :r])) && (length(wall.description_2d[1].limiter.unit[1].outline.r) > 5)
-        return wall.description_2d[1].limiter.unit[1].outline
-    else
-        return missing
-    end
-end
-
-"""
     wall_from_eq(dd)
 
 Generate first wall outline starting from an equilibrium
@@ -328,14 +317,14 @@ Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
 function build_cx(dd::IMAS.dd)
-    wall = first_wall(dd.wall)
+    wall = IMAS.first_wall(dd.wall)
     if wall === missing
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
         resize!(dd.wall.description_2d, 1)
         resize!(dd.wall.description_2d[1].limiter.unit, 1)
         dd.wall.description_2d[1].limiter.unit[1].outline.r = pr
         dd.wall.description_2d[1].limiter.unit[1].outline.z = pz
-        wall = first_wall(dd.wall)
+        wall = IMAS.first_wall(dd.wall)
     end
     return build_cx(dd.build, wall.r, wall.z)
 end
