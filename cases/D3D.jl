@@ -16,7 +16,7 @@ function case_parameters(::Type{Val{:D3D}})
     ini.pf_active.n_pf_coils_outside = 0
     ini.pf_active.technology = coil_technology(:copper)
 
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :triple_arc
     ini.tf.n_coils = 24
     ini.tf.technology = coil_technology(:copper)
 

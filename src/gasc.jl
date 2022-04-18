@@ -209,20 +209,20 @@ function gasc_to_layers(gascsol::Dict)
                 f1 = "lfs_" * f1
             end
             f = f1
-            layers[f1] = d
+            f = replace(f, r".fs_gap_TF_OH"=>"gap_TF_OH")
+            layers[f] = d
         elseif startswith(g1, "Ro") && d > 0
             if contains(g2, "Outer")
                 f = "lfs_gap_$(f1)_$(f2)"
             else
                 f = "hfs_gap_$(f2)_$(f1)"
             end
+            f = replace(f, r".fs_gap_TF_OH"=>"gap_TF_OH")
             layers[f] = d
         end
     end
-    if "hfs_gap_TF_OH" in keys(layers)
-        layers["lfs_gap_TF_OH"] = layers["hfs_gap_TF_OH"]
-    end
-    layers["gap_cryostat"] = layers["gap_OH"] * 3
+    layers["gap_cryostat"] = layers["OH"] * 4
+    layers["cryostat"] = layers["lfs_low_temp_shield"]
 
     return layers
 end

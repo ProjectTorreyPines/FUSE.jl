@@ -11,19 +11,28 @@ import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_exact_, _pri
 #  Visualization of IMAS.build.layer as table  #
 #= ========================================== =#
 function DataFrames.DataFrame(layers::IMAS.IDSvector{T} where {T<:IMAS.build__layer})
-    df = DataFrames.DataFrame(name=String[], thickness=Float64[], start=Float64[], stop=Float64[], material=String[], area=Float64[], volume=Float64[],)
+    df = DataFrames.DataFrame(name=String[], group=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[], cost=Float64[])
     for layer in layers
-        if ismissing(layer, :area)
+        material = IMAS.evalmissing(layer, :material)
+        if material === missing
+            material = "?"
+        end
+        material=split(material,",")[1]
+        area = IMAS.evalmissing(layer, :area)
+        if area === missing
             area = NaN
-        else
-            area = layer.area
         end
-        if ismissing(layer, :volume)
+        volume = IMAS.evalmissing(layer, :volume)
+        if volume === missing
             volume = NaN
-        else
-            volume = layer.volume
         end
-        push!(df, [layer.name, layer.thickness, layer.start_radius, layer.end_radius, layer.material, area, volume])
+        cst = NaN
+        try
+            cst = cost(layer)
+        catch 
+        end
+        group = replace(string(BuildLayerSide(layer.fs)),"_"=>"")
+        push!(df, [layer.name, group, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume, cst])
     end
     return df
 end
