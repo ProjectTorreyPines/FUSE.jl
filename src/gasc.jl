@@ -71,7 +71,8 @@ function gasc_2_core_profiles(gasc::GASC, ini::InitParameters, act::ActorParamet
     ini.core_profiles.zeff = gascsol["OUTPUTS"]["impurities"]["effectiveZ"]
     ini.core_profiles.rot_core = 0.0  # Not in GASC
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = Symbol(elements[Int(gascsol["INPUTS"]["impurities"]["impurityZ"])])
+    ini.core_profiles.impurity = Symbol(elements[Int(gascsol["INPUTS"]["impurities"]["impurityZ"])].symbol)
+    ini.core_profiles.ejima = gascsol["INPUTS"]["plasma parameters"]["ejimaCoeff"]
 
     return ini
 end
