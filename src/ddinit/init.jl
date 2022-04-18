@@ -26,6 +26,7 @@ function init(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; do_plot=fa
             plot(dd.equilibrium, color=:gray)
             plot!(dd.build)
             display(plot!(dd.build, cx=false))
+            display(dd.build.layer)
         end
     end
 
