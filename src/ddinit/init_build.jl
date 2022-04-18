@@ -5,7 +5,7 @@ import DataStructures
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _triple_arc_, _miller_, _spline_
+import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _triple_arc_, _miller_, _spline_, _silo_
 
 #= ========================================== =#
 #  Visualization of IMAS.build.layer as table  #
