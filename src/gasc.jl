@@ -1,4 +1,5 @@
 import JSON
+import PeriodicTable: elements
 
 struct GASC
     filename::String
@@ -65,12 +66,12 @@ function gasc_2_core_profiles(gasc::GASC, ini::InitParameters, act::ActorParamet
     ini.core_profiles.ne_ped = gascsol["OUTPUTS"]["plasma parameters"]["neped"] * 1e20
     ini.core_profiles.n_peaking = gascsol["OUTPUTS"]["plasma parameters"]["ne0"] / gascsol["OUTPUTS"]["plasma parameters"]["neped"]
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.w_ped = 0.06
+    i_ped = argmin(abs.(gascsol["OUTPUTS"]["numerical profiles"]["neProf"] .- gascsol["OUTPUTS"]["plasma parameters"]["neped"] / gascsol["OUTPUTS"]["plasma parameters"]["ne0"]))
+    ini.core_profiles.w_ped = 1 - gascsol["OUTPUTS"]["numerical profiles"]["rProf"][i_ped] 
     ini.core_profiles.zeff = gascsol["OUTPUTS"]["impurities"]["effectiveZ"]
     ini.core_profiles.rot_core = 0.0  # Not in GASC
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = :Ne # Not in GASC
-
+    ini.core_profiles.impurity = Symbol(elements[Int(gascsol["INPUTS"]["impurities"]["impurityZ"])])
 
     return ini
 end

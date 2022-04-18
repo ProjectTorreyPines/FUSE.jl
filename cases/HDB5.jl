@@ -94,10 +94,10 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     return set_new_base!(ini), set_new_base!(act)
 end
 
-function load_hdb5(tokamak::T=:all; maximum_ohmic_fraction=0.25, database_case=missing, extra_signal_names=T[]) where {T<:Union{String,Symbol}}
+function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Int=missing, extra_signal_names=Union{String,Symbol}[])
     # For description of variables see https://osf.io/593q6/
     run_df = CSV.read(joinpath(dirname(abspath(@__FILE__)), "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
-    run_df[:,"database_case"] = collect(StepRange(1,1,length(run_df[:,"TOK"])))
+    run_df[:,"database_case"] = collect(1:length(run_df[:,"TOK"]))
 
     if !ismissing(database_case)
         return run_df[run_df.database_case .== database_case, :]
