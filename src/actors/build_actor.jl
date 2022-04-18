@@ -553,12 +553,20 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
 
     # cryostat
     iout = IMAS.get_build(bd, fs=_out_, return_index=true, return_only_one=false)
-    for k in iout
-        L = 0
-        R = bd.layer[k].end_radius
-        D = minimum(bd.layer[k-1].outline.z) - bd.layer[k].thickness
-        U = maximum(bd.layer[k-1].outline.z) + bd.layer[k].thickness
-        bd.layer[k].outline.r, bd.layer[k].outline.z = rectangle_shape(L, R, D, U)
+    for (kk, k) in enumerate(iout)
+        if lowercase(bd.layer[iout[end]].name) == "cryostat"
+            if kk == 1
+                FUSE.optimize_shape(bd, k, _silo_)
+            else
+                FUSE.optimize_shape(bd, k, _offset_)
+            end
+        else
+            L = 0
+            R = bd.layer[k].end_radius
+            D = minimum(bd.layer[k-1].outline.z) - bd.layer[k].thickness
+            U = maximum(bd.layer[k-1].outline.z) + bd.layer[k].thickness
+            bd.layer[k].outline.r, bd.layer[k].outline.z = rectangle_shape(L, R, D, U)
+        end
     end
 
     return bd
@@ -573,15 +581,27 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerSh
     # properties of current layer
     layer = bd.layer[layer_index]
     id = bd.layer[layer_index].identifier
-    r_start = layer.start_radius
-    r_end = IMAS.get_build(bd, identifier=layer.identifier, fs=_lfs_).end_radius
-    hfs_thickness = layer.thickness
-    lfs_thickness = IMAS.get_build(bd, identifier=id, fs=_lfs_).thickness
-    target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
+    if layer.fs == Int(_out_)
+        r_start = 0
+        r_end = layer.end_radius
+        hfs_thickness = 0
+        lfs_thickness = layer.thickness
 
-    # obstruction
-    oR = bd.layer[layer_index+1].outline.r
-    oZ = bd.layer[layer_index+1].outline.z
+        # obstruction
+        oR = bd.layer[layer_index-1].outline.r
+        oZ = bd.layer[layer_index-1].outline.z
+    else
+        r_start = layer.start_radius
+        r_end = IMAS.get_build(bd, identifier=layer.identifier, fs=_lfs_).end_radius
+        hfs_thickness = layer.thickness
+        lfs_thickness = IMAS.get_build(bd, identifier=id, fs=_lfs_).thickness
+
+        # obstruction
+        oR = bd.layer[layer_index+1].outline.r
+        oZ = bd.layer[layer_index+1].outline.z
+    end
+    target_minimum_distance = max(hfs_thickness, lfs_thickness)
+    r_offset = (lfs_thickness .- hfs_thickness) / 2.0
 
     # only update shape if that is not been set before
     # this is to allow external overriding of default shape setting
@@ -589,23 +609,41 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerSh
         layer.shape = Int(tf_shape)
     end
 
-    # handle offset and offset & convex-hull
-    if layer.shape in [-1, -2]
-        poly = LibGEOS.buffer(xy_polygon(oR, oZ), (hfs_thickness + lfs_thickness) / 2.0)
-        layer.outline.r = [v[1] .+ (lfs_thickness .- hfs_thickness) / 2.0 for v in LibGEOS.coordinates(poly)[1]]
-        layer.outline.z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
-        if layer.shape == -2
-            h = [[r, z] for (r, z) in collect(zip(layer.outline.r, layer.outline.z))]
+    if layer.shape in [Int(_offset_), Int(_convex_hull_)] # handle offset and offset & convex-hull
+        # if any(oR .== 0.0)
+        #     h = [[r, z] for (r, z) in collect(zip(oR, oZ))]
+        #     h = vcat(h, [[-r, z] for (r, z) in collect(zip(oR, oZ))])
+        #     hull = convex_hull(h)
+        #     oR = vcat([r for (r, z) in hull], hull[1][1])
+        #     oZ = vcat([z for (r, z) in hull], hull[1][2])
+        # end
+        poly = LibGEOS.buffer(xy_polygon(oR, oZ), (lfs_thickness .+ hfs_thickness) / 2.0)
+        R = [v[1] .+ r_offset for v in LibGEOS.coordinates(poly)[1]]
+        Z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+        # if any(R .< 0.0)
+        #     R[R.<0.0] .= 0.0
+        #     h = [(r, z) for (r, z) in collect(zip(R, Z))]
+        #     unique!(h)
+        #     R = vcat([r for (r, z) in h], h[1][1])
+        #     Z = vcat([z for (r, z) in h], h[1][2])
+        # end
+        if layer.shape == Int(_convex_hull_)
+            h = [[r, z] for (r, z) in collect(zip(R, Z))]
             hull = convex_hull(h)
-            layer.outline.r, layer.outline.z = IMAS.resample_2d_line(vcat([r for (r, z) in hull], hull[1][1]), vcat([z for (r, z) in hull], hull[1][2]))
+            R = vcat([r for (r, z) in hull], hull[1][1])
+            Z = vcat([z for (r, z) in hull], hull[1][2])
+            R,Z = IMAS.resample_2d_line(R, Z)
         end
-        # handle shapes
-    else
-        up_down_symmetric = false
-        if abs(sum(oZ) / sum(abs.(oZ))) < 1E-2
-            up_down_symmetric = true
-        end
+        layer.outline.r, layer.outline.z = R,Z
 
+    else # handle shapes
+        if layer.shape == Int(_silo_)
+            up_down_symmetric = false
+        elseif abs(sum(oZ) / sum(abs.(oZ))) < 1E-2
+            up_down_symmetric = true
+        else
+            up_down_symmetric = false
+        end
         if up_down_symmetric
             layer.shape = mod(layer.shape, 100)
         else

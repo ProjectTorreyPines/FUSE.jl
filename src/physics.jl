@@ -18,6 +18,7 @@ function layer_shape_message(shape_function_index)
   5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
   6: miller            (shape_parameters = [elongation, triangularity])
   7: spline            (shape_parameters = [hfact, rz...)
+  8: silo              (shape_parameters = [h_start, h_end)
 10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
 "
 end
@@ -64,6 +65,8 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
             for (r, z) in zip(R, Z)
                 append!(shape_parameters, [r, z])
             end
+        elseif shape_index_mod == Int(_silo_)
+            shape_parameters = [height, height / 2.0]
         end
     end
     if shape_parameters === nothing
@@ -95,6 +98,8 @@ function shape_function(shape_function_index)
             func = miller_Rstart_Rend
         elseif shape_index_mod == Int(_spline_)
             func = spline_shape
+        elseif shape_index_mod == Int(_silo_)
+            func = silo
         end
     end
     if func === nothing
@@ -128,7 +133,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         return shape_parameters
     end
 
-    function cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters)
+    function cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
         R, Z = func(r_start, r_end, shape_parameters...)
 
         # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
@@ -165,6 +170,17 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         end
         cost_smoothness = sum(abs.(sin_theta)) / length(sin_theta)
 
+        if verbose
+            @show minimum_distance
+            @show target_clearance
+            @show cost_min_clearance^2
+            @show cost_area^2
+            @show cost_inside^2
+            @show cost_up_down_symmetry^2
+            @show cost_smoothness^2
+            @show cost_concavity^2
+        end
+
         # return cost
         return cost_min_clearance^2 + 0.5 * cost_area^2 + cost_inside^2 + 1E-3 * cost_up_down_symmetry^2 + 10 * cost_smoothness^2 + 100 * cost_concavity^2
     end
@@ -181,9 +197,10 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     end
     shape_parameters = Optim.minimizer(res)
     R, Z = func(r_start, r_end, shape_parameters...)
-    # plot(func(r_start, r_end, initial_guess...);markershape=:+)
-    # plot!(r_obstruction,z_obstruction)
-    # display(plot!(R,Z;markershape=:x,aspect_ratio=:equal))
+    # plot(func(r_start, r_end, initial_guess...); markershape=:x)
+    # plot!(r_obstruction, z_obstruction, ; markershape=:x)
+    # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal))
+    # cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
     return shape_parameters
 end
 
@@ -450,4 +467,9 @@ function xy_polygon(x, y)
     end
     coords = [collect(map(collect, zip(x, y)))]
     return LibGEOS.Polygon(coords)
+end
+
+function silo(r_start, r_end, height_start, height_end)
+    x, y = ellipse(r_end - r_start, height_start - height_end, 0, pi / 2, r_start, height_end)
+    vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end
