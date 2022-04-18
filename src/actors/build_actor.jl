@@ -528,7 +528,7 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     IMAS.get_build(bd, type=_plasma_).outline.z = pz
 
     # all layers between plasma and OH
-    plasma_to_oh = IMAS.get_build(bd, type=_plasma_, return_index=true)-1:-1:(IMAS.get_build(bd, type=_oh_, return_index=true)+1)
+    plasma_to_oh = reverse(IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true))
     shape_set = false
     for (n, k) in enumerate(plasma_to_oh)
         if (!shape_set) && (n < length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [Int(_tf_), Int(_shield_)])
@@ -541,24 +541,25 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         end
     end
 
-    # plug
-    L = 0
-    R = IMAS.get_build(bd, type=_oh_).start_radius
+    # oh
+    iin = IMAS.get_build(bd, fs=_in_, return_index=true, return_only_one=false)
     D = minimum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z)
     U = maximum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z)
-    bd.layer[1].outline.r, bd.layer[1].outline.z = rectangle_shape(L, R, D, U)
-
-    # oh
-    L = IMAS.get_build(bd, type=_oh_).start_radius
-    R = IMAS.get_build(bd, type=_oh_).end_radius
-    bd.layer[2].outline.r, bd.layer[2].outline.z = rectangle_shape(L, R, D, U)
+    for k in iin
+        L = bd.layer[k].start_radius
+        R = bd.layer[k].end_radius
+        bd.layer[k].outline.r, bd.layer[k].outline.z = rectangle_shape(L, R, D, U)
+    end
 
     # cryostat
-    L = 0
-    R = bd.layer[end].end_radius
-    D = minimum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z) - bd.layer[end].thickness
-    U = maximum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z) + bd.layer[end].thickness
-    bd.layer[end].outline.r, bd.layer[end].outline.z = rectangle_shape(L, R, D, U)
+    iout = IMAS.get_build(bd, fs=_out_, return_index=true, return_only_one=false)
+    for k in iout
+        L = 0
+        R = bd.layer[k].end_radius
+        D = minimum(bd.layer[k-1].outline.z) - bd.layer[k].thickness
+        U = maximum(bd.layer[k-1].outline.z) + bd.layer[k].thickness
+        bd.layer[k].outline.r, bd.layer[k].outline.z = rectangle_shape(L, R, D, U)
+    end
 
     return bd
 end
@@ -631,9 +632,11 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::InitParameters)
         elseif layer.type == Int(_gap_)
             layer.material = "Vacuum"
         elseif layer.type == Int(_oh_)
-            layer.material = ini.material.wall
+            layer.material = ini.oh.technology.material
+            assign_coil_technology(dd, ini, :oh)
         elseif layer.type == Int(_tf_)
             layer.material = ini.tf.technology.material
+            assign_coil_technology(dd, ini, :tf)
         elseif layer.type == Int(_shield_)
             layer.material = ini.material.shield
         elseif layer.type == Int(_blanket_)
@@ -641,7 +644,9 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::InitParameters)
         elseif layer.type == Int(_wall_)
             layer.material = ini.material.wall
         elseif layer.type == Int(_vessel_)
-            layer.material = layer.material = "Water, Liquid"
+            layer.material = "Water, Liquid"
+        elseif layer.type == Int(_cryostat_)
+            layer.material = ini.material.wall
         end
     end
 end

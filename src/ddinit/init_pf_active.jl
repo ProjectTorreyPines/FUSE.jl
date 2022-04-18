@@ -90,19 +90,17 @@ function init_pf_active(
     end
 
     # Now add actual PF coils to regions of vacuum
-    oh_index = IMAS.get_build(bd, type=_oh_, return_index=true)
+    gap_cryostat_index = [k for k in IMAS.get_build(bd, fs=_out_, return_only_one=false, return_index=true) if bd.layer[k].material =="Vacuum"][1]
+    lfs_out_indexes = IMAS.get_build(bd, fs=[_lfs_, _out_], return_only_one=false, return_index=true)
     krail = 1
     ngrid = 257
     rmask, zmask, mask = IMAS.structures_mask(bd, ngrid=ngrid)
     dr = (rmask[2] - rmask[1])
-    for (k, layer) in enumerate(bd.layer)
+    for k in lfs_out_indexes
+        layer=bd.layer[k]
 
-        if k <= oh_index
-            continue
-        elseif (k == length(bd.layer)) && n_coils[end] > 0
+        if k == gap_cryostat_index && (n_coils[end] > 0)
             #pass
-        elseif layer.fs == Int(_hfs_)
-            continue
         elseif !contains(lowercase(layer.name), "coils")
             continue
         end
@@ -238,22 +236,25 @@ function init_pf_active(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
         init_pf_active(dd.pf_active, dd.build, n_coils)
     end
 
-    assign_coils_materials(dd, ini)
+    assign_coil_technology(dd, ini, :tf)
+    assign_coil_technology(dd, ini, :oh)
+    assign_coil_technology(dd, ini, :pf_active)
 
     return dd
 end
 
-function assign_coils_materials(dd::IMAS.dd, ini::InitParameters)
-    for coil_type in [:tf, :oh, :pf_active]
-        coil_tech = getproperty(dd.build, coil_type).technology
-        for property in fieldnames(IMAS.build__tf__technology)
-            if property == :_parent
-                continue
-            end
-            coil_params = getproperty(ini, coil_type).technology
-            if !ismissing(coil_params, property)
-                setproperty!(coil_tech, property, getproperty(coil_params, property))
-            end
+function assign_coil_technology(dd::IMAS.dd, ini::InitParameters, coil_type::Symbol)
+    if coil_type ∉ [:tf, :oh, :pf_active]
+        error("assign_coil_technology coil_type can only be [:tf, :oh, :pf_active]")
+    end
+    coil_tech = getproperty(dd.build, coil_type).technology
+    for property in fieldnames(IMAS.build__tf__technology)
+        if property == :_parent
+            continue
+        end
+        coil_params = getproperty(ini, coil_type).technology
+        if !ismissing(coil_params, property)
+            setproperty!(coil_tech, property, getproperty(coil_params, property))
         end
     end
 end

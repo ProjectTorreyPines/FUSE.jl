@@ -3,8 +3,8 @@ import Interpolations
 import Contour
 import DataStructures
 
-import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_
-import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_
+import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_
+import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
 import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _triple_arc_, _miller_, _spline_
 
 #= ========================================== =#
@@ -55,7 +55,6 @@ end
 #= ========== =#
 function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
     init_from = ini.general.init_from
-
     if init_from == :gasc
         init_from = :scalars
 
@@ -64,7 +63,7 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
         if length(keys(dd1.wall)) > 0
             dd.wall = dd1.wall
         end
-        if length(keys(dd1.build)) > 0
+        if length(dd1.build.layer) > 0
             dd.build = dd1.build
         else
             init_from = :scalars
@@ -165,15 +164,22 @@ function init_radial_build(bd::IMAS.build; layers...)
             layer.type = Int(_wall_)
         elseif occursin("vessel", lowercase(layer.name))
             layer.type = Int(_vessel_)
+        elseif occursin("cryostat", lowercase(layer.name))
+            layer.type = Int(_cryostat_)
         end
         if occursin("hfs", lowercase(layer.name))
             layer.fs = Int(_hfs_)
         elseif occursin("lfs", lowercase(layer.name))
             layer.fs = Int(_lfs_)
         else
-            layer.fs = Int(_lhfs_)
+            if layer.type == Int(_plasma_)
+                layer.fs = Int(_lhfs_)
+            elseif k<length(layers)/2
+                layer.fs = Int(_in_)
+            elseif k>length(layers)/2
+                layer.fs = Int(_out_)
+            end
         end
-
         layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
         radius_end += layer.thickness
         radius_start = radius_end
@@ -251,7 +257,10 @@ function init_radial_build(
         layers[:gap_lfs_vacuum_vessel] = vessel
     end
     layers[:lfs_TF] = 1.0
-    layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 5 : 1)
+    layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 3 : 1)
+    if blanket > 0.0
+        layers[:cryostat] = 0.5
+    end
 
     # from fractions to meters
     n_hfs_layers = 0.0
