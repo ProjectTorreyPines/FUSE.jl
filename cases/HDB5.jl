@@ -3,15 +3,15 @@ import CSV
 
 # For description of cases/variables see https://osf.io/593q6/
 """
-    case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer,database_id::Integer)
+    case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer,database_case::Integer)
 """
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_id=missing)
-    if !ismissing(database_id)
-        data_row = load_hdb5(database_id=database_id)
+function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
+    if !ismissing(database_case)
+        data_row = load_hdb5(database_case=database_case)
     elseif !ismissing(case)
         data_row = load_hdb5(tokamak)[case, :]
     else
-        error("Specifcy either the case or database_id")
+        error("Specifcy either the case or database_case")
     end
     case_parameters(data_row)
 end
@@ -94,13 +94,13 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     return set_new_base!(ini), set_new_base!(act)
 end
 
-function load_hdb5(tokamak::T=:all; maximum_ohmic_fraction=0.25, database_id=missing, extra_signal_names=T[]) where {T<:Union{String,Symbol}}
+function load_hdb5(tokamak::T=:all; maximum_ohmic_fraction=0.25, database_case=missing, extra_signal_names=T[]) where {T<:Union{String,Symbol}}
     # For description of variables see https://osf.io/593q6/
     run_df = CSV.read(joinpath(dirname(abspath(@__FILE__)), "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
-    run_df[:,"database_id"] = collect(StepRange(1,1,length(run_df[:,"TOK"])))
+    run_df[:,"database_case"] = collect(StepRange(1,1,length(run_df[:,"TOK"])))
 
-    if !ismissing(database_id)
-        return run_df[run_df.database_id .== database_id, :]
+    if !ismissing(database_case)
+        return run_df[run_df.database_case .== database_case, :]
     end
 
     signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
