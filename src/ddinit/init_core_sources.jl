@@ -83,19 +83,19 @@ function init_core_sources(dd::IMAS.dd, ini::InitParameters, act::ActorParameter
     if init_from == :scalars
         if !ismissing(ini.nbi, :power_launched) && any(ini.nbi.power_launched .> 0)
             init_nbi(dd, ini)
-            finalize(step(SimpleNBIactor(dd)))
+            SimpleNBIactor(dd, act)
         end
         if !ismissing(ini.ec, :power_launched) && any(ini.ec.power_launched .> 0)
             init_ec_launchers(dd, ini)
-            finalize(step(SimpleECactor(dd)))
+            SimpleECactor(dd, act)
         end
         if !ismissing(ini.ic, :power_launched) && any(ini.ic.power_launched .> 0)
             init_ic_antennas(dd, ini)
-            finalize(step(SimpleICactor(dd)))
+            SimpleICactor(dd, act)
         end
         if !ismissing(ini.lh, :power_launched) && any(ini.lh.power_launched .> 0)
             init_lh_antennas(dd, ini)
-            finalize(step(SimpleLHactor(dd)))
+            SimpleLHactor(dd, act)
         end
     end
 
