@@ -53,6 +53,7 @@ end
 function InitParameters(::Type{Val{:core_profiles}})
     core_profiles = InitParameters(nothing)
     core_profiles.ne_ped = Entry(Real, "m^-3", "Pedestal electron density")
+    core_profiles.greenwald_fraction = Entry(Real, "", "Greenwald fraction, ne_vol / ne_gw")
     core_profiles.n_peaking = Entry(Real, "", "Ratio of core/pedestal densities")
     core_profiles.T_shaping = Entry(Real, "", "Temperature shaping factor")
     core_profiles.w_ped = Entry(Real, "", "Pedestal width expressed in fraction of ψₙ")
