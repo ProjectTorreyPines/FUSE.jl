@@ -516,51 +516,56 @@ end
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
 function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
+    ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
+    itf = IMAS.get_build(bd, type=_tf_, fs=_hfs_, return_index=true)
+
     # plasma pr/pz scaled to 1D radial build
-    start_radius = IMAS.get_build(bd, type=_plasma_).start_radius
-    end_radius = IMAS.get_build(bd, type=_plasma_).end_radius
+    start_radius = bd.layer[ipl].start_radius
+    end_radius = bd.layer[ipl].end_radius
     pr1 = minimum(pr)
     pr2 = maximum(pr)
     fact = (end_radius - start_radius) / (pr2 - pr1)
     pz .= pz .* fact
     pr .= (pr .- pr1) .* fact .+ start_radius
-    IMAS.get_build(bd, type=_plasma_).outline.r = pr
-    IMAS.get_build(bd, type=_plasma_).outline.z = pz
+    bd.layer[ipl].outline.r = pr
+    bd.layer[ipl].outline.z = pz
+
+    coils_inside = any([contains(lowercase(l.name), "coils") for l in bd.layer])
 
     # all layers between plasma and OH
     plasma_to_oh = reverse(IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true))
-    shape_set = false
-    for (n, k) in enumerate(plasma_to_oh)
-        if (!shape_set) && (n < length(plasma_to_oh)) && (bd.layer[plasma_to_oh[n+1]].type in [Int(_tf_), Int(_shield_)])
-            # layer that is inside of the TF (or shield) sets the TF (and shield) shape
-            FUSE.optimize_shape(bd, k, BuildLayerShape(bd.tf.shape))
-            shape_set = true
+    for k in plasma_to_oh
+        if k == ipl - 2
+            # layer that is outside of the plasma sets blankets, shields, vv
+            FUSE.optimize_shape(bd, k + 1, k, _triple_arc_; tight=!coils_inside)
+        elseif k == itf + 1
+            # layer that is inside of the TF sets TF shape
+            FUSE.optimize_shape(bd, k + 1, k, BuildLayerShape(bd.tf.shape); tight=!coils_inside)
         else
             # everything else is conformal convex hull
-            FUSE.optimize_shape(bd, k, _convex_hull_)
+            FUSE.optimize_shape(bd, k + 1, k, _convex_hull_)
         end
     end
 
-    # oh
-    iin = IMAS.get_build(bd, fs=_in_, return_index=true, return_only_one=false)
+    # _in_
     D = minimum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z)
     U = maximum(IMAS.get_build(bd, type=_tf_, fs=_hfs_).outline.z)
-    for k in iin
+    for k in IMAS.get_build(bd, fs=_in_, return_index=true, return_only_one=false)
         L = bd.layer[k].start_radius
         R = bd.layer[k].end_radius
         bd.layer[k].outline.r, bd.layer[k].outline.z = rectangle_shape(L, R, D, U)
     end
 
-    # cryostat
+    # _out_
     iout = IMAS.get_build(bd, fs=_out_, return_index=true, return_only_one=false)
-    for (kk, k) in enumerate(iout)
-        if lowercase(bd.layer[iout[end]].name) == "cryostat"
-            if kk == 1
-                FUSE.optimize_shape(bd, k, _silo_)
-            else
-                FUSE.optimize_shape(bd, k, _offset_)
-            end
-        else
+    if lowercase(bd.layer[iout[end]].name) == "cryostat"
+        olfs = IMAS.get_build(bd, fs=_lfs_, return_index=true, return_only_one=false)[end]
+        FUSE.optimize_shape(bd, olfs, iout[end], _silo_)
+        for k in reverse(iout)
+            FUSE.optimize_shape(bd, k, k - 1, _offset_)
+        end
+    else
+        for k in iout
             L = 0
             R = bd.layer[k].end_radius
             D = minimum(bd.layer[k-1].outline.z) - bd.layer[k].thickness
@@ -573,68 +578,64 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
 end
 
 """
-    optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerShape)
+    optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
-function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerShape)
-    # properties of current layer
+function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=false)
     layer = bd.layer[layer_index]
-    id = bd.layer[layer_index].identifier
+    obstr = bd.layer[obstr_index]
+    # display("Layer $layer_index = $(layer.name)")
+    # display("Obstr $obstr_index = $(obstr.name)")
     if layer.fs == Int(_out_)
-        r_start = 0
-        r_end = layer.end_radius
-        hfs_thickness = 0
-        lfs_thickness = layer.thickness
-
-        # obstruction
-        oR = bd.layer[layer_index-1].outline.r
-        oZ = bd.layer[layer_index-1].outline.z
+        l_start = 0
+        l_end = layer.end_radius
+        o_start = 0
+        o_end = obstr.end_radius
     else
-        r_start = layer.start_radius
-        r_end = IMAS.get_build(bd, identifier=layer.identifier, fs=_lfs_).end_radius
-        hfs_thickness = layer.thickness
-        lfs_thickness = IMAS.get_build(bd, identifier=id, fs=_lfs_).thickness
-
-        # obstruction
-        oR = bd.layer[layer_index+1].outline.r
-        oZ = bd.layer[layer_index+1].outline.z
+        if obstr.fs in [Int(_lhfs_), Int(_out_)]
+            o_start = obstr.start_radius
+            o_end = obstr.end_radius
+        else
+            o_start = obstr.start_radius
+            o_end = IMAS.get_build(bd, identifier=obstr.identifier, fs=_lfs_).end_radius
+        end
+        l_start = layer.start_radius
+        l_end = IMAS.get_build(bd, identifier=layer.identifier, fs=_lfs_).end_radius
     end
-    target_minimum_distance = max(hfs_thickness, lfs_thickness)
+    hfs_thickness = o_start - l_start
+    lfs_thickness = l_end - o_end
+    oR = obstr.outline.r
+    oZ = obstr.outline.z
+    if layer.fs == Int(_out_)
+        target_minimum_distance = lfs_thickness
+    else
+        if tight
+            target_minimum_distance = min(hfs_thickness, lfs_thickness)
+        else
+            target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
+        end
+    end
     r_offset = (lfs_thickness .- hfs_thickness) / 2.0
 
     # only update shape if that is not been set before
     # this is to allow external overriding of default shape setting
     if ismissing(layer, :shape)
-        layer.shape = Int(tf_shape)
+        layer.shape = Int(shape)
     end
 
     if layer.shape in [Int(_offset_), Int(_convex_hull_)] # handle offset and offset & convex-hull
-        # if any(oR .== 0.0)
-        #     h = [[r, z] for (r, z) in collect(zip(oR, oZ))]
-        #     h = vcat(h, [[-r, z] for (r, z) in collect(zip(oR, oZ))])
-        #     hull = convex_hull(h)
-        #     oR = vcat([r for (r, z) in hull], hull[1][1])
-        #     oZ = vcat([z for (r, z) in hull], hull[1][2])
-        # end
-        poly = LibGEOS.buffer(xy_polygon(oR, oZ), (lfs_thickness .+ hfs_thickness) / 2.0)
+        poly = LibGEOS.buffer(xy_polygon(oR, oZ), (hfs_thickness + lfs_thickness) / 2.0)
         R = [v[1] .+ r_offset for v in LibGEOS.coordinates(poly)[1]]
         Z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
-        # if any(R .< 0.0)
-        #     R[R.<0.0] .= 0.0
-        #     h = [(r, z) for (r, z) in collect(zip(R, Z))]
-        #     unique!(h)
-        #     R = vcat([r for (r, z) in h], h[1][1])
-        #     Z = vcat([z for (r, z) in h], h[1][2])
-        # end
         if layer.shape == Int(_convex_hull_)
             h = [[r, z] for (r, z) in collect(zip(R, Z))]
             hull = convex_hull(h)
             R = vcat([r for (r, z) in hull], hull[1][1])
             Z = vcat([z for (r, z) in hull], hull[1][2])
-            R,Z = IMAS.resample_2d_line(R, Z)
+            R, Z = IMAS.resample_2d_line(R, Z)
         end
-        layer.outline.r, layer.outline.z = R,Z
+        layer.outline.r, layer.outline.z = R, Z
 
     else # handle shapes
         if layer.shape == Int(_silo_)
@@ -652,12 +653,13 @@ function optimize_shape(bd::IMAS.build, layer_index::Int, tf_shape::BuildLayerSh
 
         func = shape_function(layer.shape)
         if ismissing(layer, :shape_parameters)
-            layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, r_start, r_end, target_minimum_distance)
+            layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, l_start, l_end, target_minimum_distance)
         end
-        layer.outline.r, layer.outline.z = func(r_start, r_end, layer.shape_parameters...)
-        layer.shape_parameters = optimize_shape(oR, oZ, target_minimum_distance, func, r_start, r_end, layer.shape_parameters)
-        layer.outline.r, layer.outline.z = func(r_start, r_end, layer.shape_parameters...)
+        layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...)
+        layer.shape_parameters = optimize_shape(oR, oZ, target_minimum_distance, func, l_start, l_end, layer.shape_parameters)
+        layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...; resample=false)
     end
+    # display(plot!(layer.outline.r, layer.outline.z))
 end
 
 function assign_build_layers_materials(dd::IMAS.dd, ini::InitParameters)
