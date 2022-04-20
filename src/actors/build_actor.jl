@@ -561,7 +561,7 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     if lowercase(bd.layer[iout[end]].name) == "cryostat"
         olfs = IMAS.get_build(bd, fs=_lfs_, return_index=true, return_only_one=false)[end]
         FUSE.optimize_shape(bd, olfs, iout[end], _silo_)
-        for k in reverse(iout)
+        for k in reverse(iout[2:end])
             FUSE.optimize_shape(bd, k, k - 1, _offset_)
         end
     else
