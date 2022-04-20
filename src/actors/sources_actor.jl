@@ -31,14 +31,14 @@ function SimpleNBIactor(dd::IMAS.dd; width::Real=0.3, rho_0::Real=0.0, current_e
 end
 
 function step(actor::SimpleNBIactor)
-    for (idx, nbi_u) in enumerate(actor.dd.nbi.unit)
+    for (idx, nbu) in enumerate(actor.dd.nbi.unit)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
         cs = actor.dd.core_sources
 
-        beam_energy = @ddtime (nbi_u.energy.data)
-        beam_mass = nbi_u.species.a
-        power_launched = @ddtime(nbi_u.power_launched.data)
+        beam_energy = @ddtime (nbu.energy.data)
+        beam_mass = nbu.species.a
+        power_launched = @ddtime(nbu.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
         volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
@@ -48,21 +48,16 @@ function step(actor::SimpleNBIactor)
 
         beam_particles = power_launched / (beam_energy * constants.e)
         momentum_source =
-            sin(nbi_u.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+            sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        name = "nbi"
-        if length(actor.dd.ic_antennas.antenna) > 1
-            name = "nbi_$idx"
-        end
-
-        isource = resize!(cs.source, "identifier.name" => name)
+        isource = resize!(cs.source, "identifier.name" => nbu.name)
         gaussian_source_to_dd(
             isource,
-            name,
+            nbu.name,
             2,
             rho_cp,
             volume_cp,
@@ -111,12 +106,12 @@ function SimpleECactor(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_ef
 end
 
 function step(actor::SimpleECactor)
-    for (idx, ec_launcher) in enumerate(actor.dd.ec_launchers.launcher)
+    for (idx, ecl) in enumerate(actor.dd.ec_launchers.launcher)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
         cs = actor.dd.core_sources
 
-        power_launched = @ddtime(ec_launcher.power_launched.data)
+        power_launched = @ddtime(ecl.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
         volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
@@ -128,15 +123,10 @@ function step(actor::SimpleECactor)
         j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        name = "ec"
-        if length(actor.dd.ic_antennas.antenna) > 1
-            name = "ec_$idx"
-        end
-
-        isource = resize!(cs.source, "identifier.name" => name)
+        isource = resize!(cs.source, "identifier.name" => ecl.name)
         gaussian_source_to_dd(
             isource,
-            name,
+            ecl.name,
             3,
             rho_cp,
             volume_cp,
@@ -183,12 +173,12 @@ function SimpleICactor(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_ef
 end
 
 function step(actor::SimpleICactor)
-    for (idx, ic_antenna) in enumerate(actor.dd.ic_antennas.antenna)
+    for (idx, ica) in enumerate(actor.dd.ic_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
         cs = actor.dd.core_sources
 
-        power_launched = @ddtime(ic_antenna.power_launched.data)
+        power_launched = @ddtime(ica.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
         volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
@@ -200,15 +190,10 @@ function step(actor::SimpleICactor)
         j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        name = "ic"
-        if length(actor.dd.ic_antennas.antenna) > 1
-            name = "ic_$idx"
-        end
-
-        isource = resize!(cs.source, "identifier.name" => name)
+        isource = resize!(cs.source, "identifier.name" => ica.name)
         gaussian_source_to_dd(
             isource,
-            name,
+            ica.name,
             5,
             rho_cp,
             volume_cp,
@@ -255,12 +240,12 @@ function SimpleLHactor(dd::IMAS.dd; width::Real=0.15, rho_0::Real=0.6, current_e
 end
 
 function step(actor::SimpleLHactor)
-    for (idx, lh_antenna) in enumerate(actor.dd.lh_antennas.antenna)
+    for (idx, lha) in enumerate(actor.dd.lh_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
         cs = actor.dd.core_sources
 
-        power_launched = @ddtime(lh_antenna.power_launched.data)
+        power_launched = @ddtime(lha.power_launched.data)
 
         rho_cp = cp1d.grid.rho_tor_norm
         volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
@@ -272,15 +257,10 @@ function step(actor::SimpleLHactor)
         j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        name = "lh"
-        if length(actor.dd.ic_antennas.antenna) > 1
-            name = "lh_$idx"
-        end
-
-        isource = resize!(cs.source, "identifier.name" => name)
+        isource = resize!(cs.source, "identifier.name" => lha.name)
         gaussian_source_to_dd(
             isource,
-            name,
+            lha.name,
             4,
             rho_cp,
             volume_cp,
