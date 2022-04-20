@@ -222,7 +222,7 @@ function gasc_to_layers(gascsol::Dict)
         end
     end
     layers["gap_cryostat"] = layers["OH"] * 4
-    layers["cryostat"] = layers["lfs_low_temp_shield"]
+    layers["cryostat"] = layers["lfs_low_temp_shield"] / 2.0
 
     return layers
 end
@@ -245,6 +245,9 @@ function coil_technology(gasc::GASC, coil_type::Symbol)
         elseif gascsol["INPUTS"]["conductors"]["superConducting"] == "HTS"
             coil_tech = coil_technology(:HTS)
         end
+        if coil_type == :PF # assume PF coils are always LTS
+            coil_tech = coil_technology(:LTS)
+        end
         if "thermalStrain$coil_type" ∉ keys(gascsol["INPUTS"]["conductors"])
             coil_tech.thermal_strain = 0.0
             coil_tech.JxB_strain = 0.0
@@ -254,8 +257,8 @@ function coil_technology(gasc::GASC, coil_type::Symbol)
         end
     end
     if "fractionVoid$coil_type" ∉ keys(gascsol["INPUTS"]["conductors"])
-        coil_tech.fraction_void = 0.1
-        coil_tech.fraction_stainless = 0.5
+        coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoidOH"]
+        coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainlessOH"]
     else
         coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoid$coil_type"]
         coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainless$coil_type"]
