@@ -29,6 +29,24 @@ function unit_cost(material::String)
     end
 end
 
+function cost(layer::IMAS.build__layer)
+    if layer.type == Int(_oh_)
+        build = IMAS.parent(IMAS.parent(layer))
+        return unit_cost(build.oh.technology) * layer.volume
+    elseif layer.type == Int(_tf_)
+        build = IMAS.parent(IMAS.parent(layer))
+        return unit_cost(build.tf.technology) * layer.volume
+    elseif layer.type == Int(_shield_)
+        return layer.volume * 0.29  # $M/m^3
+    elseif layer.type == Int(_blanket_)
+        return layer.volume * 0.75  # $M/m^3
+    elseif layer.type ∈ [Int(_wall_), Int(_vessel_), Int(_cryostat_)]
+        return layer.volume * 0.36  # $M/m^3
+    else
+        return unit_cost(layer.material) * layer.volume
+    end
+end
+
 function cost(ecl::IMAS.ec_launchers__launcher)
     ecl.available_launch_power / 1E6 * 3.0 # $/W #ARIES
 end
@@ -52,10 +70,26 @@ function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__t
         fraction_cable = 1 - coil_tech.fraction_stainless - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper
         fraction_copper = fraction_cable - fraction_SC
-        (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316") + fraction_copper * unit_cost("Copper") + fraction_SC * unit_cost(coil_tech.material))
+        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316") + fraction_copper * unit_cost("Copper") + fraction_SC * unit_cost(coil_tech.material))
     end
 end
 
+function cost(pf_active::IMAS.pf_active)
+    dd = IMAS.top_dd(pf_active)
+    c = Dict("OH" => 0.0, "PF" => 0.0)
+    for coil in pf_active.coil
+        if coil.name == "OH"
+            c["OH"] += cost(coil, dd.build.oh.technology)
+        else
+            c["PF"] += cost(coil, dd.build.pf_active.technology)
+        end
+    end
+    return c
+end
+
+function cost(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
+    return IMAS.volume(coil) * unit_cost(technology)
+end
 
 #= ======= =#
 #  costing #
@@ -87,7 +121,9 @@ function step(actor::CostingActor)
     sys = resize!(cst.system, "name" => "tokamak")
     for layer in dd.build.layer
         if layer.fs == Int(_lfs_)
-            continue # avoid double counting of layers
+            continue # avoid double counting of hfs and lfs layers
+        elseif layer.type == Int(_oh_)
+            continue # avoid double counting of oh
         end
         c = cost(layer)
         if c > 0
@@ -95,9 +131,13 @@ function step(actor::CostingActor)
             sub.cost = c
         end
     end
+    for (name, c) in cost(dd.pf_active)
+        sub = resize!(sys.subsystem, "name" => name)
+        sub.cost = c
+    end
 
     # HCD
-    sys = resize!(cst.system, "name" => "HCD")
+    sys = resize!(cst.system, "name" => "hcd")
     for hcd in vcat(dd.ec_launchers.launcher, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
         c = cost(hcd)
         if c > 0
@@ -109,20 +149,10 @@ function step(actor::CostingActor)
     return actor
 end
 
-function cost(layer::IMAS.build__layer)
-    if layer.type == Int(_oh_)
-        build = IMAS.parent(IMAS.parent(layer))
-        unit_cost(build.oh.technology) * layer.volume
-    elseif layer.type == Int(_tf_)
-        build = IMAS.parent(IMAS.parent(layer))
-        unit_cost(build.tf.technology) * layer.volume
-    else
-        unit_cost(layer.material) * layer.volume
+function finalize(actor::CostingActor)
+    # sort system/subsystem costs
+    sort!(actor.dd.costing.system, by=x -> x.cost, rev=true)
+    for sys in actor.dd.costing.system
+        sort!(sys.subsystem, by=x -> x.cost, rev=true)
     end
 end
-
-# unitCostShields = 0.29  # $M/m^3
-# unitCostBlanket = 0.75  # $M/m^3
-# unitCostStructure = 0.36  # $M/m^3
-# unitCostPowerAux = 5.3  # $M/MW
-# unitCostDivertor = 0.114  # $M/m^2
