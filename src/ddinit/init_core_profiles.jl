@@ -31,8 +31,8 @@ function init_core_profiles(dd::IMAS.dd, ini::InitParameters, act::ActorParamete
             rot_core=ini.core_profiles.rot_core,
             ngrid=ini.core_profiles.ngrid,
             bulk=ini.core_profiles.bulk,
-            impurity=ini.core_profiles.impurity)
-        @ddtime dd.core_profiles.global_quantities.ejima = ini.core_profiles.ejima
+            impurity=ini.core_profiles.impurity,
+            ejima=ini.core_profiles.ejima)
     end
 
     return dd
@@ -100,6 +100,7 @@ function init_core_profiles(
     bulk::Symbol,
     impurity::Symbol,
     rot_core::Real,
+    ejima::Real,
     T_ratio::Real=1.0,
     T_shaping::Real=1.8,
     n_shaping::Real=0.9,
@@ -135,13 +136,12 @@ function init_core_profiles(
         cp1d.electrons.density = Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
         nel = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
         ngw = IMAS.greenwald_density(eqt)
-        return (nel/ngw - greenwald_fraction)^2
+        return (nel / ngw - greenwald_fraction)^2
     end
     ne0_guess = ne_ped * 1.4
     res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
-    ne_core = res.minimizer
+    ne_core = res.minimizer[1]
     cp1d.electrons.density = Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
-
     # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
     niFraction = zeros(3)
     # He == 1
@@ -149,11 +149,10 @@ function init_core_profiles(
     # Imp ==3
     zimp = IMAS.ion_element(ion_symbol=impurity).element[1].z_n
     niFraction[1] = helium_fraction
-    niFraction[2] = (zimp - zeff + 4*niFraction[1]  -2*zimp*niFraction[1]) / (zimp - 1)
-    niFraction[3] = (zeff - niFraction[2] - 4*niFraction[1] ) / zimp^2
-    
-    @assert all(niFraction .> 0.0) "zeff too high for the given bulk [$bulk] and impurity [$impurity] species"
-    @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction"
+    niFraction[2] = (zimp - zeff + 4 * niFraction[1] - 2 * zimp * niFraction[1]) / (zimp - 1)
+    niFraction[3] = (zeff - niFraction[2] - 4 * niFraction[1]) / zimp^2
+
+    @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
 
     for i = 1:length(cp1d.ion)
         cp1d.ion[i].density = cp1d.electrons.density .* niFraction[i]
@@ -171,6 +170,7 @@ function init_core_profiles(
     for i = 1:length(cp1d.ion)
         cp1d.ion[i].temperature = cp1d.electrons.temperature ./ T_ratio
     end
-
+    # ejima
+    IMAS.set_time_array(cp.global_quantities, :ejima, ejima)
     return cp
 end
