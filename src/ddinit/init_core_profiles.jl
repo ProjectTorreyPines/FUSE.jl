@@ -22,7 +22,8 @@ function init_core_profiles(dd::IMAS.dd, ini::InitParameters, act::ActorParamete
             dd.equilibrium,
             dd.summary;
             ne_ped=ini.core_profiles.ne_ped,
-            n_peaking=ini.core_profiles.n_peaking,
+            greenwald_fraction=ini.core_profiles.greenwald_fraction,
+            helium_fraction=ini.core_profiles.helium_fraction,
             T_shaping=ini.core_profiles.T_shaping,
             w_ped=ini.core_profiles.w_ped,
             zeff=ini.core_profiles.zeff,
@@ -91,7 +92,8 @@ function init_core_profiles(
     eq::IMAS.equilibrium,
     summary::IMAS.summary;
     ne_ped::Real,
-    n_peaking::Real,
+    greenwald_fraction::Real,
+    helium_fraction::Real,
     w_ped::Real,
     zeff::Real,
     bulk::Symbol,
@@ -103,12 +105,18 @@ function init_core_profiles(
     ngrid::Int=101
 )
     cpt = resize!(cp.profiles_1d)
+    eqt = eq.time_slice[]
 
     cpt.grid.rho_tor_norm = LinRange(0, 1, ngrid)
     cpt.zeff = ones(ngrid) .* zeff
     cpt.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cpt.grid.rho_tor_norm)
 
     # Set ions
+    # He == 1
+    # DT == 2
+    # Imp ==3
+    ion = resize!(cpt.ion, "label" => "He")
+    fill!(ion, IMAS.ion_element(ion_symbol=:He))
     ion = resize!(cpt.ion, "label" => String(bulk))
     fill!(ion, IMAS.ion_element(ion_symbol=bulk))
     @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
@@ -121,18 +129,34 @@ function init_core_profiles(
     @ddtime summary.local.pedestal.zeff.value = zeff
 
     # Set densities
-    ne_core = n_peaking * ne_ped
+    function cost_greenwald_fraction(ne0)
+        ne0 = ne0[1]
+        cp1d.electrons.density = TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
+        nel = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+        ngw = IMAS.greenwald_density(eqt)
+        return (nel/ngw - greenwald_fraction)^2
+    end
+    ne0_guess = ne_ped * 1.4
+    res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
+    ne_core = res.minimize[1]
     cpt.electrons.density = TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
 
-    zimp1 = IMAS.ion_element(ion_symbol=impurity).element[1].z_n
-    niFraction = zeros(2)
-    niFraction[2] = (zeff - 1.0) / (zimp1 * (zimp1 - 1.0))
-    niFraction[1] = 1.0 - zimp1 * niFraction[2]
+    # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
+    niFraction = zeros(3)
+    # He == 1
+    # DT == 2
+    # Imp ==3
+    zimp = IMAS.ion_element(ion_symbol=impurity).element[1].z_n
+    niFraction[1] = helium_fraction
+    niFraction[2] = (zimp - zeff + 4*niFraction[1]  -2*zimp*niFraction[1]) / (zimp - 1)
+    niFraction[3] = (zeff - niFraction[2] - 4*niFraction[1] ) / zimp^2
+    
     @assert all(niFraction .> 0.0) "zeff too high for the given bulk [$bulk] and impurity [$impurity] species"
+    @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction"
+
     for i = 1:length(cpt.ion)
         cpt.ion[i].density = cpt.electrons.density .* niFraction[i]
     end
-
     # Set temperatures
     eqt = eq.time_slice[]
     betaN = eqt.global_quantities.beta_normal
