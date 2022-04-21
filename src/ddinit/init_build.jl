@@ -11,13 +11,14 @@ import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_exact_, _pri
 #  Visualization of IMAS.build.layer as table  #
 #= ========================================== =#
 function DataFrames.DataFrame(layers::IMAS.IDSvector{T} where {T<:IMAS.build__layer})
-    df = DataFrames.DataFrame(name=String[], group=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[], cost=Float64[])
+    df = DataFrames.DataFrame(group=String[], name=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[], cost=Float64[])
     for layer in layers
         material = IMAS.evalmissing(layer, :material)
         if material === missing
             material = "?"
         end
-        material=split(material,",")[1]
+        material = split(material, ",")[1]
+        material = replace(material, "Vacuum" => "")
         area = IMAS.evalmissing(layer, :area)
         if area === missing
             area = NaN
@@ -29,10 +30,12 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{T} where {T<:IMAS.build__la
         cst = NaN
         try
             cst = cost(layer)
-        catch 
+        catch
         end
-        group = replace(string(BuildLayerSide(layer.fs)),"_"=>"")
-        push!(df, [layer.name, group, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume, cst])
+        group = replace(string(BuildLayerSide(layer.fs)), "_" => "")
+        name = replace(layer.name, r"^[hl]fs " => "")
+        name = replace(name, r"^gap .*" => "")
+        push!(df, [group, name, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume, cst])
     end
     return df
 end
@@ -183,9 +186,9 @@ function init_radial_build(bd::IMAS.build; layers...)
         else
             if layer.type == Int(_plasma_)
                 layer.fs = Int(_lhfs_)
-            elseif k<length(layers)/2
+            elseif k < length(layers) / 2
                 layer.fs = Int(_in_)
-            elseif k>length(layers)/2
+            elseif k > length(layers) / 2
                 layer.fs = Int(_out_)
             end
         end

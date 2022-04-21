@@ -58,7 +58,7 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
             tridown = (R - r_at_min_z) / a
             shape_parameters = [elongation, (triup + tridown) / 2.0]
         elseif shape_index_mod == Int(_spline_)
-            n = 2
+            n = 1
             R = range(r_start, r_end, length=2 + n)[2:end-1]
             Z = range(height / 2.0, height / 2.0, length=2 + n)[2:end-1]
             shape_parameters = Float64[0.8]
@@ -117,7 +117,13 @@ function shape_function(shape_function_index)
     end
 
     # uniform resampling
-    resampled_zfunc(args...) = IMAS.resample_2d_line(zfunc(args...)...)
+    function resampled_zfunc(args...; resample=true)
+        if resample
+            return IMAS.resample_2d_line(zfunc(args...)...)
+        else
+            return zfunc(args...)
+        end
+    end
 
     return resampled_zfunc
 end
@@ -133,7 +139,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         return shape_parameters
     end
 
-    function cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
+    function cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
         R, Z = func(r_start, r_end, shape_parameters...)
 
         # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
@@ -141,62 +147,44 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         R = R[index]
         Z = Z[index]
 
-        # minimize area  O(1)
-        area = sum(abs.(diff(R) .* (Z[1:end-1] .+ Z[2:end])))
-        cost_area = (area - obstruction_area) / obstruction_area
-
         # no polygon crossings  O(N)
         inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
-        cost_inside = sum(inpoly) / cost_area
+        cost_inside = sum(inpoly)
 
         # target clearance  O(1)
         minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
         cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
+        mean_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance)
+        cost_mean_distance = mean_distance_error / target_clearance
 
         # favor up/down symmetric solutions
-        cost_up_down_symmetry = abs(sum(Z) / sum(abs.(Z)))
-
-        # favor smoothness and avoid convex shapes
-        dR = diff(R)
-        dZ = diff(Z)
-        dRa = dR[1:end-1]
-        dRb = dR[2:end]
-        dZa = dZ[1:end-1]
-        dZb = dZ[2:end]
-        sin_theta = (dRa .* dZb .- dZa .* dRb) ./ (sqrt.(dRa .^ 2.0 .+ dZa .^ 2.0) .* sqrt.(dRb .^ 2.0 + dZb .^ 2.0))
-        cost_concavity = 0
-        if any(sin_theta .> 0)
-            cost_concavity = sum(abs.(sin_theta[sin_theta.>0])) / length(sin_theta)
-        end
-        cost_smoothness = sum(abs.(sin_theta)) / length(sin_theta)
+        cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / maximum(abs.(Z))
 
         if verbose
             @show minimum_distance
+            @show mean_distance_error
             @show target_clearance
             @show cost_min_clearance^2
-            @show cost_area^2
+            @show cost_mean_distance^2
             @show cost_inside^2
             @show cost_up_down_symmetry^2
-            @show cost_smoothness^2
-            @show cost_concavity^2
         end
 
         # return cost
-        return cost_min_clearance^2 + 0.5 * cost_area^2 + cost_inside^2 + 1E-3 * cost_up_down_symmetry^2 + 10 * cost_smoothness^2 + 100 * cost_concavity^2
+        return  cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + cost_up_down_symmetry^2
     end
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
-    obstruction_area = sum(abs.(diff(r_obstruction) .* (z_obstruction[1:end-1] .+ z_obstruction[2:end])))
     initial_guess = copy(shape_parameters)
-    # res = optimize(shape_parameters-> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters),
+    # res = optimize(shape_parameters-> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
     #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
-    res = Optim.optimize(shape_parameters -> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters),
+    res = Optim.optimize(shape_parameters -> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
         initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit); autodiff=:forward)
     if verbose
         println(res)
     end
     shape_parameters = Optim.minimizer(res)
-    R, Z = func(r_start, r_end, shape_parameters...)
+    # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
     # plot(func(r_start, r_end, initial_guess...); markershape=:x)
     # plot!(r_obstruction, z_obstruction, ; markershape=:x)
     # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal))
@@ -343,7 +331,7 @@ function triple_arc(r_start::Real,
     mid_radius::Real,
     small_coverage::Real,
     mid_coverage::Real;
-    min_small_radius_fraction::Real=0.25,
+    min_small_radius_fraction::Real=0.2,
     min_mid_radius_fraction::Real=min_small_radius_fraction * 2.0,
     n_points::Int=400)
 
@@ -487,7 +475,7 @@ end
 function silo(r_start, r_end, height_start, height_end)
     height_start = abs(height_start)
     height_end = abs(height_end)
-    height_end = min(max(height_end,height_start*0.95),height_start*0.75)
+    height_end = min(max(height_end, height_start * 0.0), height_start * 1.0)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0, pi / 2, r_start, height_end)
     vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end

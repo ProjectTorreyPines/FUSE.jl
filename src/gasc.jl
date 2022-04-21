@@ -101,41 +101,41 @@ function gasc_2_sources(gasc::GASC, ini::InitParameters, act::ActorParameters)
     cd_powers = Float64[]
     ini.nbi.power_launched = Float64[]
     ini.nbi.beam_energy = Float64[]
-    if outputs["CDpowerNBCD"] > 0
-        pow = outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]
+    pow = outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]
+    if pow > 0
         push!(cd_powers, pow)
         push!(ini.nbi.power_launched, pow)
         push!(ini.nbi.beam_energy, 200e3)
     end
-    if outputs["CDpowerNNBCD"] > 0
-        pow = outputs["CDpowerNNBCD"] * 1E6 * inputs["NNBCDFraction"]
+    pow = outputs["CDpowerNNBCD"] * 1E6 * inputs["NNBCDFraction"]
+    if pow > 0
         push!(cd_powers, pow)
         push!(ini.nbi.power_launched, pow)
         push!(ini.nbi.beam_energy, 1000e3)
     end
 
     ini.lh.power_launched = Float64[]
-    if outputs["CDpowerLHCD"] > 0
-        pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
+    pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
+    if pow > 0
         push!(cd_powers, pow)
         push!(ini.lh.power_launched, pow)
     end
-    if outputs["CDpowerHICD"] > 0
-        pow = outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"]
+    pow = outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"]
+    if pow > 0
         push!(cd_powers, pow)
         push!(ini.lh.power_launched, pow)
     end
 
     ini.ec.power_launched = Float64[]
-    if outputs["CDpowerECCD"] > 0
-        pow = outputs["CDpowerECCD"] * 1E6 * inputs["ECCDFraction"]
+    pow = outputs["CDpowerECCD"] * 1E6 * inputs["ECCDFraction"]
+    if pow > 0
         push!(cd_powers, pow)
         push!(ini.ec.power_launched, pow)
     end
 
     ini.ic.power_launched = Float64[]
-    if outputs["CDpowerFWCD"] > 0
-        pow = outputs["CDpowerFWCD"] * 1E6 * inputs["FWCDFraction"]
+    pow = outputs["CDpowerFWCD"] * 1E6 * inputs["FWCDFraction"]
+    if pow > 0
         push!(cd_powers, pow)
         push!(ini.ic.power_launched, pow)
     end
@@ -242,7 +242,7 @@ function gasc_to_layers(gascsol::Dict)
         end
     end
     layers["gap_cryostat"] = layers["OH"] * 4
-    layers["cryostat"] = layers["lfs_low_temp_shield"]
+    layers["cryostat"] = layers["lfs_low_temp_shield"] / 2.0
 
     return layers
 end
@@ -265,6 +265,9 @@ function coil_technology(gasc::GASC, coil_type::Symbol)
         elseif gascsol["INPUTS"]["conductors"]["superConducting"] == "HTS"
             coil_tech = coil_technology(:HTS)
         end
+        if coil_type == :PF # assume PF coils are always LTS
+            coil_tech = coil_technology(:LTS)
+        end
         if "thermalStrain$coil_type" ∉ keys(gascsol["INPUTS"]["conductors"])
             coil_tech.thermal_strain = 0.0
             coil_tech.JxB_strain = 0.0
@@ -274,8 +277,8 @@ function coil_technology(gasc::GASC, coil_type::Symbol)
         end
     end
     if "fractionVoid$coil_type" ∉ keys(gascsol["INPUTS"]["conductors"])
-        coil_tech.fraction_void = 0.1
-        coil_tech.fraction_stainless = 0.5
+        coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoidOH"]
+        coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainlessOH"]
     else
         coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoid$coil_type"]
         coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainless$coil_type"]

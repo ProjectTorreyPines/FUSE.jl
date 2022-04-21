@@ -142,7 +142,6 @@ function InitParameters(::Type{Val{:gasc}})
     gasc = InitParameters(nothing)
     gasc.filename = Entry(String, "", "Output GASC .json file from which data will be loaded")
     gasc.case = Entry(Int, "", "Number of the GASC run to load")
-    gasc.no_small_gaps = Entry(Bool, "", "Remove small gaps from the GASC radial build"; default=true)
     return gasc
 end
 

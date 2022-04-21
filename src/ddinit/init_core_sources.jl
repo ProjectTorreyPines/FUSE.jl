@@ -14,14 +14,15 @@ function init_nbi(
     power_launched, beam_energy, beam_mass, toroidal_angle = same_length_vectors(power_launched, beam_energy, beam_mass, toroidal_angle)
 
     for idx in 1:length(power_launched)
-        resize!(dd.nbi.unit, idx)
-        nbi_u = dd.nbi.unit[idx]
-        @ddtime(nbi_u.energy.data = beam_energy[idx])
-        @ddtime(nbi_u.power_launched.data = power_launched[idx])
-        nbi_u.species.a = beam_mass[idx]
+        nbu = resize!(dd.nbi.unit, idx)
+        nbu.name = length(power_launched) > 1 ? "nbi_$idx" : "nbi"
+        @ddtime(nbu.energy.data = beam_energy[idx])
+        @ddtime(nbu.power_launched.data = power_launched[idx])
+        nbu.available_launch_power = power_launched[idx]
+        nbu.species.a = beam_mass[idx]
         # 1 beamlet
-        resize!(nbi_u.beamlets_group, 1)
-        nbi_u.beamlets_group[1].angle = toroidal_angle[idx] / 360 * 2pi
+        beamlet = resize!(nbu.beamlets_group, 1)
+        beamlet.angle = toroidal_angle[idx] / 360 * 2pi
     end
 
     return dd
@@ -34,8 +35,10 @@ end
 function init_ec_launchers(dd::IMAS.dd, power_launched::Union{Real,Vector})
     (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
-        resize!(dd.ec_launchers.launcher, idx)
-        @ddtime dd.ec_launchers.launcher[idx].power_launched.data = power_launched[idx]
+        ecl = resize!(dd.ec_launchers.launcher, idx)
+        ecl.name = length(power_launched) > 1 ? "ec_$idx" : "ec"
+        @ddtime(ecl.power_launched.data = power_launched[idx])
+        ecl.available_launch_power = power_launched[idx]
     end
 end
 
@@ -46,8 +49,10 @@ end
 function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
     (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
-        resize!(dd.ic_antennas.antenna, idx)
-        @ddtime dd.ic_antennas.antenna[idx].power_launched.data = power_launched[idx]
+        ica = resize!(dd.ic_antennas.antenna, idx)
+        ica.name = length(power_launched) > 1 ? "ic_$idx" : "ic"
+        @ddtime(ica.power_launched.data = power_launched[idx])
+        ica.available_launch_power = power_launched[idx]
     end
 end
 
@@ -58,8 +63,10 @@ end
 function init_lh_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
     (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
-        resize!(dd.lh_antennas.antenna, idx)
-        @ddtime dd.lh_antennas.antenna[idx].power_launched.data = power_launched[idx]
+        lha = resize!(dd.lh_antennas.antenna, idx)
+        lha.name = length(power_launched) > 1 ? "lh_$idx" : "lh"
+        @ddtime(lha.power_launched.data = power_launched[idx])
+        lha.available_launch_power = power_launched[idx]
     end
 end
 
@@ -83,19 +90,19 @@ function init_core_sources(dd::IMAS.dd, ini::InitParameters, act::ActorParameter
     if init_from == :scalars
         if !ismissing(ini.nbi, :power_launched) && any(ini.nbi.power_launched .> 0)
             init_nbi(dd, ini)
-            finalize(step(SimpleNBIactor(dd)))
+            SimpleNBIactor(dd, act)
         end
         if !ismissing(ini.ec, :power_launched) && any(ini.ec.power_launched .> 0)
             init_ec_launchers(dd, ini)
-            finalize(step(SimpleECactor(dd)))
+            SimpleECactor(dd, act)
         end
         if !ismissing(ini.ic, :power_launched) && any(ini.ic.power_launched .> 0)
             init_ic_antennas(dd, ini)
-            finalize(step(SimpleICactor(dd)))
+            SimpleICactor(dd, act)
         end
         if !ismissing(ini.lh, :power_launched) && any(ini.lh.power_launched .> 0)
             init_lh_antennas(dd, ini)
-            finalize(step(SimpleLHactor(dd)))
+            SimpleLHactor(dd, act)
         end
     end
 
