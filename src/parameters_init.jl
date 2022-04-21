@@ -53,6 +53,7 @@ end
 function InitParameters(::Type{Val{:core_profiles}})
     core_profiles = InitParameters(nothing)
     core_profiles.ne_ped = Entry(Real, "m^-3", "Pedestal electron density")
+    core_profiles.greenwald_fraction = Entry(Real, "", "Greenwald fraction, ne_vol / ne_gw")
     core_profiles.n_peaking = Entry(Real, "", "Ratio of core/pedestal densities")
     core_profiles.T_shaping = Entry(Real, "", "Temperature shaping factor")
     core_profiles.w_ped = Entry(Real, "", "Pedestal width expressed in fraction of ψₙ")
@@ -61,6 +62,7 @@ function InitParameters(::Type{Val{:core_profiles}})
     core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default=101)
     core_profiles.bulk = Entry(Symbol, "", "Bulk ion species")
     core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
+    core_profiles.helium_fraction = Entry(Real, "", "Helium density / electron density fraction")
     core_profiles.ejima = Entry(Real, "", "Ejima coefficient"; default=0.4)
     return core_profiles
 end
