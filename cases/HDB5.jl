@@ -2,10 +2,20 @@ import DataFrames
 import CSV
 
 # For description of cases/variables see https://osf.io/593q6/
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer)
-    data_row = load_hdb5(tokamak)[case, :]
+"""
+    case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer,database_case::Integer)
+"""
+function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
+    if !ismissing(database_case)
+        data_row = load_hdb5(database_case=database_case)
+    elseif !ismissing(case)
+        data_row = load_hdb5(tokamak)[case, :]
+    else
+        error("Specifcy either the case or database_case")
+    end
     case_parameters(data_row)
 end
+
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
     ini = InitParameters()
@@ -84,10 +94,15 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     return set_new_base!(ini), set_new_base!(act)
 end
 
-function load_hdb5(tokamak::T=:all, extra_signal_names=T[]) where {T<:Union{String,Symbol}}
-    # Set up the database to run
+function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Int=missing, extra_signal_names=Union{String,Symbol}[])
     # For description of variables see https://osf.io/593q6/
     run_df = CSV.read(joinpath(dirname(abspath(@__FILE__)), "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
+    run_df[:,"database_case"] = collect(1:length(run_df[:,"TOK"]))
+
+    if !ismissing(database_case)
+        return run_df[run_df.database_case .== database_case, :]
+    end
+
     signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
     signal_names = vcat(signal_names, extra_signal_names)
     # subselect on the signals of interest
@@ -95,7 +110,10 @@ function load_hdb5(tokamak::T=:all, extra_signal_names=T[]) where {T<:Union{Stri
     # only retain cases for which all signals have data
     run_df = run_df[DataFrames.completecases(run_df), :]
     # some basic filters
-    run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
+    run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(run_df.DELTA.<0.79).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
+    # Filter cases where the ohmic power is dominating
+    run_df[:,"Paux"] = run_df[:,"PNBI"] .+ run_df[:,"PECRH"] .+ run_df[:,"PICRH"] .+ run_df[:,"POHM"]
+    run_df = run_df[run_df[:,"POHM"] .< maximum_ohmic_fraction .* (run_df[:,"Paux"] .- run_df[:,"POHM"]),:]
     if !(Symbol(tokamak) in [:all, :any])
         run_df = run_df[run_df.TOK.==String(tokamak), :]
     end
