@@ -472,6 +472,9 @@ function approximate_surface_area(a::Real, R::Real ,κ::Real, δ::Real)
     return  2pi^2 * R * a^2 * κ * (1. - 0.151 * δ * a / R) / (2pi*R) # m²
 end
 
+"""
+    silo(r_start, r_end, height_start, height_end)  
+"""
 function silo(r_start, r_end, height_start, height_end)
     height_start = abs(height_start)
     height_end = abs(height_end)
