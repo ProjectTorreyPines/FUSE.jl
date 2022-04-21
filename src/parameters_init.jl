@@ -61,7 +61,6 @@ function InitParameters(::Type{Val{:core_profiles}})
     core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default=101)
     core_profiles.bulk = Entry(Symbol, "", "Bulk ion species")
     core_profiles.impurity = Entry(Symbol, "", "Impurity ion species")
-    core_profiles.helium_fraction = Entry(Real, "", "Helium density / electron density fraction")
     core_profiles.ejima = Entry(Real, "", "Ejima coefficient"; default=0.4)
     return core_profiles
 end

@@ -1,9 +1,10 @@
 function init_core_profiles(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
     init_from = ini.general.init_from
 
-    if init_from == :gasc
-        gasc = GASC(ini.gasc.filename, ini.gasc.case)
-        init_core_profiles(dd, gasc; bulk=ini.core_profiles.bulk)
+    if init_from == :gasc # remove init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk=:DT)
+        #gasc = GASC(ini.gasc.filename, ini.gasc.case)
+        #init_core_profiles(dd, gasc; bulk=ini.core_profiles.bulk)
+        init_from = :scalars
 
     elseif init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
@@ -47,7 +48,7 @@ function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk=:DT)
 
     # Set ions
     ion = resize!(cpt.ion, "label" => String(bulk))
-    fill!(ion, IMAS.ion_element(bulk))
+    fill!(ion, IMAS.ion_element(ion_symbol=bulk))
     @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
     ion = resize!(cpt.ion, 2)
     element = resize!(ion.element, 1)
@@ -82,7 +83,6 @@ function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk=:DT)
 
     # ejima
     IMAS.set_time_array(dd.core_profiles.global_quantities, :ejima, gascsol["INPUTS"]["plasma parameters"]["ejimaCoeff"])
-
     return dd
 end
 
@@ -110,10 +110,10 @@ function init_core_profiles(
 
     # Set ions
     ion = resize!(cpt.ion, "label" => String(bulk))
-    fill!(ion, IMAS.ion_element(bulk))
+    fill!(ion, IMAS.ion_element(ion_symbol=bulk))
     @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
     ion = resize!(cpt.ion, "label" => String(impurity))
-    fill!(ion, IMAS.ion_element(impurity))
+    fill!(ion, IMAS.ion_element(ion_symbol=impurity))
 
     # pedestal
     @ddtime summary.local.pedestal.n_e.value = ne_ped
@@ -124,7 +124,7 @@ function init_core_profiles(
     ne_core = n_peaking * ne_ped
     cpt.electrons.density = TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
 
-    zimp1 = IMAS.ion_element(impurity).element[1].z_n
+    zimp1 = IMAS.ion_element(ion_symbol=impurity).element[1].z_n
     niFraction = zeros(2)
     niFraction[2] = (zeff - 1.0) / (zimp1 * (zimp1 - 1.0))
     niFraction[1] = 1.0 - zimp1 * niFraction[2]
