@@ -146,7 +146,6 @@ function init_core_profiles(
     for i = 1:length(cpt.ion)
         cpt.ion[i].temperature = cpt.electrons.temperature ./ T_ratio
     end
-    display(plot(eqt.profiles_1d.volume))
 
     return cp
 end
