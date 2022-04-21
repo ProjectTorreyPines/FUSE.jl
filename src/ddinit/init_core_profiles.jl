@@ -1,3 +1,4 @@
+import TAUENN: Hmode_profiles
 function init_core_profiles(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
     init_from = ini.general.init_from
 
@@ -104,23 +105,23 @@ function init_core_profiles(
     n_shaping::Real=0.9,
     ngrid::Int=101
 )
-    cpt = resize!(cp.profiles_1d)
+    cp1d = resize!(cp.profiles_1d)
     eqt = eq.time_slice[]
 
-    cpt.grid.rho_tor_norm = LinRange(0, 1, ngrid)
-    cpt.zeff = ones(ngrid) .* zeff
-    cpt.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cpt.grid.rho_tor_norm)
+    cp1d.grid.rho_tor_norm = LinRange(0, 1, ngrid)
+    cp1d.zeff = ones(ngrid) .* zeff
+    cp1d.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cp1d.grid.rho_tor_norm)
 
     # Set ions
     # He == 1
     # DT == 2
     # Imp ==3
-    ion = resize!(cpt.ion, "label" => "He")
+    ion = resize!(cp1d.ion, "label" => "He")
     fill!(ion, IMAS.ion_element(ion_symbol=:He))
-    ion = resize!(cpt.ion, "label" => String(bulk))
+    ion = resize!(cp1d.ion, "label" => String(bulk))
     fill!(ion, IMAS.ion_element(ion_symbol=bulk))
     @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
-    ion = resize!(cpt.ion, "label" => String(impurity))
+    ion = resize!(cp1d.ion, "label" => String(impurity))
     fill!(ion, IMAS.ion_element(ion_symbol=impurity))
 
     # pedestal
@@ -131,15 +132,15 @@ function init_core_profiles(
     # Set densities
     function cost_greenwald_fraction(ne0)
         ne0 = ne0[1]
-        cp1d.electrons.density = TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
+        cp1d.electrons.density = Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
         nel = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
         ngw = IMAS.greenwald_density(eqt)
         return (nel/ngw - greenwald_fraction)^2
     end
     ne0_guess = ne_ped * 1.4
     res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
-    ne_core = res.minimize[1]
-    cpt.electrons.density = TAUENN.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
+    ne_core = res.minimizer
+    cp1d.electrons.density = Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
 
     # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
     niFraction = zeros(3)
@@ -154,8 +155,8 @@ function init_core_profiles(
     @assert all(niFraction .> 0.0) "zeff too high for the given bulk [$bulk] and impurity [$impurity] species"
     @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction"
 
-    for i = 1:length(cpt.ion)
-        cpt.ion[i].density = cpt.electrons.density .* niFraction[i]
+    for i = 1:length(cp1d.ion)
+        cp1d.ion[i].density = cp1d.electrons.density .* niFraction[i]
     end
     # Set temperatures
     eqt = eq.time_slice[]
@@ -166,9 +167,9 @@ function init_core_profiles(
 
     Te_core = 10.0 * betaN * abs(Bt * (Ip / 1e6)) / a / (ne_core / 1e20) / (2.0 * 1.6e1 * 4.0 * pi * 1.0e-4)
     Te_ped = Te_core / 4
-    cpt.electrons.temperature = TAUENN.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
-    for i = 1:length(cpt.ion)
-        cpt.ion[i].temperature = cpt.electrons.temperature ./ T_ratio
+    cp1d.electrons.temperature = Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
+    for i = 1:length(cp1d.ion)
+        cp1d.ion[i].temperature = cp1d.electrons.temperature ./ T_ratio
     end
 
     return cp
