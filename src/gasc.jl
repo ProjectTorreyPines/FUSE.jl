@@ -64,7 +64,6 @@ function gasc_2_core_profiles(gasc::GASC, ini::InitParameters, act::ActorParamet
     gascsol = gasc.solution
 
     ini.core_profiles.ne_ped = gascsol["OUTPUTS"]["plasma parameters"]["neped"] * 1e20
-    ini.core_profiles.n_peaking = gascsol["OUTPUTS"]["plasma parameters"]["ne0"] / gascsol["OUTPUTS"]["plasma parameters"]["neped"]
     ini.core_profiles.greenwald_fraction = gascsol["OUTPUTS"]["plasma parameters"]["greenwaldFraction"]
     ini.core_profiles.T_shaping = 1.8
     i_ped = argmin(abs.(gascsol["OUTPUTS"]["numerical profiles"]["neProf"] .- gascsol["OUTPUTS"]["plasma parameters"]["neped"] / gascsol["OUTPUTS"]["plasma parameters"]["ne0"]))
