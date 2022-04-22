@@ -44,12 +44,12 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::InitParameters,
     return dd
 end
 
-function run_HDB5_from_data_row(data_row,act::Union{ActorParameters,Missing}=missing,verbose::Bool=false, do_plot::Bool=false)
+function run_HDB5_from_data_row(data_row, act::Union{ActorParameters,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
     try
-        dd=IMAS.dd()
-        ini,ACT=FUSE.case_parameters(data_row)
+        dd = IMAS.dd()
+        ini, ACT = FUSE.case_parameters(data_row)
         if ismissing(act)
-            act=ACT
+            act = ACT
         end
         dd = FUSE.simple_equilibrium_transport_workflow(dd, ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
         data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
@@ -96,18 +96,18 @@ function transport_validation_workflow(;
     n_cases = length(run_df.TOK)
 
     # Outputs to store
-	run_df[:,"TAUTH_fuse"] = zeros(n_cases)
-	run_df[:,"T0_fuse"] = zeros(n_cases)
-	run_df[:,"error_message"] = ["" for i in 1:n_cases]
+    run_df[:, "TAUTH_fuse"] = zeros(n_cases)
+    run_df[:, "T0_fuse"] = zeros(n_cases)
+    run_df[:, "error_message"] = ["" for i in 1:n_cases]
 
     # Run simple_equilibrium_transport_workflow on each of the selected cases
-    data_rows = @showprogress pmap(row -> FUSE.run_HDB5_from_data_row(row,act,verbose,show_dd_plots), [run_df[k,:] for k in 1:n_cases])
+    data_rows = @showprogress pmap(row -> FUSE.run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
     for k in 1:length(data_rows)
-        run_df[k,:] = data_rows[k]
+        run_df[k, :] = data_rows[k]
     end
 
-    failed_df = filter(:TAUTH_fuse => isnan,run_df)
-    run_df = filter(:TAUTH_fuse => !isnan,run_df)
+    failed_df = filter(:TAUTH_fuse => isnan, run_df)
+    run_df = filter(:TAUTH_fuse => !isnan, run_df)
 
     println("Failed runs: $(length(failed_df.TOK)) out of $(length(run_df.TOK))")
     println("Mean Relative error $(MRE = round(100 * mean_relative_error(run_df[:, :TAUTH], run_df[:, :TAUTH_fuse]), digits=2))%")
