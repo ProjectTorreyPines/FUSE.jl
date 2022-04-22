@@ -62,7 +62,8 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
 
     # Core_profiles parameters
     ini.core_profiles.ne_ped = data_row[:NEL] / 1.3
-    ini.core_profiles.n_peaking = 1.5
+    ini.core_profiles.greenwald_fraction = data_row[:NEL]*1e-20 / (data_row[:IP]/1e6  / (pi * data_row[:AMIN]^2 ))
+    ini.core_profiles.helium_fraction = 0.
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.w_ped = 0.03
     ini.core_profiles.zeff = data_row[:ZEFF]
@@ -94,7 +95,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     return set_new_base!(ini), set_new_base!(act)
 end
 
-function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Int=missing, extra_signal_names=Union{String,Symbol}[])
+function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Union{Int,Missing}=missing, extra_signal_names=Union{String,Symbol}[])
     # For description of variables see https://osf.io/593q6/
     run_df = CSV.read(joinpath(dirname(abspath(@__FILE__)), "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
     run_df[:,"database_case"] = collect(1:length(run_df[:,"TOK"]))
