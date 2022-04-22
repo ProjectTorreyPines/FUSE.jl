@@ -11,7 +11,7 @@ import IMAS: BuildLayerShape, _offset_, _convex_hull_, _princeton_D_exact_, _pri
 #  Visualization of IMAS.build.layer as table  #
 #= ========================================== =#
 function DataFrames.DataFrame(layers::IMAS.IDSvector{T} where {T<:IMAS.build__layer})
-    df = DataFrames.DataFrame(group=String[], name=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[], cost=Float64[])
+    df = DataFrames.DataFrame(group=String[], name=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[])
     for layer in layers
         material = IMAS.evalmissing(layer, :material)
         if material === missing
@@ -27,15 +27,10 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{T} where {T<:IMAS.build__la
         if volume === missing
             volume = NaN
         end
-        cst = NaN
-        try
-            cst = cost(layer)
-        catch
-        end
         group = replace(string(BuildLayerSide(layer.fs)), "_" => "")
         name = replace(layer.name, r"^[hl]fs " => "")
         name = replace(name, r"^gap .*" => "")
-        push!(df, [group, name, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume, cst])
+        push!(df, [group, name, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume])
     end
     return df
 end
