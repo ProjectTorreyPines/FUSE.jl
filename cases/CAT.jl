@@ -24,9 +24,9 @@ function case_parameters(::Type{Val{:CAT}})
 
     ini.oh.technology = coil_technology(:ITER, :OH)
     ini.oh.flattop_duration = 1000
-
     ini.core_profiles.ne_ped = 7E19
-    ini.core_profiles.n_peaking = 1.5
+    ini.core_profiles.greenwald_fraction = 0.8
+    ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.w_ped = 0.08
     ini.core_profiles.zeff = 2.5
