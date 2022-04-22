@@ -57,7 +57,8 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
     ini.oh.flattop_duration = 1000
 
     ini.core_profiles.ne_ped = 7e19
-    ini.core_profiles.n_peaking = 1.5
+    ini.core_profiles.greenwald_fraction = 0.95
+    ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.w_ped = 0.04
     ini.core_profiles.zeff = 1.5

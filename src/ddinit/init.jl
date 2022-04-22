@@ -45,7 +45,7 @@ function init(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; do_plot=fa
     if !ismissing(ini.core_profiles, :bulk) || :core_profiles ∈ ods_items
         init_core_profiles(dd, ini, act)
         if do_plot
-            display(plot(dd.core_profiles))
+            display(plot(dd.core_profiles, legend=:bottomleft))
         end
     end
 
@@ -53,8 +53,8 @@ function init(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; do_plot=fa
     if !ismissing(ini.ec, :power_launched) || !ismissing(ini.ic, :power_launched) || !ismissing(ini.lh, :power_launched) || !ismissing(ini.nbi, :power_launched) || :core_sources ∈ ods_items
         init_core_sources(dd, ini, act)
         if do_plot
-            display(plot(dd.core_sources))
-            display(plot(dd.core_sources; integrated=true))
+            display(plot(dd.core_sources, legend=:topright))
+            display(plot(dd.core_sources,legend=:bottomright; integrated=true))
         end
     end
 
