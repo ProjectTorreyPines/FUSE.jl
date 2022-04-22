@@ -90,7 +90,7 @@ function init_equilibrium(dd::IMAS.dd, ini::InitParameters, act::ActorParameters
             x_point=ini.equilibrium.x_point,
             symmetric=ini.equilibrium.symmetric)
 
-        # equilibrium
+        # solve equilibrium
         SolovevActor(dd, act)
     end
 

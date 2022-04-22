@@ -13,6 +13,8 @@ end
 function ActorParameters(::Type{Val{:SolovevActor}})
     par = ActorParameters(nothing)
     par.ngrid = Entry(Integer, "", "ngrid"; default=129)
+    par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
+    par.alpha = Entry(Real, "", "Initial guess of constant relating to beta regime"; default=0.0)
     par.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
     par.area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
@@ -24,6 +26,10 @@ function SolovevActor(dd::IMAS.dd, act::ActorParameters; kw...)
     actor = SolovevActor(dd.equilibrium)
     step(actor; par.verbose)
     finalize(actor, ngrid=par.ngrid, volume=evalmissing(par, :volume), area=evalmissing(par, :area))
+    # record optimized values of qstar and alpha in `act` for subsequent SolovevActor calls
+    par.qstar = actor.S.qstar
+    par.alpha = actor.S.alpha
+    return actor
 end
 
 """
@@ -64,33 +70,6 @@ function SolovevActor(eq::IMAS.equilibrium; qstar=1.5, alpha=0.0)
 end
 
 """
-    IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
-
-Convert IMAS.equilibrium__time_slice to Equilibrium.jl EFIT structure
-"""
-function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
-    dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
-    @assert collect(dim1) ≈ eqt.profiles_2d[1].grid.dim1
-    dim2 = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
-    @assert collect(dim2) ≈ eqt.profiles_2d[1].grid.dim2
-    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length=length(eqt.profiles_1d.psi))
-    @assert collect(psi) ≈ eqt.profiles_1d.psi
-
-    Equilibrium.efit(Equilibrium.cocos(11), # COCOS
-        dim1, # Radius/R range
-        dim2, # Elevation/Z range
-        psi, # Polodial Flux range (polodial flux from magnetic axis)
-        eqt.profiles_2d[1].psi, # Polodial Flux on RZ grid (polodial flux from magnetic axis)
-        eqt.profiles_1d.f, # Polodial Current
-        eqt.profiles_1d.pressure, # Plasma pressure
-        eqt.profiles_1d.q, # Q profile
-        eqt.profiles_1d.psi .* 0, # Electric Potential
-        (eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z), # Magnetic Axis (raxis,zaxis)
-        Int(sign(eqt.profiles_1d.f[end]) * sign(eqt.global_quantities.ip)) # sign(dot(J,B))
-    )
-end
-
-"""
     step(actor::SolovevActor; verbose=false)
 
 Non-linear optimization to obtain a target `ip` and `beta_normal`
@@ -109,7 +88,7 @@ function step(actor::SolovevActor; verbose=false)
         S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
         beta_cost = (Equilibrium.beta_n(S) - target_beta) / target_beta
         ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
-        c = sqrt(beta_cost^2 + ip_cost^2)
+        c = beta_cost^2 + ip_cost^2
         return c
     end
 
@@ -196,4 +175,31 @@ function finalize(
     end
 
     return eqt
+end
+
+"""
+    IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
+
+Convert IMAS.equilibrium__time_slice to Equilibrium.jl EFIT structure
+"""
+function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
+    dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
+    @assert collect(dim1) ≈ eqt.profiles_2d[1].grid.dim1
+    dim2 = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
+    @assert collect(dim2) ≈ eqt.profiles_2d[1].grid.dim2
+    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length=length(eqt.profiles_1d.psi))
+    @assert collect(psi) ≈ eqt.profiles_1d.psi
+
+    Equilibrium.efit(Equilibrium.cocos(11), # COCOS
+        dim1, # Radius/R range
+        dim2, # Elevation/Z range
+        psi, # Polodial Flux range (polodial flux from magnetic axis)
+        eqt.profiles_2d[1].psi, # Polodial Flux on RZ grid (polodial flux from magnetic axis)
+        eqt.profiles_1d.f, # Polodial Current
+        eqt.profiles_1d.pressure, # Plasma pressure
+        eqt.profiles_1d.q, # Q profile
+        eqt.profiles_1d.psi .* 0, # Electric Potential
+        (eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z), # Magnetic Axis (raxis,zaxis)
+        Int(sign(eqt.profiles_1d.f[end]) * sign(eqt.global_quantities.ip)) # sign(dot(J,B))
+    )
 end
