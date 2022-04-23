@@ -3,6 +3,35 @@ using InteractiveUtils: subtypes
 abstract type Parameter end
 abstract type Parameters end
 
+#= ======================= =#
+#  Optimization parameters  #
+#= ======================= =#
+struct OptParameter
+    nominal::Real
+    lower::Real
+    upper::Real
+end
+
+function ↔(x::Real, r::AbstractVector)
+    @assert typeof(x) == typeof(r[1]) == typeof(r[end]) "type of optimization range does not match the nominal value"
+    return OptParameter(x, r[1], r[end])
+end
+
+function opt_parameters(p::Parameters, opt_vector=Parameter[])
+    _parameters = getfield(p, :_parameters)
+    for k in keys(_parameters)
+        parameter = _parameters[k]
+        if typeof(parameter) <: Parameters
+            opt_parameters(parameter, opt_vector)
+        elseif typeof(parameter) <: Entry
+            if parameter.lower !== missing
+                push!(opt_vector, parameter)
+            end
+        end
+    end
+    return opt_vector
+end
+
 #= ===== =#
 #  Entry  #
 #= ===== =#
@@ -12,6 +41,8 @@ mutable struct Entry{T} <: Parameter
     value::T
     base::T
     default::T
+    lower::Union{Missing,Float64}
+    upper::Union{Missing,Float64}
 end
 
 """
@@ -20,7 +51,7 @@ end
 Defines a entry parameter
 """
 function Entry(T, units::String, description::String; default=missing)
-    return Entry{Union{Missing,T}}(units, description, default, default, default)
+    return Entry{Union{Missing,T}}(units, description, default, default, default, missing, missing)
 end
 
 function Entry(T, ids::Type, field::Symbol; default=missing)
@@ -37,7 +68,7 @@ struct SwitchOption
 end
 
 mutable struct Switch <: Parameter
-    options::Dict{T,SwitchOption} where {T<:Any}
+    options::Dict{Any,SwitchOption}
     units::String
     description::String
     value::Any
@@ -124,7 +155,7 @@ Generates actor parameters
 """
 function ActorParameters()
     act = ActorParameters(Symbol[], Dict{Symbol,Union{Parameter,ActorParameters}}())
-    for par in subtypes(FUSE.AbstractActor)
+    for par in subtypes(AbstractActor)
         par = Symbol(replace(string(par), "FUSE." => ""))
         try
             setproperty!(act, par, ActorParameters(par))
@@ -158,11 +189,11 @@ function Base.fieldnames(p::Parameters)
 end
 
 function Base.getproperty(p::Parameters, key::Symbol)
-    _parameter = getfield(p, :_parameters)
-    if key ∉ keys(_parameter)
+    _parameters = getfield(p, :_parameters)
+    if key ∉ keys(_parameters)
         throw(InexistentParameterException(typeof(p), vcat(getfield(p, :_path), key)))
     end
-    parameter = _parameter[key]
+    parameter = _parameters[key]
 
     if typeof(parameter) <: Parameters
         value = parameter
@@ -193,11 +224,11 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
         return value
     end
 
-    _parameter = getfield(p, :_parameters)
-    if !(key in keys(_parameter))
+    _parameters = getfield(p, :_parameters)
+    if !(key in keys(_parameters))
         throw(InexistentParameterException(typeof(p), vcat(getfield(p, :_path), key)))
     end
-    parameter = _parameter[key]
+    parameter = _parameters[key]
 
     if typeof(parameter) <: Switch
         try
@@ -208,7 +239,18 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
             end
         end
     else
-        return parameter.value = value
+        if typeof(value) <: OptParameter
+            parameter.value = value.nominal
+            if typeof(value.nominal) <: Integer
+                parameter.lower = value.lower - 0.5
+                parameter.upper = value.upper + 0.5
+            else
+                parameter.lower = value.lower
+                parameter.upper = value.upper
+            end
+        else
+            return parameter.value = value
+        end
     end
 
     return value
@@ -293,26 +335,26 @@ function evalmissing(p::Parameters, field::Symbol)
 end
 
 """
-    par2dict(par::FUSE.Parameters)
+    par2dict(par::Parameters)
 
 Convert FUSE parameters to dictionary
 """
-function par2dict(par::FUSE.Parameters)
+function par2dict(par::Parameters)
     ret = Dict()
-    return par2dict(par,ret)
+    return par2dict(par, ret)
 end
 
-function par2dict(par::FUSE.Parameters, ret::AbstractDict)
+function par2dict(par::Parameters, ret::AbstractDict)
     data = getfield(par, :_parameters)
-    return par2dict(data,ret)
+    return par2dict(data, ret)
 end
 
 function par2dict(data::AbstractDict, ret::AbstractDict)
     for item in keys(data)
-        if typeof(data[item]) <: FUSE.Parameters
+        if typeof(data[item]) <: Parameters
             ret[item] = Dict()
             par2dict(data[item], ret[item])
-        elseif typeof(data[item]) <: FUSE.Parameter
+        elseif typeof(data[item]) <: Parameter
             ret[item] = Dict()
             ret[item][:value] = data[item].value
             ret[item][:units] = data[item].units
@@ -323,12 +365,12 @@ function par2dict(data::AbstractDict, ret::AbstractDict)
 end
 
 """
-    par2json(@nospecialize(par::FUSE.Parameters), filename::String; kw...)
+    par2json(@nospecialize(par::Parameters), filename::String; kw...)
 
 Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
-function par2json(@nospecialize(par::FUSE.Parameters), filename::String; kw...)
+function par2json(@nospecialize(par::Parameters), filename::String; kw...)
     open(filename, "w") do io
         JSON.print(io, par2dict(par); kw...)
     end

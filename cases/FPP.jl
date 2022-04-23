@@ -25,10 +25,11 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1)
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
 
-#    ini.oh.flattop_duration = 1000
+    ini.core_profiles.zeff = 1.1 ↔ [1.1, 2.5]
+    #    ini.oh.flattop_duration = 1000
 
     ini.tf.shape = :princeton_D_scaled
-    ini.tf.n_coils = 16
+    ini.tf.n_coils = 16# ↔ [12, 24]
 
     ini.pf_active.n_oh_coils = 6
     ini.pf_active.n_pf_coils_inside = 0
