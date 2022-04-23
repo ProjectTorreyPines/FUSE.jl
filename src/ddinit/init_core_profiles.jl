@@ -133,7 +133,7 @@ function init_core_profiles(
     # Set densities
     function cost_greenwald_fraction(ne0)
         ne0 = ne0[1]
-        cp1d.electrons.density = Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
+        cp1d.electrons.density_thermal = Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
         nel = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
         ngw = IMAS.greenwald_density(eqt)
         return (nel / ngw - greenwald_fraction)^2
@@ -141,7 +141,7 @@ function init_core_profiles(
     ne0_guess = ne_ped * 1.4
     res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
     ne_core = res.minimizer[1]
-    cp1d.electrons.density = Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
+    cp1d.electrons.density_thermal = Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
     # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
     niFraction = zeros(3)
     # DT == 1
@@ -153,7 +153,7 @@ function init_core_profiles(
     niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
     @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
     for i = 1:length(cp1d.ion)
-        cp1d.ion[i].density = cp1d.electrons.density .* niFraction[i]
+        cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
     end
 
     # Set temperatures
