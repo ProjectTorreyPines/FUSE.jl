@@ -63,13 +63,15 @@ function run_HDB5_from_data_row(data_row, act::Union{ActorParameters,Missing}=mi
     return data_row
 end
 
-
 """
-    function transport_validation_workflow(
-        n_samples_per_tokamak::Union{Integer,Symbol}, # setting this to :all runs the whole database
-        save_directory::String,
-        show_dd_plots::Bool,
-        plot_database::Bool)
+    function transport_validation_workflow(;
+        tokamak::Union{String,Symbol}=:all,
+        n_samples_per_tokamak::Union{Integer,Symbol}=10,
+        save_directory::String="",
+        show_dd_plots=false,
+        plot_database=true,
+        verbose=false,
+        act=missing)
 
 Runs n_samples of the HDB5 database (https://osf.io/593q6) and stores results in save_directory
 """
@@ -136,7 +138,7 @@ end
 """
     plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
 
-Plot regression in log-form on x_name and y_name in the dataframe
+Plot regression of `\$name` and `\$(name)_fuse` data stored in a given dataframe
 """
 function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
     x_name = name
@@ -157,6 +159,11 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String
     return p
 end
 
+"""
+    function plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
+
+Plot regression of `\$name` and `\$(name)_fuse` data stored in a given CSV file
+"""
 function plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
     dataframe = CSV.read(filename, DataFrames.DataFrame)
     plot_x_y_regression(dataframe, name)
