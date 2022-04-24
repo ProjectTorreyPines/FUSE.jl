@@ -533,18 +533,25 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     coils_inside = any([contains(lowercase(l.name), "coils") for l in bd.layer])
 
     # all layers between plasma and OH
-    plasma_to_oh = reverse(IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true))
-    for k in plasma_to_oh
-        if k == ipl - 2
-            # layer that is outside of the plasma sets blankets, shields, vv
-            FUSE.optimize_shape(bd, k + 1, k, _triple_arc_; tight=!coils_inside)
-        elseif k == itf + 1
+    # k+1 means the layer inside (ie. towards the plasma)
+    # k   is the current layer
+    # k-1 means the layer outside (ie. towards the tf)
+    # forward pass: from plasma to TF _convex_hull_ and then desired TF shape
+    tf_to_plasma = IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true)
+    plasma_to_tf = reverse(tf_to_plasma)
+    for k in plasma_to_tf
+        if k == itf + 1
             # layer that is inside of the TF sets TF shape
             FUSE.optimize_shape(bd, k + 1, k, BuildLayerShape(bd.tf.shape); tight=!coils_inside)
         else
             # everything else is conformal convex hull
             FUSE.optimize_shape(bd, k + 1, k, _convex_hull_)
         end
+    end
+    # reverse pass: from TF to plasma only with negative offset
+    # Blanket layer adapts from wall to TF shape
+    for k in tf_to_plasma[1:end-2]
+        FUSE.optimize_shape(bd, k, k + 1, _offset_)
     end
 
     # _in_
@@ -618,13 +625,11 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     end
     r_offset = (lfs_thickness .- hfs_thickness) / 2.0
 
-    # only update shape if that is not been set before
-    # this is to allow external overriding of default shape setting
-    if ismissing(layer, :shape)
-        layer.shape = Int(shape)
-    end
+    # update shape
+    layer.shape = Int(shape)
 
-    if layer.shape in [Int(_offset_), Int(_convex_hull_)] # handle offset and offset & convex-hull
+    # handle offset, negative offset, offset & convex-hull
+    if layer.shape in [Int(_offset_), Int(_convex_hull_)]
         poly = LibGEOS.buffer(xy_polygon(oR, oZ), (hfs_thickness + lfs_thickness) / 2.0)
         R = [v[1] .+ r_offset for v in LibGEOS.coordinates(poly)[1]]
         Z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
