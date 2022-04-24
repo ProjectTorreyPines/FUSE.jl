@@ -1,4 +1,6 @@
 import Metaheuristics
+using ProgressMeter
+ProgressMeter.ijulia_behavior(:clear)
 
 mutable struct ObjectiveFunction
     name::Symbol
@@ -12,7 +14,7 @@ function ObjectiveFunction(name::Symbol, func::Function, target::Float64)
     ObjectivesFunctionsLibrary[objf.name] = objf
 end
 
-function (objf::ObjectiveFunction)(dd)
+function (objf::ObjectiveFunction)(dd::IMAS.dd)
     if isinf(objf.target)
         if objf.target < 0
             return objf.func(dd)
@@ -22,7 +24,21 @@ function (objf::ObjectiveFunction)(dd)
     elseif objf.target == 0.0
         return abs(objf.func(dd))
     else
-        return abs(objf.func(dd) - target) / target
+        return abs(objf.func(dd) - objf.target) / objf.target
+    end
+end
+
+function (objf::ObjectiveFunction)(x::Float64)
+    if isinf(objf.target)
+        if objf.target < 0
+            return x
+        else
+            return -x
+        end
+    elseif objf.target == 0.0
+        return x
+    else
+        return x * objf.target + objf.target
     end
 end
 
@@ -46,9 +62,9 @@ function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, a
     return collect(map(f -> f(dd), objectives_functions)), x * 0, x * 0
 end
 
-function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{T}) where {T<:ObjectiveFunction}
-    display("Running on $(nprocs()) processes")
+function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{T}, p) where {T<:ObjectiveFunction}
     # parallel evaluation of a generation
+    ProgressMeter.next!(p)
     tmp = pmap(x -> optimization_engine(func, dd, ini, act, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(tmp[1][1]))
     G = similar(X)
@@ -59,7 +75,8 @@ function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, a
     return F, G, H
 end
 
-function optimization_workflow(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, objectives_functions::AbstractVector{T}=ObjectiveFunction[]; N=10) where {T<:ObjectiveFunction}
+function optimization_workflow(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, objectives_functions::AbstractVector{T}=ObjectiveFunction[]; N=10, iterations=N) where {T<:ObjectiveFunction}
+    display("Running on $(nprocs()) processes")
     if isempty(objectives_functions)
         error("Must specify objective functions. Available pre-baked functions from ObjectivesFunctionsLibrary:\n  * " * join(keys(ObjectivesFunctionsLibrary), "\n  * "))
     end
@@ -73,10 +90,11 @@ function optimization_workflow(func::Function, dd::IMAS.dd, ini::InitParameters,
     # test running function with nominal parameters
     func(dd, ini, act)
     # optimize
-    options = Metaheuristics.Options(parallel_evaluation=true, f_calls_limit=10 * N)
+    options = Metaheuristics.Options(parallel_evaluation=true, iterations=iterations)
     algorithm = Metaheuristics.NSGA2(N=N, options=options)
-    @time results = Metaheuristics.optimize(X -> optimization_engine(func, dd, ini, act, X, opt_ini, objectives_functions), bounds, algorithm)
-    return results
+    p = Progress(iterations; desc="Iteration", showspeed=true)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(func, dd, ini, act, X, opt_ini, objectives_functions, p), bounds, algorithm)
+    return state
 end
 
 ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()

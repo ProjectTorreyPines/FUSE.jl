@@ -2,6 +2,7 @@ import Random
 import DataFrames
 import CSV
 using ProgressMeter
+ProgressMeter.ijulia_behavior(:clear)
 import Dates
 using Distributed
 """
