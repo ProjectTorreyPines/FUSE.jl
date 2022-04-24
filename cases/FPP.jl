@@ -30,6 +30,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1)
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 16# ↔ [12, 24]
+    ini.core_profiles.greenwald_fraction = 0.9 ↔ [0.8, 0.95]
 
     ini.pf_active.n_oh_coils = 6
     ini.pf_active.n_pf_coils_inside = 0
