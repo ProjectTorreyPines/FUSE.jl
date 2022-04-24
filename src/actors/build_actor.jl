@@ -638,6 +638,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         layer.outline.r, layer.outline.z = R, Z
 
     else # handle shapes
+        layer.shape = mod(layer.shape, 100)
         if layer.shape == Int(_silo_)
             up_down_symmetric = false
         elseif abs(sum(oZ) / sum(abs.(oZ))) < 1E-2
@@ -645,16 +646,13 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         else
             up_down_symmetric = false
         end
-        if up_down_symmetric
-            layer.shape = mod(layer.shape, 100)
-        else
-            layer.shape = mod(layer.shape, 100) + 100
+        if !up_down_symmetric
+            layer.shape = layer.shape + 100
         end
 
         func = shape_function(layer.shape)
-        if ismissing(layer, :shape_parameters)
-            layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, l_start, l_end, target_minimum_distance)
-        end
+        layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, l_start, l_end, target_minimum_distance)
+
         layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...)
         layer.shape_parameters = optimize_shape(oR, oZ, target_minimum_distance, func, l_start, l_end, layer.shape_parameters)
         layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...; resample=false)
