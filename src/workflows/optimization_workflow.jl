@@ -100,4 +100,4 @@ end
 ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
 ObjectiveFunction(:min_cost, dd -> dd.costing.cost, -Inf)
 ObjectiveFunction(:max_fusion, dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]), Inf)
-ObjectiveFunction(:min_ohmic_current, dd -> @ddtime(dd.summary.global_quantities.current_ohm.value), -Inf)
+ObjectiveFunction(:max_flattop_duration, dd -> bd.oh.flattop_duration, Inf)
