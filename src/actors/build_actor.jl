@@ -1,7 +1,137 @@
+#= ========= =#
+#  OH magnet  #
+#= ========= =#
+"""
+    oh_maximum_J_B!(bd::IMAS.build; j_tolerance)
+
+Evaluate maxium OH current density and magnetic field for given geometry and technology
+
+NOTES:
+* Equations from GASC (Stambaugh FST 2011)
+* Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
+"""
+function oh_maximum_J_B!(bd::IMAS.build; j_tolerance)
+    OH = IMAS.get_build(bd, type=_oh_)
+    innerSolenoidRadius = OH.start_radius
+    outerSolenoidRadius = OH.end_radius
+
+    # find maximum superconductor critical_j given self-field
+    function max_J_OH(x)
+        currentDensityOH = abs(x[1])
+        magneticFieldSolenoidBore = currentDensityOH / 1E6 * (0.4 * pi * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
+        critical_j = coil_Jcrit(magneticFieldSolenoidBore, bd.oh.technology)
+        # do not use relative error here. Absolute error tells optimizer to lower currentDensityOH if critical_j==0
+        return abs(critical_j - currentDensityOH * (1.0 + j_tolerance))
+    end
+    res = Optim.optimize(max_J_OH, 0.0, 1E9, Optim.GoldenSection(), rel_tol=1E-3)
+
+    # solenoid maximum current and field
+    bd.oh.max_j = abs(res.minimizer[1])
+    bd.oh.max_b_field = bd.oh.max_j / 1E6 * (0.4 * pi * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
+    bd.oh.critical_j = coil_Jcrit(bd.oh.max_b_field, bd.oh.technology)
+end
+
+"""
+    oh_required_J_B!(bd::IMAS.build, double_swing::Bool=true)
+
+Evaluate OH current density and B_field required for given rampup and flattop
+NOTES:
+* Equations from GASC (Stambaugh FST 2011)
+* Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
+"""
+function oh_required_J_B!(bd::IMAS.build, double_swing::Bool=true)
+    OH = IMAS.get_build(bd, type=_oh_)
+    innerSolenoidRadius = OH.start_radius
+    outerSolenoidRadius = OH.end_radius
+
+    totalOhFluxReq = bd.flux_swing_estimates.rampup + bd.flux_swing_estimates.flattop + bd.flux_swing_estimates.pf
+
+    # Calculate magnetic field at solenoid bore required to match flux swing request
+    RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
+    magneticFieldSolenoidBore = 3.0 * totalOhFluxReq / pi / outerSolenoidRadius^2 / (RiRo_factor^2 + RiRo_factor + 1.0) / (double_swing ? 2 : 1)
+    currentDensityOH = magneticFieldSolenoidBore / (0.4 * pi * outerSolenoidRadius * (1 - innerSolenoidRadius / outerSolenoidRadius))
+
+    # minimum requirements for OH
+    bd.oh.max_b_field = magneticFieldSolenoidBore
+    bd.oh.max_j = currentDensityOH * 1E6
+    bd.oh.critical_j = coil_Jcrit(bd.oh.max_b_field, bd.oh.technology)
+end
+
+"""
+    max_flattop_flux!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+
+Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
+"""
+function max_flattop_flux!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+    OH = IMAS.get_build(bd, type=_oh_)
+    innerSolenoidRadius = OH.start_radius
+    outerSolenoidRadius = OH.end_radius
+
+    # estimate oh flattop flux and duration
+    RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
+    totalOhFlux = bd.oh.max_b_field * (pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)) / 3.0
+    bd.flux_swing_estimates.flattop = totalOhFlux - bd.flux_swing_estimates.rampup - bd.flux_swing_estimates.pf
+    if ismissing(cp1d, :j_ohmic)
+        j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d)
+    else
+        j_ohmic = cp1d.j_ohmic
+    end
+    bd.oh.flattop_estimate = bd.flux_swing_estimates.flattop / abs(integrate(cp1d.grid.area, j_ohmic ./ cp1d.conductivity_parallel))
+end
+
+#= ========= =#
+#  TF magnet  #
+#= ========= =#
+"""
+    tf_maximum_J_B!(bd::IMAS.build; j_tolerance)
+
+Evaluate maxium TF current density and magnetic field for given geometry and technology
+"""
+function tf_maximum_J_B!(bd::IMAS.build; j_tolerance)
+    hfsTF = IMAS.get_build(bd, type=_tf_, fs=_hfs_)
+    TF_cx_area = hfsTF.thickness * bd.tf.wedge_thickness
+
+    # find maximum superconductor critical_j given self-field
+    function max_J_TF(x)
+        currentDensityTF = abs(x[1])
+        current_TF = currentDensityTF * TF_cx_area
+        max_b_field = current_TF / hfsTF.end_radius / 2pi * constants.μ_0 * bd.tf.coils_n
+        critical_j = coil_Jcrit(max_b_field, bd.tf.technology)
+        # do not use relative error here. Absolute error tells optimizer to lower currentDensityTF if critical_j==0
+        return abs(critical_j - currentDensityTF * (1.0 + j_tolerance))
+    end
+    res = Optim.optimize(max_J_TF, 0.0, 1E9, Optim.GoldenSection(), rel_tol=1E-3)
+
+    # tf maximum current and field
+    bd.tf.max_j = abs(res.minimizer[1])
+    current_TF = bd.tf.max_j * TF_cx_area
+    bd.tf.max_b_field = current_TF / hfsTF.end_radius / 2pi * constants.μ_0 * bd.tf.coils_n
+    bd.tf.critical_j = coil_Jcrit(bd.tf.max_b_field, bd.tf.technology)
+end
+
+"""
+    tf_required_J_B!(bd::IMAS.build)
+
+Evaluate TF current density given a B_field
+"""
+function tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
+    hfsTF = IMAS.get_build(bd, type=_tf_, fs=_hfs_)
+    lfsTF = IMAS.get_build(bd, type=_tf_, fs=_lfs_)
+    B0 = abs(maximum(eq.vacuum_toroidal_field.b0))
+    R0 = (hfsTF.end_radius + lfsTF.start_radius) / 2.0
+
+    # current in the TF coils
+    current_TF = B0 * R0 * 2pi / constants.μ_0 / bd.tf.coils_n
+    TF_cx_area = hfsTF.thickness * bd.tf.wedge_thickness
+
+    bd.tf.max_b_field = B0 * R0 / hfsTF.end_radius
+    bd.tf.max_j = current_TF / TF_cx_area
+    bd.tf.critical_j = coil_Jcrit(bd.tf.max_b_field, bd.tf.technology)
+end
+
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-
 mutable struct FluxSwingActor <: AbstractActor
     dd::IMAS.dd
 end
@@ -19,35 +149,57 @@ function FluxSwingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::FluxSwingActor; j_tolerance::Float64=0.4)
+function step(actor::FluxSwingActor; j_tolerance::Float64=0.4, only=:all)
     bd = actor.dd.build
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
     cp = actor.dd.core_profiles
     cp1d = cp.profiles_1d[]
 
-    # find what's the best this TF can do given its geometry and technology
-    tf_maximum_J_B(bd; j_tolerance)
-    # find what's the best this OH can do given its geometry and technology
-    oh_maximum_J_B(bd; j_tolerance)
+    if only ∈ [:all, :tf]
+        # find what's the best this TF can do given its geometry and technology
+        tf_maximum_J_B!(bd; j_tolerance)
+    end
+    if only ∈ [:all, :oh]
+        # find what's the best this OH can do given its geometry and technology
+        oh_maximum_J_B!(bd; j_tolerance)
 
-    # breakdown of OH flux swing usage
-    bd.flux_swing_requirements.rampup = rampup_flux_requirements(eqt, cp)
-    bd.flux_swing_requirements.pf = pf_flux_requirements(eqt)
-    bd.flux_swing_requirements.flattop = flattop_flux_requirements(bd, eqt, cp1d)
+        # breakdown of OH flux swing usage
+        bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
+        bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
+        bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, eqt, cp1d)
 
+        max_flattop_flux!(bd, eqt, cp1d)
+    end
     return actor
 end
 
+# function step(actor::FluxSwingActor; j_tolerance=NaN)
+#     bd = actor.dd.build
+#     eq = actor.dd.equilibrium
+#     eqt = eq.time_slice[]
+#     cp = actor.dd.core_profiles
+#     cp1d = cp.profiles_1d[]
+
+#     bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
+#     bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
+#     bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, eqt, cp1d)
+#     oh_required_J_B!(bd)
+#     max_flattop_flux!(bd, eqt, cp1d)
+
+#     tf_required_J_B!(bd, eq)
+
+#     return actor
+# end
+
 """
-    rampup_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
+    rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
 
 Estimate OH flux requirement during rampup, where
 eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 and core_profiles is only used to get core_profiles.global_quantities.ejima
 """
-function rampup_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
-
+function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
     ###### what equilibrium time-slice should we use to evaluate rampup flux requirements?
 
     # from IMAS dd to local variables
@@ -70,33 +222,26 @@ function rampup_flux_requirements(eqt::IMAS.equilibrium__time_slice, cp::IMAS.co
 end
 
 """
-    flattop_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+    flattop_flux_estimates(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
 
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function flattop_flux_requirements(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
-    innerSolenoidRadius = IMAS.get_build(bd, type=_oh_).start_radius
-    outerSolenoidRadius = IMAS.get_build(bd, type=_oh_).end_radius
-
-    # evaluate oh flattop flux and duration
-    RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
-    totalOhFlux = bd.oh.max_b_field * (pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)) / 3.0
-    bd.flux_swing_requirements.flattop = totalOhFlux - bd.flux_swing_requirements.rampup - bd.flux_swing_requirements.pf
+function flattop_flux_estimates(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
     if ismissing(cp1d, :j_ohmic)
         j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d)
     else
         j_ohmic = cp1d.j_ohmic
     end
-    bd.oh.flattop_duration = bd.flux_swing_requirements.flattop / abs(integrate(cp1d.grid.area, j_ohmic ./ cp1d.conductivity_parallel))
+    return abs(integrate(cp1d.grid.area, j_ohmic ./ cp1d.conductivity_parallel)) * bd.oh.flattop_duration # V*s
 end
 
 """
-    pf_flux_requirements(eqt::IMAS.equilibrium__time_slice)
+    pf_flux_estimates(eqt::IMAS.equilibrium__time_slice)
 
 Estimate vertical field from PF coils and its contribution to flux swing, where
 `eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 """
-function pf_flux_requirements(eqt::IMAS.equilibrium__time_slice)
+function pf_flux_estimates(eqt::IMAS.equilibrium__time_slice)
     # from IMAS dd to local variables
     majorRadius = eqt.boundary.geometric_axis.r
     minorRadius = eqt.boundary.minor_radius
@@ -112,60 +257,8 @@ function pf_flux_requirements(eqt::IMAS.equilibrium__time_slice)
     return -abs(fluxFromVerticalField)
 end
 
-"""
-    oh_maximum_J_B(bd::IMAS.build; j_tolerance::Float64=0.4)
-
-Evaluate maxium OH current density (and magnetic field) with optional tolerance
-
-NOTES:
-* Equations from GASC (Stambaugh FST 2011)
-* Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
-"""
-function oh_maximum_J_B(bd::IMAS.build; j_tolerance::Float64=0.4)
-    innerSolenoidRadius = IMAS.get_build(bd, type=_oh_).start_radius
-    outerSolenoidRadius = IMAS.get_build(bd, type=_oh_).end_radius
-
-    # find superconducting coil Jcrit given self-field
-    function max_J_OH(x)
-        currentDensityOH = abs(x[1]) * 1E6
-        magneticFieldSolenoidBore = currentDensityOH / 1E6 * (0.4 * pi * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
-        return (coil_Jcrit(magneticFieldSolenoidBore, bd.oh.technology) - currentDensityOH * (1.0 + j_tolerance)) .^ 2
-    end
-    res = Optim.optimize(max_J_OH, [1.0], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
-
-    # solenoid maximum current and field
-    bd.oh.max_j = abs(res.minimizer[1]) * 1E6
-    bd.oh.max_b_field = bd.oh.max_j / 1E6 * (0.4 * pi * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
-    bd.oh.critical_j = coil_Jcrit(bd.oh.max_b_field, bd.oh.technology)
-end
-
-"""
-    tf_maximum_J_B(bd::IMAS.build; j_tolerance::Float64=0.4)
-
-Evaluate maxium TF current density (and magnetic field) with optional tolerance
-"""
-function tf_maximum_J_B(bd::IMAS.build; j_tolerance::Float64=0.4)
-    hfsTF = IMAS.get_build(bd, type=_tf_, fs=_hfs_)
-    TF_cx_area = hfsTF.thickness * bd.tf.wedge_thickness
-
-    # find superconducting coil Jcrit given self-field
-    function max_J_TF(x)
-        currentDensityTF = abs(x[1]) * 1E6
-        current_TF = currentDensityTF * TF_cx_area
-        max_b_field = current_TF / hfsTF.end_radius / 2pi * constants.μ_0 * bd.tf.coils_n
-        return (coil_Jcrit(max_b_field, bd.tf.technology) - currentDensityTF * (1.0 + j_tolerance)) .^ 2
-    end
-    res = Optim.optimize(max_J_TF, [1.0], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
-
-    # tf maximum current and field
-    bd.tf.max_j = abs(res.minimizer[1]) * 1E6
-    current_TF = bd.tf.max_j * TF_cx_area
-    bd.tf.max_b_field = current_TF / hfsTF.end_radius / 2pi * constants.μ_0 * bd.tf.coils_n
-    bd.tf.critical_j = coil_Jcrit(bd.tf.max_b_field, bd.tf.technology)
-end
-
 #= ============== =#
-#  CS OH stresses  #
+#  OH TF stresses  #
 #= ============== =#
 mutable struct StressesActor <: AbstractActor
     dd::IMAS.dd
@@ -189,10 +282,10 @@ function step(actor::StressesActor)
     bd = actor.dd.build
     sm = actor.dd.solid_mechanics
 
-    R0 = eq.vacuum_toroidal_field.r0
-    B0 = maximum(eq.vacuum_toroidal_field.b0)
     R_tf_in = IMAS.get_build(bd, type=_tf_, fs=_hfs_).start_radius
     R_tf_out = IMAS.get_build(bd, type=_tf_, fs=_hfs_).end_radius
+    R0 = (R_tf_in + R_tf_out) / 2.0
+    B0 = maximum(eq.vacuum_toroidal_field.b0)
     Bz_oh = bd.oh.max_b_field
     R_oh_in = IMAS.get_build(bd, type=_oh_).start_radius
     R_oh_out = IMAS.get_build(bd, type=_oh_).end_radius
@@ -294,7 +387,6 @@ end
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-
 mutable struct HFSsizingActor <: AbstractActor
     stresses_actor::StressesActor
     fluxswing_actor::FluxSwingActor
@@ -315,8 +407,8 @@ function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     if par.do_plot
         plot(dd.build)
     end
-    fluxswing_actor = FluxSwingActor(dd, act)
-    stresses_actor = StressesActor(dd, act)
+    fluxswing_actor = FluxSwingActor(dd)
+    stresses_actor = StressesActor(dd)
     actor = HFSsizingActor(stresses_actor, fluxswing_actor)
     step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_plasma_start_radius=par.fixed_plasma_start_radius)
     finalize(actor)
@@ -326,37 +418,25 @@ function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_plasma_start_radius::Bool=false)
-
-    function lt_target_value_cost(value, target, tolerance, width)
-        x = (value .* (1.0 .+ tolerance) .- target) / target * width
-        return (1.0 .- 1.0 ./ (1.0 .+ exp.(x)))
-    end
-
-    function lt_target_value_cost(value, target, tolerance)
-        lt_target_value_cost(value, target, tolerance, 0.01) .+ lt_target_value_cost(value, target, tolerance, 0.1)  .+ lt_target_value_cost(value, target, tolerance, 1) .+ lt_target_value_cost(value, target, tolerance, 10)
-    end
-
-    function target_value_cost(value, target, tolerance, width)
-        x = (value .* (1.0 .+ tolerance) .- target) ./ target * width
-        return 1.0 .- exp.(-x .^ 2)
-    end
+function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_plasma_start_radius::Bool=false, do_plot=false)
 
     function target_value_cost(value, target, tolerance)
-        target_value_cost(value, target, tolerance, 0.01) .+ target_value_cost(value, target, tolerance, 0.1)  .+ target_value_cost(value, target, tolerance, 1) .+ target_value_cost(value, target, tolerance, 10)
+        return (value .* (1.0 .+ tolerance) .- target) ./ target
     end
 
-    CO = []
-    CT = []
-    CF = []
-    CB = []
-    CS = []
-
-    function assign_PL_OH_TF_thicknesses(x0)
+    function assign_PL_OH_TF_thicknesses(x0, what)
+        x0 = map(abs, x0)
         for k in 1:iplasma-1
             dd.build.layer[k].thickness = old_thicknesses[k]
         end
-        plug.thickness, OH.thickness, TFhfs.thickness = map(abs, x0)
+        if what == :oh
+            plug.thickness, OH.thickness = x0
+        elseif what == :tf
+            TFhfs.thickness = x0[1]
+        else
+            plug.thickness, OH.thickness, TFhfs.thickness = x0
+        end
+        #dd.build.oh.technology.fraction_stainless = dd.build.tf.technology.fraction_stainless = (atan(fraction_stainless) + pi / 2) / pi
         if fixed_plasma_start_radius
             new_plasma_radius = dd.build.layer[iplasma].start_radius
             scale = old_plasma_radius / new_plasma_radius
@@ -367,45 +447,67 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
         TFlfs.thickness = TFhfs.thickness
     end
 
-    function cost(x0)
-        assign_PL_OH_TF_thicknesses(x0)
+    function cost(x0, what)
+        # assign optimization arguments and evaluate coils currents and stresses
+        assign_PL_OH_TF_thicknesses(x0, what)
+        step(actor.fluxswing_actor; j_tolerance, only=what)
+        step(actor.stresses_actor)
         R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
 
-        step(actor.fluxswing_actor; j_tolerance=j_tolerance) # fluxswing_actor will enforce j_tolerance itself
-        step(actor.stresses_actor)
-
-        # stresses cost
-        c_soh = lt_target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), stainless_steel.yield_strength, stress_tolerance)
-        c_stf = lt_target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, stress_tolerance)
-        if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-            c_spl = lt_target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), stainless_steel.yield_strength, stress_tolerance)
+        # OH and plug sizing based on stresses
+        if what ∈ [:oh, :all]
+            c_soh = target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), stainless_steel.yield_strength, stress_tolerance)
+            if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
+                c_spl = target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), stainless_steel.yield_strength, stress_tolerance)
+            else
+                c_spl = 0.0
+            end
         else
-            c_spl = 0.0
+            c_soh = c_spl = 0.0
         end
 
-        # oh sizing based on flattop_duration requirement
-        c_fl = target_value_cost(dd.build.oh.flattop_duration, target_flattop_duration * 2, 1.0) * 10
+        # TF sizing based on stresses
+        if what ∈ [:tf, :all]
+            c_stf = target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, stress_tolerance)
+        else
+            c_stf = 0.0
+        end
 
-        # tf sizing based on B0 requirement
-        B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
-        c_b0 = target_value_cost(B0, target_B0, 1.0)
+        # OH sizing based on flattop_duration requirement
+        if what ∈ [:oh, :all]
+            c_fl = target_value_cost(dd.build.oh.flattop_estimate, dd.build.oh.flattop_duration, 0.0)
+        else
+            c_fl = 0.0
+        end
 
-        # minimize CS thicknesses 
-        c_cs = lt_target_value_cost((plug.thickness + OH.thickness + TFhfs.thickness), R0, 1.0)
-        c = norm([c_soh, c_stf, c_spl, c_fl, c_b0, c_cs])
+        # TF sizing based on B0 requirement
+        if what ∈ [:tf, :all]
+            B0 = dd.build.tf.max_b_field * TFhfs.end_radius / R0
+            c_b0 = target_value_cost(B0, target_B0, 0.0) * 10
+        else
+            c_b0 = 0.0
+        end
 
-        push!(CO, c_soh)
-        push!(CT, c_stf)
-        push!(CB, c_b0)
-        push!(CF, c_fl)
-        push!(CS, c_cs)
-        return c
+        # try not to change aspect ratio and minimize OH and TF layers thicknesses
+        new_plasma_radius = dd.build.layer[iplasma].start_radius
+        c_cs = target_value_cost(new_plasma_radius, old_plasma_radius,0.0)
+        c_cs += OH.thickness / old_plasma_radius
+        c_cs += TFhfs.thickness / old_plasma_radius
+
+        if do_plot
+            push!(C_SOH, c_soh)
+            push!(C_STF, c_stf)
+            push!(C_FL, c_fl)
+            push!(C_B0, c_b0)
+            push!(C_CS, c_cs)
+        end
+
+        # total cost
+        return norm(vcat([c_soh, c_stf, c_spl], [c_fl, c_b0, c_cs]))
     end
 
     @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
     dd = actor.stresses_actor.dd
-
-    target_flattop_duration = 10000
     target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
 
     # init
@@ -415,38 +517,75 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
     TFlfs = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_)
     iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true)
     old_plasma_radius = dd.build.layer[iplasma].start_radius
+    fraction_stainless = tan(0.9 * pi - pi / 2)
+    eq_R0 = dd.equilibrium.vacuum_toroidal_field.r0
+
+    if do_plot
+        C_SOH = []
+        C_STF = []
+        C_FL = []
+        C_B0 = []
+        C_CS = []
+    end
+
+    # initialize all dd fields
+    step(actor.fluxswing_actor; j_tolerance, only=:all)
+
+    # plug and OH optimization
     old_thicknesses = [layer.thickness for layer in dd.build.layer]
-
-    # optimize
-    res = Optim.optimize(cost, [plug.thickness, OH.thickness, TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=100); autodiff=:forward)
-
-    # p = plot()
-    # plot!(CO, label="stress OH")
-    # plot!(CT, label="stress TF")
-    # plot!(CB, label="B0")
-    # plot!(CF, label="fluxswing")
-    # plot!(CS, label="CS size")
-    # display(p)
-
-    # assign
-    assign_PL_OH_TF_thicknesses(res.minimizer)
-    R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
-    step(actor.fluxswing_actor; j_tolerance=j_tolerance)
+    res_oh = Optim.optimize(x0 -> cost(x0, :oh), [plug.thickness, OH.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000); autodiff=:forward)
+    assign_PL_OH_TF_thicknesses(res_oh.minimizer, :oh)
+    step(actor.fluxswing_actor; j_tolerance, only=:oh)
     step(actor.stresses_actor)
 
-    if verbose
-        display(res)
-        @show target_B0
-        @show dd.build.tf.max_b_field / TFhfs.end_radius * R0
+    # TF optimization
+    old_thicknesses = [layer.thickness for layer in dd.build.layer]
+    res_tf = Optim.optimize(x0 -> cost(x0, :tf), [TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000); autodiff=:forward)
+    assign_PL_OH_TF_thicknesses(res_tf.minimizer, :tf)
+    step(actor.fluxswing_actor; j_tolerance, only=:tf)
+    step(actor.stresses_actor)
 
-        @show target_flattop_duration
+    # combined plug+OH+TF optimization
+    res_all = nothing
+    if (dd.solid_mechanics.center_stack.bucked == 1 || dd.solid_mechanics.center_stack.noslip == 1 || dd.solid_mechanics.center_stack.plug == 1) || fixed_plasma_start_radius
+        old_thicknesses = [layer.thickness for layer in dd.build.layer]
+        res_all = Optim.optimize(x0 -> cost(x0, :all), [OH.thickness, max(0.0, (plug.thickness - OH.thickness)), TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000); autodiff=:forward)
+        assign_PL_OH_TF_thicknesses(res_all.minimizer, :all)
+        step(actor.fluxswing_actor; j_tolerance, only=:all)
+        step(actor.stresses_actor)
+    end
+
+    if do_plot
+        p = plot()
+        plot!(p, C_SOH, label="SOH")
+        plot!(p, C_STF, label="STF")
+        plot!(p, C_FL, label="FL")
+        plot!(p, C_B0, label="B0")
+        plot!(p, C_CS, label="CS")
+        display(p)
+    end
+
+    if verbose
+        display(res_oh)
+        display(res_tf)
+        if res_all !== nothing
+            display(res_all)
+        end
+
+        R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
+        @show target_B0
+        @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
+
+        @show dd.build.oh.flattop_estimate
         @show dd.build.oh.flattop_duration
 
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
+        @show dd.build.oh.max_b_field
 
         @show dd.build.tf.max_j
         @show dd.build.tf.critical_j
+        @show dd.build.tf.max_b_field
 
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh)
         @show stainless_steel.yield_strength
@@ -455,16 +594,11 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
         @show stainless_steel.yield_strength
     end
 
-    @assert target_B0 * j_tolerance / 2.0 < dd.build.tf.max_b_field / TFhfs.end_radius * R0
-
-    @assert target_flattop_duration * j_tolerance / 2.0 < dd.build.oh.flattop_duration
-
-    @assert dd.build.oh.max_j < dd.build.oh.critical_j
-
-    @assert dd.build.tf.max_j < dd.build.tf.critical_j
-
+    # @assert target_B0 * j_tolerance / 2.0 < dd.build.tf.max_b_field / TFhfs.end_radius * R0
+    # @assert dd.build.oh.flattop_estimate * j_tolerance / 2.0 < dd.build.oh.flattop_duration
+    # @assert dd.build.oh.max_j < dd.build.oh.critical_j
+    # @assert dd.build.tf.max_j < dd.build.tf.critical_j
     # @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
-
     # @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
 
     return actor
