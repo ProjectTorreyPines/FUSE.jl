@@ -244,6 +244,13 @@ function gasc_to_layers(gascsol::Dict)
     layers["gap_cryostat"] = layers["OH"] * 4
     layers["cryostat"] = layers["lfs_low_temp_shield"] / 2.0
 
+    for k in collect(keys(layers))
+        if contains(k,"_gap_") && contains(k,"_plasma_")
+            layers["plasma"] += layers[k]
+            delete!(layers, k)
+        end
+    end
+
     return layers
 end
 

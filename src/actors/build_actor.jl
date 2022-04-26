@@ -490,7 +490,7 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
 
         # try not to change aspect ratio and minimize OH and TF layers thicknesses
         new_plasma_radius = dd.build.layer[iplasma].start_radius
-        c_cs = target_value_cost(new_plasma_radius, old_plasma_radius,0.0)
+        c_cs = target_value_cost(new_plasma_radius, old_plasma_radius, 0.0)
         c_cs += OH.thickness / old_plasma_radius
         c_cs += TFhfs.thickness / old_plasma_radius
 
@@ -769,7 +769,12 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     end
     # reverse pass: from TF to plasma only with negative offset
     # Blanket layer adapts from wall to TF shape
-    for k in tf_to_plasma[1:end-2]
+    if bd.layer[tf_to_plasma[end]].type == Int(_wall_)
+        n = 2
+    else
+        n = 1
+    end
+    for k in tf_to_plasma[1:end-n]
         FUSE.optimize_shape(bd, k, k + 1, _offset_)
     end
 
