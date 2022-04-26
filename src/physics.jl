@@ -30,7 +30,17 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
     if shape_function_index in [Int(_offset_), Int(_convex_hull_)]
         return nothing
     else
-        shape_index_mod = mod(shape_function_index, 100)
+        shape_index_mod = shape_function_index
+        is_negative_D = false
+        if shape_index_mod > 1000
+            shape_index_mod = mod(shape_function_index, 1000)
+            is_negative_D = true
+        end
+        is_z_offset = false
+        if shape_index_mod > 100
+            shape_index_mod = mod(shape_function_index, 100)
+            is_z_offset = true
+        end
         if shape_index_mod == Int(_princeton_D_exact_)
             shape_parameters = Real[]
         elseif shape_index_mod == Int(_princeton_D_)
@@ -72,7 +82,7 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
     if shape_parameters === nothing
         error(shape_function_index)
     end
-    if shape_function_index > 100
+    if is_z_offset
         push!(shape_parameters, z_offset)
     end
     return shape_parameters
@@ -83,7 +93,17 @@ function shape_function(shape_function_index)
     if shape_function_index in [Int(_offset_), Int(_convex_hull_)]
         return nothing
     else
-        shape_index_mod = mod(shape_function_index, 100)
+        shape_index_mod = shape_function_index
+        is_negative_D = false
+        if shape_index_mod > 1000
+            shape_index_mod = mod(shape_function_index, 1000)
+            is_negative_D = true
+        end
+        is_z_offset = false
+        if shape_index_mod > 100
+            shape_index_mod = mod(shape_function_index, 100)
+            is_z_offset = true
+        end
         if shape_index_mod in Int(_princeton_D_exact_)
             func = princeton_D_exact
         elseif shape_index_mod == Int(_princeton_D_)
@@ -108,7 +128,7 @@ function shape_function(shape_function_index)
 
     # zoffset
     zfunc = func
-    if shape_function_index > 100
+    if is_z_offset
         zfunc(args...) = begin
             R, Z = func(args[1:end-1]...)
             Z .+= args[end]
@@ -116,12 +136,22 @@ function shape_function(shape_function_index)
         end
     end
 
+    # neg-D
+    dfunc = zfunc
+    if is_negative_D
+        dfunc(args...) = begin
+            R, Z = zfunc(args...)
+            R = -(R .- args[1]) .+ args[2]
+            return R, Z
+        end
+    end
+
     # uniform resampling
     function resampled_zfunc(args...; resample=true)
         if resample
-            return IMAS.resample_2d_line(zfunc(args...)...)
+            return IMAS.resample_2d_line(dfunc(args...)...)
         else
-            return zfunc(args...)
+            return dfunc(args...)
         end
     end
 
@@ -171,7 +201,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         end
 
         # return cost
-        return  cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + cost_up_down_symmetry^2
+        return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + cost_up_down_symmetry^2
     end
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
@@ -468,8 +498,8 @@ end
     approximate_surface_area(a::Real, R::Real ,κ::Real, δ::Real)
 Approximation of the surface area of a miller geometry flux surface    
 """
-function approximate_surface_area(a::Real, R::Real ,κ::Real, δ::Real)
-    return  2pi^2 * R * a^2 * κ * (1. - 0.151 * δ * a / R) / (2pi*R) # m²
+function approximate_surface_area(a::Real, R::Real, κ::Real, δ::Real)
+    return 2pi^2 * R * a^2 * κ * (1.0 - 0.151 * δ * a / R) / (2pi * R) # m²
 end
 
 """
@@ -478,7 +508,7 @@ end
 function silo(r_start, r_end, height_start, height_end)
     height_start = abs(height_start)
     height_end = abs(height_end)
-    height_end = min(max(height_end, height_start * 0.0), height_start * 1.0)
+    height_end = min(max(height_end, height_start * 0.0), height_start * 0.9)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0, pi / 2, r_start, height_end)
     vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end

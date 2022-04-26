@@ -639,7 +639,7 @@ function step(actor::CXbuildActor; rebuild_wall::Bool=true)
 end
 
 """
-    wall_from_eq(dd)
+    wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real=1.0)
 
 Generate first wall outline starting from an equilibrium
 """
@@ -867,15 +867,45 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         layer.outline.r, layer.outline.z = R, Z
 
     else # handle shapes
-        layer.shape = mod(layer.shape, 100)
-        if layer.shape == Int(_silo_)
-            up_down_symmetric = false
-        elseif abs(sum(oZ) / sum(abs.(oZ))) < 1E-2
-            up_down_symmetric = true
-        else
-            up_down_symmetric = false
+        if layer.shape> 1000
+            layer.shape = mod(layer.shape, 1000)
         end
-        if !up_down_symmetric
+        if layer.shape> 100
+            layer.shape = mod(layer.shape, 100)
+        end
+
+        if layer.shape == Int(_silo_)
+            is_up_down_symmetric = false
+        elseif abs(sum(oZ) / sum(abs.(oZ))) < 1E-2
+            is_up_down_symmetric = true
+        else
+            is_up_down_symmetric = false
+        end
+
+        is_negative_D = false
+        if layer.shape != Int(_silo_)
+            _, imaxr = findmax(oR)
+            _, iminr = findmin(oR)
+            _, imaxz = findmax(oZ)
+            _, iminz = findmin(oZ)
+            r_at_max_z, max_z = oR[imaxz], oZ[imaxz]
+            r_at_min_z, min_z = oR[iminz], oZ[iminz]
+            z_at_max_r, max_r = oZ[imaxr], oR[imaxr]
+            z_at_min_r, min_r = oZ[iminr], oR[iminr]
+            a = 0.5 * (max_r - min_r)
+            R = 0.5 * (max_r + min_r)
+            δu = (R - r_at_max_z) / a
+            δl = (R - r_at_min_z) / a
+            if δu+δl < 0
+                is_negative_D = true
+            end
+        end
+
+        if is_negative_D
+            layer.shape = layer.shape + 1000
+        end
+
+        if !is_up_down_symmetric
             layer.shape = layer.shape + 100
         end
 
