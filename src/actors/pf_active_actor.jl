@@ -260,7 +260,7 @@ function transfer_info_GS_coil_to_IMAS(bd::IMAS.build, coil::GS_IMAS_pf_active__
     pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
     pf_active__coil.b_field_max = range(0.1, 30, step=0.1)
     pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
-    pf_active__coil.current_limit_max = [abs(coil_Jcrit(b, coil.coil_tech) * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
+    pf_active__coil.current_limit_max = [abs(coil_J_B_crit(b, coil.coil_tech)[1] * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
     pf_active__coil.b_field_max_timed.time = coil.current_time
     if pf_active__coil.name == "OH"
         pf_active__coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in 1:length(coil.current_time)]
@@ -540,8 +540,8 @@ function optimize_coils_rail(
                 end
                 currents, cost_ψ0 = VacuumFields.currents_to_match_ψp(fixed_eq..., coils, weights=weight, λ_regularize=λ_regularize, return_cost=true)
                 current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-                oh_max_current_densities = [coil_Jcrit(bd.oh.max_b_field, coil.coil_tech) for coil in coils[oh_indexes]]
-                pf_max_current_densities = [coil_Jcrit(coil_selfB(coil), coil.coil_tech) for coil in coils[oh_indexes.==false]]
+                oh_max_current_densities = [coil_J_B_crit(bd.oh.max_b_field, coil.coil_tech)[1] for coil in coils[oh_indexes]]
+                pf_max_current_densities = [coil_J_B_crit(coil_selfB(coil), coil.coil_tech)[1] for coil in coils[oh_indexes.==false]]
                 max_current_densities = vcat(oh_max_current_densities, pf_max_current_densities)
                 fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
                 #currents cost

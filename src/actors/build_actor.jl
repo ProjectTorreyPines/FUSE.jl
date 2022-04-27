@@ -19,7 +19,7 @@ function oh_maximum_J_B!(bd::IMAS.build; j_tolerance)
     function max_J_OH(x)
         currentDensityOH = abs(x[1])
         magneticFieldSolenoidBore = currentDensityOH / 1E6 * (0.4 * pi * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
-        critical_j = coil_Jcrit(magneticFieldSolenoidBore, bd.oh.technology)
+        critical_j = coil_J_B_crit(magneticFieldSolenoidBore, bd.oh.technology)[1]
         # do not use relative error here. Absolute error tells optimizer to lower currentDensityOH if critical_j==0
         return abs(critical_j - currentDensityOH * (1.0 + j_tolerance))
     end
@@ -28,18 +28,18 @@ function oh_maximum_J_B!(bd::IMAS.build; j_tolerance)
     # solenoid maximum current and field
     bd.oh.max_j = abs(res.minimizer[1])
     bd.oh.max_b_field = bd.oh.max_j / 1E6 * (0.4 * pi * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
-    bd.oh.critical_j = coil_Jcrit(bd.oh.max_b_field, bd.oh.technology)
+    bd.oh.critical_j, bd.oh.critical_b_field = coil_J_B_crit(bd.oh.max_b_field, bd.oh.technology)
 end
 
 """
-    oh_required_J_B!(bd::IMAS.build, double_swing::Bool=true)
+    oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
 
 Evaluate OH current density and B_field required for given rampup and flattop
 NOTES:
 * Equations from GASC (Stambaugh FST 2011)
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
-function oh_required_J_B!(bd::IMAS.build, double_swing::Bool=true)
+function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
     OH = IMAS.get_build(bd, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
@@ -54,15 +54,15 @@ function oh_required_J_B!(bd::IMAS.build, double_swing::Bool=true)
     # minimum requirements for OH
     bd.oh.max_b_field = magneticFieldSolenoidBore
     bd.oh.max_j = currentDensityOH * 1E6
-    bd.oh.critical_j = coil_Jcrit(bd.oh.max_b_field, bd.oh.technology)
+    bd.oh.critical_j, bd.oh.critical_b_field = coil_J_B_crit(bd.oh.max_b_field, bd.oh.technology)
 end
 
 """
-    max_flattop_flux!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+    flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
 
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function max_flattop_flux!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+function flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
     OH = IMAS.get_build(bd, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
@@ -96,7 +96,7 @@ function tf_maximum_J_B!(bd::IMAS.build; j_tolerance)
         currentDensityTF = abs(x[1])
         current_TF = currentDensityTF * TF_cx_area
         max_b_field = current_TF / hfsTF.end_radius / 2pi * constants.μ_0 * bd.tf.coils_n
-        critical_j = coil_Jcrit(max_b_field, bd.tf.technology)
+        critical_j = coil_J_B_crit(max_b_field, bd.tf.technology)[1]
         # do not use relative error here. Absolute error tells optimizer to lower currentDensityTF if critical_j==0
         return abs(critical_j - currentDensityTF * (1.0 + j_tolerance))
     end
@@ -106,7 +106,7 @@ function tf_maximum_J_B!(bd::IMAS.build; j_tolerance)
     bd.tf.max_j = abs(res.minimizer[1])
     current_TF = bd.tf.max_j * TF_cx_area
     bd.tf.max_b_field = current_TF / hfsTF.end_radius / 2pi * constants.μ_0 * bd.tf.coils_n
-    bd.tf.critical_j = coil_Jcrit(bd.tf.max_b_field, bd.tf.technology)
+    bd.tf.critical_j, bd.tf.critical_b_field = coil_J_B_crit(bd.tf.max_b_field, bd.tf.technology)
 end
 
 """
@@ -126,7 +126,7 @@ function tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
 
     bd.tf.max_b_field = B0 * R0 / hfsTF.end_radius
     bd.tf.max_j = current_TF / TF_cx_area
-    bd.tf.critical_j = coil_Jcrit(bd.tf.max_b_field, bd.tf.technology)
+    bd.tf.critical_j, bd.tf.critical_b_field = coil_J_B_crit(bd.tf.max_b_field, bd.tf.technology)
 end
 
 #= ========== =#
