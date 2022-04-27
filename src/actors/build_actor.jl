@@ -643,7 +643,7 @@ end
 
 Generate first wall outline starting from an equilibrium
 """
-function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real=1.0)
+function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real=1.5)
     # Inner radii of the plasma
     R_hfs_plasma = IMAS.get_build(bd, type=_plasma_).start_radius
     R_lfs_plasma = IMAS.get_build(bd, type=_plasma_).end_radius
@@ -687,11 +687,12 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     h = [[r, z] for (r, z) in vcat(collect(zip(rlcfs, zlcfs)), private_extrema)]
     hull = convex_hull(h)
     R = [r for (r, z) in hull]
+    R .+= ((R_lfs_plasma + R_hfs_plasma) - (maximum(R) + minimum(R))) / 2.0
     R[R.<R_hfs_plasma] .= R_hfs_plasma
     R[R.>R_lfs_plasma] .= R_lfs_plasma
     Z = [z for (r, z) in hull]
     hull_poly = xy_polygon(R, Z)
-    plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0)
+    plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(R) - minimum(R)))/2.0 )
 
     # make the divertor domes in the plasma
     δψ = 0.05 # how close to the LCFS shoudl the divertor plates be
@@ -738,7 +739,7 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
     itf = IMAS.get_build(bd, type=_tf_, fs=_hfs_, return_index=true)
 
-    # plasma pr/pz scaled to 1D radial build
+    # _plasma_ R scaled to match 1D radial build
     start_radius = bd.layer[ipl].start_radius
     end_radius = bd.layer[ipl].end_radius
     pr1 = minimum(pr)
