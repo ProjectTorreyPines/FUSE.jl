@@ -415,14 +415,7 @@ layer[:].shape = 4
 """
 function miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real; n_points::Int=401)
     θ = range(0, 2 * pi, length=n_points)
-    # bound triangularity
-    while abs(triangularity) > 1.0
-        if triangularity < 1.0
-            triangularity = -2.0 - triangularity
-        else
-            triangularity = 2.0 - triangularity
-        end
-    end
+    triangularity = mirror_bound(triangularity, -1.0, 1.0)
     δ₀ = asin(triangularity)
     R = R0 * (1 .+ rmin_over_R0 .* cos.(θ .+ δ₀ * sin.(θ)))
     Z = R0 * (rmin_over_R0 * elongation * sin.(θ))

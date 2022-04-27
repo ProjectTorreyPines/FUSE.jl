@@ -387,13 +387,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
         for rail in bd.pf_active.rail
             if rail.name == "OH"
                 # mirror OH size when it reaches maximum extent of the rail
-                while (oh_height_off[1] < -1) || (oh_height_off[1] > 1)
-                    if oh_height_off[1] < -1
-                        oh_height_off[1] = -2.0 .- oh_height_off[1]
-                    else
-                        oh_height_off[1] = 2.0 .- oh_height_off[1]
-                    end
-                end
+                oh_height_off[1] = mirror_bound(oh_height_off[1], -1.0, 1.0)
                 if !symmetric
                     offset = oh_height_off[2]
                 else
@@ -427,10 +421,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                 kcoil += dkcoil
 
                 # mirror coil position when they reach the end of the rail
-                while any(coil_distances .< -1) || any(coil_distances .> 1)
-                    coil_distances[coil_distances.<-1] = -2.0 .- coil_distances[coil_distances.<-1]
-                    coil_distances[coil_distances.>1] = 2.0 .- coil_distances[coil_distances.>1]
-                end
+                coil_distances = mirror_bound(coil_distances, -1.0, 1.0)
 
                 # get coils r and z from distances
                 r_coils = r_interp.(coil_distances)

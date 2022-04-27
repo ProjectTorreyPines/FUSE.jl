@@ -149,48 +149,56 @@ function FluxSwingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::FluxSwingActor; j_tolerance::Float64=0.4, only=:all)
+"""
+    step(actor::FluxSwingActor; operate_at_j_crit=false, j_tolerance::Float64=0.4, only=:all)
+
+operate_at_j_crit=true makes the OH and TF operate at their current limit (within specified tolerance).
+The flattop duration and toroidal magnetic field fall from that.
+Otherwise we evaluate what is the currents needed for a given flattop duration and toroidal magnetic field.
+These currents may or may not exceed the OH and TF current limits.
+"""
+function step(actor::FluxSwingActor; operate_at_j_crit::Bool, j_tolerance::Float64=0.4, only=:all)
     bd = actor.dd.build
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
     cp = actor.dd.core_profiles
     cp1d = cp.profiles_1d[]
 
-    if only ∈ [:all, :tf]
-        # find what's the best this TF can do given its geometry and technology
-        tf_maximum_J_B!(bd; j_tolerance)
-    end
-    if only ∈ [:all, :oh]
-        # find what's the best this OH can do given its geometry and technology
-        oh_maximum_J_B!(bd; j_tolerance)
+    if operate_at_j_crit
+        if only ∈ [:all, :tf]
+            tf_maximum_J_B!(bd; j_tolerance)
+        end
+        if only ∈ [:all, :oh]
+            # find what's the best this OH can do given its geometry and technology
+            oh_maximum_J_B!(bd; j_tolerance)
 
-        # breakdown of OH flux swing usage
-        bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
-        bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
-        bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, eqt, cp1d)
+            # breakdown of OH flux swing usage
+            bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
+            bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
+            bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, eqt, cp1d)
 
-        max_flattop_flux!(bd, eqt, cp1d)
+            # estimate flattop duration
+            max_flattop_flux!(bd, eqt, cp1d)
+        end
+
+    else
+        if only ∈ [:all, :oh]
+            bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
+            bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
+            bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, eqt, cp1d)
+            oh_required_J_B!(bd)
+
+            # estimate flattop duration
+            max_flattop_flux!(bd, eqt, cp1d)
+        end
+
+        if only ∈ [:all, :tf]
+            tf_required_J_B!(bd, eq)
+        end
     end
+
     return actor
 end
-
-# function step(actor::FluxSwingActor; j_tolerance=NaN)
-#     bd = actor.dd.build
-#     eq = actor.dd.equilibrium
-#     eqt = eq.time_slice[]
-#     cp = actor.dd.core_profiles
-#     cp1d = cp.profiles_1d[]
-
-#     bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
-#     bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
-#     bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, eqt, cp1d)
-#     oh_required_J_B!(bd)
-#     max_flattop_flux!(bd, eqt, cp1d)
-
-#     tf_required_J_B!(bd, eq)
-
-#     return actor
-# end
 
 """
     rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
@@ -396,7 +404,7 @@ function ActorParameters(::Type{Val{:HFSsizingActor}})
     par = ActorParameters(nothing)
     par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
     par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
-    par.fixed_plasma_start_radius = Entry(Bool, "", "Pad/trim center stack layers so not to move plasma start radius"; default=false)
+    par.fixed_aspect_ratio = Entry(Bool, "", "Raise an error if aspect_ratio changes more than 10%"; default=true)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
@@ -410,7 +418,7 @@ function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     fluxswing_actor = FluxSwingActor(dd)
     stresses_actor = StressesActor(dd)
     actor = HFSsizingActor(stresses_actor, fluxswing_actor)
-    step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_plasma_start_radius=par.fixed_plasma_start_radius)
+    step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_aspect_ratio=par.fixed_aspect_ratio)
     finalize(actor)
     if par.do_plot
         display(plot!(dd.build; cx=false))
@@ -418,64 +426,82 @@ function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_plasma_start_radius::Bool=false, do_plot=false)
+function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_aspect_ratio::Bool=true, do_plot=false)
 
-    function target_value_cost(value, target, tolerance)
+    function target_value(value, target, tolerance)
         return (value .* (1.0 .+ tolerance) .- target) ./ target
     end
 
     function assign_PL_OH_TF_thicknesses(x0, what)
+        # for k in 1:iplasma-1
+        #     dd.build.layer[k].thickness = old_thicknesses[k]
+        # end
+
         x0 = map(abs, x0)
-        for k in 1:iplasma-1
-            dd.build.layer[k].thickness = old_thicknesses[k]
-        end
+        c_extra = 0.0
+
         if what == :oh
-            plug.thickness, OH.thickness = x0
+            OH.thickness = x0[1]
+            if length(x0) == 2
+                fraction_stainless, c_extra = mirror_bound_w_cost(x0[2], 0.0, 1.0)
+                dd.build.oh.technology.fraction_stainless = fraction_stainless
+            end
+
         elseif what == :tf
             TFhfs.thickness = x0[1]
+            if length(x0) == 2
+                fraction_stainless, c_extra = mirror_bound_w_cost(x0[2], 0.0, 1.0)
+                dd.build.tf.technology.fraction_stainless = fraction_stainless
+            end
+
         else
-            plug.thickness, OH.thickness, TFhfs.thickness = x0
-        end
-        #dd.build.oh.technology.fraction_stainless = dd.build.tf.technology.fraction_stainless = (atan(fraction_stainless) + pi / 2) / pi
-        if fixed_plasma_start_radius
-            new_plasma_radius = dd.build.layer[iplasma].start_radius
-            scale = old_plasma_radius / new_plasma_radius
-            for k in 1:iplasma-1
-                dd.build.layer[k].thickness *= scale
+            OH.thickness, TFhfs.thickness = x0
+            if length(x0) == 4
+                fraction_stainless, c_extra = mirror_bound_w_cost(x0[3], 0.0, 1.0)
+                dd.build.oh.technology.fraction_stainless = fraction_stainless
+                fraction_stainless, c_extra = mirror_bound_w_cost(x0[4], 0.0, 1.0)
+                dd.build.tf.technology.fraction_stainless = fraction_stainless
             end
         end
+
+        plug.thickness += old_plasma_start_radius - plasma.start_radius
+        plug.thickness = max(OH.thickness, plug.thickness)
+
         TFlfs.thickness = TFhfs.thickness
+        return c_extra
     end
 
     function cost(x0, what)
         # assign optimization arguments and evaluate coils currents and stresses
-        assign_PL_OH_TF_thicknesses(x0, what)
-        step(actor.fluxswing_actor; j_tolerance, only=what)
+        c_extra = assign_PL_OH_TF_thicknesses(x0, what)
+        step(actor.fluxswing_actor; operate_at_j_crit=false, only=what)
         step(actor.stresses_actor)
         R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
 
         # OH and plug sizing based on stresses
         if what ∈ [:oh, :all]
-            c_soh = target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), stainless_steel.yield_strength, stress_tolerance)
+            c_joh = target_value(dd.build.oh.critical_j, dd.build.oh.max_j, -j_tolerance) # max_j does not go to zero
+            c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), stainless_steel.yield_strength, stress_tolerance)
             if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-                c_spl = target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), stainless_steel.yield_strength, stress_tolerance)
+                c_spl = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), stainless_steel.yield_strength, stress_tolerance)
             else
                 c_spl = 0.0
             end
         else
-            c_soh = c_spl = 0.0
+            c_joh = c_soh = c_spl = 0.0
         end
 
         # TF sizing based on stresses
         if what ∈ [:tf, :all]
-            c_stf = target_value_cost(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, stress_tolerance)
+            c_jtf = target_value(dd.build.tf.critical_j, dd.build.tf.max_j, -j_tolerance) # max_j does not go to zero
+            c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, stress_tolerance)
         else
-            c_stf = 0.0
+            c_jtf = c_stf = 0.0
         end
 
         # OH sizing based on flattop_duration requirement
         if what ∈ [:oh, :all]
-            c_fl = target_value_cost(dd.build.oh.flattop_estimate, dd.build.oh.flattop_duration, 0.0)
+            c_fl = target_value(dd.build.oh.flattop_estimate, dd.build.oh.flattop_duration, 0.0)
         else
             c_fl = 0.0
         end
@@ -483,27 +509,29 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
         # TF sizing based on B0 requirement
         if what ∈ [:tf, :all]
             B0 = dd.build.tf.max_b_field * TFhfs.end_radius / R0
-            c_b0 = target_value_cost(B0, target_B0, 0.0) * 10
+            c_b0 = target_value(B0, target_B0, 0.0) * 10
         else
             c_b0 = 0.0
         end
 
-        # try not to change aspect ratio and minimize OH and TF layers thicknesses
-        new_plasma_radius = dd.build.layer[iplasma].start_radius
-        c_cs = target_value_cost(new_plasma_radius, old_plasma_radius, 0.0)
-        c_cs += OH.thickness / old_plasma_radius
-        c_cs += TFhfs.thickness / old_plasma_radius
+        # try not to change aspect_ratio
+        c_cs = target_value(plasma.start_radius, old_plasma_start_radius, 0.0)
+        # try to minimize the amount of superconductor
+        c_cs = OH.thickness / old_plasma_start_radius
+        c_cs += TFhfs.thickness / old_plasma_start_radius
+        c_cs += 1.0 - dd.build.oh.technology.fraction_stainless
+        c_cs += 1.0 - dd.build.tf.technology.fraction_stainless
 
         if do_plot
-            push!(C_SOH, c_soh)
-            push!(C_STF, c_stf)
+            push!(C_OH, c_soh + c_joh)
+            push!(C_TF, c_stf + c_joh)
             push!(C_FL, c_fl)
             push!(C_B0, c_b0)
             push!(C_CS, c_cs)
         end
 
         # total cost
-        return norm(vcat([c_soh, c_stf, c_spl], [c_fl, c_b0, c_cs]))
+        return norm(vcat([c_joh, c_jtf], [c_soh, c_stf, c_spl], [c_fl, c_b0, c_cs], [c_extra]))
     end
 
     @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
@@ -516,49 +544,69 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
     TFhfs = IMAS.get_build(dd.build, type=_tf_, fs=_hfs_)
     TFlfs = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_)
     iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true)
-    old_plasma_radius = dd.build.layer[iplasma].start_radius
-    fraction_stainless = tan(0.9 * pi - pi / 2)
-    eq_R0 = dd.equilibrium.vacuum_toroidal_field.r0
+    plasma = dd.build.layer[iplasma]
+
+    old_R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
+    old_plasma_start_radius = plasma.start_radius
+    old_a = plasma.thickness/2.0
+    old_ϵ = old_R0 / old_a
 
     if do_plot
-        C_SOH = []
-        C_STF = []
+        C_OH = []
+        C_TF = []
         C_FL = []
         C_B0 = []
         C_CS = []
     end
 
     # initialize all dd fields
-    step(actor.fluxswing_actor; j_tolerance, only=:all)
-
-    # plug and OH optimization
-    old_thicknesses = [layer.thickness for layer in dd.build.layer]
-    res_oh = Optim.optimize(x0 -> cost(x0, :oh), [plug.thickness, OH.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000); autodiff=:forward)
-    assign_PL_OH_TF_thicknesses(res_oh.minimizer, :oh)
-    step(actor.fluxswing_actor; j_tolerance, only=:oh)
+    step(actor.fluxswing_actor; operate_at_j_crit=true, j_tolerance)
     step(actor.stresses_actor)
 
-    # TF optimization
+    dd.build.oh.technology.fraction_stainless = 0.5
+    dd.build.tf.technology.fraction_stainless = 0.5
+
+    # plug and OH optimization (w/fraction)
     old_thicknesses = [layer.thickness for layer in dd.build.layer]
-    res_tf = Optim.optimize(x0 -> cost(x0, :tf), [TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000); autodiff=:forward)
-    assign_PL_OH_TF_thicknesses(res_tf.minimizer, :tf)
-    step(actor.fluxswing_actor; j_tolerance, only=:tf)
+    res = Optim.optimize(x0 -> cost(x0, :oh), [OH.thickness, dd.build.oh.technology.fraction_stainless], Optim.NelderMead(), Optim.Options(time_limit=60); autodiff=:forward)
+    assign_PL_OH_TF_thicknesses(res.minimizer, :oh)
+    step(actor.fluxswing_actor; operate_at_j_crit=false, only=:oh)
     step(actor.stresses_actor)
+    if verbose
+        display(res)
+    end
+
+    # TF optimization (w/fraction)
+    old_thicknesses = [layer.thickness for layer in dd.build.layer]
+    res = Optim.optimize(x0 -> cost(x0, :tf), [TFhfs.thickness, dd.build.tf.technology.fraction_stainless], Optim.NelderMead(), Optim.Options(time_limit=60); autodiff=:forward)
+    assign_PL_OH_TF_thicknesses(res.minimizer, :tf)
+    step(actor.fluxswing_actor; operate_at_j_crit=false, only=:tf)
+    step(actor.stresses_actor)
+    if verbose
+        display(res)
+    end
 
     # combined plug+OH+TF optimization
-    res_all = nothing
-    if (dd.solid_mechanics.center_stack.bucked == 1 || dd.solid_mechanics.center_stack.noslip == 1 || dd.solid_mechanics.center_stack.plug == 1) || fixed_plasma_start_radius
+    res = nothing
+    if true || (dd.solid_mechanics.center_stack.bucked == 1 || dd.solid_mechanics.center_stack.noslip == 1 || dd.solid_mechanics.center_stack.plug == 1)
         old_thicknesses = [layer.thickness for layer in dd.build.layer]
-        res_all = Optim.optimize(x0 -> cost(x0, :all), [OH.thickness, max(0.0, (plug.thickness - OH.thickness)), TFhfs.thickness], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000); autodiff=:forward)
-        assign_PL_OH_TF_thicknesses(res_all.minimizer, :all)
-        step(actor.fluxswing_actor; j_tolerance, only=:all)
+        res = Optim.optimize(x0 -> cost(x0, :all), [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_stainless, dd.build.tf.technology.fraction_stainless], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000); autodiff=:forward)
+        assign_PL_OH_TF_thicknesses(res.minimizer, :all)
+        step(actor.fluxswing_actor; operate_at_j_crit=false)
         step(actor.stresses_actor)
+        if verbose
+            display(res)
+        end
     end
+
+    R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
+    a = plasma.thickness/2.0
+    ϵ = R0 / a
 
     if do_plot
         p = plot()
-        plot!(p, C_SOH, label="SOH")
-        plot!(p, C_STF, label="STF")
+        plot!(p, C_OH, label="OH")
+        plot!(p, C_TF, label="TF")
         plot!(p, C_FL, label="FL")
         plot!(p, C_B0, label="B0")
         plot!(p, C_CS, label="CS")
@@ -566,12 +614,6 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
     end
 
     if verbose
-        display(res_oh)
-        display(res_tf)
-        if res_all !== nothing
-            display(res_all)
-        end
-
         R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
         @show target_B0
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
@@ -581,25 +623,29 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
 
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
-        @show dd.build.oh.max_b_field
 
         @show dd.build.tf.max_j
         @show dd.build.tf.critical_j
-        @show dd.build.tf.max_b_field
 
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh)
         @show stainless_steel.yield_strength
 
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf)
         @show stainless_steel.yield_strength
+
+        @show ϵ
+        @show old_ϵ
     end
 
-    # @assert target_B0 * j_tolerance / 2.0 < dd.build.tf.max_b_field / TFhfs.end_radius * R0
-    # @assert dd.build.oh.flattop_estimate * j_tolerance / 2.0 < dd.build.oh.flattop_duration
-    # @assert dd.build.oh.max_j < dd.build.oh.critical_j
-    # @assert dd.build.tf.max_j < dd.build.tf.critical_j
-    # @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
-    # @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
+    @assert target_B0 * j_tolerance / 2.0 < dd.build.tf.max_b_field / TFhfs.end_radius * R0
+    @assert dd.build.oh.flattop_estimate * j_tolerance / 2.0 < dd.build.oh.flattop_duration
+    @assert dd.build.oh.max_j < dd.build.oh.critical_j
+    @assert dd.build.tf.max_j < dd.build.tf.critical_j
+    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
+    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
+    if fixed_aspect_ratio
+        @assert abs((ϵ - old_ϵ) / old_ϵ) < 0.1 "HFSsizingActor: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"
+    end
 
     return actor
 end
@@ -692,7 +738,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     R[R.>R_lfs_plasma] .= R_lfs_plasma
     Z = [z for (r, z) in hull]
     hull_poly = xy_polygon(R, Z)
-    plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(R) - minimum(R)))/2.0 )
+    plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(R) - minimum(R))) / 2.0)
 
     # make the divertor domes in the plasma
     δψ = 0.05 # how close to the LCFS shoudl the divertor plates be
@@ -868,10 +914,10 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         layer.outline.r, layer.outline.z = R, Z
 
     else # handle shapes
-        if layer.shape> 1000
+        if layer.shape > 1000
             layer.shape = mod(layer.shape, 1000)
         end
-        if layer.shape> 100
+        if layer.shape > 100
             layer.shape = mod(layer.shape, 100)
         end
 
@@ -897,7 +943,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
             R = 0.5 * (max_r + min_r)
             δu = (R - r_at_max_z) / a
             δl = (R - r_at_min_z) / a
-            if δu+δl < 0
+            if δu + δl < 0
                 is_negative_D = true
             end
         end
