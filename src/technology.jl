@@ -184,18 +184,18 @@ end
 Returns critical current density and magnetic field given an external magnetic field and coil technology
 """
 function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
+    fraction_conductor = 1.0 - coil_tech.fraction_stainless - coil_tech.fraction_void # fraction of coil that is a conductor
+    @assert fraction_conductor > 0.0 "coil_J_B_crit: coil technology has no room for conductor"
     if coil_tech.material == "Copper"
         Jcrit = 18.5e6 # A/m^2
-        fraction_cable = 1.0 - coil_tech.fraction_stainless - coil_tech.fraction_void # fraction of coil that is LTS cabling
-        return Jcrit * fraction_cable # A/m^2
+        return Jcrit * fraction_conductor # A/m^2
     else
         if coil_tech.material == "Nb3Sn"
             Jcrit_SC, Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         elseif coil_tech.material == "ReBCO"
             Jcrit_SC, Bcrit_ratio = ReBCO_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         end
-        fraction_cable = 1.0 - coil_tech.fraction_stainless - coil_tech.fraction_void # fraction of coil that is LTS cabling
-        fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1.0 + coil_tech.ratio_SC_to_copper) # fraction of coil that is Nb3Sn superconductor
+        fraction_SC = fraction_conductor * coil_tech.ratio_SC_to_copper / (1.0 + coil_tech.ratio_SC_to_copper) # fraction of coil that is Nb3Sn superconductor
         Jcrit = Jcrit_SC * fraction_SC # A/m^2
         return Jcrit, Bcrit_ratio * Bext
     end
