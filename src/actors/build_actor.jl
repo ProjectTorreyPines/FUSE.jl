@@ -413,7 +413,7 @@ end
 function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.HFSsizingActor(kw...)
     if par.do_plot
-        plot(dd.build)
+        p = plot(dd.build)
     end
     fluxswing_actor = FluxSwingActor(dd)
     stresses_actor = StressesActor(dd)
@@ -421,7 +421,7 @@ function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_aspect_ratio=par.fixed_aspect_ratio)
     finalize(actor)
     if par.do_plot
-        display(plot!(dd.build; cx=false))
+        display(plot!(p, dd.build; cx=false))
     end
     return actor
 end
@@ -604,8 +604,7 @@ function step(actor::HFSsizingActor; verbose::Bool=false, j_tolerance::Real=0.4,
     ϵ = R0 / a
 
     if do_plot
-        p = plot()
-        plot!(p, C_OH, label="OH")
+        p = plot(C_OH, label="OH")
         plot!(p, C_TF, label="TF")
         plot!(p, C_FL, label="FL")
         plot!(p, C_B0, label="B0")
