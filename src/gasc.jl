@@ -67,7 +67,7 @@ function gasc_2_core_profiles(gasc::GASC, ini::InitParameters, act::ActorParamet
     ini.core_profiles.greenwald_fraction = gascsol["OUTPUTS"]["plasma parameters"]["greenwaldFraction"]
     ini.core_profiles.T_shaping = 1.8
     i_ped = argmin(abs.(gascsol["OUTPUTS"]["numerical profiles"]["neProf"] .- gascsol["OUTPUTS"]["plasma parameters"]["neped"] / gascsol["OUTPUTS"]["plasma parameters"]["ne0"]))
-    ini.core_profiles.w_ped = 1 - gascsol["OUTPUTS"]["numerical profiles"]["rProf"][i_ped] 
+    ini.core_profiles.w_ped = 1 - gascsol["OUTPUTS"]["numerical profiles"]["rProf"][i_ped]
     ini.core_profiles.zeff = gascsol["OUTPUTS"]["impurities"]["effectiveZ"]
     ini.core_profiles.rot_core = 0.0  # Not in GASC
     ini.core_profiles.bulk = :DT
@@ -229,7 +229,7 @@ function gasc_to_layers(gascsol::Dict)
                 f1 = "lfs_" * f1
             end
             f = f1
-            f = replace(f, r".fs_gap_TF_OH"=>"gap_TF_OH")
+            f = replace(f, r".fs_gap_TF_OH" => "gap_TF_OH")
             layers[f] = d
         elseif startswith(g1, "Ro") && d > 0
             if contains(g2, "Outer")
@@ -237,7 +237,7 @@ function gasc_to_layers(gascsol::Dict)
             else
                 f = "hfs_gap_$(f2)_$(f1)"
             end
-            f = replace(f, r".fs_gap_TF_OH"=>"gap_TF_OH")
+            f = replace(f, r".fs_gap_TF_OH" => "gap_TF_OH")
             layers[f] = d
         end
     end
@@ -245,9 +245,18 @@ function gasc_to_layers(gascsol::Dict)
     layers["cryostat"] = layers["lfs_low_temp_shield"] / 2.0
 
     for k in collect(keys(layers))
-        if contains(k,"_gap_") && contains(k,"_plasma_")
+        if contains(k, "_gap_") && contains(k, "_plasma_")
             layers["plasma"] += layers[k]
             delete!(layers, k)
+        end
+    end
+
+    if false # to remove gap that prevents bucking
+        for k in collect(keys(layers))
+            if k == "gap_TF_OH"
+                layers["OH"] += layers["gap_TF_OH"]
+                delete!(layers, k)
+            end
         end
     end
 
