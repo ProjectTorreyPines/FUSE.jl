@@ -244,6 +244,21 @@ function flattop_flux_estimates(bd::IMAS.build, eqt::IMAS.equilibrium__time_slic
 end
 
 """
+    flattop_flux(bd::IMAS.build; double_swing::Bool=true)
+
+OH flux given its max_b_field and geometry
+"""
+function flattop_flux(bd::IMAS.build; double_swing::Bool=true)
+    OH = IMAS.get_build(bd, type=_oh_)
+    innerSolenoidRadius = OH.start_radius
+    outerSolenoidRadius = OH.end_radius
+    magneticFieldSolenoidBore = bd.oh.max_b_field
+    RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
+    totalOhFluxReq = magneticFieldSolenoidBore / 3.0 * pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)
+    bd.flux_swing_estimates.flattop = totalOhFluxReq - bd.flux_swing_estimates.rampup - bd.flux_swing_estimates.pf
+end
+
+"""
     pf_flux_estimates(eqt::IMAS.equilibrium__time_slice)
 
 Estimate vertical field from PF coils and its contribution to flux swing, where
