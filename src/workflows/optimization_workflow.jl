@@ -76,7 +76,7 @@ function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, a
         end
     end
 
-    tmp = pmap(x -> optimization_engine(func, dd, ini, act, x, opt_ini, objectives_functions), keys(X_out_of_cache))
+    tmp = pmap(x -> optimization_engine(func, dd, ini, act, x, opt_ini, objectives_functions), collect(keys(X_out_of_cache)))
 
     for (k, key) in enumerate(collect(keys(X_out_of_cache)))
         X_out_of_cache[key] = X[k, :]
@@ -121,7 +121,7 @@ function optimization_workflow(func::Function, dd::IMAS.dd, ini::InitParameters,
     func(dd, ini, act)
     # optimize
     options = Metaheuristics.Options(parallel_evaluation=true, iterations=iterations)
-    algorithm = Metaheuristics.NSGA2(N, options)
+    algorithm = Metaheuristics.NSGA2(; N, options)
     p = Progress(iterations; desc="Iteration", showspeed=true)
     @time state = Metaheuristics.optimize(X -> optimization_engine(func, dd, ini, act, X, opt_ini, objectives_functions, p), bounds, algorithm)
     return state
