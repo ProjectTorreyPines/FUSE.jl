@@ -432,7 +432,7 @@ end
 
 function step(actor::HFSsizingActor; j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_aspect_ratio::Bool=true, unconstrained_flattop_duration::Bool=true, verbose::Bool=false, do_plot=false)
 
-    function target_value(value, target, tolerance)
+    function target_value(value, target, tolerance) # relative error with tolerance
         return abs((value .* (1.0 .+ tolerance) .- target) ./ (abs(target) + 1.0))
     end
 
@@ -610,14 +610,22 @@ function step(actor::HFSsizingActor; j_tolerance::Real=0.4, stress_tolerance::Re
         @show old_ϵ
     end
 
-    @assert target_B0 * j_tolerance / 2.0 < dd.build.tf.max_b_field / TFhfs.end_radius * R0
-    @assert dd.build.oh.flattop_estimate * j_tolerance / 2.0 < dd.build.oh.flattop_duration
+    function rel_error(value, target) # relative error with tolerance
+        return abs((value .- target) ./ target)
+    end
+
+    max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
+    @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 --> $max_B0)"
+
     @assert dd.build.oh.max_j < dd.build.oh.critical_j
     @assert dd.build.tf.max_j < dd.build.tf.critical_j
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
+    if !unconstrained_flattop_duration
+        @assert rel_error(dd.build.oh.flattop_estimate, dd.build.oh.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_estimate) --> $(dd.build.oh.flattop_duration))"
+    end
     if fixed_aspect_ratio
-        @assert abs((ϵ - old_ϵ) / old_ϵ) < 0.1 "HFSsizingActor: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"
+        @assert rel_error(ϵ, old_ϵ) < 0.1 "HFSsizingActor: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"
     end
 
     return actor
