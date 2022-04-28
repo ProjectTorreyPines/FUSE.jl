@@ -15,7 +15,7 @@ registry:
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
 
-develop: registry
+develop_no_registry:
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
@@ -24,6 +24,8 @@ Pkg.activate();\
 Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite"]);\
 '
 
+develop: registry develop_no_registry
+
 IJulia:
 	julia -e '\
 using Pkg;\
@@ -31,9 +33,13 @@ Pkg.add("IJulia");\
 Pkg.build("IJulia");\
 '
 
-update: develop
-	make -j 100 update_FUSE update_IMAS update_IMASDD update_CoordinateConventions update_FusionMaterials update_VacuumFields update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN update_QED update_FiniteElementHermite
+precompile:
 	julia -e 'using Pkg; Pkg.activate("."); Pkg.precompile()'
+
+update_all:
+	make -j 100 update_FUSE update_IMAS update_IMASDD update_CoordinateConventions update_FusionMaterials update_VacuumFields update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN update_QED update_FiniteElementHermite
+
+update: develop update_all precompile
 
 update_FUSE:
 	cd $(JULIA_PKG_DEVDIR)/FUSE; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
@@ -70,5 +76,23 @@ update_QED:
 
 update_FiniteElementHermite:
 	cd $(JULIA_PKG_DEVDIR)/FiniteElementHermite; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+
+docker_image:
+	cd docker; sudo docker build -t julia_fuse .
+
+docker_volume:
+	docker volume create FUSE
+
+docker_data:
+	docker run --rm -v FUSE:/root julia_fuse mkdir -p /root/.julia
+	docker run --rm -v FUSE:/root julia_fuse rm -rf /root/.julia/dev
+	docker container create --name temp -v FUSE:/root alpine
+	docker cp $(HOME)/.julia/dev/. temp:/root/.julia/dev
+	#docker cp $(HOME)/.julia/dev/FUSE/Makefile temp:/root/.julia/dev/FUSE/Makefile
+	docker rm temp
+	docker run --rm -v FUSE:/root julia_fuse bash -c "cd /root/.julia/dev/FUSE && make develop_no_registry && make precompile"
+
+docker_run:
+	docker run -it --rm -v FUSE:/root julia_fuse
 
 .PHONY:
