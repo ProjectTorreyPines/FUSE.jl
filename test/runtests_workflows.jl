@@ -16,12 +16,12 @@ using Test
         dd, ini, act = FUSE.init(:D3D)
     end
 
-    @testset "FPP_ods" begin
-        dd, ini, act = FUSE.init(:FPP; init_from=:ods)
+    @testset "FPP_v1_demount" begin
+        dd, ini, act = FUSE.init(:FPP; version=:v1_demount)
     end
 
-    @testset "FPP_gasc" begin
-        dd, ini, act = FUSE.init(:FPP; init_from=:gasc)
+    @testset "FPP_v1" begin
+        dd, ini, act = FUSE.init(:FPP; version=:v1)
     end
 
     @testset "CAT" begin

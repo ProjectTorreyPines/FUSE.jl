@@ -41,7 +41,7 @@ using Test
 
     for par in subtypes(FUSE.AbstractActor)
         par = Symbol(replace(string(par), "FUSE." => ""))
-        @test ActorParameters(par) <: FUSE.ActorParameters
+        @test typeof(FUSE.ActorParameters(par)) <: FUSE.ActorParameters
     end
 
 end

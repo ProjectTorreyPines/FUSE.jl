@@ -403,7 +403,7 @@ struct BadParameterException <: Exception
     value::Any
     options::Vector{Any}
 end
-Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) value `$(repr(e.value))` is not one of the valid options: $(join(map(repr,e.options),", "))")
+Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) = $(repr(e.value)) is not one of the valid options: $(join(map(repr,e.options),", "))")
 
 #= ============ =#
 #  case studies  #
