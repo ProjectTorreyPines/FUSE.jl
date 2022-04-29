@@ -26,6 +26,23 @@ Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "FusionMaterials
 
 develop: registry develop_no_registry
 
+sysimage:
+	julia -e '\
+using Pkg;\
+Pkg.add("PackageCompiler");\
+Pkg.add("IJulia");\
+import PackageCompiler;\
+Pkg.activate(".");\
+using FUSE;\
+PackageCompiler.create_sysimage(["FUSE"], sysimage_path="FUSEsysimage.so");\
+'
+
+sysimage_ijulia:
+	julia -e '\
+import IJulia;\
+IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
+'
+
 IJulia:
 	julia -e '\
 using Pkg;\
@@ -78,12 +95,13 @@ update_FiniteElementHermite:
 	cd $(JULIA_PKG_DEVDIR)/FiniteElementHermite; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
 
 docker_image:
-	cd docker; sudo docker build -t julia_fuse .
+	rm -rf ../Dockerfile
+	cp docker/Dockerfile ..
+	cd .. ; cat ./Dockerfile
+	cd .. ; sudo docker build -t julia_fuse .
 
 docker_volume:
 	docker volume create FUSE
-
-docker_data:
 	docker run --rm -v FUSE:/root julia_fuse mkdir -p /root/.julia
 	docker run --rm -v FUSE:/root julia_fuse rm -rf /root/.julia/dev
 	docker container create --name temp -v FUSE:/root alpine
@@ -93,6 +111,9 @@ docker_data:
 	docker run --rm -v FUSE:/root julia_fuse bash -c "cd /root/.julia/dev/FUSE && make develop_no_registry && make precompile"
 
 docker_run:
+	docker run -it --rm julia_fuse julia -J FUSEsysimage.so
+
+docker_run_volume:
 	docker run -it --rm -v FUSE:/root julia_fuse
 
 .PHONY:
