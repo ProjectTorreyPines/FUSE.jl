@@ -97,6 +97,7 @@ update_FiniteElementHermite:
 docker_image:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile ..
+	cp .gitignore ../.dockerignore
 	cd .. ; cat ./Dockerfile
 	cd .. ; sudo docker build -t julia_fuse .
 
@@ -111,9 +112,12 @@ docker_volume:
 	docker run --rm -v FUSE:/root julia_fuse bash -c "cd /root/.julia/dev/FUSE && make develop_no_registry && make precompile"
 
 docker_run:
-	docker run -it --rm julia_fuse julia -J FUSEsysimage.so
+	docker run -it --rm julia_fuse julia
 
 docker_run_volume:
 	docker run -it --rm -v FUSE:/root julia_fuse
 
+cleanup:
+	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
+    
 .PHONY:
