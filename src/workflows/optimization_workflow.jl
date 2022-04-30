@@ -82,21 +82,23 @@ function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, a
         X_out_of_cache[key] = X[k, :]
     end
 
-    F = zeros(size(X)[1], length(tmp[1][1]))
+    F = zeros(size(X)[1], length(objectives_functions))
     G = similar(X)
     H = similar(X)
     for k in 1:size(X)[1]
         key = X[k, :]
         if key ∈ keys(X_out_of_cache)
             optimization_cache[key] = X_out_of_cache[key]
-            if isinf(X_out_of_cache[key][1])
+            if any(isinf.(X_out_of_cache[key][1]))
                 push!(optimization_fails, key)
                 display("Failed run: $(key)")
             end
         else
             display("Cache HIT !")
         end
-        F[k, :], G[k, :], H[k, :] = optimization_cache[key][1], optimization_cache[key][2], optimization_cache[key][3]
+        F[k, :] .= optimization_cache[key][1]
+        G[k, :] .= optimization_cache[key][2]
+        H[k, :] .= optimization_cache[key][3]
     end
 
     return F, G, H
