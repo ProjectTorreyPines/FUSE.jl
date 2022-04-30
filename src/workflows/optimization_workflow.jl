@@ -89,7 +89,7 @@ function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, a
         key = X[k, :]
         if key ∈ keys(X_out_of_cache)
             optimization_cache[key] = X_out_of_cache[key]
-            if isinf(X_out_of_cache[key])
+            if isinf(X_out_of_cache[key][1])
                 push!(optimization_fails, key)
                 display("Failed run: $(key)")
             end
