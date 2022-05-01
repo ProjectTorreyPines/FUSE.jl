@@ -37,6 +37,7 @@ end
 #= ===== =#
 mutable struct Entry{T} <: Parameter
     _name::Union{Missing,Symbol}
+    _parent::WeakRef
     units::String
     description::String
     value::T
@@ -52,7 +53,7 @@ end
 Defines a entry parameter
 """
 function Entry(T, units::String, description::String; default=missing)
-    return Entry{Union{Missing,T}}(missing, units, description, default, default, default, missing, missing)
+    return Entry{Union{Missing,T}}(missing, WeakRef(missing), units, description, default, default, default, missing, missing)
 end
 
 function Entry(T, ids::Type, field::Symbol; default=missing)
@@ -70,6 +71,7 @@ end
 
 mutable struct Switch <: Parameter
     _name::Union{Missing,Symbol}
+    _parent::WeakRef
     options::Dict{Any,SwitchOption}
     units::String
     description::String
@@ -87,7 +89,7 @@ function Switch(options::Dict{Any,SwitchOption}, units::String, description::Str
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
-    return Switch(missing, options, units, description, default, default, default)
+    return Switch(missing, WeakRef(missing), options, units, description, default, default, default)
 end
 
 function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair}
@@ -95,7 +97,7 @@ function Switch(options::Vector{T}, units::String, description::String; default=
     for (key, desc) in options
         opts[key] = SwitchOption(key, desc)
     end
-    return Switch(missing, opts, units, description, default, default, default)
+    return Switch(missing, WeakRef(missing), opts, units, description, default, default, default)
 end
 
 function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Union{Symbol,String}}
@@ -103,7 +105,7 @@ function Switch(options::Vector{T}, units::String, description::String; default=
     for key in options
         opts[key] = SwitchOption(key, "$key")
     end
-    return Switch(missing, opts, units, description, default, default, default)
+    return Switch(missing, WeakRef(missing), opts, units, description, default, default, default)
 end
 
 function Switch(options, ids::Type{T}, field::Symbol; default=missing) where {T<:IMAS.IDS}
@@ -128,11 +130,12 @@ end
 #= ============== =#
 mutable struct InitParameters <: Parameters
     _name::Union{Missing,Symbol}
+    _parent::WeakRef
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
 function InitParameters(::Nothing)
-    return InitParameters(missing, Dict{Symbol,Union{Parameter,InitParameters}}())
+    return InitParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,InitParameters}}())
 end
 
 function InitParameters(group::Symbol; kw...)
@@ -147,6 +150,7 @@ end
 #= =============== =#
 mutable struct ActorParameters <: Parameters
     _name::Union{Missing,Symbol}
+    _parent::WeakRef
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
@@ -156,7 +160,7 @@ end
 Generates actor parameters 
 """
 function ActorParameters()
-    act = ActorParameters(missing, Dict{Symbol,Union{Parameter,ActorParameters}}())
+    act = ActorParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ActorParameters}}())
     for par in subtypes(AbstractActor)
         par = Symbol(replace(string(par), "FUSE." => ""))
         try
@@ -173,7 +177,7 @@ function ActorParameters()
 end
 
 function ActorParameters(::Nothing)
-    return ActorParameters(missing, Dict{Symbol,Union{Parameter,ActorParameters}}())
+    return ActorParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ActorParameters}}())
 end
 
 function ActorParameters(group::Symbol; kw...)
@@ -186,8 +190,20 @@ end
 #= ========== =#
 #  Parameters  #
 #= ========== =#
-function path(p::Parameters)
-    return [getfield(p, :_name)]
+function path(p::Union{Parameter,Parameters})
+    name = getfield(p, :_name)
+    if name === missing
+        return Symbol[]
+    end
+    pp = Symbol[name]
+    while typeof(p._parent.value) <: Parameters
+        if p._parent.value._name === missing
+            break
+        end
+        pushfirst!(pp, p._parent.value._name)
+        p = p._parent.value
+    end
+    return pp
 end
 
 function Base.keys(p::Parameters)
@@ -230,9 +246,21 @@ function Base.getproperty(p::Parameters, key::Symbol)
     return value
 end
 
+function Base.deepcopy(p::Union{Parameter,Parameters})
+    p1 = Base.deepcopy_internal(p, Base.IdDict())
+    p1._parent = WeakRef(missing)
+    return p1
+end
+
 function Base.setproperty!(p::Parameters, key::Symbol, value)
-    if typeof(value) <: Union{Parameter,Parameters}
-        setfield!(value, :_name, key)
+    if key ∈ fieldnames(typeof(p))
+        return setfield!(p, key, value)
+    elseif typeof(value) <: Union{Parameter,Parameters}
+        if typeof(value._parent.value) <: Union{Parameter,Parameters}
+            value = deepcopy(value)
+        end
+        value._parent = WeakRef(p)
+        value._name = key
         p[key] = value
         return value
     end
