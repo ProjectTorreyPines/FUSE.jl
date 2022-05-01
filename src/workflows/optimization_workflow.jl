@@ -4,14 +4,15 @@ ProgressMeter.ijulia_behavior(:clear)
 
 mutable struct ObjectiveFunction
     name::Symbol
+    units::String
     func::Function
     target::Float64
-    registered::Bool
-end
-
-function ObjectiveFunction(name::Symbol, func::Function, target::Float64)
-    objf = ObjectiveFunction(name, func, target, true)
-    ObjectivesFunctionsLibrary[objf.name] = objf
+    # inner constructor to register ObjectiveFunction in ObjectivesFunctionsLibrary
+    ObjectiveFunction(name, units, func, target) = begin
+        objf = new(name, units, func, target)
+        ObjectivesFunctionsLibrary[objf.name] = objf
+        return objf
+    end 
 end
 
 function (objf::ObjectiveFunction)(dd::IMAS.dd)
@@ -42,6 +43,11 @@ function (objf::ObjectiveFunction)(x::Float64)
     end
 end
 
+const ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
+ObjectiveFunction(:min_cost, "\$M", dd -> dd.costing.cost, -Inf)
+ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[])/1E6, Inf)
+ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_estimate/3600, Inf)
+
 function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{T}) where {T<:ObjectiveFunction}
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
@@ -56,59 +62,29 @@ function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, a
         func(dd, ini, act)
     catch
         return [Inf for f in objectives_functions], x * 0, x * 0
-        rethrow() # use this to raise on error
+        #rethrow()
     end
     # evaluate multiple objectives
     return collect(map(f -> f(dd), objectives_functions)), x * 0, x * 0
 end
 
-const optimization_cache = Dict()
-const optimization_fails = []
-
 function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{T}, p) where {T<:ObjectiveFunction}
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-
-    X_out_of_cache = DataStructures.OrderedDict()
-    for k in 1:size(X)[1]
-        if X[k, :] ∉ keys(optimization_cache)
-            X_out_of_cache[X[k, :]] = missing
-        end
-    end
-
-    tmp = pmap(x -> optimization_engine(func, dd, ini, act, x, opt_ini, objectives_functions), collect(keys(X_out_of_cache)))
-
-    for (k, key) in enumerate(collect(keys(X_out_of_cache)))
-        X_out_of_cache[key] = X[k, :]
-    end
-
+    tmp = pmap(x -> optimization_engine(func, dd, ini, act, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(objectives_functions))
     G = similar(X)
     H = similar(X)
     for k in 1:size(X)[1]
-        key = X[k, :]
-        if key ∈ keys(X_out_of_cache)
-            optimization_cache[key] = X_out_of_cache[key]
-            if any(isinf.(X_out_of_cache[key][1]))
-                push!(optimization_fails, key)
-                display("Failed run: $(key)")
-            end
-        else
-            display("Cache HIT !")
-        end
-        F[k, :] .= optimization_cache[key][1]
-        G[k, :] .= optimization_cache[key][2]
-        H[k, :] .= optimization_cache[key][3]
+        F[k, :] .= tmp[k][1]
+        G[k, :] .= tmp[k][2]
+        H[k, :] .= tmp[k][3]
     end
-
     return F, G, H
 end
 
-function optimization_workflow(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, objectives_functions::AbstractVector{T}=ObjectiveFunction[]; N=10, iterations=N) where {T<:ObjectiveFunction}
+function multiobjective_optimization_workflow(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, objectives_functions::AbstractVector{T}=ObjectiveFunction[]; N=10, iterations=N) where {T<:ObjectiveFunction}
     display("Running on $(nprocs()) processes")
-    empty!(optimization_cache)
-    empty!(optimization_fails)
-    display("Cleared FUSE.optimization_fails and FUSE.optimization_cache")
     if isempty(objectives_functions)
         error("Must specify objective functions. Available pre-baked functions from ObjectivesFunctionsLibrary:\n  * " * join(keys(ObjectivesFunctionsLibrary), "\n  * "))
     end
@@ -122,14 +98,9 @@ function optimization_workflow(func::Function, dd::IMAS.dd, ini::InitParameters,
     # test running function with nominal parameters
     func(dd, ini, act)
     # optimize
-    options = Metaheuristics.Options(parallel_evaluation=true, iterations=iterations)
+    options = Metaheuristics.Options(seed=1, parallel_evaluation=true, store_convergence = true, iterations=iterations)
     algorithm = Metaheuristics.NSGA2(; N, options)
     p = Progress(iterations; desc="Iteration", showspeed=true)
     @time state = Metaheuristics.optimize(X -> optimization_engine(func, dd, ini, act, X, opt_ini, objectives_functions, p), bounds, algorithm)
     return state
 end
-
-ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
-ObjectiveFunction(:min_cost, dd -> dd.costing.cost, -Inf)
-ObjectiveFunction(:max_fusion, dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]), Inf)
-ObjectiveFunction(:max_flattop, dd -> dd.build.oh.flattop_estimate, Inf)
