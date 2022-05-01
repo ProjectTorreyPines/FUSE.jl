@@ -24,6 +24,70 @@ mutable struct PFcoilsOptActor <: AbstractActor
     green_model::Symbol
 end
 
+function ActorParameters(::Type{Val{:PFcoilsOptActor}})
+    par = ActorParameters(nothing)
+    options = [
+        :point => "one filament per coil",
+        :simple => "like :point, but OH coils have three filaments",
+        :corners => "like :simple, but PF coils have filaments at the four corners",
+        :realistic => "hundreds of filaments per coil (very slow!)",
+    ]
+    par.green_model = Switch(options, "", "Model used for the Greens function calculation"; default=:simple)
+    par.symmetric = Entry(Bool, "", "PF coils location should be up-down symmetric"; default=true)
+    par.λ_currents = Entry(Real, "", "Weight of current limit constraint"; default=0.5)
+    options = [
+        :none => "Do not optimize",
+        :currents => "Find optimial coil currents but do not change coil positions",
+        :rail => "Find optimial coil positions"
+    ]
+    par.optimization_scheme = Switch(options, "", "Optimization to carry out"; default=:currents)
+    par.update_equilibrium = Entry(Bool, "", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
+    par.do_plot = Entry(Bool, "", "plot"; default=false)
+    par.verbose = Entry(Bool, "", "verbose"; default=false)
+    return par
+end
+
+function PFcoilsOptActor(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.PFcoilsOptActor(kw...)
+    actor = PFcoilsOptActor(dd; green_model=par.green_model, symmetric=par.symmetric)
+
+    if par.optimization_scheme == :none
+        if par.do_plot
+            plot(actor.eq_in)
+            plot!(actor.bd)
+            display(plot!(actor.pf_active))
+        end
+
+    else
+        if par.optimization_scheme == :currents
+            # find coil currents for both field-null and equilibria
+            step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=par.λ_currents, verbose=par.verbose, maxiter=1000, optimization_scheme=:currents)
+        elseif par.optimization_scheme == :rail
+            # optimize coil location only considering equilibria (disregard field-null)
+            step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=par.λ_currents, λ_strike=0.0, verbose=par.verbose, maxiter=1000, optimization_scheme=:rail)
+            finalize(actor)
+
+            if par.do_plot
+                display(plot(actor.trace, :cost))
+                display(plot(actor.trace, :params))
+            end
+        end
+
+        if par.do_plot
+            # field null time slice
+            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[1]))
+            display(plot(actor, equilibrium=true, rail=true, time_index=1))
+            # final time slice
+            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[end]))
+            display(plot(actor, equilibrium=true, time_index=length(dd.equilibrium.time)))
+        end
+
+        finalize(actor; update_eq_in=par.update_equilibrium)
+    end
+
+    return dd
+end
+
 function PFcoilsOptActor(dd::IMAS.dd; kw...)
     return PFcoilsOptActor(dd.equilibrium, dd.build, dd.pf_active; kw...)
 end
@@ -36,6 +100,10 @@ function PFcoilsOptActor(
     green_model=:simple,
     symmetric=false)
 
+    # reset pf coil rails
+    n_coils = [rail.coils_number for rail in bd.pf_active.rail]
+    init_pf_active(pf, bd, n_coils)
+
     # basic constructors
     eq_out = deepcopy(eq_in)
 
@@ -43,56 +111,6 @@ function PFcoilsOptActor(
     pfactor = PFcoilsOptActor(eq_in, eq_out, pf, bd, symmetric, λ_regularize, PFcoilsOptTrace(), green_model)
 
     return pfactor
-end
-
-function ActorParameters(::Type{Val{:PFcoilsOptActor}})
-    par = ActorParameters(nothing)
-    options = [
-        :point => "one filament per coil",
-        :simple => "like :point, but OH coils have three filaments",
-        :corners => "like :simple, but PF coils have filaments at the four corners",
-        :realistic => "hundreds of filaments per coil (very slow!)",
-    ]
-    par.green_model = Switch(options, "", "Model used for the Greens function calculation"; default=:simple)
-    par.symmetric = Entry(Bool, "", "PF coils location should be up-down symmetric"; default=true)
-    par.λ_currents = Entry(Real, "", "Weight of current limit constraint"; default=0.5)
-    par.only_currents = Entry(Bool, "", "Find optimial coil currents but do not change coil position"; default=false)
-    par.update_equilibrium = Entry(Bool, "", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
-end
-
-function PFcoilsOptActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.PFcoilsOptActor(kw...)
-    actor = PFcoilsOptActor(dd; green_model=par.green_model, symmetric=par.symmetric)
-
-    if !par.only_currents
-        # optimize coil location only considering equilibria (disregard field-null)
-        step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=par.λ_currents, λ_strike=0.0, verbose=par.verbose, maxiter=1000, optimization_scheme=:rail)
-        finalize(actor)
-
-        if par.do_plot
-            display(plot(actor.trace, :cost))
-            display(plot(actor.trace, :params))
-        end
-    else
-        # find coil currents for both field-null and equilibria
-        step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=par.λ_currents, verbose=par.verbose, maxiter=1000, optimization_scheme=:static)
-    end
-
-    if par.do_plot
-        # field null time slice
-        display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[1]))
-        display(plot(actor, equilibrium=true, rail=true, time_index=1))
-        # final time slice
-        display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[end]))
-        display(plot(actor, equilibrium=true, time_index=length(dd.equilibrium.time)))
-    end
-
-    finalize(actor; update_eq_in=update_equilibrium)
-
-    return dd
 end
 
 """
@@ -129,10 +147,10 @@ function step(pfactor::PFcoilsOptActor;
 
     bd = pfactor.bd
     # run rail type optimizer
-    if optimization_scheme in [:rail, :static]
+    if optimization_scheme in [:rail, :currents]
         (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, λ_strike, bd, maxiter, verbose)
     else
-        error("Supported PFcoilsOptActor optimization_scheme are `:static` or `:rail`")
+        error("Supported PFcoilsOptActor optimization_scheme are `:currents` or `:rail`")
     end
     pfactor.λ_regularize = λ_regularize
     pfactor.trace = trace
@@ -629,7 +647,7 @@ function fixed_pinned_optim_coils(pfactor, optimization_scheme)
         end
         if coil.identifier == "pinned"
             push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
-        elseif (coil.identifier == "optim") && (optimization_scheme == :static)
+        elseif (coil.identifier == "optim") && (optimization_scheme == :currents)
             push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
         elseif coil.identifier == "optim"
             push!(optim_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))

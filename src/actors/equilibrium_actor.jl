@@ -24,7 +24,7 @@ end
 function SolovevActor(dd::IMAS.dd, act::ActorParameters; kw...)
     par = act.SolovevActor(kw...)
     actor = SolovevActor(dd.equilibrium)
-    step(actor; par.verbose)
+    step(actor; verbose=par.verbose)
     finalize(actor, ngrid=par.ngrid, volume=evalmissing(par, :volume), area=evalmissing(par, :area))
     # record optimized values of qstar and alpha in `act` for subsequent SolovevActor calls
     par.qstar = actor.S.qstar
