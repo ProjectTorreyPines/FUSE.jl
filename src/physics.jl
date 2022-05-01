@@ -142,7 +142,7 @@ function shape_function(shape_function_index)
         dfunc(args...) = begin
             R, Z = zfunc(args...)
             R = -(R .- args[1]) .+ args[2]
-            return R, Z
+            return reverse(R), reverse(Z)
         end
     end
 
