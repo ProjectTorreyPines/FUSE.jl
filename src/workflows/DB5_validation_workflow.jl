@@ -1,10 +1,11 @@
 import Random
 import DataFrames
 import CSV
-using ProgressMeter
-ProgressMeter.ijulia_behavior(:clear)
 import Dates
 using Distributed
+using ProgressMeter
+ProgressMeter.ijulia_behavior(:clear)
+
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
                                 ini::InitParameters;
@@ -19,25 +20,10 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::InitParameters,
     FUSE.init_core_profiles(dd, ini, act)
     FUSE.init_core_sources(dd, ini, act)
 
-    # Set j_ohmic to steady state
-    IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
-
-    # run transport actor
-    FUSE.TauennActor(dd, act; transport_model=transport_model, warn_nn_train_bounds, verbose=verbose)
-
-    # Set beta_normal from equilbrium to the kinetic beta_n
-    if !isempty(dd.core_profiles.profiles_1d)
-        dd.equilibrium.time_slice[].global_quantities.beta_normal = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
-    end
-
-    # run equilibrium actor with the updated beta
-    FUSE.SolovevActor(dd, act)
-
-    if do_plot
-        display(plot(dd.equilibrium, psi_levels_out=[], label=ini.general.casename))
-        display(plot(dd.core_profiles))
-        display(plot(dd.core_sources))
-    end
+    act.TauennActor.warn_nn_train_bounds = warn_nn_train_bounds
+    act.TauennActor.transport_model = transport_model
+    act.TauennActor.verbose = verbose
+    FUSE.EquilibriumTransportActor(dd, act; do_plot=do_plot)
 
     if !isempty(save_directory)
         IMAS.imas2json(dd, joinpath(save_directory, "$(ini.general.casename).json"))
@@ -45,27 +31,8 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::InitParameters,
     return dd
 end
 
-function run_HDB5_from_data_row(data_row, act::Union{ActorParameters,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
-    try
-        dd = IMAS.dd()
-        ini, ACT = FUSE.case_parameters(data_row)
-        if ismissing(act)
-            act = ACT
-        end
-        dd = FUSE.simple_equilibrium_transport_workflow(dd, ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
-        data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
-        data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
-        data_row[:error_message] = ""
-    catch e
-        data_row[:TAUTH_fuse] = NaN
-        data_row[:T0_fuse] = NaN
-        data_row[:error_message] = "$e"
-    end
-    return data_row
-end
-
 """
-    function transport_validation_workflow(;
+    function HDB5_validation_workflow(;
         tokamak::Union{String,Symbol}=:all,
         n_samples_per_tokamak::Union{Integer,Symbol}=10,
         save_directory::String="",
@@ -76,7 +43,7 @@ end
 
 Runs n_samples of the HDB5 database (https://osf.io/593q6) and stores results in save_directory
 """
-function transport_validation_workflow(;
+function HDB5_validation_workflow(;
     tokamak::Union{String,Symbol}=:all,
     n_samples_per_tokamak::Union{Integer,Symbol}=10,
     save_directory::String="",
@@ -128,12 +95,23 @@ function transport_validation_workflow(;
     return run_df, failed_df
 end
 
-function R_squared(x, y)
-    return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x) / length(x)) .^ 2)
-end
-
-function mean_relative_error(x, y)
-    return sum(abs.((y .- x) ./ x)) / length(x)
+function run_HDB5_from_data_row(data_row, act::Union{ActorParameters,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
+    try
+        dd = IMAS.dd()
+        ini, ACT = FUSE.case_parameters(data_row)
+        if ismissing(act)
+            act = ACT
+        end
+        dd = FUSE.simple_equilibrium_transport_workflow(dd, ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
+        data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
+        data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
+        data_row[:error_message] = ""
+    catch e
+        data_row[:TAUTH_fuse] = NaN
+        data_row[:T0_fuse] = NaN
+        data_row[:error_message] = "$e"
+    end
+    return data_row
 end
 
 """
@@ -142,6 +120,15 @@ end
 Plot regression of `\$name` and `\$(name)_fuse` data stored in a given dataframe
 """
 function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
+
+    function R_squared(x, y)
+        return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x) / length(x)) .^ 2)
+    end
+    
+    function mean_relative_error(x, y)
+        return sum(abs.((y .- x) ./ x)) / length(x)
+    end
+
     x_name = name
     y_name = "$(name)_fuse"
     if x_name == "TAUTH"
