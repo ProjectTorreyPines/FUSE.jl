@@ -6,7 +6,7 @@ using FusionMaterials: FusionMaterials
 Generates initalization parameters 
 """
 function InitParameters()
-    par = InitParameters(Symbol[], Dict{Symbol,Union{Parameter,InitParameters}}())
+    par = InitParameters(missing, Dict{Symbol,Union{Parameter,InitParameters}}())
     for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
         setproperty!(par, item, InitParameters(item))
     end

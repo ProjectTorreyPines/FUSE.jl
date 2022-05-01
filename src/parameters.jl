@@ -36,6 +36,7 @@ end
 #  Entry  #
 #= ===== =#
 mutable struct Entry{T} <: Parameter
+    _name::Union{Missing,Symbol}
     units::String
     description::String
     value::T
@@ -51,7 +52,7 @@ end
 Defines a entry parameter
 """
 function Entry(T, units::String, description::String; default=missing)
-    return Entry{Union{Missing,T}}(units, description, default, default, default, missing, missing)
+    return Entry{Union{Missing,T}}(missing, units, description, default, default, default, missing, missing)
 end
 
 function Entry(T, ids::Type, field::Symbol; default=missing)
@@ -68,6 +69,7 @@ struct SwitchOption
 end
 
 mutable struct Switch <: Parameter
+    _name::Union{Missing,Symbol}
     options::Dict{Any,SwitchOption}
     units::String
     description::String
@@ -85,7 +87,7 @@ function Switch(options::Dict{Any,SwitchOption}, units::String, description::Str
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
-    return Switch(options, units, description, default, default, default)
+    return Switch(missing, options, units, description, default, default, default)
 end
 
 function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair}
@@ -93,7 +95,7 @@ function Switch(options::Vector{T}, units::String, description::String; default=
     for (key, desc) in options
         opts[key] = SwitchOption(key, desc)
     end
-    return Switch(opts, units, description, default, default, default)
+    return Switch(missing, opts, units, description, default, default, default)
 end
 
 function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Union{Symbol,String}}
@@ -101,7 +103,7 @@ function Switch(options::Vector{T}, units::String, description::String; default=
     for key in options
         opts[key] = SwitchOption(key, "$key")
     end
-    return Switch(opts, units, description, default, default, default)
+    return Switch(missing, opts, units, description, default, default, default)
 end
 
 function Switch(options, ids::Type{T}, field::Symbol; default=missing) where {T<:IMAS.IDS}
@@ -125,12 +127,12 @@ end
 #  InitParameters  #
 #= ============== =#
 mutable struct InitParameters <: Parameters
-    _path::Vector{Symbol}
+    _name::Union{Missing,Symbol}
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
 function InitParameters(::Nothing)
-    return InitParameters(Symbol[], Dict{Symbol,Union{Parameter,InitParameters}}())
+    return InitParameters(missing, Dict{Symbol,Union{Parameter,InitParameters}}())
 end
 
 function InitParameters(group::Symbol; kw...)
@@ -144,7 +146,7 @@ end
 #  ActorParameters  #
 #= =============== =#
 mutable struct ActorParameters <: Parameters
-    _path::Vector{Symbol}
+    _name::Union{Missing,Symbol}
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
@@ -154,7 +156,7 @@ end
 Generates actor parameters 
 """
 function ActorParameters()
-    act = ActorParameters(Symbol[], Dict{Symbol,Union{Parameter,ActorParameters}}())
+    act = ActorParameters(missing, Dict{Symbol,Union{Parameter,ActorParameters}}())
     for par in subtypes(AbstractActor)
         par = Symbol(replace(string(par), "FUSE." => ""))
         try
@@ -171,7 +173,7 @@ function ActorParameters()
 end
 
 function ActorParameters(::Nothing)
-    return ActorParameters(Symbol[], Dict{Symbol,Union{Parameter,ActorParameters}}())
+    return ActorParameters(missing, Dict{Symbol,Union{Parameter,ActorParameters}}())
 end
 
 function ActorParameters(group::Symbol; kw...)
@@ -184,16 +186,29 @@ end
 #= ========== =#
 #  Parameters  #
 #= ========== =#
-function Base.fieldnames(p::Parameters)
-    return collect(keys(getfield(p, :_parameters)))
+function path(p::Parameters)
+    return [getfield(p, :_name)]
+end
+
+function Base.keys(p::Parameters)
+    return keys(getfield(p, :_parameters))
+end
+
+function Base.getindex(p::Parameters, field::Symbol)
+    return getfield(p, :_parameters)[field]
+end
+
+function Base.setindex!(p::Parameters, value::Any, field::Symbol)
+    return getfield(p, :_parameters)[field] = value
 end
 
 function Base.getproperty(p::Parameters, key::Symbol)
-    _parameters = getfield(p, :_parameters)
-    if key ∉ keys(_parameters)
-        throw(InexistentParameterException(typeof(p), vcat(getfield(p, :_path), key)))
+    if key ∈ fieldnames(typeof(p))
+        return getfield(p, key)
+    elseif key ∉ keys(p)
+        throw(InexistentParameterException(typeof(p), vcat(path(p), key)))
     end
-    parameter = _parameters[key]
+    parameter = p[key]
 
     if typeof(parameter) <: Parameters
         value = parameter
@@ -201,7 +216,7 @@ function Base.getproperty(p::Parameters, key::Symbol)
         value = parameter.value
     elseif typeof(parameter) <: Switch
         if parameter.value === missing
-            throw(NotsetParameterException(vcat(getfield(p, :_path), key), collect(keys(parameter.options))))
+            throw(NotsetParameterException(vcat(path(p), key), collect(keys(parameter.options))))
         end
         value = parameter.options[parameter.value].value
     else
@@ -209,7 +224,7 @@ function Base.getproperty(p::Parameters, key::Symbol)
     end
 
     if value === missing
-        throw(NotsetParameterException(vcat(getfield(p, :_path), key)))
+        throw(NotsetParameterException(vcat(path(p), key)))
     end
 
     return value
@@ -217,25 +232,22 @@ end
 
 function Base.setproperty!(p::Parameters, key::Symbol, value)
     if typeof(value) <: Union{Parameter,Parameters}
-        if typeof(value) <: Parameters
-            setfield!(value, :_path, vcat(getfield(p, :_path), key))
-        end
-        getfield(p, :_parameters)[key] = value
+        setfield!(value, :_name, key)
+        p[key] = value
         return value
     end
 
-    _parameters = getfield(p, :_parameters)
-    if !(key in keys(_parameters))
-        throw(InexistentParameterException(typeof(p), vcat(getfield(p, :_path), key)))
+    if !(key in keys(p))
+        throw(InexistentParameterException(typeof(p), vcat(path(p), key)))
     end
-    parameter = _parameters[key]
+    parameter = p[key]
 
     if typeof(parameter) <: Switch
         try
             return parameter.value = value
         catch e
             if typeof(e) <: BadParameterException # retrhow the exception but add more to the path information
-                throw(BadParameterException(vcat(getfield(p, :_path), key), value, collect(keys(parameter.options))))
+                throw(BadParameterException(vcat(path(p), key), value, collect(keys(parameter.options))))
             end
         end
     else
@@ -257,9 +269,8 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
 end
 
 function Base.show(io::IO, p::Parameters, depth::Int)
-    _parameters = getfield(p, :_parameters)
-    for item in sort(collect(keys(_parameters)))
-        parameter = _parameters[item]
+    for item in sort(collect(keys(p)))
+        parameter = p[item]
         if typeof(parameter) <: Parameters
             printstyled(io, "$(" "^(2*depth))")
             printstyled(io, "$(item)\n"; bold=true)
@@ -289,9 +300,8 @@ function Base.show(io::IO, p::Parameters, depth::Int)
 end
 
 function set_new_base!(p::Parameters)
-    _parameters = getfield(p, :_parameters)
-    for item in sort(collect(keys(_parameters)))
-        parameter = _parameters[item]
+    for item in keys(p)
+        parameter = p[item]
         if typeof(parameter) <: Parameters
             set_new_base!(parameter)
         else
@@ -306,7 +316,7 @@ function Base.show(io::IO, ::MIME"text/plain", p::Parameters)
 end
 
 function Base.ismissing(p::Parameters, field::Symbol)::Bool
-    return getfield(p, :_parameters)[field].value === missing
+    return p[field].value === missing
 end
 
 """
@@ -331,7 +341,7 @@ Return parameter value or `missing` if parameter is missing
 NOTE: This is useful because accessing a `missing` parameter would raise an error
 """
 function evalmissing(p::Parameters, field::Symbol)
-    return getfield(p, :_parameters)[field].value
+    return p[field].value
 end
 
 """
