@@ -12,6 +12,14 @@ using Test
     par.equilibrium.B0 = 1.0
     @test par.equilibrium.B0 == 1.0
 
+    @test par.equilibrium[:B0]._name == :B0
+    @test par[:equilibrium]._name == :equilibrium
+
+    ini = FUSE.InitParameters()
+    ini1 = FUSE.InitParameters()
+    ini.tf = ini1.tf
+    @test ini.tf._parent.value !== ini1.tf._parent.value
+
     @test_throws Exception par.equilibrium.B0 = "a string"
 
     par.equilibrium.B0 = missing
@@ -19,7 +27,7 @@ using Test
 
     @test_throws FUSE.InexistentParameterException par.equilibrium.does_not_exist = 1.0
 
-    @test fieldnames(par.equilibrium) == fieldnames(FUSE.InitParameters(:equilibrium))
+    @test keys(par.equilibrium) == keys(FUSE.InitParameters(:equilibrium))
 
     @test_throws FUSE.InexistentParameterException FUSE.InitParameters(:does_not_exist)
 

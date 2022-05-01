@@ -154,6 +154,17 @@ mutable struct ActorParameters <: Parameters
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
+function ActorParameters(::Nothing)
+    return ActorParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ActorParameters}}())
+end
+
+function ActorParameters(group::Symbol; kw...)
+    if length(methods(ActorParameters, (Type{Val{group}},))) == 0
+        throw(InexistentParameterException(ActorParameters, [group]))
+    end
+    return ActorParameters(Val{group}; kw...)
+end
+
 """
     ActorParameters()
 
@@ -174,17 +185,6 @@ function ActorParameters()
         end
     end
     return act
-end
-
-function ActorParameters(::Nothing)
-    return ActorParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ActorParameters}}())
-end
-
-function ActorParameters(group::Symbol; kw...)
-    if length(methods(ActorParameters, (Type{Val{group}},))) == 0
-        throw(InexistentParameterException(ActorParameters, [group]))
-    end
-    return ActorParameters(Val{group}; kw...)
 end
 
 #= ========== =#
@@ -259,8 +259,8 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
         if typeof(value._parent.value) <: Union{Parameter,Parameters}
             value = deepcopy(value)
         end
-        value._parent = WeakRef(p)
-        value._name = key
+        setfield!(value, :_parent, WeakRef(p))
+        setfield!(value, :_name, key)
         p[key] = value
         return value
     end
