@@ -42,8 +42,8 @@ include(joinpath("ddinit", "init_others.jl"))
 #= ====== =#
 #  ACTORS  #
 #= ====== =#
-abstract type AbstractActor end
-function finalize(actor::AbstractActor)
+abstract type ActorAbstract end
+function finalize(actor::ActorAbstract)
     actor
 end
 include(joinpath("actors", "equilibrium_actor.jl"))

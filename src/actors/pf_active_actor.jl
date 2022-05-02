@@ -4,7 +4,7 @@ import VacuumFields
 using LinearAlgebra
 
 #= =============== =#
-#  PFcoilsOptActor  #
+#  ActorPFcoilsOpt  #
 #= =============== =#
 Base.@kwdef mutable struct PFcoilsOptTrace
     params::Vector{Vector{Real}} = Vector{Real}[]
@@ -13,7 +13,7 @@ Base.@kwdef mutable struct PFcoilsOptTrace
     cost_total::Vector{Real} = Real[]
 end
 
-mutable struct PFcoilsOptActor <: AbstractActor
+mutable struct ActorPFcoilsOpt <: ActorAbstract
     eq_in::IMAS.equilibrium
     eq_out::IMAS.equilibrium
     pf_active::IMAS.pf_active
@@ -24,7 +24,7 @@ mutable struct PFcoilsOptActor <: AbstractActor
     green_model::Symbol
 end
 
-function ActorParameters(::Type{Val{:PFcoilsOptActor}})
+function ActorParameters(::Type{Val{:ActorPFcoilsOpt}})
     par = ActorParameters(nothing)
     options = [
         :point => "one filament per coil",
@@ -47,9 +47,9 @@ function ActorParameters(::Type{Val{:PFcoilsOptActor}})
     return par
 end
 
-function PFcoilsOptActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.PFcoilsOptActor(kw...)
-    actor = PFcoilsOptActor(dd; green_model=par.green_model, symmetric=par.symmetric)
+function ActorPFcoilsOpt(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorPFcoilsOpt(kw...)
+    actor = ActorPFcoilsOpt(dd; green_model=par.green_model, symmetric=par.symmetric)
 
     if par.optimization_scheme == :none
         if par.do_plot
@@ -88,11 +88,11 @@ function PFcoilsOptActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return dd
 end
 
-function PFcoilsOptActor(dd::IMAS.dd; kw...)
-    return PFcoilsOptActor(dd.equilibrium, dd.build, dd.pf_active; kw...)
+function ActorPFcoilsOpt(dd::IMAS.dd; kw...)
+    return ActorPFcoilsOpt(dd.equilibrium, dd.build, dd.pf_active; kw...)
 end
 
-function PFcoilsOptActor(
+function ActorPFcoilsOpt(
     eq_in::IMAS.equilibrium,
     bd::IMAS.build,
     pf::IMAS.pf_active;
@@ -108,13 +108,13 @@ function PFcoilsOptActor(
     eq_out = deepcopy(eq_in)
 
     # constructor
-    pfactor = PFcoilsOptActor(eq_in, eq_out, pf, bd, symmetric, λ_regularize, PFcoilsOptTrace(), green_model)
+    pfactor = ActorPFcoilsOpt(eq_in, eq_out, pf, bd, symmetric, λ_regularize, PFcoilsOptTrace(), green_model)
 
     return pfactor
 end
 
 """
-    step(pfactor::PFcoilsOptActor;
+    step(pfactor::ActorPFcoilsOpt;
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
         λ_ψ=1E-2,
@@ -127,7 +127,7 @@ end
 
 Optimize coil currents and positions to produce sets of equilibria while minimizing coil currents
 """
-function step(pfactor::PFcoilsOptActor;
+function step(pfactor::ActorPFcoilsOpt;
     symmetric=pfactor.symmetric,
     λ_regularize=pfactor.λ_regularize,
     λ_ψ=1E-2,
@@ -150,7 +150,7 @@ function step(pfactor::PFcoilsOptActor;
     if optimization_scheme in [:rail, :currents]
         (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, λ_strike, bd, maxiter, verbose)
     else
-        error("Supported PFcoilsOptActor optimization_scheme are `:currents` or `:rail`")
+        error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
     end
     pfactor.λ_regularize = λ_regularize
     pfactor.trace = trace
@@ -164,11 +164,11 @@ function step(pfactor::PFcoilsOptActor;
 end
 
 """
-    finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size = 1.0)
+    finalize(pfactor::ActorPFcoilsOpt; scale_eq_domain_size = 1.0)
 
 Update pfactor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
-function finalize(pfactor::PFcoilsOptActor; scale_eq_domain_size=1.0, update_eq_in=false)
+function finalize(pfactor::ActorPFcoilsOpt; scale_eq_domain_size=1.0, update_eq_in=false)
     coils = GS_IMAS_pf_active__coil[]
     for (k, coil) in enumerate(pfactor.pf_active.coil)
         if k <= pfactor.bd.pf_active.rail[1].coils_number
@@ -664,11 +664,11 @@ end
 #  plotting  #
 #= ======== =#
 """
-    plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index=1, equilibrium=true, rail=true)
+    plot_pfcoilsactor_cx(pfactor::ActorPFcoilsOpt; time_index=1, equilibrium=true, rail=true)
 
-Plot PFcoilsOptActor optimization cross-section
+Plot ActorPFcoilsOpt optimization cross-section
 """
-@recipe function plot_pfcoilsactor_cx(pfactor::PFcoilsOptActor; time_index=nothing, equilibrium=true, build=true, coils_flux=false, rail=false, plot_r_buffer=1.6)
+@recipe function plot_pfcoilsactor_cx(pfactor::ActorPFcoilsOpt; time_index=nothing, equilibrium=true, build=true, coils_flux=false, rail=false, plot_r_buffer=1.6)
 
     if time_index === nothing
         time_index = length(pfactor.eq_out.time_slice)
@@ -803,7 +803,7 @@ end
 """
     plot_pfcoilsactor_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at::Int=1)
 
-Plot PFcoilsOptActor optimization trace
+Plot ActorPFcoilsOpt optimization trace
 
 Attributes:
 - what::Symbol=:cost or :currents or individual fields of the PFcoilsOptTrace structure

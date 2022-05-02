@@ -132,32 +132,32 @@ end
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-mutable struct FluxSwingActor <: AbstractActor
+mutable struct ActorFluxSwing <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:FluxSwingActor}})
+function ActorParameters(::Type{Val{:ActorFluxSwing}})
     par = ActorParameters(nothing)
     return par
 end
 
-function FluxSwingActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.FluxSwingActor(kw...)
-    actor = FluxSwingActor(dd)
+function ActorFluxSwing(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorFluxSwing(kw...)
+    actor = ActorFluxSwing(dd)
     step(actor)
     finalize(actor)
     return actor
 end
 
 """
-    step(actor::FluxSwingActor; operate_at_j_crit=false, j_tolerance::Float64=0.4, only=:all)
+    step(actor::ActorFluxSwing; operate_at_j_crit=false, j_tolerance::Float64=0.4, only=:all)
 
 operate_at_j_crit=true makes the OH and TF operate at their current limit (within specified tolerance).
 The flattop duration and toroidal magnetic field fall from that.
 Otherwise we evaluate what is the currents needed for a given flattop duration and toroidal magnetic field.
 These currents may or may not exceed the OH and TF current limits.
 """
-function step(actor::FluxSwingActor; operate_at_j_crit::Bool, j_tolerance::Float64=0.4, only=:all)
+function step(actor::ActorFluxSwing; operate_at_j_crit::Bool, j_tolerance::Float64=0.4, only=:all)
     bd = actor.dd.build
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
@@ -271,24 +271,24 @@ end
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
-mutable struct StressesActor <: AbstractActor
+mutable struct ActorStresses <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:StressesActor}})
+function ActorParameters(::Type{Val{:ActorStresses}})
     par = ActorParameters(nothing)
     return par
 end
 
-function StressesActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.StressesActor(kw...)
-    actor = StressesActor(dd)
+function ActorStresses(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorStresses(kw...)
+    actor = ActorStresses(dd)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function step(actor::StressesActor)
+function step(actor::ActorStresses)
     eq = actor.dd.equilibrium
     bd = actor.dd.build
     sm = actor.dd.solid_mechanics
@@ -331,7 +331,7 @@ function step(actor::StressesActor)
 
 end
 
-@recipe function plot_StressesActor(actor::StressesActor)
+@recipe function Actorplot_Stresses(actor::ActorStresses)
     @series begin
         actor.dd.solid_mechanics.center_stack.stress
     end
@@ -340,23 +340,23 @@ end
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-mutable struct LFSsizingActor <: AbstractActor
+mutable struct ActorLFSsizing <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:LFSsizingActor}})
+function ActorParameters(::Type{Val{:ActorLFSsizing}})
     par = ActorParameters(nothing)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
 
-function LFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.LFSsizingActor(kw...)
+function ActorLFSsizing(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorLFSsizing(kw...)
     if par.do_plot
         plot(dd.build)
     end
-    actor = LFSsizingActor(dd)
+    actor = ActorLFSsizing(dd)
     step(actor; par.verbose)
     finalize(actor)
     if par.do_plot
@@ -365,7 +365,7 @@ function LFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::LFSsizingActor; verbose::Bool=false)
+function step(actor::ActorLFSsizing; verbose::Bool=false)
     dd = actor.dd
 
     new_TF_radius = IMAS.R_tf_ripple(IMAS.get_build(dd.build, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
@@ -398,12 +398,12 @@ end
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-mutable struct HFSsizingActor <: AbstractActor
-    stresses_actor::StressesActor
-    fluxswing_actor::FluxSwingActor
+mutable struct ActorHFSsizing <: ActorAbstract
+    stresses_actor::ActorStresses
+    fluxswing_actor::ActorFluxSwing
 end
 
-function ActorParameters(::Type{Val{:HFSsizingActor}})
+function ActorParameters(::Type{Val{:ActorHFSsizing}})
     par = ActorParameters(nothing)
     par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
     par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
@@ -414,14 +414,14 @@ function ActorParameters(::Type{Val{:HFSsizingActor}})
     return par
 end
 
-function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.HFSsizingActor(kw...)
+function ActorHFSsizing(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorHFSsizing(kw...)
     if par.do_plot
         p = plot(dd.build)
     end
-    fluxswing_actor = FluxSwingActor(dd)
-    stresses_actor = StressesActor(dd)
-    actor = HFSsizingActor(stresses_actor, fluxswing_actor)
+    fluxswing_actor = ActorFluxSwing(dd)
+    stresses_actor = ActorStresses(dd)
+    actor = ActorHFSsizing(stresses_actor, fluxswing_actor)
     step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_aspect_ratio=par.fixed_aspect_ratio, unconstrained_flattop_duration=par.unconstrained_flattop_duration)
     finalize(actor)
     if par.do_plot
@@ -430,7 +430,7 @@ function HFSsizingActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::HFSsizingActor; j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_aspect_ratio::Bool=true, unconstrained_flattop_duration::Bool=true, verbose::Bool=false, do_plot=false)
+function step(actor::ActorHFSsizing; j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_aspect_ratio::Bool=true, unconstrained_flattop_duration::Bool=true, verbose::Bool=false, do_plot=false)
 
     function target_value(value, target, tolerance) # relative error with tolerance
         return abs((value .* (1.0 .+ tolerance) .- target) ./ (abs(target) + 1.0))
@@ -625,7 +625,7 @@ function step(actor::HFSsizingActor; j_tolerance::Real=0.4, stress_tolerance::Re
         @assert rel_error(dd.build.oh.flattop_estimate, dd.build.oh.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_estimate) --> $(dd.build.oh.flattop_duration))"
     end
     if fixed_aspect_ratio
-        @assert rel_error(ϵ, old_ϵ) < 0.1 "HFSsizingActor: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"
+        @assert rel_error(ϵ, old_ϵ) < 0.1 "ActorHFSsizing: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"
     end
 
     return actor
@@ -635,20 +635,20 @@ end
 #  cross-section  #
 #= ============= =#
 
-mutable struct CXbuildActor <: AbstractActor
+mutable struct ActorCXbuild <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:CXbuildActor}})
+function ActorParameters(::Type{Val{:ActorCXbuild}})
     par = ActorParameters(nothing)
     par.rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     return par
 end
 
-function CXbuildActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.CXbuildActor(kw...)
-    actor = CXbuildActor(dd)
+function ActorCXbuild(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorCXbuild(kw...)
+    actor = ActorCXbuild(dd)
     step(actor; rebuild_wall=par.rebuild_wall)
     finalize(actor)
     if par.do_plot
@@ -658,7 +658,7 @@ function CXbuildActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::CXbuildActor; rebuild_wall::Bool=true)
+function step(actor::ActorCXbuild; rebuild_wall::Bool=true)
     if rebuild_wall
         empty!(actor.dd.wall)
     end

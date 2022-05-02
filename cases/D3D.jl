@@ -38,7 +38,7 @@ function case_parameters(::Type{Val{:D3D}})
     ini.nbi.beam_mass = 2
     ini.nbi.toroidal_angle = 20.0 / 180 * pi
 
-    act.PFcoilsOptActor.symmetric = true
+    act.ActorPFcoilsOpt.symmetric = true
 
     return set_new_base!(ini), set_new_base!(act)
 end

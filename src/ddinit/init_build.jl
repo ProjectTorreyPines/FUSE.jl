@@ -97,7 +97,7 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
     dd.build.tf.shape = Int(to_enum(ini.tf.shape))
 
     # 2D build cross-section
-    CXbuildActor(dd, act)
+    ActorCXbuild(dd, act)
 
     # flattop duration
     dd.build.oh.flattop_duration = ini.oh.flattop_duration

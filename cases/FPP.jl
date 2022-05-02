@@ -41,7 +41,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1)
     ini.material.shield = "Tungsten"
     ini.material.blanket = "lithium-lead"
 
-    act.PFcoilsOptActor.symmetric = true
+    act.ActorPFcoilsOpt.symmetric = true
 
     return set_new_base!(ini), set_new_base!(act)
 end

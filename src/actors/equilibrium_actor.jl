@@ -3,14 +3,14 @@ import ForwardDiff
 import Optim
 
 #= ============ =#
-#  SolovevActor  #
+#  ActorSolovev  #
 #= ============ =#
-mutable struct SolovevActor <: AbstractActor
+mutable struct ActorSolovev <: ActorAbstract
     eq::IMAS.equilibrium
     S::SolovevEquilibrium
 end
 
-function ActorParameters(::Type{Val{:SolovevActor}})
+function ActorParameters(::Type{Val{:ActorSolovev}})
     par = ActorParameters(nothing)
     par.ngrid = Entry(Integer, "", "ngrid"; default=129)
     par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
@@ -21,21 +21,21 @@ function ActorParameters(::Type{Val{:SolovevActor}})
     return par
 end
 
-function SolovevActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.SolovevActor(kw...)
-    actor = SolovevActor(dd.equilibrium)
+function ActorSolovev(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorSolovev(kw...)
+    actor = ActorSolovev(dd.equilibrium)
     step(actor; verbose=par.verbose)
     finalize(actor, ngrid=par.ngrid, volume=evalmissing(par, :volume), area=evalmissing(par, :area))
-    # record optimized values of qstar and alpha in `act` for subsequent SolovevActor calls
+    # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
     par.qstar = actor.S.qstar
     par.alpha = actor.S.alpha
     return actor
 end
 
 """
-    function SolovevActor(eq::IMAS.equilibrium; qstar = 1.5, alpha = 0.0)
+    function ActorSolovev(eq::IMAS.equilibrium; qstar = 1.5, alpha = 0.0)
 
-Constructor for the SolovevActor structure
+Constructor for the ActorSolovev structure
 “One size fits all” analytic solutions to the Grad–Shafranov equation
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 
@@ -43,7 +43,7 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 
 - alpha: Constant affecting the pressure
 """
-function SolovevActor(eq::IMAS.equilibrium; qstar=1.5, alpha=0.0)
+function ActorSolovev(eq::IMAS.equilibrium; qstar=1.5, alpha=0.0)
     eqt = eq.time_slice[]
     a = eqt.boundary.minor_radius
     R0 = eqt.boundary.geometric_axis.r
@@ -66,15 +66,15 @@ function SolovevActor(eq::IMAS.equilibrium; qstar=1.5, alpha=0.0)
     end
     S0 = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
-    SolovevActor(eq, S0)
+    ActorSolovev(eq, S0)
 end
 
 """
-    step(actor::SolovevActor; verbose=false)
+    step(actor::ActorSolovev; verbose=false)
 
 Non-linear optimization to obtain a target `ip` and `beta_normal`
 """
-function step(actor::SolovevActor; verbose=false)
+function step(actor::ActorSolovev; verbose=false)
     S0 = actor.S
 
     eqt = actor.eq.time_slice[]
@@ -110,16 +110,16 @@ end
 
 """
     function finalize(
-        actor::SolovevActor;
+        actor::ActorSolovev;
         ngrid::Int = 129,
         rlims::NTuple{2,<:Real} = (maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
         zlims::NTuple{2,<:Real} = (-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2)
     )::IMAS.equilibrium__time_slice
 
-Store SolovevActor data in IMAS.equilibrium format
+Store ActorSolovev data in IMAS.equilibrium format
 """
 function finalize(
-    actor::SolovevActor;
+    actor::ActorSolovev;
     ngrid::Int=129,
     volume::Union{Missing,Real}=missing,
     area::Union{Missing,Real}=missing,

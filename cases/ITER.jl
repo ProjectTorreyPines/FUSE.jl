@@ -11,8 +11,8 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
 
     if init_from == :ods
         ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "ITER_eq_ods.json")
-        act.CXbuildActor.rebuild_wall = false
-        act.HFSsizingActor.fixed_aspect_ratio = true
+        act.ActorCXbuild.rebuild_wall = false
+        act.ActorHFSsizing.fixed_aspect_ratio = true
     else
         ini.equilibrium.R0 = 6.2
         ini.equilibrium.ϵ = 0.32
@@ -24,8 +24,8 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
         ini.equilibrium.βn = 2.0
         ini.equilibrium.x_point = true
         ini.equilibrium.symmetric = false
-        act.CXbuildActor.rebuild_wall = true
-        act.HFSsizingActor.fixed_aspect_ratio = true
+        act.ActorCXbuild.rebuild_wall = true
+        act.ActorHFSsizing.fixed_aspect_ratio = true
     end
 
     # explicitly set thickness of 
@@ -71,7 +71,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
     ini.ec.power_launched = 2 * 10e6
     ini.ic.power_launched = 24 * 1e6
 
-    act.PFcoilsOptActor.symmetric = true
+    act.ActorPFcoilsOpt.symmetric = true
 
     return set_new_base!(ini), set_new_base!(act)
 end

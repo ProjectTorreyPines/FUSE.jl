@@ -91,7 +91,7 @@ function init_equilibrium(dd::IMAS.dd, ini::InitParameters, act::ActorParameters
             symmetric=ini.equilibrium.symmetric)
 
         # solve equilibrium
-        SolovevActor(dd, act)
+        ActorSolovev(dd, act)
     end
 
     # field null surface

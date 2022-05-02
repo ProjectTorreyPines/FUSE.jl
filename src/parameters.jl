@@ -172,7 +172,7 @@ Generates actor parameters
 """
 function ActorParameters()
     act = ActorParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ActorParameters}}())
-    for par in subtypes(AbstractActor)
+    for par in subtypes(ActorAbstract)
         par = Symbol(replace(string(par), "FUSE." => ""))
         try
             setproperty!(act, par, ActorParameters(par))

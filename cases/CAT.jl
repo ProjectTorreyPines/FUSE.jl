@@ -39,7 +39,7 @@ function case_parameters(::Type{Val{:CAT}})
     ini.nbi.beam_mass = 2
     ini.nbi.toroidal_angle = 0.0
 
-    act.PFcoilsOptActor.symmetric = true
+    act.ActorPFcoilsOpt.symmetric = true
 
     return set_new_base!(ini), set_new_base!(act)
 end

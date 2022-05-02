@@ -1,9 +1,9 @@
 import QED
 
 #= =============== =#
-#  QEDcurrentActor  #
+#  ActorQEDcurrent  #
 #= =============== =#
-mutable struct QEDcurrentActor <: AbstractActor
+mutable struct ActorQEDcurrent <: ActorAbstract
     dd::IMAS.dd
     QI::QED.QED_state
     η#::Base.Callable
@@ -12,24 +12,24 @@ mutable struct QEDcurrentActor <: AbstractActor
     tmax
 end
 
-function ActorParameters(::Type{Val{:QEDcurrentActor}})
+function ActorParameters(::Type{Val{:ActorQEDcurrent}})
     par = ActorParameters(nothing)
     return par
 end
 
-function QEDcurrentActor(dd::IMAS.dd, act::ActorParameters)
-    par = act.QEDcurrentActor(kw...)
-    actor = QEDcurrentActor(dd)
+function ActorQEDcurrent(dd::IMAS.dd, act::ActorParameters)
+    par = act.ActorQEDcurrent(kw...)
+    actor = ActorQEDcurrent(dd)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function QEDcurrentActor(dd::IMAS.dd)
-    QEDcurrentActor(dd, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), 0.0)
+function ActorQEDcurrent(dd::IMAS.dd)
+    ActorQEDcurrent(dd, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), 0.0)
 end
 
-function step(actor::QEDcurrentActor, tmax, Nt, Vedge=nothing, Ip=nothing; resume=false)
+function step(actor::ActorQEDcurrent, tmax, Nt, Vedge=nothing, Ip=nothing; resume=false)
     if resume
         if actor.QO !== missing
             actor.QI = actor.QO
@@ -43,7 +43,7 @@ function step(actor::QEDcurrentActor, tmax, Nt, Vedge=nothing, Ip=nothing; resum
     actor.QO = QED.diffuse(actor.QI, actor.η, tmax, Nt; Vedge, Ip)
 end
 
-function finalize(actor::QEDcurrentActor)
+function finalize(actor::ActorQEDcurrent)
     dd = actor.dd
 
     eqt = dd.equilibrium.time_slice[]

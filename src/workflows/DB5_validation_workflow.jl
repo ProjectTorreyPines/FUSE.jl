@@ -20,10 +20,10 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::InitParameters,
     FUSE.init_core_profiles(dd, ini, act)
     FUSE.init_core_sources(dd, ini, act)
 
-    act.TauennActor.warn_nn_train_bounds = warn_nn_train_bounds
-    act.TauennActor.transport_model = transport_model
-    act.TauennActor.verbose = verbose
-    FUSE.EquilibriumTransportActor(dd, act; do_plot=do_plot)
+    act.ActorTauenn.warn_nn_train_bounds = warn_nn_train_bounds
+    act.ActorTauenn.transport_model = transport_model
+    act.ActorTauenn.verbose = verbose
+    FUSE.ActorEquilibriumTransport(dd, act; do_plot=do_plot)
 
     if !isempty(save_directory)
         IMAS.imas2json(dd, joinpath(save_directory, "$(ini.general.casename).json"))

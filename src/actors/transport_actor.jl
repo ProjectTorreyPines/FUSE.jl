@@ -4,13 +4,13 @@ import TAUENN
 #     TAUENN actor   #
 #= ================ =#
 
-mutable struct TauennActor <: AbstractActor
+mutable struct ActorTauenn <: ActorAbstract
     dd::IMAS.dd
     tauenn_parameters::TAUENN.TauennParameters
     tauenn_outputs::TAUENN.TauennOutputs
 end
 
-function ActorParameters(::Type{Val{:TauennActor}})
+function ActorParameters(::Type{Val{:ActorTauenn}})
     par = ActorParameters(nothing)
     par.error = Entry(Real, "", "Error level"; default=1E-2)
     par.eped_factor = Entry(Real, "", "Scaling parameter for EPED-NN prediction"; default=1.0)
@@ -24,12 +24,12 @@ function ActorParameters(::Type{Val{:TauennActor}})
     return par
 end
 
-function TauennActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.TauennActor(kw...)
+function ActorTauenn(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorTauenn(kw...)
     if par.do_plot
         plot(dd.core_profiles; color=:gray, label="")
     end
-    actor = TauennActor(dd;
+    actor = ActorTauenn(dd;
         error=par.error,
         eped_factor=par.eped_factor,
         rho_fluxmatch=par.rho_fluxmatch,
@@ -48,15 +48,15 @@ function TauennActor(dd::IMAS.dd, act::ActorParameters; kw...)
     return dd
 end
 
-function TauennActor(dd::IMAS.dd; kw...)
+function ActorTauenn(dd::IMAS.dd; kw...)
     tauenn_parameters = TAUENN.TauennParameters()
     for key in keys(kw)
         setfield!(tauenn_parameters, key, kw[key])
     end
-    return TauennActor(dd, tauenn_parameters, TAUENN.TauennOutputs())
+    return ActorTauenn(dd, tauenn_parameters, TAUENN.TauennOutputs())
 end
 
-function step(actor::TauennActor; verbose=false)
+function step(actor::ActorTauenn; verbose=false)
     actor.tauenn_outputs = TAUENN.tau_enn(actor.dd, actor.tauenn_parameters; verbose)
     return actor
 end

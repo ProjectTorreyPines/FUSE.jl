@@ -47,7 +47,7 @@ using Test
 
     @test_throws UndefKeywordError FUSE.case_parameters(:ITER)
 
-    for par in subtypes(FUSE.AbstractActor)
+    for par in subtypes(FUSE.ActorAbstract)
         par = Symbol(replace(string(par), "FUSE." => ""))
         @test typeof(FUSE.ActorParameters(par)) <: FUSE.ActorParameters
     end

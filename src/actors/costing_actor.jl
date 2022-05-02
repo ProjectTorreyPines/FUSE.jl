@@ -95,24 +95,24 @@ end
 #  costing #
 #= ======= =#
 
-mutable struct CostingActor <: AbstractActor
+mutable struct ActorCosting <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:CostingActor}})
+function ActorParameters(::Type{Val{:ActorCosting}})
     par = ActorParameters(nothing)
     return par
 end
 
-function CostingActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.CostingActor(kw...)
-    actor = CostingActor(dd)
+function ActorCosting(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorCosting(kw...)
+    actor = ActorCosting(dd)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function step(actor::CostingActor)
+function step(actor::ActorCosting)
     dd = actor.dd
     cst = dd.costing
     empty!(cst)
@@ -149,7 +149,7 @@ function step(actor::CostingActor)
     return actor
 end
 
-function finalize(actor::CostingActor)
+function finalize(actor::ActorCosting)
     # sort system/subsystem costs
     sort!(actor.dd.costing.system, by=x -> x.cost, rev=true)
     for sys in actor.dd.costing.system

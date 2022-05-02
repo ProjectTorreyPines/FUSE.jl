@@ -1,27 +1,27 @@
 
 #= ========================= =#
-#  EquilibriumTransportActor  #
+#  ActorEquilibriumTransport  #
 #= ========================= =#
-mutable struct EquilibriumTransportActor <: AbstractActor
+mutable struct ActorEquilibriumTransport <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:EquilibriumTransportActor}})
+function ActorParameters(::Type{Val{:ActorEquilibriumTransport}})
     par = ActorParameters(nothing)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.iterations = Entry(Int, "", "transport-equilibrium iterations"; default=1)
     return par
 end
 
-function EquilibriumTransportActor(dd::IMAS.dd, act::ActorParameters; kw...)
-    par = act.EquilibriumTransportActor(kw...)
-    actor = EquilibriumTransportActor(dd)
+function ActorEquilibriumTransport(dd::IMAS.dd, act::ActorParameters; kw...)
+    par = act.ActorEquilibriumTransport(kw...)
+    actor = ActorEquilibriumTransport(dd)
     step(actor; act, iterations=par.iterations, do_plot=par.do_plot)
     finalize(actor)
     return actor
 end
 
-function step(actor::EquilibriumTransportActor;  act::Union{Missing,ActorParameters}=missing, iterations::Int=1, do_plot::Bool=false)
+function step(actor::ActorEquilibriumTransport;  act::Union{Missing,ActorParameters}=missing, iterations::Int=1, do_plot::Bool=false)
     dd = actor.dd
     if act === missing
         act = ActorParameters()
@@ -32,7 +32,7 @@ function step(actor::EquilibriumTransportActor;  act::Union{Missing,ActorParamet
 
     for iteration in 1:iterations
         # run transport actor
-        TauennActor(dd, act)
+        ActorTauenn(dd, act)
 
         # Set beta_normal from equilbrium to the kinetic beta_n
         if !isempty(dd.core_profiles.profiles_1d)
@@ -40,7 +40,7 @@ function step(actor::EquilibriumTransportActor;  act::Union{Missing,ActorParamet
         end
 
         # run equilibrium actor with the updated beta
-        SolovevActor(dd, act)
+        ActorSolovev(dd, act)
 
         # Set j_ohmic to steady state
         IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
