@@ -331,7 +331,7 @@ function step(actor::ActorStresses)
 
 end
 
-@recipe function Actorplot_Stresses(actor::ActorStresses)
+@recipe function plot_ActorStresses(actor::ActorStresses)
     @series begin
         actor.dd.solid_mechanics.center_stack.stress
     end

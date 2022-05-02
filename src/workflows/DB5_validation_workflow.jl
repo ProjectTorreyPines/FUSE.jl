@@ -7,15 +7,28 @@ using ProgressMeter
 ProgressMeter.ijulia_behavior(:clear)
 
 """
-    simple_equilibrium_transport_workflow(dd::IMAS.dd,
-                                ini::ParametersInit;
-                                act::ParametersActor;
-                                save_directory::String,
-                                do_plot :: Bool)
+    workflow_simple_equilibrium_transport(
+        dd::IMAS.dd,
+        ini::ParametersInit,
+        act::ParametersActor;
+        save_directory::String="",
+        do_plot::Bool=false,
+        warn_nn_train_bounds=true,
+        transport_model=:tglfnn,
+        verbose=false)
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
+function workflow_simple_equilibrium_transport(
+    dd::IMAS.dd,
+    ini::ParametersInit,
+    act::ParametersActor;
+    save_directory::String="",
+    do_plot::Bool=false,
+    warn_nn_train_bounds=true,
+    transport_model=:tglfnn,
+    verbose=false)
+
     FUSE.init_equilibrium(dd, ini, act) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, ini, act)
     FUSE.init_core_sources(dd, ini, act)
@@ -32,7 +45,7 @@ function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::ParametersInit,
 end
 
 """
-    function HDB5_validation_workflow(;
+    workflow_HDB5_validation(;
         tokamak::Union{String,Symbol}=:all,
         n_samples_per_tokamak::Union{Integer,Symbol}=10,
         save_directory::String="",
@@ -43,7 +56,7 @@ end
 
 Runs n_samples of the HDB5 database (https://osf.io/593q6) and stores results in save_directory
 """
-function HDB5_validation_workflow(;
+function workflow_HDB5_validation(;
     tokamak::Union{String,Symbol}=:all,
     n_samples_per_tokamak::Union{Integer,Symbol}=10,
     save_directory::String="",
@@ -70,7 +83,7 @@ function HDB5_validation_workflow(;
     run_df[:, "T0_fuse"] = zeros(n_cases)
     run_df[:, "error_message"] = ["" for i in 1:n_cases]
 
-    # Run simple_equilibrium_transport_workflow on each of the selected cases
+    # Run workflow_simple_equilibrium_transport on each of the selected cases
     data_rows = @showprogress pmap(row -> FUSE.run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
     for k in 1:length(data_rows)
         run_df[k, :] = data_rows[k]
@@ -102,7 +115,7 @@ function run_HDB5_from_data_row(data_row, act::Union{ParametersActor,Missing}=mi
         if ismissing(act)
             act = ACT
         end
-        dd = FUSE.simple_equilibrium_transport_workflow(dd, ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
+        dd = FUSE.workflow_simple_equilibrium_transport(dd, ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
         data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
         data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
         data_row[:error_message] = ""
@@ -124,7 +137,7 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String
     function R_squared(x, y)
         return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x) / length(x)) .^ 2)
     end
-    
+
     function mean_relative_error(x, y)
         return sum(abs.((y .- x) ./ x)) / length(x)
     end
