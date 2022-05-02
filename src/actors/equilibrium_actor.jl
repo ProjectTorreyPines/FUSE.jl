@@ -10,8 +10,8 @@ mutable struct ActorSolovev <: ActorAbstract
     S::SolovevEquilibrium
 end
 
-function ActorParameters(::Type{Val{:ActorSolovev}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorSolovev}})
+    par = ParametersActor(nothing)
     par.ngrid = Entry(Integer, "", "ngrid"; default=129)
     par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
     par.alpha = Entry(Real, "", "Initial guess of constant relating to beta regime"; default=0.0)
@@ -21,7 +21,7 @@ function ActorParameters(::Type{Val{:ActorSolovev}})
     return par
 end
 
-function ActorSolovev(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorSolovev(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorSolovev(kw...)
     actor = ActorSolovev(dd.equilibrium)
     step(actor; verbose=par.verbose)

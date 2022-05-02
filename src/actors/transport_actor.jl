@@ -6,12 +6,12 @@ import TAUENN
 
 mutable struct ActorTauenn <: ActorAbstract
     dd::IMAS.dd
-    tauenn_parameters::TAUENN.TauennParameters
+    tauenn_parameters::TAUENN.ParametersTauenn
     tauenn_outputs::TAUENN.TauennOutputs
 end
 
-function ActorParameters(::Type{Val{:ActorTauenn}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorTauenn}})
+    par = ParametersActor(nothing)
     par.error = Entry(Real, "", "Error level"; default=1E-2)
     par.eped_factor = Entry(Real, "", "Scaling parameter for EPED-NN prediction"; default=1.0)
     par.rho_fluxmatch = Entry(Real, "", "radial location where flux-macthing is done"; default=0.6)
@@ -24,7 +24,7 @@ function ActorParameters(::Type{Val{:ActorTauenn}})
     return par
 end
 
-function ActorTauenn(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorTauenn(kw...)
     if par.do_plot
         plot(dd.core_profiles; color=:gray, label="")
@@ -49,7 +49,7 @@ function ActorTauenn(dd::IMAS.dd, act::ActorParameters; kw...)
 end
 
 function ActorTauenn(dd::IMAS.dd; kw...)
-    tauenn_parameters = TAUENN.TauennParameters()
+    tauenn_parameters = TAUENN.ParametersTauenn()
     for key in keys(kw)
         setfield!(tauenn_parameters, key, kw[key])
     end

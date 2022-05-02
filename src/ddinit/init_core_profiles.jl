@@ -1,5 +1,5 @@
 import TAUENN: Hmode_profiles
-function init_core_profiles(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
+function init_core_profiles(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
     if init_from == :gasc # remove init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk=:DT)

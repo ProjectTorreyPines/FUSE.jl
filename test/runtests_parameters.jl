@@ -2,10 +2,10 @@ using Revise
 using FUSE
 using Test
 
-@testset "InitParameters" begin
-    par = FUSE.InitParameters()
+@testset "ParametersInit" begin
+    par = FUSE.ParametersInit()
 
-    @test typeof(par.equilibrium) <: FUSE.InitParameters
+    @test typeof(par.equilibrium) <: FUSE.ParametersInit
 
     @test_throws FUSE.NotsetParameterException par.equilibrium.B0
 
@@ -15,8 +15,8 @@ using Test
     @test par.equilibrium[:B0]._name == :B0
     @test par[:equilibrium]._name == :equilibrium
 
-    ini = FUSE.InitParameters()
-    ini1 = FUSE.InitParameters()
+    ini = FUSE.ParametersInit()
+    ini1 = FUSE.ParametersInit()
     ini.tf = ini1.tf
     @test ini.tf._parent.value !== ini1.tf._parent.value
 
@@ -27,15 +27,15 @@ using Test
 
     @test_throws FUSE.InexistentParameterException par.equilibrium.does_not_exist = 1.0
 
-    @test keys(par.equilibrium) == keys(FUSE.InitParameters(:equilibrium))
+    @test keys(par.equilibrium) == keys(FUSE.ParametersInit(:equilibrium))
 
-    @test_throws FUSE.InexistentParameterException FUSE.InitParameters(:does_not_exist)
+    @test_throws FUSE.InexistentParameterException FUSE.ParametersInit(:does_not_exist)
 
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
 
-    @test typeof(ini) <: FUSE.InitParameters
+    @test typeof(ini) <: FUSE.ParametersInit
 
-    @test typeof(act) <: FUSE.ActorParameters
+    @test typeof(act) <: FUSE.ParametersActor
 
     @test ini.equilibrium.B0 == -5.3
 
@@ -43,13 +43,13 @@ using Test
 
     @test_throws FUSE.BadParameterException ini.general.init_from = :odsa
 
-    @test_throws FUSE.InexistentParameterException FUSE.InitParameters(:inexistent_group)
+    @test_throws FUSE.InexistentParameterException FUSE.ParametersInit(:inexistent_group)
 
     @test_throws UndefKeywordError FUSE.case_parameters(:ITER)
 
     for par in subtypes(FUSE.ActorAbstract)
         par = Symbol(replace(string(par), "FUSE." => ""))
-        @test typeof(FUSE.ActorParameters(par)) <: FUSE.ActorParameters
+        @test typeof(FUSE.ParametersActor(par)) <: FUSE.ParametersActor
     end
 
 end

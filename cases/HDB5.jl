@@ -18,8 +18,8 @@ end
 
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
-    ini = InitParameters()
-    act = ActorParameters()
+    ini = ParametersInit()
+    act = ParametersActor()
     ini.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     ini.general.init_from = :scalars
 

@@ -211,7 +211,7 @@ function init_pf_active(
     return pf_active
 end
 
-function init_pf_active(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
+function init_pf_active(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
     if init_from == :gasc
@@ -243,7 +243,7 @@ function init_pf_active(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
     return dd
 end
 
-function assign_coil_technology(dd::IMAS.dd, ini::InitParameters, coil_type::Symbol)
+function assign_coil_technology(dd::IMAS.dd, ini::ParametersInit, coil_type::Symbol)
     if coil_type ∉ [:tf, :oh, :pf_active]
         error("assign_coil_technology coil_type can only be [:tf, :oh, :pf_active]")
     end

@@ -136,12 +136,12 @@ mutable struct ActorFluxSwing <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:ActorFluxSwing}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorFluxSwing}})
+    par = ParametersActor(nothing)
     return par
 end
 
-function ActorFluxSwing(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
     actor = ActorFluxSwing(dd)
     step(actor)
@@ -275,12 +275,12 @@ mutable struct ActorStresses <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:ActorStresses}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorStresses}})
+    par = ParametersActor(nothing)
     return par
 end
 
-function ActorStresses(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorStresses(kw...)
     actor = ActorStresses(dd)
     step(actor)
@@ -344,14 +344,14 @@ mutable struct ActorLFSsizing <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:ActorLFSsizing}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorLFSsizing}})
+    par = ParametersActor(nothing)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
 
-function ActorLFSsizing(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorLFSsizing(kw...)
     if par.do_plot
         plot(dd.build)
@@ -403,8 +403,8 @@ mutable struct ActorHFSsizing <: ActorAbstract
     fluxswing_actor::ActorFluxSwing
 end
 
-function ActorParameters(::Type{Val{:ActorHFSsizing}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorHFSsizing}})
+    par = ParametersActor(nothing)
     par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
     par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
     par.fixed_aspect_ratio = Entry(Bool, "", "Raise an error if aspect_ratio changes more than 10%"; default=true)
@@ -414,7 +414,7 @@ function ActorParameters(::Type{Val{:ActorHFSsizing}})
     return par
 end
 
-function ActorHFSsizing(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorHFSsizing(kw...)
     if par.do_plot
         p = plot(dd.build)
@@ -639,14 +639,14 @@ mutable struct ActorCXbuild <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:ActorCXbuild}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorCXbuild}})
+    par = ParametersActor(nothing)
     par.rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     return par
 end
 
-function ActorCXbuild(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorCXbuild(kw...)
     actor = ActorCXbuild(dd)
     step(actor; rebuild_wall=par.rebuild_wall)
@@ -950,7 +950,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # display(plot!(layer.outline.r, layer.outline.z))
 end
 
-function assign_build_layers_materials(dd::IMAS.dd, ini::InitParameters)
+function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersInit)
     bd = dd.build
     for (k, layer) in enumerate(bd.layer)
         if k == 1 && ini.center_stack.plug

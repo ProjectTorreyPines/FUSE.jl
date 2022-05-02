@@ -60,7 +60,7 @@ end
 #= ========== =#
 #  init build  #
 #= ========== =#
-function init_build(dd::IMAS.dd, ini::Parameters, act::ActorParameters)
+function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
     init_from = ini.general.init_from
     if init_from == :gasc
         init_from = :scalars

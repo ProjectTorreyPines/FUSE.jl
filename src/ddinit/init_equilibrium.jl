@@ -58,7 +58,7 @@ function init_equilibrium(
     return eq
 end
 
-function init_equilibrium(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
+function init_equilibrium(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
     if init_from == :gasc

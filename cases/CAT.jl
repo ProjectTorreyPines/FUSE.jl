@@ -1,6 +1,6 @@
 function case_parameters(::Type{Val{:CAT}})
-    ini = InitParameters()
-    act = ActorParameters()
+    ini = ParametersInit()
+    act = ParametersActor()
 
     ini.general.casename = "CAT"
     ini.general.init_from = :ods

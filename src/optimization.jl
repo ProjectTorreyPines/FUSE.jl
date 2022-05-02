@@ -48,7 +48,7 @@ ObjectiveFunction(:min_cost, "\$M", dd -> dd.costing.cost, -Inf)
 ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[])/1E6, Inf)
 ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_estimate/3600, Inf)
 
-function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{T}) where {T<:ObjectiveFunction}
+function optimization_engine(func::Function, dd::IMAS.dd, ini::ParametersInit, act::ParametersActor, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{T}) where {T<:ObjectiveFunction}
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
         if typeof(optpar.value) <: Integer
@@ -68,7 +68,7 @@ function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, a
     return collect(map(f -> f(dd), objectives_functions)), x * 0, x * 0
 end
 
-function optimization_engine(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{T}, p) where {T<:ObjectiveFunction}
+function optimization_engine(func::Function, dd::IMAS.dd, ini::ParametersInit, act::ParametersActor, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{T}, p) where {T<:ObjectiveFunction}
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = pmap(x -> optimization_engine(func, dd, ini, act, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])

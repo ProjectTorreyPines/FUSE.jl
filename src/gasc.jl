@@ -41,8 +41,8 @@ end
 Map GASC inputs and solution to FUSE input scalar parameters
 """
 function case_parameters(gasc::GASC)
-    ini = InitParameters()
-    act = ActorParameters()
+    ini = ParametersInit()
+    act = ParametersActor()
 
     ini.gasc.filename = gasc.filename
     ini.gasc.case = gasc.case
@@ -60,7 +60,7 @@ function case_parameters(gasc::GASC)
     return set_new_base!(ini), set_new_base!(act)
 end
 
-function gasc_2_core_profiles(gasc::GASC, ini::InitParameters, act::ActorParameters)
+function gasc_2_core_profiles(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     gascsol = gasc.solution
 
     ini.core_profiles.ne_ped = gascsol["OUTPUTS"]["plasma parameters"]["neped"] * 1e20
@@ -77,7 +77,7 @@ function gasc_2_core_profiles(gasc::GASC, ini::InitParameters, act::ActorParamet
     return ini
 end
 
-function gasc_2_equilibrium(gasc::GASC, ini::InitParameters, act::ActorParameters)
+function gasc_2_equilibrium(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     gascsol = gasc.solution
     ini.equilibrium.B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
     ini.equilibrium.R0 = gascsol["INPUTS"]["radial build"]["majorRadius"]
@@ -92,7 +92,7 @@ function gasc_2_equilibrium(gasc::GASC, ini::InitParameters, act::ActorParameter
     return ini
 end
 
-function gasc_2_sources(gasc::GASC, ini::InitParameters, act::ActorParameters)
+function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     gascsol = gasc.solution
 
     inputs = gascsol["INPUTS"]["current drive"]
@@ -154,7 +154,7 @@ function gasc_2_sources(gasc::GASC, ini::InitParameters, act::ActorParameters)
     return ini
 end
 
-function gasc_2_build(gasc::GASC, ini::InitParameters, act::ActorParameters)
+function gasc_2_build(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     gascsol = gasc.solution
     ini.build.layers = gasc_to_layers(gascsol)
     ini.build.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)

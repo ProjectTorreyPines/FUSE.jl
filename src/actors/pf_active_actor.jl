@@ -24,8 +24,8 @@ mutable struct ActorPFcoilsOpt <: ActorAbstract
     green_model::Symbol
 end
 
-function ActorParameters(::Type{Val{:ActorPFcoilsOpt}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
+    par = ParametersActor(nothing)
     options = [
         :point => "one filament per coil",
         :simple => "like :point, but OH coils have three filaments",
@@ -47,7 +47,7 @@ function ActorParameters(::Type{Val{:ActorPFcoilsOpt}})
     return par
 end
 
-function ActorPFcoilsOpt(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorPFcoilsOpt(kw...)
     actor = ActorPFcoilsOpt(dd; green_model=par.green_model, symmetric=par.symmetric)
 

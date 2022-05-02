@@ -6,14 +6,14 @@ mutable struct ActorEquilibriumTransport <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:ActorEquilibriumTransport}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorEquilibriumTransport}})
+    par = ParametersActor(nothing)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.iterations = Entry(Int, "", "transport-equilibrium iterations"; default=1)
     return par
 end
 
-function ActorEquilibriumTransport(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorEquilibriumTransport(kw...)
     actor = ActorEquilibriumTransport(dd)
     step(actor; act, iterations=par.iterations, do_plot=par.do_plot)
@@ -21,10 +21,10 @@ function ActorEquilibriumTransport(dd::IMAS.dd, act::ActorParameters; kw...)
     return actor
 end
 
-function step(actor::ActorEquilibriumTransport;  act::Union{Missing,ActorParameters}=missing, iterations::Int=1, do_plot::Bool=false)
+function step(actor::ActorEquilibriumTransport;  act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
     dd = actor.dd
     if act === missing
-        act = ActorParameters()
+        act = ParametersActor()
     end
 
     # Set j_ohmic to steady state

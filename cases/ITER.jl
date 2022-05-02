@@ -1,6 +1,6 @@
 function case_parameters(::Type{Val{:ITER}}; init_from)
-    ini = InitParameters()
-    act = ActorParameters()
+    ini = ParametersInit()
+    act = ParametersActor()
     ini.general.casename = "ITER_$(init_from)"
     ini.general.init_from = init_from
 

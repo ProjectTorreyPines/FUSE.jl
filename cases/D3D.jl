@@ -1,6 +1,6 @@
 function case_parameters(::Type{Val{:D3D}})
-    ini = InitParameters()
-    act = ActorParameters()
+    ini = ParametersInit()
+    act = ParametersActor()
 
     ini.general.casename = "D3D"
     ini.general.init_from = :ods

@@ -8,14 +8,14 @@ ProgressMeter.ijulia_behavior(:clear)
 
 """
     simple_equilibrium_transport_workflow(dd::IMAS.dd,
-                                ini::InitParameters;
-                                act::ActorParameters;
+                                ini::ParametersInit;
+                                act::ParametersActor;
                                 save_directory::String,
                                 do_plot :: Bool)
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::InitParameters, act::ActorParameters; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
+function simple_equilibrium_transport_workflow(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; save_directory::String="", do_plot::Bool=false, warn_nn_train_bounds=true, transport_model=:tglfnn, verbose=false)
     FUSE.init_equilibrium(dd, ini, act) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, ini, act)
     FUSE.init_core_sources(dd, ini, act)
@@ -95,7 +95,7 @@ function HDB5_validation_workflow(;
     return run_df, failed_df
 end
 
-function run_HDB5_from_data_row(data_row, act::Union{ActorParameters,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
+function run_HDB5_from_data_row(data_row, act::Union{ParametersActor,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
     try
         dd = IMAS.dd()
         ini, ACT = FUSE.case_parameters(data_row)

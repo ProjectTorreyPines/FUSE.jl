@@ -1,4 +1,4 @@
-function multiobjective_optimization_workflow(func::Function, dd::IMAS.dd, ini::InitParameters, act::ActorParameters, objectives_functions::AbstractVector{T}=ObjectiveFunction[]; N=10, iterations=N) where {T<:ObjectiveFunction}
+function multiobjective_optimization_workflow(func::Function, dd::IMAS.dd, ini::ParametersInit, act::ParametersActor, objectives_functions::AbstractVector{T}=ObjectiveFunction[]; N=10, iterations=N) where {T<:ObjectiveFunction}
     display("Running on $(nprocs()) processes")
     if isempty(objectives_functions)
         error("Must specify objective functions. Available pre-baked functions from ObjectivesFunctionsLibrary:\n  * " * join(keys(ObjectivesFunctionsLibrary), "\n  * "))

@@ -126,56 +126,56 @@ function Base.setproperty!(p::Switch, key::Symbol, value)
 end
 
 #= ============== =#
-#  InitParameters  #
+#  ParametersInit  #
 #= ============== =#
-mutable struct InitParameters <: Parameters
+mutable struct ParametersInit <: Parameters
     _name::Union{Missing,Symbol}
     _parent::WeakRef
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
-function InitParameters(::Nothing)
-    return InitParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,InitParameters}}())
+function ParametersInit(::Nothing)
+    return ParametersInit(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersInit}}())
 end
 
-function InitParameters(group::Symbol; kw...)
-    if length(methods(InitParameters, (Type{Val{group}},))) == 0
-        throw(InexistentParameterException(InitParameters, [group]))
+function ParametersInit(group::Symbol; kw...)
+    if length(methods(ParametersInit, (Type{Val{group}},))) == 0
+        throw(InexistentParameterException(ParametersInit, [group]))
     end
-    return InitParameters(Val{group}; kw...)
+    return ParametersInit(Val{group}; kw...)
 end
 
 #= =============== =#
-#  ActorParameters  #
+#  ParametersActor  #
 #= =============== =#
-mutable struct ActorParameters <: Parameters
+mutable struct ParametersActor <: Parameters
     _name::Union{Missing,Symbol}
     _parent::WeakRef
     _parameters::Dict{Symbol,Union{Parameter,Parameters}}
 end
 
-function ActorParameters(::Nothing)
-    return ActorParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ActorParameters}}())
+function ParametersActor(::Nothing)
+    return ParametersActor(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersActor}}())
 end
 
-function ActorParameters(group::Symbol; kw...)
-    if length(methods(ActorParameters, (Type{Val{group}},))) == 0
-        throw(InexistentParameterException(ActorParameters, [group]))
+function ParametersActor(group::Symbol; kw...)
+    if length(methods(ParametersActor, (Type{Val{group}},))) == 0
+        throw(InexistentParameterException(ParametersActor, [group]))
     end
-    return ActorParameters(Val{group}; kw...)
+    return ParametersActor(Val{group}; kw...)
 end
 
 """
-    ActorParameters()
+    ParametersActor()
 
 Generates actor parameters 
 """
-function ActorParameters()
-    act = ActorParameters(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ActorParameters}}())
+function ParametersActor()
+    act = ParametersActor(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersActor}}())
     for par in subtypes(ActorAbstract)
         par = Symbol(replace(string(par), "FUSE." => ""))
         try
-            setproperty!(act, par, ActorParameters(par))
+            setproperty!(act, par, ParametersActor(par))
         catch e
             if typeof(e) <: InexistentParameterException
                 @warn e

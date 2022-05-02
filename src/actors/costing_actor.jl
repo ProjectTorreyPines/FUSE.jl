@@ -99,12 +99,12 @@ mutable struct ActorCosting <: ActorAbstract
     dd::IMAS.dd
 end
 
-function ActorParameters(::Type{Val{:ActorCosting}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorCosting}})
+    par = ParametersActor(nothing)
     return par
 end
 
-function ActorCosting(dd::IMAS.dd, act::ActorParameters; kw...)
+function ActorCosting(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorCosting(kw...)
     actor = ActorCosting(dd)
     step(actor)

@@ -1,4 +1,4 @@
-function init_missing(dd::IMAS.dd, ini::InitParameters, act::ActorParameters)
+function init_missing(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
     if init_from == :ods

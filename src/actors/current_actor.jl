@@ -12,12 +12,12 @@ mutable struct ActorQEDcurrent <: ActorAbstract
     tmax
 end
 
-function ActorParameters(::Type{Val{:ActorQEDcurrent}})
-    par = ActorParameters(nothing)
+function ParametersActor(::Type{Val{:ActorQEDcurrent}})
+    par = ParametersActor(nothing)
     return par
 end
 
-function ActorQEDcurrent(dd::IMAS.dd, act::ActorParameters)
+function ActorQEDcurrent(dd::IMAS.dd, act::ParametersActor)
     par = act.ActorQEDcurrent(kw...)
     actor = ActorQEDcurrent(dd)
     step(actor)
