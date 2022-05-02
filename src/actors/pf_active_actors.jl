@@ -224,8 +224,8 @@ mutable struct GS_IMAS_pf_active__coil <: VacuumFields.AbstractCoil
     turns_with_sign::Real
     spacing::Real
     coil_tech::Union{IMAS.build__oh__technology,IMAS.build__pf_active__technology}
-    current_data::Vector{T} where {T<:Real}
-    current_time::Vector{T} where {T<:Real}
+    current_data::Vector{<:Real}
+    current_time::Vector{<:Real}
     time_index::Int
     green_model::Symbol
 end

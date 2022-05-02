@@ -10,7 +10,7 @@ import IMAS: BuildLayerShape, _convex_hull_, _offset_, _princeton_D_exact_, _pri
 #= ========================================== =#
 #  Visualization of IMAS.build.layer as table  #
 #= ========================================== =#
-function DataFrames.DataFrame(layers::IMAS.IDSvector{T} where {T<:IMAS.build__layer})
+function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
     df = DataFrames.DataFrame(group=String[], name=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[])
     for layer in layers
         material = IMAS.evalmissing(layer, :material)
@@ -35,7 +35,7 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{T} where {T<:IMAS.build__la
     return df
 end
 
-function Base.show(io::IO, ::MIME"text/plain", layers::IMAS.IDSvector{T} where {T<:IMAS.build__layer})
+function Base.show(io::IO, ::MIME"text/plain", layers::IMAS.IDSvector{<:IMAS.build__layer})
     old_lines = get(ENV, "LINES", missing)
     old_columns = get(ENV, "COLUMNS", missing)
     df = DataFrames.DataFrame(layers)

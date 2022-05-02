@@ -92,7 +92,7 @@ function Switch(options::Dict{Any,SwitchOption}, units::String, description::Str
     return Switch(missing, WeakRef(missing), options, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Pair}
+function Switch(options::Vector{<:Pair}, units::String, description::String; default=missing)
     opts = Dict{Any,SwitchOption}()
     for (key, desc) in options
         opts[key] = SwitchOption(key, desc)
@@ -100,7 +100,7 @@ function Switch(options::Vector{T}, units::String, description::String; default=
     return Switch(missing, WeakRef(missing), opts, units, description, default, default, default)
 end
 
-function Switch(options::Vector{T}, units::String, description::String; default=missing) where {T<:Union{Symbol,String}}
+function Switch(options::Vector{<:Union{Symbol,String}}, units::String, description::String; default=missing)
     opts = Dict{eltype(options),SwitchOption}()
     for key in options
         opts[key] = SwitchOption(key, "$key")
@@ -108,7 +108,7 @@ function Switch(options::Vector{T}, units::String, description::String; default=
     return Switch(missing, WeakRef(missing), opts, units, description, default, default, default)
 end
 
-function Switch(options, ids::Type{T}, field::Symbol; default=missing) where {T<:IMAS.IDS}
+function Switch(options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing)
     location = "$(IMAS._f2u(ids)).$(field)"
     txt = IMAS.info(location)
     return Switch(options, get(txt, "units", ""), get(txt, "documentation", ""); default)
