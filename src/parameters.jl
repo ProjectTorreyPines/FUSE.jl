@@ -3,35 +3,6 @@ using InteractiveUtils: subtypes
 abstract type Parameter end
 abstract type Parameters end
 
-#= ======================= =#
-#  Optimization parameters  #
-#= ======================= =#
-struct OptParameter
-    nominal::Real
-    lower::Real
-    upper::Real
-end
-
-function ↔(x::Real, r::AbstractVector)
-    @assert typeof(x) == typeof(r[1]) == typeof(r[end]) "type of optimization range does not match the nominal value"
-    return OptParameter(x, r[1], r[end])
-end
-
-function opt_parameters(p::Parameters, opt_vector=Parameter[])
-    _parameters = getfield(p, :_parameters)
-    for k in keys(_parameters)
-        parameter = _parameters[k]
-        if typeof(parameter) <: Parameters
-            opt_parameters(parameter, opt_vector)
-        elseif typeof(parameter) <: Entry
-            if parameter.lower !== missing
-                push!(opt_vector, parameter)
-            end
-        end
-    end
-    return opt_vector
-end
-
 #= ===== =#
 #  Entry  #
 #= ===== =#
@@ -123,6 +94,60 @@ function Base.setproperty!(p::Switch, key::Symbol, value)
         throw(BadParameterException([key], value, collect(keys(p.options))))
     end
     return setfield!(p, :value, value)
+end
+
+function parameter_color(p::Parameter)
+    value = p.value
+    if value === missing
+        color = :yellow
+    elseif typeof(value) == typeof(p.default) && value == p.default
+        color = :green
+    elseif typeof(value) == typeof(p.base) && value == p.base
+        color = :blue
+    else
+        color = :red
+    end
+end
+
+function Base.show(io::IO, p::Parameter)
+    color = parameter_color(p)
+    printstyled(io, join(path(p), "."); bold=true, color=color)
+    for item in fieldnames(typeof(p))
+        if startswith(string(item), "_")
+            continue
+        end
+        printstyled(io, "\n- $item: "; bold=true)
+        printstyled(io, "$(getfield(p, item))")
+    end
+end
+
+#= ====================== =#
+#  Optimization parameter  #
+#= ====================== =#
+struct OptParameter
+    nominal::Real
+    lower::Real
+    upper::Real
+end
+
+function ↔(x::Real, r::AbstractVector)
+    @assert typeof(x) == typeof(r[1]) == typeof(r[end]) "type of optimization range does not match the nominal value"
+    return OptParameter(x, r[1], r[end])
+end
+
+function opt_parameters(p::Parameters, opt_vector=Parameter[])
+    _parameters = getfield(p, :_parameters)
+    for k in keys(_parameters)
+        parameter = _parameters[k]
+        if typeof(parameter) <: Parameters
+            opt_parameters(parameter, opt_vector)
+        elseif typeof(parameter) <: Entry
+            if parameter.lower !== missing
+                push!(opt_vector, parameter)
+            end
+        end
+    end
+    return opt_vector
 end
 
 #= ============== =#
@@ -306,15 +331,7 @@ function Base.show(io::IO, p::Parameters, depth::Int)
         else
             value = parameter.value
             units = parameter.units
-            if value === missing
-                color = :yellow
-            elseif typeof(value) == typeof(parameter.default) && value == parameter.default
-                color = :green
-            elseif typeof(value) == typeof(parameter.base) && value == parameter.base
-                color = :blue
-            else
-                color = :red
-            end
+            color = parameter_color(parameter)
             printstyled(io, "$(" "^(2*depth))")
             printstyled(io, "$(item)"; color=color)
             printstyled(io, " ➡ "; color=:red)
