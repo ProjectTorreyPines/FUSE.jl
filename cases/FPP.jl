@@ -29,7 +29,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1)
 
     ini.core_profiles.zeff = 1.1 ↔ [1.1, 2.5]
     ini.core_profiles.greenwald_fraction = 0.9 ↔ [0.8, 0.95]
-    ini.ec.power_launched = 45 * 10e6 ↔ [30 * 10e6, 100 * 10e6]
+    ini.ec.power_launched = 45e6 ↔ [30e6, 100e6]
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 16
