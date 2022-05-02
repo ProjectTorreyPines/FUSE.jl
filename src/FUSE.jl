@@ -46,14 +46,14 @@ abstract type ActorAbstract end
 function finalize(actor::ActorAbstract)
     actor
 end
-include(joinpath("actors", "equilibrium_actor.jl"))
-include(joinpath("actors", "pf_active_actor.jl"))
-include(joinpath("actors", "build_actor.jl"))
-include(joinpath("actors", "current_actor.jl"))
-include(joinpath("actors", "sources_actor.jl"))
-include(joinpath("actors", "transport_actor.jl"))
-include(joinpath("actors", "costing_actor.jl"))
-include(joinpath("actors", "compound_actor.jl"))
+include(joinpath("actors", "equilibrium_actors.jl"))
+include(joinpath("actors", "pf_active_actors.jl"))
+include(joinpath("actors", "build_actors.jl"))
+include(joinpath("actors", "current_actors.jl"))
+include(joinpath("actors", "sources_actors.jl"))
+include(joinpath("actors", "transport_actors.jl"))
+include(joinpath("actors", "costing_actors.jl"))
+include(joinpath("actors", "compound_actors.jl"))
 
 #= ============ =#
 #  OPTIMIZATION  #

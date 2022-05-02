@@ -6,7 +6,7 @@ import TAUENN
 
 mutable struct ActorTauenn <: ActorAbstract
     dd::IMAS.dd
-    tauenn_parameters::TAUENN.ParametersTauenn
+    tauenn_parameters::TAUENN.TauennParameters
     tauenn_outputs::TAUENN.TauennOutputs
 end
 
@@ -49,7 +49,7 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
 end
 
 function ActorTauenn(dd::IMAS.dd; kw...)
-    tauenn_parameters = TAUENN.ParametersTauenn()
+    tauenn_parameters = TAUENN.TauennParameters()
     for key in keys(kw)
         setfield!(tauenn_parameters, key, kw[key])
     end
