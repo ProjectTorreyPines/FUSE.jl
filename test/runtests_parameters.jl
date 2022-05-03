@@ -1,6 +1,7 @@
 using Revise
 using FUSE
 using Test
+using InteractiveUtils: subtypes
 
 @testset "ParametersInit" begin
     par = FUSE.ParametersInit()
