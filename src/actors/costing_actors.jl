@@ -91,9 +91,9 @@ function cost(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__tech
     return IMAS.volume(coil) * unit_cost(technology)
 end
 
-#= ======= =#
-#  costing #
-#= ======= =#
+#= ============ =#
+#  ActorCosting  #
+#= ============ =#
 
 mutable struct ActorCosting <: ActorAbstract
     dd::IMAS.dd

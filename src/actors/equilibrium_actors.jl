@@ -12,7 +12,7 @@ end
 
 function ParametersActor(::Type{Val{:ActorSolovev}})
     par = ParametersActor(nothing)
-    par.ngrid = Entry(Integer, "", "ngrid"; default=129)
+    par.ngrid = Entry(Integer, "", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
     par.alpha = Entry(Real, "", "Initial guess of constant relating to beta regime"; default=0.0)
     par.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
