@@ -2,6 +2,13 @@ JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
 JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
 CURRENTDIR = $(shell pwd)
 
+define clone_update_repo
+    if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	cd $(JULIA_PKG_DEVDIR);\
+	if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; fi
+	cd $(JULIA_PKG_DEVDIR)/$(1); git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+endef
+
 all:
 	@echo 'FUSE makefile help'
 	@echo ''
@@ -24,7 +31,7 @@ Pkg.activate();\
 Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite"]);\
 '
 
-develop: registry develop_no_registry
+develop: update_all registry develop_no_registry
 
 sysimage:
 	julia -e '\
@@ -49,56 +56,65 @@ using Pkg;\
 Pkg.add("IJulia");\
 Pkg.build("IJulia");\
 '
+	python3 -m pip install --upgrade webio_jupyter_extension
 
 precompile:
 	julia -e 'using Pkg; Pkg.activate("."); Pkg.precompile()'
 
 update_all:
-	make -j 100 update_FUSE update_IMAS update_IMASDD update_CoordinateConventions update_FusionMaterials update_VacuumFields update_Equilibrium update_TAUENN update_EPEDNN update_TGLFNN update_QED update_FiniteElementHermite
+	make -j 100 FUSE IMAS IMASDD CoordinateConventions FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite
 
 update: develop update_all precompile
 
-update_FUSE:
-	cd $(JULIA_PKG_DEVDIR)/FUSE; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+FUSE:
+	$(call clone_update_repo,$@)
 
-update_IMAS:
-	cd $(JULIA_PKG_DEVDIR)/IMAS; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+IMAS:
+	$(call clone_update_repo,$@)
 
-update_IMASDD:
-	cd $(JULIA_PKG_DEVDIR)/IMASDD; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+IMASDD:
+	$(call clone_update_repo,$@)
 
-update_CoordinateConventions:
-	cd $(JULIA_PKG_DEVDIR)/CoordinateConventions; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+CoordinateConventions:
+	$(call clone_update_repo,$@)
 
-update_FusionMaterials:
-	cd $(JULIA_PKG_DEVDIR)/FusionMaterials; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+FusionMaterials:
+	$(call clone_update_repo,$@)
 
-update_VacuumFields:
-	cd $(JULIA_PKG_DEVDIR)/VacuumFields; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+VacuumFields:
+	$(call clone_update_repo,$@)
 
-update_Equilibrium:
-	cd $(JULIA_PKG_DEVDIR)/Equilibrium; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+Equilibrium:
+	$(call clone_update_repo,$@)
 
-update_TAUENN:
-	cd $(JULIA_PKG_DEVDIR)/TAUENN; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+TAUENN:
+	$(call clone_update_repo,$@)
 
-update_TGLFNN:
-	cd $(JULIA_PKG_DEVDIR)/TGLFNN; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+TGLFNN:
+	$(call clone_update_repo,$@)
 
-update_EPEDNN:
-	cd $(JULIA_PKG_DEVDIR)/EPEDNN; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+EPEDNN:
+	$(call clone_update_repo,$@)
 
-update_QED:
-	cd $(JULIA_PKG_DEVDIR)/QED; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+QED:
+	$(call clone_update_repo,$@)
 
-update_FiniteElementHermite:
-	cd $(JULIA_PKG_DEVDIR)/FiniteElementHermite; git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+FiniteElementHermite:
+	$(call clone_update_repo,$@)
+
+paramak_build:
+	$(call clone_update_repo,$@)
 
 docker_image:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile ..
 	cp .gitignore ../.dockerignore
-	cd .. ; cat ./Dockerfile
+	cd .. ; sudo docker build -t julia_fuse .
+
+docker_fresh:
+	rm -rf ../Dockerfile
+	cp docker/Dockerfile_fresh ../Dockerfile
+	cp .gitignore ../.dockerignore
 	cd .. ; sudo docker build -t julia_fuse .
 
 docker_volume:
