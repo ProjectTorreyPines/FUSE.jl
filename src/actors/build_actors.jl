@@ -877,7 +877,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         target_minimum_distance = lfs_thickness
     else
         if tight
-            target_minimum_distance = min(hfs_thickness, lfs_thickness)
+            target_minimum_distance = sqrt(hfs_thickness * lfs_thickness) * 0.9
         else
             target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
         end

@@ -201,7 +201,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         end
 
         # return cost
-        return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + cost_up_down_symmetry^2
+        return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2
     end
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
