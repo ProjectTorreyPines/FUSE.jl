@@ -6,7 +6,7 @@ define clone_update_repo
     if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	cd $(JULIA_PKG_DEVDIR);\
 	if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; fi
-	cd $(JULIA_PKG_DEVDIR)/$(1); git fetch; git pull; julia -e 'using Pkg; Pkg.activate("."); Pkg.resolve()'
+	cd $(JULIA_PKG_DEVDIR)/$(1); git fetch; git pull'
 endef
 
 all:
@@ -102,9 +102,6 @@ QED:
 FiniteElementHermite:
 	$(call clone_update_repo,$@)
 
-paramak_build:
-	$(call clone_update_repo,$@)
-
 docker_image:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile ..
@@ -115,7 +112,7 @@ docker_fresh:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile_fresh ../Dockerfile
 	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build -t julia_fuse .
+	cd .. ; sudo docker build --no-cache --progress=plain -t julia_fuse .
 
 docker_volume:
 	docker volume create FUSE
