@@ -6,7 +6,7 @@ define clone_update_repo
     if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	cd $(JULIA_PKG_DEVDIR);\
 	if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; fi
-	cd $(JULIA_PKG_DEVDIR)/$(1); git fetch; git pull
+	cd $(JULIA_PKG_DEVDIR)/$(1); git pull
 endef
 
 all:
