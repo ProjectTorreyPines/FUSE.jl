@@ -744,64 +744,70 @@ end
 function blanket_from_neutron_flux(bd::IMAS.build, ntt::IMAS.neutronics__time_slice; update_radial_build=false, do_plot=false)
     neutronics = IMAS.top_ids(ntt)
 
-    function plot_blanket(wall_r, wall_z, blanket_r, blanket_z)
-        wall_r_ = vcat(wall_r, wall_r[1])
-        blanket_r_ = vcat(blanket_r, blanket_r[1])
-        wall_z_ = vcat(wall_z, wall_z[1])
-        blanket_z_ = vcat(blanket_z, blanket_z[1])
-        plot!(wall_r_, wall_z_, aspect_ratio=:equal, label="First wall")
-        plot!(blanket_r_, blanket_z_, label="Blanket")
-        display(plot!(xlim=[minimum(wall_r) * 0.5, maximum(wall_r) * 1.5]))
-    end
-
     bl_hfs = IMAS.get_build(bd, type=_blanket_, fs=_hfs_)
     bl_lfs = IMAS.get_build(bd, type=_blanket_, fs=_lfs_)
     plasma = IMAS.get_build(bd, type=_plasma_)
 
     nfw_r = neutronics.first_wall.r
     wall_z = neutronics.first_wall.z
-    nfw_r1 = minimum(nfw_r)
-    nfw_r2 = maximum(nfw_r)
+    imin = argmin(nfw_r)
+    imax = argmax(nfw_r)
+
+    # magnitude of the wall neutron flux
+    nflux = sqrt.(ntt.wall_loading.flux_r .^ 2.0 .+ ntt.wall_loading.flux_z .^ 2.0)
+    nfluxmax = maximum(nflux)
 
     # here we need to loop because updating the blanket layers thicknesses changes the
     # plasma position, which in turns affects the blanket build because of the 1/R dependency
     for k in 1:20
         # move the neutronics.first_wall in R to where the plasma is now
-        fact = (plasma.end_radius - plasma.start_radius) / (nfw_r2 - nfw_r1)
-        wall_r = (nfw_r .- nfw_r1) .* fact .+ plasma.start_radius
+        fact = (plasma.end_radius - plasma.start_radius) / (nfw_r[imax] - nfw_r[imin])
+        wall_r = (nfw_r .- nfw_r[imin]) .* fact .+ plasma.start_radius
 
-        wall_dr = deepcopy(ntt.wall_loading.flux_r)
-        wall_dz = deepcopy(ntt.wall_loading.flux_z)
-        nflux = sqrt.(wall_dr .^ 2.0 .+ wall_dz .^ 2.0)
+        # start with wall displacement proportional to neutron flux
+        wall_dr = ntt.wall_loading.flux_r
+        wall_dz = ntt.wall_loading.flux_z
 
-        # coefficient α sets how much blanket thickness should be proportional to neutron flux versus constant
+        # coefficient α sets how much blanket thickness should be proportional to neutron flux versus constant thickness
         α = 0.9
-        wall_dr = wall_dr ./ maximum(nflux) * α .+ wall_dr ./ nflux * (1 - α)
-        wall_dz = wall_dz ./ maximum(nflux) * α .+ wall_dz ./ nflux * (1 - α)
+        wall_dr = wall_dr ./ nfluxmax * α .+ wall_dr ./ nflux * (1 - α)
+        wall_dz = wall_dz ./ nfluxmax * α .+ wall_dz ./ nflux * (1 - α)
 
-        # scale
-        wall_dr ./= wall_r # to account for high/low-field side difference in volume
+        # scale to fit blanket within given TF
+        wall_dr ./= wall_r # 1/R factor to account for high/low-field side difference in volume
         wall_dz ./= wall_r
         scale = ((bl_lfs.end_radius - bl_hfs.start_radius) - (plasma.end_radius - plasma.start_radius)) ./ (maximum(wall_dr) - minimum(wall_dr))
         wall_dr .*= scale
         wall_dz .*= scale
-
         blanket_r = wall_r .+ wall_dr
         blanket_z = wall_z .+ wall_dz
 
+        # update hfs VS lfs blanket layer thicknesses based on neutron wall load
         if update_radial_build
-            bl_hfs.thickness = plasma.start_radius - minimum(blanket_r)
+            blanket_rmin = minimum(blanket_r)
+            blanket_rmax = maximum(blanket_r)
+            bl_hfs.thickness = plasma.start_radius - blanket_rmin
+            bl_lfs.thickness = blanket_rmax - plasma.end_radius
             bl_hfs.outline.r = vcat(blanket_r, blanket_r[1])
             bl_hfs.outline.z = vcat(blanket_z, blanket_z[1])
-            bl_lfs.thickness = maximum(blanket_r) - plasma.end_radius
-            error = sqrt((bl_hfs.start_radius - minimum(blanket_r)) .^ 2 + (bl_lfs.end_radius - maximum(blanket_r)) .^ 2)
-            if error / (minimum(blanket_r) + maximum(blanket_r)) * 2 < 0.001
+            #bl_hfs.shape = Int(_fixed_outline_)
+            #empty!(bl_hfs, :shape_parameters)
+            error = abs(bl_hfs.start_radius - blanket_rmin) + abs(bl_lfs.end_radius - blanket_rmax)
+            # exit when error is < 0.1%
+            if error / (blanket_rmin + blanket_rmax) < 0.001
                 update_radial_build = false
             end
         end
 
+        # plotting
         if do_plot && !update_radial_build
-            plot_blanket(wall_r, wall_z, blanket_r, blanket_z)
+            wall_r_ = vcat(wall_r, wall_r[1])
+            blanket_r_ = vcat(blanket_r, blanket_r[1])
+            wall_z_ = vcat(wall_z, wall_z[1])
+            blanket_z_ = vcat(blanket_z, blanket_z[1])
+            plot!(wall_r_, wall_z_, aspect_ratio=:equal, label="First wall")
+            plot!(blanket_r_, blanket_z_, label="Blanket")
+            display(plot!(xlim=[minimum(wall_r) * 0.5, maximum(wall_r) * 1.5]))
         end
 
         if !update_radial_build
@@ -852,17 +858,16 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     coils_inside = any([contains(lowercase(l.name), "coils") for l in bd.layer])
 
     # all layers between plasma and OH
-    # k+1 means the layer inside (ie. towards the plasma)
-    # k   is the current layer
     # k-1 means the layer outside (ie. towards the tf)
+    # k   is the current layer
+    # k+1 means the layer inside (ie. towards the plasma)
     # forward pass: from plasma to TF _convex_hull_ and then desired TF shape
     tf_to_plasma = IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true)
     plasma_to_tf = reverse(tf_to_plasma)
     for k in plasma_to_tf
-        if bd.layer[k].type == Int(_blanket_)
-            #pass
-        end
-        if k == itf + 1
+        if !ismissing(bd.layer[k], :shape) && bd.layer[k].shape == Int(_fixed_outline_)
+            # pass
+        elseif k == itf + 1
             # layer that is inside of the TF sets TF shape
             FUSE.optimize_shape(bd, k + 1, k, BuildLayerShape(bd.tf.shape); tight=!coils_inside)
         else
