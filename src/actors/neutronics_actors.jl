@@ -45,8 +45,8 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
     eqt = dd.equilibrium.time_slice[]
 
     # 2D neutron source
-    neutron_source_1d = IMAS.alpha_heating(cp1d) * 4
-    neutron_source_2d = transpose(IMAS.interp1d(cp1d.grid.psi, neutron_source_1d).(eqt.profiles_2d[1].psi))
+    neutron_source_1d = IMAS.alpha_heating(cp1d) * 4 # W/m^3
+    neutron_source_2d = transpose(IMAS.interp1d(cp1d.grid.psi, neutron_source_1d).(eqt.profiles_2d[1].psi)) # W/m^3
 
     # 2D neutron source (masked)
     r = eqt.profiles_2d[1].grid.dim1
@@ -56,10 +56,11 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
     R = [rr for zz in z, rr in r]
     Z = [zz for zz in z, rr in r]
     neutron_source_2d .= neutron_source_2d .* mask
+    neutron_source_2d .*= R .* (2pi * (r[2] - r[1]) * (z[2] - z[1])) # W
 
     # cumulative distribution function
     CDF = cumsum(neutron_source_2d[:])
-    count_per_particle = CDF[end] / N
+    W_per_trace = CDF[end] / N
     CDF .= (CDF .- CDF[1]) ./ (CDF[end] - CDF[1])
     draw = Int.(ceil.(IMAS.interp1d(CDF, 1:length(CDF), :linear).(rand(N))))
 
@@ -78,16 +79,6 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
 
     wall = IMAS.first_wall(dd.wall)
 
-    # plot birth of neutrons
-    if do_plot
-        histogram2d(
-            Rcoord.(neutrons),
-            Zcoord.(neutrons),
-            nbins=(LinRange(minimum(r), maximum(r), length(r) - 1), LinRange(minimum(z), maximum(z), length(z) - 1)),
-            aspect_ratio=:equal)
-        display(plot!(wall.r, wall.z, label="", title="Neutron birth"))
-    end
-
     # advance neutrons until they hit the wall
     rz_wall = collect(zip(wall.r, wall.z))
     Threads.@threads for n in neutrons
@@ -98,43 +89,16 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
         end
     end
 
-    # plot neutrons hit the wall
-    if do_plot
-        histogram2d(
-            Rcoord.(neutrons),
-            Zcoord.(neutrons),
-            nbins=(LinRange(minimum(r), maximum(r), length(r) - 1), LinRange(minimum(z), maximum(z), length(z) - 1)),
-            aspect_ratio=:equal)
-        display(plot!(wall.r, wall.z, label="", title="Neutron first wall hit"))
-    end
-
-    # # wall displacement based on neutrons' incoming direction
-    # wall_dr0 = zeros(size(wall_r))
-    # wall_dz0 = zeros(size(wall_z))
-    # for n in neutrons
-    #     index = argmin((wall_r .- Rcoord(n)) .^ 2.0 + (wall_z .- Zcoord(n)) .^ 2.0)
-    #     old_r = Rcoord(n)
-    #     old_z = Zcoord(n)
-    #     n.x += n.δvx
-    #     n.y += n.δvy
-    #     n.z += n.δvz
-    #     wall_dr0[index] += (Rcoord(n) - old_r)
-    #     wall_dz0[index] += (Zcoord(n) - old_z)
-    # end
-    # wall_r0 = wall_r .+ 0.0
-    # wall_z0 = wall_z .+ 0.0
-
     # find neutron flux [counts/s/m²]
     # smooth the load of each neutron withing a window
-    # `window` approach only works only for equispaced wall segments
     wall_r, wall_z = IMAS.resample_2d_line(wall.r, wall.z)
     wall_r, wall_z = wall_r[1:end-1], wall_z[1:end-1]
     d = sqrt.(IMAS.diff(vcat(wall_r, wall_r[1])) .^ 2.0 .+ IMAS.diff(vcat(wall_z, wall_z[1])) .^ 2.0)
     d = (d + vcat(d[end], d[1:end-1])) / 2.0
-    s = 1.0 ./ (d .* wall_r .* 2pi)
+    s = d .* wall_r .* 2pi
     stencil = collect(-10:10)
-    window = 1.0 ./ (abs.(stencil) .+ 1.0) .- (1.0 / (maximum(stencil) + 1))
-    window = window ./ sum(window) .* count_per_particle
+    window = exp.(-(stencil / 3) .^ 2)
+    window = window ./ sum(window) .* W_per_trace
     nflux_r = zeros(size(wall_r))
     nflux_z = zeros(size(wall_z))
     for n in neutrons
@@ -142,7 +106,6 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
         old_z = Zcoord(n)
         index = argmin((wall_r .- old_r) .^ 2.0 + (wall_z .- old_z) .^ 2.0)
         index = mod.(stencil .+ index .- 1, length(wall_r)) .+ 1
-        tmp = s[index] ./ sum(s[index]) .* window
 
         n.x += n.δvx
         n.y += n.δvy
@@ -150,9 +113,10 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
         new_r = Rcoord(n)
         new_z = Zcoord(n)
 
-        tmp /= sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
-        nflux_r[index] += (new_r - old_r) .* tmp
-        nflux_z[index] += (new_z - old_z) .* tmp
+        smear = window ./ s[index]
+        smear /= sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
+        nflux_r[index] += (new_r - old_r) .* smear
+        nflux_z[index] += (new_z - old_z) .* smear
     end
 
     # IMAS assignements
@@ -164,7 +128,24 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
 
     # plot neutron wall loading cx
     if do_plot
-        display(plot(dd.neutronics.time_slice[], xlim=[minimum(wall_r) * 0.9, maximum(wall_r) * 1.1], title="First wall neutron loading"))
+
+        neutrons = neutron_particle.(
+            R[draw] .* cos.(ϕ),
+            R[draw] .* sin.(ϕ),
+            Z[draw],
+            step * sin.(ϕv) .* cos.(θv),
+            step * sin.(ϕv) .* sin.(θv),
+            step * cos.(ϕv)
+        )
+
+        histogram2d(
+            Rcoord.(neutrons),
+            Zcoord.(neutrons),
+            nbins=(LinRange(minimum(r), maximum(r), length(r) - 1), LinRange(minimum(z), maximum(z), length(z) - 1)),
+            aspect_ratio=:equal,weights=zeros(N).+1/30)
+
+        plot!(dd.neutronics.time_slice[].wall_loading, xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title="First wall neutron loading")
+        display(plot!(wall.r, wall.z, color=:black, label="", xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title=""))
     end
 
 end
