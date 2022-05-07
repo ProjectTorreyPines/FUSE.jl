@@ -15,5 +15,7 @@ WORKDIR /root/.julia/dev
 RUN git config --global pull.rebase false
 RUN git clone git@github.com:ProjectTorreyPines/FUSE.jl.git FUSE
 
-# WORKDIR /root/.julia/dev/FUSE
-# RUN make develop
+WORKDIR /root/.julia/dev/FUSE
+RUN make develop
+
+RUN rm /root/.ssh/id_rsa
