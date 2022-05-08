@@ -95,17 +95,19 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
     wall_r, wall_z = wall_r[1:end-1], wall_z[1:end-1]
     d = sqrt.(IMAS.diff(vcat(wall_r, wall_r[1])) .^ 2.0 .+ IMAS.diff(vcat(wall_z, wall_z[1])) .^ 2.0)
     d = (d + vcat(d[end], d[1:end-1])) / 2.0
+    l = cumsum(d)
     s = d .* wall_r .* 2pi
-    stencil = collect(-10:10)
-    window = exp.(-(stencil / 3) .^ 2)
-    window = window ./ sum(window) .* W_per_trace
+    ns = 5
+    stencil = collect(-ns:ns)
+
     nflux_r = zeros(size(wall_r))
     nflux_z = zeros(size(wall_z))
+    ll = stencil .* 0.0
     for n in neutrons
         old_r = Rcoord(n)
         old_z = Zcoord(n)
-        index = argmin((wall_r .- old_r) .^ 2.0 + (wall_z .- old_z) .^ 2.0)
-        index = mod.(stencil .+ index .- 1, length(wall_r)) .+ 1
+        index0 = argmin((wall_r .- old_r) .^ 2.0 + (wall_z .- old_z) .^ 2.0)
+        index = mod.(stencil .+ index0 .- 1, length(wall_r)) .+ 1
 
         n.x += n.δvx
         n.y += n.δvy
@@ -113,6 +115,10 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
         new_r = Rcoord(n)
         new_z = Zcoord(n)
 
+        ll .= cumsum(d[index])
+        ll .-= ll[ns+1]
+        window = exp.(-(ll ./ (l[end] / length(l)) / ns * 3) .^ 2)
+        window = window ./ sum(window) .* W_per_trace
         smear = window ./ s[index]
         smear /= sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
         nflux_r[index] += (new_r - old_r) .* smear
@@ -142,7 +148,7 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
             Rcoord.(neutrons),
             Zcoord.(neutrons),
             nbins=(LinRange(minimum(r), maximum(r), length(r) - 1), LinRange(minimum(z), maximum(z), length(z) - 1)),
-            aspect_ratio=:equal,weights=zeros(N).+1/30)
+            aspect_ratio=:equal, weights=zeros(N) .+ 1 / 40)
 
         plot!(dd.neutronics.time_slice[].wall_loading, xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title="First wall neutron loading")
         display(plot!(wall.r, wall.z, color=:black, label="", xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title=""))
