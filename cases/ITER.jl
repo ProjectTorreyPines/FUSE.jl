@@ -33,13 +33,13 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
     layers[:gap_OH] = 0.80
     layers[:OH] = 1.30
     layers[:hfs_TF] = 1.10
-    layers[:gap_hfs_vacuum_vessel] = 0.30
+    layers[:hfs_vacuum_vessel] = 0.30
     layers[:hfs_shield] = 0.40
     layers[:hfs_wall] = 0.06
     layers[:plasma] = 4.40
     layers[:lfs_wall] = 0.17
     layers[:lfs_shield] = 0.40
-    layers[:gap_lfs_vacuum_vessel] = 1.05
+    layers[:lfs_vacuum_vessel] = 1.05
     layers[:lfs_TF] = 1.10
     layers[:gap_cryostat] = 2.34
     layers[:cryostat] = 0.30
@@ -57,11 +57,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
     ini.oh.flattop_duration = 1000
 
     ini.core_profiles.ne_ped = 7e19
-    ini.core_profiles.greenwald_fraction = 0.95
+    ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.w_ped = 0.04
-    ini.core_profiles.zeff = 1.5
+    ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
