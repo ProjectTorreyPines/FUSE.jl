@@ -13,20 +13,6 @@ function unwrap(v, inplace=false)
     return unwrapped
 end
 
-function atan_eq(r, z, r0, z0)
-    if r[1] == r[end] && z[1] == z[end]
-        r = r[1:end-1]
-        z = z[1:end-1]
-    end
-    θ = unwrap(atan.(z .- z0, r .- r0))
-    if θ[2] < θ[1]
-        r = reverse(r)
-        z = reverse(z)
-        θ = reverse(θ)
-    end
-    return r, z, θ
-end
-
 """
     returns enum from symbol
 """

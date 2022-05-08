@@ -77,10 +77,20 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
         step * cos.(ϕv)
     )
 
+    # resample wall and make sure it's clockwise (for COCOS = 11)
     wall = IMAS.first_wall(dd.wall)
+    wall_r, wall_z = IMAS.resample_2d_line(wall.r, wall.z)
+    #wall_r, wall_z = deepcopy(wall.r), deepcopy(wall.z)
+    R0 = eqt.global_quantities.magnetic_axis.r
+    Z0 = eqt.global_quantities.magnetic_axis.z
+    θ = unwrap(atan.(wall_z .- Z0, wall_r .- R0))
+    if θ[1] < θ[end]
+        reverse!(wall_r)
+        reverse!(wall_z)
+    end
 
     # advance neutrons until they hit the wall
-    rz_wall = collect(zip(wall.r, wall.z))
+    rz_wall = collect(zip(wall_r, wall_z))
     Threads.@threads for n in neutrons
         while FUSE.PolygonOps.inpolygon((Rcoord(n), Zcoord(n)), rz_wall) == 1
             n.x += n.δvx
@@ -91,13 +101,13 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
 
     # find neutron flux [counts/s/m²]
     # smooth the load of each neutron withing a window
-    wall_r, wall_z = IMAS.resample_2d_line(wall.r, wall.z)
     wall_r, wall_z = wall_r[1:end-1], wall_z[1:end-1]
     d = sqrt.(IMAS.diff(vcat(wall_r, wall_r[1])) .^ 2.0 .+ IMAS.diff(vcat(wall_z, wall_z[1])) .^ 2.0)
-    d = (d + vcat(d[end], d[1:end-1])) / 2.0
+    d = sqrt.(IMAS.gradient(vcat(wall_r, wall_r[1])) .^ 2.0 .+ IMAS.gradient(vcat(wall_z, wall_z[1])) .^ 2.0)
+    d = (d[1:end-1] .+ d[2:end]) / 2.0
     l = cumsum(d)
     s = d .* wall_r .* 2pi
-    ns = 5
+    ns = 10
     stencil = collect(-ns:ns)
 
     nflux_r = zeros(size(wall_r))
@@ -117,12 +127,12 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
 
         ll .= cumsum(d[index])
         ll .-= ll[ns+1]
-        window = exp.(-(ll ./ (l[end] / length(l)) / ns * 3) .^ 2)
-        window = window ./ sum(window) .* W_per_trace
-        smear = window ./ s[index]
-        smear /= sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
-        nflux_r[index] += (new_r - old_r) .* smear
-        nflux_z[index] += (new_z - old_z) .* smear
+        window = exp.(-(ll ./ (l[end] / length(l)) / (2 * ns + 1) * 5) .^ 2)
+        window = window ./ sum(window)
+        unit_vector = sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
+
+        nflux_r[index] += (new_r - old_r) ./ unit_vector .* window .* W_per_trace ./ s[index]
+        nflux_z[index] += (new_z - old_z) ./ unit_vector .* window .* W_per_trace ./ s[index]
     end
 
     # IMAS assignements
