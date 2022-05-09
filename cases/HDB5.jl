@@ -16,7 +16,6 @@ function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any,
     case_parameters(data_row)
 end
 
-
 function case_parameters(data_row::DataFrames.DataFrameRow)
     ini = ParametersInit()
     act = ParametersActor()

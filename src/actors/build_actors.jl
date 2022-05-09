@@ -790,9 +790,7 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     tf_to_plasma = IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true)
     plasma_to_tf = reverse(tf_to_plasma)
     for k in plasma_to_tf
-        if !ismissing(bd.layer[k], :shape) && bd.layer[k].shape == Int(_fixed_outline_)
-            # pass
-        elseif k == itf + 1
+        if k == itf + 1
             # layer that is inside of the TF sets TF shape
             FUSE.optimize_shape(bd, k + 1, k, BuildLayerShape(bd.tf.shape); tight=!coils_inside)
         else
