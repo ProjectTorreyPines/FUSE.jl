@@ -75,9 +75,9 @@ function ActorWholeDevice(dd::IMAS.dd, act::ParametersActor; kw...)
     return actor
 end
 
-function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
+function step(actor::ActorWholeDevice; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
     dd = actor.dd
-    FUSE.ActorEquilibriumTransport(dd, act)
+    FUSE.ActorWholeDevice(dd, act)
     FUSE.ActorHFSsizing(dd, act)
     FUSE.ActorLFSsizing(dd, act)
     FUSE.ActorCXbuild(dd, act)
