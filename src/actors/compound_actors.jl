@@ -21,7 +21,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
     return actor
 end
 
-function step(actor::ActorEquilibriumTransport;  act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
+function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
     dd = actor.dd
     if act === missing
         act = ParametersActor()
@@ -53,4 +53,35 @@ function step(actor::ActorEquilibriumTransport;  act::Union{Missing,ParametersAc
     end
 
     return dd
+end
+
+#= ================ =#
+#  ActorWholeDevice  #
+#= ================ =#
+mutable struct ActorWholeDevice <: ActorAbstract
+    dd::IMAS.dd
+end
+
+function ParametersActor(::Type{Val{:ActorWholeDevice}})
+    par = ParametersActor(nothing)
+    return par
+end
+
+function ActorWholeDevice(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorWholeDevice(kw...)
+    actor = ActorWholeDevice(dd)
+    step(actor; act)
+    finalize(actor)
+    return actor
+end
+
+function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
+    dd = actor.dd
+    FUSE.ActorEquilibriumTransport(dd, act)
+    FUSE.ActorHFSsizing(dd, act)
+    FUSE.ActorLFSsizing(dd, act)
+    FUSE.ActorCXbuild(dd, act)
+    #FUSE.ActorNeutronics(dd, act)
+    FUSE.ActorPFcoilsOpt(dd, act)
+    FUSE.ActorCosting(dd, act)
 end
