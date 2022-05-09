@@ -8,7 +8,6 @@ ProgressMeter.ijulia_behavior(:clear)
 
 """
     workflow_simple_equilibrium_transport(
-        dd::IMAS.dd,
         ini::ParametersInit,
         act::ParametersActor;
         save_directory::String="",
@@ -20,7 +19,6 @@ ProgressMeter.ijulia_behavior(:clear)
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
 function workflow_simple_equilibrium_transport(
-    dd::IMAS.dd,
     ini::ParametersInit,
     act::ParametersActor;
     save_directory::String="",
@@ -29,6 +27,7 @@ function workflow_simple_equilibrium_transport(
     transport_model=:tglfnn,
     verbose=false)
 
+    dd = IMAS.dd()
     FUSE.init_equilibrium(dd, ini, act) # already solves the equilibrium once
     FUSE.init_core_profiles(dd, ini, act)
     FUSE.init_core_sources(dd, ini, act)
@@ -110,12 +109,11 @@ end
 
 function run_HDB5_from_data_row(data_row, act::Union{ParametersActor,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
     try
-        dd = IMAS.dd()
         ini, ACT = FUSE.case_parameters(data_row)
         if ismissing(act)
             act = ACT
         end
-        dd = FUSE.workflow_simple_equilibrium_transport(dd, ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
+        dd = FUSE.workflow_simple_equilibrium_transport(ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
         data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
         data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
         data_row[:error_message] = ""

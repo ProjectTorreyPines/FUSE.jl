@@ -1,6 +1,5 @@
 mutable struct MultiobjectiveOptimizationResults
-    func::Function
-    dd::IMAS.dd
+    workflow::Function
     ini::ParametersInit
     act::ParametersActor
     state::Metaheuristics.State
@@ -8,11 +7,22 @@ mutable struct MultiobjectiveOptimizationResults
     objectives_functions::Vector{<:ObjectiveFunction}
 end
 
+"""
+    workflow_multiobjective_optimization(
+        ini::ParametersInit,
+        act::ParametersActor,
+        workflow::Function,
+        objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
+        N::Int=10,
+        iterations::Int=N,
+        continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing)
+
+Find multi-objective optimum solution for `workflow(ini, act)`
+"""
 function workflow_multiobjective_optimization(
-    func::Function,
-    dd::IMAS.dd,
     ini::ParametersInit,
     act::ParametersActor,
+    workflow::Function,
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
     N::Int=10,
     iterations::Int=N,
@@ -40,7 +50,7 @@ function workflow_multiobjective_optimization(
     bounds = [[optpar.lower for optpar in opt_ini] [optpar.upper for optpar in opt_ini]]'
 
     # test running function with nominal parameters
-    func(dd, ini, act)
+    workflow(ini, act)
 
     # optimize
     options = Metaheuristics.Options(seed=1, parallel_evaluation=true, store_convergence=true, iterations=iterations)
@@ -51,7 +61,7 @@ function workflow_multiobjective_optimization(
     end
     flush(stdout)
     p = Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(func, dd, ini, act, X, opt_ini, objectives_functions, p), bounds, algorithm)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(workflow, ini, act, X, opt_ini, objectives_functions, p), bounds, algorithm)
 
-    return MultiobjectiveOptimizationResults(func, dd, ini, act, state, opt_ini, objectives_functions)
+    return MultiobjectiveOptimizationResults(workflow, ini, act, state, opt_ini, objectives_functions)
 end
