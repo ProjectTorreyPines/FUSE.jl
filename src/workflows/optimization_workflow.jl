@@ -1,12 +1,13 @@
 import Distributed
+import OrderedCollections
 
 mutable struct MultiobjectiveOptimizationResults
     workflow::Union{DataType, Function}
     ini::ParametersInit
     act::ParametersActor
     state::Metaheuristics.State
-    opt_ini::Vector{<:Parameter}
-    objectives_functions::Vector{<:ObjectiveFunction}
+    opt_ini::Vector{Parameter}
+    objectives_functions::Vector{ObjectiveFunction}
 end
 
 """
