@@ -1,5 +1,6 @@
 import Metaheuristics
 using ProgressMeter
+import Distributed
 ProgressMeter.ijulia_behavior(:clear)
 
 mutable struct ObjectiveFunction
@@ -80,7 +81,7 @@ end
 function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType, Function}, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction}, p)
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])
+    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(objectives_functions))
     G = similar(X)
     H = similar(X)
