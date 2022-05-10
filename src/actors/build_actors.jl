@@ -132,7 +132,7 @@ end
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-mutable struct ActorFluxSwing <: ActorAbstract
+mutable struct ActorFluxSwing <: AbstractActor
     dd::IMAS.dd
 end
 
@@ -271,7 +271,7 @@ end
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
-mutable struct ActorStresses <: ActorAbstract
+mutable struct ActorStresses <: AbstractActor
     dd::IMAS.dd
 end
 
@@ -340,7 +340,7 @@ end
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-mutable struct ActorLFSsizing <: ActorAbstract
+mutable struct ActorLFSsizing <: AbstractActor
     dd::IMAS.dd
 end
 
@@ -398,7 +398,7 @@ end
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-mutable struct ActorHFSsizing <: ActorAbstract
+mutable struct ActorHFSsizing <: AbstractActor
     stresses_actor::ActorStresses
     fluxswing_actor::ActorFluxSwing
 end
@@ -635,7 +635,7 @@ end
 #  cross-section  #
 #= ============= =#
 
-mutable struct ActorCXbuild <: ActorAbstract
+mutable struct ActorCXbuild <: AbstractActor
     dd::IMAS.dd
 end
 
@@ -800,7 +800,9 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     end
     # reverse pass: from TF to plasma only with negative offset
     # Blanket layer adapts from wall to TF shape
-    if bd.layer[tf_to_plasma[end]].type == Int(_blanket_)
+    if bd.layer[tf_to_plasma[end]-1].type == Int(_shield_)
+        n = 3
+    elseif bd.layer[tf_to_plasma[end]].type == Int(_blanket_)
         n = 2
     elseif bd.layer[tf_to_plasma[end]].type == Int(_wall_)
         n = 2

@@ -5,7 +5,7 @@ import Optim
 #= ============ =#
 #  ActorSolovev  #
 #= ============ =#
-mutable struct ActorSolovev <: ActorAbstract
+mutable struct ActorSolovev <: AbstractActor
     eq::IMAS.equilibrium
     S::SolovevEquilibrium
 end

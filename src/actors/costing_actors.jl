@@ -95,7 +95,7 @@ end
 #  ActorCosting  #
 #= ============ =#
 
-mutable struct ActorCosting <: ActorAbstract
+mutable struct ActorCosting <: AbstractActor
     dd::IMAS.dd
 end
 

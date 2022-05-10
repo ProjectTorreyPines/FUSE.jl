@@ -2,7 +2,7 @@
 #= ========================= =#
 #  ActorEquilibriumTransport  #
 #= ========================= =#
-mutable struct ActorEquilibriumTransport <: ActorAbstract
+mutable struct ActorEquilibriumTransport <: AbstractActor
     dd::IMAS.dd
 end
 
@@ -58,7 +58,7 @@ end
 #= ================ =#
 #  ActorWholeDevice  #
 #= ================ =#
-mutable struct ActorWholeDevice <: ActorAbstract
+mutable struct ActorWholeDevice <: AbstractActor
     dd::IMAS.dd
 end
 

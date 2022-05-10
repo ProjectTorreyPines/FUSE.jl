@@ -19,7 +19,7 @@ end
 #  ActorNeutronics  #
 #= =============== =#
 
-mutable struct ActorNeutronics <: ActorAbstract
+mutable struct ActorNeutronics <: AbstractActor
     dd::IMAS.dd
 end
 

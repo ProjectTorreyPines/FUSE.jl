@@ -3,7 +3,7 @@ import QED
 #= =============== =#
 #  ActorQEDcurrent  #
 #= =============== =#
-mutable struct ActorQEDcurrent <: ActorAbstract
+mutable struct ActorQEDcurrent <: AbstractActor
     dd::IMAS.dd
     QI::QED.QED_state
     η#::Base.Callable

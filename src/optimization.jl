@@ -53,7 +53,7 @@ function Base.show(io::IO, f::ObjectiveFunction)
     print(io, " [$(f.units)]")
 end
 
-function optimization_engine(func::Function, dd::IMAS.dd, ini::ParametersInit, act::ParametersActor, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction})
+function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType, Function}, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction})
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
         if typeof(optpar.value) <: Integer
@@ -64,19 +64,23 @@ function optimization_engine(func::Function, dd::IMAS.dd, ini::ParametersInit, a
     end
     # call the problem
     try
-        func(dd, ini, act)
+        if typeof(actor_or_workflow) <: DataType
+            dd = actor_or_workflow(init(ini, act), act)
+        else
+            dd = actor_or_workflow(ini, act)
+        end
+        # evaluate multiple objectives
+        return collect(map(f -> f(dd), objectives_functions)), x * 0, x * 0
     catch
         return [Inf for f in objectives_functions], x * 0, x * 0
         #rethrow()
     end
-    # evaluate multiple objectives
-    return collect(map(f -> f(dd), objectives_functions)), x * 0, x * 0
 end
 
-function optimization_engine(func::Function, dd::IMAS.dd, ini::ParametersInit, act::ParametersActor, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction}, p)
+function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType, Function}, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction}, p)
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = pmap(x -> optimization_engine(func, dd, ini, act, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])
+    tmp = pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(objectives_functions))
     G = similar(X)
     H = similar(X)
