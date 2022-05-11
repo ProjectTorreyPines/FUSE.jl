@@ -1,5 +1,5 @@
 import Distributed
-import OrderedCollections
+import OrderedCollections # necassary to allow BSON saving of MultiobjectiveOptimizationResults
 
 mutable struct MultiobjectiveOptimizationResults
     workflow::Union{DataType,Function}
@@ -144,7 +144,7 @@ end
             #append!(c, (s.x[3] for s in sol))
             append!(c, (generation for s in sol))
         end
-        
+
         if length(c) > 0
             marker_z --> c
         end
