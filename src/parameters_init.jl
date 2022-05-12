@@ -135,6 +135,7 @@ function ParametersInit(::Type{Val{:build}})
     build.shield = Entry(Float64, "", "Fraction of shield in radial build")
     build.vessel = Entry(Float64, "", "Fraction of vessel in radial build")
     build.symmetric = Entry(Bool, "", "Is the build up-down symmetric")
+    build.n_first_wall_conformal_layers = Entry(Integer, "", "Number of layers that are conformal to the first wall"; default=0)
     return build
 end
 

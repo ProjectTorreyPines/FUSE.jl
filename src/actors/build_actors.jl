@@ -813,27 +813,21 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     tf_to_plasma = IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true)
     plasma_to_tf = reverse(tf_to_plasma)
     for k in plasma_to_tf
+        layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
         if k == itf + 1
             # layer that is inside of the TF sets TF shape
-            FUSE.optimize_shape(bd, k + 1, k, BuildLayerShape(bd.tf.shape); tight=!coils_inside)
+            FUSE.optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside)
         else
             # everything else is conformal convex hull
             FUSE.optimize_shape(bd, k + 1, k, _convex_hull_)
+            bd.layer[k].shape = Int(layer_shape)
         end
     end
     # reverse pass: from TF to plasma only with negative offset
-    # Blanket layer adapts from wall to TF shape
-    if bd.layer[tf_to_plasma[end]-1].type == Int(_shield_)
-        n = 3
-    elseif bd.layer[tf_to_plasma[end]].type == Int(_blanket_)
-        n = 2
-    elseif bd.layer[tf_to_plasma[end]].type == Int(_wall_)
-        n = 2
-    else
-        n = 1
-    end
-    for k in tf_to_plasma[1:end-n]
-        FUSE.optimize_shape(bd, k, k + 1, _negative_offset_)
+    for k in tf_to_plasma[2:end]
+        if bd.layer[k+1].shape == Int(_negative_offset_)
+            FUSE.optimize_shape(bd, k, k + 1, _negative_offset_)
+        end
     end
 
     # _in_

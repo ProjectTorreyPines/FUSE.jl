@@ -94,7 +94,15 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
     end
 
     # set the TF shape
-    dd.build.tf.shape = Int(to_enum(ini.tf.shape))
+    tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
+    dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
+    dd.build.layer[tf_to_plasma[2]].shape = Int(to_enum(ini.tf.shape))
+    for k in tf_to_plasma[2:end]
+        dd.build.layer[k+1].shape = Int(_convex_hull_)
+    end
+    for k in tf_to_plasma[2:end-ini.build.n_first_wall_conformal_layers]
+        dd.build.layer[k+1].shape = Int(_negative_offset_)
+    end
 
     # 2D build cross-section
     ActorCXbuild(dd, act)
