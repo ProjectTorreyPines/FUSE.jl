@@ -27,6 +27,12 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAct
         act = ParametersActor()
     end
 
+    if do_plot
+        pe = plot(dd.equilibrium; color=:gray, label="")
+        pp = plot(dd.core_profiles; color=:gray, label="")
+        ps = plot(dd.core_sources; color=:gray)
+    end
+
     # Set j_ohmic to steady state
     ActorSteadyStateCurrent(dd, act)
 
@@ -47,9 +53,9 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAct
     end
 
     if do_plot
-        display(plot(dd.equilibrium, psi_levels_out=[], label=ini.general.casename))
-        display(plot(dd.core_profiles))
-        display(plot(dd.core_sources))
+        display(plot!(pe, dd.equilibrium))
+        display(plot!(pp, dd.core_profiles))
+        display(plot!(ps, dd.core_sources))
     end
 
     return dd
