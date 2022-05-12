@@ -28,7 +28,7 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAct
     end
 
     # Set j_ohmic to steady state
-    IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
+    ActorSteadyStateCurrent(dd, act)
 
     for iteration in 1:iterations
         # run transport actor
@@ -43,7 +43,7 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAct
         ActorSolovev(dd, act)
 
         # Set j_ohmic to steady state
-        IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
+        ActorSteadyStateCurrent(dd, act)
     end
 
     if do_plot

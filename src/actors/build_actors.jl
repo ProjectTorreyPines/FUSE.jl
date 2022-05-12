@@ -71,12 +71,7 @@ function flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
     totalOhFlux = bd.oh.max_b_field * (pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)) / 3.0
     bd.flux_swing_estimates.flattop = totalOhFlux - bd.flux_swing_estimates.rampup - bd.flux_swing_estimates.pf
-    if ismissing(cp1d, :j_ohmic)
-        j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d)
-    else
-        j_ohmic = cp1d.j_ohmic
-    end
-    bd.oh.flattop_estimate = bd.flux_swing_estimates.flattop / abs(integrate(cp1d.grid.area, j_ohmic ./ cp1d.conductivity_parallel))
+    bd.oh.flattop_estimate = bd.flux_swing_estimates.flattop / abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel))
 end
 
 #= ========= =#
@@ -223,12 +218,7 @@ end
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
 function flattop_flux_estimates(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
-    if ismissing(cp1d, :j_ohmic)
-        j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d)
-    else
-        j_ohmic = cp1d.j_ohmic
-    end
-    return abs(integrate(cp1d.grid.area, j_ohmic ./ cp1d.conductivity_parallel)) * bd.oh.flattop_duration # V*s
+    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * bd.oh.flattop_duration # V*s
 end
 
 """

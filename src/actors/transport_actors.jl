@@ -27,7 +27,8 @@ end
 function ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorTauenn(kw...)
     if par.do_plot
-        plot(dd.core_profiles; color=:gray, label="")
+        ps = plot(dd.core_sources; color=:gray)
+        pp = plot(dd.core_profiles; color=:gray, label="")
     end
     actor = ActorTauenn(dd;
         error=par.error,
@@ -40,7 +41,8 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
     step(actor; verbose=par.verbose)
     finalize(actor)
     if par.do_plot
-        display(plot!(dd.core_profiles))
+        display(plot!(ps, dd.core_sources))
+        display(plot!(pp, dd.core_profiles))
     end
     if par.verbose
         display(actor.tauenn_parameters)
