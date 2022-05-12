@@ -659,10 +659,7 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
 end
 
 function step(actor::ActorCXbuild; rebuild_wall::Bool=true)
-    if rebuild_wall
-        empty!(actor.dd.wall)
-    end
-    build_cx(actor.dd)
+    build_cx(actor.dd; rebuild_wall)
 end
 
 """
@@ -671,9 +668,10 @@ end
 Generate first wall outline starting from an equilibrium
 """
 function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real=1.5)
-    # Inner radii of the plasma
-    R_hfs_plasma = IMAS.get_build(bd, type=_plasma_).start_radius
-    R_lfs_plasma = IMAS.get_build(bd, type=_plasma_).end_radius
+    # Radii of the plasma
+    plasma = IMAS.get_build(bd, type=_plasma_)
+    R_hfs_plasma = plasma.start_radius
+    R_lfs_plasma = plasma.end_radius
 
     # Plasma as buffered convex-hull polygon of LCFS and strike points
     ψb = IMAS.find_psi_boundary(eqt)
@@ -721,6 +719,21 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     hull_poly = xy_polygon(R, Z)
     plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(R) - minimum(R))) / 2.0)
 
+    # plasma first wall
+    pr = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
+    pz = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
+
+    # make point distribution uniform along wall
+    pr, pz = IMAS.resample_2d_line(pr, pz)
+
+    return pr, pz
+end
+
+function divertor_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
+    plasma = IMAS.get_build(bd, type=_plasma_)
+    plasma_poly = xy_polygon(plasma.outline.r, plasma.outline.z)
+    ψb = IMAS.find_psi_boundary(eqt)
+    ψa = eqt.profiles_1d.psi[1]
     # make the divertor domes in the plasma
     δψ = 0.05 # how close to the LCFS shoudl the divertor plates be
     for (pr, pz) in IMAS.flux_surface(eqt, ψb * (1 - δψ) + ψa * δψ, false)
@@ -737,27 +750,37 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
 
     # make point distribution uniform along wall
     pr, pz = IMAS.resample_2d_line(pr, pz)
-
+    plasma.outline.r, plasma.outline.z = pr, pz
     return pr, pz
 end
 
 """
-    build_cx(dd::IMAS.dd)
+    build_cx(dd::IMAS.dd; rebuild_wall::Bool=true)
 
 Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
-function build_cx(dd::IMAS.dd)
+function build_cx(dd::IMAS.dd; rebuild_wall::Bool=true)
     wall = IMAS.first_wall(dd.wall)
-    if wall === missing
+    if wall === missing || rebuild_wall
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
+    else
+        pr = wall.r
+        pz = wall.z
+    end
+
+    build_cx(dd.build, pr, pz)
+    divertor_from_eq(dd.build, dd.equilibrium.time_slice[])
+
+    if wall === missing || rebuild_wall
+        plasma = IMAS.get_build(dd.build, type=_plasma_)
         resize!(dd.wall.description_2d, 1)
         resize!(dd.wall.description_2d[1].limiter.unit, 1)
-        dd.wall.description_2d[1].limiter.unit[1].outline.r = pr
-        dd.wall.description_2d[1].limiter.unit[1].outline.z = pz
-        wall = IMAS.first_wall(dd.wall)
+        dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
+        dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
     end
-    return build_cx(dd.build, wall.r, wall.z)
+
+    return dd.build
 end
 
 """
@@ -810,7 +833,7 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         n = 1
     end
     for k in tf_to_plasma[1:end-n]
-        FUSE.optimize_shape(bd, k, k + 1, _offset_)
+        FUSE.optimize_shape(bd, k, k + 1, _negative_offset_)
     end
 
     # _in_
@@ -828,7 +851,7 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         olfs = IMAS.get_build(bd, fs=_lfs_, return_index=true, return_only_one=false)[end]
         FUSE.optimize_shape(bd, olfs, iout[end], _silo_)
         for k in reverse(iout[2:end])
-            FUSE.optimize_shape(bd, k, k - 1, _offset_)
+            FUSE.optimize_shape(bd, k, k - 1, _negative_offset_)
         end
     else
         for k in iout
@@ -867,7 +890,11 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
             o_end = IMAS.get_build(bd, identifier=obstr.identifier, fs=_lfs_).end_radius
         end
         l_start = layer.start_radius
-        l_end = IMAS.get_build(bd, identifier=layer.identifier, fs=_lfs_).end_radius
+        if layer.type == Int(_plasma_)
+            l_end = layer.end_radius
+        else
+            l_end = IMAS.get_build(bd, identifier=layer.identifier, fs=_lfs_).end_radius
+        end
     end
     hfs_thickness = o_start - l_start
     lfs_thickness = l_end - o_end
@@ -887,8 +914,8 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # update shape
     layer.shape = Int(shape)
 
-    # handle offset, negative offset, offset & convex-hull
-    if layer.shape in [Int(_offset_), Int(_convex_hull_)]
+    # handle offset, negative offset, negative offset, and convex-hull
+    if layer.shape in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
         poly = LibGEOS.buffer(xy_polygon(oR, oZ), (hfs_thickness + lfs_thickness) / 2.0)
         R = [v[1] .+ r_offset for v in LibGEOS.coordinates(poly)[1]]
         Z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
