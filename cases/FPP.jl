@@ -9,7 +9,7 @@ To generate a JSON file from a GASC run:
 ```
 """
 
-function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1)
+function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
@@ -20,7 +20,15 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol=:v1)
 
     gasc = GASC(joinpath(dirname(abspath(@__FILE__)), "..", "sample", filename), case)
     ini, act = case_parameters(gasc)
-    ini.general.casename = "FPP_$(version)"
+    ini.general.casename = "FPP_$(version)_$(init_from)"
+    ini.general.init_from = init_from
+
+    if init_from == :ods
+        ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPPv1.0_demount_eq.json")
+        act.ActorCXbuild.rebuild_wall = false
+        act.ActorHFSsizing.fixed_aspect_ratio = true
+        ini.build.n_first_wall_conformal_layers = 1
+    end
 
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT

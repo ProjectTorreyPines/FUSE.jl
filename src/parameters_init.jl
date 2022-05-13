@@ -17,9 +17,8 @@ function ParametersInit(::Type{Val{:general}})
     general = ParametersInit(nothing)
     general.casename = Entry(String, "", "Mnemonic name of the case being run")
     options = [
-        :ods => "Load data from ODS saved in .json format",
-        :scalars => "Initialize FUSE run form scalar FUSE parameters",
-        :gasc => "Initialize FUSE run form GASC output file saved in .json format",
+        :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
+        :scalars => "Initialize FUSE run from scalar parameters"
     ]
     general.init_from = Switch(options, "", "Initialize run from")
     return general

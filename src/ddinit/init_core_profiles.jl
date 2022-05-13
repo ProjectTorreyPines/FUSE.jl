@@ -2,12 +2,7 @@ import TAUENN: Hmode_profiles
 function init_core_profiles(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
-    if init_from == :gasc # remove init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk=:DT)
-        #gasc = GASC(ini.gasc.filename, ini.gasc.case)
-        #init_core_profiles(dd, gasc; bulk=ini.core_profiles.bulk)
-        init_from = :scalars
-
-    elseif init_from == :ods
+    if init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
         if !ismissing(dd1.core_profiles, :time) && length(keys(dd1.core_profiles.time)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.core_profiles.time))
@@ -35,56 +30,6 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersInit, act::ParametersAct
             ejima=ini.core_profiles.ejima)
     end
 
-    return dd
-end
-
-function init_core_profiles(dd::IMAS.dd, gasc::GASC; bulk=:DT)
-    gascsol = gasc.solution
-
-    cp = dd.core_profiles
-    cpt = resize!(cp.profiles_1d)
-
-    cpt.grid.rho_tor_norm = gascsol["OUTPUTS"]["numerical profiles"]["rProf"]
-    cpt.zeff = gascsol["OUTPUTS"]["numerical profiles"]["ZeffProf"]
-    cpt.rotation_frequency_tor_sonic = cpt.grid.rho_tor_norm * 0.0 # < GASC has no notion of rotation
-
-    # Set ions
-    ion = resize!(cpt.ion, "label" => String(bulk))
-    fill!(ion, IMAS.ion_element(ion_symbol=bulk))
-    @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
-    ion = resize!(cpt.ion, 2)
-    element = resize!(ion.element, 1)
-    element.z_n = gascsol["INPUTS"]["impurities"]["impurityZ"]
-    element.a = Int(ceil(gascsol["INPUTS"]["impurities"]["impurityZ"] * 2.0))
-    ion.label = "Impurity"
-
-    # pedestal
-    @ddtime dd.summary.local.pedestal.n_e.value = gascsol["OUTPUTS"]["plasma parameters"]["neped"] * 1E20
-    i_ped = argmin(abs.(gascsol["OUTPUTS"]["numerical profiles"]["neProf"] .- gascsol["OUTPUTS"]["plasma parameters"]["neped"] / gascsol["OUTPUTS"]["plasma parameters"]["ne0"]))
-    rho_ped = gascsol["OUTPUTS"]["numerical profiles"]["rProf"][i_ped]
-    @ddtime dd.summary.local.pedestal.position.rho_tor_norm = rho_ped
-    @ddtime dd.summary.local.pedestal.zeff.value = cpt.zeff[i_ped]
-
-    # Set densities
-    cpt.electrons.density = gascsol["OUTPUTS"]["numerical profiles"]["neProf"] * gascsol["OUTPUTS"]["plasma parameters"]["ne0"] * 1E20
-    zimp1 = gascsol["INPUTS"]["impurities"]["impurityZ"]
-    niFraction = zeros(2, length(cpt.grid.rho_tor_norm))
-    niFraction[2, :] .= (cpt.zeff .- 1.0) ./ (zimp1 * (zimp1 - 1.0))
-    niFraction[1, :] .= 1.0 .- zimp1 .* niFraction[2]
-    @assert all(niFraction .> 0.0) "zeff too high for the impurity species with Z=" * string(gascsol["INPUTS"]["impurities"]["impurityZ"])
-    for i = 1:length(cpt.ion)
-        cpt.ion[i].density = cpt.electrons.density .* niFraction[i]
-    end
-
-    # Set temperatures
-    Ti = gascsol["OUTPUTS"]["numerical profiles"]["TiProf"] * gascsol["INPUTS"]["plasma parameters"]["Ti0"] * 1E3
-    cpt.electrons.temperature = Ti * gascsol["INPUTS"]["plasma parameters"]["Tratio"]
-    for i = 1:length(cpt.ion)
-        cpt.ion[i].temperature = Ti
-    end
-
-    # ejima
-    IMAS.set_time_array(dd.core_profiles.global_quantities, :ejima, gascsol["INPUTS"]["plasma parameters"]["ejimaCoeff"])
     return dd
 end
 

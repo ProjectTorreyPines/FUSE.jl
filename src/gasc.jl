@@ -47,7 +47,7 @@ function case_parameters(gasc::GASC)
     ini.gasc.filename = gasc.filename
     ini.gasc.case = gasc.case
     ini.general.casename = "GASC"
-    ini.general.init_from = :gasc
+    ini.general.init_from = :scalars
 
     gasc_2_build(gasc, ini, act)
 

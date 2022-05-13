@@ -738,8 +738,8 @@ function divertor_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     pr = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
     pz = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
 
-    # make point distribution uniform along wall
-    pr, pz = IMAS.resample_2d_line(pr, pz)
+    # make point distribution uniform along wall (10cm resolution)
+    pr, pz = IMAS.resample_2d_line(pr, pz, 0.1)
     plasma.outline.r, plasma.outline.z = pr, pz
     return pr, pz
 end
@@ -783,13 +783,13 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     itf = IMAS.get_build(bd, type=_tf_, fs=_hfs_, return_index=true)
 
     # _plasma_ outline scaled to match 1D radial build
-    start_radius = bd.layer[ipl].start_radius
-    end_radius = bd.layer[ipl].end_radius
-    pr1 = minimum(pr)
-    pr2 = maximum(pr)
-    fact = (end_radius - start_radius) / (pr2 - pr1)
-    pz .= pz .* fact
-    pr .= (pr .- pr1) .* fact .+ start_radius
+    # start_radius = bd.layer[ipl].start_radius
+    # end_radius = bd.layer[ipl].end_radius
+    # pr1 = minimum(pr)
+    # pr2 = maximum(pr)
+    # fact = (end_radius - start_radius) / (pr2 - pr1)
+    # pz .= pz .* fact
+    # pr .= (pr .- pr1) .* fact .+ start_radius
     bd.layer[ipl].outline.r = pr
     bd.layer[ipl].outline.z = pz
 

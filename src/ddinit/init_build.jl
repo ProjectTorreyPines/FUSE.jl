@@ -62,10 +62,8 @@ end
 #= ========== =#
 function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
     init_from = ini.general.init_from
-    if init_from == :gasc
-        init_from = :scalars
-
-    elseif init_from == :ods
+    
+    if init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
         if length(keys(dd1.wall)) > 0
             dd.wall = dd1.wall
