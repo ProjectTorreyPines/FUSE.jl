@@ -61,10 +61,7 @@ end
 function init_equilibrium(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
-    if init_from == :gasc
-        init_from = :scalars
-
-    elseif init_from == :ods
+    if init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
         if !ismissing(dd1.equilibrium, :time) && length(keys(dd1.equilibrium.time)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))

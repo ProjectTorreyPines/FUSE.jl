@@ -98,7 +98,7 @@ function pretty_label(parameter::Parameter, units="")
     return txt
 end
 
-@recipe function plot_MultiobjectiveOptimizationResults(results::MultiobjectiveOptimizationResults, indexes=[1, 2, 3]; design_space::Bool=false, pareto=true)
+@recipe function plot_MultiobjectiveOptimizationResults(results::MultiobjectiveOptimizationResults, indexes=[1, 2, 3]; design_space=false, pareto=true)
 
     if design_space
         arg = :x

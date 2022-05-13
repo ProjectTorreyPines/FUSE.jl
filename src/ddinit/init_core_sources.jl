@@ -84,10 +84,6 @@ end
 function init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
-    if init_from == :gasc
-        init_from = :scalars
-    end
-
     if init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
         if !ismissing(dd1.core_sources, :time) && length(keys(dd1.core_sources.time)) > 0

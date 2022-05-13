@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:ITER}}; init_from)
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)
     ini = ParametersInit()
     act = ParametersActor()
     ini.general.casename = "ITER_$(init_from)"
@@ -43,6 +43,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from)
     layers[:lfs_TF] = 1.10
     layers[:gap_cryostat] = 2.34
     layers[:cryostat] = 0.30
+    ini.build.n_first_wall_conformal_layers = 3
 
     ini.pf_active.n_oh_coils = 6
     ini.pf_active.n_pf_coils_inside = 0

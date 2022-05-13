@@ -10,6 +10,7 @@ function case_parameters(::Type{Val{:D3D}})
     ini.build.blanket = 0.0
     ini.build.shield = 0.0
     ini.build.vessel = 0.0
+    ini.build.n_first_wall_conformal_layers = 2
 
     ini.pf_active.n_oh_coils = 10
     ini.pf_active.n_pf_coils_inside = 8

@@ -5,7 +5,7 @@ import DataStructures
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _convex_hull_, _offset_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _triple_arc_, _miller_, _spline_, _silo_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _triple_arc_, _miller_, _spline_, _silo_
 
 #= ========================================== =#
 #  Visualization of IMAS.build.layer as table  #
@@ -62,10 +62,8 @@ end
 #= ========== =#
 function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
     init_from = ini.general.init_from
-    if init_from == :gasc
-        init_from = :scalars
-
-    elseif init_from == :ods
+    
+    if init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
         if length(keys(dd1.wall)) > 0
             dd.wall = dd1.wall
@@ -94,7 +92,15 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
     end
 
     # set the TF shape
-    dd.build.tf.shape = Int(to_enum(ini.tf.shape))
+    tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
+    dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
+    dd.build.layer[tf_to_plasma[2]].shape = Int(to_enum(ini.tf.shape))
+    for k in tf_to_plasma[2:end]
+        dd.build.layer[k+1].shape = Int(_convex_hull_)
+    end
+    for k in tf_to_plasma[2:end-ini.build.n_first_wall_conformal_layers]
+        dd.build.layer[k+1].shape = Int(_negative_offset_)
+    end
 
     # 2D build cross-section
     ActorCXbuild(dd, act)

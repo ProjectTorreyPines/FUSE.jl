@@ -214,10 +214,7 @@ end
 function init_pf_active(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
-    if init_from == :gasc
-        init_from = :scalars
-
-    elseif init_from == :ods
+    if init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
         if length(keys(dd1.pf_active)) > 0
             dd.global_time = max(dd.global_time, maximum(dd1.pf_active.time))

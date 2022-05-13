@@ -27,7 +27,7 @@ function init_shape_parameters(shape_function_index, r_obstruction, z_obstructio
     height = maximum(z_obstruction) - minimum(z_obstruction) + target_clearance * 2.0
     z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
     shape_parameters = nothing
-    if shape_function_index in [Int(_offset_), Int(_convex_hull_)]
+    if shape_function_index in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
         return nothing
     else
         shape_index_mod = shape_function_index
@@ -90,7 +90,7 @@ end
 
 function shape_function(shape_function_index)
     func = nothing
-    if shape_function_index in [Int(_offset_), Int(_convex_hull_)]
+    if shape_function_index in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
         return nothing
     else
         shape_index_mod = shape_function_index

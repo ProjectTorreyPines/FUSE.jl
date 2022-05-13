@@ -17,7 +17,7 @@ function ParametersActor(::Type{Val{:ActorQEDcurrent}})
     return par
 end
 
-function ActorQEDcurrent(dd::IMAS.dd, act::ParametersActor)
+function ActorQEDcurrent(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorQEDcurrent(kw...)
     actor = ActorQEDcurrent(dd)
     step(actor)
@@ -98,4 +98,29 @@ function η_imas(dd::IMAS.dd; use_log=true)
     rho = prof1d.grid.rho_tor_norm
     η = 1.0 ./ prof1d.conductivity_parallel
     return QED.η_FE(rho, η; use_log)
+end
+
+#= ======================= =#
+#  ActorSteadyStateCurrent  #
+#= ======================= =#
+mutable struct ActorSteadyStateCurrent <: AbstractActor
+    dd::IMAS.dd
+end
+
+function ParametersActor(::Type{Val{:ActorSteadyStateCurrent}})
+    par = ParametersActor(nothing)
+    return par
+end
+
+function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorSteadyStateCurrent(kw...)
+    actor = ActorSteadyStateCurrent(dd)
+    step(actor)
+    finalize(actor)
+    return actor
+end
+
+function step(actor::ActorSteadyStateCurrent)
+    dd = actor.dd
+    IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
 end
