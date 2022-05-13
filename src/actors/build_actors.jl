@@ -653,11 +653,11 @@ function step(actor::ActorCXbuild; rebuild_wall::Bool=true)
 end
 
 """
-    wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real=1.0)
+    wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_multiplier::Real=1.0)
 
 Generate first wall outline starting from an equilibrium
 """
-function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_length_multiplier::Real=1.5)
+function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_multiplier::Real=1.5)
     # Radii of the plasma
     plasma = IMAS.get_build(bd, type=_plasma_)
     R_hfs_plasma = plasma.start_radius
@@ -694,13 +694,13 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         end
         Rx = pr[index]
         Zx = pz[index]
-        a *= divertor_length_length_multiplier
+        a *= divertor_length_multiplier
         cr = a .* cos.(theta) .+ Rx
         cz = a .* sin.(theta) .+ Zx
         append!(private_extrema, IMAS.intersection(cr, cz, pr, pz))
     end
-    h = [[r, z] for (r, z) in vcat(collect(zip(rlcfs, zlcfs)), private_extrema)]
-    hull = convex_hull(h)
+    hull = [[r, z] for (r, z) in vcat(collect(zip(rlcfs, zlcfs)), private_extrema)]
+    hull = convex_hull(hull)
     R = [r for (r, z) in hull]
     R .+= ((R_lfs_plasma + R_hfs_plasma) - (maximum(R) + minimum(R))) / 2.0
     R[R.<R_hfs_plasma] .= R_hfs_plasma
