@@ -27,7 +27,6 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)
         ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPPv1.0_demount_eq.json")
         act.ActorCXbuild.rebuild_wall = false
         act.ActorHFSsizing.fixed_aspect_ratio = true
-        ini.build.n_first_wall_conformal_layers = 1
     end
 
     ini.core_profiles.rot_core = 0.0
