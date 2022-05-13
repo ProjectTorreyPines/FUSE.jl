@@ -653,27 +653,41 @@ function step(actor::ActorCXbuild; rebuild_wall::Bool=true)
 end
 
 """
-    wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_multiplier::Real=1.0)
+    wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_fraction::Real=0.2)
 
 Generate first wall outline starting from an equilibrium
 """
-function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_multiplier::Real=1.5)
+function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_fraction::Real=0.2)
     # Radii of the plasma
     plasma = IMAS.get_build(bd, type=_plasma_)
     R_hfs_plasma = plasma.start_radius
     R_lfs_plasma = plasma.end_radius
 
-    # Plasma as buffered convex-hull polygon of LCFS and strike points
-    ψb = IMAS.find_psi_boundary(eqt)
-    ψa = eqt.profiles_1d.psi[1]
-    δψ = 0.10 # this sets the length of the strike divertor legs
-    r_in, z_in, _ = IMAS.flux_surface(eqt, ψb * (1 - δψ) + ψa * δψ, true)
     Z0 = eqt.global_quantities.magnetic_axis.z
+
+    # main chamber
+    ψb = IMAS.find_psi_boundary(eqt)
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
-    theta = range(0.0, 2 * pi, length=101)
-    private_extrema = []
+    plasma_poly = xy_polygon(rlcfs, zlcfs)
+    a = ((R_lfs_plasma - R_hfs_plasma) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0
+    wall_poly = LibGEOS.buffer(plasma_poly, a)
+
+    # hfs and lfs spacing may not be symmetric
+    R = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
+    Z = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
+    R .+= ((R_lfs_plasma + R_hfs_plasma) - (maximum(rlcfs) + minimum(rlcfs))) / 2.0
+    R[R.<R_hfs_plasma] .= R_hfs_plasma
+    R[R.>R_lfs_plasma] .= R_lfs_plasma
+    Z = (Z .- Z0) .* 1.1 .+ Z0
+    wall_poly = xy_polygon(R, Z)
+
+    t = LinRange(0, 2pi, 31)
+
+    # divertor lengths
+    max_divertor_length = (maximum(zlcfs) - minimum(zlcfs)) * divertor_length_fraction
+
+    # private flux regions
     private = IMAS.flux_surface(eqt, ψb, false)
-    a = 0
     for (pr, pz) in private
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
             # open flux surface does not encicle the plasma
@@ -684,64 +698,45 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         elseif (sum(pz) - Z0) < 0
             # lower private region
             index = argmax(pz)
-            a = minimum(z_in) - minimum(zlcfs)
-            a = min(a, pz[index] - minimum(pz))
         else
             # upper private region
             index = argmin(pz)
-            a = maximum(zlcfs) - maximum(z_in)
-            a = min(a, maximum(pz) - pz[index])
         end
         Rx = pr[index]
         Zx = pz[index]
-        a *= divertor_length_multiplier
-        cr = a .* cos.(theta) .+ Rx
-        cz = a .* sin.(theta) .+ Zx
-        append!(private_extrema, IMAS.intersection(cr, cz, pr, pz))
-    end
-    hull = [[r, z] for (r, z) in vcat(collect(zip(rlcfs, zlcfs)), private_extrema)]
-    hull = convex_hull(hull)
-    R = [r for (r, z) in hull]
-    R .+= ((R_lfs_plasma + R_hfs_plasma) - (maximum(R) + minimum(R))) / 2.0
-    R[R.<R_hfs_plasma] .= R_hfs_plasma
-    R[R.>R_lfs_plasma] .= R_lfs_plasma
-    Z = [z for (r, z) in hull]
-    hull_poly = xy_polygon(R, Z)
-    plasma_poly = LibGEOS.buffer(hull_poly, ((R_lfs_plasma - R_hfs_plasma) - (maximum(R) - minimum(R))) / 2.0)
 
-    # plasma first wall
-    pr = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
-    pz = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
+        # limit extent of private flux regions
+        circle = collect(zip(max_divertor_length .* cos.(t) .+ Rx, sign(Zx) .* max_divertor_length .* sin.(t) .+ Zx))
+        circle[1] = circle[end]
+        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
+        pr = [rr for (rr, zz) in slot]
+        pz = [zz for (rr, zz) in slot]
 
-    # make point distribution uniform along wall
-    pr, pz = IMAS.resample_2d_line(pr, pz)
+        # remove private flux region from wall (necessary because of Z expansion)
+        wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
 
-    return pr, pz
-end
-
-function divertor_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
-    plasma = IMAS.get_build(bd, type=_plasma_)
-    plasma_poly = xy_polygon(plasma.outline.r, plasma.outline.z)
-    ψb = IMAS.find_psi_boundary(eqt)
-    ψa = eqt.profiles_1d.psi[1]
-    # make the divertor domes in the plasma
-    δψ = 0.05 # how close to the LCFS shoudl the divertor plates be
-    for (pr, pz) in IMAS.flux_surface(eqt, ψb * (1 - δψ) + ψa * δψ, false)
-        if pr[1] != pr[end]
-            pz[1] = pz[1] * 2
-            pz[end] = pz[end] * 2
-            plasma_poly = LibGEOS.difference(plasma_poly, xy_polygon(pr, pz))
-        end
+        # add the divertor slots
+        pr = vcat(pr, reverse(pr) .* 0.0 .+ Rx)
+        pz = vcat(pz, reverse(pz) .* 0.0 .+ Z0)
+        slot = LibGEOS.buffer(xy_polygon(pr, pz), a)
+        wall_poly = LibGEOS.union(wall_poly, slot)
     end
 
-    # plasma first wall
-    pr = [v[1] for v in LibGEOS.coordinates(plasma_poly)[1]]
-    pz = [v[2] for v in LibGEOS.coordinates(plasma_poly)[1]]
+    # vertical clip
+    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(0, R_hfs_plasma, 100)...))
+    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100)...))
 
-    # make point distribution uniform along wall (10cm resolution)
+    # round corners
+    wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
+    wall_poly = LibGEOS.buffer(wall_poly, a / 4)
+
+    pr = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
+    pz = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
+
     pr, pz = IMAS.resample_2d_line(pr, pz, 0.1)
-    plasma.outline.r, plasma.outline.z = pr, pz
+
     return pr, pz
+
 end
 
 """
@@ -760,7 +755,6 @@ function build_cx(dd::IMAS.dd; rebuild_wall::Bool=true)
     end
 
     build_cx(dd.build, pr, pz)
-    divertor_from_eq(dd.build, dd.equilibrium.time_slice[])
 
     if wall === missing || rebuild_wall
         plasma = IMAS.get_build(dd.build, type=_plasma_)
@@ -783,13 +777,13 @@ function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     itf = IMAS.get_build(bd, type=_tf_, fs=_hfs_, return_index=true)
 
     # _plasma_ outline scaled to match 1D radial build
-    # start_radius = bd.layer[ipl].start_radius
-    # end_radius = bd.layer[ipl].end_radius
-    # pr1 = minimum(pr)
-    # pr2 = maximum(pr)
-    # fact = (end_radius - start_radius) / (pr2 - pr1)
-    # pz .= pz .* fact
-    # pr .= (pr .- pr1) .* fact .+ start_radius
+    start_radius = bd.layer[ipl].start_radius
+    end_radius = bd.layer[ipl].end_radius
+    pr1 = minimum(pr)
+    pr2 = maximum(pr)
+    fact = (end_radius - start_radius) / (pr2 - pr1)
+    pz .= pz .* fact
+    pr .= (pr .- pr1) .* fact .+ start_radius
     bd.layer[ipl].outline.r = pr
     bd.layer[ipl].outline.z = pz
 
