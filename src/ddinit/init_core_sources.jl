@@ -1,7 +1,13 @@
 import NumericalIntegration: cumul_integrate
 
 function init_nbi(dd::IMAS.dd, ini::ParametersInit)
-    return init_nbi(dd, ini.nbi.power_launched, ini.nbi.beam_energy, ini.nbi.beam_mass, ini.nbi.toroidal_angle)
+    return init_nbi(dd,
+        ini.nbi.power_launched,
+        ini.nbi.beam_energy,
+        ini.nbi.beam_mass,
+        ini.nbi.toroidal_angle,
+        evalmissing(ini.nbi, :efficiency_conversion),
+        evalmissing(ini.nbi, :efficiency_transmission))
 end
 
 function init_nbi(
@@ -9,9 +15,11 @@ function init_nbi(
     power_launched::Union{Real,Vector},
     beam_energy::Union{Real,Vector},
     beam_mass::Union{Real,Vector},
-    toroidal_angle::Union{Real,Vector})
+    toroidal_angle::Union{Real,Vector},
+    efficiency_conversion::Union{Missing,Real,Vector},
+    efficiency_transmission::Union{Missing,Real,Vector})
 
-    power_launched, beam_energy, beam_mass, toroidal_angle = same_length_vectors(power_launched, beam_energy, beam_mass, toroidal_angle)
+    power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission = same_length_vectors(power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission)
 
     for idx in 1:length(power_launched)
         nbu = resize!(dd.nbi.unit, idx)
@@ -23,6 +31,9 @@ function init_nbi(
         # 1 beamlet
         beamlet = resize!(nbu.beamlets_group, 1)
         beamlet.angle = toroidal_angle[idx] / 360 * 2pi
+        # Efficiencies
+        nbu.efficiency_conversion = efficiency_conversion
+        nbu.efficiency_transmission = efficiency_transmission
     end
 
     return dd
