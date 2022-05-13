@@ -32,8 +32,8 @@ function init_nbi(
         beamlet = resize!(nbu.beamlets_group, 1)
         beamlet.angle = toroidal_angle[idx] / 360 * 2pi
         # Efficiencies
-        nbu.efficiency_conversion = efficiency_conversion
-        nbu.efficiency_transmission = efficiency_transmission
+        nbu.efficiency_conversion = efficiency_conversion[idx]
+        nbu.efficiency_transmission = efficiency_transmission[idx]
     end
 
     return dd

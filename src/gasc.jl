@@ -101,6 +101,8 @@ function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     cd_powers = Float64[]
     ini.nbi.power_launched = Float64[]
     ini.nbi.beam_energy = Float64[]
+    ini.nbi.efficiency_conversion = inputs["efficiencyConversionNNBCD"]
+    ini.nbi.efficiency_transmission = inputs["efficiencyTransmissionNNBCD"]
     pow = outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
@@ -115,6 +117,9 @@ function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     end
 
     ini.lh.power_launched = Float64[]
+    ini.lh.efficiency_conversion = inputs["efficiencyConversionLHCD"]
+    ini.lh.efficiency_transmission = inputs["efficiencyTransmissionLHCD"]
+    ini.lh.efficiency_coupling = 1.0 # Not in GASC
     pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
@@ -127,6 +132,8 @@ function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     end
 
     ini.ec.power_launched = Float64[]
+    ini.ec.efficiency_conversion = inputs["efficiencyConversionECCD"]
+    ini.ec.efficiency_transmission = inputs["efficiencyTransmissionECCD"]
     pow = outputs["CDpowerECCD"] * 1E6 * inputs["ECCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
@@ -134,6 +141,9 @@ function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     end
 
     ini.ic.power_launched = Float64[]
+    ini.ic.efficiency_conversion = inputs["efficiencyConversionFWCD"]
+    ini.ic.efficiency_transmission = inputs["efficiencyTransmissionFWCD"]
+    ini.ic.efficiency_coupling = 1.0 # Not in GASC
     pow = outputs["CDpowerFWCD"] * 1E6 * inputs["FWCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
