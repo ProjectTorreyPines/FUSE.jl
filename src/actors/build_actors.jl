@@ -663,6 +663,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     R_hfs_plasma = plasma.start_radius
     R_lfs_plasma = plasma.end_radius
 
+    R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
 
     # main chamber
@@ -708,7 +709,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         # limit extent of private flux regions
         circle = collect(zip(max_divertor_length .* cos.(t) .+ Rx, sign(Zx) .* max_divertor_length .* sin.(t) .+ Zx))
         circle[1] = circle[end]
-        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
+        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && rr >= R_hfs_plasma && rr <= R_lfs_plasma]
         pr = [rr for (rr, zz) in slot]
         pz = [zz for (rr, zz) in slot]
 
@@ -716,8 +717,9 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
 
         # add the divertor slots
-        pr = vcat(pr, reverse(pr) .* 0.0 .+ Rx)
-        pz = vcat(pz, reverse(pz) .* 0.0 .+ Z0)
+        α = 0.3
+        pr = vcat(pr, R0 * α + Rx * (1 - α))
+        pz = vcat(pz, Z0 * α + Zx * (1 - α))
         slot = LibGEOS.buffer(xy_polygon(pr, pz), a)
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
@@ -736,7 +738,6 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     pr, pz = IMAS.resample_2d_line(pr, pz, 0.1)
 
     return pr, pz
-
 end
 
 """
