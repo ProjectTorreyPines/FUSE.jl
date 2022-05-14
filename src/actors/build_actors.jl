@@ -679,7 +679,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     R .+= ((R_lfs_plasma + R_hfs_plasma) - (maximum(rlcfs) + minimum(rlcfs))) / 2.0
     R[R.<R_hfs_plasma] .= R_hfs_plasma
     R[R.>R_lfs_plasma] .= R_lfs_plasma
-    Z = (Z .- Z0) .* 1.1 .+ Z0
+    Z = (Z .- Z0) .* 1.05 .+ Z0
     wall_poly = xy_polygon(R, Z)
 
     t = LinRange(0, 2pi, 31)
@@ -717,7 +717,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
 
         # add the divertor slots
-        α = 0.3
+        α = 0.1
         pr = vcat(pr, R0 * α + Rx * (1 - α))
         pz = vcat(pz, Z0 * α + Zx * (1 - α))
         slot = LibGEOS.buffer(xy_polygon(pr, pz), a)

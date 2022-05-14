@@ -25,7 +25,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)
 
     if init_from == :ods
         ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPPv1.0_demount_eq.json")
-        act.ActorCXbuild.rebuild_wall = false
+        act.ActorCXbuild.rebuild_wall = true
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end
 
