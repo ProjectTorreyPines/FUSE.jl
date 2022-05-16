@@ -32,52 +32,76 @@ function init_nbi(
         beamlet = resize!(nbu.beamlets_group, 1)
         beamlet.angle = toroidal_angle[idx] / 360 * 2pi
         # Efficiencies
-        nbu.efficiency_conversion = efficiency_conversion[idx]
-        nbu.efficiency_transmission = efficiency_transmission[idx]
+        nbu.efficiency.conversion = efficiency_conversion[idx]
+        nbu.efficiency.transmission = efficiency_transmission[idx]
     end
 
     return dd
 end
 
 function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit)
-    return init_ec_launchers(dd, ini.ec.power_launched)
+    return init_ec_launchers(dd, ini.ec.power_launched, evalmissing(ini.ec.efficiency_conversion), evalmissing(ini.ec.efficiency_transmission))
 end
 
-function init_ec_launchers(dd::IMAS.dd, power_launched::Union{Real,Vector})
-    (power_launched,) = same_length_vectors(power_launched)
+function init_ec_launchers(
+    dd::IMAS.dd,
+    power_launched::Union{Real,Vector},
+    efficiency_conversion::Union{Real,Vector},
+    efficiency_transmission::Union{Real,Vector})
+
+    (power_launched, efficiency_conversion, efficiency_transmission) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission)
     for idx in 1:length(power_launched)
         ecl = resize!(dd.ec_launchers.launcher, idx)
         ecl.name = length(power_launched) > 1 ? "ec_$idx" : "ec"
         @ddtime(ecl.power_launched.data = power_launched[idx])
         ecl.available_launch_power = power_launched[idx]
+        ecl.efficiency.conversion = efficiency_conversion[idx]
+        ecl.efficiency.transmission = efficiency_transmission[idx]
     end
 end
 
 function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit)
-    return init_ic_antennas(dd, ini.ic.power_launched)
+    return init_ic_antennas(dd, ini.ic.power_launched, evalmissing(ini.ic.efficiency_conversion), evalmissing(ini.ic.efficiency_transmission), evalmissing(ini.ic.efficiency_coupling))
 end
 
-function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
-    (power_launched,) = same_length_vectors(power_launched)
+function init_ic_antennas(
+    dd::IMAS.dd,
+    power_launched::Union{Real,Vector},
+    efficiency_conversion::Union{Real,Vector},
+    efficiency_transmission::Union{Real,Vector},
+    efficiency_coupling::Union{Real,Vector})
+
+    (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
     for idx in 1:length(power_launched)
         ica = resize!(dd.ic_antennas.antenna, idx)
         ica.name = length(power_launched) > 1 ? "ic_$idx" : "ic"
         @ddtime(ica.power_launched.data = power_launched[idx])
         ica.available_launch_power = power_launched[idx]
+        ica.efficiency.conversion = efficiency_conversion[idx]
+        ica.efficiency.transmission = efficiency_transmission[idx]
+        ica.efficiency.coupling = efficiency_coupling[idx]
     end
 end
 
 function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit)
-    return init_lh_antennas(dd, ini.lh.power_launched)
+    return init_lh_antennas(dd, ini.lh.power_launched, evalmissing(ini.lh.efficiency_conversion), evalmissing(ini.lh.efficiency_transmission), evalmissing(ini.lh.efficiency_coupling))
 end
 
-function init_lh_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
-    (power_launched,) = same_length_vectors(power_launched)
+function init_lh_antennas(
+    dd::IMAS.dd,
+    power_launched::Union{Real,Vector},
+    efficiency_conversion::Union{Real,Vector},
+    efficiency_transmission::Union{Real,Vector},
+    efficiency_coupling::Union{Real,Vector})
+    (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
     for idx in 1:length(power_launched)
         lha = resize!(dd.lh_antennas.antenna, idx)
         lha.name = length(power_launched) > 1 ? "lh_$idx" : "lh"
         @ddtime(lha.power_launched.data = power_launched[idx])
         lha.available_launch_power = power_launched[idx]
+        lha.efficiency.conversion = efficiency_conversion[idx]
+        lha.efficiency.transmission = efficiency_transmission[idx]
+        lha.efficiency.coupling = efficiency_coupling[idx]
     end
 end
 
