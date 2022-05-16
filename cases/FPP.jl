@@ -13,7 +13,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
-    elseif version == :v1_demount || version == :v1_demountable
+    elseif version == :v1_demount
         filename = "FPPv1.0_aspectRatio3.5_PBpR35_demount.json"
         case = 0
     end
