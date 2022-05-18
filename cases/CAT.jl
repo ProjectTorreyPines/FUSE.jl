@@ -10,6 +10,7 @@ function case_parameters(::Type{Val{:CAT}})
     ini.build.blanket = 1.0
     ini.build.shield = 0.5
     ini.build.vessel = 0.125
+    ini.build.n_first_wall_conformal_layers = 2
     ini.material.shield = "Tungsten"
     ini.material.blanket = "FLiBe"
 

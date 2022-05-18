@@ -649,7 +649,7 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
 end
 
 function step(actor::ActorCXbuild; rebuild_wall::Bool=true)
-    build_cx(actor.dd; rebuild_wall)
+    build_cx!(actor.dd; rebuild_wall)
 end
 
 """
@@ -740,13 +740,57 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     return pr, pz
 end
 
+function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
+    R0 = eqt.global_quantities.magnetic_axis.r
+    Z0 = eqt.global_quantities.magnetic_axis.z
+
+    ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
+    plasma_poly = xy_polygon(bd.layer[ipl])
+
+    divertors = IMAS.IDSvectorElement[]
+    for x_point in eqt.boundary.x_point
+        Zx = x_point.z
+        Rx = x_point.r
+        m = (Zx - Z0) / (Rx - R0)
+        xx = [0, R0 * 2.0]
+        yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)
+        pr = vcat(xx, reverse(xx), xx[1])
+        pz = vcat(yy, [Zx * 5, Zx * 5], yy[1])
+
+        domain = xy_polygon(pr, pz)
+        wall_poly = xy_polygon(bd.layer[ipl-1])
+        divertor_poly = LibGEOS.intersection(wall_poly, domain)
+        divertor_poly = LibGEOS.difference(divertor_poly, plasma_poly)
+
+        pr = [v[1] for v in LibGEOS.coordinates(divertor_poly)[1]]
+        pz = [v[2] for v in LibGEOS.coordinates(divertor_poly)[1]]
+
+        # assign to build structure
+        if Zx > Z0
+            name = "Upper divertor"
+        else
+            name = "Lower divertor"
+        end
+        structure = resize!(bd.structure, "type" => Int(_divertor_), "name" => name)
+        structure.material = "Tungsten"
+        structure.outline.r = pr
+        structure.outline.z = pz
+        structure.toroidal_extent = 2pi
+
+        push!(divertors, structure)
+    end
+
+    return divertors
+end
+
+
 """
-    build_cx(dd::IMAS.dd; rebuild_wall::Bool=true)
+    build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)
 
 Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
-function build_cx(dd::IMAS.dd; rebuild_wall::Bool=true)
+function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)
     wall = IMAS.first_wall(dd.wall)
     if wall === missing || rebuild_wall
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
@@ -755,7 +799,9 @@ function build_cx(dd::IMAS.dd; rebuild_wall::Bool=true)
         pz = wall.z
     end
 
-    build_cx(dd.build, pr, pz)
+    build_cx!(dd.build, pr, pz)
+
+    divertor_regions!(dd.build, dd.equilibrium.time_slice[])
 
     if wall === missing || rebuild_wall
         plasma = IMAS.get_build(dd.build, type=_plasma_)
@@ -769,11 +815,11 @@ function build_cx(dd::IMAS.dd; rebuild_wall::Bool=true)
 end
 
 """
-    build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
+    build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
+function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
     itf = IMAS.get_build(bd, type=_tf_, fs=_hfs_, return_index=true)
 
@@ -903,7 +949,8 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
             hull = convex_hull(h)
             R = vcat([r for (r, z) in hull], hull[1][1])
             Z = vcat([z for (r, z) in hull], hull[1][2])
-            R, Z = IMAS.resample_2d_line(R, Z)
+            # resample disabled because this can lead to outlines of different layers to be crossing
+            # R, Z = IMAS.resample_2d_line(R, Z)
         end
         layer.outline.r, layer.outline.z = R, Z
 

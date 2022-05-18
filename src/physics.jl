@@ -465,7 +465,7 @@ function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points::
     return spline_shape(r, z; n_points=n_points)
 end
 
-function xy_polygon(x, y)
+function xy_polygon(x::Vector{<:Real}, y::Vector{<:Real})
     x = deepcopy(x)
     y = deepcopy(y)
     if (x[1] != x[end]) && (x[1] ≈ x[end])
@@ -480,6 +480,10 @@ function xy_polygon(x, y)
     end
     coords = [collect(map(collect, zip(x, y)))]
     return LibGEOS.Polygon(coords)
+end
+
+function xy_polygon(layer::IMAS.build__layer)
+    return xy_polygon(layer.outline.r, layer.outline.z)
 end
 
 """
@@ -506,4 +510,13 @@ function silo(r_start, r_end, height_start, height_end)
     height_end = min(max(height_end, height_start * 0.0), height_start * 0.9)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0, pi / 2, r_start, height_end)
     vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
+end
+
+"""
+    line_through_point(m, x0, y0, x)
+
+return `y` values at `x` of line with gradient `m` going through point `(x0,y0)` 
+"""
+function line_through_point(m, x0, y0, x)
+    return @. m * x + y0 - m * x0
 end
