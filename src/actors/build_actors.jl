@@ -670,7 +670,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     ψb = IMAS.find_psi_boundary(eqt)
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
     plasma_poly = xy_polygon(rlcfs, zlcfs)
-    a = ((R_lfs_plasma - R_hfs_plasma) - (maximum(rlcfs) - minimum(rlcfs))) / 2.0
+    a = (maximum(rlcfs) - minimum(rlcfs)) / 15.0
     wall_poly = LibGEOS.buffer(plasma_poly, a)
 
     # hfs and lfs spacing may not be symmetric
@@ -900,7 +900,7 @@ end
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
-function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=false)
+function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=true)
     layer = bd.layer[layer_index]
     obstr = bd.layer[obstr_index]
     # display("Layer $layer_index = $(layer.name)")
@@ -933,9 +933,9 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         target_minimum_distance = lfs_thickness
     else
         if tight
-            target_minimum_distance = sqrt(hfs_thickness * lfs_thickness) * 0.9
+            target_minimum_distance = min(hfs_thickness, lfs_thickness)
         else
-            target_minimum_distance = (hfs_thickness + lfs_thickness) / 2.0
+            target_minimum_distance = sqrt(hfs_thickness^2 + lfs_thickness^2) / 2.0
         end
     end
     r_offset = (lfs_thickness .- hfs_thickness) / 2.0
