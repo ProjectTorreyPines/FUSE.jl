@@ -12,21 +12,32 @@ function case_parameters(::Type{Val{:ARC}})
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 9.9e6
     ini.equilibrium.βn = 1.4
-    ini.equilibrium.x_point = (3.0, 1.7) #estimate
+    ini.equilibrium.x_point = (3.1, 1.85)
     ini.equilibrium.symmetric = true
     act.ActorCXbuild.rebuild_wall = false
     act.ActorHFSsizing.fixed_aspect_ratio = true
 
-    # explicitly set thickness of 
-    ini.build.blanket = 1.0 #estimate
-    ini.build.shield = 0.0
-    ini.build.vessel = 0.5
+    # explicitly set thickness of radial build layers
     ini.build.n_first_wall_conformal_layers = 2
+    ini.build.layers = layers = DataStructures.OrderedDict()
+    layers[:gap_OH] = 0.82
+    layers[:OH] = 0.3
+    layers[:hfs_TF] = 0.55
+    layers[:gap_hfs_vacuum_vessel] = 0.186
+    layers[:hfs_blanket] = 0.4
+    layers[:hfs_wall] = 0.186
+    layers[:plasma] = 2.05
+    layers[:lfs_wall] = 0.186
+    layers[:lfs_blanket] = 0.95
+    layers[:gap_lfs_vacuum_vessel] = 0.186
+    layers[:lfs_TF] = 0.55
+    layers[:gap_cryostat] = 1.119
+    layers[:cryostat] = 0.186
     ini.material.shield = "Tungsten"
     ini.material.blanket = "FLiBe"
 
     ini.pf_active.n_oh_coils = 4
-    ini.pf_active.n_pf_coils_inside = 6
+    ini.pf_active.n_pf_coils_inside = 0
     ini.pf_active.n_pf_coils_outside = 4
     ini.pf_active.technology = coil_technology(:HTS)
 
@@ -54,4 +65,11 @@ function case_parameters(::Type{Val{:ARC}})
     act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
 
     return set_new_base!(ini), set_new_base!(act)
+end
+
+function TraceCAD(::Type{Val{:ARC}})
+    x_length = 7.23
+    x_offset = 0.57
+    y_offset = 0.05
+    TraceCAD2(:ARC, x_length, x_offset, y_offset)
 end
