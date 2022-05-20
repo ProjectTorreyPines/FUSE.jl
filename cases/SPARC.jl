@@ -11,18 +11,26 @@ function case_parameters(::Type{Val{:SPARC}})
     ini.equilibrium.B0 = -12.2
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 8.7e6
-    ini.equilibrium.βn = 1.05
-    ini.equilibrium.x_point = true
+    ini.equilibrium.βn = 9.05 # high beta only for purpose of getting reasonable boundary with Solovev (otherwise should be 1)
+    ini.equilibrium.x_point = (1.55, 1.1)
     ini.equilibrium.symmetric = true
     act.ActorCXbuild.rebuild_wall = false
     act.ActorHFSsizing.fixed_aspect_ratio = true
 
     # explicitly set thickness of 
-    ini.build.blanket = 0.0
-    ini.build.shield = 0.25 #estimate
-    ini.build.vessel = 0.5 #estimate
     ini.build.n_first_wall_conformal_layers = 3
-    ini.material.shield = "Tungsten" 
+    ini.build.layers = layers = DataStructures.OrderedDict()
+    layers[:gap_OH] = 0.38
+    layers[:OH] = 0.30
+    layers[:hfs_TF] = 0.40
+    layers[:gap_hfs_coils] = 0.05
+    layers[:hfs_wall] = 0.05
+    layers[:plasma] = 1.35
+    layers[:lfs_wall] = 0.2
+    layers[:gap_lfs_coils] = 0.34
+    layers[:lfs_TF] = 0.60
+    layers[:gap_cryostat] = 0.7
+    #ini.material.shield = "Tungsten"
 
     ini.pf_active.n_oh_coils = 6
     ini.pf_active.n_pf_coils_inside = 6
@@ -50,7 +58,14 @@ function case_parameters(::Type{Val{:SPARC}})
     ini.ec.power_launched = 0.0
     ini.ic.power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
-    act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
+    act.ActorPFcoilsOpt.symmetric = true
 
     return set_new_base!(ini), set_new_base!(act)
+end
+
+function TraceCAD(::Type{Val{:SPARC}})
+    x_length = 4.66
+    x_offset = -0.58
+    y_offset = 0.29
+    TraceCAD(:SPARC, x_length, x_offset, y_offset)
 end
