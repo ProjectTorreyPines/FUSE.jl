@@ -40,7 +40,10 @@ function init_nbi(
 end
 
 function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit)
-    return init_ec_launchers(dd, ini.ec.power_launched, evalmissing(ini.ec.efficiency_conversion), evalmissing(ini.ec.efficiency_transmission))
+    return init_ec_launchers(dd,
+        ini.ec.power_launched,
+        evalmissing(ini.ec, :efficiency_conversion),
+        evalmissing(ini.ec, :efficiency_transmission))
 end
 
 function init_ec_launchers(
@@ -61,7 +64,11 @@ function init_ec_launchers(
 end
 
 function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit)
-    return init_ic_antennas(dd, ini.ic.power_launched, evalmissing(ini.ic.efficiency_conversion), evalmissing(ini.ic.efficiency_transmission), evalmissing(ini.ic.efficiency_coupling))
+    return init_ic_antennas(dd,
+        ini.ic.power_launched,
+        evalmissing(ini.ic, :efficiency_conversion),
+        evalmissing(ini.ic, :efficiency_transmission),
+        evalmissing(ini.ic, :efficiency_coupling))
 end
 
 function init_ic_antennas(
@@ -84,7 +91,11 @@ function init_ic_antennas(
 end
 
 function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit)
-    return init_lh_antennas(dd, ini.lh.power_launched, evalmissing(ini.lh.efficiency_conversion), evalmissing(ini.lh.efficiency_transmission), evalmissing(ini.lh.efficiency_coupling))
+    return init_lh_antennas(dd,
+        ini.lh.power_launched,
+        evalmissing(ini.lh, :efficiency_conversion),
+        evalmissing(ini.lh, :efficiency_transmission),
+        evalmissing(ini.lh, :efficiency_coupling))
 end
 
 function init_lh_antennas(

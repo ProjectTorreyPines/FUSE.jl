@@ -106,34 +106,34 @@ function ParametersInit(::Type{Val{:nbi}})
     nbi.beam_energy = Entry(Union{X,Vector{X}} where {X<:Real}, "eV", "Beam energy")
     nbi.beam_mass = Entry(Union{X,Vector{X}} where {X<:Real}, "AU", "Beam mass"; default=2.0)
     nbi.toroidal_angle = Entry(Union{X,Vector{X}} where {X<:Real}, "rad", "toroidal angle of injection"; default=0.0)
-    nbi.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.nbi__unit, :efficiency_conversion)
-    nbi.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.nbi__unit, :efficiency_transmission)
+    nbi.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.nbi__unit___efficiency, :conversion)
+    nbi.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.nbi__unit___efficiency, :transmission)
     return nbi
 end
 
 function ParametersInit(::Type{Val{:ec}})
     ec = ParametersInit(nothing)
     ec.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher, :power_launched)
-    ec.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher, :efficiency_conversion)
-    ec.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher, :efficiency_transmission)
+    ec.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :conversion)
+    ec.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :transmission)
     return ec
 end
 
 function ParametersInit(::Type{Val{:ic}})
     ic = ParametersInit(nothing)
     ic.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna, :power_launched)
-    ic.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna, :efficiency_conversion)
-    ic.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna, :efficiency_transmission)
-    ic.efficiency_coupling = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna, :efficiency_coupling)
+    ic.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :conversion)
+    ic.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :transmission)
+    ic.efficiency_coupling = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :coupling)
     return ic
 end
 
 function ParametersInit(::Type{Val{:lh}})
     lh = ParametersInit(nothing)
     lh.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna, :power_launched)
-    lh.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna, :efficiency_conversion)
-    lh.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna, :efficiency_transmission)
-    lh.efficiency_coupling = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna, :efficiency_coupling)
+    lh.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :conversion)
+    lh.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :transmission)
+    lh.efficiency_coupling = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :coupling)
 
     return lh
 end
