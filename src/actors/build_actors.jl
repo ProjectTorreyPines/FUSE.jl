@@ -988,7 +988,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
             R = 0.5 * (max_r + min_r)
             δu = (R - r_at_max_z) / a
             δl = (R - r_at_min_z) / a
-            if δu + δl < 0
+            if δu + δl < -0.1
                 is_negative_D = true
             end
         end
