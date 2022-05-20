@@ -126,6 +126,19 @@ end
 # ******************************************
 using Images
 
+
+"""
+    dd_build_layers_to_ini(dd::IMAS.dd)
+
+Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = DataStructures.OrderedDict()`
+"""
+function dd_build_layers_to_ini(dd::IMAS.dd)
+    for layer in dd.build.layer
+        name = replace(layer.name, " " => "_")
+        println("layers[:$name] = $(layer.thickness)")
+    end
+end
+
 struct TraceCAD
     name::Symbol
     x_length::Real
