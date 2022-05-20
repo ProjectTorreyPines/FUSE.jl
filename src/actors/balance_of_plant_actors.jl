@@ -20,12 +20,12 @@ end
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersActor; gasc_method=false, kw...)
     par = act.ActorBalanceOfPlant(kw...)
     Actor = ActorBalanceOfPlant(dd, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
-    step(Actor,gasc_method)
+    step(Actor, gasc_method)
     finalize(Actor)
     return Actor
 end
 
-function step(Actor::ActorBalanceOfPlant,gasc_method)
+function step(Actor::ActorBalanceOfPlant, gasc_method)
     dd = Actor.dd
     bop = dd.balance_of_plant
     empty!(bop)
@@ -36,11 +36,11 @@ function step(Actor::ActorBalanceOfPlant,gasc_method)
     bop_electric = bop.power_electric_plant_operation
 
     ## H&CD
-    sys = resize!(bop_electric.system, "name" => "H&CD", "index"=> 1)
+    sys = resize!(bop_electric.system, "name" => "H&CD", "index" => 1)
     sys.power = zeros(length(bop.time))
-    for (idx,hcd_system) in enumerate(intersect([:nbi, :ec_launchers, :ic_antennas, :lh_antennas],keys(dd)))
+    for (idx, hcd_system) in enumerate(intersect([:nbi, :ec_launchers, :ic_antennas, :lh_antennas], keys(dd)))
         sub_sys = resize!(sys.subsystem, "name" => string(hcd_system), "index" => idx)
-        sub_sys.power = electricity(IMAS.evalmissing(dd,hcd_system), bop.time)
+        sub_sys.power = electricity(IMAS.evalmissing(dd, hcd_system), bop.time)
         sys.power .+= sub_sys.power
     end
 
@@ -48,7 +48,7 @@ function step(Actor::ActorBalanceOfPlant,gasc_method)
     bop.thermal_cycle.thermal_electric_conversion_efficiency = ones(length(bop.time)) .* Actor.thermal_electric_conversion_efficiency
     thermal_systems = [:blanket, :diverters]
     for (idx, thermal_system) in enumerate(thermal_systems)
-        sys = resize!(bop.thermal_cycle.system, "name" => string(thermal_system), "index"=> idx)
+        sys = resize!(bop.thermal_cycle.system, "name" => string(thermal_system), "index" => idx)
         sys.power_in = thermal_power(thermal_system, dd, Actor, bop.time)
     end
 
@@ -57,11 +57,11 @@ function step(Actor::ActorBalanceOfPlant,gasc_method)
         # More realistic DEMO numbers
         bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active] # index 2 : 5
         for (idx, system) in enumerate(bop_systems)
-            sys = resize!(bop_electric.system, "name" => string(system), "index"=> (idx + 1))
+            sys = resize!(bop_electric.system, "name" => string(system), "index" => (idx + 1))
             sys.power = electricity(system, bop.time)
         end
     else
-        sys = resize!(bop_electric.system, "name" => "BOP_gasc", "index"=> 2)
+        sys = resize!(bop_electric.system, "name" => "BOP_gasc", "index" => 2)
         sys.power = 0.07 .* bop.thermal_cycle.power_electric_generated
     end
 
@@ -78,11 +78,11 @@ function heating_and_current_drive_calc(system_unit, time_array)
 end
 
 function parse_core_sources_sum_heating(cs::IMAS.core_sources, identifier_index::Int64, time_array::Vector{<:Real})
-    return IMAS.interp1d(cs.time,[findall(cs.source,"identifier.index" => identifier_index)[1].profiles_1d[t].total_ion_power_inside[end] .+ findall(cs.source,"identifier.index" => 6)[1].profiles_1d[t].electrons.power_inside[end] for t in cs.time],:constant).(time_array)
+    return IMAS.interp1d(cs.time, [findall(cs.source, "identifier.index" => identifier_index)[1].profiles_1d[t].total_ion_power_inside[end] .+ findall(cs.source, "identifier.index" => 6)[1].profiles_1d[t].electrons.power_inside[end] for t in cs.time], :constant).(time_array)
 end
 
 function electricity(symbol::Symbol, time_array::Vector{<:Real})
-    return electricity(Val{symbol},time_array)
+    return electricity(Val{symbol}, time_array)
 end
 
 function electricity(nbi::IMAS.nbi, time_array::Vector{<:Real})
@@ -102,7 +102,7 @@ function electricity(lh_antennas::IMAS.lh_antennas, time_array::Vector{<:Real})
 end
 
 # Dummy functions values taken from DEMO 2017  https://iopscience.iop.org/article/10.1088/0029-5515/57/1/016011
-function electricity(::Type{Val{:cryostat}},  time_array::Vector{<:Real})
+function electricity(::Type{Val{:cryostat}}, time_array::Vector{<:Real})
     return 30e6 .* ones(length(time_array)) # MWe
 end
 
@@ -119,14 +119,14 @@ function electricity(::Type{Val{:pf_active}}, time_array::Vector{<:Real})
 end
 
 function thermal_power(symbol::Symbol, dd::IMAS.dd, Actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
-    return thermal_power(Val{symbol},dd, Actor, time_array)
+    return thermal_power(Val{symbol}, dd, Actor, time_array)
 end
 
-function thermal_power(::Type{Val{:blanket}},dd::IMAS.dd, Actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
-    power_fusion, time_array_fusion = IMAS.total_power_identifier_indexes(dd.core_sources,[6])
+function thermal_power(::Type{Val{:blanket}}, dd::IMAS.dd, Actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
+    power_fusion, time_array_fusion = IMAS.total_power_identifier_indexes(dd.core_sources, [6])
     return Actor.blanket_multiplier .* IMAS.interp1d(time_array_fusion, 4 .* power_fusion, :constant).(time_array) # blanket_multiplier * P_neutron
 end
 
-function thermal_power(::Type{Val{:diverters}},dd::IMAS.dd, Actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
-    return Actor.efficiency_reclaim .*  IMAS.total_power_source(IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[])) .* ones(length(time_array))
+function thermal_power(::Type{Val{:diverters}}, dd::IMAS.dd, Actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
+    return Actor.efficiency_reclaim .* IMAS.total_power_source(IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[])) .* ones(length(time_array))
 end
