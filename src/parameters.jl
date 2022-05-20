@@ -465,12 +465,15 @@ Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: Parameter $
 #= ============ =#
 # NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
 for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
-    include("../cases/" * filename)
+    if endswith(filename, ".jl")
+        println("including " * filename)
+        include("../cases/" * filename)
+    end
 end
 
 function case_parameters(case::Symbol; kw...)
     if length(methods(case_parameters, (Type{Val{case}},))) == 0
-        throw(InexistentParameterException(case_parameters, [case]))
+        throw(InexistentParameterException(Parameters, [case]))
     end
     return case_parameters(Val{case}; kw...)
 end

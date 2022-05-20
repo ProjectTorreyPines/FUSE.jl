@@ -32,6 +32,14 @@ using Test
         dd, ini, act = FUSE.init(:HDB5; tokamak=:JET, case=500)
     end
 
+    @testset "ARC" begin
+        dd, ini, act = FUSE.init(:ARC)
+    end
+
+    @testset "SPARC" begin
+        dd, ini, act = FUSE.init(:SPARC)
+    end
+
 end
 
 

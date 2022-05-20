@@ -713,6 +713,10 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         pr = [rr for (rr, zz) in slot]
         pz = [zz for (rr, zz) in slot]
 
+        if isempty(pr)
+            error("Something is wrong with the geometry and equilibrium")
+        end
+
         # remove private flux region from wall (necessary because of Z expansion)
         wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
 
