@@ -28,7 +28,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end
 
-    # explicitly set thickness of 
+    # explicitly set thickness of radial build layers
     ini.build.layers = layers = DataStructures.OrderedDict()
     layers[:gap_OH] = 0.80
     layers[:OH] = 1.30

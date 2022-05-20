@@ -13,6 +13,13 @@ function unwrap(v, inplace=false)
     return unwrapped
 end
 
+function IMAS.force_float(x::ForwardDiff.Dual)
+    ## we purposly do not do it recursively since generally
+    ## ForwardDiff.Dual of ForwardDiff.Dual is an indication of someghing going wrong
+    # return force_float(x.value)
+    return x.value
+end
+
 """
     returns enum from symbol
 """
@@ -114,9 +121,42 @@ function halfhull(points::Vector{Point})
     halfhull
 end
 
-function IMAS.force_float(x::ForwardDiff.Dual)
-    ## we purposly do not do it recursively since generally
-    ## ForwardDiff.Dual of ForwardDiff.Dual is an indication of someghing going wrong
-    # return force_float(x.value)
-    return x.value
+# ******************************************
+# TraceCAD
+# ******************************************
+using Images
+
+
+"""
+    dd_build_layers_to_ini(dd::IMAS.dd)
+
+Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = DataStructures.OrderedDict()`
+"""
+function dd_build_layers_to_ini(dd::IMAS.dd)
+    for layer in dd.build.layer
+        name = replace(layer.name, " " => "_")
+        println("layers[:$name] = $(layer.thickness)")
+    end
+end
+
+struct TraceCAD
+    name::Symbol
+    x_length::Real
+    x_offset::Real
+    y_offset::Real
+end
+
+function TraceCAD(device::Symbol)
+    return TraceCAD(Val{device})
+end
+
+@recipe function plot_trace_cad(cad::TraceCAD)
+    img = Images.load(joinpath(dirname(dirname(abspath(@__FILE__))), "cases", "$(cad.name).jpg"))
+    img .= img[end:-1:1, 1:end]
+    x = LinRange(0, cad.x_length, size(img)[1]) .+ cad.x_offset
+    y = LinRange(-0.5, 0.5, size(img)[2]) .* (size(img)[1] / size(img)[2]) * (x[end] - x[1]) .- cad.y_offset
+    @series begin
+        flip --> false
+        x, y, img
+    end
 end
