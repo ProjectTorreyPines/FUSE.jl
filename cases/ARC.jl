@@ -71,5 +71,5 @@ function TraceCAD(::Type{Val{:ARC}})
     x_length = 7.23
     x_offset = 0.57
     y_offset = 0.05
-    TraceCAD2(:ARC, x_length, x_offset, y_offset)
+    TraceCAD(:ARC, x_length, x_offset, y_offset)
 end
