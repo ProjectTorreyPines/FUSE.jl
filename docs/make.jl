@@ -13,7 +13,7 @@ using IMASDD # hide
 IMASDD.dd # hide
 ```
 """]
-for name in fieldnames(IMAS.dd)
+for name in sort(collect(fieldnames(IMAS.dd)))
     if !startswith("$name","_")
         basename = replace("$name","_"=>" ")
         push!(txt,"""## $basename
@@ -31,7 +31,7 @@ end
 # generate Actors page #
 # ==================== #
 txt = ["# Actors\n"]
-for name in names(FUSE; all=true, imported=false)
+for name in sort(collect(names(FUSE; all=true, imported=false)))
     if startswith("$name", "Actor")
         nname=replace("$name", "Actor"=>"")
         basename = replace(nname,"_"=>" ")
@@ -59,7 +59,7 @@ end
 # generate init page #
 # ================= #
 txt = ["# Init\n"]
-for name in names(FUSE; all=true, imported=false)
+for name in sort(collect(names(FUSE; all=true, imported=false)))
     if startswith("$name", "init_")
         nname = replace("$name", "init_"=>"")
         basename = replace(nname,"_"=>" ")
@@ -89,7 +89,7 @@ end
 makedocs(
     modules=[FUSE, IMAS],
     sitename="FUSE",
-    format=Documenter.HTML(prettyurls=false)
+    format=Documenter.HTML(prettyurls=false,sidebar_sitename=false)
 )
 
 # # =============== #
