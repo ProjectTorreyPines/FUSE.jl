@@ -136,6 +136,14 @@ function ParametersActor(::Type{Val{:ActorFluxSwing}})
     return par
 end
 
+"""
+    ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
+
+OH flux requirements based on
+* rampup estimate based on Ejima coefficient
+* flattop consumption
+* vertical field from PF coils
+"""
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
     actor = ActorFluxSwing(dd)

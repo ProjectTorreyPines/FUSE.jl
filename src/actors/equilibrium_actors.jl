@@ -21,6 +21,13 @@ function ParametersActor(::Type{Val{:ActorSolovev}})
     return par
 end
 
+"""
+    ActorSolovev(dd::IMAS.dd, act::ParametersActor; kw...)
+
+Solovev equilibrium actor, based on:
+“One size fits all” analytic solutions to the Grad–Shafranov equation
+Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
+"""
 function ActorSolovev(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorSolovev(kw...)
     actor = ActorSolovev(dd.equilibrium)

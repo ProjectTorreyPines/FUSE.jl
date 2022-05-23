@@ -131,5 +131,14 @@ docker_run_volume:
 
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
-    
+
+html:
+	cd docs; julia make.jl
+
+web:
+	if [ ! -d "$(PWD)/docs/pages" ]; then cd docs; git clone --single-branch -b gh-pages git@github.com:ProjectTorreyPines/FUSE.jl.git pages; fi
+	cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
+	cd docs; cp -r build/* pages/
+	cd docs/pages; git add -A; git commit -m "documentation"; git push --force
+
 .PHONY:

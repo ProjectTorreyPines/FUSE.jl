@@ -321,7 +321,12 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
     return value
 end
 
-function Base.show(io::IO, p::Parameters, depth::Int)
+
+function Base.show(io::IO, ::MIME"text/plain", p::Parameters, depth::Int=0)
+    return show(io, p, depth)
+end
+
+function Base.show(io::IO, p::Parameters, depth::Int=0)
     for item in sort(collect(keys(p)))
         parameter = p[item]
         if typeof(parameter) <: Parameters
@@ -356,10 +361,6 @@ function set_new_base!(p::Parameters)
     return p
 end
 
-function Base.show(io::IO, ::MIME"text/plain", p::Parameters)
-    return show(io, p, 0)
-end
-
 function Base.ismissing(p::Parameters, field::Symbol)::Bool
     return p[field].value === missing
 end
@@ -387,6 +388,18 @@ NOTE: This is useful because accessing a `missing` parameter would raise an erro
 """
 function evalmissing(p::Parameters, field::Symbol)
     return p[field].value
+end
+
+function doc(parameters::FUSE.Parameters)
+    txt = []
+    for par in keys(parameters)
+        push!(txt, "**$par**: [$(parameters[par].units)] $(parameters[par].description)")
+    end
+    if isempty(txt)
+        return "Does not accept extra keywords."
+    else
+        return "Extra keywords accepted are:\n* "*join(txt,"\n* ")
+    end
 end
 
 """
