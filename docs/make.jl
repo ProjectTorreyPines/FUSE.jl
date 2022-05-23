@@ -15,7 +15,8 @@ IMASDD.dd # hide
 """]
 for name in fieldnames(IMAS.dd)
     if !startswith("$name","_")
-        push!(txt,"""## $(replace("$name","_"=>" "))
+        basename = replace("$name","_"=>" ")
+        push!(txt,"""## $basename
 ```@example
 using IMASDD # hide
 IMASDD.$name # hide
@@ -32,7 +33,8 @@ end
 txt = ["# Actors\n"]
 for name in names(FUSE; all=true, imported=false)
     if startswith("$name", "Actor")
-        basename = replace("$name", "Actor"=>"")
+        nname=replace("$name", "Actor"=>"")
+        basename = replace(nname,"_"=>" ")
         push!(
             txt,
             """## $basename
@@ -58,8 +60,9 @@ end
 # ================= #
 txt = ["# Init\n"]
 for name in names(FUSE; all=true, imported=false)
-    if startswith("$name", "init")
-        basename = replace("$name", "init_"=>"")
+    if startswith("$name", "init_")
+        nname = replace("$name", "init_"=>"")
+        basename = replace(nname,"_"=>" ")
         push!(
             txt,
             """## $basename
@@ -70,7 +73,7 @@ FUSE.$name(::IMAS.dd, ::FUSE.ParametersInit, ::FUSE.ParametersActor)
 
 ```@eval
 import Markdown, FUSE
-return Markdown.parse(FUSE.doc(FUSE.ParametersInit(:$basename)))
+return Markdown.parse(FUSE.doc(FUSE.ParametersInit(:$nname)))
 ```
 """
         )

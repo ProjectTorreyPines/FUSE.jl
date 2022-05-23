@@ -1010,7 +1010,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         end
 
         func = shape_function(layer.shape)
-        layer.shape_parameters = init_shape_parameters(layer.shape, oR, oZ, l_start, l_end, target_minimum_distance)
+        layer.shape_parameters = initialize_shape_parameters(layer.shape, oR, oZ, l_start, l_end, target_minimum_distance)
 
         layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...)
         layer.shape_parameters = optimize_shape(oR, oZ, target_minimum_distance, func, l_start, l_end, layer.shape_parameters)

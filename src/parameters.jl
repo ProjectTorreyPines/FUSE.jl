@@ -392,8 +392,17 @@ end
 
 function doc(parameters::FUSE.Parameters)
     txt = []
-    for par in keys(parameters)
-        push!(txt, "**$par**: [$(parameters[par].units)] $(parameters[par].description)")
+    for par in sort(collect(keys(parameters)))
+        if typeof(parameters[par]) <: FUSE.Parameters
+            push!(txt, "**`$par`**: $(typeof(parameters[par]))") 
+        else
+            if isempty(parameters[par].units)
+                units=""
+            else
+                units=" [$(parameters[par].units)]"
+            end
+            push!(txt, "**`$par`**:$units $(parameters[par].description)")
+        end
     end
     if isempty(txt)
         return "Does not accept extra keywords."
