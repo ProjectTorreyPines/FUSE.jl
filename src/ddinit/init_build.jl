@@ -60,7 +60,7 @@ end
 #= ========== =#
 #  init build  #
 #= ========== =#
-function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
+function init_build(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
     
     if init_from == :ods

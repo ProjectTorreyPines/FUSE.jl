@@ -3,7 +3,7 @@
 
 Initialize all IDSs if there are parameters for it or is initialized from ods
 """
-function init!(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot=false)
+function init(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot=false)
     ods_items = []
     # Check what is in the ods to load
     if ini.general.init_from == :ods
@@ -66,11 +66,12 @@ end
 
 function init(ini::ParametersInit, act::ParametersActor; do_plot=false)
     dd = IMAS.dd()
-    return init!(dd, ini, act; do_plot)
+    return init(dd, ini, act; do_plot)
 end
 
 function init(case::Symbol; do_plot=false, kw...)
     ini, act = FUSE.case_parameters(case; kw...)
-    dd = FUSE.init(ini, act; do_plot=do_plot)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act; do_plot=do_plot)
     return dd, ini, act
 end

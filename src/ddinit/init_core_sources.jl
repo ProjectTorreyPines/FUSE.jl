@@ -1,7 +1,8 @@
 import NumericalIntegration: cumul_integrate
 
-function init_nbi(dd::IMAS.dd, ini::ParametersInit)
-    return init_nbi(dd, ini.nbi.power_launched, ini.nbi.beam_energy, ini.nbi.beam_mass, ini.nbi.toroidal_angle)
+function init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_nbi(dd, ini.nbi.power_launched, ini.nbi.beam_energy, ini.nbi.beam_mass, ini.nbi.toroidal_angle)
+    SimpleNBIactor(dd, act)
 end
 
 function init_nbi(
@@ -28,8 +29,9 @@ function init_nbi(
     return dd
 end
 
-function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit)
-    return init_ec_launchers(dd, ini.ec.power_launched)
+function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_ec_launchers(dd, ini.ec.power_launched)
+    SimpleECactor(dd, act)
 end
 
 function init_ec_launchers(dd::IMAS.dd, power_launched::Union{Real,Vector})
@@ -42,8 +44,9 @@ function init_ec_launchers(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
-function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit)
-    return init_ic_antennas(dd, ini.ic.power_launched)
+function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_ic_antennas(dd, ini.ic.power_launched)
+    SimpleICactor(dd, act)
 end
 
 function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
@@ -56,8 +59,9 @@ function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
-function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit)
-    return init_lh_antennas(dd, ini.lh.power_launched)
+function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_lh_antennas(dd, ini.lh.power_launched)
+    SimpleLHactor(dd, act)
 end
 
 function init_lh_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
@@ -85,20 +89,16 @@ function init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActo
 
     if init_from == :scalars
         if !ismissing(ini.nbi, :power_launched) && any(ini.nbi.power_launched .> 0)
-            init_nbi(dd, ini)
-            SimpleNBIactor(dd, act)
+            init_nbi(dd, ini, act)
         end
         if !ismissing(ini.ec, :power_launched) && any(ini.ec.power_launched .> 0)
-            init_ec_launchers(dd, ini)
-            SimpleECactor(dd, act)
+            init_ec_launchers(dd, ini, act)
         end
         if !ismissing(ini.ic, :power_launched) && any(ini.ic.power_launched .> 0)
-            init_ic_antennas(dd, ini)
-            SimpleICactor(dd, act)
+            init_ic_antennas(dd, ini, act)
         end
         if !ismissing(ini.lh, :power_launched) && any(ini.lh.power_launched .> 0)
-            init_lh_antennas(dd, ini)
-            SimpleLHactor(dd, act)
+            init_lh_antennas(dd, ini, act)
         end
     end
 
