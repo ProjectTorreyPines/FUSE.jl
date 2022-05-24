@@ -132,14 +132,6 @@ Plot regression of `\$name` and `\$(name)_fuse` data stored in a given dataframe
 """
 function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
 
-    function R_squared(x, y)
-        return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x) / length(x)) .^ 2)
-    end
-
-    function mean_relative_error(x, y)
-        return sum(abs.((y .- x) ./ x)) / length(x)
-    end
-
     x_name = name
     y_name = "$(name)_fuse"
     if x_name == "TAUTH"
@@ -166,4 +158,12 @@ Plot regression of `\$name` and `\$(name)_fuse` data stored in a given CSV file
 function plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
     dataframe = CSV.read(filename, DataFrames.DataFrame)
     plot_x_y_regression(dataframe, name)
+end
+
+function R_squared(x, y)
+    return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x) / length(x)) .^ 2)
+end
+
+function mean_relative_error(x, y)
+    return sum(abs.((y .- x) ./ x)) / length(x)
 end
