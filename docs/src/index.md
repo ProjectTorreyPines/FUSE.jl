@@ -6,23 +6,11 @@ The FUsion Synthesis Engine (FUSE) framework is built with the following ideas i
 
 * **Data** is organized according to the ITER IMAS ontology
 
-  * `dd = IMAS.dd()` (which stands for "data dictionary") is the root of the FUSE data structure
+* Physics and engineering **actors** are the fundamental building blocks of FUSE simulations
 
-* Physics and engineering **actors** are the fundamental building blocks of FUSE simulations: 
+* `ini` parameters allow to conveniently populate the data dictionary to begin a FUSE simulation
 
-  * Actors operate exclusively on the `dd` data dictionary
-  
-  * Actors functionality is controlled via `act` parameters
-
-  * Actors can be combined into other actors
-
-* To first populate the data dictionary and run any actors FUSE one can **initialize** `dd`:
-
-  * Manually
-
-  * By reading in an existing OMAS JSON data structure
-
-  * Using the `FUSE.Init(dd, ini, act)` method to populates `dd` starting from 0D `ini` parameters (same spirit of OMFIT's PRO_create module) and `act` Actor parameters
+* Actors functionality is controlled via `act` parameters
 
 * Both the `ini` and `act` **parameters** can be thought of a glorified namelists, which can be:
 

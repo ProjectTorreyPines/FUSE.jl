@@ -1,101 +1,41 @@
-using Documenter, FUSE
+using Documenter
+import FUSE, IMAS, IMASDD
 
 # ================ #
 # generate DD page #
 # ================ #
-txt = ["""
-# Data dictionary
-
-## dd
-
-```@example
-using IMASDD # hide
-IMASDD.dd # hide
-```
-"""]
-for name in sort(collect(fieldnames(IMAS.dd)))
-    if !startswith("$name","_")
-        basename = replace("$name","_"=>" ")
-        push!(txt,"""## $basename
-```@example
-using IMASDD # hide
-IMASDD.$name # hide
-```\n""")
-    end
-end
-open("src/dd.md", "w") do io
-    write(io, join(txt, "\n"))
-end
+include("src/dd_docs.jl")
 
 # ==================== #
 # generate Actors page #
 # ==================== #
-txt = ["# Actors\n"]
-for name in sort(collect(names(FUSE; all=true, imported=false)))
-    if startswith("$name", "Actor")
-        nname=replace("$name", "Actor"=>"")
-        basename = replace(nname,"_"=>" ")
-        push!(
-            txt,
-            """## $basename
+include("src/actors_docs.jl")
 
-```@docs
-FUSE.$name(::IMAS.dd, ::FUSE.ParametersActor)
-```
+# =================== #
+# generate inits page #
+# =================== #
+include("src/inits_docs.jl")
 
-```@eval
-import Markdown, FUSE
-return Markdown.parse(FUSE.doc(FUSE.ParametersActor(:$name)))
-```
-"""
-        )
-    end
-end
-open("src/actors.md", "w") do io
-    write(io, join(txt, "\n"))
-end
-
-# ================= #
-# generate init page #
-# ================= #
-txt = ["# Init\n"]
-for name in sort(collect(names(FUSE; all=true, imported=false)))
-    if startswith("$name", "init_")
-        nname = replace("$name", "init_"=>"")
-        basename = replace(nname,"_"=>" ")
-        push!(
-            txt,
-            """## $basename
-
-```@docs
-FUSE.$name(::IMAS.dd, ::FUSE.ParametersInit, ::FUSE.ParametersActor)
-```
-
-```@eval
-import Markdown, FUSE
-return Markdown.parse(FUSE.doc(FUSE.ParametersInit(:$nname)))
-```
-"""
-        )
-    end
-end
-open("src/inits.md", "w") do io
-    write(io, join(txt, "\n"))
-end
+# =================== #
+# generate cases page #
+# =================== #
+include("src/cases_docs.jl")
 
 # ============== #
 # build the docs #
 # ============== #
 makedocs(
-    modules=[FUSE, IMAS],
+    modules=[FUSE,IMAS,IMASDD],
     sitename="FUSE",
     format=Documenter.HTML(prettyurls=false,sidebar_sitename=false),
     pages = [
         "index.md",
-        "actors.md",
-        "inits.md",
-        "dd.md",
-        "install.md"
+        "Data" => "dd.md",
+        "Actors" => "actors.md",
+        "Initialization" => "inits.md",
+        "Use Cases" => "cases.md",
+        "Utilities" => "utils.md",
+        "Installation" => "install.md"
         ]
 )
 

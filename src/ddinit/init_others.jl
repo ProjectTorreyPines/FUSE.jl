@@ -1,7 +1,7 @@
 """
     init_missing_from_ods(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
 
-Initialize missing IDSs from ODS, only if `ini.general.init_from == :ods`
+Initialize missing IDSs from ODS, only if `ini.general.init_from == :ods`.
 """
 function init_missing_from_ods(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from

@@ -9,7 +9,7 @@ To generate a JSON file from a GASC run:
 ```
 """
 
-function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)
+function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{FUSE.ParametersInit, FUSE.ParametersActor}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
@@ -36,7 +36,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)
 
     ini.core_profiles.zeff = 1.1 ↔ [1.1, 2.5]
     ini.core_profiles.greenwald_fraction = 0.9 ↔ [0.8, 0.95]
-    ini.ec.power_launched = 45e6 ↔ [30e6, 100e6]
+    ini.ec_launchers.power_launched = 45e6 ↔ [30e6, 100e6]
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 16

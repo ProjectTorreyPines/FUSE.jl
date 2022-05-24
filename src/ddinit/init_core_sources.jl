@@ -1,5 +1,10 @@
 import NumericalIntegration: cumul_integrate
 
+"""
+    init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.nbi` starting from 0D `ini` parameters and `act` actor parameters.
+"""
 function init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_nbi(dd, ini.nbi.power_launched, ini.nbi.beam_energy, ini.nbi.beam_mass, ini.nbi.toroidal_angle)
     SimpleNBIactor(dd, act)
@@ -29,12 +34,17 @@ function init_nbi(
     return dd
 end
 
-function init_ec(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
-    init_ec(dd, ini.ec.power_launched)
+"""
+    init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.ec_launchers` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_ec_launchers(dd, ini.ec_launchers.power_launched)
     SimpleECactor(dd, act)
 end
 
-function init_ec(dd::IMAS.dd, power_launched::Union{Real,Vector})
+function init_ec_launchers(dd::IMAS.dd, power_launched::Union{Real,Vector})
     (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
         ecl = resize!(dd.ec_launchers.launcher, idx)
@@ -44,12 +54,17 @@ function init_ec(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
-function init_ic(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
-    init_ic(dd, ini.ic.power_launched)
+"""
+    init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.ic_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_ic_antennas(dd, ini.ic_antennas.power_launched)
     SimpleICactor(dd, act)
 end
 
-function init_ic(dd::IMAS.dd, power_launched::Union{Real,Vector})
+function init_ic_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
     (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
         ica = resize!(dd.ic_antennas.antenna, idx)
@@ -59,12 +74,17 @@ function init_ic(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
-function init_lh(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
-    init_lh(dd, ini.lh.power_launched)
+"""
+    init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_lh_antennas(dd, ini.lh_antennas.power_launched)
     SimpleLHactor(dd, act)
 end
 
-function init_lh(dd::IMAS.dd, power_launched::Union{Real,Vector})
+function init_lh_antennas(dd::IMAS.dd, power_launched::Union{Real,Vector})
     (power_launched,) = same_length_vectors(power_launched)
     for idx in 1:length(power_launched)
         lha = resize!(dd.lh_antennas.antenna, idx)
@@ -74,6 +94,11 @@ function init_lh(dd::IMAS.dd, power_launched::Union{Real,Vector})
     end
 end
 
+"""
+    init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+"""
 function init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
@@ -91,14 +116,14 @@ function init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActo
         if !ismissing(ini.nbi, :power_launched) && any(ini.nbi.power_launched .> 0)
             init_nbi(dd, ini, act)
         end
-        if !ismissing(ini.ec, :power_launched) && any(ini.ec.power_launched .> 0)
-            init_ec(dd, ini, act)
+        if !ismissing(ini.ec_launchers, :power_launched) && any(ini.ec_launchers.power_launched .> 0)
+            init_ec_launchers(dd, ini, act)
         end
-        if !ismissing(ini.ic, :power_launched) && any(ini.ic.power_launched .> 0)
-            init_ic(dd, ini, act)
+        if !ismissing(ini.ic_antennas, :power_launched) && any(ini.ic_antennas.power_launched .> 0)
+            init_ic_antennas(dd, ini, act)
         end
-        if !ismissing(ini.lh, :power_launched) && any(ini.lh.power_launched .> 0)
-            init_lh(dd, ini, act)
+        if !ismissing(ini.lh_antennas, :power_launched) && any(ini.lh_antennas.power_launched .> 0)
+            init_lh_antennas(dd, ini, act)
         end
     end
 

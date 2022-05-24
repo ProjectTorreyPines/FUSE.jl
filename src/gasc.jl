@@ -114,30 +114,30 @@ function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
         push!(ini.nbi.beam_energy, 1000e3)
     end
 
-    ini.lh.power_launched = Float64[]
+    ini.lh_antennas.power_launched = Float64[]
     pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
-        push!(ini.lh.power_launched, pow)
+        push!(ini.lh_antennas.power_launched, pow)
     end
     pow = outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"]
     if pow > 0
         push!(cd_powers, pow)
-        push!(ini.lh.power_launched, pow)
+        push!(ini.lh_antennas.power_launched, pow)
     end
 
-    ini.ec.power_launched = Float64[]
+    ini.ec_launchers.power_launched = Float64[]
     pow = outputs["CDpowerECCD"] * 1E6 * inputs["ECCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
-        push!(ini.ec.power_launched, pow)
+        push!(ini.ec_launchers.power_launched, pow)
     end
 
-    ini.ic.power_launched = Float64[]
+    ini.ic_antennas.power_launched = Float64[]
     pow = outputs["CDpowerFWCD"] * 1E6 * inputs["FWCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
-        push!(ini.ic.power_launched, pow)
+        push!(ini.ic_antennas.power_launched, pow)
     end
 
     # GASC heating power is assumed to be deposited in the core.

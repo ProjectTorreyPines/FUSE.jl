@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:ARC}})
+function case_parameters(::Type{Val{:ARC}})::Tuple{FUSE.ParametersInit, FUSE.ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
     ini.general.casename = "ARC"
@@ -59,8 +59,8 @@ function case_parameters(::Type{Val{:ARC}})
 
     ini.nbi.power_launched = 0.0
     ini.nbi.beam_energy = 0.0
-    ini.ec.power_launched = 0.0
-    ini.ic.power_launched = 4 * 1e6 #rf power coupled
+    ini.ec_launchers.power_launched = 0.0
+    ini.ic_antennas.power_launched = 4 * 1e6 #rf power coupled
 
     act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
 

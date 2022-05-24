@@ -7,7 +7,7 @@ Generates initalization parameters
 """
 function ParametersInit()
     par = ParametersInit(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersInit}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material]
         setproperty!(par, item, ParametersInit(item))
     end
     return par
@@ -109,22 +109,22 @@ function ParametersInit(::Type{Val{:nbi}})
     return nbi
 end
 
-function ParametersInit(::Type{Val{:ec}})
-    ec = ParametersInit(nothing)
-    ec.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "EC launched power")
-    return ec
+function ParametersInit(::Type{Val{:ec_launchers}})
+    ec_launchers = ParametersInit(nothing)
+    ec_launchers.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "EC launched power")
+    return ec_launchers
 end
 
-function ParametersInit(::Type{Val{:ic}})
-    ic = ParametersInit(nothing)
-    ic.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "IC launched power")
-    return ic
+function ParametersInit(::Type{Val{:ic_antennas}})
+    ic_antennas = ParametersInit(nothing)
+    ic_antennas.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "IC launched power")
+    return ic_antennas
 end
 
-function ParametersInit(::Type{Val{:lh}})
-    lh = ParametersInit(nothing)
-    lh.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "LH launched power")
-    return lh
+function ParametersInit(::Type{Val{:lh_antennas}})
+    lh_antennas = ParametersInit(nothing)
+    lh_antennas.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "LH launched power")
+    return lh_antennas
 end
 
 function ParametersInit(::Type{Val{:build}})

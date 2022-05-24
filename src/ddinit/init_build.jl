@@ -60,6 +60,11 @@ end
 #= ========== =#
 #  init build  #
 #= ========== =#
+"""
+    init_build(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.build` starting from 0D `ini` parameters and `act` actor parameters.
+"""
 function init_build(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
     

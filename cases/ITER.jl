@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{FUSE.ParametersInit, FUSE.ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
     ini.general.casename = "ITER_$(init_from)"
@@ -69,8 +69,8 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)
 
     ini.nbi.power_launched = 2 * 16.7e6
     ini.nbi.beam_energy = 1e6
-    ini.ec.power_launched = 2 * 10e6
-    ini.ic.power_launched = 24 * 1e6
+    ini.ec_launchers.power_launched = 2 * 10e6
+    ini.ic_antennas.power_launched = 24 * 1e6
 
     act.ActorPFcoilsOpt.symmetric = true
 
