@@ -1,4 +1,5 @@
 using InteractiveUtils: subtypes
+import AbstractTrees
 
 abstract type Parameter end
 abstract type Parameters end
@@ -189,9 +190,9 @@ function ParametersActor(group::Symbol; kw...)
     if length(methods(ParametersActor, (Type{Val{group}},))) == 0
         throw(InexistentParameterException(ParametersActor, [group]))
     end
-    par = ParametersActor(Val{group}; kw...)
-    par._name = group
-    return par
+    pars = ParametersActor(Val{group}; kw...)
+    pars._name = group
+    return pars
 end
 
 """
@@ -213,6 +214,7 @@ function ParametersActor()
             end
         end
     end
+    act._name = :act
     return act
 end
 
@@ -326,32 +328,45 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
 end
 
 
-function Base.show(io::IO, ::MIME"text/plain", p::Parameters, depth::Int=0)
-    return show(io, p, depth)
+function Base.show(io::IO, ::MIME"text/plain", pars::Parameters, depth::Int=0)
+    return AbstractTrees.print_tree(io, pars)
 end
 
-function Base.show(io::IO, p::Parameters, depth::Int=0)
-    for item in sort(collect(keys(p)))
-        parameter = p[item]
-        if typeof(parameter) <: Parameters
-            printstyled(io, "$(" "^(2*depth))")
-            printstyled(io, "$(item)\n"; bold=true)
-            show(io, parameter, depth + 1)
-        else
-            value = parameter.value
-            units = parameter.units
-            color = parameter_color(parameter)
-            printstyled(io, "$(" "^(2*depth))")
-            printstyled(io, "$(item)"; color=color)
-            printstyled(io, " ➡ "; color=:red)
-            printstyled(io, "$(repr(value))"; color=color)
-            if length(units) > 0 && value !== missing
-                printstyled(io, " [$(units)]"; color=color)
-            end
-            printstyled(io, "\n")
-        end
-    end
+function AbstractTrees.children(pars::Parameters)
+    return [pars[k] for k in keys(pars)]
 end
+
+function AbstractTrees.printnode(io::IO, par::Parameter)
+    color = parameter_color(par)
+    printstyled(io, par._name; color=color)
+end
+
+function AbstractTrees.printnode(io::IO, pars::Parameters)
+    printstyled(io, pars._name; bold=true)
+end
+
+# function Base.show(io::IO, p::Parameters, depth::Int=0)
+#     for item in sort(collect(keys(p)))
+#         parameter = p[item]
+#         if typeof(parameter) <: Parameters
+#             printstyled(io, "$(" "^(2*depth))")
+#             printstyled(io, "$(item)\n"; bold=true)
+#             show(io, parameter, depth + 1)
+#         else
+#             value = parameter.value
+#             units = parameter.units
+#             color = parameter_color(parameter)
+#             printstyled(io, "$(" "^(2*depth))")
+#             printstyled(io, "$(item)"; color=color)
+#             printstyled(io, " ➡ "; color=:red)
+#             printstyled(io, "$(repr(value))"; color=color)
+#             if length(units) > 0 && value !== missing
+#                 printstyled(io, " [$(units)]"; color=color)
+#             end
+#             printstyled(io, "\n")
+#         end
+#     end
+# end
 
 function set_new_base!(p::Parameters)
     for item in keys(p)

@@ -13,16 +13,16 @@ This can be done
   * Starting from 0D `ini` parameters (same spirit of OMFIT's PRO_create module)
   * Starting from GASC outputs, then to `ini`, and finally to `dd`
 
-## Use-cases initialization
-
-```@docs
-FUSE.init(case::Symbol; do_plot:Bool=false, kw...)
-```
-
 ## High level initialization
 
 ```@docs
 FUSE.init(::IMAS.dd, ::FUSE.ParametersInit, ::FUSE.ParametersActor)
+```
+
+## Use-cases initialization
+
+```@docs
+FUSE.init(case::Symbol; do_plot:Bool=false, kw...)
 ```
 
 """]

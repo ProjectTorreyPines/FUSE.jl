@@ -16,6 +16,16 @@ include("src/actors_docs.jl")
 # =================== #
 include("src/inits_docs.jl")
 
+# ================= #
+# generate ini page #
+# ================= #
+include("src/ini_docs.jl")
+
+# ================= #
+# generate act page #
+# ================= #
+include("src/act_docs.jl")
+
 # =================== #
 # generate cases page #
 # =================== #
@@ -31,6 +41,8 @@ makedocs(
     pages = [
         "index.md",
         "dd Data Structure" => "dd.md",
+        "ini Parameters" => "ini.md",
+        "act Parameters" => "act.md",
         "Actors" => "actors.md",
         "Initialization" => "inits.md",
         "Use Cases" => "cases.md",

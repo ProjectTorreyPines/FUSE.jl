@@ -6,11 +6,12 @@ using FusionMaterials: FusionMaterials
 Generates initalization parameters 
 """
 function ParametersInit()
-    par = ParametersInit(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersInit}}())
+    ini = ParametersInit(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersInit}}())
     for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material]
-        setproperty!(par, item, ParametersInit(item))
+        setproperty!(ini, item, ParametersInit(item))
     end
-    return par
+    ini._name = :ini
+    return ini
 end
 
 function ParametersInit(::Type{Val{:general}})
