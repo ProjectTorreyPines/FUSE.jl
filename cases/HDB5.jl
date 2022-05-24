@@ -1,9 +1,10 @@
 import DataFrames
 import CSV
 
-# For description of cases/variables see https://osf.io/593q6/
 """
-    case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer,database_case::Integer)
+    case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
+
+For description of cases/variables see https://osf.io/593q6/
 """
 function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
     if !ismissing(database_case)

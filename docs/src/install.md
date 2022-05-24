@@ -1,4 +1,4 @@
-# Getting started
+# Installation
 
 1. Install Julia
    * https://julialang.org/

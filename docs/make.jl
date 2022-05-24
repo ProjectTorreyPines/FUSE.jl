@@ -89,7 +89,14 @@ end
 makedocs(
     modules=[FUSE, IMAS],
     sitename="FUSE",
-    format=Documenter.HTML(prettyurls=false,sidebar_sitename=false)
+    format=Documenter.HTML(prettyurls=false,sidebar_sitename=false),
+    pages = [
+        "index.md",
+        "actors.md",
+        "inits.md",
+        "dd.md",
+        "install.md"
+        ]
 )
 
 # # =============== #
