@@ -37,7 +37,7 @@ include("src/cases_docs.jl")
 makedocs(
     modules=[FUSE,IMAS,IMASDD],
     sitename="FUSE",
-    format=Documenter.HTML(prettyurls=false,sidebar_sitename=false),
+    format=Documenter.HTML(prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
     pages = [
         "index.md",
         "dd Data Structure" => "dd.md",

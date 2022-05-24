@@ -7,13 +7,34 @@
    viewBox="0 0 152.33188 113.04204"
    version="1.1"
    id="svg5"
+   sodipodi:docname="logo-dark.svg"
+   inkscape:version="1.1.1 (c3084ef, 2021-09-22)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview855"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="1.1063973"
+     inkscape:cx="278.83292"
+     inkscape:cy="242.67955"
+     inkscape:window-width="1200"
+     inkscape:window-height="969"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer6" />
   <defs
      id="defs2" />
-  <g
-     id="layer7" />
   <g
      id="layer2"
      style="display:none"
@@ -63,7 +84,9 @@
        style="fill:#8d5bad;fill-opacity:1;stroke:#040000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
   </g>
   <g
+     inkscape:groupmode="layer"
      id="layer6"
+     inkscape:label="Layer 1"
      style="display:inline">
     <g
        id="layer1"
