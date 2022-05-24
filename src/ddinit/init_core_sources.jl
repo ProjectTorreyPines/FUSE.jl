@@ -49,8 +49,8 @@ end
 function init_ec_launchers(
     dd::IMAS.dd,
     power_launched::Union{Real,Vector},
-    efficiency_conversion::Union{Real,Vector},
-    efficiency_transmission::Union{Real,Vector})
+    efficiency_conversion::Union{Real,Vector,Missing},
+    efficiency_transmission::Union{Real,Vector,Missing})
 
     (power_launched, efficiency_conversion, efficiency_transmission) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission)
     for idx in 1:length(power_launched)
@@ -74,9 +74,9 @@ end
 function init_ic_antennas(
     dd::IMAS.dd,
     power_launched::Union{Real,Vector},
-    efficiency_conversion::Union{Real,Vector},
-    efficiency_transmission::Union{Real,Vector},
-    efficiency_coupling::Union{Real,Vector})
+    efficiency_conversion::Union{Real,Vector,Missing},
+    efficiency_transmission::Union{Real,Vector,Missing},
+    efficiency_coupling::Union{Real,Vector,Missing})
 
     (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
     for idx in 1:length(power_launched)
@@ -101,9 +101,9 @@ end
 function init_lh_antennas(
     dd::IMAS.dd,
     power_launched::Union{Real,Vector},
-    efficiency_conversion::Union{Real,Vector},
-    efficiency_transmission::Union{Real,Vector},
-    efficiency_coupling::Union{Real,Vector})
+    efficiency_conversion::Union{Real,Vector,Missing},
+    efficiency_transmission::Union{Real,Vector,Missing},
+    efficiency_coupling::Union{Real,Vector,Missing})
     (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
     for idx in 1:length(power_launched)
         lha = resize!(dd.lh_antennas.antenna, idx)
