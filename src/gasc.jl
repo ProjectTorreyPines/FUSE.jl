@@ -116,38 +116,38 @@ function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
         push!(ini.nbi.beam_energy, 1000e3)
     end
 
-    ini.lh.power_launched = Float64[]
-    ini.lh.efficiency_conversion = inputs["efficiencyConversionLHCD"]
-    ini.lh.efficiency_transmission = inputs["efficiencyTransmissionLHCD"]
-    ini.lh.efficiency_coupling = 1.0 # Not in GASC
+    ini.lh_antennas.power_launched = Float64[]
+    ini.lh_antennas.efficiency_conversion = inputs["efficiencyConversionLHCD"]
+    ini.lh_antennas.efficiency_transmission = inputs["efficiencyTransmissionLHCD"]
+    ini.lh_antennas.efficiency_coupling = 1.0 # Not in GASC
     pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
-        push!(ini.lh.power_launched, pow)
+        push!(ini.lh_antennas.power_launched, pow)
     end
     pow = outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"]
     if pow > 0
         push!(cd_powers, pow)
-        push!(ini.lh.power_launched, pow)
+        push!(ini.lh_antennas.power_launched, pow)
     end
 
-    ini.ec.power_launched = Float64[]
-    ini.ec.efficiency_conversion = inputs["efficiencyConversionECCD"]
-    ini.ec.efficiency_transmission = inputs["efficiencyTransmissionECCD"]
+    ini.ec_launchers.power_launched = Float64[]
+    ini.ec_launchers.efficiency_conversion = inputs["efficiencyConversionECCD"]
+    ini.ec_launchers.efficiency_transmission = inputs["efficiencyTransmissionECCD"]
     pow = outputs["CDpowerECCD"] * 1E6 * inputs["ECCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
-        push!(ini.ec.power_launched, pow)
+        push!(ini.ec_launchers.power_launched, pow)
     end
 
-    ini.ic.power_launched = Float64[]
-    ini.ic.efficiency_conversion = inputs["efficiencyConversionFWCD"]
-    ini.ic.efficiency_transmission = inputs["efficiencyTransmissionFWCD"]
-    ini.ic.efficiency_coupling = 1.0 # Not in GASC
+    ini.ic_antennas.power_launched = Float64[]
+    ini.ic_antennas.efficiency_conversion = inputs["efficiencyConversionFWCD"]
+    ini.ic_antennas.efficiency_transmission = inputs["efficiencyTransmissionFWCD"]
+    ini.ic_antennas.efficiency_coupling = 1.0 # Not in GASC
     pow = outputs["CDpowerFWCD"] * 1E6 * inputs["FWCDFraction"]
     if pow > 0
         push!(cd_powers, pow)
-        push!(ini.ic.power_launched, pow)
+        push!(ini.ic_antennas.power_launched, pow)
     end
 
     # GASC heating power is assumed to be deposited in the core.

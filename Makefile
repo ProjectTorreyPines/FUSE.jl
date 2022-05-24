@@ -137,8 +137,10 @@ html:
 
 web:
 	if [ ! -d "$(PWD)/docs/pages" ]; then cd docs; git clone --single-branch -b gh-pages git@github.com:ProjectTorreyPines/FUSE.jl.git pages; fi
-	cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
-	cd docs; cp -r build/* pages/
-	cd docs/pages; git add -A; git commit -m "documentation"; git push --force
+	#cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
+	cd docs/pages; git pull
+	cd docs; cp -rf build/* pages/
+	cd docs/pages; touch .nojekyll
+	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
 
 .PHONY:

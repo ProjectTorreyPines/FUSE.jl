@@ -1,11 +1,12 @@
 import DataFrames
 import CSV
 
-# For description of cases/variables see https://osf.io/593q6/
 """
-    case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case::Integer,database_case::Integer)
+    case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
+
+For description of cases/variables see https://osf.io/593q6/
 """
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
+function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersInit, ParametersActor}
     if !ismissing(database_case)
         data_row = load_hdb5(database_case=database_case)
     elseif !ismissing(case)
@@ -84,11 +85,11 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     end
 
     if data_row[:PECRH] > 0
-        ini.ec.power_launched = data_row[:PECRH]
+        ini.ec_launchers.power_launched = data_row[:PECRH]
     end
 
     if data_row[:PICRH] > 0
-        ini.ic.power_launched = data_row[:PICRH]
+        ini.ic_antennas.power_launched = data_row[:PICRH]
     end
 
     return set_new_base!(ini), set_new_base!(act)

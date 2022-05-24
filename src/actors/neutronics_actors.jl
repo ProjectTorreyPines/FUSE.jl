@@ -92,7 +92,7 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
     # advance neutrons until they hit the wall
     rz_wall = collect(zip(wall_r, wall_z))
     Threads.@threads for n in neutrons
-        while FUSE.PolygonOps.inpolygon((Rcoord(n), Zcoord(n)), rz_wall) == 1
+        while PolygonOps.inpolygon((Rcoord(n), Zcoord(n)), rz_wall) == 1
             n.x += n.δvx
             n.y += n.δvy
             n.z += n.δvz

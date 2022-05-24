@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:SPARC}})
+function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
     ini.general.casename = "SPARC"
@@ -55,8 +55,8 @@ function case_parameters(::Type{Val{:SPARC}})
 
     ini.nbi.power_launched = 0.0
     ini.nbi.beam_energy = 0.0
-    ini.ec.power_launched = 0.0
-    ini.ic.power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
+    ini.ec_launchers.power_launched = 0.0
+    ini.ic_antennas.power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     act.ActorPFcoilsOpt.symmetric = true
 

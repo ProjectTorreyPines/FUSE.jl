@@ -1,6 +1,54 @@
 #= ==================== =#
 #  init equilibrium IDS  #
 #= ==================== =#
+"""
+    init_equilibrium(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.equilibrium` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_equilibrium(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_from = ini.general.init_from
+
+    if init_from == :ods
+        dd1 = IMAS.json2imas(ini.ods.filename)
+        if !ismissing(dd1.equilibrium, :time) && length(keys(dd1.equilibrium.time)) > 0
+            dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))
+            dd.equilibrium = dd1.equilibrium
+            IMAS.flux_surfaces(dd.equilibrium.time_slice[])
+        else
+            init_from = :scalars
+        end
+    end
+
+    if init_from == :scalars
+        # init equilibrium
+        init_equilibrium(
+            dd.equilibrium;
+            B0=ini.equilibrium.B0,
+            R0=ini.equilibrium.R0,
+            Z0=ini.equilibrium.Z0,
+            ϵ=ini.equilibrium.ϵ,
+            κ=ini.equilibrium.κ,
+            δ=ini.equilibrium.δ,
+            βn=ini.equilibrium.βn,
+            ip=ini.equilibrium.ip,
+            x_point=ini.equilibrium.x_point,
+            symmetric=ini.equilibrium.symmetric)
+
+        # solve equilibrium
+        ActorSolovev(dd, act)
+    end
+
+    # field null surface
+    if ini.equilibrium.field_null_surface > 0.0
+        pushfirst!(dd.equilibrium.time_slice, field_null_surface(dd.equilibrium.time_slice[], ini.equilibrium.field_null_surface))
+        pushfirst!(dd.equilibrium.vacuum_toroidal_field.b0, @ddtime(dd.equilibrium.vacuum_toroidal_field.b0))
+        pushfirst!(dd.equilibrium.time, -Inf)
+        dd.equilibrium.time_slice[1].time = -Inf
+    end
+
+    return dd
+end
 
 """
     function init_equilibrium(
@@ -56,50 +104,6 @@ function init_equilibrium(
     @ddtime eq.vacuum_toroidal_field.b0 = B0
 
     return eq
-end
-
-function init_equilibrium(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
-    init_from = ini.general.init_from
-
-    if init_from == :ods
-        dd1 = IMAS.json2imas(ini.ods.filename)
-        if !ismissing(dd1.equilibrium, :time) && length(keys(dd1.equilibrium.time)) > 0
-            dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))
-            dd.equilibrium = dd1.equilibrium
-            IMAS.flux_surfaces(dd.equilibrium.time_slice[])
-        else
-            init_from = :scalars
-        end
-    end
-
-    if init_from == :scalars
-        # init equilibrium
-        init_equilibrium(
-            dd.equilibrium;
-            B0=ini.equilibrium.B0,
-            R0=ini.equilibrium.R0,
-            Z0=ini.equilibrium.Z0,
-            ϵ=ini.equilibrium.ϵ,
-            κ=ini.equilibrium.κ,
-            δ=ini.equilibrium.δ,
-            βn=ini.equilibrium.βn,
-            ip=ini.equilibrium.ip,
-            x_point=ini.equilibrium.x_point,
-            symmetric=ini.equilibrium.symmetric)
-
-        # solve equilibrium
-        ActorSolovev(dd, act)
-    end
-
-    # field null surface
-    if ini.equilibrium.field_null_surface > 0.0
-        pushfirst!(dd.equilibrium.time_slice, field_null_surface(dd.equilibrium.time_slice[], ini.equilibrium.field_null_surface))
-        pushfirst!(dd.equilibrium.vacuum_toroidal_field.b0, @ddtime(dd.equilibrium.vacuum_toroidal_field.b0))
-        pushfirst!(dd.equilibrium.time, -Inf)
-        dd.equilibrium.time_slice[1].time = -Inf
-    end
-
-    return dd
 end
 
 """

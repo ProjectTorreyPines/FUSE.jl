@@ -167,7 +167,9 @@ function ParametersInit(group::Symbol; kw...)
     if length(methods(ParametersInit, (Type{Val{group}},))) == 0
         throw(InexistentParameterException(ParametersInit, [group]))
     end
-    return ParametersInit(Val{group}; kw...)
+    par = ParametersInit(Val{group}; kw...)
+    par._name = group
+    return par
 end
 
 #= =============== =#
@@ -187,7 +189,9 @@ function ParametersActor(group::Symbol; kw...)
     if length(methods(ParametersActor, (Type{Val{group}},))) == 0
         throw(InexistentParameterException(ParametersActor, [group]))
     end
-    return ParametersActor(Val{group}; kw...)
+    par = ParametersActor(Val{group}; kw...)
+    par._name = group
+    return par
 end
 
 """
@@ -390,15 +394,29 @@ function evalmissing(p::Parameters, field::Symbol)
     return p[field].value
 end
 
-function doc(parameters::FUSE.Parameters)
+function doc(parameters::Parameters)
+    if typeof(parameters) <: ParametersActor
+        ppath = "act.$(parameters._name)"
+    else
+        ppath = "ini.$(parameters._name)"
+    end
     txt = []
-    for par in keys(parameters)
-        push!(txt, "**$par**: [$(parameters[par].units)] $(parameters[par].description)")
+    for par in sort(collect(keys(parameters)))
+        if typeof(parameters[par]) <: Parameters
+            push!(txt, "**`$(ppath).$par`**: $(typeof(parameters[par]))") 
+        else
+            if isempty(parameters[par].units)
+                units=""
+            else
+                units=" [$(parameters[par].units)]"
+            end
+            push!(txt, "**`$(ppath).$par`**:$units $(parameters[par].description)")
+        end
     end
     if isempty(txt)
-        return "Does not accept extra keywords."
+        return ""
     else
-        return "Extra keywords accepted are:\n* "*join(txt,"\n* ")
+        return "* "*join(txt,"\n* ")
     end
 end
 

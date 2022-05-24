@@ -3,14 +3,38 @@ const coils_turns_spacing = 0.03
 #= ================== =#
 #  init pf_active IDS  #
 #= ================== =#
-function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
-    Δrail = maximum(rail_outline_z) - minimum(rail_outline_z)
-    Δclear = coils_cleareance * coils_number
-    Δcoil = (height * Δrail - Δclear) / coils_number
-    rail_offset = (maximum(rail_outline_z) + minimum(rail_outline_z)) / 2.0
-    z = LinRange(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
-    z = z .+ (offset * (1 - height) * Δrail)
-    return z, Δcoil
+"""
+    init_pf_active(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.pf_active` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_pf_active(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_from = ini.general.init_from
+
+    if init_from == :ods
+        dd1 = IMAS.json2imas(ini.ods.filename)
+        if length(keys(dd1.pf_active)) > 0
+            dd.global_time = max(dd.global_time, maximum(dd1.pf_active.time))
+            dd.pf_active = dd1.pf_active
+        else
+            init_from = :scalars
+        end
+    end
+
+    if init_from == :scalars
+        n_coils = [ini.pf_active.n_oh_coils]
+        if any([contains(lowercase(layer.name), "coils") for layer in dd.build.layer])
+            push!(n_coils, ini.pf_active.n_pf_coils_inside)
+        end
+        push!(n_coils, ini.pf_active.n_pf_coils_outside)
+        init_pf_active(dd.pf_active, dd.build, n_coils)
+    end
+
+    assign_coil_technology(dd, ini, :tf)
+    assign_coil_technology(dd, ini, :oh)
+    assign_coil_technology(dd, ini, :pf_active)
+
+    return dd
 end
 
 """
@@ -211,33 +235,14 @@ function init_pf_active(
     return pf_active
 end
 
-function init_pf_active(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
-    init_from = ini.general.init_from
-
-    if init_from == :ods
-        dd1 = IMAS.json2imas(ini.ods.filename)
-        if length(keys(dd1.pf_active)) > 0
-            dd.global_time = max(dd.global_time, maximum(dd1.pf_active.time))
-            dd.pf_active = dd1.pf_active
-        else
-            init_from = :scalars
-        end
-    end
-
-    if init_from == :scalars
-        n_coils = [ini.pf_active.n_oh_coils]
-        if any([contains(lowercase(layer.name), "coils") for layer in dd.build.layer])
-            push!(n_coils, ini.pf_active.n_pf_coils_inside)
-        end
-        push!(n_coils, ini.pf_active.n_pf_coils_outside)
-        init_pf_active(dd.pf_active, dd.build, n_coils)
-    end
-
-    assign_coil_technology(dd, ini, :tf)
-    assign_coil_technology(dd, ini, :oh)
-    assign_coil_technology(dd, ini, :pf_active)
-
-    return dd
+function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
+    Δrail = maximum(rail_outline_z) - minimum(rail_outline_z)
+    Δclear = coils_cleareance * coils_number
+    Δcoil = (height * Δrail - Δclear) / coils_number
+    rail_offset = (maximum(rail_outline_z) + minimum(rail_outline_z)) / 2.0
+    z = LinRange(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
+    z = z .+ (offset * (1 - height) * Δrail)
+    return z, Δcoil
 end
 
 function assign_coil_technology(dd::IMAS.dd, ini::ParametersInit, coil_type::Symbol)

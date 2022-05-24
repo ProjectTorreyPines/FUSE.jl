@@ -1,4 +1,10 @@
 import TAUENN: Hmode_profiles
+
+"""
+    init_core_profiles(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.core_profiles` starting from 0D `ini` parameters and `act` actor parameters.
+"""
 function init_core_profiles(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
