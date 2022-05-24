@@ -13,7 +13,7 @@ function init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
         ini.nbi.toroidal_angle,
         evalmissing(ini.nbi, :efficiency_conversion),
         evalmissing(ini.nbi, :efficiency_transmission))
-    SimpleNBIactor(dd, act)
+    ActorNBIsimple(dd, act)
 end
 
 function init_nbi(
@@ -55,7 +55,7 @@ function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActo
         ini.ec_launchers.power_launched,
         evalmissing(ini.ec_launchers, :efficiency_conversion),
         evalmissing(ini.ec_launchers, :efficiency_transmission))
-    SimpleECactor(dd, act)
+    ActorECsimple(dd, act)
 end
 
 function init_ec_launchers(
@@ -86,7 +86,7 @@ function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor
         evalmissing(ini.ic_antennas, :efficiency_conversion),
         evalmissing(ini.ic_antennas, :efficiency_transmission),
         evalmissing(ini.ic_antennas, :efficiency_coupling))
-    SimpleICactor(dd, act)
+    ActorICsimple(dd, act)
 end
 
 function init_ic_antennas(
@@ -119,7 +119,7 @@ function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor
         evalmissing(ini.lh_antennas, :efficiency_conversion),
         evalmissing(ini.lh_antennas, :efficiency_transmission),
         evalmissing(ini.lh_antennas, :efficiency_coupling))
-    SimpleLHactor(dd, act)
+    ActorLHsimple(dd, act)
 end
 
 function init_lh_antennas(

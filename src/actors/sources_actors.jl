@@ -3,14 +3,14 @@ import NumericalIntegration: integrate
 #= === =#
 #  NBI  #
 #= === =#
-mutable struct SimpleNBIactor <: AbstractActor
+mutable struct ActorNBIsimple <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-function ParametersActor(::Type{Val{:SimpleNBIactor}})
+function ParametersActor(::Type{Val{:ActorNBIsimple}})
     par = ParametersActor(nothing)
     par.width = Entry(Real, "", "Width of the deposition profile"; default=0.3)
     par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
@@ -18,19 +18,27 @@ function ParametersActor(::Type{Val{:SimpleNBIactor}})
     return par
 end
 
-function SimpleNBIactor(dd::IMAS.dd, act::ParametersActor; kw...)
-    par = act.SimpleNBIactor(kw...)
-    actor = SimpleNBIactor(dd; par.width, par.rho_0, par.current_efficiency)
+"""
+    ActorNBIsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
+
+!!! note 
+    Stores data in ```dd.nbi, dd.core_sources```
+"""
+function ActorNBIsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorNBIsimple(kw...)
+    actor = ActorNBIsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
 end
 
-function SimpleNBIactor(dd::IMAS.dd; width::Real=0.3, rho_0::Real=0.0, current_efficiency::Real=0.3)
+function ActorNBIsimple(dd::IMAS.dd; width::Real=0.3, rho_0::Real=0.0, current_efficiency::Real=0.3)
     nbeam = ones(length(dd.nbi.unit))
-    return SimpleNBIactor(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
+    return ActorNBIsimple(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
 end
 
-function step(actor::SimpleNBIactor)
+function step(actor::ActorNBIsimple)
     for (idx, nbu) in enumerate(actor.dd.nbi.unit)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -78,14 +86,14 @@ end
 #= == =#
 #  EC  #
 #= == =#
-mutable struct SimpleECactor <: AbstractActor
+mutable struct ActorECsimple <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-function ParametersActor(::Type{Val{:SimpleECactor}})
+function ParametersActor(::Type{Val{:ActorECsimple}})
     par = ParametersActor(nothing)
     par.width = Entry(Real, "", "Width of the deposition profile"; default=0.1)
     par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
@@ -93,19 +101,27 @@ function ParametersActor(::Type{Val{:SimpleECactor}})
     return par
 end
 
-function SimpleECactor(dd::IMAS.dd, act::ParametersActor; kw...)
-    par = act.SimpleECactor(kw...)
-    actor = SimpleECactor(dd; par.width, par.rho_0, par.current_efficiency)
+"""
+    ActorECsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor estimates the EC electron energy deposition and current drive as a gaussian.
+
+!!! note 
+    Stores data in ```dd.ec_launchers, dd.core_sources```
+"""
+function ActorECsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorECsimple(kw...)
+    actor = ActorECsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
 end
 
-function SimpleECactor(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.2)
+function ActorECsimple(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.2)
     n_launchers = ones(length(dd.ec_launchers.launcher))
-    return SimpleECactor(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
+    return ActorECsimple(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
 end
 
-function step(actor::SimpleECactor)
+function step(actor::ActorECsimple)
     for (idx, ecl) in enumerate(actor.dd.ec_launchers.launcher)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -145,14 +161,14 @@ end
 #= == =#
 #  IC  #
 #= == =#
-mutable struct SimpleICactor <: AbstractActor
+mutable struct ActorICsimple <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-function ParametersActor(::Type{Val{:SimpleICactor}})
+function ParametersActor(::Type{Val{:ActorICsimple}})
     par = ParametersActor(nothing)
     par.width = Entry(Real, "", "Width of the deposition profile"; default=0.1)
     par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
@@ -160,19 +176,27 @@ function ParametersActor(::Type{Val{:SimpleICactor}})
     return par
 end
 
-function SimpleICactor(dd::IMAS.dd, act::ParametersActor; kw...)
-    par = act.SimpleICactor(kw...)
-    actor = SimpleICactor(dd; par.width, par.rho_0, par.current_efficiency)
+"""
+    ActorICsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
+
+!!! note 
+    Stores data in ```dd.ic_antennas, dd.core_sources```
+"""
+function ActorICsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorICsimple(kw...)
+    actor = ActorICsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
 end
 
-function SimpleICactor(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.125)
+function ActorICsimple(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.125)
     n_antennas = ones(length(dd.ic_antennas.antenna))
-    return SimpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
+    return ActorICsimple(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
 end
 
-function step(actor::SimpleICactor)
+function step(actor::ActorICsimple)
     for (idx, ica) in enumerate(actor.dd.ic_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -212,14 +236,14 @@ end
 #= == =#
 #  LH  #
 #= == =#
-mutable struct SimpleLHactor <: AbstractActor
+mutable struct ActorLHsimple <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
     current_efficiency::Vector{Real}
 end
 
-function ParametersActor(::Type{Val{:SimpleLHactor}})
+function ParametersActor(::Type{Val{:ActorLHsimple}})
     par = ParametersActor(nothing)
     par.width = Entry(Real, "", "Width of the deposition profile"; default=0.15)
     par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.6)
@@ -227,19 +251,27 @@ function ParametersActor(::Type{Val{:SimpleLHactor}})
     return par
 end
 
-function SimpleLHactor(dd::IMAS.dd, act::ParametersActor; kw...)
-    par = act.SimpleLHactor(kw...)
-    actor = SimpleLHactor(dd; par.width, par.rho_0, par.current_efficiency)
+"""
+    ActorLHsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
+
+!!! note 
+    Stores data in ```dd.lh_antennas, dd.core_sources```
+"""
+function ActorLHsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorLHsimple(kw...)
+    actor = ActorLHsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
 end
 
-function SimpleLHactor(dd::IMAS.dd; width::Real=0.15, rho_0::Real=0.6, current_efficiency::Real=0.4)
+function ActorLHsimple(dd::IMAS.dd; width::Real=0.15, rho_0::Real=0.6, current_efficiency::Real=0.4)
     n_antennas = ones(length(dd.lh_antennas.antenna))
-    return SimpleICactor(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
+    return ActorICsimple(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
 end
 
-function step(actor::SimpleLHactor)
+function step(actor::ActorLHsimple)
     for (idx, lha) in enumerate(actor.dd.lh_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]

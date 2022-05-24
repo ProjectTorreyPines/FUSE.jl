@@ -25,6 +25,16 @@ function ParametersActor(::Type{Val{:ActorTauenn}})
     return par
 end
 
+"""
+    ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor estimates the core-transport using Tauenn and evolves the kinetic profiles according to heat and particle flux matching.
+
+The pedestal in this actor is evolved using EPED-NN.
+
+!!! note 
+    Stores data in ```dd.core_profiles```
+"""
 function ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorTauenn(kw...)
     if par.do_plot

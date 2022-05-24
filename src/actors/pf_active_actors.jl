@@ -47,6 +47,14 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
     return par
 end
 
+"""
+    ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor fiends the coil currents and locations of the poloidal field coils for both the field-null during start-up and to match the equilibrium boundary shape.
+
+!!! note 
+    Stores data in ```dd.pf_active```
+"""
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorPFcoilsOpt(kw...)
     actor = ActorPFcoilsOpt(dd; green_model=par.green_model, symmetric=par.symmetric)
