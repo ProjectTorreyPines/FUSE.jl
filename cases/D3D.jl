@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:D3D}})::Tuple{FUSE.ParametersInit, FUSE.ParametersActor}
+function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
 

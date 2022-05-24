@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{FUSE.ParametersInit, FUSE.ParametersActor}
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
     ini.general.casename = "ITER_$(init_from)"

@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:CAT}})::Tuple{FUSE.ParametersInit, FUSE.ParametersActor}
+function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
 

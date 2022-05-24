@@ -1,5 +1,5 @@
 """
-    init(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot=false)
+    init(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot::Bool=false)
 
 Initialize `dd` starting from 0D `ini` parameters and `act` actor parameters.
 
@@ -7,7 +7,7 @@ FUSE provides this high-level `init` function to populate `dd` starting from the
 This function essentially calls all other `FUSE.init...` functions in FUSE.
 For most applications, calling this high level function is sufficient.
 """
-function init(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot=false)
+function init(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot::Bool=false)
     ods_items = []
     # Check what is in the ods to load
     if ini.general.init_from == :ods
@@ -76,17 +76,20 @@ end
 """
     init(case::Symbol; do_plot::Bool=false, kw...)
 
-Initialize dd, ini, act based on a given use-case
+Convenience function to initialize `dd`, `ini`, `act` based on a given use-case.
+Returns a tuple with `dd`, `ini`, `act`.
+This function is handy if no customization of `ini` or `act` is needed (eg. for regression testing),
+otherwise it is recommended to do this in steps:
 
-This function is equivalent to:
-
-    ini, act = FUSE.case_parameters(case::Symbol)
-    dd = IMAS.dd()
-    FUSE.init(dd, ini, act; do_plot::Bool)
+```julia
+ini, act = FUSE.case_parameters(case::Symbol; kw...)
+dd = IMAS.dd()
+FUSE.init(dd, ini, act; do_plot::Bool)
+```
 """
 function init(case::Symbol; do_plot::Bool=false, kw...)
-    ini, act = FUSE.case_parameters(case; kw...)
+    ini, act = case_parameters(case; kw...)
     dd = IMAS.dd()
-    FUSE.init(dd, ini, act; do_plot=do_plot)
+    init(dd, ini, act; do_plot=do_plot)
     return dd, ini, act
 end

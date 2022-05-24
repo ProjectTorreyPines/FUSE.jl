@@ -394,15 +394,15 @@ function evalmissing(p::Parameters, field::Symbol)
     return p[field].value
 end
 
-function doc(parameters::FUSE.Parameters)
-    if typeof(parameters) <: FUSE.ParametersActor
+function doc(parameters::Parameters)
+    if typeof(parameters) <: ParametersActor
         ppath = "act.$(parameters._name)"
     else
         ppath = "ini.$(parameters._name)"
     end
     txt = []
     for par in sort(collect(keys(parameters)))
-        if typeof(parameters[par]) <: FUSE.Parameters
+        if typeof(parameters[par]) <: Parameters
             push!(txt, "**`$(ppath).$par`**: $(typeof(parameters[par]))") 
         else
             if isempty(parameters[par].units)

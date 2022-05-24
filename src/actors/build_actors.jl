@@ -859,17 +859,17 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
         if k == itf + 1
             # layer that is inside of the TF sets TF shape
-            FUSE.optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside)
+            optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside)
         else
             # everything else is conformal convex hull
-            FUSE.optimize_shape(bd, k + 1, k, _convex_hull_)
+            optimize_shape(bd, k + 1, k, _convex_hull_)
             bd.layer[k].shape = Int(layer_shape)
         end
     end
     # reverse pass: from TF to plasma only with negative offset
     for k in tf_to_plasma[2:end]
         if bd.layer[k+1].shape == Int(_negative_offset_)
-            FUSE.optimize_shape(bd, k, k + 1, _negative_offset_)
+            optimize_shape(bd, k, k + 1, _negative_offset_)
         end
     end
 
@@ -886,9 +886,9 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     iout = IMAS.get_build(bd, fs=_out_, return_index=true, return_only_one=false)
     if lowercase(bd.layer[iout[end]].name) == "cryostat"
         olfs = IMAS.get_build(bd, fs=_lfs_, return_index=true, return_only_one=false)[end]
-        FUSE.optimize_shape(bd, olfs, iout[end], _silo_)
+        optimize_shape(bd, olfs, iout[end], _silo_)
         for k in reverse(iout[2:end])
-            FUSE.optimize_shape(bd, k, k - 1, _negative_offset_)
+            optimize_shape(bd, k, k - 1, _negative_offset_)
         end
     else
         for k in iout

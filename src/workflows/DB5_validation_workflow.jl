@@ -28,14 +28,14 @@ function workflow_simple_equilibrium_transport(
     verbose=false)
 
     dd = IMAS.dd()
-    FUSE.init_equilibrium(dd, ini, act) # already solves the equilibrium once
-    FUSE.init_core_profiles(dd, ini, act)
-    FUSE.init_core_sources(dd, ini, act)
+    init_equilibrium(dd, ini, act) # already solves the equilibrium once
+    init_core_profiles(dd, ini, act)
+    init_core_sources(dd, ini, act)
 
     act.ActorTauenn.warn_nn_train_bounds = warn_nn_train_bounds
     act.ActorTauenn.transport_model = transport_model
     act.ActorTauenn.verbose = verbose
-    FUSE.ActorEquilibriumTransport(dd, act; do_plot=do_plot)
+    ActorEquilibriumTransport(dd, act; do_plot=do_plot)
 
     if !isempty(save_directory)
         IMAS.imas2json(dd, joinpath(save_directory, "$(ini.general.casename).json"))
@@ -83,7 +83,7 @@ function workflow_HDB5_validation(;
     run_df[:, "error_message"] = ["" for i in 1:n_cases]
 
     # Run workflow_simple_equilibrium_transport on each of the selected cases
-    data_rows = @showprogress pmap(row -> FUSE.run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
+    data_rows = @showprogress pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
     for k in 1:length(data_rows)
         run_df[k, :] = data_rows[k]
     end
@@ -109,11 +109,11 @@ end
 
 function run_HDB5_from_data_row(data_row, act::Union{ParametersActor,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
     try
-        ini, ACT = FUSE.case_parameters(data_row)
+        ini, ACT = case_parameters(data_row)
         if ismissing(act)
             act = ACT
         end
-        dd = FUSE.workflow_simple_equilibrium_transport(ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
+        dd = workflow_simple_equilibrium_transport(ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
         data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
         data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
         data_row[:error_message] = ""

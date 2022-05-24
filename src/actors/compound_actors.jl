@@ -83,11 +83,11 @@ end
 
 function step(actor::ActorWholeDevice; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
     dd = actor.dd
-    FUSE.ActorEquilibriumTransport(dd, act)
-    FUSE.ActorHFSsizing(dd, act)
-    FUSE.ActorLFSsizing(dd, act)
-    FUSE.ActorCXbuild(dd, act)
-    #FUSE.ActorNeutronics(dd, act)
-    FUSE.ActorPFcoilsOpt(dd, act)
-    FUSE.ActorCosting(dd, act)
+    ActorEquilibriumTransport(dd, act)
+    ActorHFSsizing(dd, act)
+    ActorLFSsizing(dd, act)
+    ActorCXbuild(dd, act)
+    #ActorNeutronics(dd, act)
+    ActorPFcoilsOpt(dd, act)
+    ActorCosting(dd, act)
 end

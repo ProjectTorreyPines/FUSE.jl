@@ -11,6 +11,7 @@ This can be done
   * Manually/Interactivelly (eg. in the REPL or a Jupyter sesion)
   * By reading in an existing OMAS JSON data structure
   * Starting from 0D `ini` parameters (same spirit of OMFIT's PRO_create module)
+  * Starting from GASC outputs, then to `ini`, and finally to `dd`
 
 ## Use-cases initialization
 

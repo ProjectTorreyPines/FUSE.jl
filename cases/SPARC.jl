@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:SPARC}})::Tuple{FUSE.ParametersInit, FUSE.ParametersActor}
+function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
     ini.general.casename = "SPARC"

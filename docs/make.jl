@@ -30,7 +30,7 @@ makedocs(
     format=Documenter.HTML(prettyurls=false,sidebar_sitename=false),
     pages = [
         "index.md",
-        "Data" => "dd.md",
+        "dd Data Structure" => "dd.md",
         "Actors" => "actors.md",
         "Initialization" => "inits.md",
         "Use Cases" => "cases.md",

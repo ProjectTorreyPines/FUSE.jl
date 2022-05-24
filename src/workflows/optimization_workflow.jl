@@ -59,7 +59,7 @@ function workflow_multiobjective_optimization(
     # test running function once with nominal parameters useful to catch bugs quickly.
     # Use @everywhere to trigger compilation on all worker nodes.
     if typeof(actor_or_workflow) <: DataType
-        actor_or_workflow(FUSE.init(ini, act), act)
+        actor_or_workflow(init(ini, act), act)
     else
         actor_or_workflow(ini, act)
     end
