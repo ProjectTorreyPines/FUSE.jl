@@ -90,4 +90,5 @@ function step(actor::ActorWholeDevice; act::Union{Missing,ParametersActor}=missi
     #FUSE.ActorNeutronics(dd, act)
     FUSE.ActorPFcoilsOpt(dd, act)
     FUSE.ActorCosting(dd, act)
+    FUSE.ActorBalanceOfPlant(dd,act)
 end
