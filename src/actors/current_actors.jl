@@ -17,6 +17,14 @@ function ParametersActor(::Type{Val{:ActorQEDcurrent}})
     return par
 end
 
+"""
+    ActorQEDcurrent(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor estimates the cost of the fusion power plant.
+
+!!! note 
+    Stores data in ```dd.costing```
+"""
 function ActorQEDcurrent(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorQEDcurrent(kw...)
     actor = ActorQEDcurrent(dd)

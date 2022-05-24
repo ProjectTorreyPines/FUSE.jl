@@ -12,7 +12,20 @@ function ParametersActor(::Type{Val{:ActorEquilibriumTransport}})
     par.iterations = Entry(Int, "", "transport-equilibrium iterations"; default=1)
     return par
 end
+"""
+    ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
 
+Compound actor that runs the following actors in succesion:
+```julia
+ActorSteadyStateCurrent(dd, act)    # Current evolution to steady-state 
+ActorTauenn(dd, act)                # For transport
+ActorSolovev(dd, act)               # Equilibrium
+ActorSteadyStateCurrent(dd, act)    # Consistent current
+```
+
+!!! note 
+    Stores data in ```dd.equilibrium, dd.core_profiles, dd.core_sources```
+"""
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorEquilibriumTransport(kw...)
     actor = ActorEquilibriumTransport(dd)
@@ -73,6 +86,23 @@ function ParametersActor(::Type{Val{:ActorWholeDevice}})
     return par
 end
 
+"""
+    ActorWholeDevice(dd::IMAS.dd, act::ParametersActor; kw...)
+
+Compound actor that runs the following actors in succesion:
+```julia
+ActorEquilibriumTransport(dd, act)
+ActorHFSsizing(dd, act)
+ActorLFSsizing(dd, act)
+ActorCXbuild(dd, act)
+ActorPFcoilsOpt(dd, act)
+ActorCosting(dd, act)
+ActorBalanceOfPlant(dd,act)    
+```
+
+!!! note 
+    Stores data in ```dd```
+"""
 function ActorWholeDevice(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorWholeDevice(kw...)
     actor = ActorWholeDevice(dd)

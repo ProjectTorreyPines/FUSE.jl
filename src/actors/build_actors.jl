@@ -143,6 +143,9 @@ OH flux requirements based on
 * rampup estimate based on Ejima coefficient
 * flattop consumption
 * vertical field from PF coils
+
+!!! note
+    Stores data in ```dd.build.flux_swing_estimates```
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
