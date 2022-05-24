@@ -1,13 +1,19 @@
 import NumericalIntegration: cumul_integrate
 
-function init_nbi(dd::IMAS.dd, ini::ParametersInit)
-    return init_nbi(dd,
+"""
+    init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.nbi` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_nbi(dd,
         ini.nbi.power_launched,
         ini.nbi.beam_energy,
         ini.nbi.beam_mass,
         ini.nbi.toroidal_angle,
         evalmissing(ini.nbi, :efficiency_conversion),
         evalmissing(ini.nbi, :efficiency_transmission))
+    SimpleNBIactor(dd, act)
 end
 
 function init_nbi(
@@ -39,11 +45,17 @@ function init_nbi(
     return dd
 end
 
-function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit)
-    return init_ec_launchers(dd,
-        ini.ec.power_launched,
-        evalmissing(ini.ec, :efficiency_conversion),
-        evalmissing(ini.ec, :efficiency_transmission))
+"""
+    init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.ec_launchers` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_ec_launchers(dd,
+        ini.ec_launchers.power_launched,
+        evalmissing(ini.ec_launchers, :efficiency_conversion),
+        evalmissing(ini.ec_launchers, :efficiency_transmission))
+    SimpleECactor(dd, act)
 end
 
 function init_ec_launchers(
@@ -63,12 +75,18 @@ function init_ec_launchers(
     end
 end
 
-function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit)
-    return init_ic_antennas(dd,
-        ini.ic.power_launched,
-        evalmissing(ini.ic, :efficiency_conversion),
-        evalmissing(ini.ic, :efficiency_transmission),
-        evalmissing(ini.ic, :efficiency_coupling))
+"""
+    init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.ic_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_ic_antennas(dd,
+        ini.ic_antennas.power_launched,
+        evalmissing(ini.ic_antennas, :efficiency_conversion),
+        evalmissing(ini.ic_antennas, :efficiency_transmission),
+        evalmissing(ini.ic_antennas, :efficiency_coupling))
+    SimpleICactor(dd, act)
 end
 
 function init_ic_antennas(
@@ -90,12 +108,18 @@ function init_ic_antennas(
     end
 end
 
-function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit)
-    return init_lh_antennas(dd,
-        ini.lh.power_launched,
-        evalmissing(ini.lh, :efficiency_conversion),
-        evalmissing(ini.lh, :efficiency_transmission),
-        evalmissing(ini.lh, :efficiency_coupling))
+"""
+    init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_lh_antennas(dd,
+        ini.lh_antennas.power_launched,
+        evalmissing(ini.lh_antennas, :efficiency_conversion),
+        evalmissing(ini.lh_antennas, :efficiency_transmission),
+        evalmissing(ini.lh_antennas, :efficiency_coupling))
+    SimpleLHactor(dd, act)
 end
 
 function init_lh_antennas(
@@ -116,6 +140,11 @@ function init_lh_antennas(
     end
 end
 
+"""
+    init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+"""
 function init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
 
@@ -131,20 +160,16 @@ function init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActo
 
     if init_from == :scalars
         if !ismissing(ini.nbi, :power_launched) && any(ini.nbi.power_launched .> 0)
-            init_nbi(dd, ini)
-            SimpleNBIactor(dd, act)
+            init_nbi(dd, ini, act)
         end
-        if !ismissing(ini.ec, :power_launched) && any(ini.ec.power_launched .> 0)
-            init_ec_launchers(dd, ini)
-            SimpleECactor(dd, act)
+        if !ismissing(ini.ec_launchers, :power_launched) && any(ini.ec_launchers.power_launched .> 0)
+            init_ec_launchers(dd, ini, act)
         end
-        if !ismissing(ini.ic, :power_launched) && any(ini.ic.power_launched .> 0)
-            init_ic_antennas(dd, ini)
-            SimpleICactor(dd, act)
+        if !ismissing(ini.ic_antennas, :power_launched) && any(ini.ic_antennas.power_launched .> 0)
+            init_ic_antennas(dd, ini, act)
         end
-        if !ismissing(ini.lh, :power_launched) && any(ini.lh.power_launched .> 0)
-            init_lh_antennas(dd, ini)
-            SimpleLHactor(dd, act)
+        if !ismissing(ini.lh_antennas, :power_launched) && any(ini.lh_antennas.power_launched .> 0)
+            init_lh_antennas(dd, ini, act)
         end
     end
 

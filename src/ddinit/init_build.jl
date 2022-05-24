@@ -60,7 +60,12 @@ end
 #= ========== =#
 #  init build  #
 #= ========== =#
-function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
+"""
+    init_build(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+
+Initialize `dd.build` starting from 0D `ini` parameters and `act` actor parameters.
+"""
+function init_build(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_from = ini.general.init_from
     
     if init_from == :ods
@@ -77,7 +82,7 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
 
     if init_from == :scalars
         if ismissing(ini.build, :layers)
-            init_radial_build(
+            init_build(
                 dd.build,
                 dd.equilibrium.time_slice[],
                 IMAS.first_wall(dd.wall);
@@ -87,7 +92,7 @@ function init_build(dd::IMAS.dd, ini::Parameters, act::ParametersActor)
                 pf_inside_tf=(ini.pf_active.n_pf_coils_inside > 0),
                 pf_outside_tf=(ini.pf_active.n_pf_coils_outside > 0))
         else
-            init_radial_build(dd.build, ini.build.layers)
+            init_build(dd.build, ini.build.layers)
         end
     end
 
@@ -145,7 +150,7 @@ layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
 """
-function init_radial_build(bd::IMAS.build; layers...)
+function init_build(bd::IMAS.build; layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
@@ -201,13 +206,13 @@ function init_radial_build(bd::IMAS.build; layers...)
     return bd
 end
 
-function init_radial_build(bd::IMAS.build, layers::AbstractDict)
+function init_build(bd::IMAS.build, layers::AbstractDict)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
-    init_radial_build(bd; nt...)
+    init_build(bd; nt...)
 end
 
 """
-    function init_radial_build(
+    function init_build(
         bd::IMAS.build,
         eqt::IMAS.equilibrium__time_slice,
         wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
@@ -219,7 +224,7 @@ end
 
 Initialization of build IDS based on equilibrium time_slice
 """
-function init_radial_build(
+function init_build(
     bd::IMAS.build,
     eqt::IMAS.equilibrium__time_slice,
     wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
@@ -293,7 +298,7 @@ function init_radial_build(
     end
 
     # radial build
-    init_radial_build(bd; layers...)
+    init_build(bd; layers...)
 
     return bd
 end

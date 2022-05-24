@@ -7,7 +7,7 @@ Generates initalization parameters
 """
 function ParametersInit()
     par = ParametersInit(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersInit}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec, :ic, :lh, :build, :gasc, :ods, :material]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material]
         setproperty!(par, item, ParametersInit(item))
     end
     return par
@@ -111,31 +111,30 @@ function ParametersInit(::Type{Val{:nbi}})
     return nbi
 end
 
-function ParametersInit(::Type{Val{:ec}})
-    ec = ParametersInit(nothing)
-    ec.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher, :power_launched)
-    ec.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :conversion)
-    ec.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :transmission)
-    return ec
+function ParametersInit(::Type{Val{:ec_launchers}})
+    ec_launchers = ParametersInit(nothing)
+    ec_launchers.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "EC launched power")
+    ec_launchers.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :conversion)
+    ec_launchers.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :transmission)
+    return ec_launchers
 end
 
-function ParametersInit(::Type{Val{:ic}})
-    ic = ParametersInit(nothing)
-    ic.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna, :power_launched)
-    ic.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :conversion)
-    ic.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :transmission)
-    ic.efficiency_coupling = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :coupling)
-    return ic
+function ParametersInit(::Type{Val{:ic_antennas}})
+    ic_antennas = ParametersInit(nothing)
+    ic_antennas.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "IC launched power")
+    ic_antennas.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :conversion)
+    ic_antennas.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :transmission)
+    ic_antennas.efficiency_coupling = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ic_antennas__antenna___efficiency, :coupling)
+    return ic_antennas
 end
 
-function ParametersInit(::Type{Val{:lh}})
-    lh = ParametersInit(nothing)
-    lh.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna, :power_launched)
-    lh.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :conversion)
-    lh.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :transmission)
-    lh.efficiency_coupling = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :coupling)
-
-    return lh
+function ParametersInit(::Type{Val{:lh_antennas}})
+    lh_antennas = ParametersInit(nothing)
+    lh_antennas.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "LH launched power")
+    lh_antennas.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :conversion)
+    lh_antennas.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :transmission)
+    lh_antennas.efficiency_coupling = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.lh_antennas__antenna___efficiency, :coupling)
+    return lh_antennas
 end
 
 function ParametersInit(::Type{Val{:build}})

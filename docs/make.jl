@@ -1,62 +1,55 @@
-using Documenter, FUSE
+using Documenter
+import FUSE, IMAS, IMASDD
 
 # ================ #
 # generate DD page #
 # ================ #
-txt = ["""
-# Data dictionary
-
-## dd
-
-```@example
-using IMASDD # hide
-IMASDD.dd # hide
-```
-"""]
-for name in fieldnames(IMAS.dd)
-    if !startswith("$name","_")
-        push!(txt,"""## $(replace("$name","_"=>" "))
-```@example
-using IMASDD # hide
-IMASDD.$name # hide
-```\n""")
-    end
-end
-open("src/dd.md", "w") do io
-    write(io, join(txt, "\n"))
-end
+include("src/dd_docs.jl")
 
 # ==================== #
 # generate Actors page #
 # ==================== #
-txt = ["# Actors\n"]
-for name in names(FUSE; all=true, imported=false)
-    if startswith("$name", "Actor")
-        push!(
-            txt,
-            """## $name
+include("src/actors_docs.jl")
 
-```@docs
-FUSE.$name(::IMAS.dd, ::FUSE.ParametersActor)
-```
+# =================== #
+# generate inits page #
+# =================== #
+include("src/inits_docs.jl")
 
-```@eval
-import Markdown, FUSE
-return Markdown.parse(FUSE.doc(FUSE.ParametersActor(:$name)))
-```
-"""
-        )
-    end
-end
-open("src/actors.md", "w") do io
-    write(io, join(txt, "\n"))
-end
+# =================== #
+# generate cases page #
+# =================== #
+include("src/cases_docs.jl")
 
 # ============== #
 # build the docs #
 # ============== #
 makedocs(
-    modules=[FUSE, IMAS],
+    modules=[FUSE,IMAS,IMASDD],
     sitename="FUSE",
-    format=Documenter.HTML(prettyurls=false)
+    format=Documenter.HTML(prettyurls=false,sidebar_sitename=false),
+    pages = [
+        "index.md",
+        "dd Data Structure" => "dd.md",
+        "Actors" => "actors.md",
+        "Initialization" => "inits.md",
+        "Use Cases" => "cases.md",
+        "Utilities" => "utils.md",
+        "Installation" => "install.md"
+        ]
 )
+
+# # =============== #
+# # deploy the docs #
+# # =============== #
+# deploydocs(
+#     target = "build",
+#     repo = "github.com:ProjectTorreyPines/FUSE.jl.git",
+#     forcepush = true
+# )
+
+# makedocs(
+#     modules=[FUSE, IMAS],
+#     sitename="FUSE",
+#     format=Documenter.HTML(prettyurls=false)
+# )

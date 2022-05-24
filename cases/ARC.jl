@@ -1,4 +1,4 @@
-function case_parameters(::Type{Val{:ARC}})
+function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
     ini.general.casename = "ARC"
@@ -57,7 +57,7 @@ function case_parameters(::Type{Val{:ARC}})
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
-    ini.ic.power_launched = 4 * 1e6 #rf power coupled
+    ini.ic_antennas.power_launched = 4 * 1e6 #rf power coupled
 
     act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
 
