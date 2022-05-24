@@ -57,9 +57,6 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersInit, ParametersAct
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
-    ini.nbi.power_launched = 0.0
-    ini.nbi.beam_energy = 0.0
-    ini.ec_launchers.power_launched = 0.0
     ini.ic_antennas.power_launched = 4 * 1e6 #rf power coupled
 
     act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced

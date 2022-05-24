@@ -8,7 +8,6 @@ To generate a JSON file from a GASC run:
     json.update(OMFITpickle(filename))
 ```
 """
-
 function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersInit, ParametersActor}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"

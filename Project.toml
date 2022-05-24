@@ -4,6 +4,7 @@ authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.1.2"
 
 [deps]
+AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Contour = "d38c429a-6771-53c6-b99e-75d170b6e991"

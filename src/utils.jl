@@ -47,7 +47,14 @@ For example:
     [4, 4, 4, 4, 4, 4]
 """
 function same_length_vectors(args...)
-    n = maximum(map(length, args))
+    function length2(x)
+        if ismissing(x)
+            return 1
+        else
+            return length(x)
+        end
+    end
+    n = maximum(map(length2, args))
     args = collect(map(x -> isa(x, Vector) ? x : [x], args))
     args = map(x -> vcat([x for k = 1:n]...)[1:n], args)
 end
