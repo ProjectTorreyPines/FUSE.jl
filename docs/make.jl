@@ -16,6 +16,16 @@ include("src/actors_docs.jl")
 # =================== #
 include("src/inits_docs.jl")
 
+# ================= #
+# generate ini page #
+# ================= #
+include("src/ini_docs.jl")
+
+# ================= #
+# generate act page #
+# ================= #
+include("src/act_docs.jl")
+
 # =================== #
 # generate cases page #
 # =================== #
@@ -27,10 +37,12 @@ include("src/cases_docs.jl")
 makedocs(
     modules=[FUSE,IMAS,IMASDD],
     sitename="FUSE",
-    format=Documenter.HTML(prettyurls=false,sidebar_sitename=false),
+    format=Documenter.HTML(prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
     pages = [
         "index.md",
         "dd Data Structure" => "dd.md",
+        "ini Parameters" => "ini.md",
+        "act Parameters" => "act.md",
         "Actors" => "actors.md",
         "Initialization" => "inits.md",
         "Use Cases" => "cases.md",
