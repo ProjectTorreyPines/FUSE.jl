@@ -278,6 +278,15 @@ function ParametersActor(::Type{Val{:ActorStresses}})
     return par
 end
 
+"""
+    ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor estimates vertical field from PF coils and its contribution to flux swing, where
+`eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
+
+!!! note 
+    Stores data in ```dd.solid_mechanics```
+"""
 function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorStresses(kw...)
     actor = ActorStresses(dd)
@@ -349,6 +358,14 @@ function ParametersActor(::Type{Val{:ActorLFSsizing}})
     return par
 end
 
+"""
+    ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
+
+Actor that resizes the Low Field Side of the build.
+
+!!! note 
+    Manipulates data in ```dd.build```
+"""
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorLFSsizing(kw...)
     if par.do_plot
@@ -412,6 +429,14 @@ function ParametersActor(::Type{Val{:ActorHFSsizing}})
     return par
 end
 
+"""
+    ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
+
+Actor that resizes the High Field Side of the build.
+
+!!! note 
+    Manipulates data in ```dd.build```
+"""
 function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorHFSsizing(kw...)
     if par.do_plot
@@ -644,6 +669,14 @@ function ParametersActor(::Type{Val{:ActorCXbuild}})
     return par
 end
 
+"""
+    ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
+
+Actor that builds the 2D cross section of the build.
+
+!!! note 
+    Manipulates data in ```dd.build```
+"""
 function ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorCXbuild(kw...)
     actor = ActorCXbuild(dd)

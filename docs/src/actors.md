@@ -1,5 +1,16 @@
 # Actors
 
+## ActorBalanceOfPlant
+
+```@docs
+FUSE.ActorBalanceOfPlant(::IMAS.dd, ::FUSE.ParametersActor)
+```
+
+```@eval
+import Markdown, FUSE
+return Markdown.parse(FUSE.doc(FUSE.ParametersActor(:ActorBalanceOfPlant)))
+```
+
 ## ActorCXbuild
 
 ```@docs
