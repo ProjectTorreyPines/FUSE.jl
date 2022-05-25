@@ -2,16 +2,20 @@ txt = ["""
 # Initialization
 
 ```@meta
-CurrentModule = FUSE
+CurrentModule = IMASDD
 ```
 Recall that FUSE actors operate exclusively on `IMAS.dd` data.
 As such, to run any actor, one has to first **initialize** `IMAS.dd` with some data.
 This can be done
 
   * Manually/Interactivelly (eg. in the REPL or a Jupyter sesion)
-  * By reading in an existing OMAS JSON data structure
-  * Starting from 0D `ini` parameters (same spirit of OMFIT's PRO_create module)
-  * Starting from GASC outputs, then to `ini`, and finally to `dd`
+  * By reading in an existing OMAS JSON data structure with [`json2imas`](@ref)
+  * Starting from 0D [ini Parameters](@ref) and [act Parameters](@ref) parameters (same spirit of OMFIT's PRO_create module)
+  * Starting from [GA Systems Code](@ref) output, then to `ini`, and finally to `dd`
+
+```@meta
+CurrentModule = FUSE
+```
 
 ## High level initialization
 
@@ -37,10 +41,6 @@ for name in sort(collect(names(FUSE; all=true, imported=false)))
             FUSE.$name(::IMAS.dd, ::FUSE.ParametersInit, ::FUSE.ParametersActor)
             ```
 
-            ```@eval
-            import Markdown, FUSE
-            return Markdown.parse(FUSE.doc(FUSE.ParametersInit(:$nname)))
-            ```
             """
         )
     end

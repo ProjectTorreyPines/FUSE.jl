@@ -93,6 +93,7 @@ makedocs(;
         "Initialization" => "inits.md",
         "Use Cases" => "cases.md",
         "Utilities" => "utils.md",
+        "GASC" => "gasc.md",
         "Installation" => "install.md",
     ],
 )

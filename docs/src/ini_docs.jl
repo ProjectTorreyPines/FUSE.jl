@@ -1,5 +1,5 @@
 txt = ["""
-# Init Parameters
+# ini Parameters
 
 ```@meta
 CurrentModule = FUSE

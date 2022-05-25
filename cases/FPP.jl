@@ -1,13 +1,3 @@
-"""
-To generate a JSON file from a GASC run:
-
-```python
-    filename = "path_to_the_gasc_output.pkl"
-    casename = os.path.splitext(os.path.basename(filename))[1]
-    json = OMFITjson(casename + ".json", objects_encode=False)
-    json.update(OMFITpickle(filename))
-```
-"""
 function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersInit, ParametersActor}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"

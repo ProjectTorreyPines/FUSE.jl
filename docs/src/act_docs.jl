@@ -1,5 +1,5 @@
 txt = ["""
-# Actor Parameters
+# act Parameters
 
 ```@meta
 CurrentModule = FUSE
