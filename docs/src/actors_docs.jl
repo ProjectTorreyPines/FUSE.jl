@@ -21,7 +21,18 @@ for name in sort(collect(names(FUSE; all=true, imported=false)))
 
             ```@eval
             import Markdown, FUSE
-            return Markdown.parse(FUSE.doc(FUSE.ParametersActor(:$name)))
+            if !isempty(keys(FUSE.ParametersActor(:$name)))
+                return Markdown.parse("Valid `kw...` arguments from `act.$name` are:")
+            end
+            ```
+
+            ```@example
+            import FUSE # hide
+            act = FUSE.ParametersActor(:$name) # hide
+            act._name=Symbol("act."*string(act._name)) # hide
+            if !isempty(keys(act)) # hide
+                return act # hide
+            end # hide
             ```
             """
         )
