@@ -22,7 +22,7 @@ for name in sort(collect(names(FUSE; all=true, imported=false)))
             ```@eval
             import Markdown, FUSE
             if !isempty(keys(FUSE.ParametersActor(:$name)))
-                return Markdown.parse("Valid `kw...` arguments from `act.$name` are:")
+                return Markdown.parse("Valid `kw...` arguments are based on `FUSE.ParametersActor(:$name)`:")
             end
             ```
 
