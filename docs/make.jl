@@ -3,12 +3,17 @@ import FUSE
 import IMAS
 import IMASDD
 import AbstractTrees
+import ProgressMeter
 
 function html_link_repr(par::FUSE.Parameter)
     return "©" * join(FUSE.path(par), ".") * "©©" * string(par._name) * "©"
 end
 function AbstractTrees.printnode(io::IO, par::FUSE.Parameter)
     return printstyled(io, html_link_repr(par))
+end
+
+function AbstractTrees.printnode(io::IO, leaf::IMASDD.IMASleafRepr; kwargs...)
+    printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
 end
 
 function parameters_details_md(io, pars)
@@ -24,7 +29,7 @@ function parameters_details_md(io, pars)
             note = "tip"
         end
         if typeof(leaf) <: FUSE.Switch
-            options = "* **Options:** " * join(["`$(opt.first)`" for opt in leaf.options], ", ")
+            options = "* **Options:** " * join(["`$(opt.first)`" for opt in leaf.options], ", ")*"\n    "
         else
             options = ""
         end
@@ -33,14 +38,12 @@ function parameters_details_md(io, pars)
         ------------
 
         ```@raw html
-        <div id='$(join(FUSE.path(leaf),"."))'>
+        <div id='$(join(FUSE.path(leaf),"."))'></div>
         ```
-        ## `$(join(FUSE.path(leaf),"."))`
-
-        !!! $note "$(leaf.description)"
+        !!! $note "$(join(FUSE.path(leaf),"."))"
+            $(leaf.description)
             * **Units:** `$(isempty(leaf.units) ? "-" : leaf.units)`
-            $options
-            $default
+            $(options)$(default)
 
         """
         write(io, txt)
@@ -99,7 +102,7 @@ makedocs(;
 )
 
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
-for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act")]
+for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd","dd")]
     open("build/$file.html", "r") do io
         txt = read(io, String)
         txt = split(txt, "\n")
