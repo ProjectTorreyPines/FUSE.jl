@@ -36,17 +36,6 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end
 
-    """
-    To generate a JSON file from a GASC run:
-
-    ```python
-        filename = "path_to_the_gasc_output.pkl"
-        casename = os.path.splitext(os.path.basename(filename))[1]
-        json = OMFITjson(casename + ".json", objects_encode=False)
-        json.update(OMFITpickle(filename))
-    ```
-    """
-
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
 
