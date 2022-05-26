@@ -13,10 +13,14 @@ function AbstractTrees.printnode(io::IO, par::FUSE.Parameter)
 end
 
 function AbstractTrees.printnode(io::IO, leaf::IMASDD.IMASleafRepr; kwargs...)
-    printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
+    if startswith(leaf.location,"dd.")
+        printstyled(io, "$(leaf.key)")
+    else
+        printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
+    end
 end
 
-function parameters_details_md(io, pars)
+function parameters_details_md(io::IO, pars::FUSE.Parameters)
     for leaf in AbstractTrees.Leaves(pars)
         if typeof(leaf) <: FUSE.Parameters
             continue
