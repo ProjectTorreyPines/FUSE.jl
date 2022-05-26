@@ -1,5 +1,58 @@
 using Documenter
-import FUSE, IMAS, IMASDD
+import FUSE
+import IMAS
+import IMASDD
+import AbstractTrees
+import ProgressMeter
+
+function html_link_repr(par::FUSE.Parameter)
+    return "©" * join(FUSE.path(par), ".") * "©©" * string(par._name) * "©"
+end
+function AbstractTrees.printnode(io::IO, par::FUSE.Parameter)
+    return printstyled(io, html_link_repr(par))
+end
+
+function AbstractTrees.printnode(io::IO, leaf::IMASDD.IMASleafRepr; kwargs...)
+    if startswith(leaf.location,"dd.")
+        printstyled(io, "$(leaf.key)")
+    else
+        printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
+    end
+end
+
+function parameters_details_md(io::IO, pars::FUSE.Parameters)
+    for leaf in AbstractTrees.Leaves(pars)
+        if typeof(leaf) <: FUSE.Parameters
+            continue
+        end
+        if ismissing(leaf.default)
+            default = ""
+            note = "note"
+        else
+            default = "* **Default:** `$(leaf.default)`"
+            note = "tip"
+        end
+        if typeof(leaf) <: FUSE.Switch
+            options = "* **Options:** " * join(["`$(opt.first)`" for opt in leaf.options], ", ")*"\n    "
+        else
+            options = ""
+        end
+        txt = """
+
+        ------------
+
+        ```@raw html
+        <div id='$(join(FUSE.path(leaf),"."))'></div>
+        ```
+        !!! $note "$(join(FUSE.path(leaf),"."))"
+            $(leaf.description)
+            * **Units:** `$(isempty(leaf.units) ? "-" : leaf.units)`
+            $(options)$(default)
+
+        """
+        write(io, txt)
+    end
+end
 
 # ================ #
 # generate DD page #
@@ -34,11 +87,11 @@ include("src/cases_docs.jl")
 # ============== #
 # build the docs #
 # ============== #
-makedocs(
-    modules=[FUSE,IMAS,IMASDD],
+makedocs(;
+    modules=[FUSE, IMAS, IMASDD],
     sitename="FUSE",
-    format=Documenter.HTML(prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
-    pages = [
+    format=Documenter.HTML(; prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
+    pages=[
         "index.md",
         "dd Data Structure" => "dd.md",
         "ini Parameters" => "ini.md",
@@ -47,9 +100,24 @@ makedocs(
         "Initialization" => "inits.md",
         "Use Cases" => "cases.md",
         "Utilities" => "utils.md",
-        "Installation" => "install.md"
-        ]
+        "GASC" => "gasc.md",
+        "Installation" => "install.md",
+    ],
 )
+
+# convert "©(.*)©©(.*)©" patterns to hyperlinks
+for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd","dd")]
+    open("build/$file.html", "r") do io
+        txt = read(io, String)
+        txt = split(txt, "\n")
+        for (k, line) in enumerate(txt)
+            txt[k] = replace(replace(line, r"©(.*)©©(.*)©" => s"<a href='©_details.html#\1'>\2</a>"), "©" => parfile)
+        end
+        open("build/$file.html", "w") do io
+            write(io, join(txt, "\n"))
+        end
+    end
+end
 
 # # =============== #
 # # deploy the docs #

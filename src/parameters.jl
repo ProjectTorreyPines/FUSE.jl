@@ -81,7 +81,7 @@ function Switch(options::Vector{<:Union{Symbol,String}}, units::String, descript
 end
 
 function Switch(options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing)
-    location = "$(IMAS._f2u(ids)).$(field)"
+    location = "$(IMAS.fs2u(ids)).$(field)"
     txt = IMAS.info(location)
     return Switch(options, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end

@@ -131,7 +131,7 @@ end
 # ******************************************
 # TraceCAD
 # ******************************************
-using Images
+import Images
 
 """
     dd_build_layers_to_ini(dd::IMAS.dd)
