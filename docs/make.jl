@@ -92,16 +92,16 @@ makedocs(;
     sitename="FUSE",
     format=Documenter.HTML(; prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
     pages=[
-        "index.md",
+        "Concepts" => "index.md",
         "dd Data Structure" => "dd.md",
         "ini Parameters" => "ini.md",
         "act Parameters" => "act.md",
         "Actors" => "actors.md",
         "Initialization" => "inits.md",
         "Use Cases" => "cases.md",
-        "Utilities" => "utils.md",
         "GASC" => "gasc.md",
-        "Installation" => "install.md",
+        "Utilities" => "utils.md",
+        "Getting started" => "install.md",
     ],
 )
 
