@@ -1,3 +1,8 @@
+"""
+    case_parameters(:CAT)
+
+GA Compact Advanced Tokamak design
+"""
 function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()

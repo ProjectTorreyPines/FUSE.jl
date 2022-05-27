@@ -1,3 +1,8 @@
+"""
+    case_parameters(:SPARC)
+
+CFS/MIT SPARC design
+"""
 function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()

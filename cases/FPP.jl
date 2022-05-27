@@ -1,3 +1,12 @@
+"""
+    case_parameters(:FPP; version::Symbol, init_from::Symbol)
+
+GA 2022 FPP design
+
+Arguments:
+* `version`: `:v1` or `:v1_demount`
+* `init_from`: `:scalars` or `:ods` (ODS contains equilibrium information)
+"""
 function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersInit, ParametersActor}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"

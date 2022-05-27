@@ -106,6 +106,7 @@ makedocs(;
 )
 
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
+@info "Converting links"
 for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd","dd")]
     open("build/$file.html", "r") do io
         txt = read(io, String)

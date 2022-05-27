@@ -9,8 +9,8 @@ As such, to run any actor, one has to first **initialize** `IMAS.dd` with some d
 This can be done
 
   * Manually/Interactivelly (eg. in the REPL or a Jupyter sesion)
-  * By reading in an existing OMAS JSON data structure with [`json2imas`](@ref)
   * Starting from 0D [ini Parameters](@ref) and [act Parameters](@ref) parameters (same spirit of OMFIT's PRO_create module)
+  * By reading in an existing OMAS JSON data structure with [`json2imas`](@ref)
   * Starting from [GA Systems Code](@ref) output, then to `ini`, and finally to `dd`
 
 ```@meta

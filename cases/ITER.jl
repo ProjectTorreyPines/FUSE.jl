@@ -1,3 +1,11 @@
+"""
+    case_parameters(:ITER; init_from::Symbol)
+
+ITER
+
+Arguments:
+* `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
+"""
 function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()
