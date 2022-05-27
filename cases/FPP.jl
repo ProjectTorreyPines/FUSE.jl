@@ -12,6 +12,10 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     ini.general.casename = "FPP_$(version)_$(init_from)"
     ini.general.init_from = init_from
 
+    if version == :v1
+        ini.build.n_first_wall_conformal_layers = 100
+    end
+
     if init_from == :ods
         ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPPv1.0_demount_eq.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
