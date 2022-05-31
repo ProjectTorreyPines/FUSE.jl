@@ -1,3 +1,8 @@
+"""
+    case_parameters(:ARC)
+
+CFS/MIT ARC design
+"""
 function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()

@@ -60,6 +60,11 @@ function case_parameters(gasc::GASC)
     return set_new_base!(ini), set_new_base!(act)
 end
 
+"""
+    gasc_2_core_profiles(gasc::GASC, ini::ParametersInit, act::ParametersActor)
+
+Convert core_profiles information in GASC solution to FUSE `ini` and `act` parameters
+"""
 function gasc_2_core_profiles(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     gascsol = gasc.solution
 
@@ -77,6 +82,11 @@ function gasc_2_core_profiles(gasc::GASC, ini::ParametersInit, act::ParametersAc
     return ini
 end
 
+"""
+    gasc_2_equilibrium(gasc::GASC, ini::ParametersInit, act::ParametersActor)
+
+Convert equilibrium information in GASC solution to FUSE `ini` and `act` parameters
+"""
 function gasc_2_equilibrium(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     gascsol = gasc.solution
     ini.equilibrium.B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
@@ -92,6 +102,11 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersInit, act::ParametersActo
     return ini
 end
 
+"""
+    gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
+
+Convert sources (NBI, EC, IC, LH) information in GASC solution to FUSE `ini` and `act` parameters
+"""
 function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     gascsol = gasc.solution
 
@@ -164,14 +179,19 @@ function gasc_2_sources(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     return ini
 end
 
+"""
+    gasc_2_build(gasc::GASC, ini::ParametersInit, act::ParametersActor)
+
+Convert radial build information in GASC solution to FUSE `ini` and `act` parameters
+"""
 function gasc_2_build(gasc::GASC, ini::ParametersInit, act::ParametersActor)
     gascsol = gasc.solution
-    ini.build.layers = gasc_to_layers(gascsol)
+    ini.build.layers = gasc_2_layers(gascsol)
     ini.build.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
 
-    ini.tf.technology = coil_technology(gasc, :TF)
-    ini.oh.technology = coil_technology(gasc, :OH)
-    ini.pf_active.technology = coil_technology(gasc, :PF)
+    ini.tf.technology = gasc_2_coil_technology(gasc, :TF)
+    ini.oh.technology = gasc_2_coil_technology(gasc, :OH)
+    ini.pf_active.technology = gasc_2_coil_technology(gasc, :PF)
 
     ini.center_stack.bucked = gascsol["INPUTS"]["radial build"]["isBucked"]
     ini.center_stack.noslip = gascsol["INPUTS"]["radial build"]["nonSlip"]
@@ -182,11 +202,11 @@ function gasc_2_build(gasc::GASC, ini::ParametersInit, act::ParametersActor)
 end
 
 """
-    function gasc_to_layers(gascsol::Dict)
+    function gasc_2_layers(gascsol::Dict)
 
-Convert GASC ["INPUTS"]["radial build"] to FUSE build layers dictionary
+Convert GASC ["OUTPUTS"]["radial build"] to FUSE build layers dictionary
 """
-function gasc_to_layers(gascsol::Dict)
+function gasc_2_layers(gascsol::Dict)
     gascrb = gascsol["OUTPUTS"]["radial build"]
 
     layers = DataStructures.OrderedDict()
@@ -274,11 +294,11 @@ function gasc_to_layers(gascsol::Dict)
 end
 
 """
-    coil_technology(gasc::GASC, coil_type::Symbol)
+    gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
 
-Return coil parameters from GASC solution and coil type [:OH, :TF, :PF]
+Convert coil technology information in GASC solution to FUSE `coil_technology` data structure
 """
-function coil_technology(gasc::GASC, coil_type::Symbol)
+function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
     gascsol = gasc.solution
     if coil_type ∉ [:OH, :TF, :PF]
         error("Supported coil type are [:OH, :TF, :PF]")

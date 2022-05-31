@@ -1,3 +1,8 @@
+"""
+    case_parameters(:D3D)
+
+DIII-D
+"""
 function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersInit, ParametersActor}
     ini = ParametersInit()
     act = ParametersActor()

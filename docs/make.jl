@@ -92,20 +92,24 @@ makedocs(;
     sitename="FUSE",
     format=Documenter.HTML(; prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
     pages=[
-        "index.md",
-        "dd Data Structure" => "dd.md",
-        "ini Parameters" => "ini.md",
-        "act Parameters" => "act.md",
-        "Actors" => "actors.md",
-        "Initialization" => "inits.md",
-        "Use Cases" => "cases.md",
-        "Utilities" => "utils.md",
-        "GASC" => "gasc.md",
-        "Installation" => "install.md",
+        "Concepts" => "index.md",
+        "Core" => [
+            "dd Data Structure" => "dd.md",
+            "Actors" => "actors.md"],
+        "Parameters" => [
+            "ini Parameters" => "ini.md",
+            "act Parameters" => "act.md",
+            "Use Cases" => "cases.md",
+            "Initialization" => "inits.md"],
+        "Setup" => "install.md",
+        "Others" => [
+            "GASC" => "gasc.md",
+            "Utilities" => "utils.md"],
     ],
 )
 
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
+@info "Converting links"
 for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd","dd")]
     open("build/$file.html", "r") do io
         txt = read(io, String)
