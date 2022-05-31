@@ -37,7 +37,7 @@ open("src/dd.md", "w") do io
 end
 
 function dd_details_md(io, ids)
-    ProgressMeter.@showprogress "dd" for leaf in collect(AbstractTrees.Leaves(ids))
+    ProgressMeter.@showprogress "$ids" for leaf in collect(AbstractTrees.Leaves(ids))
         name="$(leaf.location)"
         info = IMASDD.info(name)
         documentation = get(info, "documentation", "N/A")

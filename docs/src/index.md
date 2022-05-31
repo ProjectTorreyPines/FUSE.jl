@@ -1,6 +1,8 @@
+#   FUSE (**FU**sion **S**ynthesis **E**ngine)
+
 FUSE (**FU**sion **S**ynthesis **E**ngine) is GA's proprietary framework for Fusion Power Plant (FPP) integrated design.
 
-# FUSE objectives
+## FUSE objectives
 
 * Couple physics, engineering, control, costing, and balance of plant
 * Enable both stationary as well as time-dependent simulations
@@ -8,7 +10,7 @@ FUSE (**FU**sion **S**ynthesis **E**ngine) is GA's proprietary framework for Fus
 * Leverage parallelism and HPC systems for optimization studies
 * Support sensitivity and uncertainty quantification analyses
 
-# Basic concepts
+## Basic concepts
 
 FUSE is written completely in Julia, and is structured as follows:
 1. Data is stored in the `dd` data structure, which is based on the ITER IMAS onthology
