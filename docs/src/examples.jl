@@ -5,7 +5,6 @@ txt = ["""
   """]
 run(`pwd`) # make .html file 
 for example in examples
-    display(example)
     content = open("build/assets/example_$example.html", "r") do io
         read(io, String)
     end
@@ -29,7 +28,6 @@ for example in examples
 """
     )
 end
-display(join(txt, "\n"))
 
 open("src/examples.md", "w") do io
     write(io, join(txt, "\n"))
