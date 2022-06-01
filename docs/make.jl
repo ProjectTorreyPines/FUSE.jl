@@ -84,6 +84,11 @@ include("src/act_docs.jl")
 # =================== #
 include("src/cases_docs.jl")
 
+# ====================== #
+# generate examples page #
+# ====================== #
+include("src/examples.jl")
+
 # ============== #
 # build the docs #
 # ============== #
@@ -105,6 +110,7 @@ makedocs(;
         "Others" => [
             "GASC" => "gasc.md",
             "Utilities" => "utils.md"],
+        "Example jupyter notebooks" => "examples.md",
     ],
 )
 
