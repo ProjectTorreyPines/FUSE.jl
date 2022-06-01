@@ -1,8 +1,8 @@
-assets = readdir(joinpath(dirname(abspath(@__FILE__)),"..","build","assets"))
-examples = [split(item[9:end],".")[1] for item in assets[findall(startswith("example_"),assets)]]
-txt=["""
-The following examples are available:
-"""]
+assets = readdir(joinpath(dirname(abspath(@__FILE__)), "..", "build", "assets"))
+examples = [split(item[9:end], ".")[1] for item in assets[findall(startswith("example_"), assets)]]
+txt = ["""
+  The following examples are available:
+  """]
 run(`pwd`) # make .html file 
 for example in examples
     display(example)
@@ -10,18 +10,24 @@ for example in examples
         read(io, String)
     end
     open("src/example_$example.md", "w") do io
-        write(io, """
-        # $example
+        write(
+            io,
+            """
+  # $example
 
-        ```@raw html
-        $content
-        ```
-        """)
+  ```@raw html
+  $content
+  ```
+  """
+        )
     end
-    
-    push!(txt,"""
+
+    push!(
+        txt,
+        """
 * [$example](example_$example.md)
-""")
+"""
+    )
 end
 display(join(txt, "\n"))
 
