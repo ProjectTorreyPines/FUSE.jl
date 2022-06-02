@@ -191,13 +191,13 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
         return Jcrit * fraction_conductor # A/m^2
     else
         if coil_tech.material == "Nb3Sn"
-            Jcrit_SC, Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
+            Jcrit_SC, Bext_Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         elseif coil_tech.material == "ReBCO"
-            Jcrit_SC, Bcrit_ratio = ReBCO_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
+            Jcrit_SC, Bext_Bcrit_ratio = ReBCO_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         end
         fraction_SC = fraction_conductor * coil_tech.ratio_SC_to_copper / (1.0 + coil_tech.ratio_SC_to_copper) # fraction of coil that is Nb3Sn superconductor
         Jcrit = Jcrit_SC * fraction_SC # A/m^2
-        return Jcrit, Bcrit_ratio * Bext
+        return Jcrit, Bext / Bext_Bcrit_ratio
     end
 end
 
