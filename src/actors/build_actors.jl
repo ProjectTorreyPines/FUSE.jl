@@ -129,6 +129,8 @@ end
 #= ========== =#
 mutable struct ActorFluxSwing <: AbstractActor
     dd::IMAS.dd
+    operate_at_j_crit::Bool
+    j_tollerance::Real
 end
 
 function ParametersActor(::Type{Val{:ActorFluxSwing}})
@@ -138,7 +140,7 @@ function ParametersActor(::Type{Val{:ActorFluxSwing}})
     The flattop duration and maximum toroidal magnetic field follow from that.
     Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
     These currents may or may not exceed the OH and TF current limits."""; default=false)
-    par.j_tolerance = Entry(Bool, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
+    par.j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
     return par
 end
 
@@ -160,14 +162,14 @@ OH flux consumption based on:
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
-    actor = ActorFluxSwing(dd; operate_at_j_crit=par.operate_at_j_crit, j_tollerance=par.j_tolerance)
+    actor = ActorFluxSwing(dd, par.operate_at_j_crit, par.j_tolerance)
     step(actor)
     finalize(actor)
     return actor
 end
 
 """
-    step(actor::ActorFluxSwing; operate_at_j_crit=false, j_tolerance::Float64=0.4, only=:all)
+    step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tollerance, only=:all)
 
 `operate_at_j_crit=true`` makes the OH and TF operate at their current limit (within specified `j_tolerance`).
 The flattop duration and toroidal magnetic field follow from that.
@@ -176,7 +178,7 @@ These currents may or may not exceed the OH and TF current limits.
 
 The `only` parameter controls if only :tf, :oh, or :all (both) should be calculated
 """
-function step(actor::ActorFluxSwing; operate_at_j_crit::Bool, j_tolerance::Float64=0.4, only=:all)
+function step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tollerance, only=:all)
     bd = actor.dd.build
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
@@ -192,7 +194,7 @@ function step(actor::ActorFluxSwing; operate_at_j_crit::Bool, j_tolerance::Float
             oh_maximum_J_B!(bd; j_tolerance)
             bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd) # target flattop flux based on available current
         else
-            bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, eqt, cp1d) # target flattop flux based on target duration
+            bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, cp1d) # target flattop flux based on target duration
             oh_required_J_B!(bd)
         end
 
@@ -237,11 +239,11 @@ function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_
 end
 
 """
-    flattop_flux_estimates(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
+    flattop_flux_estimates(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d)
 
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function flattop_flux_estimates(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
+function flattop_flux_estimates(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d)
     return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * bd.oh.flattop_duration # V*s
 end
 
