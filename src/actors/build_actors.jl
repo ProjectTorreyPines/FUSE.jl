@@ -133,23 +133,34 @@ end
 
 function ParametersActor(::Type{Val{:ActorFluxSwing}})
     par = ParametersActor(nothing)
+    par.operate_at_j_crit = Entry(Bool, "", """
+    Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
+    The flattop duration and maximum toroidal magnetic field follow from that.
+    Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
+    These currents may or may not exceed the OH and TF current limits."""; default=false)
+    par.j_tolerance = Entry(Bool, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
     return par
 end
 
 """
     ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
 
-OH flux requirements based on
+This actor operate in two ways, depending on `operate_at_j_crit`
+* true => Figure out what is the OH and TF current limit, and evaluate flattop duration and maximum toroidal magnetic field follow from that
+* false => Evaluate what are the currents needed for a given flattop duration and toroidal magnetic field, which may or may not exceed the OH and TF current limits.
+
+OH flux consumption based on:
 * rampup estimate based on Ejima coefficient
 * flattop consumption
 * vertical field from PF coils
 
 !!! note
-    Stores data in ```dd.build.flux_swing_estimates```
+    Stores data in `dd.build.flux_swing_estimates`, `dd.build.tf`, and `dd.build.oh`
+
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
-    actor = ActorFluxSwing(dd)
+    actor = ActorFluxSwing(dd; operate_at_j_crit=par.operate_at_j_crit, j_tollerance=par.j_tolerance)
     step(actor)
     finalize(actor)
     return actor
@@ -158,10 +169,12 @@ end
 """
     step(actor::ActorFluxSwing; operate_at_j_crit=false, j_tolerance::Float64=0.4, only=:all)
 
-operate_at_j_crit=true makes the OH and TF operate at their current limit (within specified tolerance).
-The flattop duration and toroidal magnetic field fall from that.
+`operate_at_j_crit=true`` makes the OH and TF operate at their current limit (within specified `j_tolerance`).
+The flattop duration and toroidal magnetic field follow from that.
 Otherwise we evaluate what is the currents needed for a given flattop duration and toroidal magnetic field.
 These currents may or may not exceed the OH and TF current limits.
+
+The `only` parameter controls if only :tf, :oh, or :all (both) should be calculated
 """
 function step(actor::ActorFluxSwing; operate_at_j_crit::Bool, j_tolerance::Float64=0.4, only=:all)
     bd = actor.dd.build
