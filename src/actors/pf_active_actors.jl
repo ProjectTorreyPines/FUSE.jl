@@ -762,7 +762,7 @@ Plot ActorPFcoilsOpt optimization cross-section
         end
 
         @series begin
-            outlines --> true
+            wireframe --> true
             exclude_layers --> [:oh]
             pfactor.bd
         end
