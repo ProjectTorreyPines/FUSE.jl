@@ -447,7 +447,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                 kcoil += dkcoil
 
                 # mirror coil position when they reach the end of the rail
-                coil_distances = mirror_bound(coil_distances, -1.0, 1.0)
+                coil_distances = mirror_bound.(coil_distances, -1.0, 1.0)
 
                 # get coils r and z from distances
                 r_coils = r_interp.(coil_distances)
