@@ -61,6 +61,7 @@ function workflow_HDB5_validation(;
     save_directory::String="",
     show_dd_plots=false,
     plot_database=true,
+    show_progress=true,
     verbose=false,
     act=missing)
 
@@ -82,8 +83,13 @@ function workflow_HDB5_validation(;
     run_df[:, "T0_fuse"] = zeros(n_cases)
     run_df[:, "error_message"] = ["" for i in 1:n_cases]
 
-    # Run workflow_simple_equilibrium_transport on each of the selected cases
-    data_rows = @showprogress pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
+    # Run workflow_simple_equilibrium_transport on each of the selected case
+    if show_progress
+        data_rows = @showprogress pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
+    else
+        data_rows = pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
+    end
+
     for k in 1:length(data_rows)
         run_df[k, :] = data_rows[k]
     end
