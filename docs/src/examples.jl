@@ -12,7 +12,7 @@ for example in examples
         write(
             io,
             """
-  # $example
+  # `$example`
 
   ```@raw html
   $content
@@ -24,7 +24,7 @@ for example in examples
     push!(
         txt,
         """
-* [$example](example_$example.md)
+* [`$example`](example_$example.md)
 """
     )
 end

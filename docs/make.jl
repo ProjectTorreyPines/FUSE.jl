@@ -110,7 +110,7 @@ makedocs(;
         "Others" => [
             "GASC" => "gasc.md",
             "Utilities" => "utils.md"],
-        "Example jupyter notebooks" => "examples.md",
+        "Examples" => "examples.md",
     ]
 )
 
