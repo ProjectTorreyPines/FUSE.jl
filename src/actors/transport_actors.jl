@@ -42,14 +42,14 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
         pp = plot(dd.core_profiles; color=:gray, label="")
     end
     actor = ActorTauenn(dd;
-        error=par.error,
-        eped_factor=par.eped_factor,
-        rho_fluxmatch=par.rho_fluxmatch,
-        T_shaping=par.T_shaping,
-        temp_pedestal_ratio=par.temp_pedestal_ratio,
-        transport_model=par.transport_model,
-        confinement_factor=par.confinement_factor,
-        warn_nn_train_bounds=par.warn_nn_train_bounds)
+        par.error,
+        par.eped_factor,
+        par.rho_fluxmatch,
+        par.T_shaping,
+        par.temp_pedestal_ratio,
+        par.transport_model,
+        par.confinement_factor,
+        par.warn_nn_train_bounds)
     step(actor; verbose=par.verbose)
     finalize(actor)
     if par.do_plot

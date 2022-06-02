@@ -162,7 +162,7 @@ OH flux consumption based on:
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
-    actor = ActorFluxSwing(dd, par.operate_at_j_crit, par.j_tolerance)
+    actor = ActorFluxSwing(dd; par.operate_at_j_crit, par.j_tolerance)
     step(actor)
     finalize(actor)
     return actor
@@ -463,7 +463,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     fluxswing_actor = ActorFluxSwing(dd)
     stresses_actor = ActorStresses(dd)
     actor = ActorHFSsizing(stresses_actor, fluxswing_actor)
-    step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_aspect_ratio=par.fixed_aspect_ratio, unconstrained_flattop_duration=par.unconstrained_flattop_duration)
+    step(actor; par.verbose, par.j_tolerance, par.stress_tolerance, par.fixed_aspect_ratio, par.unconstrained_flattop_duration)
     finalize(actor)
     if par.do_plot
         display(plot!(p, dd.build; cx=false))
@@ -698,7 +698,7 @@ Actor that builds the 2D cross section of the build.
 function ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorCXbuild(kw...)
     actor = ActorCXbuild(dd)
-    step(actor; rebuild_wall=par.rebuild_wall)
+    step(actor; par.rebuild_wall)
     finalize(actor)
     if par.do_plot
         plot(dd.build)

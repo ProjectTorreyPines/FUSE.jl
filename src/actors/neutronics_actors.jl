@@ -110,7 +110,6 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
     # find neutron flux [counts/s/m²]
     # smooth the load of each neutron withing a window
     wall_r, wall_z = wall_r[1:end-1], wall_z[1:end-1]
-    d = sqrt.(IMAS.diff(vcat(wall_r, wall_r[1])) .^ 2.0 .+ IMAS.diff(vcat(wall_z, wall_z[1])) .^ 2.0)
     d = sqrt.(IMAS.gradient(vcat(wall_r, wall_r[1])) .^ 2.0 .+ IMAS.gradient(vcat(wall_z, wall_z[1])) .^ 2.0)
     d = (d[1:end-1] .+ d[2:end]) / 2.0
     l = cumsum(d)

@@ -57,7 +57,7 @@ This actor fiends the coil currents and locations of the poloidal field coils fo
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorPFcoilsOpt(kw...)
-    actor = ActorPFcoilsOpt(dd; green_model=par.green_model, symmetric=par.symmetric)
+    actor = ActorPFcoilsOpt(dd; par.green_model, par.symmetric)
 
     if par.optimization_scheme == :none
         if par.do_plot
