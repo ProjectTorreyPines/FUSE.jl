@@ -162,7 +162,7 @@ OH flux consumption based on:
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
-    actor = ActorFluxSwing(dd; par.operate_at_j_crit, par.j_tolerance)
+    actor = ActorFluxSwing(dd, par.operate_at_j_crit, par.j_tolerance)
     step(actor)
     finalize(actor)
     return actor
