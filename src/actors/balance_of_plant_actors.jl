@@ -31,10 +31,10 @@ Setting ```gasc_method = false``` subdivides the power plant electrical needs to
 """
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersActor; gasc_method=false, kw...)
     par = act.ActorBalanceOfPlant(kw...)
-    Actor = ActorBalanceOfPlant(dd, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
-    step(Actor, gasc_method)
-    finalize(Actor)
-    return Actor
+    actor = ActorBalanceOfPlant(dd, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
+    step(actor, gasc_method)
+    finalize(actor)
+    return actor
 end
 
 function step(Actor::ActorBalanceOfPlant, gasc_method)

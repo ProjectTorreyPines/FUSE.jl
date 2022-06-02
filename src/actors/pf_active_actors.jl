@@ -93,7 +93,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
         finalize(actor; update_eq_in=par.update_equilibrium)
     end
 
-    return dd
+    return actor
 end
 
 function ActorPFcoilsOpt(dd::IMAS.dd; kw...)

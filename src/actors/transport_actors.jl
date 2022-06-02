@@ -59,7 +59,7 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
     if par.verbose
         display(actor.tauenn_parameters)
     end
-    return dd
+    return actor
 end
 
 function ActorTauenn(dd::IMAS.dd; kw...)

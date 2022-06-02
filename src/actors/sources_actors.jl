@@ -31,6 +31,7 @@ function ActorNBIsimple(dd::IMAS.dd, act::ParametersActor; kw...)
     actor = ActorNBIsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
+    return actor
 end
 
 function ActorNBIsimple(dd::IMAS.dd; width::Real=0.3, rho_0::Real=0.0, current_efficiency::Real=0.3)
@@ -114,6 +115,7 @@ function ActorECsimple(dd::IMAS.dd, act::ParametersActor; kw...)
     actor = ActorECsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
+    return actor
 end
 
 function ActorECsimple(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.2)
@@ -189,6 +191,7 @@ function ActorICsimple(dd::IMAS.dd, act::ParametersActor; kw...)
     actor = ActorICsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
+    return actor
 end
 
 function ActorICsimple(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.125)
@@ -264,6 +267,7 @@ function ActorLHsimple(dd::IMAS.dd, act::ParametersActor; kw...)
     actor = ActorLHsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
+    return actor
 end
 
 function ActorLHsimple(dd::IMAS.dd; width::Real=0.15, rho_0::Real=0.6, current_efficiency::Real=0.4)
