@@ -30,7 +30,7 @@ Pkg.activate();\
 Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite"]);\
 '
 
-develop: update_all registry develop_no_registry
+develop: update_all registry develop_no_registry precompile
 
 sysimage:
 	julia -e '\
@@ -52,7 +52,7 @@ IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage
 IJulia:
 	julia -e '\
 using Pkg;\
-Pkg.add("IJulia");\
+Pkg.add(["Revise", "Test", "Plots", "IJulia"]);\
 Pkg.build("IJulia");\
 '
 	python3 -m pip install --upgrade webio_jupyter_extension
