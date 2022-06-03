@@ -380,9 +380,11 @@ end
     ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
 
 Actor that resizes the Low Field Side of the build.
+* Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
+* Other low-field side layers are scaled proportionally
 
 !!! note 
-    Manipulates data in `dd.build`
+    Manipulates radial build information in `dd.build.layer`
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorLFSsizing(kw...)
@@ -451,9 +453,11 @@ end
     ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
 
 Actor that resizes the High Field Side of the build.
-
+* takes into account the OH maximum allowed superconductor current/Field
+* takes into account the stresses on the center stack
+    
 !!! note 
-    Manipulates data in `dd.build`
+    Manipulates radial build information in `dd.build.layer`
 """
 function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorHFSsizing(kw...)
@@ -675,7 +679,6 @@ end
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-
 mutable struct ActorCXbuild <: AbstractActor
     dd::IMAS.dd
 end
