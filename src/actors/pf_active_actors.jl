@@ -68,11 +68,13 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
 
     else
         if par.optimization_scheme == :currents
-            # find coil currents for both field-null and equilibria
-            step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=par.λ_currents, verbose=par.verbose, maxiter=1000, optimization_scheme=:currents)
+            # find coil currents
+            step(actor; λ_ψ=1.0, λ_null=1E-3, par.λ_currents, λ_strike=0.0, par.verbose, maxiter=1000, optimization_scheme=:currents)
+            finalize(actor)
+
         elseif par.optimization_scheme == :rail
-            # optimize coil location only considering equilibria (disregard field-null)
-            step(actor, λ_ψ=1E-2, λ_null=1E-2, λ_currents=par.λ_currents, λ_strike=0.0, verbose=par.verbose, maxiter=1000, optimization_scheme=:rail)
+            # optimize coil location and currents
+            step(actor; λ_ψ=1.0, λ_null=1E-3, par.λ_currents, λ_strike=0.0, par.verbose, maxiter=1000, optimization_scheme=:rail)
             finalize(actor)
 
             if par.do_plot
@@ -125,10 +127,10 @@ end
     step(pfactor::ActorPFcoilsOpt;
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
-        λ_ψ=1E-2,
-        λ_null=1,
+        λ_ψ=1.0,
+        λ_null=1E-2,
         λ_currents=0.5,
-        λ_strike=1,
+        λ_strike=0.0,
         maxiter=10000,
         optimization_scheme=:rail,
         verbose=false)
@@ -138,10 +140,10 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 function step(pfactor::ActorPFcoilsOpt;
     symmetric=pfactor.symmetric,
     λ_regularize=pfactor.λ_regularize,
-    λ_ψ=1E-2,
-    λ_null=1,
+    λ_ψ=1.0,
+    λ_null=1E-2,
     λ_currents=0.5,
-    λ_strike=1,
+    λ_strike=0.0,
     maxiter=10000,
     optimization_scheme=:rail,
     verbose=false)
@@ -518,7 +520,7 @@ function optimize_coils_rail(
             # private flux regions
             Rx = []
             Zx = []
-            if λ_strike > 0
+            if λ_strike > 0.0
                 private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
                 vessel = IMAS.get_build(bd, type=_plasma_)
                 for (pr, pz) in private
@@ -544,74 +546,71 @@ function optimize_coils_rail(
 
     packed_tmp = [packed]
     function placement_cost(packed; do_trace=false)
-        try
-            packed_tmp[1] = packed
+        packed_tmp[1] = packed
 
-            index = findall(.>(1.0), abs.(packed[1:end-1]))
-            if length(index) > 0
-                cost_1to1 = sum(abs.(packed[index]) .- 1.0) * 10
-            else
-                cost_1to1 = 0.0
-            end
-
-            λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
-            coils = vcat(pinned_coils, optim_coils)
-
-            all_cost_ψ = []
-            all_cost_currents = []
-            all_cost_oh = []
-            for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs, weights))
-                for coil in vcat(pinned_coils, optim_coils, fixed_coils)
-                    coil.time_index = time_index
-                end
-                currents, cost_ψ0 = VacuumFields.currents_to_match_ψp(fixed_eq..., coils, weights=weight, λ_regularize=λ_regularize, return_cost=true)
-                current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-                oh_max_current_densities = [coil_J_B_crit(bd.oh.max_b_field, coil.coil_tech)[1] for coil in coils[oh_indexes]]
-                pf_max_current_densities = [coil_J_B_crit(coil_selfB(coil), coil.coil_tech)[1] for coil in coils[oh_indexes.==false]]
-                max_current_densities = vcat(oh_max_current_densities, pf_max_current_densities)
-                fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
-                #currents cost
-                push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
-                # boundary cost
-                if ismissing(eq.time_slice[time_index].global_quantities, :ip)
-                    push!(all_cost_ψ, cost_ψ0 / λ_null)
-                    push!(all_cost_oh, 0.0)
-                else
-                    #OH cost
-                    oh_current_densities = current_densities[oh_indexes]
-                    avg_oh = Statistics.mean(oh_current_densities)
-                    cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
-                    push!(all_cost_ψ, cost_ψ0 / λ_ψ)
-                    push!(all_cost_oh, cost_oh)
-                end
-            end
-            cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
-            cost_currents = norm(all_cost_currents) / length(all_cost_currents)
-            cost_oh = norm(all_cost_oh) / length(all_cost_oh)
-            #spacing
-            cost_spacing = 0.0
-            for (k1, c1) in enumerate(optim_coils)
-                for (k2, c2) in enumerate(optim_coils)
-                    if k1 < k2
-                        cost_spacing += 1.0 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
-                    end
-                end
-            end
-            cost_spacing = cost_spacing / R0
-            cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2 + 100 * cost_spacing^2)
-            if do_trace
-                push!(trace.params, packed)
-                push!(trace.cost_ψ, cost_ψ)
-                push!(trace.cost_currents, cost_currents)
-                push!(trace.cost_total, cost)
-            end
-
-            return cost
-
-        catch e
-            println(e)
-            rethrow()
+        index = findall(.>(1.0), abs.(packed[1:end-1]))
+        if length(index) > 0
+            cost_1to1 = sum(abs.(packed[index]) .- 1.0) * 10
+        else
+            cost_1to1 = 0.0
         end
+
+        λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
+        coils = vcat(pinned_coils, optim_coils)
+
+        all_cost_ψ = []
+        all_cost_currents = []
+        all_cost_oh = []
+        for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs, weights))
+            for coil in vcat(pinned_coils, optim_coils, fixed_coils)
+                coil.time_index = time_index
+            end
+            currents, cost_ψ0 = VacuumFields.currents_to_match_ψp(fixed_eq..., coils; weights=weight, λ_regularize, return_cost=true)
+            current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
+            oh_max_current_densities = [coil_J_B_crit(bd.oh.max_b_field, coil.coil_tech)[1] for coil in coils[oh_indexes]]
+            pf_max_current_densities = [coil_J_B_crit(coil_selfB(coil), coil.coil_tech)[1] for coil in coils[oh_indexes.==false]]
+            max_current_densities = vcat(oh_max_current_densities, pf_max_current_densities)
+            fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
+            #currents cost
+            push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
+            # boundary cost
+            if ismissing(eq.time_slice[time_index].global_quantities, :ip)
+                push!(all_cost_ψ, cost_ψ0 / λ_null)
+                push!(all_cost_oh, 0.0)
+            else
+                #OH cost
+                oh_current_densities = current_densities[oh_indexes]
+                avg_oh = Statistics.mean(oh_current_densities)
+                cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
+                push!(all_cost_ψ, cost_ψ0 / λ_ψ)
+                push!(all_cost_oh, cost_oh)
+            end
+        end
+        cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
+        cost_currents = norm(all_cost_currents) / length(all_cost_currents)
+        cost_oh = norm(all_cost_oh) / length(all_cost_oh)
+        #spacing
+        cost_spacing = 0.0
+        for (k1, c1) in enumerate(optim_coils)
+            for (k2, c2) in enumerate(optim_coils)
+                if k1 < k2
+                    cost_spacing += 1.0 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
+                end
+            end
+        end
+        cost_spacing = cost_spacing / R0
+        # total cost
+        cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2 + 10 * cost_spacing^2)
+        if do_trace
+            push!(trace.params, packed)
+            push!(trace.cost_ψ, cost_ψ)
+            push!(trace.cost_currents, cost_currents)
+            push!(trace.cost_total, cost)
+        end
+        if isnan(cost)
+            error("optimize_coils_rail cost is NaN")
+        end
+        return cost
 
     end
 
