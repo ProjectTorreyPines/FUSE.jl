@@ -11,8 +11,8 @@ function init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
         ini.nbi.beam_energy,
         ini.nbi.beam_mass,
         ini.nbi.toroidal_angle,
-        evalmissing(ini.nbi, :efficiency_conversion),
-        evalmissing(ini.nbi, :efficiency_transmission))
+        getproperty(ini.nbi, :efficiency_conversion, missing),
+        getproperty(ini.nbi, :efficiency_transmission, missing))
     ActorNBIsimple(dd, act)
 end
 
@@ -53,8 +53,8 @@ Initialize `dd.ec_launchers` starting from 0D `ini` parameters and `act` actor p
 function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_ec_launchers(dd,
         ini.ec_launchers.power_launched,
-        evalmissing(ini.ec_launchers, :efficiency_conversion),
-        evalmissing(ini.ec_launchers, :efficiency_transmission))
+        getproperty(ini.ec_launchers, :efficiency_conversion, missing),
+        getproperty(ini.ec_launchers, :efficiency_transmission, missing))
     ActorECsimple(dd, act)
 end
 
@@ -83,9 +83,9 @@ Initialize `dd.ic_antennas` starting from 0D `ini` parameters and `act` actor pa
 function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_ic_antennas(dd,
         ini.ic_antennas.power_launched,
-        evalmissing(ini.ic_antennas, :efficiency_conversion),
-        evalmissing(ini.ic_antennas, :efficiency_transmission),
-        evalmissing(ini.ic_antennas, :efficiency_coupling))
+        getproperty(ini.ic_antennas, :efficiency_conversion, missing),
+        getproperty(ini.ic_antennas, :efficiency_transmission, missing),
+        getproperty(ini.ic_antennas, :efficiency_coupling, missing))
     ActorICsimple(dd, act)
 end
 
@@ -116,9 +116,9 @@ Initialize `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor pa
 function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
     init_lh_antennas(dd,
         ini.lh_antennas.power_launched,
-        evalmissing(ini.lh_antennas, :efficiency_conversion),
-        evalmissing(ini.lh_antennas, :efficiency_transmission),
-        evalmissing(ini.lh_antennas, :efficiency_coupling))
+        getproperty(ini.lh_antennas, :efficiency_conversion, missing),
+        getproperty(ini.lh_antennas, :efficiency_transmission, missing),
+        getproperty(ini.lh_antennas, :efficiency_coupling, missing))
     ActorLHsimple(dd, act)
 end
 

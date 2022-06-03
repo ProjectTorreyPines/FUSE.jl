@@ -277,6 +277,21 @@ function Base.getproperty(p::Parameters, key::Symbol)
     return value
 end
 
+"""
+    getproperty(p::Parameters, key::Symbol, default)
+
+Return value of `key` parameter or `default` if parameter is missing
+NOTE: This is useful because accessing a `missing` parameter would raise an error
+"""
+function Base.getproperty(p::Parameters, key::Symbol, default)
+    value = p[key].value
+    if value === missing
+        return default
+    else
+        return value
+    end
+end
+
 function Base.deepcopy(p::Union{Parameter,Parameters})
     p1 = Base.deepcopy_internal(p, Base.IdDict())
     p1._parent = WeakRef(missing)
@@ -379,16 +394,6 @@ function (par::Parameters)(kw...)
         end
     end
     return par
-end
-
-"""
-    evalmissing(p::Parameters, field::Symbol) 
-
-Return parameter value or `missing` if parameter is missing
-NOTE: This is useful because accessing a `missing` parameter would raise an error
-"""
-function evalmissing(p::Parameters, field::Symbol)
-    return p[field].value
 end
 
 function doc(parameters::Parameters)

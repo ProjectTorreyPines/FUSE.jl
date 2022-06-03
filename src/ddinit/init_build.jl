@@ -13,20 +13,11 @@ import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princ
 function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
     df = DataFrames.DataFrame(group=String[], name=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[])
     for layer in layers
-        material = IMAS.evalmissing(layer, :material)
-        if material === missing
-            material = "?"
-        end
+        material = getproperty(layer, :material, "?")
         material = split(material, ",")[1]
         material = replace(material, "Vacuum" => "")
-        area = IMAS.evalmissing(layer, :area)
-        if area === missing
-            area = NaN
-        end
-        volume = IMAS.evalmissing(layer, :volume)
-        if volume === missing
-            volume = NaN
-        end
+        area = getproperty(layer, :area, NaN)
+        volume = getproperty(layer, :volume, NaN)
         group = replace(string(BuildLayerSide(layer.fs)), "_" => "")
         name = replace(layer.name, r"^[hl]fs " => "")
         name = replace(name, r"^gap .*" => "")

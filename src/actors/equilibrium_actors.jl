@@ -32,7 +32,7 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorSolovev(kw...)
     actor = ActorSolovev(dd.equilibrium)
     step(actor; verbose=par.verbose)
-    finalize(actor, ngrid=par.ngrid, volume=evalmissing(par, :volume), area=evalmissing(par, :area))
+    finalize(actor, ngrid=par.ngrid, volume=getproperty(par, :volume, missing), area=getproperty(par, :area, missing))
     # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
     par.qstar = actor.S.qstar
     par.alpha = actor.S.alpha

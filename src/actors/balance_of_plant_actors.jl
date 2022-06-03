@@ -80,10 +80,10 @@ function step(Actor::ActorBalanceOfPlant, gasc_method)
     return Actor
 end
 
-function heating_and_current_drive_calc(system_unit, time_array)
+function heating_and_current_drive_calc(system_unit, time_array::Vector{<:Real})
     power_electric_total = zeros(length(time_array))
     for item_unit in system_unit
-        efficiency = prod([IMAS.evalmissing(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
+        efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
         power_electric_total .+= IMAS.get_time_array(item_unit.power_launched, :data, time_array, :constant) ./ efficiency
     end
     return power_electric_total
@@ -135,7 +135,7 @@ function thermal_power(symbol::Symbol, dd::IMAS.dd, Actor::ActorBalanceOfPlant, 
 end
 
 function thermal_power(::Type{Val{:blanket}}, dd::IMAS.dd, Actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
-    power_fusion, time_array_fusion = IMAS.total_power_identifier_indexes(dd.core_sources, [6])
+    power_fusion, time_array_fusion = IMAS.total_power_time(dd.core_sources, [6])
     return Actor.blanket_multiplier .* IMAS.interp1d(time_array_fusion, 4 .* power_fusion, :constant).(time_array) # blanket_multiplier * P_neutron
 end
 
