@@ -28,14 +28,14 @@ function init_nbi(
     power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission = same_length_vectors(power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission)
 
     for idx in 1:length(power_launched)
-        nbu = resize!(dd.nbi.unit, idx)
+        nbu = resize!(dd.nbi.unit, idx)[idx]
         nbu.name = length(power_launched) > 1 ? "nbi_$idx" : "nbi"
         @ddtime(nbu.energy.data = beam_energy[idx])
         @ddtime(nbu.power_launched.data = power_launched[idx])
         nbu.available_launch_power = power_launched[idx]
         nbu.species.a = beam_mass[idx]
         # 1 beamlet
-        beamlet = resize!(nbu.beamlets_group, 1)
+        beamlet = resize!(nbu.beamlets_group, 1)[1]
         beamlet.angle = toroidal_angle[idx] / 360 * 2pi
         # Efficiencies
         nbu.efficiency.conversion = efficiency_conversion[idx]
@@ -66,7 +66,7 @@ function init_ec_launchers(
 
     (power_launched, efficiency_conversion, efficiency_transmission) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission)
     for idx in 1:length(power_launched)
-        ecl = resize!(dd.ec_launchers.launcher, idx)
+        ecl = resize!(dd.ec_launchers.launcher, idx)[idx]
         ecl.name = length(power_launched) > 1 ? "ec_$idx" : "ec"
         @ddtime(ecl.power_launched.data = power_launched[idx])
         ecl.available_launch_power = power_launched[idx]
@@ -98,7 +98,7 @@ function init_ic_antennas(
 
     (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
     for idx in 1:length(power_launched)
-        ica = resize!(dd.ic_antennas.antenna, idx)
+        ica = resize!(dd.ic_antennas.antenna, idx)[idx]
         ica.name = length(power_launched) > 1 ? "ic_$idx" : "ic"
         @ddtime(ica.power_launched.data = power_launched[idx])
         ica.available_launch_power = power_launched[idx]
@@ -130,7 +130,7 @@ function init_lh_antennas(
     efficiency_coupling::Union{Real,Vector,Missing})
     (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
     for idx in 1:length(power_launched)
-        lha = resize!(dd.lh_antennas.antenna, idx)
+        lha = resize!(dd.lh_antennas.antenna, idx)[idx]
         lha.name = length(power_launched) > 1 ? "lh_$idx" : "lh"
         @ddtime(lha.power_launched.data = power_launched[idx])
         lha.available_launch_power = power_launched[idx]

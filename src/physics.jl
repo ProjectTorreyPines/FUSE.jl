@@ -8,19 +8,21 @@ import PolygonOps
 #= =============== =#
 
 function layer_shape_message(shape_function_index)
-    "layer.shape=$(shape_function_index) is invalid. Valid options are:
- -2: Offset & convex-hull
- -1: Offset
-  1: Priceton D exact  (shape_parameters = [])
-  2: Priceton D approx(shape_parameters = [])
-  3: Priceton D scaled (shape_parameters = [height])
-  4: rectangle         (shape_parameters = [height])
-  5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-  6: miller            (shape_parameters = [elongation, triangularity])
-  7: spline            (shape_parameters = [hfact, rz...)
-  8: silo              (shape_parameters = [h_start, h_end)
+    return "layer.shape=$(shape_function_index) is invalid. Valid options are:
+        -2: Offset & convex-hull
+        -1: Offset
+         1: Priceton D exact  (shape_parameters = [])
+         2: Priceton D approx (shape_parameters = [])
+         3: Priceton D scaled (shape_parameters = [height])
+         4: rectangle         (shape_parameters = [height])
+         5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
+         6: miller            (shape_parameters = [elongation, triangularity])
+         7: spline            (shape_parameters = [hfact, rz...)
+         8: silo              (shape_parameters = [h_start, h_end)
+       10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
 10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
-"
+       10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
+       "
 end
 
 function initialize_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, target_clearance)
@@ -163,7 +165,6 @@ end
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
 function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
-
     if length(shape_parameters) in [0, 1]
         func(r_start, r_end, shape_parameters...)
         return shape_parameters
@@ -322,8 +323,10 @@ function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; 
         R = [r_start, r_end, r_end, r_start, r_start]
         Z = [z_low, z_low, z_high, z_high, z_low]
     else
-        R = vcat(range(r_start, r_end, length=n_points), range(r_end, r_end, length=n_points)[2:end], range(r_end, r_start, length=n_points)[2:end], range(r_start, r_start, length=n_points)[2:end], r_start)
-        Z = vcat(range(z_low, z_low, length=n_points), range(z_low, z_high, length=n_points)[2:end], range(z_high, z_high, length=n_points)[2:end], range(z_high, z_low, length=n_points)[2:end], z_low)
+        R = vcat(range(r_start, r_end; length=n_points), range(r_end, r_end; length=n_points)[2:end], range(r_end, r_start; length=n_points)[2:end],
+                 range(r_start, r_start; length=n_points)[2:end], r_start)
+        Z = vcat(range(z_low, z_low; length=n_points), range(z_low, z_high; length=n_points)[2:end], range(z_high, z_high; length=n_points)[2:end],
+                 range(z_high, z_low; length=n_points)[2:end], z_low)
     end
     return R, Z
 end
@@ -354,7 +357,8 @@ TrippleArc contour
 Angles are in degrees
 height, small_radius, mid_radius, small_coverage, mid_coverage are 10^exponent (to ensure positiveness)
 """
-function triple_arc(r_start::Real,
+function triple_arc(
+    r_start::Real,
     r_end::Real,
     height::Real,
     small_radius::Real,
@@ -414,7 +418,7 @@ Miller contour
 layer[:].shape = 4
 """
 function miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real; n_points::Int=401)
-    θ = range(0, 2 * pi, length=n_points)
+    θ = range(0, 2 * pi; length=n_points)
     triangularity = mirror_bound(triangularity, -1.0, 1.0)
     δ₀ = asin(triangularity)
     R = R0 * (1 .+ rmin_over_R0 .* cos.(θ .+ δ₀ * sin.(θ)))
@@ -482,7 +486,7 @@ function xy_polygon(x::Vector{<:Real}, y::Vector{<:Real})
     return LibGEOS.Polygon(coords)
 end
 
-function xy_polygon(layer::IMAS.build__layer)
+function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
     return xy_polygon(layer.outline.r, layer.outline.z)
 end
 
@@ -509,7 +513,7 @@ function silo(r_start, r_end, height_start, height_end)
     height_end = abs(height_end)
     height_end = min(max(height_end, height_start * 0.0), height_start * 0.9)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0, pi / 2, r_start, height_end)
-    vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
+    return vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end
 
 """

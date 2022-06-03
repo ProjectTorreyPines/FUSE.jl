@@ -139,7 +139,7 @@ function ParametersActor(::Type{Val{:ActorFluxSwing}})
     Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
     The flattop duration and maximum toroidal magnetic field follow from that.
     Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
-    These currents may or may not exceed the OH and TF current limits."""; default=false)
+    These currents may or may not exceed the OH and TF current limits."""; default=true)
     par.j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
     return par
 end
@@ -178,7 +178,12 @@ These currents may or may not exceed the OH and TF current limits.
 
 The `only` parameter controls if only :tf, :oh, or :all (both) should be calculated
 """
-function step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tollerance, only=:all)
+function step(
+    actor::ActorFluxSwing;
+    operate_at_j_crit::Bool=actor.operate_at_j_crit,
+    j_tolerance::Real=actor.j_tollerance,
+    only=:all)
+    
     bd = actor.dd.build
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
@@ -303,7 +308,7 @@ This actor estimates vertical field from PF coils and its contribution to flux s
 `eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 
 !!! note 
-    Stores data in ```dd.solid_mechanics```
+    Stores data in `dd.solid_mechanics`
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorStresses(kw...)
@@ -380,9 +385,11 @@ end
     ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
 
 Actor that resizes the Low Field Side of the build.
+* Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
+* Other low-field side layers are scaled proportionally
 
 !!! note 
-    Manipulates data in ```dd.build```
+    Manipulates radial build information in `dd.build.layer`
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorLFSsizing(kw...)
@@ -451,9 +458,11 @@ end
     ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
 
 Actor that resizes the High Field Side of the build.
-
+* takes into account the OH maximum allowed superconductor current/Field
+* takes into account the stresses on the center stack
+    
 !!! note 
-    Manipulates data in ```dd.build```
+    Manipulates radial build information in `dd.build.layer`
 """
 function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorHFSsizing(kw...)
@@ -463,7 +472,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     fluxswing_actor = ActorFluxSwing(dd)
     stresses_actor = ActorStresses(dd)
     actor = ActorHFSsizing(stresses_actor, fluxswing_actor)
-    step(actor; verbose=par.verbose, j_tolerance=par.j_tolerance, stress_tolerance=par.stress_tolerance, fixed_aspect_ratio=par.fixed_aspect_ratio, unconstrained_flattop_duration=par.unconstrained_flattop_duration)
+    step(actor; par.verbose, par.j_tolerance, par.stress_tolerance, par.fixed_aspect_ratio, par.unconstrained_flattop_duration)
     finalize(actor)
     if par.do_plot
         display(plot!(p, dd.build; cx=false))
@@ -675,7 +684,6 @@ end
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-
 mutable struct ActorCXbuild <: AbstractActor
     dd::IMAS.dd
 end
@@ -693,12 +701,12 @@ end
 Actor that builds the 2D cross section of the build.
 
 !!! note 
-    Manipulates data in ```dd.build```
+    Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorCXbuild(kw...)
     actor = ActorCXbuild(dd)
-    step(actor; rebuild_wall=par.rebuild_wall)
+    step(actor; par.rebuild_wall)
     finalize(actor)
     if par.do_plot
         plot(dd.build)

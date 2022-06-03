@@ -57,6 +57,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.pf_active.n_pf_coils_inside = 0
     ini.pf_active.n_pf_coils_outside = 6
     ini.pf_active.technology = coil_technology(:ITER, :PF)
+    act.ActorPFcoilsOpt.symmetric = false
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 18
@@ -64,6 +65,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
 
     ini.oh.technology = coil_technology(:ITER, :OH)
     ini.oh.flattop_duration = 1000
+    act.ActorFluxSwing.operate_at_j_crit = false
 
     ini.core_profiles.ne_ped = 7e19
     ini.core_profiles.greenwald_fraction = 0.9
@@ -79,8 +81,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.nbi.beam_energy = 1e6
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
-
-    act.ActorPFcoilsOpt.symmetric = true
 
     return set_new_base!(ini), set_new_base!(act)
 end

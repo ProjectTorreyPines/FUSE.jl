@@ -39,7 +39,7 @@
    ```
 
 ## Update FUSE packages
-To pull latest changes for FUSE its dependencies:
+To pull latest changes for FUSE and all of its dependencies:
 
 ```bash
 cd ~/.julia/dev/FUSE

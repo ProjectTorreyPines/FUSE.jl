@@ -24,13 +24,14 @@ end
 This actor estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
 !!! note 
-    Stores data in ```dd.nbi, dd.core_sources```
+    Stores data in `dd.nbi, dd.core_sources`
 """
 function ActorNBIsimple(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorNBIsimple(kw...)
     actor = ActorNBIsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
+    return actor
 end
 
 function ActorNBIsimple(dd::IMAS.dd; width::Real=0.3, rho_0::Real=0.0, current_efficiency::Real=0.3)
@@ -107,13 +108,14 @@ end
 This actor estimates the EC electron energy deposition and current drive as a gaussian.
 
 !!! note 
-    Stores data in ```dd.ec_launchers, dd.core_sources```
+    Stores data in `dd.ec_launchers, dd.core_sources`
 """
 function ActorECsimple(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorECsimple(kw...)
     actor = ActorECsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
+    return actor
 end
 
 function ActorECsimple(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.2)
@@ -182,13 +184,14 @@ end
 This actor estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
 
 !!! note 
-    Stores data in ```dd.ic_antennas, dd.core_sources```
+    Stores data in `dd.ic_antennas, dd.core_sources`
 """
 function ActorICsimple(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorICsimple(kw...)
     actor = ActorICsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
+    return actor
 end
 
 function ActorICsimple(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.125)
@@ -257,13 +260,14 @@ end
 This actor estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
 
 !!! note 
-    Stores data in ```dd.lh_antennas, dd.core_sources```
+    Stores data in `dd.lh_antennas, dd.core_sources`
 """
 function ActorLHsimple(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorLHsimple(kw...)
     actor = ActorLHsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
     finalize(actor)
+    return actor
 end
 
 function ActorLHsimple(dd::IMAS.dd; width::Real=0.15, rho_0::Real=0.6, current_efficiency::Real=0.4)

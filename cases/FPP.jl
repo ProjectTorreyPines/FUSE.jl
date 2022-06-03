@@ -45,7 +45,11 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
 
     ini.pf_active.n_oh_coils = 6
     ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 8
+    if init_from == :ods
+        ini.pf_active.n_pf_coils_outside = 8
+    else
+        ini.pf_active.n_pf_coils_outside = 4
+    end
 
     ini.material.shield = "Tungsten"
     ini.material.blanket = "lithium-lead"
