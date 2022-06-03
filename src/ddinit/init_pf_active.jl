@@ -26,7 +26,9 @@ function init_pf_active(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
         if any([contains(lowercase(layer.name), "coils") for layer in dd.build.layer])
             push!(n_coils, ini.pf_active.n_pf_coils_inside)
         end
-        push!(n_coils, ini.pf_active.n_pf_coils_outside)
+        if ini.pf_active.n_pf_coils_outside > 0
+            push!(n_coils, ini.pf_active.n_pf_coils_outside)
+        end
         init_pf_active(dd.pf_active, dd.build, n_coils)
     end
 
@@ -123,7 +125,7 @@ function init_pf_active(
     for k in lfs_out_indexes
         layer = bd.layer[k]
 
-        if k == gap_cryostat_index && (n_coils[end] > 0)
+        if (k == gap_cryostat_index) && (length(n_coils) >= krail+1) && (n_coils[krail+1] > 0)
             #pass
         elseif !contains(lowercase(layer.name), "coils")
             continue

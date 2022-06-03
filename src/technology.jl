@@ -188,7 +188,7 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
     @assert fraction_conductor > 0.0 "coil_J_B_crit: coil technology has no room for conductor"
     if coil_tech.material == "Copper"
         Jcrit = 18.5e6 # A/m^2
-        return Jcrit * fraction_conductor # A/m^2
+        return Jcrit * fraction_conductor, Inf # A/m^2
     else
         if coil_tech.material == "Nb3Sn"
             Jcrit_SC, Bext_Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
