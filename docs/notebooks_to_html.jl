@@ -5,5 +5,5 @@ files_to_convert = readdir(example_cases)[findall(endswith(".ipynb"), readdir(ex
 
 for case in files_to_convert
     run(`jupyter nbconvert --execute --to html $(joinpath(example_cases,case))`)
-    run(`cp $(joinpath(example_cases,split(case,".")[1]*".html")) $(joinpath(current_path,"build","assets",string("example_",split(case,".")[1],".html")))`)
+    run(`mv $(joinpath(example_cases, split(case,".")[1] * ".html")) $(joinpath(current_path, "build", "assets", string("example_", split(case,".")[1], ".html")))`)
 end

@@ -143,4 +143,7 @@ web:
 	cd docs/pages; touch .nojekyll
 	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
 
+examples: .PHONY
+	julia docs/notebooks_to_html.jl
+
 .PHONY:
