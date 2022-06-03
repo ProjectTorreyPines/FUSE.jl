@@ -35,6 +35,9 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
     par.green_model = Switch(options, "", "Model used for the Greens function calculation"; default=:simple)
     par.symmetric = Entry(Bool, "", "PF coils location should be up-down symmetric"; default=true)
     par.λ_currents = Entry(Real, "", "Weight of current limit constraint"; default=0.5)
+    par.λ_strike = Entry(Real, "", "Weight given to matching the strike-points"; default=0.0)
+    par.λ_ψ = Entry(Real, "", "Weight given to matching last closed flux surface"; default=1.0)
+    par.λ_null = Entry(Real, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
     options = [
         :none => "Do not optimize",
         :currents => "Find optimial coil currents but do not change coil positions",
@@ -69,12 +72,12 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
     else
         if par.optimization_scheme == :currents
             # find coil currents
-            step(actor; λ_ψ=1.0, λ_null=1E-3, par.λ_currents, λ_strike=0.0, par.verbose, maxiter=1000, optimization_scheme=:currents)
+            step(actor; par.λ_ψ, par.λ_null, par.λ_currents, par.λ_strike, par.verbose, maxiter=1000, optimization_scheme=:currents)
             finalize(actor)
 
         elseif par.optimization_scheme == :rail
             # optimize coil location and currents
-            step(actor; λ_ψ=1.0, λ_null=1E-3, par.λ_currents, λ_strike=0.0, par.verbose, maxiter=1000, optimization_scheme=:rail)
+            step(actor; par.λ_ψ, par.λ_null, par.λ_currents, par.λ_strike, par.verbose, maxiter=1000, optimization_scheme=:rail)
             finalize(actor)
 
             if par.do_plot
@@ -128,7 +131,7 @@ end
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
         λ_ψ=1.0,
-        λ_null=1E-2,
+        λ_null=1E-3,
         λ_currents=0.5,
         λ_strike=0.0,
         maxiter=10000,
@@ -141,7 +144,7 @@ function step(pfactor::ActorPFcoilsOpt;
     symmetric=pfactor.symmetric,
     λ_regularize=pfactor.λ_regularize,
     λ_ψ=1.0,
-    λ_null=1E-2,
+    λ_null=1E-3,
     λ_currents=0.5,
     λ_strike=0.0,
     maxiter=10000,
