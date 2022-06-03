@@ -8,7 +8,7 @@ using LinearAlgebra
 #= =============== =#
 Base.@kwdef mutable struct PFcoilsOptTrace
     params::Vector{Vector{Real}} = Vector{Real}[]
-    cost_ψ::Vector{Real} = Real[]
+    cost_lcfs::Vector{Real} = Real[]
     cost_currents::Vector{Real} = Real[]
     cost_total::Vector{Real} = Real[]
 end
@@ -30,13 +30,13 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
         :point => "one filament per coil",
         :simple => "like :point, but OH coils have three filaments",
         :corners => "like :simple, but PF coils have filaments at the four corners",
-        :realistic => "hundreds of filaments per coil (very slow!)",
+        :realistic => "possibly hundreds of filaments per coil (very slow!)",
     ]
-    par.green_model = Switch(options, "", "Model used for the Greens function calculation"; default=:simple)
-    par.symmetric = Entry(Bool, "", "PF coils location should be up-down symmetric"; default=true)
+    par.green_model = Switch(options, "", "Model used for the coils Green function calculations"; default=:simple)
+    par.symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
     par.λ_currents = Entry(Real, "", "Weight of current limit constraint"; default=0.5)
     par.λ_strike = Entry(Real, "", "Weight given to matching the strike-points"; default=0.0)
-    par.λ_ψ = Entry(Real, "", "Weight given to matching last closed flux surface"; default=1.0)
+    par.λ_lcfs = Entry(Real, "", "Weight given to matching last closed flux surface"; default=1.0)
     par.λ_null = Entry(Real, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
     options = [
         :none => "Do not optimize",
@@ -53,10 +53,11 @@ end
 """
     ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
 
-This actor fiends the coil currents and locations of the poloidal field coils for both the field-null during start-up and to match the equilibrium boundary shape.
+This actor finds the optimal coil currents and locations of the poloidal field coils
+to match the equilibrium boundary shape and obtain a field-null region at plasma start-up.
 
 !!! note 
-    Stores data in `dd.pf_active`
+    Manupulates data in `dd.pf_active`
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorPFcoilsOpt(kw...)
@@ -72,12 +73,12 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
     else
         if par.optimization_scheme == :currents
             # find coil currents
-            step(actor; par.λ_ψ, par.λ_null, par.λ_currents, par.λ_strike, par.verbose, maxiter=1000, optimization_scheme=:currents)
+            step(actor; par.λ_lcfs, par.λ_null, par.λ_currents, par.λ_strike, par.verbose, maxiter=1000, optimization_scheme=:currents)
             finalize(actor)
 
         elseif par.optimization_scheme == :rail
             # optimize coil location and currents
-            step(actor; par.λ_ψ, par.λ_null, par.λ_currents, par.λ_strike, par.verbose, maxiter=1000, optimization_scheme=:rail)
+            step(actor; par.λ_lcfs, par.λ_null, par.λ_currents, par.λ_strike, par.verbose, maxiter=1000, optimization_scheme=:rail)
             finalize(actor)
 
             if par.do_plot
@@ -130,7 +131,7 @@ end
     step(pfactor::ActorPFcoilsOpt;
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
-        λ_ψ=1.0,
+        λ_lcfs=1.0,
         λ_null=1E-3,
         λ_currents=0.5,
         λ_strike=0.0,
@@ -143,7 +144,7 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 function step(pfactor::ActorPFcoilsOpt;
     symmetric=pfactor.symmetric,
     λ_regularize=pfactor.λ_regularize,
-    λ_ψ=1.0,
+    λ_lcfs=1.0,
     λ_null=1E-3,
     λ_currents=0.5,
     λ_strike=0.0,
@@ -161,7 +162,7 @@ function step(pfactor::ActorPFcoilsOpt;
     bd = pfactor.bd
     # run rail type optimizer
     if optimization_scheme in [:rail, :currents]
-        (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_ψ, λ_null, λ_currents, λ_strike, bd, maxiter, verbose)
+        (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_lcfs, λ_null, λ_currents, λ_strike, bd, maxiter, verbose)
     else
         error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
     end
@@ -495,7 +496,7 @@ function optimize_coils_rail(
     fixed_coils::Vector{GS_IMAS_pf_active__coil},
     symmetric::Bool,
     λ_regularize::Real,
-    λ_ψ::Real,
+    λ_lcfs::Real,
     λ_null::Real,
     λ_currents::Real,
     λ_strike::Real,
@@ -561,14 +562,14 @@ function optimize_coils_rail(
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
         coils = vcat(pinned_coils, optim_coils)
 
-        all_cost_ψ = []
+        all_cost_lcfs = []
         all_cost_currents = []
         all_cost_oh = []
         for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs, weights))
             for coil in vcat(pinned_coils, optim_coils, fixed_coils)
                 coil.time_index = time_index
             end
-            currents, cost_ψ0 = VacuumFields.currents_to_match_ψp(fixed_eq..., coils; weights=weight, λ_regularize, return_cost=true)
+            currents, cost_lcfs0 = VacuumFields.currents_to_match_ψp(fixed_eq..., coils; weights=weight, λ_regularize, return_cost=true)
             current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
             oh_max_current_densities = [coil_J_B_crit(bd.oh.max_b_field, coil.coil_tech)[1] for coil in coils[oh_indexes]]
             pf_max_current_densities = [coil_J_B_crit(coil_selfB(coil), coil.coil_tech)[1] for coil in coils[oh_indexes.==false]]
@@ -578,18 +579,18 @@ function optimize_coils_rail(
             push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
             # boundary cost
             if ismissing(eq.time_slice[time_index].global_quantities, :ip)
-                push!(all_cost_ψ, cost_ψ0 / λ_null)
+                push!(all_cost_lcfs, cost_lcfs0 / λ_null)
                 push!(all_cost_oh, 0.0)
             else
                 #OH cost
                 oh_current_densities = current_densities[oh_indexes]
                 avg_oh = Statistics.mean(oh_current_densities)
                 cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
-                push!(all_cost_ψ, cost_ψ0 / λ_ψ)
+                push!(all_cost_lcfs, cost_lcfs0 / λ_lcfs)
                 push!(all_cost_oh, cost_oh)
             end
         end
-        cost_ψ = norm(all_cost_ψ) / length(all_cost_ψ)
+        cost_lcfs = norm(all_cost_lcfs) / length(all_cost_lcfs)
         cost_currents = norm(all_cost_currents) / length(all_cost_currents)
         cost_oh = norm(all_cost_oh) / length(all_cost_oh)
         #spacing
@@ -603,10 +604,10 @@ function optimize_coils_rail(
         end
         cost_spacing = cost_spacing / R0
         # total cost
-        cost = sqrt(cost_ψ^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2 + 10 * cost_spacing^2)
+        cost = sqrt(cost_lcfs^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2 + 10 * cost_spacing^2)
         if do_trace
             push!(trace.params, packed)
-            push!(trace.cost_ψ, cost_ψ)
+            push!(trace.cost_lcfs, cost_lcfs)
             push!(trace.cost_currents, cost_currents)
             push!(trace.cost_total, cost)
         end
@@ -824,11 +825,11 @@ Attributes:
     x = start_at:length(trace.cost_total)
     legend --> :bottomleft
     if what == :cost
-        if sum(trace.cost_ψ[start_at:end]) > 0.0
+        if sum(trace.cost_lcfs[start_at:end]) > 0.0
             @series begin
                 label --> "ψ"
                 yscale --> :log10
-                x, trace.cost_ψ[start_at:end]
+                x, trace.cost_lcfs[start_at:end]
             end
         end
         if sum(trace.cost_currents[start_at:end]) > 0.0
