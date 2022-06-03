@@ -333,7 +333,7 @@ function Base.show(io::IO, ::MIME"text/plain", pars::Parameters, depth::Int=0)
 end
 
 function AbstractTrees.children(pars::Parameters)
-    return [pars[k] for k in keys(pars)]
+    return [pars[k] for k in sort(collect(keys(pars)))]
 end
 
 function AbstractTrees.printnode(io::IO, par::Parameter)
