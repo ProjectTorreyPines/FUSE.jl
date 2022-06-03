@@ -33,7 +33,7 @@ This actor estimates the core-transport using Tauenn and evolves the kinetic pro
 The pedestal in this actor is evolved using EPED-NN.
 
 !!! note 
-    Stores data in ```dd.core_profiles```
+    Stores data in `dd.core_profiles`
 """
 function ActorTauenn(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorTauenn(kw...)

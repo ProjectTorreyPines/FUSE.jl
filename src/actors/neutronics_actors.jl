@@ -34,10 +34,10 @@ end
 """
     ActorNeutronics(dd::IMAS.dd, act::ParametersActor; kw...)
 
-This actor estimates the neutron loading on the wall using the fusion source from ```dd.core_sources```.
+This actor estimates the neutron loading on the wall using the fusion source from `dd.core_sources`.
 
 !!! note 
-    Stores data in ```dd.neutronics```
+    Stores data in `dd.neutronics`
 """
 function ActorNeutronics(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorNeutronics(kw...)

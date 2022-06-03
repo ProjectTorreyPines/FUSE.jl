@@ -110,7 +110,7 @@ end
 This actor estimates the cost of the fusion power plant.
 
 !!! note 
-    Stores data in ```dd.costing```
+    Stores data in `dd.costing`
 """
 function ActorCosting(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorCosting(kw...)

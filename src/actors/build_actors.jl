@@ -303,7 +303,7 @@ This actor estimates vertical field from PF coils and its contribution to flux s
 `eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 
 !!! note 
-    Stores data in ```dd.solid_mechanics```
+    Stores data in `dd.solid_mechanics`
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorStresses(kw...)
@@ -382,7 +382,7 @@ end
 Actor that resizes the Low Field Side of the build.
 
 !!! note 
-    Manipulates data in ```dd.build```
+    Manipulates data in `dd.build`
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorLFSsizing(kw...)
@@ -453,7 +453,7 @@ end
 Actor that resizes the High Field Side of the build.
 
 !!! note 
-    Manipulates data in ```dd.build```
+    Manipulates data in `dd.build`
 """
 function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorHFSsizing(kw...)
@@ -693,7 +693,7 @@ end
 Actor that builds the 2D cross section of the build.
 
 !!! note 
-    Manipulates data in ```dd.build```
+    Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorCXbuild(kw...)

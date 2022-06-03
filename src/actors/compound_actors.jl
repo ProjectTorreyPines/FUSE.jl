@@ -1,4 +1,3 @@
-
 #= ========================= =#
 #  ActorEquilibriumTransport  #
 #= ========================= =#
@@ -12,6 +11,7 @@ function ParametersActor(::Type{Val{:ActorEquilibriumTransport}})
     par.iterations = Entry(Int, "", "transport-equilibrium iterations"; default=1)
     return par
 end
+
 """
     ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
 
@@ -24,7 +24,7 @@ ActorSteadyStateCurrent(dd, act)    # Consistent current
 ```
 
 !!! note 
-    Stores data in ```dd.equilibrium, dd.core_profiles, dd.core_sources```
+    Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorEquilibriumTransport(kw...)
@@ -101,7 +101,7 @@ ActorBalanceOfPlant(dd,act)
 ```
 
 !!! note 
-    Stores data in ```dd```
+    Stores data in `dd`
 """
 function ActorWholeDevice(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorWholeDevice(kw...)

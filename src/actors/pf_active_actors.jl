@@ -53,7 +53,7 @@ end
 This actor fiends the coil currents and locations of the poloidal field coils for both the field-null during start-up and to match the equilibrium boundary shape.
 
 !!! note 
-    Stores data in ```dd.pf_active```
+    Stores data in `dd.pf_active`
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorPFcoilsOpt(kw...)
