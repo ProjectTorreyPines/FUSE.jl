@@ -13,7 +13,7 @@ function AbstractTrees.printnode(io::IO, par::FUSE.Parameter)
 end
 
 function AbstractTrees.printnode(io::IO, leaf::IMASDD.IMASleafRepr; kwargs...)
-    if startswith(leaf.location,"dd.")
+    if startswith(leaf.location, "dd.")
         printstyled(io, "$(leaf.key)")
     else
         printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
@@ -33,7 +33,7 @@ function parameters_details_md(io::IO, pars::FUSE.Parameters)
             note = "tip"
         end
         if typeof(leaf) <: FUSE.Switch
-            options = "* **Options:** " * join(["`$(opt.first)`" for opt in leaf.options], ", ")*"\n    "
+            options = "* **Options:** " * join(["`$(opt.first)`" for opt in leaf.options], ", ") * "\n    "
         else
             options = ""
         end
@@ -84,6 +84,11 @@ include("src/act_docs.jl")
 # =================== #
 include("src/cases_docs.jl")
 
+# ====================== #
+# generate examples page #
+# ====================== #
+include("src/examples.jl")
+
 # ============== #
 # build the docs #
 # ============== #
@@ -105,12 +110,13 @@ makedocs(;
         "Others" => [
             "GASC" => "gasc.md",
             "Utilities" => "utils.md"],
-    ],
+        "Examples" => "examples.md",
+    ]
 )
 
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
 @info "Converting links"
-for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd","dd")]
+for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd", "dd")]
     open("build/$file.html", "r") do io
         txt = read(io, String)
         txt = split(txt, "\n")
