@@ -139,7 +139,7 @@ function ParametersActor(::Type{Val{:ActorFluxSwing}})
     Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
     The flattop duration and maximum toroidal magnetic field follow from that.
     Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
-    These currents may or may not exceed the OH and TF current limits."""; default=false)
+    These currents may or may not exceed the OH and TF current limits."""; default=true)
     par.j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
     return par
 end
@@ -178,7 +178,12 @@ These currents may or may not exceed the OH and TF current limits.
 
 The `only` parameter controls if only :tf, :oh, or :all (both) should be calculated
 """
-function step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tollerance, only=:all)
+function step(
+    actor::ActorFluxSwing;
+    operate_at_j_crit::Bool=actor.operate_at_j_crit,
+    j_tolerance::Real=actor.j_tollerance,
+    only=:all)
+    
     bd = actor.dd.build
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]

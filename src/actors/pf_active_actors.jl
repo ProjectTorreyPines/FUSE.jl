@@ -43,7 +43,7 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
         :currents => "Find optimial coil currents but do not change coil positions",
         :rail => "Find optimial coil positions"
     ]
-    par.optimization_scheme = Switch(options, "", "Optimization to carry out"; default=:currents)
+    par.optimization_scheme = Switch(options, "", "Optimization to carry out"; default=:rail)
     par.update_equilibrium = Entry(Bool, "", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
