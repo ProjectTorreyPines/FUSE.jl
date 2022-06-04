@@ -6,9 +6,9 @@ using IMAS
 using Plots
 using Printf
 
-#= ======= =#
+#= ===== =#
 #  UTILS  #
-#= ======= =#
+#= ===== =#
 include("utils.jl")
 
 #= ========== =#
@@ -68,11 +68,17 @@ include("optimization.jl")
 include(joinpath("workflows", "optimization_workflow.jl"))
 include(joinpath("workflows", "DB5_validation_workflow.jl"))
 
+#= ======= =#
+#  LOGGING  #
+#= ======= =#
+include("logging.jl")
+
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
 export step, finalize
 export IMAS, @ddtime, constants, ±
 export Parameters
+export global_logger
 
 end
