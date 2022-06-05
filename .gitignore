@@ -29,8 +29,9 @@ docs/src/act_details.md
 docs/src/dd_details.md
 docs/src/examples.md
 docs/src/example_*.md
-# Ignore all html files as they are automatically generated
-*.html
+docs/src/assets/*_files/*.svg
+examples/*.md
+examples/cases/*.md
 # Ignore all juptyer notebooks (you can still force them in with git add -f)
 *.ipynb
 
