@@ -1,5 +1,3 @@
-import Statistics
-
 """
     LTS_Jcrit(
         Bext,               # : strength of external magnetic field, Tesla
@@ -207,7 +205,8 @@ Material properties of stainless steel
 const stainless_steel = (
     yield_strength=800E6, # Pa
     young_modulus=193103448275.0, # Pa
-    poisson_ratio=0.33)
+    poisson_ratio=0.33,
+)
 
 """
     function solve_1D_solid_mechanics!(
@@ -258,24 +257,24 @@ function solve_1D_solid_mechanics!(
     Bz_oh,                                 # : (float) axial field in solenoid bore, Tesla
     R_oh_in,                               # : (float) major radius of inboard edge of OH coil, meters
     R_oh_out;                              # : (float) major radius of outboard edge of OH coil, meters
-    axial_stress_tf_avg=nothing,         # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
-    axial_stress_oh_avg=nothing,         # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
-    bucked::Bool=false,                  # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
-    noslip::Bool=false,                  # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
-    plug::Bool=false,                    # : (bool), flag for center plug
-    f_struct_tf=1.0,                     # : (float), fraction of TF coil that is structural material
-    f_struct_oh=1.0,                     # : (float), fraction of OH coil that is structural material
-    f_struct_pl=1.0,                     # : (float), fraction of plug that is structural material
-    em_tf=stainless_steel.young_modulus, # : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
-    gam_tf=stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for TF coil, (default is stainless steel)
-    em_oh=stainless_steel.young_modulus, # : (float), modulus of elasticity for OH coil, Pa (default is stainless steel)
-    gam_oh=stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for OH coil, (default is stainless steel)
-    em_pl=stainless_steel.young_modulus, # : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
-    gam_pl=stainless_steel.poisson_ratio,# : (float), Poisson`s ratio for center plug, (default is stainless steel)
-    f_tf_sash=0.873,                     # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
-    f_oh_sash=0.37337,                   # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
-    n_points::Integer=21,                # : (int), number of radial points
-    verbose::Bool=false                  # : (bool), flag for verbose output to terminal
+    axial_stress_tf_avg=nothing,           # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
+    axial_stress_oh_avg=nothing,           # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
+    bucked::Bool=false,                    # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
+    noslip::Bool=false,                    # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
+    plug::Bool=false,                      # : (bool), flag for center plug
+    f_struct_tf=1.0,                       # : (float), fraction of TF coil that is structural material
+    f_struct_oh=1.0,                       # : (float), fraction of OH coil that is structural material
+    f_struct_pl=1.0,                       # : (float), fraction of plug that is structural material
+    em_tf=stainless_steel.young_modulus,   # : (float), modulus of elasticity for TF coil, Pa (default is stainless steel)
+    gam_tf=stainless_steel.poisson_ratio,  # : (float), Poisson`s ratio for TF coil, (default is stainless steel)
+    em_oh=stainless_steel.young_modulus,   # : (float), modulus of elasticity for OH coil, Pa (default is stainless steel)
+    gam_oh=stainless_steel.poisson_ratio,  # : (float), Poisson`s ratio for OH coil, (default is stainless steel)
+    em_pl=stainless_steel.young_modulus,   # : (float), modulus of elasticity for center plug, Pa (default is stainless steel)
+    gam_pl=stainless_steel.poisson_ratio,  # : (float), Poisson`s ratio for center plug, (default is stainless steel)
+    f_tf_sash=0.873,                       # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
+    f_oh_sash=0.37337,                     # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
+    n_points::Integer=21,                  # : (int), number of radial points
+    verbose::Bool=false,                   # : (bool), flag for verbose output to terminal
 )
 
     tp = typeof(promote(R0, B0, R_tf_in, R_tf_out, Bz_oh, R_oh_in, R_oh_out)[1])
@@ -392,7 +391,8 @@ function solve_1D_solid_mechanics!(
         M[2, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0]
         M[3, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_in^2]
         M[4, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_out^2]
-        Y = [-C_tf * (g_tf(R_tf_in) + gam_tf * f_tf(R_tf_in)),
+        Y = [
+            -C_tf * (g_tf(R_tf_in) + gam_tf * f_tf(R_tf_in)),
             -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
             -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out)),
@@ -415,7 +415,8 @@ function solve_1D_solid_mechanics!(
         M[3, :] = [1.0, 1.0 / R_int^2, -1.0, -1.0 / R_int^2]
         M[4, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_oh * (1 + gam_oh), -embar_oh * (gam_oh - 1) / R_int^2]
 
-        Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
+        Y = [
+            -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
             C_oh * f_oh(R_int) - C_tf * f_tf(R_int),
             embar_oh * C_oh * (g_oh(R_int) + gam_oh * f_oh(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
@@ -440,7 +441,8 @@ function solve_1D_solid_mechanics!(
         M[3, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_int^2, -embar_oh * (1 + gam_oh), -embar_oh * (gam_oh - 1) / R_int^2, 0.0]
         M[4, :] = [0.0, 0.0, 1.0, 1.0 / R_pl^2, -1.0]
         M[5, :] = [0.0, 0.0, embar_oh * (1 + gam_oh), embar_oh * (gam_oh - 1) / R_pl^2, -embar_pl * (1 + gam_pl)]
-        Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
+        Y = [
+            -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             C_oh * f_oh(R_int) - C_tf * f_tf(R_int),
             embar_oh * C_oh * (g_oh(R_int) + gam_oh * f_oh(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
             -C_oh * f_oh(R_pl),
@@ -464,7 +466,8 @@ function solve_1D_solid_mechanics!(
         M[3, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_out^2, 0.0]
         M[4, :] = [1.0, 1.0 / R_pl^2, 0.0, 0.0, -1.0]
         M[5, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_pl^2, 0.0, 0.0, -embar_pl * (1 + gam_pl)]
-        Y = [-C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
+        Y = [
+            -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
             -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out)),
             -C_tf * f_tf(R_pl),
@@ -532,11 +535,11 @@ function solve_1D_solid_mechanics!(
     hoop_stress_tf = sh(r_tf, em_tf, gam_tf, displacement_tf, ddiplacementdr_tf)
 
     if axial_stress_tf_avg === nothing
-        hoop_stress_tf_avg = Statistics.mean(hoop_stress_tf)
+        hoop_stress_tf_avg = sum(hoop_stress_tf)/length(hoop_stress_tf)
         axial_stress_tf_avg = -f_tf_sash * hoop_stress_tf_avg
     end
     if axial_stress_oh_avg === nothing
-        hoop_stress_oh_avg = Statistics.mean(hoop_stress_oh)
+        hoop_stress_oh_avg = sum(hoop_stress_oh)/length(hoop_stress_oh)
         axial_stress_oh_avg = -f_oh_sash * hoop_stress_oh_avg
     end
 
@@ -622,4 +625,25 @@ function solve_1D_solid_mechanics!(
     end
 
     return smcs
+end
+
+function GAMBL_blanket(bm=IMAS.blanket__module)
+    layers = resize!(bm.layer, 3)
+
+    n = 1
+    layers[n].name = "First wall"
+    layers[n].material = "Tungsten"
+    layers[n].thickness = 0.02
+
+    n = n + 1
+    layers[n].name = "Breeder"
+    layers[n].material = "lithium-lead"
+    layers[n].thickness = 0.5
+
+    n = n + 1
+    layers[n].name = "Shield"
+    layers[n].material = "Tungsten"
+    layers[n].thickness = 0.05
+
+    return bm
 end
