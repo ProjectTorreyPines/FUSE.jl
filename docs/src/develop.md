@@ -129,3 +129,11 @@ FUSE uses the following VSCode settings for formatting the Julia code
 In addition, we suggest enabling the VSCode `autoSave` feature and increasing the `workbench tree indent` to 24
 
 To format julia you will need to install Julia Language Support under the extensions tab (cmnd + shift + x)
+
+!!! tip
+    To see what is precompiled at what time add a tracecompile kernel to IJulia
+    ```julia
+    import IJulia
+    IJulia.installkernel("Julia tracecompile", "--trace-compile=stderr")
+    ```
+    And select the Julia tracecompile in jupyter-lab
