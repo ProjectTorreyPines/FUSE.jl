@@ -20,7 +20,7 @@ IMAS.dd # hide
 """]
 
 for name in sort(collect(fieldnames(IMAS.dd)))
-    if !startswith("$name", "_")
+    if name ∉ [:_parent, :global_time]
         basename = replace("$name", "_" => " ")
         push!(
             txt,
