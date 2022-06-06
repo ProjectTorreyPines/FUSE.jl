@@ -31,8 +31,8 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 function ActorSolovev(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorSolovev(kw...)
     actor = ActorSolovev(dd.equilibrium)
-    step(actor; verbose=par.verbose)
-    finalize(actor, ngrid=par.ngrid, volume=getproperty(par, :volume, missing), area=getproperty(par, :area, missing))
+    step(actor; par.verbose)
+    finalize(actor; par.ngrid, volume=getproperty(par, :volume, missing), area=getproperty(par, :area, missing))
     # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
     par.qstar = actor.S.qstar
     par.alpha = actor.S.alpha
@@ -116,11 +116,13 @@ function step(actor::ActorSolovev; verbose=false)
 end
 
 """
-    function finalize(
+    finalize(
         actor::ActorSolovev;
-        ngrid::Int = 129,
-        rlims::NTuple{2,<:Real} = (maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
-        zlims::NTuple{2,<:Real} = (-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 2)
+        ngrid::Int=129,
+        volume::Union{Missing,Real}=missing,
+        area::Union{Missing,Real}=missing,
+        rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
+        zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
     )::IMAS.equilibrium__time_slice
 
 Store ActorSolovev data in IMAS.equilibrium format

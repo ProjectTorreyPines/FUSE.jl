@@ -94,7 +94,7 @@ end
 
 function ParametersInit(::Type{Val{:center_stack}})
     center_stack = ParametersInit(nothing)
-    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present"; default=false)
+    center_stack.bucked = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present)"; default=false)
     center_stack.noslip = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
     center_stack.plug = Entry(Bool, "", "flag for center plug"; default=false)
     return center_stack

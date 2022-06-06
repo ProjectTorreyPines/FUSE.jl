@@ -98,19 +98,19 @@ makedocs(;
     format=Documenter.HTML(; prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
     pages=[
         "Concepts" => "index.md",
-        "Core" => [
-            "dd Data Structure" => "dd.md",
-            "Actors" => "actors.md"],
+        "Data Structure" => "dd.md",
+        "Actors" => "actors.md",
         "Parameters" => [
             "ini Parameters" => "ini.md",
             "act Parameters" => "act.md",
             "Use Cases" => "cases.md",
             "Initialization" => "inits.md"],
+        "Examples" => "examples.md",
+        "Development" => "develop.md",
         "Setup" => "install.md",
         "Others" => [
             "GASC" => "gasc.md",
             "Utilities" => "utils.md"],
-        "Examples" => "examples.md",
     ]
 )
 
