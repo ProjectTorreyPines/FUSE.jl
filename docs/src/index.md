@@ -31,4 +31,4 @@ FUSE.ActorEquilibriumTransport(dd, act; do_plot=true)
 ```
 
 These concepts are illustrated in the diagram below:
-![image](./assets/FUSE.png)
+![svg](./assets/FUSE.svg)

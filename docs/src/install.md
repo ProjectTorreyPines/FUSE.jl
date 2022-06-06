@@ -20,6 +20,14 @@
    make develop
    ```
 
+!!! note
+   To pull latest changes for FUSE and all of its dependencies:
+
+   ```bash
+   cd ~/.julia/dev/FUSE
+   make update
+   ```
+
 ## Test FUSE installation
 1. Start your julia interpreter by typing `julia` at the terminal
 1. Try importing the FUSE package
@@ -37,11 +45,3 @@
    ```bash
    jupyter-lab
    ```
-
-## Update FUSE packages
-To pull latest changes for FUSE and all of its dependencies:
-
-```bash
-cd ~/.julia/dev/FUSE
-make update
-```
