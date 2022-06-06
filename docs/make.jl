@@ -1,7 +1,7 @@
 using Documenter
 import FUSE
 import IMAS
-import IMASDD
+import IMAS
 import AbstractTrees
 import ProgressMeter
 
@@ -12,7 +12,7 @@ function AbstractTrees.printnode(io::IO, par::FUSE.Parameter)
     return printstyled(io, html_link_repr(par))
 end
 
-function AbstractTrees.printnode(io::IO, leaf::IMASDD.IMASleafRepr; kwargs...)
+function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASleafRepr; kwargs...)
     if startswith(leaf.location, "dd.")
         printstyled(io, "$(leaf.key)")
     else
@@ -93,7 +93,7 @@ include("src/examples.jl")
 # build the docs #
 # ============== #
 makedocs(;
-    modules=[FUSE, IMAS, IMASDD],
+    modules=[FUSE, IMAS],
     sitename="FUSE",
     format=Documenter.HTML(; prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
     pages=[

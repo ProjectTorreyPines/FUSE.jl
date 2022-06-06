@@ -491,6 +491,61 @@ function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
 end
 
 """
+    volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{IMAS.build__structure})
+
+Returns volume of the layer without structures
+"""
+function volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{IMAS.build__structure})
+    vol = 0.0
+    for structure in structures
+        vol += layer_structure_intersect_volume(layer, structure)
+    end
+    return layer.volume - vol
+end
+
+IMAS.expressions["build.layer[:].volume_no_structures"] =
+    (;build, layer, _...) -> volume_no_structures(layer, build.structure)
+
+"""
+    layer_structure_intersect_volume(layer::IMAS.build__layer, structure::IMAS.build__structure)
+
+Returns volume of the intersection between build layer volume and structure volume
+"""
+function layer_structure_intersect_volume(layer::IMAS.build__layer, structure::IMAS.build__structure)
+    if layer.type in [Int(_in_), Int(_out_)]
+        return layer.volume
+    elseif layer.type in [Int(_tf_), Int(_plasma_)]
+        return layer.volume
+    elseif layer.fs ∈ [Int(_hfs_), Int(_lfs_)]
+        i = IMAS.index(layer)
+        if layer.fs == Int(_hfs_)
+            layer_in = IMAS.parent(layer)[i + 1]
+        else
+            layer_in = IMAS.parent(layer)[i - 1]
+        end
+    end
+    layer_poly = xy_polygon(layer)
+    layer_in_poly = xy_polygon(layer_in)
+    ring_poly = LibGEOS.difference(layer_poly, layer_in_poly)
+    structure_poly = xy_polygon(structure)
+
+    if structure.toroidal_extent == 2 * pi
+        toroidal_angles = [0.0]
+    else
+        toroidal_angles = structure.toroidal_angles
+    end
+
+    vol = 0.0
+    for poly in LibGEOS.coordinates(LibGEOS.intersection(ring_poly, structure_poly))
+        pr = [v[1] for v in poly]
+        pz = [v[2] for v in poly]
+        vol += IMAS.area(pr, pz) * structure.toroidal_extent * length(toroidal_angles)
+    end
+
+    return vol
+end
+
+"""
     P_LH_threshold_from_scalars(Bt0::Real, nel::Real,surface_area::Real)
 Calculates the L to H transition threshold according to 2008 scaling law
 """

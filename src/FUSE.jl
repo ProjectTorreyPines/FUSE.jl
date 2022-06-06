@@ -3,7 +3,7 @@ module FUSE
 __precompile__(true)
 
 using IMAS
-using Plots
+using RecipesBase
 using Printf
 
 #= ===== =#
@@ -49,6 +49,7 @@ end
 include(joinpath("actors", "equilibrium_actors.jl"))
 include(joinpath("actors", "pf_active_actors.jl"))
 include(joinpath("actors", "build_actors.jl"))
+include(joinpath("actors", "blanket_actors.jl"))
 include(joinpath("actors", "balance_of_plant_actors.jl"))
 include(joinpath("actors", "current_actors.jl"))
 include(joinpath("actors", "sources_actors.jl"))

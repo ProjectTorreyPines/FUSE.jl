@@ -1,6 +1,5 @@
 import LibGEOS
 import Interpolations
-import Contour
 import DataStructures
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_

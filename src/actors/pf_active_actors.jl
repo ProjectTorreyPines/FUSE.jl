@@ -584,7 +584,7 @@ function optimize_coils_rail(
             else
                 #OH cost
                 oh_current_densities = current_densities[oh_indexes]
-                avg_oh = Statistics.mean(oh_current_densities)
+                avg_oh = sum(oh_current_densities)/length(oh_current_densities)
                 cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
                 push!(all_cost_lcfs, cost_lcfs0 / λ_lcfs)
                 push!(all_cost_oh, cost_oh)
