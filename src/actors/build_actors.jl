@@ -127,10 +127,10 @@ end
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-mutable struct ActorFluxSwing <: AbstractActor
+Base.@kwdef mutable struct ActorFluxSwing <: AbstractActor
     dd::IMAS.dd
     operate_at_j_crit::Bool
-    j_tollerance::Real
+    j_tolerance::Real
 end
 
 function ParametersActor(::Type{Val{:ActorFluxSwing}})
@@ -162,26 +162,26 @@ OH flux consumption based on:
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
-    actor = ActorFluxSwing(dd, par.operate_at_j_crit, par.j_tolerance)
+    actor = ActorFluxSwing(;dd, par...)
     step(actor)
     finalize(actor)
     return actor
 end
 
 """
-    step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tollerance, only=:all)
+    step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
 
 `operate_at_j_crit=true`` makes the OH and TF operate at their current limit (within specified `j_tolerance`).
 The flattop duration and toroidal magnetic field follow from that.
 Otherwise we evaluate what is the currents needed for a given flattop duration and toroidal magnetic field.
 These currents may or may not exceed the OH and TF current limits.
 
-The `only` parameter controls if only :tf, :oh, or :all (both) should be calculated
+The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 """
 function step(
     actor::ActorFluxSwing;
     operate_at_j_crit::Bool=actor.operate_at_j_crit,
-    j_tolerance::Real=actor.j_tollerance,
+    j_tolerance::Real=actor.j_tolerance,
     only=:all)
     
     bd = actor.dd.build
@@ -191,7 +191,6 @@ function step(
     cp1d = cp.profiles_1d[]
 
     if only ∈ [:all, :oh]
-
         bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
         bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
 
@@ -292,7 +291,7 @@ end
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
-mutable struct ActorStresses <: AbstractActor
+Base.@kwdef mutable struct ActorStresses <: AbstractActor
     dd::IMAS.dd
 end
 
@@ -312,7 +311,7 @@ This actor estimates vertical field from PF coils and its contribution to flux s
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorStresses(kw...)
-    actor = ActorStresses(dd)
+    actor = ActorStresses(;dd, par...)
     step(actor)
     finalize(actor)
     return actor
@@ -370,7 +369,7 @@ end
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-mutable struct ActorLFSsizing <: AbstractActor
+Base.@kwdef mutable struct ActorLFSsizing <: AbstractActor
     dd::IMAS.dd
 end
 
@@ -438,7 +437,7 @@ end
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-mutable struct ActorHFSsizing <: AbstractActor
+Base.@kwdef mutable struct ActorHFSsizing <: AbstractActor
     stresses_actor::ActorStresses
     fluxswing_actor::ActorFluxSwing
 end
@@ -469,7 +468,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     if par.do_plot
         p = plot(dd.build)
     end
-    fluxswing_actor = ActorFluxSwing(dd,act)
+    fluxswing_actor = ActorFluxSwing(;dd, operate_at_j_crit=par.unconstrained_flattop_duration, par.j_tolerance)
     stresses_actor = ActorStresses(dd)
     actor = ActorHFSsizing(stresses_actor, fluxswing_actor)
     step(actor; par.verbose, par.j_tolerance, par.stress_tolerance, par.fixed_aspect_ratio, par.unconstrained_flattop_duration)
@@ -684,7 +683,7 @@ end
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-mutable struct ActorCXbuild <: AbstractActor
+Base.@kwdef mutable struct ActorCXbuild <: AbstractActor
     dd::IMAS.dd
 end
 

@@ -64,7 +64,7 @@ The definition of each FUSE actor follows a well defined pattern.
 
 ```julia
 # Defintion of the actor structure
-mutable struct ActorNAME <: AbstractActor
+Base.@kwdef mutable struct ActorNAME <: AbstractActor
     dd::IMAS.dd
     ...
 end
@@ -86,9 +86,9 @@ What does this actor do...
 """
 function ActorNAME(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorNAME(kw...)
-    actor = ActorNAME(dd, ...)
-    step(actor; par....)
-    finalize(actor; par....)
+    actor = ActorNAME(;dd, par...)
+    step(actor)
+    finalize(actor)
     return actor
 end
 

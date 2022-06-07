@@ -2,7 +2,7 @@
 #  ActorBalanceOfPlant  #
 #= =================== =#
 
-mutable struct ActorBalanceOfPlant <: AbstractActor
+Base.@kwdef mutable struct ActorBalanceOfPlant <: AbstractActor
     dd::IMAS.dd
     blanket_multiplier::Real
     efficiency_reclaim::Real

@@ -3,7 +3,7 @@ import NumericalIntegration: integrate
 #= === =#
 #  NBI  #
 #= === =#
-mutable struct ActorNBIsimple <: AbstractActor
+Base.@kwdef mutable struct ActorNBIsimple <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
@@ -87,7 +87,7 @@ end
 #= == =#
 #  EC  #
 #= == =#
-mutable struct ActorECsimple <: AbstractActor
+Base.@kwdef mutable struct ActorECsimple <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
@@ -163,7 +163,7 @@ end
 #= == =#
 #  IC  #
 #= == =#
-mutable struct ActorICsimple <: AbstractActor
+Base.@kwdef mutable struct ActorICsimple <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}
@@ -239,7 +239,7 @@ end
 #= == =#
 #  LH  #
 #= == =#
-mutable struct ActorLHsimple <: AbstractActor
+Base.@kwdef mutable struct ActorLHsimple <: AbstractActor
     dd::IMAS.dd
     width::Vector{Real}
     rho_0::Vector{Real}

@@ -342,6 +342,18 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
     return value
 end
 
+function Base.iterate(par::FUSE.Parameters)
+    Base.iterate(par, collect(keys(par)))
+end
+
+function Base.iterate(par::FUSE.Parameters, state)
+    if isempty(state)
+        return nothing
+    end
+    key = popfirst!(state)
+    data = par[key].value
+    return key => data, state
+end
 
 function Base.show(io::IO, ::MIME"text/plain", pars::Parameters, depth::Int=0)
     return AbstractTrees.print_tree(io, pars)
@@ -405,12 +417,12 @@ function doc(parameters::Parameters)
     txt = []
     for par in sort(collect(keys(parameters)))
         if typeof(parameters[par]) <: Parameters
-            push!(txt, "**`$(ppath).$par`**: $(typeof(parameters[par]))") 
+            push!(txt, "**`$(ppath).$par`**: $(typeof(parameters[par]))")
         else
             if isempty(parameters[par].units)
-                units=""
+                units = ""
             else
-                units=" [$(parameters[par].units)]"
+                units = " [$(parameters[par].units)]"
             end
             push!(txt, "**`$(ppath).$par`**:$units $(parameters[par].description)")
         end
@@ -418,7 +430,7 @@ function doc(parameters::Parameters)
     if isempty(txt)
         return ""
     else
-        return "* "*join(txt,"\n* ")
+        return "* " * join(txt, "\n* ")
     end
 end
 
@@ -491,7 +503,8 @@ struct BadParameterException <: Exception
     value::Any
     options::Vector{Any}
 end
-Base.showerror(io::IO, e::BadParameterException) = print(io, "ERROR: Parameter $(join(e.path,".")) = $(repr(e.value)) is not one of the valid options: $(join(map(repr,e.options),", "))")
+Base.showerror(io::IO, e::BadParameterException) =
+    print(io, "ERROR: Parameter $(join(e.path,".")) = $(repr(e.value)) is not one of the valid options: $(join(map(repr,e.options),", "))")
 
 #= ============ =#
 #  case studies  #

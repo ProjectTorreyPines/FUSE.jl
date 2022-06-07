@@ -3,7 +3,7 @@ import QED
 #= =============== =#
 #  ActorQEDcurrent  #
 #= =============== =#
-mutable struct ActorQEDcurrent <: AbstractActor
+Base.@kwdef mutable struct ActorQEDcurrent <: AbstractActor
     dd::IMAS.dd
     QI::QED.QED_state
     η#::Base.Callable
@@ -111,7 +111,7 @@ end
 #= ======================= =#
 #  ActorSteadyStateCurrent  #
 #= ======================= =#
-mutable struct ActorSteadyStateCurrent <: AbstractActor
+Base.@kwdef mutable struct ActorSteadyStateCurrent <: AbstractActor
     dd::IMAS.dd
 end
 
@@ -132,7 +132,7 @@ Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_pr
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorSteadyStateCurrent(kw...)
-    actor = ActorSteadyStateCurrent(dd)
+    actor = ActorSteadyStateCurrent(dd, par...)
     step(actor)
     finalize(actor)
     return actor

@@ -19,7 +19,7 @@ end
 #  ActorNeutronics  #
 #= =============== =#
 
-mutable struct ActorNeutronics <: AbstractActor
+Base.@kwdef mutable struct ActorNeutronics <: AbstractActor
     dd::IMAS.dd
 end
 
