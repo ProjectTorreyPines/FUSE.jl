@@ -3,7 +3,7 @@ module FUSE
 __precompile__(true)
 
 using IMAS
-using plots
+using Plots
 using Printf
 
 #= ===== =#
