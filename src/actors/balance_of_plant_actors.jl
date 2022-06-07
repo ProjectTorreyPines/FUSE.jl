@@ -55,8 +55,8 @@ function step(actor::ActorBalanceOfPlant, gasc_method)
     sys.power_in = [sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time]
     
     ### Divertor ###
-    #sys = resize!(bop_thermal.system, "name" => "divertor", "index" => 2)
-    #sys.power_in = sum([div.power_thermal_extracted for div in dd.divertors.divertor])
+    sys = resize!(bop_thermal.system, "name" => "divertors", "index" => 2)
+    sys.power_in = sum([IMAS.get_time_array(div.power_thermal_extracted, :data,bop.time,:constant) for div in dd.divertors.divertor])
 
     # ======== #
     # ELECTRIC #

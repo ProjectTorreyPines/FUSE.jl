@@ -42,7 +42,6 @@ function step(actor::ActorBlanket)
     blanket_geometry(dd)
 
     total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4/5
-    display(total_power_neutrons[end]/1e6)
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
 
     tritium_breeding_ratio = 0.0
