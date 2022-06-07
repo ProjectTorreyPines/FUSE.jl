@@ -103,10 +103,11 @@ function finalize(actor::ActorNAME; ...)
 end
 ```
 
-## Julia source code formatting under VSCode
+## Development in VSCode
 
-FUSE uses the following VSCode settings for formatting the Julia code
+[VSCode](https://code.visualstudio.com) is an excellent development environment for Julia.
 
+FUSE uses the following VSCode settings for formatting the Julia code:
 ```json
 {
     "files.autoSave": "onFocusChange",
@@ -124,16 +125,16 @@ FUSE uses the following VSCode settings for formatting the Julia code
 ```
 
 !!! note
-    To add these settings to vscode add json to: Command + shift + p -> Preferences: Open Settings (JSON)
+    To add these settings to VSCode add these lines to: `<Command> + <shift> + p` -> `Preferences: Open Settings (JSON)`
 
 In addition, we suggest enabling the VSCode `autoSave` feature and increasing the `workbench tree indent` to 24
 
-To format julia you will need to install Julia Language Support under the extensions tab (cmnd + shift + x)
+To format Julia you will need to install `Julia Language Support` under the extensions tab (`<Command> + <shift> + x`)
 
 !!! tip
-    To see what is precompiled at what time add a tracecompile kernel to IJulia
+    To see what is precompiled at runtime, you can add a Julia kernel with the `trace-compile` option to Jupyter
     ```julia
     import IJulia
     IJulia.installkernel("Julia tracecompile", "--trace-compile=stderr")
     ```
-    And select the Julia tracecompile in jupyter-lab
+    Then select the `Julia tracecompile` in jupyter-lab

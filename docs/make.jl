@@ -110,7 +110,8 @@ makedocs(;
         "Setup" => "install.md",
         "Others" => [
             "GASC" => "gasc.md",
-            "Utilities" => "utils.md"],
+            "Utilities" => "utils.md",
+            "HPC" => "parallel.md"],
     ]
 )
 
