@@ -39,7 +39,7 @@ end
 function dd_details_md(io, ids)
     ProgressMeter.@showprogress "$ids" for leaf in collect(AbstractTrees.Leaves(ids))
         name="$(leaf.location)"
-        info = IMASDD.info(name)
+        info = IMAS.info(name)
         documentation = get(info, "documentation", "N/A")
         units = get(info, "units", "")
         if !isempty(units)
@@ -68,7 +68,7 @@ function dd_details_md(io, ids)
     end
 end
 open("src/dd_details.md", "w") do io
-    for ids in AbstractTrees.Leaves(IMASDD.dd)
+    for ids in AbstractTrees.Leaves(IMAS.dd)
         if ids.key == :global_time
             continue
         end
