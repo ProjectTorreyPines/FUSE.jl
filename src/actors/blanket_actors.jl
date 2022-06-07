@@ -15,7 +15,7 @@ function ParametersActor(::Type{Val{:ActorBlanket}})
         Real,
         "",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
-        default=1.0,
+        default=1.0
     )
     return par
 end
@@ -30,7 +30,7 @@ Blanket actor
 """
 function ActorBlanket(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorBlanket(kw...)
-    actor = ActorBlanket(dd; par.blanket_multiplier, par.thermal_power_extraction_efficiency)
+    actor = ActorBlanket(dd, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
     step(actor)
     finalize(actor)
     return actor
@@ -39,32 +39,40 @@ end
 function step(actor::ActorBlanket)
     dd = actor.dd
 
-    total_power_neutron = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4.0
-    total_power_radiative = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
+    blanket_geometry(dd)
+
+    total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4/5
+    display(total_power_neutrons[end]/1e6)
+    total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
 
     tritium_breeding_ratio = 0.0
 
     for bm in dd.blanket.module
-        neutron_capture_fraction = 1.0 / lenght(dd.blanket.module)
-        radiative_capture_fraction = 1.0 / lenght(dd.blanket.module)
+        neutron_capture_fraction = 1.0 / length(dd.blanket.module)
+        radiative_capture_fraction = 1.0 / length(dd.blanket.module)
 
-        bm.time_slice[].power_incident_neutron = total_power_neutron .* neutron_capture_fraction
-        bm.time_slice[].power_incident_radiative = total_power_radiative .* radiative_capture_fraction
+        resize!(bm.time_slice)
+        bmt = bm.time_slice[]
 
-        bm.time_slice[].power_thermal_neutron = blanket_multiplier .* bm.time_slice[].power_incident_neutron
-        bm.time_slice[].power_thermal_radiative = power_incident_radiative
+        bmt.power_incident_neutrons = total_power_neutrons .* neutron_capture_fraction
+        bmt.power_incident_radiated = total_power_radiated .* radiative_capture_fraction
 
-        bm.time_slice[].power_thermal_extracted = thermal_power_extraction_efficiency * (power_thermal_neutron + power_thermal_radiative)
+        bmt.power_thermal_neutrons = bmt.power_incident_neutrons * actor.blanket_multiplier
+        bmt.power_thermal_radiated = bmt.power_incident_radiated
 
-        bm.time_slice[].tritium_breeding_ratio = 1.0 # some function
-        tritium_breeding_ratio += bm.time_slice[].tritium_breeding_ratio * bm.time_slice[].power_incident_neutron
+        bmt.power_thermal_extracted = actor.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
+
+        bmt.tritium_breeding_ratio = 1.0 # some function
+        tritium_breeding_ratio += bmt.tritium_breeding_ratio * bmt.power_incident_neutrons
     end
 
-    @ddtime(bm.tritium_breeding_ratio = tritium_breeding_ratio / total_power_neutron)
+    display(dd.blanket)
+
+    @ddtime(dd.blanket.tritium_breeding_ratio = tritium_breeding_ratio / total_power_neutrons)
 
 end
 
 function blanket_geometry(dd)
-    resize(dd.blanket.module, 1)
+    resize!(dd.blanket.module, 1)
     dd.blanket.module[1].name = "all"
 end

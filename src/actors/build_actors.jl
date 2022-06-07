@@ -469,7 +469,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     if par.do_plot
         p = plot(dd.build)
     end
-    fluxswing_actor = ActorFluxSwing(dd)
+    fluxswing_actor = ActorFluxSwing(dd,act)
     stresses_actor = ActorStresses(dd)
     actor = ActorHFSsizing(stresses_actor, fluxswing_actor)
     step(actor; par.verbose, par.j_tolerance, par.stress_tolerance, par.fixed_aspect_ratio, par.unconstrained_flattop_duration)

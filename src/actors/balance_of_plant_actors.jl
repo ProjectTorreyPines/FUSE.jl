@@ -31,7 +31,7 @@ Setting `gasc_method = false` subdivides the power plant electrical needs to [:c
 """
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersActor; gasc_method=false, kw...)
     par = act.ActorBalanceOfPlant(kw...)
-    actor = ActorBalanceOfPlant(dd; par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
+    actor = ActorBalanceOfPlant(dd, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
     step(actor, gasc_method)
     finalize(actor)
     return actor
@@ -43,6 +43,7 @@ function step(actor::ActorBalanceOfPlant, gasc_method)
     empty!(bop)
 
     bop.time = collect(LinRange(0, dd.build.oh.flattop_duration, 100))
+    bop.thermal_cycle.thermal_electric_conversion_efficiency = ones(length(bop.time)) .* actor.thermal_electric_conversion_efficiency
 
     # ======= #
     # THERMAL #
@@ -51,11 +52,11 @@ function step(actor::ActorBalanceOfPlant, gasc_method)
 
     ### Blanket ###
     sys = resize!(bop_thermal.system, "name" => "blanket", "index" => 1)
-    sys.power_in = sum([bmod.power_thermal_extracted for bmod in dd.blanket.module])
+    sys.power_in = [sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time]
     
     ### Divertor ###
-    sys = resize!(bop_thermal.system, "name" => "divertor", "index" => 2)
-    sys.power_in = sum([div.power_thermal_extracted for div in dd.divertors.divertor])
+    #sys = resize!(bop_thermal.system, "name" => "divertor", "index" => 2)
+    #sys.power_in = sum([div.power_thermal_extracted for div in dd.divertors.divertor])
 
     # ======== #
     # ELECTRIC #
