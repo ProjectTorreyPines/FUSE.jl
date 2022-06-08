@@ -13,7 +13,9 @@ files_to_convert = readdir(example_cases)[findall(endswith(".ipynb"), readdir(ex
     srcfiles = joinpath(example_cases, casename * "_files")
     dstname = joinpath(current_path, "src", "example_$casename.md")
     dstfiles = joinpath(current_path, "src", "assets", casename * "_files")
-    if !isfile(dstname)
+    if isfile(dstname)
+        println("$dstname exists: skipping nbconvert")
+    else
         run(`jupyter nbconvert --execute --to markdown $(joinpath(example_cases, case))`)
         run(`rm -rf $dstfiles`)
         if isdir(srcfiles)
