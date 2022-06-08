@@ -1,10 +1,10 @@
 # Utilities
 
 ```@meta
-CurrentModule = IMASDD
+CurrentModule = IMAS
 ```
 
 ```@docs
-IMASDD.json2imas
-IMASDD.imas2json
+IMAS.json2imas
+IMAS.imas2json
 ```

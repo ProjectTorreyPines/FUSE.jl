@@ -36,10 +36,9 @@ and start a tunnel going through `cybele` to `saga` (keep this open)
 ssh -N -L localhost:33445:localhost:55667 sagae
 ```
 
-Then on your computer open a web browser tab to `localhost:33445`
-<img width="212" alt="image" src="https://user-images.githubusercontent.com/1537880/166413141-a3db3746-d603-4895-96c1-4e33d4491881.png">
+Now, on your computer open a web browser tab to `localhost:33445` to connect to the Jupyter-lab session on `saga`.
 
-Now in an interactive Jupyter-lab one can use `saga` nodes with:
+And finally, in this interactive Jupyter-lab one can use `saga` nodes with:
 ```julia
 nodes = 4
 np = 30 * nodes
