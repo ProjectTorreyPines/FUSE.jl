@@ -135,11 +135,16 @@ end
 
 function ParametersActor(::Type{Val{:ActorFluxSwing}})
     par = ParametersActor(nothing)
-    par.operate_at_j_crit = Entry(Bool, "", """
-    Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
-    The flattop duration and maximum toroidal magnetic field follow from that.
-    Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
-    These currents may or may not exceed the OH and TF current limits."""; default=true)
+    par.operate_at_j_crit = Entry(
+        Bool,
+        "",
+        """
+Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
+The flattop duration and maximum toroidal magnetic field follow from that.
+Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
+These currents may or may not exceed the OH and TF current limits.""";
+        default=true,
+    )
     par.j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
     return par
 end
@@ -162,7 +167,7 @@ OH flux consumption based on:
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorFluxSwing(kw...)
-    actor = ActorFluxSwing(;dd, par...)
+    actor = ActorFluxSwing(; dd, par...)
     step(actor)
     finalize(actor)
     return actor
@@ -178,12 +183,8 @@ These currents may or may not exceed the OH and TF current limits.
 
 The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 """
-function step(
-    actor::ActorFluxSwing;
-    operate_at_j_crit::Bool=actor.operate_at_j_crit,
-    j_tolerance::Real=actor.j_tolerance,
-    only=:all)
-    
+function step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
+
     bd = actor.dd.build
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
@@ -311,7 +312,7 @@ This actor estimates vertical field from PF coils and its contribution to flux s
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorStresses(kw...)
-    actor = ActorStresses(;dd, par...)
+    actor = ActorStresses(; dd, par...)
     step(actor)
     finalize(actor)
     return actor
@@ -354,7 +355,7 @@ function step(actor::ActorStresses)
             f_struct_oh=f_struct_oh,
             f_struct_pl=1.0,
             n_points=5,
-            verbose=false
+            verbose=false,
         )
     end
 
@@ -468,7 +469,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     if par.do_plot
         p = plot(dd.build)
     end
-    fluxswing_actor = ActorFluxSwing(;dd, operate_at_j_crit=par.unconstrained_flattop_duration, par.j_tolerance)
+    fluxswing_actor = ActorFluxSwing(; dd, operate_at_j_crit=par.unconstrained_flattop_duration, par.j_tolerance)
     stresses_actor = ActorStresses(dd)
     actor = ActorHFSsizing(stresses_actor, fluxswing_actor)
     step(actor; par.verbose, par.j_tolerance, par.stress_tolerance, par.fixed_aspect_ratio, par.unconstrained_flattop_duration)
@@ -479,7 +480,15 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
     return actor
 end
 
-function step(actor::ActorHFSsizing; j_tolerance::Real=0.4, stress_tolerance::Real=0.2, fixed_aspect_ratio::Bool=true, unconstrained_flattop_duration::Bool=true, verbose::Bool=false, do_plot=false)
+function step(
+    actor::ActorHFSsizing;
+    j_tolerance::Real=0.4,
+    stress_tolerance::Real=0.2,
+    fixed_aspect_ratio::Bool=true,
+    unconstrained_flattop_duration::Bool=true,
+    verbose::Bool=false,
+    do_plot=false,
+)
 
     function target_value(value, target, tolerance) # relative error with tolerance
         return abs((value .* (1.0 .+ tolerance) .- target) ./ (abs(target) + 1.0))
@@ -591,7 +600,13 @@ function step(actor::ActorHFSsizing; j_tolerance::Real=0.4, stress_tolerance::Re
 
     # plug and OH optimization (w/fraction)
     old_thicknesses = [layer.thickness for layer in dd.build.layer]
-    res = Optim.optimize(x0 -> cost(x0, :oh), [OH.thickness, dd.build.oh.technology.fraction_stainless], Optim.NelderMead(), Optim.Options(time_limit=60); autodiff=:forward)
+    res = Optim.optimize(
+        x0 -> cost(x0, :oh),
+        [OH.thickness, dd.build.oh.technology.fraction_stainless],
+        Optim.NelderMead(),
+        Optim.Options(time_limit=60);
+        autodiff=:forward,
+    )
     assign_PL_OH_TF_thicknesses(res.minimizer, :oh)
     step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:oh)
     step(actor.stresses_actor)
@@ -601,7 +616,13 @@ function step(actor::ActorHFSsizing; j_tolerance::Real=0.4, stress_tolerance::Re
 
     # TF optimization (w/fraction)
     old_thicknesses = [layer.thickness for layer in dd.build.layer]
-    res = Optim.optimize(x0 -> cost(x0, :tf), [TFhfs.thickness, dd.build.tf.technology.fraction_stainless], Optim.NelderMead(), Optim.Options(time_limit=60); autodiff=:forward)
+    res = Optim.optimize(
+        x0 -> cost(x0, :tf),
+        [TFhfs.thickness, dd.build.tf.technology.fraction_stainless],
+        Optim.NelderMead(),
+        Optim.Options(time_limit=60);
+        autodiff=:forward,
+    )
     assign_PL_OH_TF_thicknesses(res.minimizer, :tf)
     step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:tf)
     step(actor.stresses_actor)
@@ -613,7 +634,13 @@ function step(actor::ActorHFSsizing; j_tolerance::Real=0.4, stress_tolerance::Re
     res = nothing
     if (dd.solid_mechanics.center_stack.bucked == 1 || dd.solid_mechanics.center_stack.noslip == 1 || dd.solid_mechanics.center_stack.plug == 1)
         old_thicknesses = [layer.thickness for layer in dd.build.layer]
-        res = Optim.optimize(x0 -> cost(x0, :all), [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_stainless, dd.build.tf.technology.fraction_stainless], Optim.NelderMead(), Optim.Options(time_limit=60, iterations=1000); autodiff=:forward)
+        res = Optim.optimize(
+            x0 -> cost(x0, :all),
+            [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_stainless, dd.build.tf.technology.fraction_stainless],
+            Optim.NelderMead(),
+            Optim.Options(time_limit=60, iterations=1000);
+            autodiff=:forward,
+        )
         assign_PL_OH_TF_thicknesses(res.minimizer, :all)
         step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance)
         step(actor.stresses_actor)
@@ -853,6 +880,56 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     return divertors
 end
 
+function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
+    R0 = eqt.global_quantities.magnetic_axis.r
+
+    layers = bd.layer
+    iblanket = IMAS.get_build(bd; type=_blanket_, fs=_lfs_, return_index=true, raise_error_on_missing=false)
+    if iblanket === nothing
+        return IMAS.IDSvectorElement[]
+    end
+    layer = layers[iblanket]
+    layer_in = layers[iblanket-1]
+
+    layer_poly = xy_polygon(layer)
+    layer_in_poly = xy_polygon(layer_in)
+    ring_poly = LibGEOS.difference(layer_poly, layer_in_poly)
+    for structure in [structure for structure in bd.structure if structure.type == Int(_divertor_)]
+        plot!(structure.outline.r, structure.outline.z)
+        structure_poly = xy_polygon(structure)
+        ring_poly = LibGEOS.difference(ring_poly, structure_poly)
+    end
+
+    geometries = LibGEOS.getGeometries(ring_poly)
+    blankets = IMAS.IDSvectorElement[]
+    for poly in geometries
+        coords = LibGEOS.coordinates(poly)
+        pr = [v[1] for v in coords[1]]
+        pz = [v[2] for v in coords[1]]
+        plot!(pr, pz, linewidth=2)
+
+        # assign to build structure
+        if length(geometries) == 2
+            if sum(pr) / length(pr) > R0
+                name = "LFS blanket"
+            else
+                name = "HFS blanket"
+            end
+        else
+            name = "blanket"
+        end
+
+        structure = resize!(bd.structure, "type" => Int(_blanket_), "name" => name)
+        structure.outline.r = pr
+        structure.outline.z = pz
+        structure.toroidal_extent = 2pi
+
+        push!(blankets, structure)
+    end
+
+    return blankets
+end
+
 
 """
     build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)
@@ -872,6 +949,7 @@ function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)
     build_cx!(dd.build, pr, pz)
 
     divertor_regions!(dd.build, dd.equilibrium.time_slice[])
+    blanket_regions!(dd.build, dd.equilibrium.time_slice[])
 
     if wall === missing || rebuild_wall
         plasma = IMAS.get_build(dd.build, type=_plasma_)

@@ -15,7 +15,7 @@ function ParametersActor(::Type{Val{:ActorBlanket}})
         Real,
         "",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
-        default=1.0
+        default=1.0,
     )
     return par
 end
@@ -39,14 +39,19 @@ end
 function step(actor::ActorBlanket)
     dd = actor.dd
 
-    blanket_geometry(dd)
+    empty!(dd.blanket)
 
-    total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4/5
+    total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4 / 5
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
-
     tritium_breeding_ratio = 0.0
 
-    for bm in dd.blanket.module
+    blankets = blanket_regions!(dd.build, dd.equilibrium.time_slice[])
+
+    resize!(dd.blanket.module, length(blankets))
+    for (k, structure) in enumerate(blankets)
+        bm = dd.blanket.module[k]
+        bm.name = structure.name
+
         neutron_capture_fraction = 1.0 / length(dd.blanket.module)
         radiative_capture_fraction = 1.0 / length(dd.blanket.module)
 
@@ -66,9 +71,4 @@ function step(actor::ActorBlanket)
     end
 
     @ddtime(dd.blanket.tritium_breeding_ratio = tritium_breeding_ratio / total_power_neutrons)
-end
-
-function blanket_geometry(dd)
-    resize!(dd.blanket.module, 1)
-    dd.blanket.module[1].name = "all"
 end
