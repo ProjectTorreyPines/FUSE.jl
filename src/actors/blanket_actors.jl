@@ -45,7 +45,7 @@ function step(actor::ActorBlanket)
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
     tritium_breeding_ratio = 0.0
 
-    blankets = blanket_regions!(dd.build, dd.equilibrium.time_slice[])
+    blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
 
     resize!(dd.blanket.module, length(blankets))
     for (k, structure) in enumerate(blankets)

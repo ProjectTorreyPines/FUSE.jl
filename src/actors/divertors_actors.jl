@@ -32,11 +32,18 @@ end
 
 function step(actor::ActorDivertors)
     dd = actor.dd
-    divertors_geometry(dd)
+
+    empty!(dd.divertors)
+
+    divertors = [structure for structure in dd.build.structure if structure.type == Int(_divertor_)]
+    resize!(dd.divertors.divertor, length(divertors))
 
     total_power_incident = IMAS.total_power_source(IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[]))
     dd.divertors.time = div_time = dd.core_sources.time
-    for div in dd.divertors.divertor
+    for (k,structure) in enumerate(divertors)
+
+        div = dd.divertors.divertor[k]
+        div.name = structure.name
 
         div.power_incident.time = dd.divertors.time
         div.power_incident.data = ones(length(div_time)) .* total_power_incident ./ length(dd.divertors.divertor)
@@ -56,11 +63,6 @@ function step(actor::ActorDivertors)
             div.power_radiated.data .+ 
             div.power_recombination_neutrals.data)
     end
-end
-
-function divertors_geometry(dd)
-    resize!(dd.divertors.divertor, 1)
-    dd.divertors.divertor[1].name = "all"
 end
 
 """
