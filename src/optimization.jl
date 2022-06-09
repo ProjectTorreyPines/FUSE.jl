@@ -66,15 +66,16 @@ function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or
     # call the problem
     try
         if typeof(actor_or_workflow) <: DataType
-            dd = actor_or_workflow(init(ini, act), act)
+            actor = actor_or_workflow(init(ini, act), act)
+            dd = actor.dd
         else
             dd = actor_or_workflow(ini, act)
         end
         # evaluate multiple objectives
         return collect(map(f -> f(dd), objectives_functions)), x * 0, x * 0
     catch
+        # rethrow() 
         return [Inf for f in objectives_functions], x * 0, x * 0
-        #rethrow()
     end
 end
 

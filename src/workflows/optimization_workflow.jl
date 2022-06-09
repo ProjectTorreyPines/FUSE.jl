@@ -29,15 +29,19 @@ function workflow_multiobjective_optimization(
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
     N::Int=10,
     iterations::Int=N,
-    continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing)
+    continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing,
+)
 
     if mod(N, 2) > 0
         error("workflow_multiobjective_optimization population size `N` must be an even number")
     end
 
-    println("Running on $(nprocs()) processes")
+    println("Running on $(nprocs()-1) worker processes")
     if isempty(objectives_functions)
-        error("Must specify objective functions. Available pre-baked functions from ObjectivesFunctionsLibrary:\n  * " * join(keys(ObjectivesFunctionsLibrary), "\n  * "))
+        error(
+            "Must specify objective functions. Available pre-baked functions from ObjectivesFunctionsLibrary:\n  * " *
+            join(keys(ObjectivesFunctionsLibrary), "\n  * "),
+        )
     end
 
     # itentify optimization variables in ini
@@ -126,16 +130,16 @@ end
             if length(indexes) == 1 || length(sol[1].x) == 1
                 xlabel --> "Run number"
                 ylabel --> pretty_label(labels[indexes[1]])
-                append!(x, (getfield(s,arg)[indexes[1]] for s in sol))
+                append!(x, (getfield(s, arg)[indexes[1]] for s in sol))
             elseif length(indexes) == 2 || length(sol[1].x) == 2
-                append!(x, (getfield(s,arg)[indexes[1]] for s in sol))
-                append!(y, (getfield(s,arg)[indexes[2]] for s in sol))
+                append!(x, (getfield(s, arg)[indexes[1]] for s in sol))
+                append!(y, (getfield(s, arg)[indexes[2]] for s in sol))
                 xlabel --> pretty_label(labels[indexes[1]])
                 ylabel --> pretty_label(labels[indexes[2]])
             elseif length(indexes) == 3 || length(sol[1].x) == 3
-                append!(x, (getfield(s,arg)[indexes[1]] for s in sol))
-                append!(y, (getfield(s,arg)[indexes[2]] for s in sol))
-                append!(z, (getfield(s,arg)[indexes[3]] for s in sol))
+                append!(x, (getfield(s, arg)[indexes[1]] for s in sol))
+                append!(y, (getfield(s, arg)[indexes[2]] for s in sol))
+                append!(z, (getfield(s, arg)[indexes[3]] for s in sol))
                 xlabel --> pretty_label(labels[indexes[1]])
                 ylabel --> pretty_label(labels[indexes[2]])
                 zlabel --> pretty_label(labels[indexes[3]])
