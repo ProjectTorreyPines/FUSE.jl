@@ -1,7 +1,7 @@
 using Documenter
 import FUSE
 import IMAS
-import IMAS
+import IMASDD
 import AbstractTrees
 import ProgressMeter
 
@@ -93,7 +93,7 @@ include("src/examples.jl")
 # build the docs #
 # ============== #
 makedocs(;
-    modules=[FUSE, IMAS],
+    modules=[FUSE, IMAS, IMASDD],
     sitename="FUSE",
     format=Documenter.HTML(; prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
     pages=[

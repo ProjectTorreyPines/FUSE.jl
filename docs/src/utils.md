@@ -5,6 +5,6 @@ CurrentModule = IMAS
 ```
 
 ```@docs
-IMAS.json2imas
-IMAS.imas2json
+json2imas
+imas2json
 ```
