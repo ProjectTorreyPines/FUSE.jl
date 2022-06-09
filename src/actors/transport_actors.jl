@@ -4,7 +4,7 @@ import TAUENN
 #     TAUENN actor   #
 #= ================ =#
 
-Base.@kwdef mutable struct ActorTauenn <: AbstractActor
+Base.@kwdef mutable struct ActorTauenn <: PlasmaAbstractActor
     dd::IMAS.dd
     tauenn_parameters::TAUENN.TauennParameters
     tauenn_outputs::TAUENN.TauennOutputs

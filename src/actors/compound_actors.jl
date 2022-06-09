@@ -1,7 +1,7 @@
 #= ========================= =#
 #  ActorEquilibriumTransport  #
 #= ========================= =#
-Base.@kwdef mutable struct ActorEquilibriumTransport <: AbstractActor
+Base.@kwdef mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
     dd::IMAS.dd
 end
 
@@ -77,7 +77,7 @@ end
 #= ================== =#
 #  ActorWholeFacility  #
 #= ================== =#
-Base.@kwdef mutable struct ActorWholeFacility <: AbstractActor
+Base.@kwdef mutable struct ActorWholeFacility <: FacilityAbstractActor
     dd::IMAS.dd
 end
 

@@ -202,15 +202,22 @@ Generates actor parameters
 """
 function ParametersActor()
     act = ParametersActor(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersActor}}())
-    for par in subtypes(AbstractActor)
-        par = Symbol(replace(string(par), "FUSE." => ""))
-        try
-            setproperty!(act, par, ParametersActor(par))
-        catch e
-            if typeof(e) <: InexistentParameterException
-                @warn e
-            else
-                rethrow()
+    actor_types = collect(subtypes(AbstractActor))
+    push!(actor_types, AbstractActor)
+    for actor_abstract_type in actor_types
+        for par in subtypes(actor_abstract_type)
+            if Base.isabstracttype(par)
+                continue
+            end
+            par = Symbol(replace(string(par), "FUSE." => ""))
+            try
+                setproperty!(act, par, ParametersActor(par))
+            catch e
+                if typeof(e) <: InexistentParameterException
+                    @warn e
+                else
+                    rethrow()
+                end
             end
         end
     end

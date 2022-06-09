@@ -62,11 +62,20 @@ The FUSE project is built upon different Julia packages. Several of these are ma
 
 ### What constitutes an Actor
 
-The definition of each FUSE actor follows a well defined pattern.
+Actors are grouped in four main abstract types:
+
+```julia
+abstract type FacilityAbstractActor <: AbstractActor end
+abstract type ReactorAbstractActor <: AbstractActor end
+abstract type HCDAbstractActor <: AbstractActor end
+abstract type PlasmaAbstractActor <: AbstractActor end
+```
+
+The definition of each FUSE actor follows a well defined pattern:
 
 ```julia
 # Defintion of the actor structure
-Base.@kwdef mutable struct ActorNAME <: AbstractActor
+Base.@kwdef mutable struct ActorNAME <: ???AbstractActor
     dd::IMAS.dd
     ...
 end

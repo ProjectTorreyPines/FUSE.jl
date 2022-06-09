@@ -95,7 +95,7 @@ end
 #  ActorCosting  #
 #= ============ =#
 
-Base.@kwdef mutable struct ActorCosting <: AbstractActor
+Base.@kwdef mutable struct ActorCosting <: FacilityAbstractActor
     dd::IMAS.dd
 end
 

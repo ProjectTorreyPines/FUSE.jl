@@ -2,7 +2,7 @@
 #  ActorBlanket  #
 #= ============ =#
 
-Base.@kwdef mutable struct ActorBlanket <: AbstractActor
+Base.@kwdef mutable struct ActorBlanket <: ReactorAbstractActor
     dd::IMAS.dd
     blanket_multiplier::Real
     thermal_power_extraction_efficiency::Real
