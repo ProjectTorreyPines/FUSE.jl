@@ -1,4 +1,4 @@
-examples = [split(item[9:end], ".")[1] for item in readdir(dirname(abspath(@__FILE__))) if startswith(item, "example_")]
+examples = [split(item[9:end], ".")[1] for item in readdir(dirname(abspath(@__FILE__))) if startswith(item, "example_") && endswith(item, ".md")]
 dirs = unique([split(item, "__")[1] for item in examples])
 popat!(dirs, findfirst(x -> x == "cases", dirs))
 pushfirst!(dirs, "cases")
