@@ -6,10 +6,10 @@ In addition to the usual IMAS IDSs (which we support on a need-by-need basis) FU
 to hold data that does not (yet?) fit into IMAS. Notable examples are the `build`, `solid_mechanics`, `balance_of_plant`, and `costing` IDSs.
 
 ```@meta
-CurrentModule = FUSE
+CurrentModule = IMAS
 ```
 
-## dd
+### dd
 
 `dd = IMAS.dd()` (which stands for "data dictionary") is the root of the FUSE data structure
 
@@ -24,7 +24,7 @@ for name in sort(collect(fieldnames(IMAS.dd)))
         basename = replace("$name", "_" => " ")
         push!(
             txt,
-            """## $basename
+            """### $basename
             ```@example
             using IMASDD # hide
             IMASDD.$name # hide
@@ -67,6 +67,7 @@ function dd_details_md(io, ids)
         write(io, txt)
     end
 end
+
 open("src/dd_details.md", "w") do io
     for ids in AbstractTrees.Leaves(IMAS.dd)
         if ids.key == :global_time

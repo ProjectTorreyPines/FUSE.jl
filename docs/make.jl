@@ -8,13 +8,19 @@ import ProgressMeter
 function html_link_repr(par::FUSE.Parameter)
     return "©" * join(FUSE.path(par), ".") * "©©" * string(par._name) * "©"
 end
+
 function AbstractTrees.printnode(io::IO, par::FUSE.Parameter)
     return printstyled(io, html_link_repr(par))
 end
 
+function AbstractTrees.printnode(io::IO, @nospecialize(ids::Type{T}); kwargs...) where {T<:IMAS.IDS}
+    txt = split(split("$ids", "___")[end], "__")[end]
+    return printstyled(io, txt; bold=true)
+end
+
 function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASleafRepr; kwargs...)
     if startswith(leaf.location, "dd.")
-        printstyled(io, "$(leaf.key)")
+        printstyled(io, "©$(replace(leaf.location[4:end],"_"=>"-"))©©©$(leaf.key)©")
     else
         printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
     end
@@ -122,7 +128,9 @@ for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd"
         txt = read(io, String)
         txt = split(txt, "\n")
         for (k, line) in enumerate(txt)
-            txt[k] = replace(replace(line, r"©(.*)©©(.*)©" => s"<a href='©_details.html#\1'>\2</a>"), "©" => parfile)
+            txt[k] = replace(txt[k], r"©(.*)©©©(.*)©" => s"<a href='©.html#\1'>\2</a>")
+            txt[k] = replace(txt[k], r"©(.*)©©(.*)©" => s"<a href='©_details.html#\1'>\2</a>")
+            txt[k] = replace(txt[k], "©" => parfile)
         end
         open("build/$file.html", "w") do io
             write(io, join(txt, "\n"))

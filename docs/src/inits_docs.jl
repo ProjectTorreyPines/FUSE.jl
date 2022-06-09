@@ -2,7 +2,7 @@ txt = ["""
 # Initialization
 
 ```@meta
-CurrentModule = IMASDD
+CurrentModule = IMAS
 ```
 Recall that FUSE actors operate exclusively on `IMAS.dd` data.
 As such, to run any actor, one has to first **initialize** `IMAS.dd` with some data.

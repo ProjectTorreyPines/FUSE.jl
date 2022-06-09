@@ -1,14 +1,14 @@
 # Development
 
-## Repositories
+## Overview
 
 All FUSE-related development occurs under the [GitHub ProjectTorreyPines organization](https://github.com/ProjectTorreyPines), which lives under the GeneralAtomics GitHub enterprise account.
 
-## Tracking progress
+### Tracking progress
 
 We use a GitHub to [track progress with FUSE developments](https://github.com/orgs/ProjectTorreyPines/projects/2/views/1) and have a birds-eye view across the different repositories used by the FUSE project.
 
-## Packages organization
+### Packages organization
 
 The FUSE project is built upon different Julia packages. Several of these are managed by GA-MFE, and they all reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) repository. Of all the packages that are there, three are at the fundation of the FUSE framework itself: `FUSE.jl`, `IMAS.jl`, `CoordinateConventions.jl`, `IMASDD.jl`. All other packages in the ProjectTorreyPines organization fundamentally add physics and technology capabilities in FUSE (typically as actors).
 
@@ -38,7 +38,9 @@ The FUSE project is built upon different Julia packages. Several of these are ma
   * Loading/saving of `dd`
   * Utility and math (eg. interpolation)
 
-## Add/modify entries in `dd`
+## Editing stuff
+
+### Add/modify entries in `dd`
 
 1. add/edit Json files in the `IMASDD/data_structures_extra` folder
 2. run `IMASDD/src/generate_dd.jl`
@@ -46,19 +48,19 @@ The FUSE project is built upon different Julia packages. Several of these are ma
 !!! note
     The `dd` data structure is defined as a Julia `struct`. Like all `struct` re-definitions, changes to the `dd` data structure will requires your Julia interpreters to be restarted to pick-up the updates.
 
-## Add/modify entries in `ini`
+### Add/modify entries in `ini`
 
 `ini` parameters are of type `ParametersInit`.
 
 1.  The `ParametersInit` are defined all `FUSE/src/parameters_init.jl` file. Add/edit entries there.
 
-## Add/modify entries in `act`
+### Add/modify entries in `act`
 
 `act` parameters are of type `ParametersActor`.
 
 1. The `ParametersActor` of each actor are defined where that actor is defined. Add/edit entries there.
 
-## What constitutes an Actor
+### What constitutes an Actor
 
 The definition of each FUSE actor follows a well defined pattern.
 
@@ -103,7 +105,9 @@ function finalize(actor::ActorNAME; ...)
 end
 ```
 
-## Development in VSCode
+## Tips and more
+
+### Development in VSCode
 
 [VSCode](https://code.visualstudio.com) is an excellent development environment for Julia.
 
