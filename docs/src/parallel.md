@@ -44,5 +44,5 @@ nodes = 4
 np = 30 * nodes
 import Distributed
 import ClusterManagers
-Distributed.addprocs(ClusterManagers.SlurmManager(np), exclusive="")
+Distributed.addprocs(ClusterManagers.SlurmManager(np), exclusive="", topology=:master_worker)
 ```

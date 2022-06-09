@@ -74,51 +74,44 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAct
     return dd
 end
 
-#= ================ =#
-#  ActorWholeDevice  #
-#= ================ =#
-Base.@kwdef mutable struct ActorWholeDevice <: AbstractActor
+#= ================== =#
+#  ActorWholeFacility  #
+#= ================== =#
+Base.@kwdef mutable struct ActorWholeFacility <: AbstractActor
     dd::IMAS.dd
 end
 
-function ParametersActor(::Type{Val{:ActorWholeDevice}})
+function ParametersActor(::Type{Val{:ActorWholeFacility}})
     par = ParametersActor(nothing)
     return par
 end
 
 """
-    ActorWholeDevice(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorWholeFacility(dd::IMAS.dd, act::ParametersActor; kw...)
 
-Compound actor that runs the following actors in succesion:
-```julia
-ActorEquilibriumTransport(dd, act)
-ActorHFSsizing(dd, act)
-ActorLFSsizing(dd, act)
-ActorCXbuild(dd, act)
-ActorPFcoilsOpt(dd, act)
-ActorCosting(dd, act)
-ActorBalanceOfPlant(dd,act)    
-```
+Compound actor that runs all the actors needed to model the whole plant
 
 !!! note 
     Stores data in `dd`
 """
-function ActorWholeDevice(dd::IMAS.dd, act::ParametersActor; kw...)
-    par = act.ActorWholeDevice(kw...)
-    actor = ActorWholeDevice(dd)
+function ActorWholeFacility(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorWholeFacility(kw...)
+    actor = ActorWholeFacility(dd)
     step(actor; act)
     finalize(actor)
     return actor
 end
 
-function step(actor::ActorWholeDevice; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
+function step(actor::ActorWholeFacility; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
     dd = actor.dd
     ActorEquilibriumTransport(dd, act)
     ActorHFSsizing(dd, act)
     ActorLFSsizing(dd, act)
     ActorCXbuild(dd, act)
-    #ActorNeutronics(dd, act) # not really connected to anything at this point
     ActorPFcoilsOpt(dd, act)
-    ActorCosting(dd, act)
+    #ActorNeutronics(dd, act) # not really connected to anything at this point
+    ActorBlanket(dd, act)
+    ActorDivertors(dd, act)
     ActorBalanceOfPlant(dd,act)
+    ActorCosting(dd, act)
 end

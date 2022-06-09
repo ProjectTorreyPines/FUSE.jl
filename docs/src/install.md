@@ -15,8 +15,8 @@
    git clone git@github.com:ProjectTorreyPines/FUSE.jl.git FUSE
    ```
 
-!!! note
-    To clone the FUSE repository you will need to [setup your public key on git GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
+   !!! note
+       To clone the FUSE repository you will need to [setup your public key on git GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
 
 1. Add FUSE and its dependencies to the julia environment (this may take a few minutes):
     ```bash
@@ -24,13 +24,13 @@
     make develop
     ```
 
-!!! note
-    To pull latest changes for FUSE and all of its dependencies:
+   !!! note
+       To pull latest changes for FUSE and all of its dependencies:
 
-    ```bash
-    cd ~/.julia/dev/FUSE
-    make update
-    ```
+       ```bash
+       cd ~/.julia/dev/FUSE
+       make update
+       ```
 
 ## Test FUSE installation
 1. Start your julia interpreter by typing `julia` at the terminal
@@ -41,8 +41,7 @@
    ```
 
 ## Install Jupyter and add Julia kernel to it
-!!! note
-    On a fresh install you will need to install Python and jupyter-lab (via [miniconda](https://docs.conda.io/en/latest/miniconda.html#latest-miniconda-installer-links))
+1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system 
 
 1. Install the IJulia package manually or by running:
    ```bash

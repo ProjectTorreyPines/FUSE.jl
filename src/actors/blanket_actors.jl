@@ -65,10 +65,7 @@ function step(actor::ActorBlanket)
         tritium_breeding_ratio += bmt.tritium_breeding_ratio * bmt.power_incident_neutrons
     end
 
-    display(dd.blanket)
-
     @ddtime(dd.blanket.tritium_breeding_ratio = tritium_breeding_ratio / total_power_neutrons)
-
 end
 
 function blanket_geometry(dd)
