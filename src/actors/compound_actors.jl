@@ -109,7 +109,7 @@ function step(actor::ActorWholeFacility; act::Union{Missing,ParametersActor}=mis
     ActorLFSsizing(dd, act)
     ActorCXbuild(dd, act)
     ActorPFcoilsOpt(dd, act)
-    #ActorNeutronics(dd, act) # not really connected to anything at this point
+    ActorNeutronics(dd, act)
     ActorBlanket(dd, act)
     ActorDivertors(dd, act)
     ActorBalanceOfPlant(dd,act)

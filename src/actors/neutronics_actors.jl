@@ -76,14 +76,7 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
     ϕ = rand(N) .* 2pi
     θv = rand(N) .* 2pi
     ϕv = acos.(rand(N) .* 2.0 .- 1.0)
-    neutrons = neutron_particle.(
-        R[draw] .* cos.(ϕ),
-        R[draw] .* sin.(ϕ),
-        Z[draw],
-        step * sin.(ϕv) .* cos.(θv),
-        step * sin.(ϕv) .* sin.(θv),
-        step * cos.(ϕv)
-    )
+    neutrons = neutron_particle.(R[draw] .* cos.(ϕ), R[draw] .* sin.(ϕ), Z[draw], step * sin.(ϕv) .* cos.(θv), step * sin.(ϕv) .* sin.(θv), step * cos.(ϕv))
 
     # resample wall and make sure it's clockwise (for COCOS = 11)
     wall = IMAS.first_wall(dd.wall)
@@ -148,24 +141,20 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
     resize!(dd.neutronics.time_slice)
     dd.neutronics.time_slice[].wall_loading.flux_r = nflux_r
     dd.neutronics.time_slice[].wall_loading.flux_z = nflux_z
+    dd.neutronics.time_slice[].wall_loading.power = sqrt.(nflux_r .^ 2.0 .+ nflux_z .^ 2.0) .* s
 
     # plot neutron wall loading cx
     if do_plot
 
-        neutrons = neutron_particle.(
-            R[draw] .* cos.(ϕ),
-            R[draw] .* sin.(ϕ),
-            Z[draw],
-            step * sin.(ϕv) .* cos.(θv),
-            step * sin.(ϕv) .* sin.(θv),
-            step * cos.(ϕv)
-        )
+        neutrons = neutron_particle.(R[draw] .* cos.(ϕ), R[draw] .* sin.(ϕ), Z[draw], step * sin.(ϕv) .* cos.(θv), step * sin.(ϕv) .* sin.(θv), step * cos.(ϕv))
 
         histogram2d(
             Rcoord.(neutrons),
             Zcoord.(neutrons),
             nbins=(LinRange(minimum(r), maximum(r), length(r) - 1), LinRange(minimum(z), maximum(z), length(z) - 1)),
-            aspect_ratio=:equal, weights=zeros(N) .+ 1 / 40)
+            aspect_ratio=:equal,
+            weights=zeros(N) .+ 1 / 40,
+        )
 
         plot!(dd.neutronics.time_slice[].wall_loading, xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title="First wall neutron loading")
         display(plot!(wall.r, wall.z, color=:black, label="", xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title=""))

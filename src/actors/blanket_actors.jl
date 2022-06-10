@@ -40,19 +40,28 @@ function step(actor::ActorBlanket)
     dd = actor.dd
 
     empty!(dd.blanket)
+    eqt = dd.equilibrium.time_slice[]
+    nnt = dd.neutronics.time_slice[]
 
     total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4 / 5
+    total_power_neutrons = sum(nnt.wall_loading.power)
+
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
-    tritium_breeding_ratio = 0.0
 
     blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
 
+    tritium_breeding_ratio = 0.0
     resize!(dd.blanket.module, length(blankets))
     for (k, structure) in enumerate(blankets)
         bm = dd.blanket.module[k]
         bm.name = structure.name
 
-        neutron_capture_fraction = 1.0 / length(dd.blanket.module)
+        # evaluate neutron_capture_fraction
+        tmp = convex_hull(collect(zip(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z))); closed_polygon=true)
+        index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(dd.neutronics.first_wall.r, dd.neutronics.first_wall.z)])
+        neutron_capture_fraction = sum(nnt.wall_loading.power[index]) / total_power_neutrons
+
+        # evaluate radiative_capture_fraction (to be fixed)
         radiative_capture_fraction = 1.0 / length(dd.blanket.module)
 
         resize!(bm.time_slice)

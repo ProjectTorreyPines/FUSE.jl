@@ -1,4 +1,4 @@
-# Balance of plant example
+# Balance of plant
 
 
 ```julia
@@ -8,12 +8,12 @@ using Plots; gr();
 global_logger(FUSE.logger);
 ```
 
-### Initialize FPP v1_demount case to run balance of plant on
-[FPP v1_demount_case_documentation](https://fuse.help/cases.html#FPP)
+### Initialize FPP v1_demount case
+[FPP v1 demount case documentation](https://fuse.help/cases.html#FPP)
 
 
 ```julia
-dd, ini, act = FUSE.init(:FPP,version=:v1_demount, init_from=:ods,do_plot=false);
+dd, ini, act = FUSE.init(:FPP, version=:v1_demount, init_from=:ods, do_plot=false);
 ```
 
     WARNING: both ImageMetadata and ImageAxes export "data"; uses of it in module Images must be qualified
@@ -28,52 +28,53 @@ dd, ini, act = FUSE.init(:FPP,version=:v1_demount, init_from=:ods,do_plot=false)
 FUSE.ActorEquilibriumTransport(dd, act)
 FUSE.ActorHFSsizing(dd, act)
 FUSE.ActorLFSsizing(dd, act)
-FUSE.ActorCXbuild(dd, act);
+FUSE.ActorCXbuild(dd, act)
+FUSE.ActorNeutronics(dd, act; do_plot=true);
 ```
+
+
+    
+![svg](Balance_of_Plant_files/Balance_of_Plant_5_0.svg)
+    
+
 
 ### Running the simple blanket actor
 [ActorBlanket documentation](https://fuse.help/actors.html#Blanket)
 
 
 ```julia
+dd.build.structure
 FUSE.ActorBlanket(dd,act);
 dd.blanket
 ```
 
 
-    [0m[1mblanket[22m
-    ├─ [0m[1mmodule[22m
-    │  └─ [0m[1m1[22m
-    │     ├─ [0mname[31m ➡ [39m[35m"all"[39m
-    │     └─ [0m[1mtime_slice[22m
-    │        └─ [0m[1m1[22m
-    │           ├─ [0mpower_incident_neutrons[31m ➡ [39m[31m9.09321e+08[39m
-    │           ├─ [0mpower_incident_radiated[31m ➡ [39m[31m0[39m
-    │           ├─ [0mpower_thermal_extracted[31m ➡ [39m[31m1.09118e+09[39m
-    │           ├─ [0mpower_thermal_neutrons[31m ➡ [39m[31m1.09118e+09[39m
-    │           ├─ [0mpower_thermal_radiated[31m ➡ [39m[31m0[39m
-    │           └─ [0mtritium_breeding_ratio[31m ➡ [39m[31m1[39m
-    └─ [0mtime[31m ➡ [39m[32m[1][39m
-
-
-
-
 
 
     [0m[1mblanket[22m
     ├─ [0m[1mmodule[22m
-    │  └─ [0m[1m1[22m
-    │     ├─ [0mname[31m ➡ [39m[35m"all"[39m
+    │  ├─ [0m[1m1[22m
+    │  │  ├─ [0mname[31m ➡ [39m[35m"LFS blanket"[39m
+    │  │  └─ [0m[1mtime_slice[22m
+    │  │     └─ [0m[1m1[22m
+    │  │        ├─ [0mpower_incident_neutrons[31m ➡ [39m[31m6.11188e+08[39m
+    │  │        ├─ [0mpower_incident_radiated[31m ➡ [39m[31m0[39m
+    │  │        ├─ [0mpower_thermal_extracted[31m ➡ [39m[31m7.33425e+08[39m
+    │  │        ├─ [0mpower_thermal_neutrons[31m ➡ [39m[31m7.33425e+08[39m
+    │  │        ├─ [0mpower_thermal_radiated[31m ➡ [39m[31m0[39m
+    │  │        └─ [0mtritium_breeding_ratio[31m ➡ [39m[31m1[39m
+    │  └─ [0m[1m2[22m
+    │     ├─ [0mname[31m ➡ [39m[35m"HFS blanket"[39m
     │     └─ [0m[1mtime_slice[22m
     │        └─ [0m[1m1[22m
-    │           ├─ [0mpower_incident_neutrons[31m ➡ [39m[31m9.09321e+08[39m
+    │           ├─ [0mpower_incident_neutrons[31m ➡ [39m[31m1.69757e+08[39m
     │           ├─ [0mpower_incident_radiated[31m ➡ [39m[31m0[39m
-    │           ├─ [0mpower_thermal_extracted[31m ➡ [39m[31m1.09118e+09[39m
-    │           ├─ [0mpower_thermal_neutrons[31m ➡ [39m[31m1.09118e+09[39m
+    │           ├─ [0mpower_thermal_extracted[31m ➡ [39m[31m2.03708e+08[39m
+    │           ├─ [0mpower_thermal_neutrons[31m ➡ [39m[31m2.03708e+08[39m
     │           ├─ [0mpower_thermal_radiated[31m ➡ [39m[31m0[39m
     │           └─ [0mtritium_breeding_ratio[31m ➡ [39m[31m1[39m
     ├─ [0mtime[31m ➡ [39m[32m[1][39m
-    └─ [0mtritium_breeding_ratio[31m ➡ [39m[32m[1][39m
+    └─ [0mtritium_breeding_ratio[31m ➡ [39m[32m[0.928583][39m
 
 
 
@@ -92,10 +93,27 @@ dd.divertors
 
     [0m[1mdivertors[22m
     ├─ [0m[1mdivertor[22m
-    │  └─ [0m[1m1[22m
-    │     ├─ [0mname[31m ➡ [39m[35m"all"[39m
+    │  ├─ [0m[1m1[22m
+    │  │  ├─ [0mname[31m ➡ [39m[35m"Upper divertor"[39m
+    │  │  ├─ [0m[1mpower_incident[22m
+    │  │  │  ├─ [0mdata[31m ➡ [39m[32m[1.47564e+08][39m
+    │  │  │  └─ [0mtime[31m ➡ [39m[32m[1][39m
+    │  │  ├─ [0m[1mpower_neutrals[22m
+    │  │  │  ├─ [0mdata[31m ➡ [39m[32m[0][39m
+    │  │  │  └─ [0mtime[31m ➡ [39m[32m[1][39m
+    │  │  ├─ [0m[1mpower_radiated[22m
+    │  │  │  ├─ [0mdata[31m ➡ [39m[32m[0][39m
+    │  │  │  └─ [0mtime[31m ➡ [39m[32m[1][39m
+    │  │  ├─ [0m[1mpower_recombination_neutrals[22m
+    │  │  │  ├─ [0mdata[31m ➡ [39m[32m[0][39m
+    │  │  │  └─ [0mtime[31m ➡ [39m[32m[1][39m
+    │  │  └─ [0m[1mpower_thermal_extracted[22m
+    │  │     ├─ [0mdata[31m ➡ [39m[32m[1.47564e+08][39m
+    │  │     └─ [0mtime[31m ➡ [39m[32m[1][39m
+    │  └─ [0m[1m2[22m
+    │     ├─ [0mname[31m ➡ [39m[35m"Lower divertor"[39m
     │     ├─ [0m[1mpower_incident[22m
-    │     │  ├─ [0mdata[31m ➡ [39m[32m[2.95129e+08][39m
+    │     │  ├─ [0mdata[31m ➡ [39m[32m[1.47564e+08][39m
     │     │  └─ [0mtime[31m ➡ [39m[32m[1][39m
     │     ├─ [0m[1mpower_neutrals[22m
     │     │  ├─ [0mdata[31m ➡ [39m[32m[0][39m
@@ -107,7 +125,7 @@ dd.divertors
     │     │  ├─ [0mdata[31m ➡ [39m[32m[0][39m
     │     │  └─ [0mtime[31m ➡ [39m[32m[1][39m
     │     └─ [0m[1mpower_thermal_extracted[22m
-    │        ├─ [0mdata[31m ➡ [39m[32m[2.95129e+08][39m
+    │        ├─ [0mdata[31m ➡ [39m[32m[1.47564e+08][39m
     │        └─ [0mtime[31m ➡ [39m[32m[1][39m
     └─ [0mtime[31m ➡ [39m[32m[1][39m
 
@@ -126,8 +144,8 @@ display(dd.balance_of_plant)
 
 ```
 
-    The net electrical power to the grid is 304.5 [MWe] 
-    With Qplant = 2.22 
+    The net electrical power to the grid is 242.9 [MWe] 
+    With Qplant = 1.97 
     
 
 
@@ -178,3 +196,8 @@ display(dd.balance_of_plant)
     └─ [0mtime[31m ➡ [39m[32m100-element Vector{Float64}[39m
 
 
+
+
+```julia
+
+```

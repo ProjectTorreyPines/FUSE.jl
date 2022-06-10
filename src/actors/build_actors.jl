@@ -1094,9 +1094,9 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         Z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
         if layer.shape == Int(_convex_hull_)
             h = [[r, z] for (r, z) in collect(zip(R, Z))]
-            hull = convex_hull(h)
-            R = vcat([r for (r, z) in hull], hull[1][1])
-            Z = vcat([z for (r, z) in hull], hull[1][2])
+            hull = convex_hull(h; closed_polygon=true)
+            R = [r for (r, z) in hull]
+            Z = [z for (r, z) in hull]
             # resample disabled because this can lead to outlines of different layers to be crossing
             # R, Z = IMAS.resample_2d_line(R, Z)
         end

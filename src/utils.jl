@@ -106,17 +106,6 @@ function isrightturn(p::Point, q::Point, r::Point)
     (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x) < 0
 end
 
-function grahamscan(points::Vector{Point})
-    sorted = sort(points)
-    upperhull = halfhull(sorted)
-    lowerhull = halfhull(reverse(sorted))
-    [upperhull..., lowerhull[2:end-1]...]
-end
-
-function convex_hull(xy::Vector)
-    return [(k.x, k.y) for k in grahamscan([Point(xx, yx) for (xx, yx) in xy])]
-end
-
 function halfhull(points::Vector{Point})
     halfhull = points[1:2]
     for p in points[3:end]
@@ -126,6 +115,22 @@ function halfhull(points::Vector{Point})
         end
     end
     halfhull
+end
+
+function grahamscan(points::Vector{Point})
+    sorted = sort(points)
+    upperhull = halfhull(sorted)
+    lowerhull = halfhull(reverse(sorted))
+    [upperhull..., lowerhull[2:end-1]...]
+end
+
+function convex_hull(xy::Vector; closed_polygon::Bool)
+    tmp = [(k.x, k.y) for k in grahamscan([Point(xx, yx) for (xx, yx) in xy])]
+    if closed_polygon
+        return push!(tmp, tmp[1])
+    else
+        return tmp
+    end
 end
 
 # ******************************************
