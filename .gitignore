@@ -34,7 +34,7 @@ docs/src/examples.md
 docs/src/example_*.md
 docs/src/assets/*_files/*.svg
 examples/*.md
-examples/cases/*.md
+examples/*/*.md
 # Ignore all juptyer notebooks (you can still force them in with git add -f)
 *.ipynb
 
