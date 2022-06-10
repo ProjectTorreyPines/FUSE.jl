@@ -1,0 +1,82 @@
+#= ============== =#
+#  OH TF stresses  #
+#= ============== =#
+Base.@kwdef mutable struct ActorStresses <: ReactorAbstractActor
+    dd::IMAS.dd
+end
+
+function ParametersActor(::Type{Val{:ActorStresses}})
+    par = ParametersActor(nothing)
+    par.do_plot = Entry(Bool, "", "plot"; default=false)
+    par.n_points = Entry(Integer, "", "Number of grid points"; default=5)
+    return par
+end
+
+"""
+    ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor estimates vertical field from PF coils and its contribution to flux swing, where
+`eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
+
+!!! note 
+    Stores data in `dd.solid_mechanics`
+"""
+function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorStresses(kw...)
+    actor = ActorStresses(dd)
+    step(actor; par.n_points)
+    finalize(actor)
+    if par.do_plot
+        display(plot(actor.dd.solid_mechanics.center_stack.stress))
+    end
+    return actor
+end
+
+function step(actor::ActorStresses; n_points::Integer=5)
+    eq = actor.dd.equilibrium
+    bd = actor.dd.build
+    sm = actor.dd.solid_mechanics
+
+    R_tf_in = IMAS.get_build(bd, type=_tf_, fs=_hfs_).start_radius
+    R_tf_out = IMAS.get_build(bd, type=_tf_, fs=_hfs_).end_radius
+    R0 = (R_tf_in + R_tf_out) / 2.0
+    B0 = maximum(eq.vacuum_toroidal_field.b0)
+    Bz_oh = bd.oh.max_b_field
+    R_oh_in = IMAS.get_build(bd, type=_oh_).start_radius
+    R_oh_out = IMAS.get_build(bd, type=_oh_).end_radius
+    f_struct_tf = bd.tf.technology.fraction_stainless
+    f_struct_oh = bd.oh.technology.fraction_stainless
+
+    bucked = sm.center_stack.bucked == 1
+    noslip = sm.center_stack.noslip == 1
+    plug = sm.center_stack.plug == 1
+    empty!(sm.center_stack)
+
+    for oh_on in [true, false]
+        solve_1D_solid_mechanics!(
+            sm.center_stack,
+            R0,
+            B0,
+            R_tf_in,
+            R_tf_out,
+            oh_on ? Bz_oh : 0.0,
+            R_oh_in,
+            R_oh_out;
+            bucked=bucked,
+            noslip=noslip,
+            plug=plug,
+            f_struct_tf=f_struct_tf,
+            f_struct_oh=f_struct_oh,
+            f_struct_pl=1.0,
+            n_points=n_points,
+            verbose=false,
+        )
+    end
+
+end
+
+@recipe function plot_ActorStresses(actor::ActorStresses)
+    @series begin
+        actor.dd.solid_mechanics.center_stack.stress
+    end
+end
