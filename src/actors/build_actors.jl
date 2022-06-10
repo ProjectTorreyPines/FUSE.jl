@@ -298,6 +298,7 @@ end
 
 function ParametersActor(::Type{Val{:ActorStresses}})
     par = ParametersActor(nothing)
+    par.do_plot = Entry(Bool, "", "plot"; default=false)
     return par
 end
 
@@ -310,11 +311,14 @@ This actor estimates vertical field from PF coils and its contribution to flux s
 !!! note 
     Stores data in `dd.solid_mechanics`
 """
-function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorStresses(dd::IMAS.dd, act::ParametersActor; do_plot=false, kw...)
     par = act.ActorStresses(kw...)
     actor = ActorStresses(; dd, par...)
     step(actor)
     finalize(actor)
+    if do_plot
+        display(plot(actor.dd.solid_mechanics.center_stack.stress))
+    end
     return actor
 end
 
