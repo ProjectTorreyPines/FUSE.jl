@@ -21,7 +21,7 @@ for dir in dirs
             try
                 title = txt[findfirst(r"^# .*", txt)][3:end]
             catch
-                error("example_$example.ipynb must have header markdown cell (`# title`)")
+                error("docs/src/example_$example.md must have header markdown cell (`# title`)")
             end
             return title
         end
