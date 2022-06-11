@@ -48,7 +48,8 @@ using InteractiveUtils: subtypes
 
     @test_throws UndefKeywordError FUSE.case_parameters(:ITER)
 
-    for par in subtypes(FUSE.AbstractActor)
+    # fail tests if not all actors have parameters associated with them
+    for par in FUSE.concretetypes(FUSE.AbstractActor)
         par = Symbol(replace(string(par), "FUSE." => ""))
         @test typeof(FUSE.ParametersActor(par)) <: FUSE.ParametersActor
     end

@@ -171,3 +171,18 @@ end
         x, y, img
     end
 end
+
+
+function concretetypes(type::Type)
+    out = Any[]
+    concretetypes!(out, type)
+end
+
+function concretetypes!(out, type::Type)
+    if !isabstracttype(type)
+        push!(out, type)
+    else
+        foreach(T->concretetypes!(out, T), subtypes(type))
+    end
+    out
+end
