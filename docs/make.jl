@@ -106,35 +106,55 @@ makedocs(;
         "Concepts" => "index.md",
         "Data Structure" => "dd.md",
         "Actors" => "actors.md",
-        "Parameters" => [
-            "ini Parameters" => "ini.md",
-            "act Parameters" => "act.md",
-            "Use Cases" => "cases.md",
-            "Initialization" => "inits.md"],
+        "Parameters" => ["ini Parameters" => "ini.md", "act Parameters" => "act.md", "Use Cases" => "cases.md", "Initialization" => "inits.md"],
         "Examples" => "examples.md",
         "Development" => "develop.md",
         "Setup" => "install.md",
-        "Others" => [
-            "GASC" => "gasc.md",
-            "Utilities" => "utils.md",
-            "HPC" => "parallel.md"],
-    ]
+        "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md", "HPC" => "parallel.md"],
+    ],
 )
 
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
 @info "Converting links"
 for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd", "dd")]
-    open("build/$file.html", "r") do io
-        txt = read(io, String)
-        txt = split(txt, "\n")
-        for (k, line) in enumerate(txt)
-            txt[k] = replace(txt[k], r"©(.*)©©©(.*)©" => s"<a href='©.html#\1'>\2</a>")
-            txt[k] = replace(txt[k], r"©(.*)©©(.*)©" => s"<a href='©_details.html#\1'>\2</a>")
-            txt[k] = replace(txt[k], "©" => parfile)
-        end
-        open("build/$file.html", "w") do io
-            write(io, join(txt, "\n"))
-        end
+    local txt = open("build/$file.html", "r") do io
+        read(io, String)
+    end
+    txt = split(txt, "\n")
+    for (k, line) in enumerate(txt)
+        txt[k] = replace(txt[k], r"©(.*)©©©(.*)©" => s"<a href='©.html#\1'>\2</a>")
+        txt[k] = replace(txt[k], r"©(.*)©©(.*)©" => s"<a href='©_details.html#\1'>\2</a>")
+        txt[k] = replace(txt[k], "©" => parfile)
+    end
+    open("build/$file.html", "w") do io
+        write(io, join(txt, "\n"))
+    end
+end
+
+# distinguish between input/output cells
+@info "Styling examples"
+for css in ["light", "dark"]
+    open("build/assets/themes/documenter-$css.css", "a") do io
+        write(
+            io,
+            """\n
+.nohighlight {
+background-color: transparent !important;
+}""",
+        )
+    end
+end
+files_to_convert = readdir("build")[findall(x -> startswith(x, "example_") && endswith(x, ".html"), readdir("build"))]
+for file in files_to_convert
+    local txt = open("build/$file", "r") do io
+        read(io, String)
+    end
+    txt = split(txt, "\n")
+    for (k, line) in enumerate(txt)
+        txt[k] = replace(line, "<pre><code class=\"nohighlight" => "<pre class=\"nohighlight\"><code class=\"nohighlight")
+    end
+    open("build/$file", "w") do io
+        write(io, join(txt, "\n"))
     end
 end
 

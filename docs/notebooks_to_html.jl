@@ -9,7 +9,7 @@ current_path = dirname(abspath(@__FILE__))
 
 for dir in dirs
     example_folder = joinpath(current_path, "..", "examples", dir)
-    files_to_convert = readdir(example_folder)[findall(endswith(".ipynb"), readdir(example_folder))]
+    files_to_convert = readdir(example_folder)[findall(x->endswith(x,".ipynb"), readdir(example_folder))]
 
     @showprogress for case in files_to_convert
         ipynb = joinpath(example_folder, case)
