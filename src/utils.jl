@@ -21,18 +21,6 @@ function IMAS.force_float(x::ForwardDiff.Dual)
 end
 
 """
-    returns enum from symbol
-"""
-function to_enum(smbl::Symbol)::Enum
-    smbl = Symbol("_$(smbl)_")
-    return @eval($smbl)
-end
-
-function to_enum(smbl::T where {T<:Enum})
-    return smbl
-end
-
-"""
     same_length_vectors(args...)
 
 Returns scalars and vectors as vectors of the same lengths
@@ -173,9 +161,28 @@ end
 end
 
 
+# ******************************************
+# types
+# ******************************************
+"""
+    returns enum from symbol
+"""
+function to_enum(smbl::Symbol)::Enum
+    smbl = Symbol("_$(smbl)_")
+    return @eval($smbl)
+end
+
+function to_enum(smbl::T where {T<:Enum})
+    return smbl
+end
+
+"""
+    concretetypes(type::Type)
+
+List concrete subtypes of a given datatype
+"""
 function concretetypes(type::Type)
-    out = Any[]
-    concretetypes!(out, type)
+    concretetypes!(Any[], type)
 end
 
 function concretetypes!(out, type::Type)

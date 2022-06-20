@@ -1,4 +1,4 @@
-using Equilibrium
+import Equilibrium
 import ForwardDiff
 import Optim
 
@@ -7,7 +7,7 @@ import Optim
 #= ============ =#
 Base.@kwdef mutable struct ActorSolovev <: PlasmaAbstractActor
     eq::IMAS.equilibrium
-    S::SolovevEquilibrium
+    S::Equilibrium.SolovevEquilibrium
 end
 
 function ParametersActor(::Type{Val{:ActorSolovev}})
@@ -92,7 +92,7 @@ function step(actor::ActorSolovev; verbose=false)
 
     function cost(x)
         # NOTE: Ip/Beta calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
-        S = solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
+        S = Equilibrium.solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
         beta_cost = (Equilibrium.beta_n(S) - target_beta) / target_beta
         ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
         c = beta_cost^2 + ip_cost^2
@@ -105,7 +105,7 @@ function step(actor::ActorSolovev; verbose=false)
         println(res)
     end
 
-    actor.S = solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
+    actor.S = Equilibrium.solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
 
     # @show Equilibrium.beta_t(actor.S)
     # @show Equilibrium.beta_p(actor.S)

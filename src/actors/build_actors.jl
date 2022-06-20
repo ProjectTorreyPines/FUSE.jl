@@ -736,7 +736,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
 
         # add the divertor slots
-        α = 0.1
+        α = 0.2
         pr = vcat(pr, R0 * α + Rx * (1 - α))
         pz = vcat(pz, Z0 * α + Zx * (1 - α))
         slot = LibGEOS.buffer(xy_polygon(pr, pz), a)
@@ -817,7 +817,6 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     layer_in_poly = xy_polygon(layer_in)
     ring_poly = LibGEOS.difference(layer_poly, layer_in_poly)
     for structure in [structure for structure in bd.structure if structure.type == Int(_divertor_)]
-        plot!(structure.outline.r, structure.outline.z)
         structure_poly = xy_polygon(structure)
         ring_poly = LibGEOS.difference(ring_poly, structure_poly)
     end
@@ -828,7 +827,6 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
         coords = LibGEOS.coordinates(poly)
         pr = [v[1] for v in coords[1]]
         pz = [v[2] for v in coords[1]]
-        plot!(pr, pz, linewidth=2)
 
         # assign to build structure
         if length(geometries) == 2
