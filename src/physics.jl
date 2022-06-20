@@ -2,6 +2,7 @@ import SpecialFunctions
 import QuadGK
 import Interpolations
 import PolygonOps
+import Interact
 
 #= =============== =#
 #  Shape functions  #
