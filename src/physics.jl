@@ -579,3 +579,47 @@ return `y` values at `x` of line with gradient `m` going through point `(x0,y0)`
 function line_through_point(m, x0, y0, x)
     return @. m * x + y0 - m * x0
 end
+
+
+"""
+    boundary_shape(mxh::IMAS.MXH; p=nothing)
+
+Plot and interactively manipulate Miller Extended Harmonic (MXH) boundary
+"""
+function boundary_shape(mxh::IMAS.MXH; p=nothing)
+    n = 101
+    Interact.@manipulate for 
+        ϵ in Interact.slider(LinRange(0.0, 1.0, n), value=mxh.ϵ, label="ϵ"),
+        κ in Interact.slider(LinRange(1, 3, n), value=mxh.κ, label="κ"),
+        #tilt in Interact.slider(LinRange(-1,1,n);value=mxh.c0,label="tilt"),
+        #ovality in Interact.slider(LinRange(-1,1,n);value=mxh.c[1],label="ovality"),
+        triangularity in Interact.slider(LinRange(-1, 1, n), value=mxh.s[1], label="δ"),
+        #s_shape in Interact.slider(LinRange(-1,1,n);value=mxh.c[2],label="s1"),
+        #squareness in Interact.slider(LinRange(-1, 1, n), value=-(mxh.s[2] + mxh.s[3]) / 2.0, label="ζ"),
+        squareness in Interact.slider(LinRange(-1, 1, n), value=-mxh.s[2], label="ζ"),
+        #c3 in Interact.slider(LinRange(-1,1,n);value=mxh.c[3],label="s2"),
+        pentagonnes in Interact.slider(LinRange(-1,1,n);value=mxh.s[3],label="⬠")
+
+        mxh.ϵ = ϵ
+        mxh.κ = κ
+        #mxh.c0=tilt
+        #mxh.c[1]=ovality
+        mxh.s[1] = triangularity
+        #mxh.c[2]=s_shape
+        mxh.s[2] = -squareness
+        #mxh.c[3]=c3
+        mxh.s[3] = -pentagonnes
+
+        if p === nothing
+            q = plot()
+        else
+            q = deepcopy(p)
+            plot(q)
+        end
+        plot!(q, mxh, color=:black, linewidth=2)
+    end
+end
+
+function boundary_shape(R0::Real; p=nothing)
+    return boundary_shape(IMAS.MXH(R0,3);p=p)
+end
