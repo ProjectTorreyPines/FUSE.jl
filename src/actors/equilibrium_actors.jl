@@ -1,4 +1,5 @@
 import Equilibrium
+import CHEASE:run_chease
 import ForwardDiff
 import Optim
 
@@ -211,4 +212,86 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
         (eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z), # Magnetic Axis (raxis,zaxis)
         Int(sign(eqt.profiles_1d.f[end]) * sign(eqt.global_quantities.ip)) # sign(dot(J,B))
     )
+end
+
+#= =========== =#
+#  ActorCHEASE  #
+#= =========== =#
+
+# Defintion of the actor structure
+Base.@kwdef mutable struct ActorCHEASE <: PlasmaAbstractActor
+    dd::IMAS.dd
+    j_tor_from::String
+    pressure_from::String
+    EFITEquilibrium::Union{Equilibrium.AbstractEquilibrium,Nothing}
+end
+
+# Definition of the `act` parameters relevant to the actor
+function ParametersActor(::Type{Val{:ActorCHEASE}})
+    par = ParametersActor(nothing)
+    par.j_tor_from = Entry(String, "", "get j_tor from core_profiles or equilibrium"; default="equilibrium")
+    par.pressure_from = Entry(String, "", "get pressure from core_profiles or equilibrium"; default="equilibrium")
+    par.verbose = Entry(Bool, "", "verbose"; default=false)
+    return par
+end
+
+# run actor with `dd` and `act` as arguments
+"""
+    ActorCHEASE(dd::IMAS.dd, act::ParametersActor; kw...)
+
+This actor runs the Fixed boundary equilibrium solver CHEASE"""
+function ActorCHEASE(dd::IMAS.dd, act::ParametersActor; kw...)
+    par = act.ActorCHEASE(kw...)
+    actor = ActorCHEASE(dd, par.j_tor_from, par.pressure_from, nothing)
+    step(actor)
+    finalize(actor)
+    return actor
+end
+
+# define `step` function for this actor
+function step(actor::ActorCHEASE)
+    dd = actor.dd
+    eqt = dd.equilibrium.time_slice[]
+    eq1d = eqt.profiles_1d
+
+    if actor.j_tor_from == "equilibrium" && actor.pressure_from =="equilibrium"
+        j_tor = eq1d.j_tor
+        pressure = eq1d.pressure
+        rho = eq1d.rho_tor_norm
+    elseif actor.j_tor_from == "equilibrium" && actor.pressure_from =="core_profiles"
+        rho = eq1d.rho_tor_norm
+        cp1d = dd.core_profiles.profiles_1d[]
+        j_tor = eq1d.j_tor
+        pressure = IMAS.interp1d(cp1d.grid.rho_tor_norm,cp1d.pressure_thermal).(rho)
+
+    elseif actor.j_tor_from == "core_profiles" && actor.pressure_from =="equilibrium"
+        rho = eq1d.rho_tor_norm
+        cp1d = dd.core_profiles.profiles_1d[]
+        j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm,cp1d.j_tor).(rho)
+        pressure = eq1d.pressure
+    else
+        cp1d = dd.core_profiles.profiles_1d[]
+        j_tor = cp1d.j_tor
+        pressure = cp1d.pressure_thermal
+        rho = cp1d.grid.rho_tor_norm
+    end
+
+    r_bound = eqt.boundary.outline.r
+    z_bound = eqt.boundary.outline.z
+
+    Bt_center = @ddtime (dd.equilibrium.vacuum_toroidal_field.b0)
+    r_center = eqt.boundary.geometric_axis.r
+    z_axis = eqt.boundary.geometric_axis.z
+    pressure_sep = pressure[end]
+
+    ϵ = eqt.boundary.minor_radius / r_center    
+    Ip = eqt.global_quantities.ip
+
+    # Signs aren't conveyed properly 
+    actor.EFITEquilibrium = run_chease(ϵ,z_axis, pressure_sep, abs(Bt_center), r_center, abs(Ip), r_bound, z_bound, 82, rho, pressure, abs.(j_tor), keep_output=true)
+end
+
+# define `finalize` function for this actor
+function finalize(actor::ActorCHEASE)
+    # read gfile or EFITEquilibrium to dd.equilibrium (to do)
 end
