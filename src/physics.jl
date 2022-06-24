@@ -324,10 +324,18 @@ function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; 
         R = [r_start, r_end, r_end, r_start, r_start]
         Z = [z_low, z_low, z_high, z_high, z_low]
     else
-        R = vcat(range(r_start, r_end; length=n_points), range(r_end, r_end; length=n_points)[2:end], range(r_end, r_start; length=n_points)[2:end],
-                 range(r_start, r_start; length=n_points)[2:end], r_start)
-        Z = vcat(range(z_low, z_low; length=n_points), range(z_low, z_high; length=n_points)[2:end], range(z_high, z_high; length=n_points)[2:end],
-                 range(z_high, z_low; length=n_points)[2:end], z_low)
+        R = vcat(
+            range(r_start, r_end; length=n_points),
+            range(r_end, r_end; length=n_points)[2:end],
+            range(r_end, r_start; length=n_points)[2:end],
+            range(r_start, r_start; length=n_points)[2:end],
+            r_start)
+        Z = vcat(
+            range(z_low, z_low; length=n_points),
+            range(z_low, z_high; length=n_points)[2:end],
+            range(z_high, z_high; length=n_points)[2:end],
+            range(z_high, z_low; length=n_points)[2:end],
+            z_low)
     end
     return R, Z
 end
@@ -505,7 +513,7 @@ function volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvect
 end
 
 IMAS.expressions["build.layer[:].volume_no_structures"] =
-    (;build, layer, _...) -> volume_no_structures(layer, build.structure)
+    (; build, layer, _...) -> volume_no_structures(layer, build.structure)
 
 """
     layer_structure_intersect_volume(layer::IMAS.build__layer, structure::IMAS.build__structure)
@@ -520,9 +528,9 @@ function layer_structure_intersect_volume(layer::IMAS.build__layer, structure::I
     elseif layer.fs ∈ [Int(_hfs_), Int(_lfs_)]
         i = IMAS.index(layer)
         if layer.fs == Int(_hfs_)
-            layer_in = IMAS.parent(layer)[i + 1]
+            layer_in = IMAS.parent(layer)[i+1]
         else
-            layer_in = IMAS.parent(layer)[i - 1]
+            layer_in = IMAS.parent(layer)[i-1]
         end
     end
     layer_poly = xy_polygon(layer)
@@ -577,20 +585,86 @@ end
 
 return `y` values at `x` of line with gradient `m` going through point `(x0,y0)` 
 """
-function line_through_point(m, x0, y0, x)
+function line_through_point(m::T, x0::T, y0::T, x::Vector{T}) where {T<:Real}
     return @. m * x + y0 - m * x0
 end
 
+mutable struct MXHboundary
+    mxh::IMAS.MXH
+    rX::Vector{<:Real}
+    zX::Vector{<:Real}
+    r_boundary::Vector{<:Real}
+    z_boundary::Vector{<:Real}
+end
+
+function add_xpoint(mr::Vector{T}, mz::Vector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
+    rX = mr[i] .* α .+ R0 .* (1.0 .- α)
+    zX = mz[i] .* α .+ Z0 .* (1.0 .- α)
+    rrrzzz = FUSE.convex_hull(collect(zip(vcat(mr, rX), vcat(mz, zX))); closed_polygon=true)
+    rrr = [r for (r, z) in rrrzzz]
+    zzz = [z for (r, z) in rrrzzz]
+    return rrr, zzz
+end
+
+function add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::T, Z0::T; upper::Bool) where {T<:Real}
+
+    function cost(mr, mz, i, R0, Z0, α)
+        rrr, zzz = add_xpoint(mr, mz, i, R0, Z0, α[1])
+        tmp = 1.0 - maximum(abs.(IMAS.curvature(rrr, zzz)))
+        return tmp
+    end
+
+    if upper
+        i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .> Z0))
+    else
+        i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
+    end
+    res = FUSE.Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, FUSE.Optim.GoldenSection())
+    α = res.minimizer[1]
+    rX = mr[i] .* α .+ R0 .* (1.0 .- α)
+    zX = mz[i] .* α .+ Z0 .* (1.0 .- α)
+
+    return rX, zX
+end
+
+function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool)
+    mr, mz = mxh()
+    R0 = mxh.R0
+    Z0 = mxh.Z0
+
+    rX = Float64[]
+    zX = Float64[]
+    if upper_x_point
+        rXU, zXU = add_xpoint(mr, mz, R0, Z0; upper=true)
+        push!(rX, rXU)
+        push!(zX, zXU)
+    end
+    if lower_x_point
+        rXL, zXL = add_xpoint(mr, mz, R0, Z0; upper=false)
+        push!(rX, rXL)
+        push!(zX, zXL)
+    end
+
+    rrrzzz = FUSE.convex_hull(collect(zip(vcat(mr, rX), vcat(mz, zX))); closed_polygon=true)
+    rrr = [r for (r, z) in rrrzzz]
+    zzz = [z for (r, z) in rrrzzz]
+    rrr, zzz = IMAS.resample_2d_line(rrr, zzz; npoints=length(mr))
+    IMAS.reorder_flux_surface!(rrr, zzz, R0, Z0)
+
+    return MXHboundary(mxh, rX, zX, rrr, zzz)
+end
 
 """
-    boundary_shape(mxh::IMAS.MXH; p=nothing)
+    boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p=nothing)
 
-Plot and interactively manipulate Miller Extended Harmonic (MXH) boundary
+Plot and manipulate Miller Extended Harmonic (MXH) boundary
 """
-function boundary_shape(mxh::IMAS.MXH; p=nothing)
+function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot})
     n = 101
-    Interact.@manipulate for 
-        ϵ in Interact.slider(LinRange(0.0, 1.0, n), value=mxh.ϵ, label="ϵ"),
+    if length(mxh.c) != 3
+        mxh = IMAS.MXH(mxh()..., 3)
+    end
+    Interact.@manipulate for ϵ in Interact.slider(LinRange(0.0, 1.0, n), value=mxh.ϵ, label="ϵ"),
         κ in Interact.slider(LinRange(1, 3, n), value=mxh.κ, label="κ"),
         #tilt in Interact.slider(LinRange(-1,1,n);value=mxh.c0,label="tilt"),
         #ovality in Interact.slider(LinRange(-1,1,n);value=mxh.c[1],label="ovality"),
@@ -599,7 +673,7 @@ function boundary_shape(mxh::IMAS.MXH; p=nothing)
         #squareness in Interact.slider(LinRange(-1, 1, n), value=-(mxh.s[2] + mxh.s[3]) / 2.0, label="ζ"),
         squareness in Interact.slider(LinRange(-1, 1, n), value=-mxh.s[2], label="ζ"),
         #c3 in Interact.slider(LinRange(-1,1,n);value=mxh.c[3],label="s2"),
-        pentagonnes in Interact.slider(LinRange(-1,1,n);value=mxh.s[3],label="⬠")
+        pentagonnes in Interact.slider(LinRange(-1, 1, n); value=mxh.s[3], label="⬠")
 
         mxh.ϵ = ϵ
         mxh.κ = κ
@@ -617,10 +691,17 @@ function boundary_shape(mxh::IMAS.MXH; p=nothing)
             q = deepcopy(p)
             plot(q)
         end
-        plot!(q, mxh, color=:black, linewidth=2)
+
+        if upper_x_point || lower_x_point
+            mxhb = MXH_boundary(mxh; upper_x_point, lower_x_point)
+            plot!(q, mxh, color=:gray, linewidth=1.5)
+            plot!(q, mxhb.r_boundary, mxhb.z_boundary, color=:black, linewidth=2, label="")
+        else
+            plot!(q, mxh, color=:black, linewidth=2, label="")
+        end
     end
 end
 
 function boundary_shape(R0::Real; p=nothing)
-    return boundary_shape(IMAS.MXH(R0,3);p=p)
+    return boundary_shape(IMAS.MXH(R0, 3); p=p)
 end

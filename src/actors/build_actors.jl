@@ -754,7 +754,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     pr = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
     pz = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
 
-    pr, pz = IMAS.resample_2d_line(pr, pz, 0.1)
+    pr, pz = IMAS.resample_2d_line(pr, pz; step=0.1)
 
     return pr, pz
 end

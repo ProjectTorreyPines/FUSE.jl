@@ -80,7 +80,7 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
 
     # resample wall and make sure it's clockwise (for COCOS = 11)
     wall = IMAS.first_wall(dd.wall)
-    wall_r, wall_z = IMAS.resample_2d_line(wall.r, wall.z, 0.1)
+    wall_r, wall_z = IMAS.resample_2d_line(wall.r, wall.z; step=0.1)
     #wall_r, wall_z = deepcopy(wall.r), deepcopy(wall.z)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
