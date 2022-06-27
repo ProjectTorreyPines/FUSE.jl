@@ -1,4 +1,5 @@
 import Equilibrium
+import EFIT
 import CHEASE:run_chease
 import ForwardDiff
 import Optim
@@ -214,6 +215,42 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
     )
 end
 
+"""
+    gEQDSK2IMAS(GEQDSKFile::GEQDSKFile,eq::IMAS.equilibrium)
+
+Convert IMAS.equilibrium__time_slice to Equilibrium.jl EFIT structure
+"""
+function gEQDSK2IMAS(g::EFIT.GEQDSKFile,eq::IMAS.equilibrium)
+
+    tc = transform_cocos(1,11) # chease output is cocos 1 , dd is cocos 11
+
+    eqt = eq.time_slice[]
+    eq1d = eqt.profiles_1d
+    resize!(eqt.profiles_2d,1)
+    eq2d = eqt.profiles_2d[1]
+
+    @ddtime (eq.vacuum_toroidal_field.b0) = g.bcentr
+    eq.vacuum_toroidal_field.r0 = g.rcentr
+    
+    eqt.global_quantities.magnetic_axis.r = g.rmaxis
+    eqt.global_quantities.magnetic_axis.z = g.zmaxis
+    eqt.global_quantities.ip = g.current
+
+    eq1d.psi = g.psi.* tc["PSI"]
+    eq1d.q = g.qpsi
+    eq1d.pressure = g.pres
+    eq1d.dpressure_dpsi = g.pprime .* tc["PPRIME"]
+    eq1d.f = g.fpol .* tc["F"]
+    eq1d.f_df_dpsi = g.ffprim .* tc["F_FPRIME"]
+
+    eq2d.grid_type.index = 1
+    eq2d.grid.dim1 = g.r
+    eq2d.grid.dim2 = g.z
+    eq2d.psi = g.psirz .* tc["PSI"]
+
+    IMAS.flux_surfaces(eqt)
+end
+
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
@@ -223,7 +260,7 @@ Base.@kwdef mutable struct ActorCHEASE <: PlasmaAbstractActor
     dd::IMAS.dd
     j_tor_from::Symbol
     pressure_from::Symbol
-    EFITEquilibrium::Union{Equilibrium.AbstractEquilibrium,Nothing}
+    GEQDSKFile::Union{EFIT.GEQDSKFile,Nothing}
 end
 
 # Definition of the `act` parameters relevant to the actor
@@ -254,17 +291,17 @@ function step(actor::ActorCHEASE)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
-    if actor.j_tor_from == :equlibrium && actor.pressure_from == :equlibrium
+    if actor.j_tor_from == :equilibrium && actor.pressure_from == :equilibrium
         j_tor = eq1d.j_tor
         pressure = eq1d.pressure
         rho = eq1d.rho_tor_norm
-    elseif actor.j_tor_from == :equlibrium && actor.pressure_from == :core_profiles
+    elseif actor.j_tor_from == :equilibrium && actor.pressure_from == :core_profiles
         rho = eq1d.rho_tor_norm
         cp1d = dd.core_profiles.profiles_1d[]
         j_tor = eq1d.j_tor
         pressure = IMAS.interp1d(cp1d.grid.rho_tor_norm,cp1d.pressure_thermal).(rho)
 
-    elseif actor.j_tor_from == :core_profiles && actor.pressure_from == :equlibrium
+    elseif actor.j_tor_from == :core_profiles && actor.pressure_from == :equilibrium
         rho = eq1d.rho_tor_norm
         cp1d = dd.core_profiles.profiles_1d[]
         j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm,cp1d.j_tor).(rho)
@@ -288,10 +325,10 @@ function step(actor::ActorCHEASE)
     Ip = eqt.global_quantities.ip
 
     # Signs aren't conveyed properly 
-    actor.EFITEquilibrium = run_chease(ϵ,z_axis, pressure_sep, abs(Bt_center), r_center, abs(Ip), r_bound, z_bound, 82, rho, pressure, abs.(j_tor), keep_output=true)
+    actor.GEQDSKFile = run_chease(ϵ,z_axis, pressure_sep, abs(Bt_center), r_center, abs(Ip), r_bound, z_bound, 82, rho, pressure, abs.(j_tor), keep_output=false)
 end
 
 # define `finalize` function for this actor
 function finalize(actor::ActorCHEASE)
-    # read gfile or EFITEquilibrium to dd.equilibrium (to do)
+    gEQDSK2IMAS(actor.GEQDSKFile, actor.dd.equilibrium)
 end
