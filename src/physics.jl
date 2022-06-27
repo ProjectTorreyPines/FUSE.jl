@@ -18,8 +18,9 @@ function layer_shape_message(shape_function_index)
          4: rectangle         (shape_parameters = [height])
          5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
          6: miller            (shape_parameters = [elongation, triangularity])
-         7: spline            (shape_parameters = [hfact, rz...)
-         8: silo              (shape_parameters = [h_start, h_end)
+         7: square_miller     (shape_parameters = [elongation, triangularity,squareness])
+         8: spline            (shape_parameters = [hfact, rz...)
+         9: silo              (shape_parameters = [h_start, h_end)
        10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
 10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
        10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
@@ -54,7 +55,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
             shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
-        elseif shape_index_mod == Int(_miller_)
+        elseif shape_index_mod in [Int(_miller_), Int(_square_miller_)]
             _, imaxr = findmax(r_obstruction)
             _, iminr = findmin(r_obstruction)
             _, imaxz = findmax(z_obstruction)
@@ -69,7 +70,11 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             elongation = b / a
             triup = (R - r_at_max_z) / a
             tridown = (R - r_at_min_z) / a
-            shape_parameters = [elongation, (triup + tridown) / 2.0]
+            if shape_index_mod == Int(_miller_)
+                shape_parameters = [elongation, (triup + tridown) / 2.0]
+            else
+                shape_parameters = [elongation, (triup + tridown) / 2.0, 0.0]
+            end
         elseif shape_index_mod == Int(_spline_)
             n = 1
             R = range(r_start, r_end, length=2 + n)[2:end-1]
@@ -119,6 +124,8 @@ function shape_function(shape_function_index)
             func = triple_arc
         elseif shape_index_mod == Int(_miller_)
             func = miller_Rstart_Rend
+        elseif shape_index_mod == Int(_square_miller_)
+            func = square_miller_Rstart_Rend
         elseif shape_index_mod == Int(_spline_)
             func = spline_shape
         elseif shape_index_mod == Int(_silo_)
@@ -424,7 +431,6 @@ end
     miller(R0, inverse_aspect_ratio, elongation, triangularity, n_points)
 
 Miller contour
-layer[:].shape = 4
 """
 function miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real; n_points::Int=401)
     θ = range(0, 2 * pi; length=n_points)
@@ -438,7 +444,7 @@ function miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::R
 end
 
 """
-    miller_Rstart_Rend(r_start, r_end, elongation, triangularity, n_points)
+    miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real; n_points::Int=401)
 
 Miller contour
 """
@@ -447,7 +453,7 @@ function miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triang
 end
 
 """
-    spline_shape(r::Real, z::Real; n_points::Int=101)
+    spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where {T<:Real}
 
 Spline contour
 """
@@ -597,21 +603,28 @@ mutable struct MXHboundary
     z_boundary::Vector{<:Real}
 end
 
+@recipe function plot_mxhb(mxhb::MXHboundary)
+    @series begin
+        aspect_ratio --> :equal
+        label --> ""
+        mxhb.r_boundary, mxhb.z_boundary
+    end
+end
+
 function add_xpoint(mr::Vector{T}, mz::Vector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
     rX = mr[i] .* α .+ R0 .* (1.0 .- α)
     zX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    rrrzzz = FUSE.convex_hull(collect(zip(vcat(mr, rX), vcat(mz, zX))); closed_polygon=true)
-    rrr = [r for (r, z) in rrrzzz]
-    zzz = [z for (r, z) in rrrzzz]
-    return rrr, zzz
+    RZ = FUSE.convex_hull(collect(zip(vcat(mr, rX), vcat(mz, zX))); closed_polygon=true)
+    R = [r for (r, z) in RZ]
+    Z = [z for (r, z) in RZ]
+    return rX, zX, R, Z
 end
 
 function add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::T, Z0::T; upper::Bool) where {T<:Real}
 
     function cost(mr, mz, i, R0, Z0, α)
-        rrr, zzz = add_xpoint(mr, mz, i, R0, Z0, α[1])
-        tmp = 1.0 - maximum(abs.(IMAS.curvature(rrr, zzz)))
-        return tmp
+        rX, zX, R, Z = add_xpoint(mr, mz, i, R0, Z0, α[1])
+        return (1.0 - maximum(abs.(IMAS.curvature(R, Z))))^2
     end
 
     if upper
@@ -620,14 +633,12 @@ function add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::T, Z0::T; upper::Bool) whe
         i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
     end
     res = FUSE.Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, FUSE.Optim.GoldenSection())
-    α = res.minimizer[1]
-    rX = mr[i] .* α .+ R0 .* (1.0 .- α)
-    zX = mz[i] .* α .+ Z0 .* (1.0 .- α)
+    rX, zX, R, Z = add_xpoint(mr, mz, i, R0, Z0, res.minimizer[1])
 
-    return rX, zX
+    return rX, zX, R, Z
 end
 
-function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool)
+function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Union{Nothing,Integer}=nothing)
     mr, mz = mxh()
     R0 = mxh.R0
     Z0 = mxh.Z0
@@ -635,23 +646,24 @@ function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool)
     rX = Float64[]
     zX = Float64[]
     if upper_x_point
-        rXU, zXU = add_xpoint(mr, mz, R0, Z0; upper=true)
+        rXU, zXU, _ = add_xpoint(mr, mz, R0, Z0; upper=true)
         push!(rX, rXU)
         push!(zX, zXU)
     end
     if lower_x_point
-        rXL, zXL = add_xpoint(mr, mz, R0, Z0; upper=false)
+        rXL, zXL, _ = add_xpoint(mr, mz, R0, Z0; upper=false)
         push!(rX, rXL)
         push!(zX, zXL)
     end
 
-    rrrzzz = FUSE.convex_hull(collect(zip(vcat(mr, rX), vcat(mz, zX))); closed_polygon=true)
-    rrr = [r for (r, z) in rrrzzz]
-    zzz = [z for (r, z) in rrrzzz]
-    rrr, zzz = IMAS.resample_2d_line(rrr, zzz; npoints=length(mr))
-    IMAS.reorder_flux_surface!(rrr, zzz, R0, Z0)
+    RZ = FUSE.convex_hull(collect(zip(vcat(mr, rX), vcat(mz, zX))); closed_polygon=true)
+    R = [r for (r, z) in RZ]
+    Z = [z for (r, z) in RZ]
 
-    return MXHboundary(mxh, rX, zX, rrr, zzz)
+    IMAS.reorder_flux_surface!(R, Z, R0, Z0)
+    R, Z = IMAS.resample_2d_line(R, Z; n_points=n_points)
+
+    return MXHboundary(mxh, rX, zX, R, Z)
 end
 
 """
@@ -704,4 +716,62 @@ end
 
 function boundary_shape(R0::Real; p=nothing)
     return boundary_shape(IMAS.MXH(R0, 3); p=p)
+end
+
+"""
+    square_miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real, squareness::Real; x_points::Bool, exact::Bool=false, n_points::Int=401)
+
+Miller contour with squareness (via MXH parametrization)
+
+`exact=true` optimizes elongation/triangularity to match true Miller parametrization
+since MXH and Miller deviate at high triangularities, and addition of X-points will
+also alter measured elongation and triangularity.
+"""
+function square_miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real, squareness::Real; x_points::Bool, exact::Bool=false, n_points::Int=401)
+    mxh = IMAS.MXH(R0, 2)
+    mxh.ϵ = rmin_over_R0
+    mxh.κ = elongation
+    mxh.s[1] = triangularity
+    mxh.s[2] = -squareness
+
+    if exact
+        function cost(mxh::IMAS.MXH, x_points::Bool, elongation::Real, triangularity::Real, x::Vector{<:Real})
+            mxh.κ = x[1]
+            mxh.s[1] = x[2]
+            mxhb = MXH_boundary(mxh; upper_x_point=x_points, lower_x_point=x_points)
+            pr = mxhb.r_boundary
+            pz = mxhb.z_boundary
+            _, imaxr = findmax(pr)
+            _, iminr = findmin(pr)
+            _, imaxz = findmax(pz)
+            _, iminz = findmin(pz)
+            r_at_max_z, max_z = pr[imaxz], pz[imaxz]
+            r_at_min_z, min_z = pr[iminz], pz[iminz]
+            z_at_max_r, max_r = pz[imaxr], pr[imaxr]
+            z_at_min_r, min_r = pz[iminr], pr[iminr]
+            Rm = 0.5 * (max_r + min_r)
+            a = 0.5 * (max_r - min_r)
+            b = 0.5 * (max_z - min_z)
+            κ = b / a
+            δu = (Rm - r_at_max_z) / a
+            δl = (Rm - r_at_min_z) / a
+            δ = (δu + δl) / 2.0
+            return sqrt((κ - elongation)^2 + (δ - triangularity)^2)
+        end
+        res = Optim.optimize(x -> cost(mxh, x_points, elongation, triangularity, x), [mxh.κ, mxh.s[1]], Optim.NelderMead())
+        mxh.κ = res.minimizer[1]
+        mxh.s[1] = res.minimizer[2]
+    end
+
+    mxhb = MXH_boundary(mxh; upper_x_point=x_points, lower_x_point=x_points, n_points=n_points)
+    return mxhb.r_boundary, mxhb.z_boundary
+end
+
+"""
+    square_miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real, squareness::Real; n_points::Int=401)
+
+Miller with squareness contour
+"""
+function square_miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real, squareness::Real; n_points::Int=401)
+    return square_miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity, squareness; n_points)
 end
