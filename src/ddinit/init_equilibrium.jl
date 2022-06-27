@@ -88,7 +88,10 @@ function init_equilibrium(
     eqt.global_quantities.ip = ip
     eqt.global_quantities.beta_normal = βn
     if x_point === true
-        x_point = (R0 * (1 - 1.1 * δ * ϵ), -R0 * 1.1 * κ * ϵ)
+        mr, mz = miller(R0, ϵ, κ, δ)
+        mz .+= Z0
+        i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
+        x_point = (mr[i], mz[i])
     end
     if isa(x_point, Union{AbstractVector,Tuple})
         resize!(eqt.boundary.x_point, 1)

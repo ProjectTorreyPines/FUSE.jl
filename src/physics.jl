@@ -10,21 +10,19 @@ import Interact
 
 function layer_shape_message(shape_function_index)
     return "layer.shape=$(shape_function_index) is invalid. Valid options are:
-        -2: Offset & convex-hull
-        -1: Offset
-         1: Priceton D exact  (shape_parameters = [])
-         2: Priceton D approx (shape_parameters = [])
-         3: Priceton D scaled (shape_parameters = [height])
-         4: rectangle         (shape_parameters = [height])
-         5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-         6: miller            (shape_parameters = [elongation, triangularity])
-         7: square_miller     (shape_parameters = [elongation, triangularity,squareness])
-         8: spline            (shape_parameters = [hfact, rz...)
-         9: silo              (shape_parameters = [h_start, h_end)
-       10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
-10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
-       10x: shape + z_offset  (shape_parameters = [..., z_offset]) 
-       "
+            -2: Offset & convex-hull
+            -1: Offset
+             1: Priceton D exact  (shape_parameters = [])
+             2: Priceton D approx (shape_parameters = [])
+             3: Priceton D scaled (shape_parameters = [height])
+             4: rectangle         (shape_parameters = [height])
+             5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
+             6: miller            (shape_parameters = [elongation, triangularity])
+             7: square_miller     (shape_parameters = [elongation, triangularity, squareness])
+             8: spline            (shape_parameters = [hfact, rz...)
+             9: silo              (shape_parameters = [h_start, h_end)
+           10x: shape + z_offset  (shape_parameters = [..., z_offset])
+          100x: negative shape    (shape_parameters = [...])"
 end
 
 function initialize_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, target_clearance)
