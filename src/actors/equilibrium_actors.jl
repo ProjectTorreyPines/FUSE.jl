@@ -229,8 +229,6 @@ end
 # Definition of the `act` parameters relevant to the actor
 function ParametersActor(::Type{Val{:ActorCHEASE}})
     par = ParametersActor(nothing)
-    par.transport_model = Switch([:tglfnn, :tglf, :h98y2, :ds03], "", "Transport model"; default=:tglfnn)
-
     par.j_tor_from = Switch([:core_profiles, :equilibrium], "", "get j_tor from core_profiles or equilibrium"; default=:equilibrium)
     par.pressure_from = Switch([:core_profiles, :equilibrium], "", "get pressure from from core_profiles or equilibrium"; default=:equilibrium)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
