@@ -595,8 +595,8 @@ end
 
 mutable struct MXHboundary
     mxh::IMAS.MXH
-    rX::Vector{<:Real}
-    zX::Vector{<:Real}
+    RX::Vector{<:Real}
+    ZX::Vector{<:Real}
     r_boundary::Vector{<:Real}
     z_boundary::Vector{<:Real}
 end
@@ -610,18 +610,18 @@ end
 end
 
 function add_xpoint(mr::Vector{T}, mz::Vector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
-    rX = mr[i] .* α .+ R0 .* (1.0 .- α)
-    zX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    RZ = FUSE.convex_hull(collect(zip(vcat(mr, rX), vcat(mz, zX))); closed_polygon=true)
+    RX = mr[i] .* α .+ R0 .* (1.0 .- α)
+    ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
+    RZ = FUSE.convex_hull(collect(zip(vcat(mr, RX), vcat(mz, ZX))); closed_polygon=true)
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
-    return rX, zX, R, Z
+    return RX, ZX, R, Z
 end
 
 function add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::T, Z0::T; upper::Bool) where {T<:Real}
 
     function cost(mr, mz, i, R0, Z0, α)
-        rX, zX, R, Z = add_xpoint(mr, mz, i, R0, Z0, α[1])
+        RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, α[1])
         return (1.0 - maximum(abs.(IMAS.curvature(R, Z))))^2
     end
 
@@ -631,9 +631,9 @@ function add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::T, Z0::T; upper::Bool) whe
         i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
     end
     res = FUSE.Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, FUSE.Optim.GoldenSection())
-    rX, zX, R, Z = add_xpoint(mr, mz, i, R0, Z0, res.minimizer[1])
+    RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, res.minimizer[1])
 
-    return rX, zX, R, Z
+    return RX, ZX, R, Z
 end
 
 function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Union{Nothing,Integer}=nothing)
@@ -641,27 +641,27 @@ function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n
     R0 = mxh.R0
     Z0 = mxh.Z0
 
-    rX = Float64[]
-    zX = Float64[]
+    RX = Float64[]
+    ZX = Float64[]
     if upper_x_point
-        rXU, zXU, _ = add_xpoint(mr, mz, R0, Z0; upper=true)
-        push!(rX, rXU)
-        push!(zX, zXU)
+        RXU, ZXU, _ = add_xpoint(mr, mz, R0, Z0; upper=true)
+        push!(RX, RXU)
+        push!(ZX, ZXU)
     end
     if lower_x_point
-        rXL, zXL, _ = add_xpoint(mr, mz, R0, Z0; upper=false)
-        push!(rX, rXL)
-        push!(zX, zXL)
+        RXL, ZXL, _ = add_xpoint(mr, mz, R0, Z0; upper=false)
+        push!(RX, RXL)
+        push!(ZX, ZXL)
     end
 
-    RZ = FUSE.convex_hull(collect(zip(vcat(mr, rX), vcat(mz, zX))); closed_polygon=true)
+    RZ = FUSE.convex_hull(collect(zip(vcat(mr, RX), vcat(mz, ZX))); closed_polygon=true)
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
 
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
     R, Z = IMAS.resample_2d_line(R, Z; n_points=n_points)
 
-    return MXHboundary(mxh, rX, zX, R, Z)
+    return MXHboundary(mxh, RX, ZX, R, Z)
 end
 
 """
