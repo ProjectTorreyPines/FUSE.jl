@@ -221,16 +221,18 @@ end
 # Defintion of the actor structure
 Base.@kwdef mutable struct ActorCHEASE <: PlasmaAbstractActor
     dd::IMAS.dd
-    j_tor_from::String
-    pressure_from::String
+    j_tor_from::Symbol
+    pressure_from::Symbol
     EFITEquilibrium::Union{Equilibrium.AbstractEquilibrium,Nothing}
 end
 
 # Definition of the `act` parameters relevant to the actor
 function ParametersActor(::Type{Val{:ActorCHEASE}})
     par = ParametersActor(nothing)
-    par.j_tor_from = Entry(String, "", "get j_tor from core_profiles or equilibrium"; default="equilibrium")
-    par.pressure_from = Entry(String, "", "get pressure from core_profiles or equilibrium"; default="equilibrium")
+    par.transport_model = Switch([:tglfnn, :tglf, :h98y2, :ds03], "", "Transport model"; default=:tglfnn)
+
+    par.j_tor_from = Switch([:core_profiles, :equilibrium], "", "get j_tor from core_profiles or equilibrium"; default=:equilibrium)
+    par.pressure_from = Switch([:core_profiles, :equilibrium], "", "get pressure from from core_profiles or equilibrium"; default=:equilibrium)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
@@ -254,17 +256,17 @@ function step(actor::ActorCHEASE)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
-    if actor.j_tor_from == "equilibrium" && actor.pressure_from =="equilibrium"
+    if actor.j_tor_from == :equlibrium && actor.pressure_from == :equlibrium
         j_tor = eq1d.j_tor
         pressure = eq1d.pressure
         rho = eq1d.rho_tor_norm
-    elseif actor.j_tor_from == "equilibrium" && actor.pressure_from =="core_profiles"
+    elseif actor.j_tor_from == :equlibrium && actor.pressure_from == :core_profiles
         rho = eq1d.rho_tor_norm
         cp1d = dd.core_profiles.profiles_1d[]
         j_tor = eq1d.j_tor
         pressure = IMAS.interp1d(cp1d.grid.rho_tor_norm,cp1d.pressure_thermal).(rho)
 
-    elseif actor.j_tor_from == "core_profiles" && actor.pressure_from =="equilibrium"
+    elseif actor.j_tor_from == :core_profiles && actor.pressure_from == :equlibrium
         rho = eq1d.rho_tor_norm
         cp1d = dd.core_profiles.profiles_1d[]
         j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm,cp1d.j_tor).(rho)
