@@ -229,7 +229,7 @@ function gEQDSK2IMAS(g::EFIT.GEQDSKFile,eq::IMAS.equilibrium)
     resize!(eqt.profiles_2d,1)
     eq2d = eqt.profiles_2d[1]
 
-    @ddtime (eq.vacuum_toroidal_field.b0) = g.bcentr
+    @ddtime(eq.vacuum_toroidal_field.b0 = g.bcentr)
     eq.vacuum_toroidal_field.r0 = g.rcentr
     
     eqt.global_quantities.magnetic_axis.r = g.rmaxis
@@ -317,15 +317,18 @@ function step(actor::ActorCHEASE)
     z_bound = eqt.boundary.outline.z
 
     Bt_center = @ddtime (dd.equilibrium.vacuum_toroidal_field.b0)
-    r_center = eqt.boundary.geometric_axis.r
-    z_axis = eqt.boundary.geometric_axis.z
+    r_center = dd.equilibrium.vacuum_toroidal_field.r0
+    
+    r_geo = eqt.boundary.geometric_axis.r
+    z_geo = eqt.boundary.geometric_axis.z
+    Bt_geo = Bt_center * r_center / r_geo
     pressure_sep = pressure[end]
 
-    ϵ = eqt.boundary.minor_radius / r_center    
+    ϵ = eqt.boundary.minor_radius / r_geo    
     Ip = eqt.global_quantities.ip
 
     # Signs aren't conveyed properly 
-    actor.GEQDSKFile = run_chease(ϵ,z_axis, pressure_sep, abs(Bt_center), r_center, abs(Ip), r_bound, z_bound, 82, rho, pressure, abs.(j_tor), keep_output=false)
+    actor.GEQDSKFile = run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, rho, pressure, abs.(j_tor), keep_output=true)
 end
 
 # define `finalize` function for this actor
