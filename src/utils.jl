@@ -189,7 +189,18 @@ function concretetypes!(out, type::Type)
     if !isabstracttype(type)
         push!(out, type)
     else
-        foreach(T->concretetypes!(out, T), subtypes(type))
+        foreach(T -> concretetypes!(out, T), subtypes(type))
     end
     out
+end
+
+function fuse()
+    return """
+███████╗██╗   ██╗███████╗███████╗
+██╔════╝██║   ██║██╔════╝██╔════╝
+█████╗  ██║   ██║███████╗█████╗  
+██╔══╝  ██║   ██║╚════██║██╔══╝  
+██║     ╚██████╔╝███████║███████╗
+╚═╝      ╚═════╝ ╚══════╝╚══════╝
+"""
 end

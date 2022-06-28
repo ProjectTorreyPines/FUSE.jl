@@ -151,7 +151,7 @@ function init_pf_active(
         poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), dcoil)
         rail_r = [v[1] for v in LibGEOS.coordinates(poly)[1]]
         rail_z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
-        rail_r, rail_z = IMAS.resample_2d_line(rail_r, rail_z, dr / 3)
+        rail_r, rail_z = IMAS.resample_2d_line(rail_r, rail_z, step=dr/3)
 
         # mark what regions on that rail do not intersect solid structures and can hold coils
         valid_k = []
