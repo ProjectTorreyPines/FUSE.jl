@@ -328,7 +328,7 @@ function step(actor::ActorCHEASE)
     Ip = eqt.global_quantities.ip
 
     # Signs aren't conveyed properly 
-    actor.GEQDSKFile = run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, rho, pressure, abs.(j_tor), keep_output=true)
+    actor.GEQDSKFile = run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, rho, pressure, abs.(j_tor), keep_output=false)
 end
 
 # define `finalize` function for this actor
