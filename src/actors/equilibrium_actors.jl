@@ -1,6 +1,6 @@
 import Equilibrium
 import EFIT
-import CHEASE:run_chease
+import CHEASE
 import ForwardDiff
 import Optim
 
@@ -220,23 +220,23 @@ end
 
 Convert IMAS.equilibrium__time_slice to Equilibrium.jl EFIT structure
 """
-function gEQDSK2IMAS(g::EFIT.GEQDSKFile,eq::IMAS.equilibrium)
+function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
 
-    tc = transform_cocos(1,11) # chease output is cocos 1 , dd is cocos 11
+    tc = transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
 
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
-    resize!(eqt.profiles_2d,1)
+    resize!(eqt.profiles_2d, 1)
     eq2d = eqt.profiles_2d[1]
 
     @ddtime(eq.vacuum_toroidal_field.b0 = g.bcentr)
     eq.vacuum_toroidal_field.r0 = g.rcentr
-    
+
     eqt.global_quantities.magnetic_axis.r = g.rmaxis
     eqt.global_quantities.magnetic_axis.z = g.zmaxis
     eqt.global_quantities.ip = g.current
 
-    eq1d.psi = g.psi.* tc["PSI"]
+    eq1d.psi = g.psi .* tc["PSI"]
     eq1d.q = g.qpsi
     eq1d.pressure = g.pres
     eq1d.dpressure_dpsi = g.pprime .* tc["PPRIME"]
@@ -260,7 +260,8 @@ Base.@kwdef mutable struct ActorCHEASE <: PlasmaAbstractActor
     dd::IMAS.dd
     j_tor_from::Symbol
     pressure_from::Symbol
-    GEQDSKFile::Union{EFIT.GEQDSKFile,Nothing}
+    free_boundary::Bool
+    chease::Union{Nothing,CHEASE.Chease}
 end
 
 # Definition of the `act` parameters relevant to the actor
@@ -268,7 +269,7 @@ function ParametersActor(::Type{Val{:ActorCHEASE}})
     par = ParametersActor(nothing)
     par.j_tor_from = Switch([:core_profiles, :equilibrium], "", "get j_tor from core_profiles or equilibrium"; default=:equilibrium)
     par.pressure_from = Switch([:core_profiles, :equilibrium], "", "get pressure from from core_profiles or equilibrium"; default=:equilibrium)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
+    par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     return par
 end
 
@@ -279,7 +280,7 @@ end
 This actor runs the Fixed boundary equilibrium solver CHEASE"""
 function ActorCHEASE(dd::IMAS.dd, act::ParametersActor; kw...)
     par = act.ActorCHEASE(kw...)
-    actor = ActorCHEASE(dd, par.j_tor_from, par.pressure_from, nothing)
+    actor = ActorCHEASE(dd, par.j_tor_from, par.pressure_from, par.free_boundary, nothing)
     step(actor)
     finalize(actor)
     return actor
@@ -294,44 +295,57 @@ function step(actor::ActorCHEASE)
     if actor.j_tor_from == :equilibrium && actor.pressure_from == :equilibrium
         j_tor = eq1d.j_tor
         pressure = eq1d.pressure
-        rho = eq1d.rho_tor_norm
+        psin = IMAS.norm01(eq1d.psi)
     elseif actor.j_tor_from == :equilibrium && actor.pressure_from == :core_profiles
-        rho = eq1d.rho_tor_norm
+        psin = IMAS.norm01(eq1d.psi)
         cp1d = dd.core_profiles.profiles_1d[]
         j_tor = eq1d.j_tor
-        pressure = IMAS.interp1d(cp1d.grid.rho_tor_norm,cp1d.pressure_thermal).(rho)
-
+        pressure = IMAS.interp1d(IMAS.norm01(cp1d.grid.psi), cp1d.pressure_thermal).(psin)
     elseif actor.j_tor_from == :core_profiles && actor.pressure_from == :equilibrium
-        rho = eq1d.rho_tor_norm
+        psin = IMAS.norm01(eq1d.psi)
         cp1d = dd.core_profiles.profiles_1d[]
-        j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm,cp1d.j_tor).(rho)
+        j_tor = IMAS.interp1d(IMAS.norm01(cp1d.grid.psi), cp1d.j_tor).(psin)
         pressure = eq1d.pressure
     else
         cp1d = dd.core_profiles.profiles_1d[]
         j_tor = cp1d.j_tor
         pressure = cp1d.pressure_thermal
-        rho = cp1d.grid.rho_tor_norm
+        psin = IMAS.norm01(cp1d.grid.psi)
     end
 
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
+    index = (z_bound .> minimum(z_bound) * 0.98) .& (z_bound .< maximum(z_bound) * 0.98)
+    r_bound = r_bound[index]
+    z_bound = z_bound[index]
 
-    Bt_center = @ddtime (dd.equilibrium.vacuum_toroidal_field.b0)
+    Bt_center = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
     r_center = dd.equilibrium.vacuum_toroidal_field.r0
-    
+
     r_geo = eqt.boundary.geometric_axis.r
     z_geo = eqt.boundary.geometric_axis.z
     Bt_geo = Bt_center * r_center / r_geo
     pressure_sep = pressure[end]
 
-    ϵ = eqt.boundary.minor_radius / r_geo    
+    ϵ = eqt.boundary.minor_radius / r_geo
     Ip = eqt.global_quantities.ip
 
     # Signs aren't conveyed properly 
-    actor.GEQDSKFile = run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, rho, pressure, abs.(j_tor), keep_output=false)
+    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, psin, pressure, abs.(j_tor), clear_workdir=true)
+
+    if actor.free_boundary
+        # convert from fixed to free boundary equilibrium
+        EQ = Equilibrium.efit(actor.chease.gfile, 1)
+        psi_free_rz = VacuumFields.fixed2free(EQ, actor.chease.gfile.nbbbs)
+        actor.chease.gfile.psirz = psi_free_rz
+        EQ = Equilibrium.efit(actor.chease.gfile, 1)
+        psi_b = Equilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
+        psi_a = EQ.psi_rz(EQ.axis...)
+        actor.chease.gfile.psirz = (psi_free_rz .- psi_a) * ((actor.chease.gfile.psi[end] - actor.chease.gfile.psi[1]) / (psi_b - psi_a)) .+ actor.chease.gfile.psi[1]
+    end
 end
 
 # define `finalize` function for this actor
 function finalize(actor::ActorCHEASE)
-    gEQDSK2IMAS(actor.GEQDSKFile, actor.dd.equilibrium)
+    gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
 end
