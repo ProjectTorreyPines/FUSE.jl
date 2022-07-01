@@ -26,12 +26,13 @@ These concepts are illustrated in the diagram below:
 
 Here is an example, illustrating how a simple FUSE simulation can be setup and run in Julia:
 ```julia
-# start using the FUSE package
+# using the Revise and FUSE packages (Revise for development)
+using Revise
 using FUSE
 # get `ini` and `act` for a given use-case
 ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
 # initialize `dd` from 0D parameters
 dd = FUSE.init(ini, act; do_plot=true)
 # run an actor
-FUSE.ActorEquilibriumTransport(dd, act; do_plot=true)
+FUSE.ActorEquilibriumTransport(dd, act; do_plot=true);
 ```
