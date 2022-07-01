@@ -151,3 +151,6 @@ To format Julia you will need to install `Julia Language Support` under the exte
     IJulia.installkernel("Julia tracecompile", "--trace-compile=stderr")
     ```
     Then select the `Julia tracecompile` in jupyter-lab
+
+!!! note
+    When pushing a jupyter notebook make sure that the output is cleared 
