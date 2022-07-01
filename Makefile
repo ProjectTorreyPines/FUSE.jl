@@ -11,7 +11,7 @@ endef
 all:
 	@echo 'FUSE makefile help'
 	@echo ''
-	@echo ' - make develop  : install FUSE and its PTP dependencies to $(JULIA_PKG_DEVDIR)'
+	@echo ' - make install  : install FUSE and its PTP dependencies to $(JULIA_PKG_DEVDIR)'
 	@echo ' - make update   : git pull FUSE and its PTP dependencies'
 	@echo ''
 
@@ -21,16 +21,16 @@ registry:
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
 
-develop_no_registry:
+install_no_registry:
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "CHEASE"]);\
+Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT"]);\
 Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "CHEASE"]);\
+Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT"]);\
 '
 
-develop: clone_update_all develop_no_registry precompile
+install: clone_update_all install_no_registry precompile
 
 sysimage:
 	julia -e '\
@@ -61,9 +61,9 @@ precompile:
 	julia -e 'using Pkg; Pkg.activate("."); Pkg.precompile()'
 
 clone_update_all:
-	make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED CHEASE FiniteElementHermite
+	make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT
 
-update: develop clone_update_all precompile
+update: install clone_update_all precompile
 
 FUSE:
 	$(call clone_update_repo,$@)
@@ -104,6 +104,12 @@ QED:
 CHEASE:
 	$(call clone_update_repo,$@)
 
+EFIT:
+	$(call clone_update_repo,$@)
+
+Fortran90Namelists:
+	$(call clone_update_repo,$@)
+
 FiniteElementHermite:
 	$(call clone_update_repo,$@)
 
@@ -127,7 +133,7 @@ docker_volume:
 	docker cp $(HOME)/.julia/dev/. temp:/root/.julia/dev
 	#docker cp $(HOME)/.julia/dev/FUSE/Makefile temp:/root/.julia/dev/FUSE/Makefile
 	docker rm temp
-	docker run --rm -v FUSE:/root julia_fuse bash -c "cd /root/.julia/dev/FUSE && make develop_no_registry && make precompile"
+	docker run --rm -v FUSE:/root julia_fuse bash -c "cd /root/.julia/dev/FUSE && make install_no_registry && make precompile"
 
 docker_run:
 	docker run -it --rm julia_fuse julia
