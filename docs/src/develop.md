@@ -114,6 +114,28 @@ function finalize(actor::ActorNAME; ...)
 end
 ```
 
+## Build documentation
+
+1. To build missing example notebooks pages:
+   ```bash
+   make examples
+   ```
+
+1. To build the documentation, in the `FUSE/docs` folder:
+   ```julia
+   ] activate ..
+   import Revise
+   import FUSE
+   include("make.jl") # can call this over and over
+   ```
+
+1. Check page by opening `FUSE/docs/build/index.html` page in web-browser.
+
+1. To publish online
+   ```bash
+   make web
+   ```
+
 ## Tips and more
 
 ### Development in VSCode
