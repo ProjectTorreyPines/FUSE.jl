@@ -42,7 +42,7 @@ function step(actor::ActorBalanceOfPlant, gasc_method)
     bop = dd.balance_of_plant
     empty!(bop)
 
-    bop.time = collect(LinRange(0, dd.build.oh.flattop_duration, 100))
+    bop.time = dd.core_profiles.time
     bop.thermal_cycle.thermal_electric_conversion_efficiency = ones(length(bop.time)) .* actor.thermal_electric_conversion_efficiency
 
     # ======= #
@@ -53,10 +53,10 @@ function step(actor::ActorBalanceOfPlant, gasc_method)
     ### Blanket ###
     sys = resize!(bop_thermal.system, "name" => "blanket", "index" => 1)
     sys.power_in = [sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time]
-    
+
     ### Divertor ###
     sys = resize!(bop_thermal.system, "name" => "divertors", "index" => 2)
-    sys.power_in = sum([IMAS.get_time_array(div.power_thermal_extracted, :data,bop.time,:constant) for div in dd.divertors.divertor])
+    sys.power_in = sum([IMAS.get_time_array(div.power_thermal_extracted, :data, bop.time, :constant) for div in dd.divertors.divertor])
 
     # ======== #
     # ELECTRIC #
