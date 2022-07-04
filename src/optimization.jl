@@ -94,4 +94,3 @@ function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or
     end
     return F, G, H
 end
-

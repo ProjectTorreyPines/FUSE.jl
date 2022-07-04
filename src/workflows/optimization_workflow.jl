@@ -1,5 +1,5 @@
 import Distributed
-import OrderedCollections # necassary to allow BSON saving of MultiobjectiveOptimizationResults
+import BSON
 
 mutable struct MultiobjectiveOptimizationResults
     workflow::Union{DataType,Function}
@@ -29,7 +29,7 @@ function workflow_multiobjective_optimization(
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
     N::Int=10,
     iterations::Int=N,
-    continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing,
+    continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing
 )
 
     if mod(N, 2) > 0
@@ -82,6 +82,24 @@ function workflow_multiobjective_optimization(
     return MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions)
 end
 
+"""
+    save_optimization(filename::AbstractString, results::FUSE.MultiobjectiveOptimizationResults)
+
+Save MultiobjectiveOptimizationResults to file in BSON format
+"""
+function save_optimization(filename::AbstractString, results::FUSE.MultiobjectiveOptimizationResults)
+    return BSON.bson(filename, Dict("results" => results))
+end
+
+"""
+    load_optimization(filename::AbstractString)
+
+Load MultiobjectiveOptimizationResults from file
+"""
+function load_optimization(filename::AbstractString)
+    return BSON.load(filename, FUSE)["results"]
+end
+
 function pretty_label(objective_function::ObjectiveFunction, units="")
     txt = split(string(objective_function.name), "_")[2]
     if length(units) > 0
@@ -103,7 +121,6 @@ function pretty_label(parameter::Parameter, units="")
 end
 
 @recipe function plot_MultiobjectiveOptimizationResults(results::MultiobjectiveOptimizationResults, indexes=[1, 2, 3]; design_space=false, pareto=true)
-
     if design_space
         arg = :x
         labels = results.opt_ini
@@ -131,11 +148,13 @@ end
                 xlabel --> "Run number"
                 ylabel --> pretty_label(labels[indexes[1]])
                 append!(x, (getfield(s, arg)[indexes[1]] for s in sol))
+
             elseif length(indexes) == 2 || length(sol[1].x) == 2
                 append!(x, (getfield(s, arg)[indexes[1]] for s in sol))
                 append!(y, (getfield(s, arg)[indexes[2]] for s in sol))
                 xlabel --> pretty_label(labels[indexes[1]])
                 ylabel --> pretty_label(labels[indexes[2]])
+
             elseif length(indexes) == 3 || length(sol[1].x) == 3
                 append!(x, (getfield(s, arg)[indexes[1]] for s in sol))
                 append!(y, (getfield(s, arg)[indexes[2]] for s in sol))
@@ -161,5 +180,16 @@ end
             x, y, z
         end
     end
+end
 
+# Everything below is necassary to allow BSON saving/loading of MultiobjectiveOptimizationResults
+import IMASDD
+import OrderedCollections
+
+function Base.convert(::Type{Vector{<:Parameter}}, x::Vector{Any})
+    return Parameter[xx for xx in x]
+end
+
+function Base.convert(::Type{Vector{<:ObjectiveFunction}}, x::Vector{Any})
+    return ObjectiveFunction[xx for xx in x]
 end

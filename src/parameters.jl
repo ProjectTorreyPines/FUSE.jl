@@ -511,7 +511,7 @@ Base.showerror(io::IO, e::BadParameterException) =
 #  case studies  #
 #= ============ =#
 # NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
-for filename in readdir(joinpath(dirname(@__FILE__), "..", "cases"))
+for filename in readdir(joinpath(@__DIR__, "..", "cases"))
     if endswith(filename, ".jl")
         include("../cases/" * filename)
     end
