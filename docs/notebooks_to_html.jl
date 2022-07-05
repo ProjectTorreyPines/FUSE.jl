@@ -2,7 +2,7 @@ using Pkg
 Pkg.activate("..")
 using ProgressMeter
 
-dirs = ["cases", "actors", "workflows"]
+dirs = ["cases", "actors", "workflows", "tutorials"]
 
 # Converts all notebooks in examples/cases to html and stores them in docs/build/assets
 current_path = dirname(abspath(@__FILE__))

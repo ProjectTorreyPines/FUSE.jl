@@ -123,11 +123,10 @@ end
 
 1. To build the documentation, in the `FUSE/docs` folder:
    ```julia
-   ] activate ..
-   import Revise
-   import FUSE
-   include("make.jl") # can call this over and over
+   include("make.jl")
    ```
+   !!! $note Interactive documentation build
+       One can call `include("make.jl")` over and over within the same Julia session to avoid dealing with startup time.
 
 1. Check page by opening `FUSE/docs/build/index.html` page in web-browser.
 

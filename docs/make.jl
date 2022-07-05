@@ -1,3 +1,8 @@
+using Pkg
+Pkg.activate("..")
+
+using Revise
+
 using Documenter
 import FUSE
 import IMAS
@@ -109,7 +114,7 @@ makedocs(;
         "Parameters" => ["ini Parameters" => "ini.md", "act Parameters" => "act.md", "Use Cases" => "cases.md", "Initialization" => "inits.md"],
         "Examples" => "examples.md",
         "Development" => "develop.md",
-        "Setup" => "install.md",
+        "Install" => "install.md",
         "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md", "HPC" => "parallel.md"],
     ],
 )
