@@ -13,7 +13,7 @@ mutable struct ObjectiveFunction
         objf = new(name, units, func, target)
         ObjectivesFunctionsLibrary[objf.name] = objf
         return objf
-    end 
+    end
 end
 
 function (objf::ObjectiveFunction)(dd::IMAS.dd)
@@ -46,16 +46,16 @@ end
 
 const ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
 ObjectiveFunction(:min_cost, "\$M", dd -> dd.costing.cost, -Inf)
-ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[])/1E6, Inf)
-ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net)/1E6, Inf)
-ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_estimate/3600, Inf)
+ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
+ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
+ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_estimate / 3600, Inf)
 
 function Base.show(io::IO, f::ObjectiveFunction)
-    printstyled(io, f.name; bold=true, color = :blue)
+    printstyled(io, f.name; bold=true, color=:blue)
     print(io, " [$(f.units)]")
 end
 
-function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType, Function}, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction})
+function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType,Function}, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction})
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
         if typeof(optpar.value) <: Integer
@@ -80,7 +80,7 @@ function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or
     end
 end
 
-function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType, Function}, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction}, p)
+function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType,Function}, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction}, p)
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])
