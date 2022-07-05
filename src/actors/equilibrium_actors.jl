@@ -311,7 +311,7 @@ function step(actor::ActorCHEASE)
     if actor.j_tor_from == :deadstart || actor.pressure_from == :deadstart
         psin = LinRange(0, 1, 51)
         j_tor = Ip .* (1.0 .- psin.^2) ./ r_geo
-        p_core_estimate = 1.5 * IMAS.pressure_avg_estimate(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, Bt_geo, Ip)
+        p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, Bt_geo, Ip)
         pressure = p_core_estimate .- p_core_estimate .* psin
     elseif actor.j_tor_from == :equilibrium && actor.pressure_from == :equilibrium
         j_tor = eq1d.j_tor
