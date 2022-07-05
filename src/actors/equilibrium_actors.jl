@@ -267,8 +267,8 @@ end
 # Definition of the `act` parameters relevant to the actor
 function ParametersActor(::Type{Val{:ActorCHEASE}})
     par = ParametersActor(nothing)
-    par.j_tor_from = Switch([:core_profiles, :equilibrium], "", "get j_tor from core_profiles or equilibrium"; default=:equilibrium)
-    par.pressure_from = Switch([:core_profiles, :equilibrium], "", "get pressure from from core_profiles or equilibrium"; default=:equilibrium)
+    par.j_tor_from = Switch([:core_profiles, :equilibrium, :deadstart], "", "get j_tor from core_profiles, equilibrium or start from nothing"; default=:equilibrium)
+    par.pressure_from = Switch([:core_profiles, :equilibrium, :deadstart], "", "get pressure from from core_profiles, equilibrium or start from nothing"; default=:equilibrium)
     par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     return par
 end
@@ -291,8 +291,29 @@ function step(actor::ActorCHEASE)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
+    
+    r_bound = eqt.boundary.outline.r
+    z_bound = eqt.boundary.outline.z
+    index = (z_bound .> minimum(z_bound) * 0.98) .& (z_bound .< maximum(z_bound) * 0.98)
+    r_bound = r_bound[index]
+    z_bound = z_bound[index]
 
-    if actor.j_tor_from == :equilibrium && actor.pressure_from == :equilibrium
+    Ip = eqt.global_quantities.ip
+    Bt_center = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
+    r_center = dd.equilibrium.vacuum_toroidal_field.r0
+
+    r_geo = eqt.boundary.geometric_axis.r
+    z_geo = eqt.boundary.geometric_axis.z
+    Bt_geo = Bt_center * r_center / r_geo
+
+    ϵ = eqt.boundary.minor_radius / r_geo
+
+    if actor.j_tor_from == :deadstart || actor.pressure_from == :deadstart
+        psin = LinRange(0, 1, 51)
+        j_tor = Ip .* (1.0 .- psin.^2) ./ r_geo
+        p_core_estimate = 1.5 * IMAS.pressure_avg_estimate(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, Bt_geo, Ip)
+        pressure = p_core_estimate .- p_core_estimate .* psin
+    elseif actor.j_tor_from == :equilibrium && actor.pressure_from == :equilibrium
         j_tor = eq1d.j_tor
         pressure = eq1d.pressure
         psin = IMAS.norm01(eq1d.psi)
@@ -306,30 +327,16 @@ function step(actor::ActorCHEASE)
         cp1d = dd.core_profiles.profiles_1d[]
         j_tor = IMAS.interp1d(IMAS.norm01(cp1d.grid.psi), cp1d.j_tor).(psin)
         pressure = eq1d.pressure
-    else
+    elseif actor.j_tor_from == :core_profiles && actor.pressure_from == :core_profiles
         cp1d = dd.core_profiles.profiles_1d[]
         j_tor = cp1d.j_tor
         pressure = cp1d.pressure_thermal
         psin = IMAS.norm01(cp1d.grid.psi)
+    else
+        error("CHEASE actor run with incompatible actor.j_tor_from =$actor.j_tor_from & actor.pressure_from=$(actor.pressure_from)")
     end
-
-    r_bound = eqt.boundary.outline.r
-    z_bound = eqt.boundary.outline.z
-    index = (z_bound .> minimum(z_bound) * 0.98) .& (z_bound .< maximum(z_bound) * 0.98)
-    r_bound = r_bound[index]
-    z_bound = z_bound[index]
-
-    Bt_center = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
-    r_center = dd.equilibrium.vacuum_toroidal_field.r0
-
-    r_geo = eqt.boundary.geometric_axis.r
-    z_geo = eqt.boundary.geometric_axis.z
-    Bt_geo = Bt_center * r_center / r_geo
     pressure_sep = pressure[end]
-
-    ϵ = eqt.boundary.minor_radius / r_geo
-    Ip = eqt.global_quantities.ip
-
+ 
     # Signs aren't conveyed properly 
     actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, psin, pressure, abs.(j_tor), clear_workdir=true)
 
