@@ -131,6 +131,11 @@ struct OptParameter
     upper::Real
 end
 
+"""
+    ↔(x::Real, r::AbstractVector)
+
+"leftrightarrow" unicode constructor for OptParameter
+"""
 function ↔(x::Real, r::AbstractVector)
     @assert typeof(x) == typeof(r[1]) == typeof(r[end]) "type of optimization range does not match the nominal value"
     return OptParameter(x, r[1], r[end])
