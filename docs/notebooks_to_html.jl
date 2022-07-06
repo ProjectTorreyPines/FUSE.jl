@@ -4,12 +4,12 @@ using ProgressMeter
 
 dirs = ["cases", "actors", "workflows", "tutorials"]
 
-# Converts all notebooks in examples/cases to html and stores them in docs/build/assets
+# Converts all notebooks in examples/... to .md and stores them in docs/src
 current_path = dirname(abspath(@__FILE__))
 
 for dir in dirs
     example_folder = joinpath(current_path, "..", "examples", dir)
-    files_to_convert = readdir(example_folder)[findall(x->endswith(x,".ipynb"), readdir(example_folder))]
+    files_to_convert = readdir(example_folder)[findall(x -> endswith(x, ".ipynb"), readdir(example_folder))]
 
     @showprogress for case in files_to_convert
         ipynb = joinpath(example_folder, case)
@@ -18,7 +18,7 @@ for dir in dirs
         srcfiles = joinpath(example_folder, casename * "_files")
         dstname = joinpath(current_path, "src", "example_$(dir)__$(casename).md")
         dstfiles = joinpath(current_path, "src", "assets", "$(casename)_files")
-        
+
         if isfile(dstname)
             println("$dstname exists: skipping nbconvert")
         else
@@ -28,7 +28,7 @@ for dir in dirs
                 run(`mv -f $srcfiles $dstfiles`)
             end
         end
-        
+
         if isfile(srcname)
             run(`cp -f $srcname $dstname`)
             txt = open(dstname, "r") do io
