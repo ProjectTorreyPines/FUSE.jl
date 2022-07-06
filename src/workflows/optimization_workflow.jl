@@ -161,8 +161,8 @@ end
             zlabel --> pretty_label(arg_labels[indexes[3]])
         end
 
-        for (generation, res) in enumerate(results.state.convergence)
-            if iterations !== nothing && generation in iterations
+        for (iteration, res) in enumerate(results.state.convergence)
+            if iterations !== nothing && iteration ∉ iterations
                 continue
             end
             if pareto
@@ -182,7 +182,7 @@ end
                 append!(z, (getfield(s, arg)[indexes[3]] for s in sol))
             end
             if color_by == 0
-                append!(c, (generation for s in sol))
+                append!(c, (iteration for s in sol))
             elseif color_by > 0
                 append!(c, (getfield(s, col)[color_by] for s in sol))
             end
