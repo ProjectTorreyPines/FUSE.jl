@@ -21,10 +21,10 @@
 
 1. Add FUSE and its dependencies to the julia environment (this may take a few minutes):
 
-    ```bash
-    cd ~/.julia/dev/FUSE
-    make install
-    ```
+   ```bash
+   cd ~/.julia/dev/FUSE
+   make install
+   ```
 
    !!! note
        To pull latest changes for FUSE and all of its dependencies:
