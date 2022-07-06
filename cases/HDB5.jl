@@ -6,7 +6,7 @@ import CSV
 
 For description of cases/variables see https://osf.io/593q6/
 """
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersInit, ParametersActor}
+function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersAllInits, ParametersAllActors}
     if !ismissing(database_case)
         data_row = load_hdb5(database_case=database_case)
     elseif !ismissing(case)
@@ -18,8 +18,8 @@ function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any,
 end
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
-    ini = ParametersInit()
-    act = ParametersActor()
+    ini = ParametersAllInits()
+    act = ParametersAllActors()
     ini.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     ini.general.init_from = :scalars
 

@@ -1,19 +1,5 @@
 using FusionMaterials: FusionMaterials
 
-"""
-    ParametersInit()
-
-Generates initalization parameters 
-"""
-function ParametersInit()
-    ini = ParametersInit(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersInit}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material]
-        setproperty!(ini, item, ParametersInit(item))
-    end
-    ini._name = :ini
-    return ini
-end
-
 function ParametersInit(::Type{Val{:general}})
     general = ParametersInit(nothing)
     general.casename = Entry(String, "", "Mnemonic name of the case being run")

@@ -18,7 +18,7 @@ function ParametersActor(::Type{Val{:ActorBalanceOfPlant}})
 end
 
 """
-    ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersActor; gasc_method=false, kw...)
+    ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; gasc_method=false, kw...)
 
 Balance of plant actor that estimates the Net electrical power output by estimating the balance of plant electrical needs and compares it to the electricity generated from the thermal cycle.
 
@@ -29,7 +29,7 @@ Setting `gasc_method = false` subdivides the power plant electrical needs to [:c
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
-function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersActor; gasc_method=false, kw...)
+function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; gasc_method=false, kw...)
     par = act.ActorBalanceOfPlant(kw...)
     actor = ActorBalanceOfPlant(dd, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
     step(actor, gasc_method)

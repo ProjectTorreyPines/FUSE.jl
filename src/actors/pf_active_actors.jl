@@ -51,7 +51,7 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
 end
 
 """
-    ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor finds the optimal coil currents and locations of the poloidal field coils
 to match the equilibrium boundary shape and obtain a field-null region at plasma start-up.
@@ -59,7 +59,7 @@ to match the equilibrium boundary shape and obtain a field-null region at plasma
 !!! note 
     Manupulates data in `dd.pf_active`
 """
-function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorPFcoilsOpt(kw...)
     actor = ActorPFcoilsOpt(dd; par.green_model, par.symmetric)
 

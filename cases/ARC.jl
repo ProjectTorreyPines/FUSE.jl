@@ -3,9 +3,9 @@
 
 CFS/MIT ARC design
 """
-function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersInit, ParametersActor}
-    ini = ParametersInit()
-    act = ParametersActor()
+function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits, ParametersAllActors}
+    ini = ParametersAllInits()
+    act = ParametersAllActors()
     ini.general.casename = "ARC"
     ini.general.init_from = :scalars
 

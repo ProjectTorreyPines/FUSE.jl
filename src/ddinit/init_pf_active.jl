@@ -4,11 +4,11 @@ const coils_turns_spacing = 0.03
 #  init pf_active IDS  #
 #= ================== =#
 """
-    init_pf_active(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.pf_active` starting from 0D `ini` parameters and `act` actor parameters.
 """
-function init_pf_active(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+function init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_from = ini.general.init_from
 
     if init_from == :ods
@@ -247,7 +247,7 @@ function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height=1.
     return z, Δcoil
 end
 
-function assign_coil_technology(dd::IMAS.dd, ini::ParametersInit, coil_type::Symbol)
+function assign_coil_technology(dd::IMAS.dd, ini::ParametersAllInits, coil_type::Symbol)
     if coil_type ∉ [:tf, :oh, :pf_active]
         error("assign_coil_technology coil_type can only be [:tf, :oh, :pf_active]")
     end

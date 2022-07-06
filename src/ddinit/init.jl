@@ -1,5 +1,5 @@
 """
-    init(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot::Bool=false)
+    init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
 
 Initialize `dd` starting from 0D `ini` parameters and `act` actor parameters.
 
@@ -7,7 +7,7 @@ FUSE provides this high-level `init` function to populate `dd` starting from the
 This function essentially calls all other `FUSE.init...` functions in FUSE.
 For most applications, calling this high level function is sufficient.
 """
-function init(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot::Bool=false)
+function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
     ods_items = []
     # Check what is in the ods to load
     if ini.general.init_from == :ods
@@ -68,7 +68,7 @@ function init(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor; do_plot::B
     return dd
 end
 
-function init(ini::ParametersInit, act::ParametersActor; do_plot=false)
+function init(ini::ParametersAllInits, act::ParametersAllActors; do_plot=false)
     dd = IMAS.dd()
     return init(dd, ini, act; do_plot)
 end

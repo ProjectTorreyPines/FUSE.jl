@@ -10,11 +10,11 @@ import IMASDD
 import AbstractTrees
 import ProgressMeter
 
-function html_link_repr(par::FUSE.Parameter)
+function html_link_repr(par::FUSE.AbstractParameter)
     return "©" * join(FUSE.path(par), ".") * "©©" * string(par._name) * "©"
 end
 
-function AbstractTrees.printnode(io::IO, par::FUSE.Parameter)
+function AbstractTrees.printnode(io::IO, par::FUSE.AbstractParameter)
     return printstyled(io, html_link_repr(par))
 end
 
@@ -31,9 +31,9 @@ function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASleafRepr; kwargs...)
     end
 end
 
-function parameters_details_md(io::IO, pars::FUSE.Parameters)
+function parameters_details_md(io::IO, pars::FUSE.AbstractParameters)
     for leaf in AbstractTrees.Leaves(pars)
-        if typeof(leaf) <: FUSE.Parameters
+        if typeof(leaf) <: FUSE.AbstractParameters
             continue
         end
         if ismissing(leaf.default)

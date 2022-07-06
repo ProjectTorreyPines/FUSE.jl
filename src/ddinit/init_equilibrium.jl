@@ -2,11 +2,11 @@
 #  init equilibrium IDS  #
 #= ==================== =#
 """
-    init_equilibrium(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.equilibrium` starting from 0D `ini` parameters and `act` actor parameters.
 """
-function init_equilibrium(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_from = ini.general.init_from
 
     if init_from == :ods

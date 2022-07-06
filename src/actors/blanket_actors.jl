@@ -21,14 +21,14 @@ function ParametersActor(::Type{Val{:ActorBlanket}})
 end
 
 """
-    ActorBlanket(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Blanket actor
 
 !!! note 
     Stores data in `dd.blanket`
 """
-function ActorBlanket(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorBlanket(kw...)
     actor = ActorBlanket(dd, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
     step(actor)

@@ -7,7 +7,7 @@ Arguments:
 * `version`: `:v1` or `:v1_demount`
 * `init_from`: `:scalars` or `:ods` (ODS contains equilibrium information)
 """
-function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersInit, ParametersActor}
+function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersAllInits, ParametersAllActors}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0

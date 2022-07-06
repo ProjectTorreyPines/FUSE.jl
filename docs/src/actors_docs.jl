@@ -21,7 +21,7 @@ for actor_abstract_type in subtypes(FUSE.AbstractActor)
                 """### $basename
 
                 ```@docs
-                FUSE.$name(dd::IMAS.dd, act::FUSE.ParametersActor; kw...)
+                FUSE.$name(dd::IMAS.dd, act::FUSE.ParametersAllActors; kw...)
                 ```
 
                 ```@eval

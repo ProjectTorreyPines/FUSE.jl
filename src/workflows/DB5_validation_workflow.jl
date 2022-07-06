@@ -8,8 +8,8 @@ ProgressMeter.ijulia_behavior(:clear)
 
 """
     workflow_simple_equilibrium_transport(
-        ini::ParametersInit,
-        act::ParametersActor;
+        ini::ParametersAllInits,
+        act::ParametersAllActors;
         save_directory::String="",
         do_plot::Bool=false,
         warn_nn_train_bounds=true,
@@ -19,8 +19,8 @@ ProgressMeter.ijulia_behavior(:clear)
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
 function workflow_simple_equilibrium_transport(
-    ini::ParametersInit,
-    act::ParametersActor;
+    ini::ParametersAllInits,
+    act::ParametersAllActors;
     save_directory::String="",
     do_plot::Bool=false,
     warn_nn_train_bounds=true,

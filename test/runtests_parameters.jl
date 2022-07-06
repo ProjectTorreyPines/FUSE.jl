@@ -4,7 +4,7 @@ using Test
 using InteractiveUtils: subtypes
 
 @testset "ParametersInit" begin
-    par = FUSE.ParametersInit()
+    par = FUSE.ParametersAllInits()
 
     @test typeof(par.equilibrium) <: FUSE.ParametersInit
 
@@ -16,8 +16,8 @@ using InteractiveUtils: subtypes
     @test par.equilibrium[:B0]._name == :B0
     @test par[:equilibrium]._name == :equilibrium
 
-    ini = FUSE.ParametersInit()
-    ini1 = FUSE.ParametersInit()
+    ini = FUSE.ParametersAllInits()
+    ini1 = FUSE.ParametersAllInits()
     ini.tf = ini1.tf
     @test ini.tf._parent.value !== ini1.tf._parent.value
 

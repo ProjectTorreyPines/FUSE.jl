@@ -1,13 +1,14 @@
 using InteractiveUtils: subtypes
 import AbstractTrees
 
-abstract type Parameter end
-abstract type Parameters end
+abstract type AbstractParameter end
+abstract type AbstractParameters end
+abstract type AbstractParametersActor end
 
 #= ===== =#
 #  Entry  #
 #= ===== =#
-mutable struct Entry{T} <: Parameter
+mutable struct Entry{T} <: AbstractParameter
     _name::Union{Missing,Symbol}
     _parent::WeakRef
     units::String
@@ -41,7 +42,7 @@ struct SwitchOption
     description::String
 end
 
-mutable struct Switch <: Parameter
+mutable struct Switch <: AbstractParameter
     _name::Union{Missing,Symbol}
     _parent::WeakRef
     options::Dict{Any,SwitchOption}
@@ -97,7 +98,7 @@ function Base.setproperty!(p::Switch, key::Symbol, value)
     return setfield!(p, :value, value)
 end
 
-function parameter_color(p::Parameter)
+function parameter_color(p::AbstractParameter)
     value = p.value
     if value === missing
         color = :yellow
@@ -110,7 +111,7 @@ function parameter_color(p::Parameter)
     end
 end
 
-function Base.show(io::IO, p::Parameter)
+function Base.show(io::IO, p::AbstractParameter)
     color = parameter_color(p)
     printstyled(io, join(path(p), "."); bold=true, color=color)
     for item in fieldnames(typeof(p))
@@ -136,11 +137,11 @@ function ↔(x::Real, r::AbstractVector)
     return OptParameter(x, r[1], r[end])
 end
 
-function opt_parameters(p::Parameters, opt_vector=Parameter[])
+function opt_parameters(p::AbstractParameters, opt_vector=Parameter[])
     _parameters = getfield(p, :_parameters)
     for k in keys(_parameters)
         parameter = _parameters[k]
-        if typeof(parameter) <: Parameters
+        if typeof(parameter) <: AbstractParameters
             opt_parameters(parameter, opt_vector)
         elseif typeof(parameter) <: Entry
             if parameter.lower !== missing
@@ -154,14 +155,14 @@ end
 #= ============== =#
 #  ParametersInit  #
 #= ============== =#
-mutable struct ParametersInit <: Parameters
+mutable struct ParametersInit <: AbstractParameters
     _name::Union{Missing,Symbol}
     _parent::WeakRef
-    _parameters::Dict{Symbol,Union{Parameter,Parameters}}
+    _parameters::Dict{Symbol,Union{AbstractParameter,AbstractParameters}}
 end
 
 function ParametersInit(::Nothing)
-    return ParametersInit(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersInit}}())
+    return ParametersInit(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersInit}}())
 end
 
 function ParametersInit(group::Symbol; kw...)
@@ -173,17 +174,44 @@ function ParametersInit(group::Symbol; kw...)
     return par
 end
 
+#= ================== =#
+#  ParametersAllInits  #
+#= ================== =#
+mutable struct ParametersAllInits <: AbstractParameters
+    _name::Union{Missing,Symbol}
+    _parent::WeakRef
+    _parameters::Dict{Symbol,Union{AbstractParameter,AbstractParameters}}
+end
+
+function ParametersAllInits(::Nothing)
+    return ParametersAllInits(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersInit}}())
+end
+
+"""
+    ParametersAllInits()
+
+Generates all initalization parameters 
+"""
+function ParametersAllInits()
+    ini = ParametersAllInits(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersInit}}())
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material]
+        setproperty!(ini, item, ParametersInit(item))
+    end
+    ini._name = :ini
+    return ini
+end
+
 #= =============== =#
 #  ParametersActor  #
 #= =============== =#
-mutable struct ParametersActor <: Parameters
+mutable struct ParametersActor <: AbstractParameters
     _name::Union{Missing,Symbol}
     _parent::WeakRef
-    _parameters::Dict{Symbol,Union{Parameter,Parameters}}
+    _parameters::Dict{Symbol,Union{AbstractParameter,AbstractParameters}}
 end
 
 function ParametersActor(::Nothing)
-    return ParametersActor(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersActor}}())
+    return ParametersActor(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersActor}}())
 end
 
 function ParametersActor(group::Symbol; kw...)
@@ -195,13 +223,26 @@ function ParametersActor(group::Symbol; kw...)
     return pars
 end
 
+#= =================== =#
+#  ParametersAllActors  #
+#= =================== =#
+mutable struct ParametersAllActors <: AbstractParameters
+    _name::Union{Missing,Symbol}
+    _parent::WeakRef
+    _parameters::Dict{Symbol,Union{AbstractParameter,AbstractParameters}}
+end
+
+function ParametersAllActors(::Nothing)
+    return ParametersAllActors(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersActor}}())
+end
+
 """
-    ParametersActor()
+    ParametersAllActors()
 
 Generates actor parameters 
 """
-function ParametersActor()
-    act = ParametersActor(missing, WeakRef(missing), Dict{Symbol,Union{Parameter,ParametersActor}}())
+function ParametersAllActors()
+    act = ParametersAllActors(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersActor}}())
     for par in concretetypes(AbstractActor)
         par = Symbol(replace(string(par), "FUSE." => ""))
         try
@@ -222,13 +263,13 @@ end
 #= ========== =#
 #  Parameters  #
 #= ========== =#
-function path(p::Union{Parameter,Parameters})
+function path(p::Union{AbstractParameter,AbstractParameters})
     name = getfield(p, :_name)
     if name === missing
         return Symbol[]
     end
     pp = Symbol[name]
-    while typeof(p._parent.value) <: Parameters
+    while typeof(p._parent.value) <: AbstractParameters
         if p._parent.value._name === missing
             break
         end
@@ -238,19 +279,19 @@ function path(p::Union{Parameter,Parameters})
     return pp
 end
 
-function Base.keys(p::Parameters)
+function Base.keys(p::AbstractParameters)
     return keys(getfield(p, :_parameters))
 end
 
-function Base.getindex(p::Parameters, field::Symbol)
+function Base.getindex(p::AbstractParameters, field::Symbol)
     return getfield(p, :_parameters)[field]
 end
 
-function Base.setindex!(p::Parameters, value::Any, field::Symbol)
+function Base.setindex!(p::AbstractParameters, value::Any, field::Symbol)
     return getfield(p, :_parameters)[field] = value
 end
 
-function Base.getproperty(p::Parameters, key::Symbol)
+function Base.getproperty(p::AbstractParameters, key::Symbol)
     if key ∈ fieldnames(typeof(p))
         return getfield(p, key)
     elseif key ∉ keys(p)
@@ -258,7 +299,7 @@ function Base.getproperty(p::Parameters, key::Symbol)
     end
     parameter = p[key]
 
-    if typeof(parameter) <: Parameters
+    if typeof(parameter) <: AbstractParameters
         value = parameter
     elseif typeof(parameter) <: Entry
         value = parameter.value
@@ -279,12 +320,12 @@ function Base.getproperty(p::Parameters, key::Symbol)
 end
 
 """
-    getproperty(p::Parameters, key::Symbol, default)
+    getproperty(p::AbstractParameters, key::Symbol, default)
 
 Return value of `key` parameter or `default` if parameter is missing
 NOTE: This is useful because accessing a `missing` parameter would raise an error
 """
-function Base.getproperty(p::Parameters, key::Symbol, default)
+function Base.getproperty(p::AbstractParameters, key::Symbol, default)
     value = p[key].value
     if value === missing
         return default
@@ -293,17 +334,17 @@ function Base.getproperty(p::Parameters, key::Symbol, default)
     end
 end
 
-function Base.deepcopy(p::Union{Parameter,Parameters})
+function Base.deepcopy(p::Union{AbstractParameter,AbstractParameters})
     p1 = Base.deepcopy_internal(p, Base.IdDict())
     p1._parent = WeakRef(missing)
     return p1
 end
 
-function Base.setproperty!(p::Parameters, key::Symbol, value)
+function Base.setproperty!(p::AbstractParameters, key::Symbol, value)
     if key ∈ fieldnames(typeof(p))
         return setfield!(p, key, value)
-    elseif typeof(value) <: Union{Parameter,Parameters}
-        if typeof(value._parent.value) <: Union{Parameter,Parameters}
+    elseif typeof(value) <: Union{AbstractParameter,AbstractParameters}
+        if typeof(value._parent.value) <: Union{AbstractParameter,AbstractParameters}
             value = deepcopy(value)
         end
         setfield!(value, :_parent, WeakRef(p))
@@ -343,11 +384,11 @@ function Base.setproperty!(p::Parameters, key::Symbol, value)
     return value
 end
 
-function Base.iterate(par::FUSE.Parameters)
+function Base.iterate(par::AbstractParameters)
     Base.iterate(par, collect(keys(par)))
 end
 
-function Base.iterate(par::FUSE.Parameters, state)
+function Base.iterate(par::AbstractParameters, state)
     if isempty(state)
         return nothing
     end
@@ -356,15 +397,15 @@ function Base.iterate(par::FUSE.Parameters, state)
     return key => data, state
 end
 
-function Base.show(io::IO, ::MIME"text/plain", pars::Parameters, depth::Int=0)
+function Base.show(io::IO, ::MIME"text/plain", pars::AbstractParameters, depth::Int=0)
     return AbstractTrees.print_tree(io, pars)
 end
 
-function AbstractTrees.children(pars::Parameters)
+function AbstractTrees.children(pars::AbstractParameters)
     return [pars[k] for k in sort(collect(keys(pars)))]
 end
 
-function AbstractTrees.printnode(io::IO, par::Parameter)
+function AbstractTrees.printnode(io::IO, par::AbstractParameter)
     color = parameter_color(par)
     printstyled(io, par._name)
     printstyled(io, " ➡ ")
@@ -374,14 +415,14 @@ function AbstractTrees.printnode(io::IO, par::Parameter)
     end
 end
 
-function AbstractTrees.printnode(io::IO, pars::Parameters)
+function AbstractTrees.printnode(io::IO, pars::AbstractParameters)
     printstyled(io, pars._name; bold=true)
 end
 
-function set_new_base!(p::Parameters)
+function set_new_base!(p::AbstractParameters)
     for item in keys(p)
         parameter = p[item]
-        if typeof(parameter) <: Parameters
+        if typeof(parameter) <: AbstractParameters
             set_new_base!(parameter)
         else
             setfield!(parameter, :base, parameter.value)
@@ -390,16 +431,16 @@ function set_new_base!(p::Parameters)
     return p
 end
 
-function Base.ismissing(p::Parameters, field::Symbol)::Bool
+function Base.ismissing(p::AbstractParameters, field::Symbol)::Bool
     return p[field].value === missing
 end
 
 """
-    (par::Parameters)(kw...)
+    (par::AbstractParameters)(kw...)
 
 This functor is used to override the parameters at function call
 """
-function (par::Parameters)(kw...)
+function (par::AbstractParameters)(kw...)
     if !isempty(kw)
         par = deepcopy(par)
         for (key, value) in kw
@@ -409,7 +450,7 @@ function (par::Parameters)(kw...)
     return par
 end
 
-function doc(parameters::Parameters)
+function doc(parameters::AbstractParameters)
     if typeof(parameters) <: ParametersActor
         ppath = "act.$(parameters._name)"
     else
@@ -417,7 +458,7 @@ function doc(parameters::Parameters)
     end
     txt = []
     for par in sort(collect(keys(parameters)))
-        if typeof(parameters[par]) <: Parameters
+        if typeof(parameters[par]) <: AbstractParameters
             push!(txt, "**`$(ppath).$par`**: $(typeof(parameters[par]))")
         else
             if isempty(parameters[par].units)
@@ -436,26 +477,26 @@ function doc(parameters::Parameters)
 end
 
 """
-    par2dict(par::Parameters)
+    par2dict(par::AbstractParameters)
 
 Convert FUSE parameters to dictionary
 """
-function par2dict(par::Parameters)
+function par2dict(par::AbstractParameters)
     ret = Dict()
     return par2dict(par, ret)
 end
 
-function par2dict(par::Parameters, ret::AbstractDict)
+function par2dict(par::AbstractParameters, ret::AbstractDict)
     data = getfield(par, :_parameters)
     return par2dict(data, ret)
 end
 
 function par2dict(data::AbstractDict, ret::AbstractDict)
     for item in keys(data)
-        if typeof(data[item]) <: Parameters
+        if typeof(data[item]) <: AbstractParameters
             ret[item] = Dict()
             par2dict(data[item], ret[item])
-        elseif typeof(data[item]) <: Parameter
+        elseif typeof(data[item]) <: AbstractParameter
             ret[item] = Dict()
             ret[item][:value] = data[item].value
             ret[item][:units] = data[item].units
@@ -466,12 +507,12 @@ function par2dict(data::AbstractDict, ret::AbstractDict)
 end
 
 """
-    par2json(@nospecialize(par::Parameters), filename::String; kw...)
+    par2json(@nospecialize(par::AbstractParameters), filename::String; kw...)
 
 Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
-function par2json(@nospecialize(par::Parameters), filename::String; kw...)
+function par2json(@nospecialize(par::AbstractParameters), filename::String; kw...)
     open(filename, "w") do io
         JSON.print(io, par2dict(par); kw...)
     end

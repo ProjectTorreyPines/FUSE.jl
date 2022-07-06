@@ -6,9 +6,9 @@ ITER
 Arguments:
 * `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersInit, ParametersActor}
-    ini = ParametersInit()
-    act = ParametersActor()
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersAllInits, ParametersAllActors}
+    ini = ParametersAllInits()
+    act = ParametersAllActors()
     ini.general.casename = "ITER_$(init_from)"
     ini.general.init_from = init_from
 

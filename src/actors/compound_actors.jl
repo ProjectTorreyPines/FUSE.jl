@@ -13,7 +13,7 @@ function ParametersActor(::Type{Val{:ActorEquilibriumTransport}})
 end
 
 """
-    ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs the following actors in succesion:
 ```julia
@@ -26,7 +26,7 @@ ActorSteadyStateCurrent(dd, act)    # Consistent current
 !!! note 
     Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
-function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibriumTransport(kw...)
     actor = ActorEquilibriumTransport(dd)
     step(actor; act, iterations=par.iterations, do_plot=par.do_plot)
@@ -34,10 +34,10 @@ function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersActor; kw...)
     return actor
 end
 
-function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
+function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAllActors}=missing, iterations::Int=1, do_plot::Bool=false)
     dd = actor.dd
     if act === missing
-        act = ParametersActor()
+        act = ParametersAllActors()
     end
 
     if do_plot
@@ -87,14 +87,14 @@ function ParametersActor(::Type{Val{:ActorWholeFacility}})
 end
 
 """
-    ActorWholeFacility(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs all the actors needed to model the whole plant
 
 !!! note 
     Stores data in `dd`
 """
-function ActorWholeFacility(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorWholeFacility(kw...)
     actor = ActorWholeFacility(dd)
     step(actor; act)
