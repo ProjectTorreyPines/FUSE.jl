@@ -20,7 +20,6 @@ Compound actor that runs the following actors in succesion:
 ActorSteadyStateCurrent(dd, act)    # Current evolution to steady-state 
 ActorTauenn(dd, act)                # For transport
 ActorSolovev(dd, act)               # Equilibrium
-ActorSteadyStateCurrent(dd, act)    # Consistent current
 ```
 
 !!! note 

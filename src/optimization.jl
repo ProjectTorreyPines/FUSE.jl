@@ -49,6 +49,7 @@ ObjectiveFunction(:min_cost, "\$M", dd -> dd.costing.cost, -Inf)
 ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
 ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
 ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_estimate / 3600, Inf)
+ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_estimate / 3600), Inf)
 
 function Base.show(io::IO, f::ObjectiveFunction)
     printstyled(io, f.name; bold=true, color=:blue)

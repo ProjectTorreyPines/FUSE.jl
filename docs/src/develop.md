@@ -12,31 +12,32 @@ We use a GitHub to [track progress with FUSE developments](https://github.com/or
 
 The FUSE project is built upon different Julia packages. Several of these are managed by GA-MFE, and they all reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) repository. Of all the packages that are there, three are at the fundation of the FUSE framework itself: `FUSE.jl`, `IMAS.jl`, `CoordinateConventions.jl`, `IMASDD.jl`. All other packages in the ProjectTorreyPines organization fundamentally add physics and technology capabilities in FUSE (typically as actors).
 
-* **FUSE.jl**
-  * Actors
-  * `ini` parameters
-  * `act` parameters
-  * Workflows
-  * Physics functions
-  * Technology functions
-  * Utility functions
-
-* **IMAS.jl**
-  * Physics functions
-  * Physics constants
-  * Plotting functions
-  * Math functions
-  * `dd` expressions
-
-* **CoordinateConventions.jl**
-  * Coordinate conventions (COCOS) and transformations
-
-* **IMASDD.jl**
-  * `dd` data structure
-  * Base `dd` functionality
-  * Representation of `dd`
-  * Loading/saving of `dd`
-  * Utility and math (eg. interpolation)
+```
+FUSE
+    CHEASE
+        Equilibrium
+        CoordinateConventions
+        EFIT
+        Fortran90Namelists
+    FusionMaterials
+    IMAS
+        CoordinateConventions
+        IMASDD
+        MillerExtendedHarmonic
+    QED
+        FiniteElementHermite
+    TAUENN
+        EPEDNN
+        IMAS
+            CoordinateConventions
+            IMASDD
+            MillerExtendedHarmonic
+        TGLFNN
+    VacuumFields
+        CoordinateConventions
+        EFIT
+        Equilibrium
+```
 
 ## Editing stuff
 

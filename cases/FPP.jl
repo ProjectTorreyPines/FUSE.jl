@@ -16,6 +16,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         case = 0
     end
 
+    # load data from FPP GASC run
     gasc = GASC(joinpath(dirname(abspath(@__FILE__)), "..", "sample", filename), case)
     ini, act = case_parameters(gasc)
     ini.general.casename = "FPP_$(version)_$(init_from)"
@@ -36,9 +37,9 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
 
     # ini.equilibrium.δ *= -1 ### for negative triangularity
 
-    ini.core_profiles.zeff = 1.1 ↔ [1.1, 2.5]
-    ini.core_profiles.greenwald_fraction = 0.9 ↔ [0.8, 0.95]
-    ini.ec_launchers.power_launched = 45e6 ↔ [30e6, 100e6]
+    ini.core_profiles.zeff = 1.1
+    ini.core_profiles.greenwald_fraction = 0.9
+    ini.ec_launchers.power_launched = 45e6
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 16
@@ -56,5 +57,11 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
 
     act.ActorPFcoilsOpt.symmetric = true
 
-    return set_new_base!(ini), set_new_base!(act)
+    set_new_base!(ini)
+    set_new_base!(act)
+
+    # Changing Zeff from 1.1 to 2.0 will improve confinement significantly due to the pedestal increase!
+    ini.core_profiles.zeff = 2.0
+    
+    return ini, act
 end

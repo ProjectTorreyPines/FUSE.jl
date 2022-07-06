@@ -120,17 +120,20 @@ function pretty_label(parameter::AbstractParameter, units="")
     return txt
 end
 
-@recipe function plot_MultiobjectiveOptimizationResults(results::MultiobjectiveOptimizationResults, indexes::Vector{<:Integer}=[1, 2, 3]; color_by=0, design_space=false, pareto=true, max_samples=1000)
+@recipe function plot_MultiobjectiveOptimizationResults(results::MultiobjectiveOptimizationResults, indexes::Vector{<:Integer}=[1, 2, 3]; color_by::Integer=0, design_space=false, pareto=true, max_samples=nothing, iterations=nothing)
+
     @assert length(indexes)<=3 "plot_MultiobjectiveOptimizationResults: Cannot visualize more than 3 indexes at once"
 
     if design_space
         arg = :x
         col = :f
-        labels = results.opt_ini
+        arg_labels = results.opt_ini
+        col_labels = results.objectives_functions
     else
         arg = :f
         col = :x
-        labels = results.objectives_functions
+        arg_labels = results.objectives_functions
+        col_labels = results.opt_ini
     end
 
     x = Float64[]
@@ -146,19 +149,22 @@ end
         sol = results.state.convergence[1].population
         if length(indexes) == 1 || length(sol[1].x) == 1
             xlabel --> "Run number"
-            ylabel --> pretty_label(labels[indexes[1]])
+            ylabel --> pretty_label(arg_labels[indexes[1]])
         end
-        if length(indexes) >= 1 || length(sol[1].x) >= 1
-            xlabel --> pretty_label(labels[indexes[1]])
+        if length(indexes) >= 1 && length(sol[1].x) >= 1
+            xlabel --> pretty_label(arg_labels[indexes[1]])
         end
-        if length(indexes) >= 2 || length(sol[1].x) >= 2
-            ylabel --> pretty_label(labels[indexes[2]])
+        if length(indexes) >= 2 && length(sol[1].x) >= 2
+            ylabel --> pretty_label(arg_labels[indexes[2]])
         end
-        if length(indexes) == 3 || length(sol[1].x) == 3
-            zlabel --> pretty_label(labels[indexes[3]])
+        if length(indexes) == 3 && length(sol[1].x) >= 3
+            zlabel --> pretty_label(arg_labels[indexes[3]])
         end
 
-        for (generation, res) in enumerate(results.state.convergence)
+        for (iteration, res) in enumerate(results.state.convergence)
+            if iterations !== nothing && iteration ∉ iterations
+                continue
+            end
             if pareto
                 sol = Metaheuristics.get_non_dominated_solutions(res.population)
             else
@@ -166,17 +172,17 @@ end
             end
 
             # data
-            if length(indexes) >= 1 || length(sol[1].x) >= 1
+            if length(indexes) >= 1 && length(sol[1].x) >= 1
                 append!(x, (getfield(s, arg)[indexes[1]] for s in sol))
             end
-            if length(indexes) >= 2 || length(sol[1].x) >= 2
+            if length(indexes) >= 2 && length(sol[1].x) >= 2
                 append!(y, (getfield(s, arg)[indexes[2]] for s in sol))
             end
-            if length(indexes) == 3 || length(sol[1].x) == 3
+            if length(indexes) == 3 && length(sol[1].x) >= 3
                 append!(z, (getfield(s, arg)[indexes[3]] for s in sol))
             end
             if color_by == 0
-                append!(c, (generation for s in sol))
+                append!(c, (iteration for s in sol))
             elseif color_by > 0
                 append!(c, (getfield(s, col)[color_by] for s in sol))
             end
@@ -184,25 +190,34 @@ end
 
         # need to go from cost to optimization function
         if !design_space
-            if length(indexes) >= 1 || length(sol[1].x) >= 1
+            if length(indexes) >= 1 && length(sol[1].x) >= 1
                 x = results.objectives_functions[indexes[1]].(x)
             end
-            if length(indexes) >= 2 || length(sol[1].x) >= 2
+            if length(indexes) >= 2 && length(sol[1].x) >= 2
                 y = results.objectives_functions[indexes[2]].(y)
             end
-            if length(indexes) == 3 || length(sol[1].x) == 3
+            if length(indexes) == 3 && length(sol[1].x) >= 3
                 z = results.objectives_functions[indexes[3]].(z)
             end
         elseif color_by > 0
             c = results.objectives_functions[color_by].(c)
         end
 
-        # subsample (3D scatter with large number of points is can be very slow)
-        index = Random.shuffle!(collect(1:length(x)))[1:max_samples]
+        # subsample (plotlyjs 3D scatter with large number of points is can be very slow)
+        index = collect(1:length(x))
+        if max_samples !== nothing
+            index = Random.shuffle!(index)[1:max_samples]
+            sort!(index)
+        end
 
         # coloring
         if length(c) > 0
             marker_z --> c[index]
+            if color_by == 0
+                title --> "Colored by iteration"
+            else
+                title --> "Colored by " * pretty_label(col_labels[color_by])
+            end
         end
 
         # series
@@ -214,7 +229,6 @@ end
             x[index], y[index], z[index]
         end
     end
-    return nothing
 end
 
 # Everything below is necassary to allow BSON saving/loading of MultiobjectiveOptimizationResults
