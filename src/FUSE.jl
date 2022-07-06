@@ -76,9 +76,6 @@ include("logging.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export step, finalize
-export IMAS, @ddtime, constants, ±
-export Parameters
-export global_logger
+export IMAS, @ddtime, constants, ±, ↔, global_logger
 
 end
