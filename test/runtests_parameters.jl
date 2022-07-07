@@ -6,7 +6,7 @@ using InteractiveUtils: subtypes
 @testset "ParametersInit" begin
     par = FUSE.ParametersAllInits()
 
-    @test typeof(par.equilibrium) <: FUSE.ParametersInit
+    @test typeof(par.equilibrium) <: FUSE.AbstractParameters
 
     @test_throws FUSE.NotsetParameterException par.equilibrium.B0
 
@@ -34,9 +34,9 @@ using InteractiveUtils: subtypes
 
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
 
-    @test typeof(ini) <: FUSE.ParametersInit
+    @test typeof(ini) <: FUSE.AbstractParameters
 
-    @test typeof(act) <: FUSE.ParametersActor
+    @test typeof(act) <: FUSE.AbstractParameters
 
     @test ini.equilibrium.B0 == -5.3
 
