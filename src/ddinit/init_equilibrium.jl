@@ -32,11 +32,30 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             δ=ini.equilibrium.δ,
             βn=ini.equilibrium.βn,
             ip=ini.equilibrium.ip,
+            MXH_params=ini.equilibrium.MXH_params,
             x_point=ini.equilibrium.x_point,
             symmetric=ini.equilibrium.symmetric)
 
         # solve equilibrium
-        ActorSolovev(dd, act)
+        if ini.equilibrium.model == :CHEASE
+            # Deadstart using CHEASE
+            eqt = dd.equilibrium.time_slice[]
+            eq1d = eqt.profiles_1d
+
+            Bt_geo = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0) * dd.equilibrium.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
+            p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, Bt_geo, eqt.global_quantities.ip)
+
+            psin = eq1d.psi = LinRange(0, 1, ini.equilibrium.ngrid)
+            eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
+            eq1d.pressure = p_core_estimate .- p_core_estimate .* psin
+            ActorCHEASE(dd, act)
+            display(plot(dd.equilibrium))
+
+        elseif ini.equilibrium.model == :Solovev
+            ActorSolovev(dd, act)
+        else
+            error("There is no way to initalize the equilbrium with equilibrium model: $ini.equilibrium.model")
+        end
     end
 
     # field null surface
@@ -76,6 +95,7 @@ function init_equilibrium(
     δ::Real,
     βn::Real,
     ip::Real,
+    MXH_params=nothing,
     x_point::Union{AbstractVector,NTuple{2},Bool}=false,
     symmetric::Bool=true)
 
