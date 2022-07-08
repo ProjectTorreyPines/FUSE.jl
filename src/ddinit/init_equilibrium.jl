@@ -49,7 +49,6 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
             eq1d.pressure = p_core_estimate .- p_core_estimate .* psin
             ActorCHEASE(dd, act)
-            display(plot(dd.equilibrium))
 
         elseif ini.equilibrium.model == :Solovev
             ActorSolovev(dd, act)
