@@ -129,11 +129,11 @@ function init_equilibrium(
     # Currently initalized with miller boundary, this could change to MXH boundary
     if ismissing(eqt.boundary.outline, :r)
         if !isnothing(MXH_params)
-            @show "Selected MXH"
+            @info "Selected MXH for Equilibrium initialization"
             mxh = IMAS.MXH(MXH_params)()
             eqt.boundary.outline.r, eqt.boundary.outline.z = mxh[1], mxh[2]
         else
-            @show "Selected miller"
+            @info "Selected Miller for Equilibrium initialization"
             eqt.boundary.outline.r, eqt.boundary.outline.z = miller(R0, ϵ, κ, δ)
             eqt.boundary.outline.z .+= Z0
         end
