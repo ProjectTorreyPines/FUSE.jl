@@ -19,11 +19,11 @@ function ParametersActor(::Type{Val{:ActorEquilibrium}})
     return par
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
     if par.model == :Solovev
-        actor.eq_actor = ActorSolovev(actor.dd, actor.act.ActorSolovev)
+        eq_actor = ActorSolovev(dd, act.ActorSolovev)
     elseif par.model == :CHEASE
-        actor.eq_actor = ActorCHEASE(actor.dd, actor.act.ActorCHEASE)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
     else
         error("model = $par.model is not added to ActorEquilibrium")
     end
@@ -32,7 +32,7 @@ end
 
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibrium(kw...)
-    actor = ActorEquilibrium(dd,par)
+    actor = ActorEquilibrium(dd, par, act)
     step(actor)
     finalize(actor)
     return actor
@@ -68,6 +68,11 @@ function ParametersActor(::Type{Val{:ActorSolovev}})
     return par
 end
 
+"""
+    ActorSolovev(dd::IMAS.dd, par::ParametersActor)
+
+Actor constructor to allow a uniform ActorSolovev(dd, par)
+"""
 function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
     ActorSolovev(dd.equilibrium, ActorSolovev(dd.equilibrium), par.ngrid, getproperty(par, :volume, missing), getproperty(par, :area, missing))
 end
@@ -155,11 +160,6 @@ function step(actor::ActorSolovev; verbose=false)
     end
 
     actor.S = Equilibrium.solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
-
-    # @show Equilibrium.beta_t(actor.S)
-    # @show Equilibrium.beta_p(actor.S)
-    # @show Equilibrium.beta_n(actor.S)
-    # @show Equilibrium.plasma_current(actor.S)
 
     return res
 end
@@ -317,7 +317,17 @@ function ParametersActor(::Type{Val{:ActorCHEASE}})
     par.j_tor_from = Switch([:core_profiles, :equilibrium, :deadstart], "", "get j_tor from core_profiles, equilibrium or start from nothing"; default=:equilibrium)
     par.pressure_from = Switch([:core_profiles, :equilibrium, :deadstart], "", "get pressure from from core_profiles, equilibrium or start from nothing"; default=:equilibrium)
     par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
+    par.clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
     return par
+end
+
+"""
+    ActorSolovev(dd::IMAS.dd, par::ParametersActor)
+
+Actor constructor to allow a uniform ActorSolovev(dd, par)
+"""
+function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
+    ActorCHEASE(dd, par.j_tor_from, par.pressure_from, par.free_boundary, nothing)
 end
 
 # run actor with `dd` and `act` as arguments
@@ -327,14 +337,14 @@ end
 This actor runs the Fixed boundary equilibrium solver CHEASE"""
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCHEASE(kw...)
-    actor = ActorCHEASE(dd, par.j_tor_from, par.pressure_from, par.free_boundary, nothing)
-    step(actor)
+    actor = ActorCHEASE(dd, par)
+    step(actor; par.clear_workdir)
     finalize(actor)
     return actor
 end
 
 # define `step` function for this actor
-function step(actor::ActorCHEASE)
+function step(actor::ActorCHEASE; clear_workdir=true)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
@@ -385,7 +395,7 @@ function step(actor::ActorCHEASE)
     pressure_sep = pressure[end]
 
     # Signs aren't conveyed properly 
-    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, psin, pressure, abs.(j_tor), clear_workdir=true)
+    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, psin, pressure, abs.(j_tor), clear_workdir=clear_workdir)
 
     if actor.free_boundary
         # convert from fixed to free boundary equilibrium
