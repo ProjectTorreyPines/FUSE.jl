@@ -33,6 +33,8 @@ function ParametersInit(::Type{Val{:equilibrium}})
     equilibrium.symmetric = Entry(Bool, "", "Is plasma up-down symmetric")
     equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
     equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)#, min=0.0, max=1.0)
+    equilibrium.model = Switch([:Solovev, :CHEASE], "", "Initialize the equilibrium with :Solovev or :CHEASE", default=:CHEASE)
+    equilibrium.MXH_params = Entry(Union{Nothing,Vector{<:Real}}, "", "Vector of MXH flats", default=missing)
     return equilibrium
 end
 

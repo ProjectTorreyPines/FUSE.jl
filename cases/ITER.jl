@@ -6,7 +6,7 @@ ITER
 Arguments:
 * `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersAllInits, ParametersAllActors}
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersAllInits()
     act = ParametersAllActors()
     ini.general.casename = "ITER_$(init_from)"
@@ -32,6 +32,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.equilibrium.βn = 2.0
         ini.equilibrium.x_point = true
         ini.equilibrium.symmetric = false
+        ini.equilibrium.MXH_params = [
+            6.1920669, 0.3516887, 0.3236068, 1.8457772, 0.0131402,
+            0.180271, -0.0657829, -0.0575659, 0.0070797, 0.014521,
+            0.4530612, 0.1119523, -0.0595573, -0.0257858, 0.0009532]
         act.ActorCXbuild.rebuild_wall = true
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end

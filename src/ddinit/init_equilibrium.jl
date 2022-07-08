@@ -126,6 +126,18 @@ function init_equilibrium(
     eq.vacuum_toroidal_field.r0 = R0
     @ddtime eq.vacuum_toroidal_field.b0 = B0
 
+    # Currently initalized with miller boundary, this could change to MXH boundary
+    if ismissing(eqt.boundary.outline, :r)
+        if !isnothing(MXH_params)
+            @show "Selected MXH"
+            mxh = IMAS.MXH(MXH_params)()
+            eqt.boundary.outline.r, eqt.boundary.outline.z = mxh[1], mxh[2]
+        else
+            @show "Selected miller"
+            eqt.boundary.outline.r, eqt.boundary.outline.z = miller(R0, ϵ, κ, δ)
+            eqt.boundary.outline.z .+= Z0
+        end
+    end
     return eq
 end
 
