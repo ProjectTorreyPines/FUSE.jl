@@ -13,7 +13,6 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     if ini.general.init_from == :ods
         ods_items = keys(IMAS.json2imas(ini.ods.filename))
     end
-
     # initialize equilibrium
     if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
         init_equilibrium(dd, ini, act)
@@ -58,14 +57,14 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         init_core_sources(dd, ini, act)
         if do_plot
             display(plot(dd.core_sources, legend=:topright))
-            display(plot(dd.core_sources,legend=:bottomright; integrated=true))
+            display(plot(dd.core_sources, legend=:bottomright; integrated=true))
         end
     end
 
     # initialize missing IDSs from ODS (if loading from ODS)
     init_missing_from_ods(dd, ini, act)
 
-    return dd
+    return dd, ini, act
 end
 
 function init(ini::ParametersAllInits, act::ParametersAllActors; do_plot=false)
