@@ -305,8 +305,6 @@ end
 # Defintion of the actor structure
 Base.@kwdef mutable struct ActorCHEASE <: PlasmaAbstractActor
     dd::IMAS.dd
-    j_tor_from::Symbol
-    pressure_from::Symbol
     free_boundary::Bool
     chease::Union{Nothing,CHEASE.Chease}
 end
@@ -314,8 +312,6 @@ end
 # Definition of the `act` parameters relevant to the actor
 function ParametersActor(::Type{Val{:ActorCHEASE}})
     par = ParametersActor(nothing)
-    par.j_tor_from = Switch([:core_profiles, :equilibrium, :deadstart], "", "get j_tor from core_profiles, equilibrium or start from nothing"; default=:equilibrium)
-    par.pressure_from = Switch([:core_profiles, :equilibrium, :deadstart], "", "get pressure from from core_profiles, equilibrium or start from nothing"; default=:equilibrium)
     par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     par.clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
     return par
@@ -327,7 +323,7 @@ end
 Actor constructor to allow a uniform ActorSolovev(dd, par)
 """
 function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
-    ActorCHEASE(dd, par.j_tor_from, par.pressure_from, par.free_boundary, nothing)
+    ActorCHEASE(dd, par.free_boundary, nothing)
 end
 
 # run actor with `dd` and `act` as arguments
@@ -365,33 +361,9 @@ function step(actor::ActorCHEASE; clear_workdir=true)
 
     ϵ = eqt.boundary.minor_radius / r_geo
 
-    if actor.j_tor_from == :deadstart || actor.pressure_from == :deadstart
-        psin = LinRange(0, 1, 51)
-        j_tor = Ip .* (1.0 .- psin .^ 2) ./ r_geo
-        p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, Bt_geo, Ip)
-        pressure = p_core_estimate .- p_core_estimate .* psin
-    elseif actor.j_tor_from == :equilibrium && actor.pressure_from == :equilibrium
-        j_tor = eq1d.j_tor
-        pressure = eq1d.pressure
-        psin = IMAS.norm01(eq1d.psi)
-    elseif actor.j_tor_from == :equilibrium && actor.pressure_from == :core_profiles
-        psin = IMAS.norm01(eq1d.psi)
-        cp1d = dd.core_profiles.profiles_1d[]
-        j_tor = eq1d.j_tor
-        pressure = IMAS.interp1d(IMAS.norm01(cp1d.grid.psi), cp1d.pressure_thermal).(psin)
-    elseif actor.j_tor_from == :core_profiles && actor.pressure_from == :equilibrium
-        psin = IMAS.norm01(eq1d.psi)
-        cp1d = dd.core_profiles.profiles_1d[]
-        j_tor = IMAS.interp1d(IMAS.norm01(cp1d.grid.psi), cp1d.j_tor).(psin)
-        pressure = eq1d.pressure
-    elseif actor.j_tor_from == :core_profiles && actor.pressure_from == :core_profiles
-        cp1d = dd.core_profiles.profiles_1d[]
-        j_tor = cp1d.j_tor
-        pressure = cp1d.pressure_thermal
-        psin = IMAS.norm01(cp1d.grid.psi)
-    else
-        error("CHEASE actor run with incompatible actor.j_tor_from =$actor.j_tor_from & actor.pressure_from=$(actor.pressure_from)")
-    end
+    j_tor = eq1d.j_tor
+    pressure = eq1d.pressure
+    psin = IMAS.norm01(eq1d.psi)
     pressure_sep = pressure[end]
 
     # Signs aren't conveyed properly 
