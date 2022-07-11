@@ -64,7 +64,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     # initialize missing IDSs from ODS (if loading from ODS)
     init_missing_from_ods(dd, ini, act)
 
-    return dd, ini, act
+    return dd
 end
 
 function init(ini::ParametersAllInits, act::ParametersAllActors; do_plot=false)
