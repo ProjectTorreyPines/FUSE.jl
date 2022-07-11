@@ -18,7 +18,11 @@ function ParametersActor(::Type{Val{:ActorEquilibrium}})
     par.model = Switch([:Solovev, :CHEASE], "", "Chooses the equilibrium actor, Solvev, CHEASE, .."; default=:Solovev)
     return par
 end
+"""
+    ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
 
+Dispatch for ActorEquilibrium.
+"""
 function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
     if par.model == :Solovev
         eq_actor = ActorSolovev(dd, act.ActorSolovev)
@@ -29,7 +33,11 @@ function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllA
     end
     return ActorEquilibrium(dd, par.model, eq_actor)
 end
+"""
+    ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
+The ActorEquilibrium handles switching between equilibrium actors.
+"""
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibrium(kw...)
     actor = ActorEquilibrium(dd, par, act)
@@ -37,11 +45,20 @@ function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     finalize(actor)
     return actor
 end
+"""
+    step(actor::ActorEquilibrium)
 
+Runs through the selected equilibrium actor's step
+"""
 function step(actor::ActorEquilibrium)
     step(actor.eq_actor)
 end
 
+"""
+    finalize(actor::ActorEquilibrium)
+
+Finalizes the selected equilibrium actor
+"""
 function finalize(actor::ActorEquilibrium)
     finalize(actor.eq_actor)
 end
@@ -318,7 +335,7 @@ function ParametersActor(::Type{Val{:ActorCHEASE}})
 end
 
 """
-    ActorSolovev(dd::IMAS.dd, par::ParametersActor)
+    ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
 
 Actor constructor to allow a uniform ActorSolovev(dd, par)
 """

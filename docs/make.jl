@@ -1,5 +1,6 @@
 using Pkg
 Pkg.activate("..")
+Pkg.activate(joinpath(docs_dir,".."))
 
 using Revise
 
@@ -9,6 +10,8 @@ import IMAS
 import IMASDD
 import AbstractTrees
 import ProgressMeter
+
+docs_dir = dirname(abspath(@__FILE__))
 
 function html_link_repr(par::FUSE.AbstractParameter)
     return "©" * join(FUSE.path(par), ".") * "©©" * string(par._name) * "©"
@@ -68,37 +71,37 @@ end
 # ================ #
 # generate DD page #
 # ================ #
-include("src/dd_docs.jl")
+include("$docs_dir/src/dd_docs.jl")
 
 # ==================== #
 # generate Actors page #
 # ==================== #
-include("src/actors_docs.jl")
+include("$docs_dir/src/actors_docs.jl")
 
 # =================== #
 # generate inits page #
 # =================== #
-include("src/inits_docs.jl")
+include("$docs_dir/src/inits_docs.jl")
 
 # ================= #
 # generate ini page #
 # ================= #
-include("src/ini_docs.jl")
+include("$docs_dir/src/ini_docs.jl")
 
 # ================= #
 # generate act page #
 # ================= #
-include("src/act_docs.jl")
+include("$docs_dir/src/act_docs.jl")
 
 # =================== #
 # generate cases page #
 # =================== #
-include("src/cases_docs.jl")
+include("$docs_dir/src/cases_docs.jl")
 
 # ====================== #
 # generate examples page #
 # ====================== #
-include("src/examples.jl")
+include("$docs_dir/src/examples.jl")
 
 # ============== #
 # build the docs #
@@ -118,11 +121,12 @@ makedocs(;
         "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md", "HPC" => "parallel.md"],
     ],
 )
-
+@show "docs_dir here $docs_dir"
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
 @info "Converting links"
 for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd", "dd")]
-    local txt = open("build/$file.html", "r") do io
+    @show "$docs_dir/build/$file.html", "$file", "$docs_dir"
+    local txt = open("$docs_dir/build/$file.html", "r") do io
         read(io, String)
     end
     txt = split(txt, "\n")
@@ -131,7 +135,7 @@ for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd"
         txt[k] = replace(txt[k], r"©(.*)©©(.*)©" => s"<a href='©_details.html#\1'>\2</a>")
         txt[k] = replace(txt[k], "©" => parfile)
     end
-    open("build/$file.html", "w") do io
+    open("$docs_dir/build/$file.html", "w") do io
         write(io, join(txt, "\n"))
     end
 end
@@ -139,7 +143,7 @@ end
 # distinguish between input/output cells
 @info "Styling examples"
 for css in ["light", "dark"]
-    open("build/assets/themes/documenter-$css.css", "a") do io
+    open("$docs_dir/build/assets/themes/documenter-$css.css", "a") do io
         write(
             io,
             """\n
@@ -149,16 +153,16 @@ background-color: transparent !important;
         )
     end
 end
-files_to_convert = readdir("build")[findall(x -> startswith(x, "example_") && endswith(x, ".html"), readdir("build"))]
+files_to_convert = readdir("$docs_dir/build")[findall(x -> startswith(x, "example_") && endswith(x, ".html"), readdir("$docs_dir/build"))]
 for file in files_to_convert
-    local txt = open("build/$file", "r") do io
+    local txt = open("$docs_dir/build/$file", "r") do io
         read(io, String)
     end
     txt = split(txt, "\n")
     for (k, line) in enumerate(txt)
         txt[k] = replace(line, "<pre><code class=\"nohighlight" => "<pre class=\"nohighlight\"><code class=\"nohighlight")
     end
-    open("build/$file", "w") do io
+    open("$docs_dir/build/$file", "w") do io
         write(io, join(txt, "\n"))
     end
 end
