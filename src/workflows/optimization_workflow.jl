@@ -101,7 +101,7 @@ function load_optimization(filename::AbstractString)
 end
 
 function pretty_label(objective_function::ObjectiveFunction, units="")
-    txt = join(split(string(objective_function.name), "_")[2:end]," ")
+    txt = join(split(string(objective_function.name), "_")[2:end], " ")
     if length(units) > 0
         txt *= " [$units]"
     elseif length(objective_function.units) > 0
@@ -120,9 +120,21 @@ function pretty_label(parameter::AbstractParameter, units="")
     return txt
 end
 
-@recipe function plot_MultiobjectiveOptimizationResults(results::MultiobjectiveOptimizationResults, indexes::Vector{<:Integer}=[1, 2, 3]; color_by::Integer=0, design_space=false, pareto=true, max_samples=nothing, iterations=nothing)
+@recipe function plot_MultiobjectiveOptimizationResults(
+    results::MultiobjectiveOptimizationResults,
+    indexes::AbstractVector{<:Integer}=[1, 2, 3];
+    color_by=0,
+    design_space=false,
+    pareto=true,
+    max_samples=nothing,
+    iterations=nothing)
 
-    @assert length(indexes)<=3 "plot_MultiobjectiveOptimizationResults: Cannot visualize more than 3 indexes at once"
+    @assert length(indexes) <= 3 "plot_MultiobjectiveOptimizationResults: Cannot visualize more than 3 indexes at once"
+    @assert typeof(color_by) <: Integer
+    @assert typeof(design_space) <: Bool
+    @assert typeof(pareto) <: Bool
+    @assert typeof(max_samples) <: Union{Nothing,Integer}
+    @assert typeof(iterations) <: Union{Nothing,Integer}
 
     if design_space
         arg = :x

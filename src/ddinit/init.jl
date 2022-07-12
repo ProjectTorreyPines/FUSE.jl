@@ -17,8 +17,9 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
         init_equilibrium(dd, ini, act)
         if do_plot
-            plot(dd.equilibrium.time_slice[end]; x_point=true)
-            display(plot!(dd.equilibrium.time_slice[1].boundary.outline.r, dd.equilibrium.time_slice[1].boundary.outline.z, label="Field null"))
+            display(plot(dd.equilibrium.time_slice[end]))
+            plot(dd.equilibrium.time_slice[end]; cx=true, x_point=true)
+            display(plot!(dd.equilibrium.time_slice[1].boundary, label="Field null"))
         end
     end
 
@@ -26,9 +27,9 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || :build ∈ ods_items
         init_build(dd, ini, act)
         if do_plot
-            plot(dd.equilibrium, color=:gray)
+            plot(dd.equilibrium; cx=true, color=:gray)
             plot!(dd.build)
-            display(plot!(dd.build, cx=false))
+            display(plot!(dd.build; cx=false))
             display(dd.build.layer)
         end
     end
@@ -37,7 +38,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     if !ismissing(ini.pf_active, :n_oh_coils) || :pf_active ∈ ods_items
         init_pf_active(dd, ini, act)
         if do_plot
-            plot(dd.equilibrium, color=:gray)
+            plot(dd.equilibrium; cx=true, color=:gray)
             plot!(dd.build)
             plot!(dd.build.pf_active.rail)
             display(plot!(dd.pf_active))
