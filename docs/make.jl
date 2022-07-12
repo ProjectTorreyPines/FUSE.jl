@@ -1,17 +1,13 @@
+docs_dir = dirname(abspath(@__FILE__))
 using Pkg
-Pkg.activate("..")
 Pkg.activate(joinpath(docs_dir,".."))
-
 using Revise
-
 using Documenter
 import FUSE
 import IMAS
 import IMASDD
 import AbstractTrees
 import ProgressMeter
-
-docs_dir = dirname(abspath(@__FILE__))
 
 function html_link_repr(par::FUSE.AbstractParameter)
     return "©" * join(FUSE.path(par), ".") * "©©" * string(par._name) * "©"
@@ -121,11 +117,9 @@ makedocs(;
         "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md", "HPC" => "parallel.md"],
     ],
 )
-@show "docs_dir here $docs_dir"
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
 @info "Converting links"
 for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd", "dd")]
-    @show "$docs_dir/build/$file.html", "$file", "$docs_dir"
     local txt = open("$docs_dir/build/$file.html", "r") do io
         read(io, String)
     end
