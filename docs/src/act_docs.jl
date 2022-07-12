@@ -1,3 +1,4 @@
+file_dir = dirname(abspath(@__FILE__))
 txt = ["""
 # act Parameters
 
@@ -12,10 +13,10 @@ act = FUSE.ParametersAllActors()
 
 """]
 
-open("src/act.md", "w") do io
+open("$file_dir/act.md", "w") do io
     write(io, join(txt, "\n"))
 end
 
-open("src/act_details.md", "w") do io
+open("$file_dir/act_details.md", "w") do io
     parameters_details_md(io, FUSE.ParametersAllActors())
 end

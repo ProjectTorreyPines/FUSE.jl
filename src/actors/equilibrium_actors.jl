@@ -18,6 +18,7 @@ function ParametersActor(::Type{Val{:ActorEquilibrium}})
     par.model = Switch([:Solovev, :CHEASE], "", "Chooses the equilibrium actor, Solvev, CHEASE, .."; default=:Solovev)
     return par
 end
+
 """
     ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
 
@@ -33,6 +34,7 @@ function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllA
     end
     return ActorEquilibrium(dd, par.model, eq_actor)
 end
+
 """
     ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
@@ -45,6 +47,7 @@ function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     finalize(actor)
     return actor
 end
+
 """
     step(actor::ActorEquilibrium)
 
@@ -68,10 +71,8 @@ end
 #= ============ =#
 Base.@kwdef mutable struct ActorSolovev <: PlasmaAbstractActor
     eq::IMAS.equilibrium
-    S::Equilibrium.SolovevEquilibrium
-    ngrid::Integer
-    volume::Union{Missing,Real}
-    area::Union{Missing,Real}
+    par::ParametersActor
+    S::Union{Missing,Equilibrium.SolovevEquilibrium}
 end
 
 function ParametersActor(::Type{Val{:ActorSolovev}})
@@ -79,8 +80,8 @@ function ParametersActor(::Type{Val{:ActorSolovev}})
     par.ngrid = Entry(Integer, "", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
     par.alpha = Entry(Real, "", "Initial guess of constant relating to beta regime"; default=0.0)
-    par.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
-    par.area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
+    par.volume = Entry(Union{Real, Nothing}, "m³", "Scalar volume to match (optional)"; default=nothing)
+    par.area = Entry(Union{Real, Nothing}, "m²", "Scalar area to match (optional)"; default=nothing)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
@@ -91,7 +92,7 @@ end
 Actor constructor to allow a uniform ActorSolovev(dd, par)
 """
 function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
-    ActorSolovev(dd.equilibrium, ActorSolovev(dd.equilibrium), par.ngrid, getproperty(par, :volume, missing), getproperty(par, :area, missing))
+    ActorSolovev(dd.equilibrium, par, ActorSolovev(dd.equilibrium;qstar=par.qstar))
 end
 
 """
@@ -104,7 +105,7 @@ Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorSolovev(kw...)
     actor = ActorSolovev(dd, par)
-    step(actor; par.verbose)
+    step(actor)
     finalize(actor)
     # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
     par.qstar = actor.S.qstar
@@ -148,12 +149,13 @@ function ActorSolovev(eq::IMAS.equilibrium; qstar=1.5, alpha=0.0)
 end
 
 """
-    step(actor::ActorSolovev; verbose=false)
+    step(actor::ActorSolovev)
 
 Non-linear optimization to obtain a target `ip` and `beta_normal`
 """
-function step(actor::ActorSolovev; verbose=false)
+function step(actor::ActorSolovev)
     S0 = actor.S
+    par = actor.par
 
     eqt = actor.eq.time_slice[]
     target_ip = abs(eqt.global_quantities.ip)
@@ -172,7 +174,7 @@ function step(actor::ActorSolovev; verbose=false)
 
     res = Optim.optimize(cost, [alpha, qstar], Optim.NelderMead(), Optim.Options(g_tol=1E-3))
 
-    if verbose
+    if par.verbose
         println(res)
     end
 
@@ -184,9 +186,6 @@ end
 """
     finalize(
         actor::ActorSolovev;
-        ngrid::Int=129,
-        volume::Union{Missing,Real}=missing,
-        area::Union{Missing,Real}=missing,
         rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
         zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
     )::IMAS.equilibrium__time_slice
@@ -195,13 +194,11 @@ Store ActorSolovev data in IMAS.equilibrium format
 """
 function finalize(
     actor::ActorSolovev;
-    ngrid::Int=actor.ngrid,
-    volume::Union{Missing,Real}=actor.volume,
-    area::Union{Missing,Real}=actor.area,
     rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
     zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
 )::IMAS.equilibrium__time_slice
 
+    ngrid = actor.par.ngrid
     tc = transform_cocos(3, 11)
 
     eq = actor.eq
@@ -242,11 +239,11 @@ function finalize(
     IMAS.flux_surfaces(eqt)
 
     # correct equilibrium volume and area
-    if !ismissing(volume)
-        eqt.profiles_1d.volume .*= volume / eqt.profiles_1d.volume[end]
+    if !isnothing(actor.par.volume)
+        eqt.profiles_1d.volume .*= actor.par.volume / eqt.profiles_1d.volume[end]
     end
-    if !ismissing(area)
-        eqt.profiles_1d.area .*= area / eqt.profiles_1d.area[end]
+    if !isnothing(actor.par.area)
+        eqt.profiles_1d.area .*= actor.par.area / eqt.profiles_1d.area[end]
     end
 
     return eqt
@@ -318,15 +315,12 @@ end
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-
-# Defintion of the actor structure
 Base.@kwdef mutable struct ActorCHEASE <: PlasmaAbstractActor
     dd::IMAS.dd
-    free_boundary::Bool
+    par::ParametersActor
     chease::Union{Nothing,CHEASE.Chease}
 end
 
-# Definition of the `act` parameters relevant to the actor
 function ParametersActor(::Type{Val{:ActorCHEASE}})
     par = ParametersActor(nothing)
     par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
@@ -340,10 +334,9 @@ end
 Actor constructor to allow a uniform ActorSolovev(dd, par)
 """
 function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
-    ActorCHEASE(dd, par.free_boundary, nothing)
+    ActorCHEASE(dd, par, nothing)
 end
 
-# run actor with `dd` and `act` as arguments
 """
     ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
@@ -351,20 +344,24 @@ This actor runs the Fixed boundary equilibrium solver CHEASE"""
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCHEASE(kw...)
     actor = ActorCHEASE(dd, par)
-    step(actor; par.clear_workdir)
+    step(actor)
     finalize(actor)
     return actor
 end
 
-# define `step` function for this actor
-function step(actor::ActorCHEASE; clear_workdir=true)
+"""
+    step(actor::ActorCHEASE)
+
+Runs CHEASE on the r_z boundary, equilibrium pressure and equilibrium j_tor
+"""
+function step(actor::ActorCHEASE)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
-    index = (z_bound .> minimum(z_bound) * 0.98) .& (z_bound .< maximum(z_bound) * 0.98)
+    index = (z_bound .> minimum(z_bound) * 0.99) .& (z_bound .< maximum(z_bound) * 0.99)
     r_bound = r_bound[index]
     z_bound = z_bound[index]
 
@@ -384,9 +381,9 @@ function step(actor::ActorCHEASE; clear_workdir=true)
     pressure_sep = pressure[end]
 
     # Signs aren't conveyed properly 
-    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, psin, pressure, abs.(j_tor), clear_workdir=clear_workdir)
+    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, psin, pressure, abs.(j_tor), clear_workdir=actor.par.clear_workdir)
 
-    if actor.free_boundary
+    if actor.par.free_boundary
         # convert from fixed to free boundary equilibrium
         EQ = Equilibrium.efit(actor.chease.gfile, 1)
         psi_free_rz = VacuumFields.fixed2free(EQ, actor.chease.gfile.nbbbs)

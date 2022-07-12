@@ -1,3 +1,4 @@
+file_dir = dirname(abspath(@__FILE__))
 txt = ["""# Use cases
 
 ```@meta
@@ -27,6 +28,6 @@ for method in methods(FUSE.case_parameters)
         """
     )
 end
-open("src/cases.md", "w") do io
+open("$file_dir/cases.md", "w") do io
     write(io, join(txt, "\n"))
 end

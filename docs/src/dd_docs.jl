@@ -1,3 +1,4 @@
+file_dir = dirname(abspath(@__FILE__))
 txt = ["""
 # IMAS data structure
 
@@ -32,7 +33,7 @@ for name in sort(collect(fieldnames(IMAS.dd)))
         )
     end
 end
-open("src/dd.md", "w") do io
+open("$file_dir/dd.md", "w") do io
     write(io, join(txt, "\n"))
 end
 
@@ -68,7 +69,7 @@ function dd_details_md(io, ids)
     end
 end
 
-open("src/dd_details.md", "w") do io
+open("$file_dir/dd_details.md", "w") do io
     for ids in AbstractTrees.Leaves(IMAS.dd)
         if ids.key == :global_time
             continue

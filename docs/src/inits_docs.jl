@@ -1,3 +1,4 @@
+file_dir = dirname(abspath(@__FILE__))
 txt = ["""
 # Initialization
 
@@ -54,6 +55,6 @@ for name in sort(collect(names(FUSE; all=true, imported=false)))
         )
     end
 end
-open("src/inits.md", "w") do io
+open("$file_dir/inits.md", "w") do io
     write(io, join(txt, "\n"))
 end

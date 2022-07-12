@@ -142,7 +142,7 @@ function ↔(x::Real, r::AbstractVector)
     return OptParameter(x, r[1], r[end])
 end
 
-function opt_parameters(p::AbstractParameters, opt_vector=Parameter[])
+function opt_parameters(p::AbstractParameters, opt_vector=AbstractParameter[])
     _parameters = getfield(p, :_parameters)
     for k in keys(_parameters)
         parameter = _parameters[k]

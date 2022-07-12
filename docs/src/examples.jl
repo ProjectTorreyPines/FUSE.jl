@@ -1,4 +1,5 @@
-examples = [split(item[9:end], ".")[1] for item in readdir(dirname(abspath(@__FILE__))) if startswith(item, "example_") && endswith(item, ".md")]
+src_dir = dirname(abspath(@__FILE__))
+examples = [split(item[9:end], ".")[1] for item in readdir(src_dir) if startswith(item, "example_") && endswith(item, ".md")]
 dirs = unique([split(item, "__")[1] for item in examples])
 popat!(dirs, findfirst(x -> x == "cases", dirs))
 pushfirst!(dirs, "cases")
@@ -16,12 +17,12 @@ for dir in dirs
             continue
         end
 
-        title = open("src/example_$example.md", "r") do io
+        title = open("$src_dir/example_$example.md", "r") do io
             txt = read(io, String)
             try
                 title = txt[findfirst(r"^# .*", txt)][3:end]
             catch
-                error("docs/src/example_$example.md must have header markdown cell (`# title`)")
+                error("example_$example.md must have header markdown cell (`# title`)")
             end
             return title
         end
@@ -30,6 +31,6 @@ for dir in dirs
     end
 end
 
-open("src/examples.md", "w") do io
+open("$src_dir/examples.md", "w") do io
     write(io, join(txt, "\n"))
 end

@@ -101,7 +101,7 @@ function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorWholeFacility; act::Union{Missing,ParametersActor}=missing, iterations::Int=1, do_plot::Bool=false)
+function step(actor::ActorWholeFacility; act::Union{Missing,ParametersAllActors}=missing, iterations::Int=1, do_plot::Bool=false)
     dd = actor.dd
     ActorEquilibriumTransport(dd, act)
     ActorHFSsizing(dd, act)

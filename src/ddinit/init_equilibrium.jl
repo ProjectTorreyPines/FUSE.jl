@@ -32,29 +32,13 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             δ=ini.equilibrium.δ,
             βn=ini.equilibrium.βn,
             ip=ini.equilibrium.ip,
+            boundary_switch=ini.equilibrium.boundary_from,
             MXH_params=ini.equilibrium.MXH_params,
             x_point=ini.equilibrium.x_point,
             symmetric=ini.equilibrium.symmetric)
 
         # solve equilibrium
-        if ini.equilibrium.model == :CHEASE
-            # Deadstart using CHEASE
-            eqt = dd.equilibrium.time_slice[]
-            eq1d = eqt.profiles_1d
-
-            Bt_geo = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0) * dd.equilibrium.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
-            p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, Bt_geo, eqt.global_quantities.ip)
-
-            psin = eq1d.psi = LinRange(0, 1, ini.equilibrium.ngrid)
-            eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
-            eq1d.pressure = p_core_estimate .- p_core_estimate .* psin
-            ActorCHEASE(dd, act)
-
-        elseif ini.equilibrium.model == :Solovev
-            ActorSolovev(dd, act)
-        else
-            error("There is no way to initalize the equilbrium with equilibrium model: $ini.equilibrium.model")
-        end
+        ActorEquilibrium(dd, act)
     end
 
     # field null surface
@@ -94,7 +78,9 @@ function init_equilibrium(
     δ::Real,
     βn::Real,
     ip::Real,
-    MXH_params=nothing,
+    boundary_switch::Symbol,
+    rz_points::Union{Nothing,Vector{Vector{<:Real}}}=nothing,
+    MXH_params::Union{Nothing,Vector{<:Real}}=nothing,
     x_point::Union{AbstractVector,NTuple{2},Bool}=false,
     symmetric::Bool=true)
 
@@ -125,17 +111,28 @@ function init_equilibrium(
     eq.vacuum_toroidal_field.r0 = R0
     @ddtime eq.vacuum_toroidal_field.b0 = B0
 
-    # Currently initalized with miller boundary, this could change to MXH boundary
-    if ismissing(eqt.boundary.outline, :r)
-        if !isnothing(MXH_params)
-            @info "Selected MXH for Equilibrium initialization"
-            mxh = IMAS.MXH(MXH_params)()
-            eqt.boundary.outline.r, eqt.boundary.outline.z = mxh[1], mxh[2]
-        else
-            @info "Selected Miller for Equilibrium initialization"
-            eqt.boundary.outline.r, eqt.boundary.outline.z = miller(R0, ϵ, κ, δ)
-            eqt.boundary.outline.z .+= Z0
+    eq1d = eqt.profiles_1d
+    p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, B0, eqt.global_quantities.ip)
+
+    psin = eq1d.psi = LinRange(0, 1, 129)
+    eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
+    eq1d.pressure = p_core_estimate .- p_core_estimate .* psin
+
+    # Set the boundary based on 
+    if boundary_switch == :rz_points
+        if isnothing(MXH_params)
+            error("ini.equilibrium.boundary_from is set as $boundary_switch but rz_points wasn't set")
         end
+        eqt.boundary.outline.r, eqt.boundary.outline.z = rz_points[1], rz_points[2]
+    elseif boundary_switch == :MXH_params
+        if isnothing(MXH_params)
+            error("ini.equilibrium.boundary_from is set as $boundary_switch but MXH_params wasn't set")
+        end
+        mxh = IMAS.MXH(MXH_params)()
+        eqt.boundary.outline.r, eqt.boundary.outline.z = mxh[1], mxh[2]
+    elseif boundary_switch == :miller
+        eqt.boundary.outline.r, eqt.boundary.outline.z = miller(R0, ϵ, κ, δ)
+        eqt.boundary.outline.z .+= Z0
     end
     return eq
 end
