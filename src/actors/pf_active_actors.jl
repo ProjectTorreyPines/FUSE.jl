@@ -65,7 +65,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersActor; kw...)
 
     if par.optimization_scheme == :none
         if par.do_plot
-            plot(actor.eq_in)
+            plot(actor.eq_in; cx=true)
             plot!(actor.bd)
             display(plot!(actor.pf_active))
         end
@@ -679,7 +679,21 @@ end
 
 Plot ActorPFcoilsOpt optimization cross-section
 """
-@recipe function plot_ActorPFcoilsOpt_cx(pfactor::ActorPFcoilsOpt; time_index=nothing, equilibrium=true, build=true, coils_flux=false, rail=false, plot_r_buffer=1.6)
+@recipe function plot_ActorPFcoilsOpt_cx(
+    pfactor::ActorPFcoilsOpt;
+    time_index=nothing,
+    equilibrium=true,
+    build=true,
+    coils_flux=false,
+    rail=false,
+    plot_r_buffer=1.6)
+
+    @assert typeof(time_index) <: Union{Nothing,Integer}
+    @assert typeof(equilibrium) <: Bool
+    @assert typeof(build) <: Bool
+    @assert typeof(coils_flux) <: Bool
+    @assert typeof(rail) <: Bool
+    @assert typeof(plot_r_buffer) <: Real
 
     if time_index === nothing
         time_index = length(pfactor.eq_out.time_slice)
@@ -820,7 +834,13 @@ Attributes:
 - what::Symbol=:cost or :currents or individual fields of the PFcoilsOptTrace structure
 - start_at=::Int=1 index of the first element of the trace to start plotting
 """
-@recipe function plot_ActorPFcoilsOpt_trace(trace::PFcoilsOptTrace, what::Symbol=:cost; start_at=1)
+@recipe function plot_ActorPFcoilsOpt_trace(
+    trace::PFcoilsOptTrace,
+    what::Symbol=:cost;
+    start_at=1)
+
+    @assert typeof(start_at) <: Integer
+
     start_at = minimum([start_at, length(trace.cost_total)])
     x = start_at:length(trace.cost_total)
     legend --> :bottomleft
