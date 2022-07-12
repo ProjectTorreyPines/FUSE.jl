@@ -53,7 +53,7 @@ end
 
 # @testset "QEDcurrent_actor" begin
 #     # Load TRANSP data at 2.91 s
-#     file_0 = joinpath(dirname(dirname(dirname(abspath(@__FILE__)))), "QED", "sample", "ods_163303Z29-2910.json")
+#     file_0 = joinpath(dirname(dirname(@__DIR__)), "QED", "sample", "ods_163303Z29-2910.json")
 #     dd = IMAS.json2imas(file_0; verbose=false)
 #     # initialize actor
 #     actor = FUSE.ActorQEDcurrent(dd)

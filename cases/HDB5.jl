@@ -97,7 +97,7 @@ end
 
 function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Union{Int,Missing}=missing, extra_signal_names=Union{String,Symbol}[])
     # For description of variables see https://osf.io/593q6/
-    run_df = CSV.read(joinpath(dirname(abspath(@__FILE__)), "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
+    run_df = CSV.read(joinpath(@__DIR__, "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
     run_df[:,"database_case"] = collect(1:length(run_df[:,"TOK"]))
 
     if !ismissing(database_case)

@@ -9,7 +9,7 @@ import Optim
 #= ================ =#
 Base.@kwdef mutable struct ActorEquilibrium <: PlasmaAbstractActor
     dd::IMAS.dd
-    model::Symbol
+    par::ParametersActor
     eq_actor::PlasmaAbstractActor
 end
 
@@ -32,7 +32,7 @@ function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllA
     else
         error("model = $par.model is not added to ActorEquilibrium")
     end
-    return ActorEquilibrium(dd, par.model, eq_actor)
+    return ActorEquilibrium(dd, deepcopy(par), eq_actor)
 end
 
 """
@@ -80,8 +80,8 @@ function ParametersActor(::Type{Val{:ActorSolovev}})
     par.ngrid = Entry(Integer, "", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
     par.alpha = Entry(Real, "", "Initial guess of constant relating to beta regime"; default=0.0)
-    par.volume = Entry(Union{Real, Nothing}, "m³", "Scalar volume to match (optional)"; default=nothing)
-    par.area = Entry(Union{Real, Nothing}, "m²", "Scalar area to match (optional)"; default=nothing)
+    par.volume = Entry(Union{Real, Missing}, "m³", "Scalar volume to match (optional)"; default=missing)
+    par.area = Entry(Union{Real, Missing}, "m²", "Scalar area to match (optional)"; default=missing)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
@@ -92,7 +92,7 @@ end
 Actor constructor to allow a uniform ActorSolovev(dd, par)
 """
 function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
-    ActorSolovev(dd.equilibrium, par, ActorSolovev(dd.equilibrium;qstar=par.qstar))
+    ActorSolovev(dd.equilibrium, deepcopy(par), ActorSolovev(dd.equilibrium;qstar=par.qstar))
 end
 
 """
@@ -239,10 +239,10 @@ function finalize(
     IMAS.flux_surfaces(eqt)
 
     # correct equilibrium volume and area
-    if !isnothing(actor.par.volume)
+    if !ismissing(actor.par, :volume)
         eqt.profiles_1d.volume .*= actor.par.volume / eqt.profiles_1d.volume[end]
     end
-    if !isnothing(actor.par.area)
+    if !ismissing(actor.par, :area)
         eqt.profiles_1d.area .*= actor.par.area / eqt.profiles_1d.area[end]
     end
 
@@ -334,7 +334,7 @@ end
 Actor constructor to allow a uniform ActorSolovev(dd, par)
 """
 function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
-    ActorCHEASE(dd, par, nothing)
+    ActorCHEASE(dd, deepcopy(par), nothing)
 end
 
 """

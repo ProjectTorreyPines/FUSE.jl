@@ -33,7 +33,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             βn=ini.equilibrium.βn,
             ip=ini.equilibrium.ip,
             boundary_switch=ini.equilibrium.boundary_from,
-            MXH_params=ini.equilibrium.MXH_params,
+            MXH_params=getproperty(ini.equilibrium, :MXH_params, missing),
             x_point=ini.equilibrium.x_point,
             symmetric=ini.equilibrium.symmetric)
 
@@ -79,8 +79,8 @@ function init_equilibrium(
     βn::Real,
     ip::Real,
     boundary_switch::Symbol,
-    rz_points::Union{Nothing,Vector{Vector{<:Real}}}=nothing,
-    MXH_params::Union{Nothing,Vector{<:Real}}=nothing,
+    rz_points::Union{Missing,Vector{Vector{<:Real}}}=missing,
+    MXH_params::Union{Missing,Vector{<:Real}}=missing,
     x_point::Union{AbstractVector,NTuple{2},Bool}=false,
     symmetric::Bool=true)
 
@@ -120,17 +120,17 @@ function init_equilibrium(
 
     # Set the boundary based on 
     if boundary_switch == :rz_points
-        if isnothing(MXH_params)
+        if ismissing(rz_points)
             error("ini.equilibrium.boundary_from is set as $boundary_switch but rz_points wasn't set")
         end
         eqt.boundary.outline.r, eqt.boundary.outline.z = rz_points[1], rz_points[2]
     elseif boundary_switch == :MXH_params
-        if isnothing(MXH_params)
+        if ismissing(MXH_params)
             error("ini.equilibrium.boundary_from is set as $boundary_switch but MXH_params wasn't set")
         end
         mxh = IMAS.MXH(MXH_params)()
         eqt.boundary.outline.r, eqt.boundary.outline.z = mxh[1], mxh[2]
-    elseif boundary_switch == :miller
+    elseif boundary_switch == :scalars
         eqt.boundary.outline.r, eqt.boundary.outline.z = miller(R0, ϵ, κ, δ)
         eqt.boundary.outline.z .+= Z0
     end

@@ -17,7 +17,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     end
 
     # load data from FPP GASC run
-    gasc = GASC(joinpath(dirname(abspath(@__FILE__)), "..", "sample", filename), case)
+    gasc = GASC(joinpath(@__DIR__, "..", "sample", filename), case)
     ini, act = case_parameters(gasc)
     ini.general.casename = "FPP_$(version)_$(init_from)"
     ini.general.init_from = init_from
@@ -27,7 +27,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     end
 
     if init_from == :ods
-        ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "FPPv1.0_demount_eq.json")
+        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "FPPv1.0_demount_eq.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end

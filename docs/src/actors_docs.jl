@@ -1,4 +1,3 @@
-file_dir = dirname(abspath(@__FILE__))
 txt = ["""
 # Physics and Engineering Actors
 
@@ -46,6 +45,6 @@ for actor_abstract_type in subtypes(FUSE.AbstractActor)
     end
 end
 
-open("$file_dir/actors.md", "w") do io
+open("$(@__DIR__)/actors.md", "w") do io
     write(io, join(txt, "\n"))
 end

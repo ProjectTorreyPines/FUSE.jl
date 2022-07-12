@@ -10,7 +10,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits, Parameter
     ini.general.casename = "CAT"
     ini.general.init_from = :ods
 
-    ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "CAT_eq_ods.json")
+    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "CAT_eq_ods.json")
 
     ini.build.blanket = 1.0
     ini.build.shield = 0.5

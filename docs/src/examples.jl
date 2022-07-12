@@ -1,5 +1,4 @@
-src_dir = dirname(abspath(@__FILE__))
-examples = [split(item[9:end], ".")[1] for item in readdir(src_dir) if startswith(item, "example_") && endswith(item, ".md")]
+examples = [split(item[9:end], ".")[1] for item in readdir((@__DIR__)) if startswith(item, "example_") && endswith(item, ".md")]
 dirs = unique([split(item, "__")[1] for item in examples])
 popat!(dirs, findfirst(x -> x == "cases", dirs))
 pushfirst!(dirs, "cases")
@@ -17,7 +16,7 @@ for dir in dirs
             continue
         end
 
-        title = open("$src_dir/example_$example.md", "r") do io
+        title = open("$(@__DIR__)/example_$example.md", "r") do io
             txt = read(io, String)
             try
                 title = txt[findfirst(r"^# .*", txt)][3:end]
@@ -31,6 +30,6 @@ for dir in dirs
     end
 end
 
-open("$src_dir/examples.md", "w") do io
+open("$(@__DIR__)/examples.md", "w") do io
     write(io, join(txt, "\n"))
 end

@@ -18,7 +18,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.material.shield = "Tungsten"
 
     if init_from == :ods
-        ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "ITER_eq_ods.json")
+        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
         act.ActorHFSsizing.fixed_aspect_ratio = true
     else

@@ -10,7 +10,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits, Parameter
     ini.general.casename = "D3D"
     ini.general.init_from = :ods
 
-    ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "D3D_eq_ods.json")
+    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "D3D_eq_ods.json")
 
     ini.build.blanket = 0.0
     ini.build.shield = 0.0
