@@ -15,30 +15,14 @@ end
 
 function ParametersActor(::Type{Val{:ActorEquilibrium}})
     par = ParametersActor(nothing)
-    par.model = Switch([:Solovev, :CHEASE], "", "Chooses the equilibrium actor, Solvev, CHEASE, .."; default=:Solovev)
+    par.model = Switch([:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
     return par
-end
-
-"""
-    ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
-
-Dispatch for ActorEquilibrium.
-"""
-function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
-    if par.model == :Solovev
-        eq_actor = ActorSolovev(dd, act.ActorSolovev)
-    elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
-    else
-        error("model = $par.model is not added to ActorEquilibrium")
-    end
-    return ActorEquilibrium(dd, deepcopy(par), eq_actor)
 end
 
 """
     ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorEquilibrium handles switching between equilibrium actors.
+The ActorEquilibrium provides a common interface to run multiple equilibrium actors
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibrium(kw...)
@@ -46,6 +30,17 @@ function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors)
+    if par.model == :Solovev
+        eq_actor = ActorSolovev(dd, act.ActorSolovev)
+    elseif par.model == :CHEASE
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
+    else
+        error("ActorEquilibrium: model = $(par.model) is unknown")
+    end
+    return ActorEquilibrium(dd, deepcopy(par), eq_actor)
 end
 
 """
@@ -72,7 +67,7 @@ end
 Base.@kwdef mutable struct ActorSolovev <: PlasmaAbstractActor
     eq::IMAS.equilibrium
     par::ParametersActor
-    S::Union{Missing,Equilibrium.SolovevEquilibrium}
+    S::Equilibrium.SolovevEquilibrium
 end
 
 function ParametersActor(::Type{Val{:ActorSolovev}})
@@ -80,19 +75,10 @@ function ParametersActor(::Type{Val{:ActorSolovev}})
     par.ngrid = Entry(Integer, "", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
     par.alpha = Entry(Real, "", "Initial guess of constant relating to beta regime"; default=0.0)
-    par.volume = Entry(Union{Real, Missing}, "m³", "Scalar volume to match (optional)"; default=missing)
-    par.area = Entry(Union{Real, Missing}, "m²", "Scalar area to match (optional)"; default=missing)
+    par.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
+    par.area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
-end
-
-"""
-    ActorSolovev(dd::IMAS.dd, par::ParametersActor)
-
-Actor constructor to allow a uniform ActorSolovev(dd, par)
-"""
-function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
-    ActorSolovev(dd.equilibrium, deepcopy(par), ActorSolovev(dd.equilibrium;qstar=par.qstar))
 end
 
 """
@@ -113,19 +99,9 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-"""
-    function ActorSolovev(eq::IMAS.equilibrium; qstar = 1.5, alpha = 0.0)
-
-Constructor for the ActorSolovev structure
-“One size fits all” analytic solutions to the Grad–Shafranov equation
-Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
-
-- qstar: Kink safety factor
-
-- alpha: Constant affecting the pressure
-"""
-function ActorSolovev(eq::IMAS.equilibrium; qstar=1.5, alpha=0.0)
-    eqt = eq.time_slice[]
+function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
+    # extract info from dd
+    eqt = dd.equilibrium.time_slice[]
     a = eqt.boundary.minor_radius
     R0 = eqt.boundary.geometric_axis.r
     κ = eqt.boundary.elongation
@@ -133,19 +109,24 @@ function ActorSolovev(eq::IMAS.equilibrium; qstar=1.5, alpha=0.0)
     ϵ = a / R0
     B0 = @ddtime eq.vacuum_toroidal_field.b0
 
-    # check number of x_points
+    # check number of x_points to infer symmetry
     if mod(length(eqt.boundary.x_point), 2) == 0
         symmetric = true
     else
         symmetric = false
     end
 
+    # add x_point info
     if length(eqt.boundary.x_point) > 0
         x_point = (eqt.boundary.x_point[1].r, -abs(eqt.boundary.x_point[1].z))
     else
         x_point = nothing
     end
-    return Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
+
+    # run Solovev
+    S = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
+
+    return ActorSolovev(dd.equilibrium, deepcopy(par), S)
 end
 
 """
@@ -329,15 +310,6 @@ function ParametersActor(::Type{Val{:ActorCHEASE}})
 end
 
 """
-    ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
-
-Actor constructor to allow a uniform ActorSolovev(dd, par)
-"""
-function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
-    ActorCHEASE(dd, deepcopy(par), nothing)
-end
-
-"""
     ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor runs the Fixed boundary equilibrium solver CHEASE"""
@@ -347,6 +319,10 @@ function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
+    ActorCHEASE(dd, deepcopy(par), nothing)
 end
 
 """
