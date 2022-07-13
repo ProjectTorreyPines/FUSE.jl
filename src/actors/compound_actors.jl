@@ -19,7 +19,7 @@ Compound actor that runs the following actors in succesion:
 ```julia
 ActorSteadyStateCurrent(dd, act)    # Current evolution to steady-state 
 ActorTauenn(dd, act)                # For transport
-ActorSolovev(dd, act)               # Equilibrium
+ActorEquilibrium(dd, act)           # Equilibrium
 ```
 
 !!! note 
@@ -58,7 +58,7 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAll
         end
 
         # run equilibrium actor with the updated beta
-        ActorSolovev(dd, act)
+        ActorEquilibrium(dd, act)
 
         # Set j_ohmic to steady state
         ActorSteadyStateCurrent(dd, act)
