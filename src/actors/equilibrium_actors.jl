@@ -101,7 +101,8 @@ end
 
 function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
     # extract info from dd
-    eqt = dd.equilibrium.time_slice[]
+    eq = dd.equilibrium
+    eqt = eq.time_slice[]
     a = eqt.boundary.minor_radius
     R0 = eqt.boundary.geometric_axis.r
     κ = eqt.boundary.elongation
@@ -124,7 +125,7 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
     end
 
     # run Solovev
-    S = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, alpha, qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
+    S = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, par.alpha, par.qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
     return ActorSolovev(dd.equilibrium, deepcopy(par), S)
 end
