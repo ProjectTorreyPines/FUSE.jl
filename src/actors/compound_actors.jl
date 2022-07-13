@@ -40,9 +40,9 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAll
     end
 
     if do_plot
-        pe = plot(dd.equilibrium; color=:gray, label="")
-        pp = plot(dd.core_profiles; color=:gray, label="")
-        ps = plot(dd.core_sources; color=:gray)
+        pe = plot(dd.equilibrium; color=:gray, label="old")
+        pp = plot(dd.core_profiles; color=:gray, label=" (old)")
+        ps = plot(dd.core_sources; color=:gray, label=" (old)")
     end
 
     # Set j_ohmic to steady state
