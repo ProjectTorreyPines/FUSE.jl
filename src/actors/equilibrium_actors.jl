@@ -44,6 +44,23 @@ function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllA
 end
 
 """
+    prepare(dd::IMAS.dd, :ActorEquilibrium, act::ParametersAllActors; kw...)
+
+Prepare dd to run ActorEquilibrium
+* call prapare function of the different equilibrium models
+"""
+function prepare(dd::IMAS.dd, ::Type{Val{:ActorEquilibrium}}, act::ParametersAllActors; kw...)
+    par = act.ActorEquilibrium(kw...)
+    if par.model == :Solovev
+        return prepare(dd, :ActorSolovev, act; kw...)
+    elseif par.model == :CHEASE
+        return prepare(dd, :ActorCHEASE, act; kw...)
+    else
+        error("ActorEquilibrium: model = $(par.model) is unknown")
+    end
+end
+
+"""
     step(actor::ActorEquilibrium)
 
 Runs through the selected equilibrium actor's step
@@ -128,6 +145,16 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
     S = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, par.alpha, par.qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
     return ActorSolovev(dd.equilibrium, deepcopy(par), S)
+end
+
+"""
+    prepare(dd::IMAS.dd, :ActorSolovev, act::ParametersAllActors; kw...)
+
+Prepare dd to run ActorSolovev
+* Copy beta_n from summary to equilibrium
+"""
+function prepare(dd::IMAS.dd, ::Type{Val{:ActorSolovev}}, act::ParametersAllActors; kw...)
+    dd.equilibrium.time_slice[].global_quantities.beta_normal = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
 end
 
 """
@@ -324,6 +351,17 @@ end
 
 function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
     ActorCHEASE(dd, deepcopy(par), nothing)
+end
+
+"""
+    prepare(dd::IMAS.dd, :ActorCHEASE, act::ParametersAllActors; kw...)
+
+Prepare dd to run ActorCHEASE
+* Copy pressure from core_profiles to equilibrium
+* Copy j_parallel from core_profiles to equilibrium
+"""
+function prepare(dd::IMAS.dd, ::Type{Val{:ActorCHEASE}}, act::ParametersAllActors; kw...)
+    # fill out
 end
 
 """

@@ -569,3 +569,15 @@ function case_parameters(case::Symbol; kw...)
     end
     return case_parameters(Val{case}; kw...)
 end
+
+#= ======= =#
+#  prepare  #
+#= ======= =#
+"""
+    prepare(actor_type::DataType, dd::IMAS.dd, act::ParametersAllActors; kw...)
+
+Dispatch `prepare` function for different actors based on actor_type that is passed
+"""
+function prepare(dd::IMAS.dd, actor_name::Symbol, act::ParametersAllActors; kw...)
+    return prepare(dd, Val{actor_name}, act; kw...)
+end
