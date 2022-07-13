@@ -13,7 +13,7 @@ function ParametersActor(::Type{Val{:ActorStresses}})
 end
 
 """
-    ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor estimates vertical field from PF coils and its contribution to flux swing, where
 `eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
@@ -21,7 +21,7 @@ This actor estimates vertical field from PF coils and its contribution to flux s
 !!! note 
     Stores data in `dd.solid_mechanics`
 """
-function ActorStresses(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorStresses(kw...)
     actor = ActorStresses(dd)
     step(actor; par.n_points)

@@ -18,14 +18,14 @@ function ParametersActor(::Type{Val{:ActorQEDcurrent}})
 end
 
 """
-    ActorQEDcurrent(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor evolves the current using QED.
 
 !!! note 
     Stores data in `dd.equilibrium`
 """
-function ActorQEDcurrent(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorQEDcurrent(kw...)
     actor = ActorQEDcurrent(dd)
     step(actor)
@@ -121,7 +121,7 @@ function ParametersActor(::Type{Val{:ActorSteadyStateCurrent}})
 end
 
 """
-    ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor evolves the current to steady state using the conductivity from `dd.core_profiles` and current profile form `dd.equilibrium`.
 
@@ -130,7 +130,7 @@ Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_pr
 !!! note 
     Stores data in `dd.core_profiles, dd.equilbrium`
 """
-function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorSteadyStateCurrent(kw...)
     actor = ActorSteadyStateCurrent(dd, par...)
     step(actor)

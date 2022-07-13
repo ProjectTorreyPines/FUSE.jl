@@ -51,11 +51,11 @@ end
 #  init build  #
 #= ========== =#
 """
-    init_build(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.build` starting from 0D `ini` parameters and `act` actor parameters.
 """
-function init_build(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_from = ini.general.init_from
     
     if init_from == :ods

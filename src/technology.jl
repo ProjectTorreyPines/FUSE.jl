@@ -177,7 +177,7 @@ function coil_technology(machine::Symbol, coil_type::Symbol)
 end
 
 """
-    coil_J_B_crit(Bext, coil_tech::Parameters)
+    coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
 
 Returns critical current density and magnetic field given an external magnetic field and coil technology
 """

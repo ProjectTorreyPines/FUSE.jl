@@ -1,11 +1,11 @@
 using Pkg
-Pkg.activate("..")
+Pkg.activate(joinpath(@__DIR__,".."))
 using ProgressMeter
 
-dirs = ["cases", "actors", "workflows", "tutorials"]
+dirs = ["cases", "actors","tutorials", "workflows"]
 
 # Converts all notebooks in examples/... to .md and stores them in docs/src
-current_path = dirname(abspath(@__FILE__))
+current_path = @__DIR__
 
 for dir in dirs
     example_folder = joinpath(current_path, "..", "examples", dir)

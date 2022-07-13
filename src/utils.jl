@@ -150,7 +150,7 @@ function TraceCAD(device::Symbol)
 end
 
 @recipe function plot_trace_cad(cad::TraceCAD)
-    img = Images.load(joinpath(dirname(dirname(abspath(@__FILE__))), "cases", "$(cad.name).jpg"))
+    img = Images.load(joinpath(dirname(@__DIR__), "cases", "$(cad.name).jpg"))
     img .= img[end:-1:1, 1:end]
     x = LinRange(0, cad.x_length, size(img)[1]) .+ cad.x_offset
     y = LinRange(-0.5, 0.5, size(img)[2]) .* (size(img)[1] / size(img)[2]) * (x[end] - x[1]) .- cad.y_offset

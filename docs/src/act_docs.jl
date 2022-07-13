@@ -7,15 +7,15 @@ CurrentModule = FUSE
 
 ```@example
 import FUSE # hide
-act = FUSE.ParametersActor()
+act = FUSE.ParametersAllActors()
 ```
 
 """]
 
-open("src/act.md", "w") do io
+open("$(@__DIR__)/act.md", "w") do io
     write(io, join(txt, "\n"))
 end
 
-open("src/act_details.md", "w") do io
-    parameters_details_md(io, FUSE.ParametersActor())
+open("$(@__DIR__)/act_details.md", "w") do io
+    parameters_details_md(io, FUSE.ParametersAllActors())
 end

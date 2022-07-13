@@ -105,14 +105,14 @@ function ParametersActor(::Type{Val{:ActorCosting}})
 end
 
 """
-    ActorCosting(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor estimates the cost of the fusion power plant.
 
 !!! note 
     Stores data in `dd.costing`
 """
-function ActorCosting(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCosting(kw...)
     actor = ActorCosting(dd)
     step(actor)

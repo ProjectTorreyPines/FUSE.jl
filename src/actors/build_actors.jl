@@ -150,7 +150,7 @@ These currents may or may not exceed the OH and TF current limits.""";
 end
 
 """
-    ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor operate in two ways, depending on `operate_at_j_crit`
 * true => Figure out what is the OH and TF current limit, and evaluate flattop duration and maximum toroidal magnetic field follow from that
@@ -165,7 +165,7 @@ OH flux consumption based on:
     Stores data in `dd.build.flux_swing_estimates`, `dd.build.tf`, and `dd.build.oh`
 
 """
-function ActorFluxSwing(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorFluxSwing(kw...)
     actor = ActorFluxSwing(; dd, par...)
     step(actor)
@@ -304,7 +304,7 @@ function ParametersActor(::Type{Val{:ActorLFSsizing}})
 end
 
 """
-    ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Actor that resizes the Low Field Side of the build.
 * Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
@@ -313,7 +313,7 @@ Actor that resizes the Low Field Side of the build.
 !!! note 
     Manipulates radial build information in `dd.build.layer`
 """
-function ActorLFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorLFSsizing(kw...)
     if par.do_plot
         plot(dd.build)
@@ -377,7 +377,7 @@ function ParametersActor(::Type{Val{:ActorHFSsizing}})
 end
 
 """
-    ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Actor that resizes the High Field Side of the build.
 * takes into account the OH maximum allowed superconductor current/Field
@@ -386,7 +386,7 @@ Actor that resizes the High Field Side of the build.
 !!! note 
     Manipulates radial build information in `dd.build.layer`
 """
-function ActorHFSsizing(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorHFSsizing(kw...)
     if par.do_plot
         p = plot(dd.build)
@@ -644,14 +644,14 @@ function ParametersActor(::Type{Val{:ActorCXbuild}})
 end
 
 """
-    ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Actor that builds the 2D cross section of the build.
 
 !!! note 
     Manipulates data in `dd.build`
 """
-function ActorCXbuild(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCXbuild(kw...)
     actor = ActorCXbuild(dd)
     step(actor; par.rebuild_wall)
@@ -1075,7 +1075,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # display(plot!(layer.outline.r, layer.outline.z))
 end
 
-function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersInit)
+function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
     bd = dd.build
     for (k, layer) in enumerate(bd.layer)
         if k == 1 && ini.center_stack.plug

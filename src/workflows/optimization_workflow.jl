@@ -3,17 +3,17 @@ import BSON
 
 mutable struct MultiobjectiveOptimizationResults
     workflow::Union{DataType,Function}
-    ini::ParametersInit
-    act::ParametersActor
+    ini::ParametersAllInits
+    act::ParametersAllActors
     state::Metaheuristics.State
-    opt_ini::Vector{<:Parameter}
+    opt_ini::Vector{<:AbstractParameter}
     objectives_functions::Vector{<:ObjectiveFunction}
 end
 
 """
     workflow_multiobjective_optimization(
-        ini::ParametersInit,
-        act::ParametersActor,
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
         actor_or_workflow::Union{DataType, Function},
         objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
         N::Int=10,
@@ -23,8 +23,8 @@ end
 Multi-objective optimization of either an `actor(dd, act)` or a `workflow(ini, act)`
 """
 function workflow_multiobjective_optimization(
-    ini::ParametersInit,
-    act::ParametersActor,
+    ini::ParametersAllInits,
+    act::ParametersAllActors,
     actor_or_workflow::Union{DataType,Function},
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
     N::Int=10,
@@ -110,7 +110,7 @@ function pretty_label(objective_function::ObjectiveFunction, units="")
     return txt
 end
 
-function pretty_label(parameter::Parameter, units="")
+function pretty_label(parameter::AbstractParameter, units="")
     txt = replace(string(parameter._name), "_" => " ")
     if length(units) > 0
         txt *= " [$units]"
@@ -247,7 +247,7 @@ end
 import IMASDD
 import OrderedCollections
 
-function Base.convert(::Type{Vector{<:Parameter}}, x::Vector{Any})
+function Base.convert(::Type{Vector{<:AbstractParameter}}, x::Vector{Any})
     return Parameter[xx for xx in x]
 end
 

@@ -1,11 +1,11 @@
 import NumericalIntegration: cumul_integrate
 
 """
-    init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.nbi` starting from 0D `ini` parameters and `act` actor parameters.
 """
-function init_nbi(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+function init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_nbi(dd,
         ini.nbi.power_launched,
         ini.nbi.beam_energy,
@@ -46,11 +46,11 @@ function init_nbi(
 end
 
 """
-    init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.ec_launchers` starting from 0D `ini` parameters and `act` actor parameters.
 """
-function init_ec_launchers(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+function init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_ec_launchers(dd,
         ini.ec_launchers.power_launched,
         getproperty(ini.ec_launchers, :efficiency_conversion, missing),
@@ -76,11 +76,11 @@ function init_ec_launchers(
 end
 
 """
-    init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.ic_antennas` starting from 0D `ini` parameters and `act` actor parameters.
 """
-function init_ic_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+function init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_ic_antennas(dd,
         ini.ic_antennas.power_launched,
         getproperty(ini.ic_antennas, :efficiency_conversion, missing),
@@ -109,11 +109,11 @@ function init_ic_antennas(
 end
 
 """
-    init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor parameters.
 """
-function init_lh_antennas(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+function init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_lh_antennas(dd,
         ini.lh_antennas.power_launched,
         getproperty(ini.lh_antennas, :efficiency_conversion, missing),
@@ -141,11 +141,11 @@ function init_lh_antennas(
 end
 
 """
-    init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+    init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor parameters.
 """
-function init_core_sources(dd::IMAS.dd, ini::ParametersInit, act::ParametersActor)
+function init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_from = ini.general.init_from
 
     if init_from == :ods

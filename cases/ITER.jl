@@ -6,9 +6,9 @@ ITER
 Arguments:
 * `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersInit, ParametersActor}
-    ini = ParametersInit()
-    act = ParametersActor()
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersAllInits,ParametersAllActors}
+    ini = ParametersAllInits()
+    act = ParametersAllActors()
     ini.general.casename = "ITER_$(init_from)"
     ini.general.init_from = init_from
 
@@ -18,7 +18,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.material.shield = "Tungsten"
 
     if init_from == :ods
-        ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "ITER_eq_ods.json")
+        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
         act.ActorHFSsizing.fixed_aspect_ratio = true
     else
@@ -32,6 +32,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.equilibrium.βn = 2.0
         ini.equilibrium.x_point = true
         ini.equilibrium.symmetric = false
+        ini.equilibrium.MXH_params = [
+            6.19245, 0.39528, 0.32331, 1.82302, 0.00337,
+            0.15912, -0.05842, -0.04573, 0.00694, 0.00614,
+            0.00183, 0.43714, 0.09583, -0.05597, -0.01655,
+            0.00204, 0.00306]
         act.ActorCXbuild.rebuild_wall = true
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end

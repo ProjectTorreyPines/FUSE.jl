@@ -56,7 +56,7 @@ function Base.show(io::IO, f::ObjectiveFunction)
     print(io, " [$(f.units)]")
 end
 
-function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType,Function}, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction})
+function optimization_engine(ini::ParametersAllInits, act::ParametersAllActors, actor_or_workflow::Union{DataType,Function}, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction})
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
         if typeof(optpar.value) <: Integer
@@ -81,7 +81,7 @@ function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or
     end
 end
 
-function optimization_engine(ini::ParametersInit, act::ParametersActor, actor_or_workflow::Union{DataType,Function}, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction}, p)
+function optimization_engine(ini::ParametersAllInits, act::ParametersAllActors, actor_or_workflow::Union{DataType,Function}, X::AbstractMatrix, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction}, p)
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions), [X[k, :] for k in 1:size(X)[1]])

@@ -15,14 +15,14 @@ function ParametersActor(::Type{Val{:ActorDivertors}})
 end
 
 """
-    ActorSimpleDivertors(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorSimpleDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Simple Divertor actor
 
 !!! note 
     Stores data in `dd.divertors`
 """
-function ActorDivertors(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorDivertors(kw...)
     actor = ActorDivertors(dd, par.thermal_power_extraction_efficiency)
     step(actor)

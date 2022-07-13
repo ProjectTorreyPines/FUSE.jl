@@ -21,7 +21,7 @@ for actor_abstract_type in subtypes(FUSE.AbstractActor)
                 """### $basename
 
                 ```@docs
-                FUSE.$name(dd::IMAS.dd, act::FUSE.ParametersActor; kw...)
+                FUSE.$name(dd::IMAS.dd, act::FUSE.ParametersAllActors; kw...)
                 ```
 
                 ```@eval
@@ -45,6 +45,6 @@ for actor_abstract_type in subtypes(FUSE.AbstractActor)
     end
 end
 
-open("src/actors.md", "w") do io
+open("$(@__DIR__)/actors.md", "w") do io
     write(io, join(txt, "\n"))
 end

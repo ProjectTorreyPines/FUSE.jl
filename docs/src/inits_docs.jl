@@ -22,7 +22,7 @@ CurrentModule = FUSE
 ## High-level Initialization
 
 ```@docs
-FUSE.init(::IMAS.dd, ::FUSE.ParametersInit, ::FUSE.ParametersActor)
+FUSE.init(::IMAS.dd, ::FUSE.ParametersAllInits, ::FUSE.ParametersAllActors)
 ```
 
 ## Use-cases initialization
@@ -47,13 +47,13 @@ for name in sort(collect(names(FUSE; all=true, imported=false)))
             """### $basename
 
             ```@docs
-            FUSE.$name(::IMAS.dd, ::FUSE.ParametersInit, ::FUSE.ParametersActor)
+            FUSE.$name(::IMAS.dd, ::FUSE.ParametersAllInits, ::FUSE.ParametersAllActors)
             ```
 
             """
         )
     end
 end
-open("src/inits.md", "w") do io
+open("$(@__DIR__)/inits.md", "w") do io
     write(io, join(txt, "\n"))
 end

@@ -3,14 +3,14 @@
 
 DIII-D
 """
-function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersInit, ParametersActor}
-    ini = ParametersInit()
-    act = ParametersActor()
+function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits, ParametersAllActors}
+    ini = ParametersAllInits()
+    act = ParametersAllActors()
 
     ini.general.casename = "D3D"
     ini.general.init_from = :ods
 
-    ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "D3D_eq_ods.json")
+    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "D3D_eq_ods.json")
 
     ini.build.blanket = 0.0
     ini.build.shield = 0.0

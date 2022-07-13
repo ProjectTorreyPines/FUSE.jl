@@ -3,14 +3,14 @@
 
 GA Compact Advanced Tokamak design
 """
-function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersInit, ParametersActor}
-    ini = ParametersInit()
-    act = ParametersActor()
+function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits, ParametersAllActors}
+    ini = ParametersAllInits()
+    act = ParametersAllActors()
 
     ini.general.casename = "CAT"
     ini.general.init_from = :ods
 
-    ini.ods.filename = joinpath(dirname(abspath(@__FILE__)), "..", "sample", "CAT_eq_ods.json")
+    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "CAT_eq_ods.json")
 
     ini.build.blanket = 1.0
     ini.build.shield = 0.5

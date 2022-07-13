@@ -92,11 +92,11 @@ end
 
 # run actor with `dd` and `act` as arguments
 """
-    ActorNAME(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorNAME(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 What does this actor do...
 """
-function ActorNAME(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorNAME(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNAME(kw...)
     actor = ActorNAME(;dd, par...)
     step(actor)

@@ -19,14 +19,14 @@ function ParametersActor(::Type{Val{:ActorNBIsimple}})
 end
 
 """
-    ActorNBIsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
 !!! note 
     Stores data in `dd.nbi, dd.core_sources`
 """
-function ActorNBIsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNBIsimple(kw...)
     actor = ActorNBIsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
@@ -103,14 +103,14 @@ function ParametersActor(::Type{Val{:ActorECsimple}})
 end
 
 """
-    ActorECsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor estimates the EC electron energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.ec_launchers, dd.core_sources`
 """
-function ActorECsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorECsimple(kw...)
     actor = ActorECsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
@@ -179,14 +179,14 @@ function ParametersActor(::Type{Val{:ActorICsimple}})
 end
 
 """
-    ActorICsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.ic_antennas, dd.core_sources`
 """
-function ActorICsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorICsimple(kw...)
     actor = ActorICsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
@@ -255,14 +255,14 @@ function ParametersActor(::Type{Val{:ActorLHsimple}})
 end
 
 """
-    ActorLHsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+    ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 This actor estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.lh_antennas, dd.core_sources`
 """
-function ActorLHsimple(dd::IMAS.dd, act::ParametersActor; kw...)
+function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorLHsimple(kw...)
     actor = ActorLHsimple(dd; par.width, par.rho_0, par.current_efficiency)
     step(actor)
