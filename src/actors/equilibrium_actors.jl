@@ -361,7 +361,10 @@ Prepare dd to run ActorCHEASE
 * Copy j_parallel from core_profiles to equilibrium
 """
 function prepare(dd::IMAS.dd, ::Type{Val{:ActorCHEASE}}, act::ParametersAllActors; kw...)
-    # fill out
+    eq1d = dd.equilibrium.time_slice[].profiles_1d
+    cp1d = dd.core_profiles.profiles_1d[]
+    eq1d.j_tor = IMAS.interp1d(IMAS.norm01(cp1d.grid.psi), cp1d.j_tor).(eq1d.psi_norm)
+    eq1d.pressure = IMAS.interp1d(IMAS.norm01(cp1d.grid.psi), cp1d.pressure_thermal).(eq1d.psi_norm)
 end
 
 """
