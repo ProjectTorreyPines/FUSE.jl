@@ -579,5 +579,6 @@ end
 Dispatch `prepare` function for different actors based on actor_type that is passed
 """
 function prepare(dd::IMAS.dd, actor_name::Symbol, act::ParametersAllActors; kw...)
-    return prepare(dd, Val{actor_name}, act; kw...)
+    prepare(dd, Val{actor_name}, act; kw...)
+    return dd
 end
