@@ -158,4 +158,7 @@ web:
 examples: .PHONY
 	cd docs; julia notebooks_to_html.jl
 
+dd:
+	julia ../IMASDD/src/generate_dd.jl
+
 .PHONY:
