@@ -52,10 +52,8 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAll
         # run transport actor
         ActorTauenn(dd, act)
 
-        # Set beta_normal from equilbrium to the kinetic beta_n
-        if !isempty(dd.core_profiles.profiles_1d)
-            dd.equilibrium.time_slice[].global_quantities.beta_normal = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
-        end
+        # prepare equilibrium input based on transport core_profiles output
+        prepare(dd, :ActorEquilibrium, act)
 
         # run equilibrium actor with the updated beta
         ActorEquilibrium(dd, act)
