@@ -789,17 +789,20 @@ Plot ActorPFcoilsOpt optimization cross-section
     if equilibrium
         if field_null
             @series begin
+                cx := true
                 label --> "Field null region"
                 seriescolor --> :red
                 pfactor.eq_out.time_slice[time_index]
             end
         else
             @series begin
+                cx := true
                 label --> "Final"
                 seriescolor --> :red
                 pfactor.eq_out.time_slice[time_index]
             end
             @series begin
+                cx := true
                 label --> "Target"
                 seriescolor --> :blue
                 lcfs --> true
