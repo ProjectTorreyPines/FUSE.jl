@@ -36,6 +36,10 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             ejima=ini.core_profiles.ejima)
     end
 
+    if ismissing(dd.core_profiles.profiles_1d[], :j_ohmic)
+        ActorSteadyStateCurrent(dd, act)
+    end
+
     return dd
 end
 
