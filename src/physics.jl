@@ -609,7 +609,7 @@ end
     end
 end
 
-function add_xpoint(mr::Vector{T}, mz::Vector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
+function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
     RX = mr[i] .* α .+ R0 .* (1.0 .- α)
     ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
     RZ = FUSE.convex_hull(collect(zip(vcat(mr, RX), vcat(mz, ZX))); closed_polygon=true)
@@ -618,11 +618,26 @@ function add_xpoint(mr::Vector{T}, mz::Vector{T}, i::Integer, R0::T, Z0::T, α::
     return RX, ZX, R, Z
 end
 
-function add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::T, Z0::T; upper::Bool) where {T<:Real}
+"""
+    add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::Union{Nothing,T}, Z0::T; upper::Bool) where {T<:Real}
+
+Add a X-point to a boundary that does not have one
+
+The X-point is added at the point where there is the largest curvature in the boundary,
+and is built in such a way to form 90° angle (which is what it should be for zero current at the LCFS).
+The X-point is placed on a line that goes from (R0,Z0) through the point of maximum curvature.
+
+Control of the X-point location can be achieved by modifying R0, Z0
+"""
+function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
     function cost(mr, mz, i, R0, Z0, α)
         RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, α[1])
-        return (1.0 - maximum(abs.(IMAS.curvature(R, Z))))^2
+        return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (upper ? Z .> Z0 : Z .< Z0))))^2
+    end
+
+    if Z0 === nothing
+        Z0 = sum(mz) / length(mz)
     end
 
     if upper
@@ -630,6 +645,11 @@ function add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::T, Z0::T; upper::Bool) whe
     else
         i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
     end
+
+    if R0 === nothing
+        R0 = mr[i]
+    end
+
     res = FUSE.Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, FUSE.Optim.GoldenSection())
     RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, res.minimizer[1])
 
@@ -658,18 +678,18 @@ function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
 
-    IMAS.reorder_flux_surface!(R, Z, R0, Z0)
     R, Z = IMAS.resample_2d_line(R, Z; n_points=n_points)
+    IMAS.reorder_flux_surface!(R, Z, R0, Z0)
 
     return MXHboundary(mxh, RX, ZX, R, Z)
 end
 
 """
-    boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p=nothing)
+    boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot})
 
 Plot and manipulate Miller Extended Harmonic (MXH) boundary
 """
-function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot})
+function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot}=nothing)
     n = 101
     if length(mxh.c) != 3
         mxh = IMAS.MXH(mxh()..., 3)
@@ -717,7 +737,15 @@ function boundary_shape(R0::Real; p=nothing)
 end
 
 """
-    square_miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real, squareness::Real; x_points::Bool, exact::Bool=false, n_points::Int=401)
+    square_miller(
+        R0::Real,
+        rmin_over_R0::Real,
+        elongation::Real,
+        triangularity::Real,
+        squareness::Real;
+        x_points::Bool,
+        exact::Bool=false,
+        n_points::Int=401)
 
 Miller contour with squareness (via MXH parametrization)
 
@@ -725,7 +753,16 @@ Miller contour with squareness (via MXH parametrization)
 since MXH and Miller deviate at high triangularities, and addition of X-points will
 also alter measured elongation and triangularity.
 """
-function square_miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real, squareness::Real; x_points::Bool, exact::Bool=false, n_points::Int=401)
+function square_miller(
+    R0::Real,
+    rmin_over_R0::Real,
+    elongation::Real,
+    triangularity::Real,
+    squareness::Real;
+    x_points::Bool,
+    exact::Bool=false,
+    n_points::Integer=401)
+
     mxh = IMAS.MXH(R0, 2)
     mxh.ϵ = rmin_over_R0
     mxh.κ = elongation
