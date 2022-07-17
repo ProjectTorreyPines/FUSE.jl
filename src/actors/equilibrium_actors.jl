@@ -411,9 +411,12 @@ function step(actor::ActorCHEASE)
         psi_a = EQ.psi_rz(EQ.axis...)
         actor.chease.gfile.psirz = (psi_free_rz .- psi_a) * ((actor.chease.gfile.psi[end] - actor.chease.gfile.psi[1]) / (psi_b - psi_a)) .+ actor.chease.gfile.psi[1]
     end
+
+    return actor
 end
 
 # define `finalize` function for this actor
 function finalize(actor::ActorCHEASE)
     gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
+    return actor
 end

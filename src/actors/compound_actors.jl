@@ -3,6 +3,9 @@
 #= ========================= =#
 Base.@kwdef mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
     dd::IMAS.dd
+    actor_jt::Union{Nothing,ActorSteadyStateCurrent}
+    actor_eq::Union{Nothing,ActorEquilibrium}
+    actor_tr::Union{Nothing,ActorTauenn}
 end
 
 function ParametersActor(::Type{Val{:ActorEquilibriumTransport}})
@@ -27,7 +30,7 @@ ActorEquilibrium(dd, act)           # Equilibrium
 """
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibriumTransport(kw...)
-    actor = ActorEquilibriumTransport(dd)
+    actor = ActorEquilibriumTransport(dd, nothing, nothing, nothing)
     step(actor; act, iterations=par.iterations, do_plot=par.do_plot)
     finalize(actor)
     return actor
@@ -40,7 +43,7 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAll
     end
 
     if do_plot
-        pe = plot(dd.equilibrium; color=:gray, label="old")
+        pe = plot(dd.equilibrium; color=:gray, label="old", coordinate=:rho_tor_norm)
         pp = plot(dd.core_profiles; color=:gray, label=" (old)")
         ps = plot(dd.core_sources; color=:gray, label=" (old)")
     end
@@ -50,25 +53,25 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAll
 
     for iteration in 1:iterations
         # run transport actor
-        ActorTauenn(dd, act)
+        actor.actor_tr = ActorTauenn(dd, act)
 
         # prepare equilibrium input based on transport core_profiles output
         prepare(dd, :ActorEquilibrium, act)
 
         # run equilibrium actor with the updated beta
-        ActorEquilibrium(dd, act)
+        actor.actor_eq = ActorEquilibrium(dd, act)
 
         # Set j_ohmic to steady state
-        ActorSteadyStateCurrent(dd, act)
+        actor.actor_jt = ActorSteadyStateCurrent(dd, act)
     end
 
     if do_plot
-        display(plot!(pe, dd.equilibrium))
+        display(plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm))
         display(plot!(pp, dd.core_profiles))
         display(plot!(ps, dd.core_sources))
     end
 
-    return dd
+    return actor
 end
 
 
@@ -112,4 +115,5 @@ function step(actor::ActorWholeFacility; act::Union{Missing,ParametersAllActors}
     ActorDivertors(dd, act)
     ActorBalanceOfPlant(dd,act)
     ActorCosting(dd, act)
+    return actor
 end
