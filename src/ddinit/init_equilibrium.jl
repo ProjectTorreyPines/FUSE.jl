@@ -30,6 +30,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             ϵ=ini.equilibrium.ϵ,
             κ=ini.equilibrium.κ,
             δ=ini.equilibrium.δ,
+            ζ=ini.equilibrium.ζ,
             βn=ini.equilibrium.βn,
             ip=ini.equilibrium.ip,
             boundary_switch=ini.equilibrium.boundary_from,
@@ -61,6 +62,7 @@ end
         ϵ::Real,
         κ::Real,
         δ::Real,
+        ζ::Real,
         βn::Real,
         ip::Real,
         x_point::Union{Vector,NTuple{2},Bool} = false,
@@ -76,6 +78,7 @@ function init_equilibrium(
     ϵ::Real,
     κ::Real,
     δ::Real,
+    ζ::Real,
     βn::Real,
     ip::Real,
     boundary_switch::Symbol,
@@ -90,10 +93,11 @@ function init_equilibrium(
     eqt.boundary.geometric_axis.z = Z0
     eqt.boundary.elongation = κ
     eqt.boundary.triangularity = δ
-    eqt.global_quantities.ip = ip
-    eqt.global_quantities.beta_normal = βn
+    eqt.boundary.squareness = ζ
+
+    # x points
     if x_point === true
-        mr, mz = miller(R0, ϵ, κ, δ)
+        mr, mz = square_miller(R0, ϵ, κ, δ, ζ; exact=true, x_points=true)
         mz .+= Z0
         i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
         x_point = (mr[i], mz[i])
@@ -108,32 +112,41 @@ function init_equilibrium(
             eqt.boundary.x_point[2].z = -x_point[2]
         end
     end
+
+    # scalar quantities
+    eqt.global_quantities.ip = ip
+    eqt.global_quantities.beta_normal = βn
     eq.vacuum_toroidal_field.r0 = R0
     @ddtime eq.vacuum_toroidal_field.b0 = B0
 
+    # initial guesses for pressure and j_tor
     eq1d = eqt.profiles_1d
-    p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, B0, eqt.global_quantities.ip)
-
     psin = eq1d.psi = LinRange(0, 1, 129)
+    p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, B0, eqt.global_quantities.ip)
     eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
     eq1d.pressure = p_core_estimate .- p_core_estimate .* psin
 
-    # Set the boundary based on 
+    # R,Z boundary from: points
     if boundary_switch == :rz_points
         if ismissing(rz_points)
             error("ini.equilibrium.boundary_from is set as $boundary_switch but rz_points wasn't set")
         end
         eqt.boundary.outline.r, eqt.boundary.outline.z = rz_points[1], rz_points[2]
+
+    # R,Z boundary from: MXH
     elseif boundary_switch == :MXH_params
         if ismissing(MXH_params)
             error("ini.equilibrium.boundary_from is set as $boundary_switch but MXH_params wasn't set")
         end
         mxh = IMAS.MXH(MXH_params)()
         eqt.boundary.outline.r, eqt.boundary.outline.z = mxh[1], mxh[2]
+
+    # R,Z boundary from: scalars
     elseif boundary_switch == :scalars
-        eqt.boundary.outline.r, eqt.boundary.outline.z = miller(R0, ϵ, κ, δ)
+        eqt.boundary.outline.r, eqt.boundary.outline.z = square_miller(R0, ϵ, κ, δ, ζ; exact=true, x_points=x_point !== false)
         eqt.boundary.outline.z .+= Z0
     end
+
     return eq
 end
 

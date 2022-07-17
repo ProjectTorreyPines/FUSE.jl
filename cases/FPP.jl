@@ -35,6 +35,8 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
 
+    ini.equilibrium.ζ = 0.1 # squareness
+    act.ActorEquilibrium.model = :CHEASE # use CHEASE equilibrium
     # ini.equilibrium.δ *= -1 ### for negative triangularity
 
     ini.core_profiles.zeff = 1.1

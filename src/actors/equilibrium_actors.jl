@@ -379,7 +379,7 @@ function step(actor::ActorCHEASE)
 
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
-    index = (z_bound .> minimum(z_bound) * 0.99) .& (z_bound .< maximum(z_bound) * 0.99)
+    index = abs.(IMAS.curvature(r_bound,z_bound)) .< 1.0
     r_bound = r_bound[index]
     z_bound = z_bound[index]
 
