@@ -75,7 +75,9 @@ function finalize(actor::ActorQEDcurrent)
         end
         IMAS.j_total_from_equilibrium!(eqt_new, cp1d_new)
     end
-
+    # update core_sources related to current
+    IMAS.bootstrap_source!(dd)
+    IMAS.ohmic_source!(dd)
     return dd
 end
 
@@ -141,4 +143,7 @@ end
 function step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
     IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
+    # update core_sources related to current
+    IMAS.bootstrap_source!(dd)
+    IMAS.ohmic_source!(dd)
 end
