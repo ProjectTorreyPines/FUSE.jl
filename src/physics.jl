@@ -810,3 +810,39 @@ Miller with squareness contour
 function square_miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real, squareness::Real; n_points::Int=401)
     return square_miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity, squareness; n_points)
 end
+
+"""
+    private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{T}, len::T; n_points::Integer=2)
+
+Traces private flux regions starting from LCFS boundary
+"""
+function private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{T}, len::T; n_points::Integer=2) where {T<:Real}
+    mr = deepcopy(mr)
+    mz = deepcopy(mz)
+    IMAS.reorder_flux_surface!(mr, mz, sum(mr) / length(mr), sum(mz) / length(mz))
+
+    iu = argmax(mz)
+    il = argmin(mz)
+
+    r_hfs = reverse(mr[iu:il])
+    z_hfs = reverse(mz[iu:il])
+
+    r_lfs = vcat(mr[il:end-1], mr[1:iu])
+    z_lfs = vcat(mz[il:end-1], mz[1:iu])
+
+    zz_u_hfs = LinRange(mz[iu] + len, mz[iu], n_points)
+    zz_u_lfs = LinRange(mz[iu], mz[iu] + len, n_points)
+    zz_l_hfs = LinRange(mz[il] - len, mz[il], n_points)
+    zz_l_lfs = LinRange(mz[il], mz[il] - len, n_points)
+    rr_u_hfs = IMAS.interp1d(z_lfs, r_lfs).(zz_u_hfs)
+    rr_u_lfs = IMAS.interp1d(z_hfs, r_hfs).(zz_u_lfs)
+    rr_l_hfs = IMAS.interp1d(z_lfs, r_lfs).(zz_l_hfs)
+    rr_l_lfs = IMAS.interp1d(z_hfs, r_hfs).(zz_l_lfs)
+
+    rr_u = vcat(rr_u_hfs[1:end-1], rr_u_lfs[2:end])
+    zz_u = vcat(zz_u_hfs[1:end-1], zz_u_lfs[2:end])
+    rr_l = vcat(rr_l_hfs[1:end-1], rr_l_lfs[2:end])
+    zz_l = vcat(zz_l_hfs[1:end-1], zz_l_lfs[2:end])
+
+    return rr_u, zz_u, rr_l, zz_l
+end
