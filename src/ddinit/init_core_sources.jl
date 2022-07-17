@@ -3,7 +3,7 @@ import NumericalIntegration: cumul_integrate
 """
     init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
-Initialize `dd.nbi` starting from 0D `ini` parameters and `act` actor parameters.
+Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
 function init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_nbi(dd,
@@ -48,7 +48,7 @@ end
 """
     init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
-Initialize `dd.ec_launchers` starting from 0D `ini` parameters and `act` actor parameters.
+Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
 function init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_ec_launchers(dd,
@@ -78,7 +78,7 @@ end
 """
     init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
-Initialize `dd.ic_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
 """
 function init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_ic_antennas(dd,
@@ -111,7 +111,7 @@ end
 """
     init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
-Initialize `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+Initialize `dd.lh_antennas` starting from `ini` and `act` parameters
 """
 function init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_lh_antennas(dd,
@@ -143,7 +143,7 @@ end
 """
     init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
-Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from 0D `ini` parameters and `act` actor parameters.
+Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from `ini` and `act` parameters
 """
 function init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_from = ini.general.init_from

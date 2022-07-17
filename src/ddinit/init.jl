@@ -1,7 +1,7 @@
 """
     init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
 
-Initialize `dd` starting from 0D `ini` parameters and `act` actor parameters.
+Initialize `dd` starting from `ini` and `act` parameters
 
 FUSE provides this high-level `init` function to populate `dd` starting from the `ini` parameters.
 This function essentially calls all other `FUSE.init...` functions in FUSE.

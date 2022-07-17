@@ -6,7 +6,7 @@ const coils_turns_spacing = 0.03
 """
     init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
-Initialize `dd.pf_active` starting from 0D `ini` parameters and `act` actor parameters.
+Initialize `dd.pf_active` starting from `ini` and `act` parameters
 """
 function init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_from = ini.general.init_from
