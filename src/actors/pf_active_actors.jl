@@ -522,8 +522,8 @@ function optimize_coils_rail(
         else
             fixed_eq = IMAS2Equilibrium(eqt)
             # private flux regions
-            Rx = []
-            Zx = []
+            Rx = Float64[]
+            Zx = Float64[]
             if λ_strike > 0.0
                 private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
                 vessel = IMAS.get_build(bd, type=_plasma_)
