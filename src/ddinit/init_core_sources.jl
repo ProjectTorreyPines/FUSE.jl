@@ -173,6 +173,8 @@ function init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         end
     end
 
+    IMAS.sources!(dd)
+
     return dd
 end
 
