@@ -303,6 +303,8 @@ function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     eq.vacuum_toroidal_field.r0 = g.rcentr
 
     eqt.global_quantities.magnetic_axis.r = g.rmaxis
+    eqt.boundary.geometric_axis.r = g.rcentr
+    eqt.boundary.geometric_axis.z = g.zmid
     eqt.global_quantities.magnetic_axis.z = g.zmaxis
     eqt.global_quantities.ip = g.current
 
@@ -395,11 +397,10 @@ function step(actor::ActorCHEASE)
 
     j_tor = eq1d.j_tor
     pressure = eq1d.pressure
-    psin = IMAS.norm01(eq1d.psi)
+    rho_pol = sqrt.(eq1d.psi_norm)
     pressure_sep = pressure[end]
 
-    # Signs aren't conveyed properly 
-    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, abs(Bt_geo), r_geo, abs(Ip), r_bound, z_bound, 82, psin, pressure, abs.(j_tor), clear_workdir=actor.par.clear_workdir)
+    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, Bt_geo, r_geo, Ip, r_bound, z_bound, 82, rho_pol, pressure, j_tor, clear_workdir=actor.par.clear_workdir)
 
     if actor.par.free_boundary
         # convert from fixed to free boundary equilibrium
