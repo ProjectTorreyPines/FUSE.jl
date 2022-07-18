@@ -532,6 +532,9 @@ function optimize_coils_rail(
                     append!(Rx, pvx)
                     append!(Zx, pvy)
                 end
+                if isempty(Rx)
+                    @warn "λ_strike>0 but no strike point found"
+                end
             end
             # find ψp
             Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx)
@@ -612,7 +615,22 @@ function optimize_coils_rail(
             push!(trace.cost_total, cost)
         end
         if isnan(cost)
-            error("optimize_coils_rail cost is NaN")
+            display(plot([p[end] for p in trace.params]))
+            if isnan(cost_lcfs)
+                error("optimize_coils_rail cost_lcfs is NaN")
+            end
+            if isnan(cost_currents)
+                error("optimize_coils_rail cost_currents is NaN")
+            end
+            if isnan(cost_oh)
+                error("optimize_coils_rail cost_oh is NaN")
+            end
+            if isnan(cost_1to1)
+                error("optimize_coils_rail cost_1to1 is NaN")
+            end
+            if isnan(cost_spacing)
+                error("optimize_coils_rail cost_spacing is NaN")
+            end
         end
         return cost
 
