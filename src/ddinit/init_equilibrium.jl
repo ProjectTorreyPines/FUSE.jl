@@ -88,7 +88,7 @@ function init_equilibrium(
     symmetric::Bool=true)
 
     eqt = resize!(eq.time_slice)
-    eqt.boundary.minor_radius = ϵ * R0
+    eqt.boundary.minor_radius = minor_radius = ϵ * R0
     eqt.boundary.geometric_axis.r = R0
     eqt.boundary.geometric_axis.z = Z0
     eqt.boundary.elongation = κ
@@ -121,6 +121,8 @@ function init_equilibrium(
 
     # initial guesses for pressure and j_tor
     eq1d = eqt.profiles_1d
+    p_core_estimate = 3.0 * IMAS.pressure_avg_from_beta_n(βn, minor_radius, B0, ip)
+
     psin = eq1d.psi = LinRange(0, 1, 129)
     p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, B0, eqt.global_quantities.ip)
     eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
