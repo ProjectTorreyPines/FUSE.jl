@@ -32,17 +32,8 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end
 
-    ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
-
-    ini.equilibrium.ζ = 0.1 # squareness
-    act.ActorEquilibrium.model = :CHEASE # use CHEASE equilibrium
-    # ini.equilibrium.δ *= -1 ### for negative triangularity
-
-    ini.core_profiles.zeff = 1.1
-    ini.core_profiles.greenwald_fraction = 0.9
-    ini.ec_launchers.power_launched = 45e6
-
+    ini.core_profiles.rot_core = 0.0
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 16
 
@@ -51,7 +42,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     if init_from == :ods
         ini.pf_active.n_pf_coils_outside = 8
     else
-        ini.pf_active.n_pf_coils_outside = 4
+        ini.pf_active.n_pf_coils_outside = 6
     end
 
     ini.material.shield = "Tungsten"
@@ -62,8 +53,17 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     set_new_base!(ini)
     set_new_base!(act)
 
+    # ===========
+    # Add deviations from GASC below this line
+    # ===========
+    
     # Changing Zeff from 1.1 to 2.0 will improve confinement significantly due to the pedestal increase!
     ini.core_profiles.zeff = 2.0
     
+    # ini.equilibrium.δ *= -1 # negative triangularity
+
+    # ini.equilibrium.ζ = 0.1 # squareness
+    # act.ActorEquilibrium.model = :CHEASE
+
     return ini, act
 end
