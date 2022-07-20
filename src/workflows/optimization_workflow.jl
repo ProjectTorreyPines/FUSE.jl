@@ -134,7 +134,7 @@ end
     @assert typeof(design_space) <: Bool
     @assert typeof(pareto) <: Bool
     @assert typeof(max_samples) <: Union{Nothing,Integer}
-    @assert typeof(iterations) <: Union{Nothing,Integer}
+    @assert typeof(iterations) <: Union{Nothing,AbstractVector{<:Integer}}
 
     if design_space
         arg = :x
@@ -218,7 +218,7 @@ end
         # subsample (plotlyjs 3D scatter with large number of points is can be very slow)
         index = collect(1:length(x))
         if max_samples !== nothing
-            index = Random.shuffle!(index)[1:max_samples]
+            index = Random.shuffle!(index)[1:min(max_samples, length(index))]
             sort!(index)
         end
 
@@ -248,7 +248,7 @@ import IMASDD
 import OrderedCollections
 
 function Base.convert(::Type{Vector{<:AbstractParameter}}, x::Vector{Any})
-    return Parameter[xx for xx in x]
+    return AbstractParameter[xx for xx in x]
 end
 
 function Base.convert(::Type{Vector{<:ObjectiveFunction}}, x::Vector{Any})
