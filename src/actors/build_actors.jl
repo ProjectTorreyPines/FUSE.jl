@@ -143,7 +143,7 @@ Makes the OH and TF operate at their current limit (within specified `j_toleranc
 The flattop duration and maximum toroidal magnetic field follow from that.
 Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
 These currents may or may not exceed the OH and TF current limits.""";
-        default=true,
+        default=true
     )
     par.j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
     return par
@@ -409,7 +409,7 @@ function step(
     fixed_aspect_ratio::Bool=true,
     unconstrained_flattop_duration::Bool=true,
     verbose::Bool=false,
-    do_plot=false,
+    do_plot=false
 )
 
     function target_value(value, target, tolerance) # relative error with tolerance
@@ -527,7 +527,7 @@ function step(
         [OH.thickness, dd.build.oh.technology.fraction_stainless],
         Optim.NelderMead(),
         Optim.Options(time_limit=60);
-        autodiff=:forward,
+        autodiff=:forward
     )
     assign_PL_OH_TF_thicknesses(res.minimizer, :oh)
     step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:oh)
@@ -543,7 +543,7 @@ function step(
         [TFhfs.thickness, dd.build.tf.technology.fraction_stainless],
         Optim.NelderMead(),
         Optim.Options(time_limit=60);
-        autodiff=:forward,
+        autodiff=:forward
     )
     assign_PL_OH_TF_thicknesses(res.minimizer, :tf)
     step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:tf)
@@ -561,7 +561,7 @@ function step(
             [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_stainless, dd.build.tf.technology.fraction_stainless],
             Optim.NelderMead(),
             Optim.Options(time_limit=60, iterations=1000);
-            autodiff=:forward,
+            autodiff=:forward
         )
         assign_PL_OH_TF_thicknesses(res.minimizer, :all)
         step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance)
@@ -721,8 +721,11 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         Rx = pr[index]
         Zx = pz[index]
 
+        max_d = maximum(sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0))
+        divertor_length = min(max_d * 0.8, max_divertor_length)
+
         # limit extent of private flux regions
-        circle = collect(zip(max_divertor_length .* cos.(t) .+ Rx, sign(Zx) .* max_divertor_length .* sin.(t) .+ Zx))
+        circle = collect(zip(divertor_length .* cos.(t) .+ Rx, sign(Zx) .* divertor_length .* sin.(t) .+ Zx))
         circle[1] = circle[end]
         slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && rr >= R_hfs_plasma && rr <= R_lfs_plasma]
         pr = [rr for (rr, zz) in slot]
