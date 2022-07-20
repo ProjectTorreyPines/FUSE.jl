@@ -121,10 +121,8 @@ function init_equilibrium(
 
     # initial guesses for pressure and j_tor
     eq1d = eqt.profiles_1d
-    p_core_estimate = 3.0 * IMAS.pressure_avg_from_beta_n(βn, minor_radius, B0, ip)
-
     psin = eq1d.psi = LinRange(0, 1, 129)
-    p_core_estimate = 1.5 * IMAS.pressure_avg_from_beta_n(eqt.global_quantities.beta_normal, eqt.boundary.minor_radius, B0, eqt.global_quantities.ip)
+    p_core_estimate = 6.0 * IMAS.pressure_avg_from_beta_n(βn, minor_radius, B0, ip)
     eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
     eq1d.pressure = p_core_estimate .- p_core_estimate .* psin
 
