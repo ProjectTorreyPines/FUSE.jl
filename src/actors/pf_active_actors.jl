@@ -542,6 +542,9 @@ function optimize_coils_rail(
             # give each strike point the same weight as the lcfs
             weight = Rp .* 0.0 .+ 1.0
             weight[end-length(Rx)+1:end] .= length(Rp) / (1 + length(Rx)) * λ_strike
+            if all(weight .== 1.0)
+                weight = Float64[]
+            end
             push!(weights, weight)
         end
     end
@@ -587,7 +590,7 @@ function optimize_coils_rail(
             else
                 #OH cost
                 oh_current_densities = current_densities[oh_indexes]
-                avg_oh = sum(oh_current_densities)/length(oh_current_densities)
+                avg_oh = sum(oh_current_densities) / length(oh_current_densities)
                 cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
                 push!(all_cost_lcfs, cost_lcfs0 / λ_lcfs)
                 push!(all_cost_oh, cost_oh)
