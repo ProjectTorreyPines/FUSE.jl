@@ -406,22 +406,52 @@ function Base.show(io::IO, ::MIME"text/plain", pars::AbstractParameters, depth::
     return AbstractTrees.print_tree(io, pars)
 end
 
+function AbstractTrees.children(obj::AbstractDict)
+    return [obj[k] for k in sort(collect(keys(obj)))]
+end
+
+function AbstractTrees.children(obj::Pair)
+    return []
+end
+
+function AbstractTrees.printnode(io::IO, obj::Pair)
+    printstyled(io, obj.first)
+    printstyled(io, " ➡ ")
+    if typeof(obj.second) <: AbstractFloat
+        printstyled(io, @sprintf("%3.3f", obj.second))
+    else
+        printstyled(io, "$(repr(obj.second))")
+    end
+end
+
 function AbstractTrees.children(pars::AbstractParameters)
     return [pars[k] for k in sort(collect(keys(pars)))]
 end
 
-function AbstractTrees.printnode(io::IO, par::AbstractParameter)
-    color = parameter_color(par)
-    printstyled(io, par._name)
-    printstyled(io, " ➡ ")
-    printstyled(io, "$(repr(par.value))"; color=color)
-    if length(par.units) > 0 && par.value !== missing
-        printstyled(io, " [$(par.units)]"; color=color)
+function AbstractTrees.printnode(io::IO, pars::AbstractParameters)
+    printstyled(io, pars._name; bold=true)
+end
+
+function AbstractTrees.children(par::AbstractParameter)
+    if typeof(par.value) <: AbstractDict
+        return [k => par.value[k] for k in sort(collect(keys(par.value)))]
+    else
+        return []
     end
 end
 
-function AbstractTrees.printnode(io::IO, pars::AbstractParameters)
-    printstyled(io, pars._name; bold=true)
+function AbstractTrees.printnode(io::IO, par::AbstractParameter)
+    color = parameter_color(par)
+    if typeof(par.value) <: AbstractDict
+        printstyled(io, "$(par._name)[:]"; bold=true)
+    else
+        printstyled(io, par._name)
+        printstyled(io, " ➡ ")
+        printstyled(io, "$(repr(par.value))"; color=color)
+        if length(par.units) > 0 && par.value !== missing
+            printstyled(io, " [$(par.units)]"; color=color)
+        end
+    end
 end
 
 function set_new_base!(p::AbstractParameters)
