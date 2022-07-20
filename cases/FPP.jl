@@ -7,7 +7,7 @@ Arguments:
 * `version`: `:v1` or `:v1_demount`
 * `init_from`: `:scalars` or `:ods` (ODS contains equilibrium information)
 """
-function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersAllInits, ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersAllInits,ParametersAllActors}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
@@ -54,12 +54,18 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     set_new_base!(act)
 
     # ===========
-    # Add deviations from GASC below this line
+    # Deviations from original GASC run are below this line
     # ===========
-    
+
     # Changing Zeff from 1.1 to 2.0 will improve confinement significantly due to the pedestal increase!
     ini.core_profiles.zeff = 2.0
-    
+
+    # Lowering EC power reduces recirculating power
+    ini.ec_launchers.power_launched = 20e6
+
+    # greenwald_fraction is a powerful knob
+    ini.core_profiles.greenwald_fraction = 0.9
+
     # ini.equilibrium.δ *= -1 # negative triangularity
 
     # ini.equilibrium.ζ = 0.1 # squareness
