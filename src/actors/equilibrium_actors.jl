@@ -336,6 +336,7 @@ function ParametersActor(::Type{Val{:ActorCHEASE}})
     par = ParametersActor(nothing)
     par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     par.clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
+    par.rescale_eq_to_ip = Entry(Bool, "", ""; default=false)
     return par
 end
 
@@ -400,7 +401,12 @@ function step(actor::ActorCHEASE)
     rho_pol = sqrt.(eq1d.psi_norm)
     pressure_sep = pressure[end]
 
-    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, Bt_geo, r_geo, Ip, r_bound, z_bound, 82, rho_pol, pressure, j_tor, clear_workdir=actor.par.clear_workdir)
+    actor.chease = CHEASE.run_chease(
+        ϵ, z_geo, pressure_sep, Bt_geo,
+        r_geo, Ip, r_bound, z_bound, 82,
+        rho_pol, pressure, j_tor,
+        rescale_eq_to_ip=actor.par.rescale_eq_to_ip,
+        clear_workdir=actor.par.clear_workdir)
 
     if actor.par.free_boundary
         # convert from fixed to free boundary equilibrium

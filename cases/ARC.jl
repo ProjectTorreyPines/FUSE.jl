@@ -16,7 +16,8 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits, Parameter
     ini.equilibrium.B0 = -11.5
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 9.9e6
-    ini.equilibrium.βn = 1.4
+    ini.equilibrium.βn = 0.5
+    ini.equilibrium.pressure_core = 1.45e6
     ini.equilibrium.x_point = (3.1, 1.85)
     ini.equilibrium.symmetric = true
     act.ActorCXbuild.rebuild_wall = false
@@ -52,7 +53,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits, Parameter
     ini.oh.technology = coil_technology(:HTS)
     ini.oh.flattop_duration = 1800
 
-    ini.core_profiles.ne_ped = 7e19 #estimate (from ITER)
+    ini.core_profiles.ne_ped = 1.0e20
     ini.core_profiles.greenwald_fraction = 0.49
     ini.core_profiles.helium_fraction = 0.10 #estimate
     ini.core_profiles.T_shaping = 1.8 #estimate (from ITER)
@@ -65,6 +66,9 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits, Parameter
     ini.ic_antennas.power_launched = 4 * 1e6 #rf power coupled
 
     act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
+    act.ActorEquilibrium.model = :CHEASE
+    act.ActorCHEASE.rescale_eq_to_ip = true # This scales j_tor to match Ip (but also scales pressure)
+
 
     return set_new_base!(ini), set_new_base!(act)
 end

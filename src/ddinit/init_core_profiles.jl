@@ -19,11 +19,17 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
     end
 
     if init_from == :scalars
+        if ismissing(ini.equilibrium, :pressure_core)
+            pressure_core = dd.equilibrium.time_slice[].profiles_1d.pressure[1]
+        else
+            pressure_core = ini.equilibrium.pressure_core
+        end
         init_core_profiles(
             dd.core_profiles,
             dd.equilibrium,
             dd.summary;
             ne_ped=ini.core_profiles.ne_ped,
+            pressure_core=pressure_core,
             greenwald_fraction=ini.core_profiles.greenwald_fraction,
             helium_fraction=ini.core_profiles.helium_fraction,
             T_shaping=ini.core_profiles.T_shaping,
@@ -48,6 +54,7 @@ function init_core_profiles(
     eq::IMAS.equilibrium,
     summary::IMAS.summary;
     ne_ped::Real,
+    pressure_core::Real,
     greenwald_fraction::Real,
     helium_fraction::Real,
     w_ped::Real,
@@ -94,6 +101,7 @@ function init_core_profiles(
         return (nel / ngw - greenwald_fraction)^2
     end
     ne0_guess = ne_ped * 1.4
+    @show IMAS.greenwald_density(eqt)
     res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
     ne_core = res.minimizer[1]
     cp1d.electrons.density_thermal = Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
@@ -107,8 +115,10 @@ function init_core_profiles(
     niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
     niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
     @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
+    ni_core = 0.
     for i = 1:length(cp1d.ion)
         cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
+        ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
     end
 
     # Set temperatures
@@ -118,6 +128,9 @@ function init_core_profiles(
     Ip = eqt.global_quantities.ip
     a = eqt.boundary.minor_radius
     Te_core = 10.0 * betaN * abs(Bt * (Ip / 1e6)) / a / (ne_core / 1e20) / (2.0 * 1.6e1 * 4.0 * pi * 1.0e-4)
+    @show Te_core ,"before"
+    Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
+    @show Te_core ,"after"
     Te_ped = Te_core / 4
     cp1d.electrons.temperature = Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cp1d.ion)
