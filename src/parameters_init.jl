@@ -35,9 +35,9 @@ function ParametersInit(::Type{Val{:equilibrium}})
     equilibrium.symmetric = Entry(Bool, "", "Is plasma up-down symmetric")
     equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
     equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)#, min=0.0, max=1.0)
-    equilibrium.boundary_from = Switch([:scalars, :MXH_params, :rz_points], "" ,"The starting r, z boundary taken from"; default=:scalars)
+    equilibrium.boundary_from = Switch([:scalars, :MXH_params, :rz_points], "", "The starting r, z boundary taken from"; default=:scalars)
     equilibrium.MXH_params = Entry(Union{Nothing,Vector{<:Real}}, "", "Vector of MXH flats", default=missing)
-    equilibrium.rz_points = Entry(Union{Nothing, Vector{Vector{<:Real}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
+    equilibrium.rz_points = Entry(Union{Nothing,Vector{Vector{<:Real}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
     return equilibrium
 end
 
