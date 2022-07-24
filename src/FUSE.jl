@@ -7,8 +7,6 @@ import Plots
 using Plots
 using Printf
 
-Plots.default(background_color_legend = Plots.Colors.RGBA(1.0,1.0,1.0,0.6))
-
 #= ===== =#
 #  UTILS  #
 #= ===== =#
