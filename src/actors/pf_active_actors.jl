@@ -539,8 +539,11 @@ function optimize_coils_rail(
             # find ψp
             Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
+            # weight more near the x-points
+            h = (maximum(Zp) - minimum(Zp)) / 2.0
+            o = (maximum(Zp) + minimum(Zp)) / 2.0
+            weight = sqrt.(((Zp .- o) ./ h) .^ 2 .+ h) / h
             # give each strike point the same weight as the lcfs
-            weight = Rp .* 0.0 .+ 1.0
             weight[end-length(Rx)+1:end] .= length(Rp) / (1 + length(Rx)) * λ_strike
             if all(weight .== 1.0)
                 weight = Float64[]
