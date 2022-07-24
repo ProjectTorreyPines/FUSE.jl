@@ -16,7 +16,6 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits, Parameter
     ini.equilibrium.B0 = -11.5
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 9.9e6
-    ini.equilibrium.βn = 0.5
     ini.equilibrium.pressure_core = 1.45e6
     ini.equilibrium.x_point = (3.1, 1.85)
     ini.equilibrium.symmetric = true
@@ -66,9 +65,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits, Parameter
     ini.ic_antennas.power_launched = 4 * 1e6 #rf power coupled
 
     act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
-    act.ActorEquilibrium.model = :CHEASE
-    act.ActorCHEASE.rescale_eq_to_ip = true # This scales j_tor to match Ip (but also scales pressure)
-
+    # act.ActorEquilibrium.model = :CHEASE
 
     return set_new_base!(ini), set_new_base!(act)
 end

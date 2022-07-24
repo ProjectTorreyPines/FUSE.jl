@@ -406,24 +406,6 @@ function Base.show(io::IO, ::MIME"text/plain", pars::AbstractParameters, depth::
     return AbstractTrees.print_tree(io, pars)
 end
 
-function AbstractTrees.children(obj::AbstractDict)
-    return [obj[k] for k in sort(collect(keys(obj)))]
-end
-
-function AbstractTrees.children(obj::Pair)
-    return []
-end
-
-function AbstractTrees.printnode(io::IO, obj::Pair)
-    printstyled(io, obj.first)
-    printstyled(io, " ➡ ")
-    if typeof(obj.second) <: AbstractFloat
-        printstyled(io, @sprintf("%3.3f", obj.second))
-    else
-        printstyled(io, "$(repr(obj.second))")
-    end
-end
-
 function AbstractTrees.children(pars::AbstractParameters)
     return [pars[k] for k in sort(collect(keys(pars)))]
 end

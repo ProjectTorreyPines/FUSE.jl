@@ -75,10 +75,10 @@ function init_core_profiles(
     cp1d.zeff = ones(ngrid) .* zeff
     cp1d.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cp1d.grid.rho_tor_norm)
 
-    # Set ions
-    # DT == 1
-    # Imp == 2
-    # He == 3
+    # Set ions:
+    # 1. DT
+    # 2. Imp
+    # 3. He
     ion = resize!(cp1d.ion, "label" => String(bulk))
     fill!(ion, IMAS.ion_element(ion_symbol=bulk))
     @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
@@ -101,7 +101,6 @@ function init_core_profiles(
         return (nel / ngw - greenwald_fraction)^2
     end
     ne0_guess = ne_ped * 1.4
-    @show IMAS.greenwald_density(eqt)
     res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
     ne_core = res.minimizer[1]
     cp1d.electrons.density_thermal = Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
@@ -115,22 +114,14 @@ function init_core_profiles(
     niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
     niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
     @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
-    ni_core = 0.
+    ni_core = 0.0
     for i = 1:length(cp1d.ion)
         cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
         ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
     end
 
     # Set temperatures
-    eqt = eq.time_slice[]
-    betaN = eqt.global_quantities.beta_normal
-    Bt = @ddtime eq.vacuum_toroidal_field.b0
-    Ip = eqt.global_quantities.ip
-    a = eqt.boundary.minor_radius
-    Te_core = 10.0 * betaN * abs(Bt * (Ip / 1e6)) / a / (ne_core / 1e20) / (2.0 * 1.6e1 * 4.0 * pi * 1.0e-4)
-    @show Te_core ,"before"
     Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
-    @show Te_core ,"after"
     Te_ped = Te_core / 4
     cp1d.electrons.temperature = Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cp1d.ion)
@@ -139,7 +130,7 @@ function init_core_profiles(
 
     # remove He if not present
     if sum(niFraction[3]) == 0.0
-        deleteat!(cp1d.ion,3)
+        deleteat!(cp1d.ion, 3)
     end
 
     # ejima

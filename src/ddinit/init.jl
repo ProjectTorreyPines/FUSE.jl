@@ -13,6 +13,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     if ini.general.init_from == :ods
         ods_items = keys(IMAS.json2imas(ini.ods.filename))
     end
+
     # initialize equilibrium
     if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
         init_equilibrium(dd, ini, act)
@@ -65,12 +66,6 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     # initialize missing IDSs from ODS (if loading from ODS)
     init_missing_from_ods(dd, ini, act)
 
-    # If the equilibrium was initialized from chease and the current and pressure was rescaled to match Ip recalculate the equilibrium
-    if act.ActorCHEASE.rescale_eq_to_ip
-        act.ActorCHEASE.rescale_eq_to_ip = false
-        prepare(dd, :ActorEquilibrium, act)
-        ActorEquilibrium(dd,act)
-    end
     return dd
 end
 

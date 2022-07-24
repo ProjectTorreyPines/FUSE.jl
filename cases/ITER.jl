@@ -29,7 +29,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.Z0 = 0.4
         ini.equilibrium.ip = 15e6
-        ini.equilibrium.βn = 2.0
         ini.equilibrium.pressure_core = 0.643e6
         ini.equilibrium.x_point = true
         ini.equilibrium.symmetric = false
@@ -41,9 +40,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.equilibrium.boundary_from = :MXH_params
         act.ActorCXbuild.rebuild_wall = true
         act.ActorHFSsizing.fixed_aspect_ratio = true
-        act.ActorEquilibrium.model = :CHEASE
-        act.ActorCHEASE.rescale_eq_to_ip = true # This scales j_tor to match Ip (but also scales pressure)
-    
+        # act.ActorEquilibrium.model = :CHEASE
     end
 
     # explicitly set thickness of radial build layers
