@@ -19,17 +19,12 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
     end
 
     if init_from == :scalars
-        if ismissing(ini.equilibrium, :pressure_core)
-            pressure_core = dd.equilibrium.time_slice[].profiles_1d.pressure[1]
-        else
-            pressure_core = ini.equilibrium.pressure_core
-        end
         init_core_profiles(
             dd.core_profiles,
             dd.equilibrium,
             dd.summary;
             ne_ped=ini.core_profiles.ne_ped,
-            pressure_core=pressure_core,
+            pressure_core=ini.equilibrium.pressure_core,
             greenwald_fraction=ini.core_profiles.greenwald_fraction,
             helium_fraction=ini.core_profiles.helium_fraction,
             T_shaping=ini.core_profiles.T_shaping,
