@@ -387,36 +387,47 @@ function step(actor::ActorCHEASE)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
+    # remove points at high curvature points (ie. X-points)
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
-    index = abs.(IMAS.curvature(r_bound,z_bound)) .< 1.0
+    r_bound, z_bound = IMAS.resample_2d_line(r_bound, z_bound; n_points=201)
+    index = abs.(IMAS.curvature(r_bound, z_bound)) .< 0.9
     r_bound = r_bound[index]
     z_bound = z_bound[index]
 
+    # scalars
     Ip = eqt.global_quantities.ip
     Bt_center = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
     r_center = dd.equilibrium.vacuum_toroidal_field.r0
-
     r_geo = eqt.boundary.geometric_axis.r
     z_geo = eqt.boundary.geometric_axis.z
     Bt_geo = Bt_center * r_center / r_geo
-
     ϵ = eqt.boundary.minor_radius / r_geo
 
+    # pressure and j_tor
+    psin = eq1d.psi_norm
     j_tor = eq1d.j_tor
     pressure = eq1d.pressure
-    rho_pol = sqrt.(eq1d.psi_norm)
+    rho_pol = sqrt.(psin)
     pressure_sep = pressure[end]
 
-    actor.chease = CHEASE.run_chease(
-        ϵ, z_geo, pressure_sep, Bt_geo,
-        r_geo, Ip, r_bound, z_bound, 82,
-        rho_pol, pressure, j_tor,
-        rescale_eq_to_ip=actor.par.rescale_eq_to_ip,
-        clear_workdir=actor.par.clear_workdir)
+    # run and handle errors
+    try
+        actor.chease = CHEASE.run_chease(
+            ϵ, z_geo, pressure_sep, Bt_geo,
+            r_geo, Ip, r_bound, z_bound, 82,
+            rho_pol, pressure, j_tor,
+            rescale_eq_to_ip=actor.par.rescale_eq_to_ip,
+            clear_workdir=actor.par.clear_workdir)
+    catch
+        display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
+        display(plot(psin, pressure))
+        display(plot(psin, abs.(j_tor)))
+        rethrow()
+    end
 
+    # convert from fixed to free boundary equilibrium
     if actor.par.free_boundary
-        # convert from fixed to free boundary equilibrium
         EQ = Equilibrium.efit(actor.chease.gfile, 1)
         psi_free_rz = VacuumFields.fixed2free(EQ, actor.chease.gfile.nbbbs)
         actor.chease.gfile.psirz = psi_free_rz
