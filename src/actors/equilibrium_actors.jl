@@ -26,13 +26,14 @@ The ActorEquilibrium provides a common interface to run multiple equilibrium act
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw_ActorSolovev=Dict(), kw_ActorCHEASE=Dict(), kw...)
     par = act.ActorEquilibrium(kw...)
-    actor = ActorEquilibrium(dd, par, act; kw_ActorSolovev, kw_ActorCHEASE, kw...)
+    actor = ActorEquilibrium(dd, par, act; kw_ActorSolovev, kw_ActorCHEASE)
     step(actor)
     finalize(actor)
     return actor
 end
 
 function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorSolovev=Dict(), kw_ActorCHEASE=Dict(), kw...)
+    par = par(kw...)
     if par.model == :Solovev
         eq_actor = ActorSolovev(dd, act.ActorSolovev; kw_ActorSolovev...)
     elseif par.model == :CHEASE
@@ -40,7 +41,7 @@ function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllA
     else
         error("ActorEquilibrium: model = $(par.model) is unknown")
     end
-    return ActorEquilibrium(dd, deepcopy(par), eq_actor)
+    return ActorEquilibrium(dd, par, eq_actor)
 end
 
 """
@@ -116,7 +117,9 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
+function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+
     # extract info from dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -144,7 +147,7 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
     # run Solovev
     S = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, par.alpha, par.qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
-    return ActorSolovev(dd.equilibrium, deepcopy(par), S)
+    return ActorSolovev(dd.equilibrium, par, S)
 end
 
 """
@@ -355,8 +358,9 @@ function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
-    ActorCHEASE(dd, deepcopy(par), nothing)
+function ActorCHEASE(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    ActorCHEASE(dd, par, nothing)
 end
 
 """

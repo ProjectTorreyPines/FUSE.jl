@@ -458,8 +458,8 @@ end
 This functor is used to override the parameters at function call
 """
 function (par::AbstractParameters)(kw...)
+    par = deepcopy(par)
     if !isempty(kw)
-        par = deepcopy(par)
         for (key, value) in kw
             setproperty!(par, key, value)
         end
