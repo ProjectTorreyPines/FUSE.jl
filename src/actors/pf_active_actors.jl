@@ -208,7 +208,7 @@ function finalize(pfactor::ActorPFcoilsOpt; scale_eq_domain_size=1.0, update_eq_
         # # update ψ map
         R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length=length(EQfixed.r))
         Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length=length(EQfixed.z))
-        ψ_f2f = VacuumFields.fixed2free(EQfixed, coils, R, Z)
+        ψ_f2f = transpose(VacuumFields.fixed2free(EQfixed, coils, R, Z))
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
@@ -563,7 +563,7 @@ function optimize_coils_rail(
 
         index = findall(.>(1.0), abs.(packed[1:end-1]))
         if length(index) > 0
-            cost_1to1 = sum(abs.(packed[index]) .- 1.0) * 10
+            cost_1to1 = sum(abs.(packed[index]) .- 1.0)
         else
             cost_1to1 = 0.0
         end
@@ -591,7 +591,7 @@ function optimize_coils_rail(
                 push!(all_cost_lcfs, cost_lcfs0 * λ_null)
                 push!(all_cost_oh, 0.0)
             else
-                #OH cost
+                #OH cost (this is to avoid using the OH for X-points)
                 oh_current_densities = current_densities[oh_indexes]
                 avg_oh = sum(oh_current_densities) / length(oh_current_densities)
                 cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
@@ -611,13 +611,20 @@ function optimize_coils_rail(
                 end
             end
         end
-        cost_spacing = cost_spacing / R0
+        cost_spacing = cost_spacing / length(optim_coils)^2 / R0
+
+        cost_lcfs_2 = cost_lcfs^2 * 10000.0
+        cost_currents_2 = cost_currents^2
+        cost_oh_2 = cost_oh^2
+        cost_1to1_2 = cost_1to1^2
+        cost_spacing_2 = cost_spacing^2
+
         # total cost
-        cost = sqrt(cost_lcfs^2 + cost_currents^2 + 0.1 * cost_oh^2 + cost_1to1^2 + 10 * cost_spacing^2)
+        cost = sqrt(cost_lcfs_2 + cost_currents_2 + cost_oh_2 + cost_1to1_2 + cost_spacing_2)
         if do_trace
             push!(trace.params, packed)
-            push!(trace.cost_lcfs, cost_lcfs)
-            push!(trace.cost_currents, cost_currents)
+            push!(trace.cost_lcfs, sqrt(cost_lcfs_2))
+            push!(trace.cost_currents, sqrt(cost_currents_2))
             push!(trace.cost_total, cost)
         end
         if isnan(cost)
