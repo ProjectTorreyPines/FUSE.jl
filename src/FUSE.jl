@@ -7,8 +7,6 @@ import Plots
 using Plots
 using Printf
 
-Plots.default(background_color_legend = Plots.Colors.RGBA(1.0,1.0,1.0,0.6))
-
 #= ===== =#
 #  UTILS  #
 #= ===== =#
@@ -20,11 +18,6 @@ include("utils.jl")
 include("parameters.jl")
 include("parameters_init.jl")
 
-#= ============== =#
-#  GASC interface  #
-#= ============== =#
-include("gasc.jl")
-
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
 #= ====================== =#
@@ -34,6 +27,7 @@ include("technology.jl")
 #= ====== =#
 #  DDINIT  #
 #= ====== =#
+include(joinpath("ddinit", "gasc.jl"))
 include(joinpath("ddinit", "init.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))

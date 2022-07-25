@@ -274,7 +274,7 @@ function solve_1D_solid_mechanics!(
     f_tf_sash=0.873,                       # : (float), conversion factor from hoop stress to axial stress for TF coil (nominally 0.873)
     f_oh_sash=0.37337,                     # : (float), conversion factor from hoop stress to axial stress for OH coil (nominally 0.37337)
     n_points::Integer=21,                  # : (int), number of radial points
-    verbose::Bool=false,                   # : (bool), flag for verbose output to terminal
+    verbose::Bool=false                   # : (bool), flag for verbose output to terminal
 )
 
     tp = typeof(promote(R0, B0, R_tf_in, R_tf_out, Bz_oh, R_oh_in, R_oh_out)[1])
@@ -535,11 +535,11 @@ function solve_1D_solid_mechanics!(
     hoop_stress_tf = sh(r_tf, em_tf, gam_tf, displacement_tf, ddiplacementdr_tf)
 
     if axial_stress_tf_avg === nothing
-        hoop_stress_tf_avg = sum(hoop_stress_tf)/length(hoop_stress_tf)
+        hoop_stress_tf_avg = sum(hoop_stress_tf) / length(hoop_stress_tf)
         axial_stress_tf_avg = -f_tf_sash * hoop_stress_tf_avg
     end
     if axial_stress_oh_avg === nothing
-        hoop_stress_oh_avg = sum(hoop_stress_oh)/length(hoop_stress_oh)
+        hoop_stress_oh_avg = sum(hoop_stress_oh) / length(hoop_stress_oh)
         axial_stress_oh_avg = -f_oh_sash * hoop_stress_oh_avg
     end
 

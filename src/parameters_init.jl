@@ -28,15 +28,15 @@ function ParametersInit(::Type{Val{:equilibrium}})
     equilibrium.κ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :elongation)
     equilibrium.δ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :triangularity)
     equilibrium.ζ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
-    equilibrium.βn = Entry(Real, IMAS.equilibrium__time_slice___global_quantities, :beta_normal)
+    equilibrium.pressure_core = Entry(Real, "Pa", "On axis pressure")
     equilibrium.ip = Entry(Real, IMAS.equilibrium__time_slice___global_quantities, :ip)
     equilibrium.x_point = Entry(Union{NTuple{2},Bool}, IMAS.equilibrium__time_slice___boundary, :x_point)
     equilibrium.symmetric = Entry(Bool, "", "Is plasma up-down symmetric")
     equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
     equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)#, min=0.0, max=1.0)
-    equilibrium.boundary_from = Switch([:scalars, :MXH_params, :rz_points], "" ,"The starting r, z boundary taken from"; default=:scalars)
+    equilibrium.boundary_from = Switch([:scalars, :MXH_params, :rz_points], "", "The starting r, z boundary taken from"; default=:scalars)
     equilibrium.MXH_params = Entry(Union{Nothing,Vector{<:Real}}, "", "Vector of MXH flats", default=missing)
-    equilibrium.rz_points = Entry(Union{Nothing, Vector{Vector{<:Real}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
+    equilibrium.rz_points = Entry(Union{Nothing,Vector{Vector{<:Real}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
     return equilibrium
 end
 

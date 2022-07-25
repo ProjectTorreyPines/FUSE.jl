@@ -29,7 +29,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.Z0 = 0.4
         ini.equilibrium.ip = 15e6
-        ini.equilibrium.βn = 2.0
+        ini.equilibrium.pressure_core = 0.643e6
         ini.equilibrium.x_point = true
         ini.equilibrium.symmetric = false
         ini.equilibrium.MXH_params = [
@@ -37,8 +37,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
             0.15912, -0.05842, -0.04573, 0.00694, 0.00614,
             0.00183, 0.43714, 0.09583, -0.05597, -0.01655,
             0.00204, 0.00306]
+        ini.equilibrium.boundary_from = :MXH_params
         act.ActorCXbuild.rebuild_wall = true
         act.ActorHFSsizing.fixed_aspect_ratio = true
+        # act.ActorEquilibrium.model = :CHEASE
     end
 
     # explicitly set thickness of radial build layers

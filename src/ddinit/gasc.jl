@@ -89,13 +89,20 @@ Convert equilibrium information in GASC solution to FUSE `ini` and `act` paramet
 """
 function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
     gascsol = gasc.solution
+
     ini.equilibrium.B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
     ini.equilibrium.R0 = gascsol["INPUTS"]["radial build"]["majorRadius"]
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ϵ = 1 / gascsol["INPUTS"]["radial build"]["aspectRatio"]
     ini.equilibrium.κ = gascsol["OUTPUTS"]["plasma parameters"]["elongation"]
     ini.equilibrium.δ = gascsol["INPUTS"]["plasma parameters"]["triangularity"]
-    ini.equilibrium.βn = gascsol["OUTPUTS"]["plasma parameters"]["betaN"]
+
+    Pavg = gascsol["OUTPUTS"]["plasma parameters"]["pressureVolAvg"]
+    V = gascsol["OUTPUTS"]["plasma parameters"]["plasmaVolume"]
+    vol = gascsol["OUTPUTS"]["numerical profiles"]["volumeProf"] .* V
+    P1 = sum(IMAS.gradient(vol) .* LinRange(1.0, 0.0, length(vol))) / V
+    ini.equilibrium.pressure_core = Pavg / P1
+
     ini.equilibrium.ip = gascsol["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
     ini.equilibrium.x_point = gascsol["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
     ini.equilibrium.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)

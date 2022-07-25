@@ -24,23 +24,24 @@ end
 
 The ActorEquilibrium provides a common interface to run multiple equilibrium actors
 """
-function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw_ActorSolovev=Dict(), kw_ActorCHEASE=Dict(), kw...)
     par = act.ActorEquilibrium(kw...)
-    actor = ActorEquilibrium(dd, par, act)
+    actor = ActorEquilibrium(dd, par, act; kw_ActorSolovev, kw_ActorCHEASE)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors)
+function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorSolovev=Dict(), kw_ActorCHEASE=Dict(), kw...)
+    par = par(kw...)
     if par.model == :Solovev
-        eq_actor = ActorSolovev(dd, act.ActorSolovev)
+        eq_actor = ActorSolovev(dd, act.ActorSolovev; kw_ActorSolovev...)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; kw_ActorCHEASE...)
     else
         error("ActorEquilibrium: model = $(par.model) is unknown")
     end
-    return ActorEquilibrium(dd, deepcopy(par), eq_actor)
+    return ActorEquilibrium(dd, par, eq_actor)
 end
 
 """
@@ -91,7 +92,7 @@ function ParametersActor(::Type{Val{:ActorSolovev}})
     par = ParametersActor(nothing)
     par.ngrid = Entry(Integer, "", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
-    par.alpha = Entry(Real, "", "Initial guess of constant relating to beta regime"; default=0.0)
+    par.alpha = Entry(Real, "", "Initial guess of constant relating to pressure"; default=0.0)
     par.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
     par.area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
@@ -116,7 +117,9 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
+function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+
     # extract info from dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -144,23 +147,25 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor)
     # run Solovev
     S = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, par.alpha, par.qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
-    return ActorSolovev(dd.equilibrium, deepcopy(par), S)
+    return ActorSolovev(dd.equilibrium, par, S)
 end
 
 """
     prepare(dd::IMAS.dd, :ActorSolovev, act::ParametersAllActors; kw...)
 
 Prepare dd to run ActorSolovev
-* Copy beta_n from summary to equilibrium
+* Copy pressure from core_profiles to equilibrium
 """
 function prepare(dd::IMAS.dd, ::Type{Val{:ActorSolovev}}, act::ParametersAllActors; kw...)
-    dd.equilibrium.time_slice[].global_quantities.beta_normal = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
+    eq1d = dd.equilibrium.time_slice[].profiles_1d
+    cp1d = dd.core_profiles.profiles_1d[]
+    eq1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
 end
 
 """
     step(actor::ActorSolovev)
 
-Non-linear optimization to obtain a target `ip` and `beta_normal`
+Non-linear optimization to obtain a target `ip` and `pressure_core`
 """
 function step(actor::ActorSolovev)
     S0 = actor.S
@@ -168,16 +173,17 @@ function step(actor::ActorSolovev)
 
     eqt = actor.eq.time_slice[]
     target_ip = abs(eqt.global_quantities.ip)
-    target_beta = eqt.global_quantities.beta_normal
+    target_pressure_core = eqt.profiles_1d.pressure[1]
 
-    B0, R0, epsilon, delta, kappa, alpha, qstar, target_ip, target_beta = promote(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, S0.alpha, S0.qstar, target_ip, target_beta)
+    B0, R0, epsilon, delta, kappa, alpha, qstar, target_ip, target_pressure_core = promote(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, S0.alpha, S0.qstar, target_ip, target_pressure_core)
 
     function cost(x)
-        # NOTE: Ip/Beta calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
+        # NOTE: Ip/pressure calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
         S = Equilibrium.solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
-        beta_cost = (Equilibrium.beta_n(S) - target_beta) / target_beta
+        psimag, psibry = Equilibrium.psi_limits(S)
+        pressure_cost = (Equilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
         ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
-        c = beta_cost^2 + ip_cost^2
+        c = pressure_cost^2 + ip_cost^2
         return c
     end
 
@@ -336,6 +342,7 @@ function ParametersActor(::Type{Val{:ActorCHEASE}})
     par = ParametersActor(nothing)
     par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     par.clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
+    par.rescale_eq_to_ip = Entry(Bool, "", "Scale equilibrium to match Ip"; default=false)
     return par
 end
 
@@ -351,8 +358,9 @@ function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::ParametersActor)
-    ActorCHEASE(dd, deepcopy(par), nothing)
+function ActorCHEASE(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    ActorCHEASE(dd, par, nothing)
 end
 
 """
@@ -379,31 +387,47 @@ function step(actor::ActorCHEASE)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
+    # remove points at high curvature points (ie. X-points)
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
-    index = abs.(IMAS.curvature(r_bound,z_bound)) .< 1.0
+    r_bound, z_bound = IMAS.resample_2d_line(r_bound, z_bound; n_points=201)
+    index = abs.(IMAS.curvature(r_bound, z_bound)) .< 0.9
     r_bound = r_bound[index]
     z_bound = z_bound[index]
 
+    # scalars
     Ip = eqt.global_quantities.ip
     Bt_center = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
     r_center = dd.equilibrium.vacuum_toroidal_field.r0
-
     r_geo = eqt.boundary.geometric_axis.r
     z_geo = eqt.boundary.geometric_axis.z
     Bt_geo = Bt_center * r_center / r_geo
-
     ϵ = eqt.boundary.minor_radius / r_geo
 
+    # pressure and j_tor
+    psin = eq1d.psi_norm
     j_tor = eq1d.j_tor
     pressure = eq1d.pressure
-    rho_pol = sqrt.(eq1d.psi_norm)
+    rho_pol = sqrt.(psin)
     pressure_sep = pressure[end]
 
-    actor.chease = CHEASE.run_chease(ϵ, z_geo, pressure_sep, Bt_geo, r_geo, Ip, r_bound, z_bound, 82, rho_pol, pressure, j_tor, clear_workdir=actor.par.clear_workdir)
+    # run and handle errors
+    try
+        actor.chease = CHEASE.run_chease(
+            ϵ, z_geo, pressure_sep, Bt_geo,
+            r_geo, Ip, r_bound, z_bound, 82,
+            rho_pol, pressure, j_tor,
+            rescale_eq_to_ip=actor.par.rescale_eq_to_ip,
+            clear_workdir=actor.par.clear_workdir)
+    catch
+        display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
+        display(plot(psin, pressure))
+        display(plot(psin, abs.(j_tor)))
+        rethrow()
+    end
 
+    # convert from fixed to free boundary equilibrium
     if actor.par.free_boundary
-        # convert from fixed to free boundary equilibrium
         EQ = Equilibrium.efit(actor.chease.gfile, 1)
         psi_free_rz = VacuumFields.fixed2free(EQ, actor.chease.gfile.nbbbs)
         actor.chease.gfile.psirz = psi_free_rz
