@@ -549,7 +549,7 @@ function layer_structure_intersect_volume(layer::IMAS.build__layer, structure::I
     end
 
     vol = 0.0
-    for poly in LibGEOS.coordinates(LibGEOS.intersection(ring_poly, structure_poly))
+    for poly in GeoInterface.coordinates(LibGEOS.intersection(ring_poly, structure_poly))
         pr = [v[1] for v in poly]
         pz = [v[2] for v in poly]
         vol += IMAS.area(pr, pz) * structure.toroidal_extent * length(toroidal_angles)

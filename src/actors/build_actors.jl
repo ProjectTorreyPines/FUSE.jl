@@ -689,8 +689,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     wall_poly = LibGEOS.buffer(plasma_poly, a)
 
     # hfs and lfs spacing may not be symmetric
-    R = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
-    Z = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
+    R = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
+    Z = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
     R .+= ((R_lfs_plasma + R_hfs_plasma) - (maximum(rlcfs) + minimum(rlcfs))) / 2.0
     R[R.<R_hfs_plasma] .= R_hfs_plasma
     R[R.>R_lfs_plasma] .= R_lfs_plasma
@@ -755,8 +755,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
     wall_poly = LibGEOS.buffer(wall_poly, a / 4)
 
-    pr = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
-    pz = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
+    pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
+    pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
     pr, pz = IMAS.resample_2d_line(pr, pz; step=0.1)
 
@@ -785,8 +785,8 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
         divertor_poly = LibGEOS.intersection(wall_poly, domain)
         divertor_poly = LibGEOS.difference(divertor_poly, plasma_poly)
 
-        pr = [v[1] for v in LibGEOS.coordinates(divertor_poly)[1]]
-        pz = [v[2] for v in LibGEOS.coordinates(divertor_poly)[1]]
+        pr = [v[1] for v in GeoInterface.coordinates(divertor_poly)[1]]
+        pz = [v[2] for v in GeoInterface.coordinates(divertor_poly)[1]]
 
         # assign to build structure
         if Zx > Z0
@@ -828,7 +828,7 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     geometries = LibGEOS.getGeometries(ring_poly)
     blankets = IMAS.IDSvectorElement[]
     for poly in geometries
-        coords = LibGEOS.coordinates(poly)
+        coords = GeoInterface.coordinates(poly)
         pr = [v[1] for v in coords[1]]
         pz = [v[2] for v in coords[1]]
 
@@ -1015,8 +1015,8 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # handle offset, negative offset, negative offset, and convex-hull
     if layer.shape in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
         poly = LibGEOS.buffer(xy_polygon(oR, oZ), (hfs_thickness + lfs_thickness) / 2.0)
-        R = [v[1] .+ r_offset for v in LibGEOS.coordinates(poly)[1]]
-        Z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+        R = [v[1] .+ r_offset for v in GeoInterface.coordinates(poly)[1]]
+        Z = [v[2] for v in GeoInterface.coordinates(poly)[1]]
         if layer.shape == Int(_convex_hull_)
             h = [[r, z] for (r, z) in collect(zip(R, Z))]
             hull = convex_hull(h; closed_polygon=true)
