@@ -34,10 +34,10 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
     ]
     par.green_model = Switch(options, "", "Model used for the coils Green function calculations"; default=:simple)
     par.symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
-    par.λ_currents = Entry(Real, "", "Weight of current limit constraint"; default=0.5)
-    par.λ_strike = Entry(Real, "", "Weight given to matching the strike-points"; default=0.0)
-    par.λ_lcfs = Entry(Real, "", "Weight given to matching last closed flux surface"; default=1.0)
-    par.λ_null = Entry(Real, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
+    par.weight_currents = Entry(Real, "", "Weight of current limit constraint"; default=0.5)
+    par.weight_strike = Entry(Real, "", "Weight given to matching the strike-points"; default=0.0)
+    par.weight_lcfs = Entry(Real, "", "Weight given to matching last closed flux surface"; default=1.0)
+    par.weight_null = Entry(Real, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
     options = [
         :none => "Do not optimize",
         :currents => "Find optimial coil currents but do not change coil positions",
@@ -73,12 +73,12 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
     else
         if par.optimization_scheme == :currents
             # find coil currents
-            step(actor; par.λ_lcfs, par.λ_null, par.λ_currents, par.λ_strike, par.verbose, maxiter=1000, optimization_scheme=:currents)
+            step(actor; par.weight_lcfs, par.weight_null, par.weight_currents, par.weight_strike, par.verbose, maxiter=1000, optimization_scheme=:currents)
             finalize(actor)
 
         elseif par.optimization_scheme == :rail
             # optimize coil location and currents
-            step(actor; par.λ_lcfs, par.λ_null, par.λ_currents, par.λ_strike, par.verbose, maxiter=1000, optimization_scheme=:rail)
+            step(actor; par.weight_lcfs, par.weight_null, par.weight_currents, par.weight_strike, par.verbose, maxiter=1000, optimization_scheme=:rail)
             finalize(actor)
 
             if par.do_plot
@@ -131,10 +131,10 @@ end
     step(pfactor::ActorPFcoilsOpt;
         symmetric=pfactor.symmetric,
         λ_regularize=pfactor.λ_regularize,
-        λ_lcfs=1.0,
-        λ_null=1E-3,
-        λ_currents=0.5,
-        λ_strike=0.0,
+        weight_lcfs=1.0,
+        weight_null=1E-3,
+        weight_currents=0.5,
+        weight_strike=0.0,
         maxiter=10000,
         optimization_scheme=:rail,
         verbose=false)
@@ -144,10 +144,10 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 function step(pfactor::ActorPFcoilsOpt;
     symmetric=pfactor.symmetric,
     λ_regularize=pfactor.λ_regularize,
-    λ_lcfs=1.0,
-    λ_null=1E-3,
-    λ_currents=0.5,
-    λ_strike=0.0,
+    weight_lcfs=1.0,
+    weight_null=1E-3,
+    weight_currents=0.5,
+    weight_strike=0.0,
     maxiter=10000,
     optimization_scheme=:rail,
     verbose=false)
@@ -162,7 +162,7 @@ function step(pfactor::ActorPFcoilsOpt;
     bd = pfactor.bd
     # run rail type optimizer
     if optimization_scheme in [:rail, :currents]
-        (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, λ_lcfs, λ_null, λ_currents, λ_strike, bd, maxiter, verbose)
+        (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, maxiter, verbose)
     else
         error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
     end
@@ -211,7 +211,11 @@ function finalize(pfactor::ActorPFcoilsOpt; scale_eq_domain_size=1.0, update_eq_
         ψ_f2f = transpose(VacuumFields.fixed2free(EQfixed, coils, R, Z))
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
         pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
-        pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = transpose(ψ_f2f)
+        if false # hack to force up-down symmetric equilibrium
+            pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = (ψ_f2f .+ ψ_f2f[1:end, end:-1:1]) ./ 2.0
+        else
+            pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = ψ_f2f
+        end
     end
 
     # update psi
@@ -496,10 +500,10 @@ function optimize_coils_rail(
     fixed_coils::Vector{GS_IMAS_pf_active__coil},
     symmetric::Bool,
     λ_regularize::Real,
-    λ_lcfs::Real,
-    λ_null::Real,
-    λ_currents::Real,
-    λ_strike::Real,
+    weight_lcfs::Real,
+    weight_null::Real,
+    weight_currents::Real,
+    weight_strike::Real,
     bd::IMAS.build,
     maxiter::Int,
     verbose::Bool)
@@ -524,7 +528,7 @@ function optimize_coils_rail(
             # private flux regions
             Rx = Float64[]
             Zx = Float64[]
-            if λ_strike > 0.0
+            if weight_strike > 0.0
                 private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
                 vessel = IMAS.get_build(bd, type=_plasma_)
                 for (pr, pz) in private
@@ -533,7 +537,7 @@ function optimize_coils_rail(
                     append!(Zx, pvy)
                 end
                 if isempty(Rx)
-                    @warn "λ_strike>0 but no strike point found"
+                    @warn "weight_strike>0 but no strike point found"
                 end
             end
             # find ψp
@@ -544,7 +548,7 @@ function optimize_coils_rail(
             o = (maximum(Zp) + minimum(Zp)) / 2.0
             weight = sqrt.(((Zp .- o) ./ h) .^ 2 .+ h) / h
             # give each strike point the same weight as the lcfs
-            weight[end-length(Rx)+1:end] .= length(Rp) / (1 + length(Rx)) * λ_strike
+            weight[end-length(Rx)+1:end] .= length(Rp) / (1 + length(Rx)) * weight_strike
             if all(weight .== 1.0)
                 weight = Float64[]
             end
@@ -585,17 +589,22 @@ function optimize_coils_rail(
             max_current_densities = vcat(oh_max_current_densities, pf_max_current_densities)
             fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
             #currents cost
-            push!(all_cost_currents, norm(exp.(fraction_max_current_densities / λ_currents) / exp(1)) / length(currents))
-            # boundary cost
+            push!(all_cost_currents, norm(exp.(fraction_max_current_densities * weight_currents) / exp(1)) / length(currents))
+            # boundary and oh costs
             if ismissing(eq.time_slice[time_index].global_quantities, :ip)
-                push!(all_cost_lcfs, cost_lcfs0 * λ_null)
+                push!(all_cost_lcfs, cost_lcfs0 * weight_null)
                 push!(all_cost_oh, 0.0)
             else
-                #OH cost (this is to avoid using the OH for X-points)
-                oh_current_densities = current_densities[oh_indexes]
-                avg_oh = sum(oh_current_densities) / length(oh_current_densities)
-                cost_oh = norm(oh_current_densities .- avg_oh) / avg_oh
-                push!(all_cost_lcfs, cost_lcfs0 * λ_lcfs)
+                push!(all_cost_lcfs, cost_lcfs0 * weight_lcfs)
+                # OH cost (to avoid OH shrinking too much)
+                index = findfirst(rail -> rail.name === "OH", bd.pf_active.rail)
+                if index !== nothing
+                    oh_rail_length = diff(collect(extrema(bd.pf_active.rail[index].outline.z)))[1]
+                    total_oh_coils_length = sum([coil.height for coil in coils[oh_indexes.==true]])
+                    cost_oh = oh_rail_length / total_oh_coils_length
+                else
+                    cost_oh = 0.0
+                end
                 push!(all_cost_oh, cost_oh)
             end
         end

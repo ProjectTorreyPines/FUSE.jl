@@ -128,23 +128,23 @@ function init_equilibrium(
     eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
     eq1d.pressure = pressure_core .* (1.0 .- psin)
 
-    # R,Z boundary from: points
     if boundary_switch == :rz_points
+        # R,Z boundary from: points
         if ismissing(rz_points)
             error("ini.equilibrium.boundary_from is set as $boundary_switch but rz_points wasn't set")
         end
         eqt.boundary.outline.r, eqt.boundary.outline.z = rz_points[1], rz_points[2]
 
-        # R,Z boundary from: MXH
     elseif boundary_switch == :MXH_params
+        # R,Z boundary from: MXH
         if ismissing(MXH_params)
             error("ini.equilibrium.boundary_from is set as $boundary_switch but MXH_params wasn't set")
         end
         mxh = IMAS.MXH(MXH_params)()
         eqt.boundary.outline.r, eqt.boundary.outline.z = mxh[1], mxh[2]
 
-        # R,Z boundary from: scalars
     elseif boundary_switch == :scalars
+        # R,Z boundary from: scalars
         eqt.boundary.outline.r, eqt.boundary.outline.z = square_miller(R0, ϵ, κ, δ, ζ; exact=true, x_points=x_point !== false)
         eqt.boundary.outline.z .+= Z0
     end
