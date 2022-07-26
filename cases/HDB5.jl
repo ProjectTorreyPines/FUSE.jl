@@ -31,7 +31,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.equilibrium.κ = data_row[:KAPPA]
     ini.equilibrium.δ = data_row[:DELTA]
     ini.equilibrium.ip = data_row[:IP]
-    ini.equilibrium.pressure_core = pressure_avg_from_beta_n(1.0, data_row[:AMIN], data_row[:BT], data_row[:IP]) * 3.0
+    ini.equilibrium.pressure_core = IMAS.pressure_avg_from_beta_n(1.0, data_row[:AMIN], data_row[:BT], data_row[:IP]) * 3.0
     act.ActorSolovev.area = data_row[:AREA]
     act.ActorSolovev.volume = data_row[:VOL]
 
