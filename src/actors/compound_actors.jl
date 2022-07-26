@@ -3,9 +3,10 @@
 #= ========================= =#
 Base.@kwdef mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
     dd::IMAS.dd
-    actor_jt::Union{Nothing,ActorSteadyStateCurrent}
-    actor_eq::Union{Nothing,ActorEquilibrium}
-    actor_tr::Union{Nothing,ActorTauenn}
+    par::ParametersActor
+    actor_jt::ActorSteadyStateCurrent
+    actor_eq::ActorEquilibrium
+    actor_tr::ActorTauenn
 end
 
 function ParametersActor(::Type{Val{:ActorEquilibriumTransport}})
@@ -28,12 +29,20 @@ ActorEquilibrium(dd, act)           # Equilibrium
 !!! note 
     Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
-function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw_ActorSteadyStateCurrent=Dict(), kw_ActorEquilibrium=Dict(), kw_ActorTauenn=Dict(), kw...)
     par = act.ActorEquilibriumTransport(kw...)
-    actor = ActorEquilibriumTransport(dd, nothing, nothing, nothing)
+    actor = ActorEquilibriumTransport(dd, par, act; kw_ActorSteadyStateCurrent, kw_ActorEquilibrium, kw_ActorTauenn)
     step(actor; act, iterations=par.iterations, do_plot=par.do_plot)
     finalize(actor)
     return actor
+end
+
+function ActorEquilibriumTransport(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorSteadyStateCurrent=Dict(), kw_ActorEquilibrium=Dict(), kw_ActorTauenn=Dict(), kw...)
+    par = par(kw...)
+    actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw_ActorSteadyStateCurrent...)
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw_ActorEquilibrium...)
+    actor_tr = ActorTauenn(dd, act.ActorTauenn; kw_ActorTauenn...)
+    return ActorEquilibriumTransport(dd, par, actor_jt, actor_eq, actor_tr)
 end
 
 function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAllActors}=missing, iterations::Int=1, do_plot::Bool=false)
@@ -49,20 +58,20 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAll
     end
 
     # Set j_ohmic to steady state
-    ActorSteadyStateCurrent(dd, act)
+    finalize(step(actor.actor_jt))
 
     for iteration in 1:iterations
         # run transport actor
-        actor.actor_tr = ActorTauenn(dd, act)
+        finalize(step(actor.actor_tr))
 
         # prepare equilibrium input based on transport core_profiles output
         prepare(dd, :ActorEquilibrium, act)
 
         # run equilibrium actor with the updated beta
-        actor.actor_eq = ActorEquilibrium(dd, act)
+        finalize(step(actor.actor_eq))
 
         # Set j_ohmic to steady state
-        actor.actor_jt = ActorSteadyStateCurrent(dd, act)
+        finalize(step(actor.actor_jt))
     end
 
     if do_plot
@@ -113,7 +122,7 @@ function step(actor::ActorWholeFacility; act::Union{Missing,ParametersAllActors}
     ActorNeutronics(dd, act)
     ActorBlanket(dd, act)
     ActorDivertors(dd, act)
-    ActorBalanceOfPlant(dd,act)
+    ActorBalanceOfPlant(dd, act)
     ActorCosting(dd, act)
     return actor
 end

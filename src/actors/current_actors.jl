@@ -115,6 +115,7 @@ end
 #= ======================= =#
 Base.@kwdef mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
 end
 
 function ParametersActor(::Type{Val{:ActorSteadyStateCurrent}})
@@ -134,10 +135,15 @@ Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_pr
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorSteadyStateCurrent(kw...)
-    actor = ActorSteadyStateCurrent(dd, par...)
+    actor = ActorSteadyStateCurrent(dd, par)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorSteadyStateCurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorSteadyStateCurrent(dd, par)
 end
 
 function step(actor::ActorSteadyStateCurrent)
@@ -146,4 +152,5 @@ function step(actor::ActorSteadyStateCurrent)
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
+    return actor
 end

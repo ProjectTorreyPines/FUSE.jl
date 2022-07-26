@@ -3,6 +3,7 @@
 #= ============== =#
 Base.@kwdef mutable struct ActorStresses <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
 end
 
 function ParametersActor(::Type{Val{:ActorStresses}})
@@ -15,21 +16,25 @@ end
 """
     ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates vertical field from PF coils and its contribution to flux swing, where
-`eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
+This actor estimates vertical field from PF coils and its contribution to flux swing
 
 !!! note 
     Stores data in `dd.solid_mechanics`
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorStresses(kw...)
-    actor = ActorStresses(dd)
+    actor = ActorStresses(dd, par)
     step(actor; par.n_points)
     finalize(actor)
     if par.do_plot
         display(plot(actor.dd.solid_mechanics.center_stack.stress))
     end
     return actor
+end
+
+function ActorStresses(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorStresses(dd, par)
 end
 
 function step(actor::ActorStresses; n_points::Integer=5)

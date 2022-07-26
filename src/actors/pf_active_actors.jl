@@ -14,6 +14,7 @@ Base.@kwdef mutable struct PFcoilsOptTrace
 end
 
 Base.@kwdef mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
+    par::ParametersActor
     eq_in::IMAS.equilibrium
     eq_out::IMAS.equilibrium
     pf_active::IMAS.pf_active
@@ -38,6 +39,7 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
     par.weight_strike = Entry(Real, "", "Weight given to matching the strike-points"; default=0.0)
     par.weight_lcfs = Entry(Real, "", "Weight given to matching last closed flux surface"; default=1.0)
     par.weight_null = Entry(Real, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
+    par.maxiter = Entry(Integer, "", "Maximum number of optimizer iterations"; default=1000)
     options = [
         :none => "Do not optimize",
         :currents => "Find optimial coil currents but do not change coil positions",
@@ -61,7 +63,7 @@ to match the equilibrium boundary shape and obtain a field-null region at plasma
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorPFcoilsOpt(kw...)
-    actor = ActorPFcoilsOpt(dd; par.green_model, par.symmetric)
+    actor = ActorPFcoilsOpt(dd, par)
 
     if par.optimization_scheme == :none
         if par.do_plot
@@ -73,13 +75,13 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
     else
         if par.optimization_scheme == :currents
             # find coil currents
-            step(actor; par.weight_lcfs, par.weight_null, par.weight_currents, par.weight_strike, par.verbose, maxiter=1000, optimization_scheme=:currents)
-            finalize(actor)
+            step(actor)
+            finalize(actor; update_equilibrium=false)
 
         elseif par.optimization_scheme == :rail
             # optimize coil location and currents
-            step(actor; par.weight_lcfs, par.weight_null, par.weight_currents, par.weight_strike, par.verbose, maxiter=1000, optimization_scheme=:rail)
-            finalize(actor)
+            step(actor)
+            finalize(actor; update_equilibrium=false)
 
             if par.do_plot
                 display(plot(actor.trace, :cost))
@@ -96,106 +98,106 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
             display(plot(actor, equilibrium=true, time_index=length(dd.equilibrium.time)))
         end
 
-        finalize(actor; update_eq_in=par.update_equilibrium)
+        finalize(actor)
     end
 
     return actor
 end
 
-function ActorPFcoilsOpt(dd::IMAS.dd; kw...)
-    return ActorPFcoilsOpt(dd.equilibrium, dd.build, dd.pf_active; kw...)
-end
-
-function ActorPFcoilsOpt(
-    eq_in::IMAS.equilibrium,
-    bd::IMAS.build,
-    pf::IMAS.pf_active;
-    λ_regularize=1E-3,
-    green_model=:simple,
-    symmetric=false)
+function ActorPFcoilsOpt(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    eq_in = dd.equilibrium
+    eq_out = deepcopy(eq_in)
+    pf = dd.pf_active
+    bd = dd.build
+    par.symmetric
+    λ_regularize=1E-3
+    trace=PFcoilsOptTrace()
+    par.green_model
 
     # reset pf coil rails
     n_coils = [rail.coils_number for rail in bd.pf_active.rail]
     init_pf_active(pf, bd, n_coils)
 
-    # basic constructors
-    eq_out = deepcopy(eq_in)
-
-    # constructor
-    pfactor = ActorPFcoilsOpt(eq_in, eq_out, pf, bd, symmetric, λ_regularize, PFcoilsOptTrace(), green_model)
-
-    return pfactor
+    return ActorPFcoilsOpt(par, eq_in, eq_out, pf, bd, par.symmetric, λ_regularize, trace, par.green_model)
 end
 
 """
-    step(pfactor::ActorPFcoilsOpt;
-        symmetric=pfactor.symmetric,
-        λ_regularize=pfactor.λ_regularize,
-        weight_lcfs=1.0,
-        weight_null=1E-3,
-        weight_currents=0.5,
-        weight_strike=0.0,
-        maxiter=10000,
-        optimization_scheme=:rail,
-        verbose=false)
+    step(actor::ActorPFcoilsOpt;
+        symmetric::Bool=actor.symmetric,
+        λ_regularize::Real=actor.λ_regularize,
+        weight_lcfs::Real=actor.par.weight_lcfs,
+        weight_null::Real=actor.par.weight_null,
+        weight_currents::Real=actor.par.weight_currents,
+        weight_strike::Real=actor.par.weight_strike,
+        maxiter::Real=actor.par.maxiter,
+        optimization_scheme::Symbol=actor.par.optimization_scheme,
+        verbose::Bool=actor.par.verbose)
 
 Optimize coil currents and positions to produce sets of equilibria while minimizing coil currents
 """
-function step(pfactor::ActorPFcoilsOpt;
-    symmetric=pfactor.symmetric,
-    λ_regularize=pfactor.λ_regularize,
-    weight_lcfs=1.0,
-    weight_null=1E-3,
-    weight_currents=0.5,
-    weight_strike=0.0,
-    maxiter=10000,
-    optimization_scheme=:rail,
-    verbose=false)
+function step(actor::ActorPFcoilsOpt;
+    symmetric::Bool=actor.symmetric,
+    λ_regularize::Real=actor.λ_regularize,
+    weight_lcfs::Real=actor.par.weight_lcfs,
+    weight_null::Real=actor.par.weight_null,
+    weight_currents::Real=actor.par.weight_currents,
+    weight_strike::Real=actor.par.weight_strike,
+    maxiter::Real=actor.par.maxiter,
+    optimization_scheme::Symbol=actor.par.optimization_scheme,
+    verbose::Bool=actor.par.verbose)
 
-    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(pfactor, optimization_scheme)
+    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor, optimization_scheme)
     coils = vcat(pinned_coils, optim_coils, fixed_coils)
     for coil in coils
-        coil.current_time = pfactor.eq_in.time
-        coil.current_data = zeros(size(pfactor.eq_in.time))
+        coil.current_time = actor.eq_in.time
+        coil.current_data = zeros(size(actor.eq_in.time))
     end
 
-    bd = pfactor.bd
+    bd = actor.bd
     # run rail type optimizer
     if optimization_scheme in [:rail, :currents]
-        (λ_regularize, trace) = optimize_coils_rail(pfactor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, maxiter, verbose)
+        (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, maxiter, verbose)
     else
         error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
     end
-    pfactor.λ_regularize = λ_regularize
-    pfactor.trace = trace
+    actor.λ_regularize = λ_regularize
+    actor.trace = trace
 
     # transfer the results to IMAS.pf_active
     for coil in coils
         transfer_info_GS_coil_to_IMAS(bd, coil)
     end
 
-    return pfactor
+    return actor
 end
 
 """
-    finalize(pfactor::ActorPFcoilsOpt; scale_eq_domain_size = 1.0)
+    finalize(
+        actor::ActorPFcoilsOpt;
+        update_equilibrium::Bool=actor.par.update_equilibrium,
+        scale_eq_domain_size::Real=1.0)
 
-Update pfactor.eq_out 2D equilibrium PSI based on coils positions and currents
+Update actor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
-function finalize(pfactor::ActorPFcoilsOpt; scale_eq_domain_size=1.0, update_eq_in=false)
+function finalize(
+    actor::ActorPFcoilsOpt;
+    update_equilibrium::Bool=actor.par.update_equilibrium,
+    scale_eq_domain_size::Real=1.0)
+
     coils = GS_IMAS_pf_active__coil[]
-    for (k, coil) in enumerate(pfactor.pf_active.coil)
-        if k <= pfactor.bd.pf_active.rail[1].coils_number
-            coil_tech = pfactor.bd.oh.technology
+    for (k, coil) in enumerate(actor.pf_active.coil)
+        if k <= actor.bd.pf_active.rail[1].coils_number
+            coil_tech = actor.bd.oh.technology
         else
-            coil_tech = pfactor.bd.pf_active.technology
+            coil_tech = actor.bd.pf_active.technology
         end
-        push!(coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
+        push!(coils, GS_IMAS_pf_active__coil(coil, coil_tech, actor.green_model))
     end
 
     # update equilibrium
-    for time_index in 1:length(pfactor.eq_in.time_slice)
-        if ismissing(pfactor.eq_in.time_slice[time_index].global_quantities, :ip)
+    for time_index in 1:length(actor.eq_in.time_slice)
+        if ismissing(actor.eq_in.time_slice[time_index].global_quantities, :ip)
             continue
         end
         for coil in coils
@@ -203,28 +205,28 @@ function finalize(pfactor::ActorPFcoilsOpt; scale_eq_domain_size=1.0, update_eq_
         end
 
         # convert equilibrium to Equilibrium.jl format, since this is what VacuumFields uses
-        EQfixed = IMAS2Equilibrium(pfactor.eq_in.time_slice[time_index])
+        EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
         # # update ψ map
         R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length=length(EQfixed.r))
         Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length=length(EQfixed.z))
         ψ_f2f = transpose(VacuumFields.fixed2free(EQfixed, coils, R, Z))
-        pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
-        pfactor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
+        actor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
+        actor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
         if false # hack to force up-down symmetric equilibrium
-            pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = (ψ_f2f .+ ψ_f2f[1:end, end:-1:1]) ./ 2.0
+            actor.eq_out.time_slice[time_index].profiles_2d[1].psi = (ψ_f2f .+ ψ_f2f[1:end, end:-1:1]) ./ 2.0
         else
-            pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi = ψ_f2f
+            actor.eq_out.time_slice[time_index].profiles_2d[1].psi = ψ_f2f
         end
     end
 
     # update psi
-    if update_eq_in
-        for time_index in 1:length(pfactor.eq_out.time_slice)
-            if !ismissing(pfactor.eq_out.time_slice[time_index].global_quantities, :ip)
-                psi1 = pfactor.eq_out.time_slice[time_index].profiles_2d[1].psi
-                pfactor.eq_in.time_slice[time_index].profiles_2d[1].psi = psi1
-                IMAS.flux_surfaces(pfactor.eq_in.time_slice[time_index])
+    if update_equilibrium
+        for time_index in 1:length(actor.eq_out.time_slice)
+            if !ismissing(actor.eq_out.time_slice[time_index].global_quantities, :ip)
+                psi1 = actor.eq_out.time_slice[time_index].profiles_2d[1].psi
+                actor.eq_in.time_slice[time_index].profiles_2d[1].psi = psi1
+                IMAS.flux_surfaces(actor.eq_in.time_slice[time_index])
             end
         end
     end
@@ -505,7 +507,7 @@ function optimize_coils_rail(
     weight_currents::Real,
     weight_strike::Real,
     bd::IMAS.build,
-    maxiter::Int,
+    maxiter::Integer,
     verbose::Bool)
 
     R0 = eq.vacuum_toroidal_field.r0
@@ -679,31 +681,31 @@ function optimize_coils_rail(
 end
 
 """
-    fixed_pinned_optim_coils(pfactor, optimization_scheme)
+    fixed_pinned_optim_coils(actor, optimization_scheme)
 
 Returns tuple of GS_IMAS_pf_active__coil coils organized by their function:
 - fixed: fixed position and current
 - pinned: coils with fixed position but current is optimized
 - optim: coils that have theri position and current optimized
 """
-function fixed_pinned_optim_coils(pfactor, optimization_scheme)
+function fixed_pinned_optim_coils(actor, optimization_scheme)
     fixed_coils = GS_IMAS_pf_active__coil[]
     pinned_coils = GS_IMAS_pf_active__coil[]
     optim_coils = GS_IMAS_pf_active__coil[]
-    for (k, coil) in enumerate(pfactor.pf_active.coil)
-        if k <= pfactor.bd.pf_active.rail[1].coils_number
-            coil_tech = pfactor.bd.oh.technology
+    for (k, coil) in enumerate(actor.pf_active.coil)
+        if k <= actor.bd.pf_active.rail[1].coils_number
+            coil_tech = actor.bd.oh.technology
         else
-            coil_tech = pfactor.bd.pf_active.technology
+            coil_tech = actor.bd.pf_active.technology
         end
         if coil.identifier == "pinned"
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, actor.green_model))
         elseif (coil.identifier == "optim") && (optimization_scheme == :currents)
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, actor.green_model))
         elseif coil.identifier == "optim"
-            push!(optim_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
+            push!(optim_coils, GS_IMAS_pf_active__coil(coil, coil_tech, actor.green_model))
         elseif coil.identifier == "fixed"
-            push!(fixed_coils, GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model))
+            push!(fixed_coils, GS_IMAS_pf_active__coil(coil, coil_tech, actor.green_model))
         else
             error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
         end
@@ -715,12 +717,12 @@ end
 #  plotting  #
 #= ======== =#
 """
-    plot_pfcoilsactor_cx(pfactor::ActorPFcoilsOpt; time_index=1, equilibrium=true, rail=true)
+    plot_pfcoilsactor_cx(actor::ActorPFcoilsOpt; time_index=1, equilibrium=true, rail=true)
 
 Plot ActorPFcoilsOpt optimization cross-section
 """
 @recipe function plot_ActorPFcoilsOpt_cx(
-    pfactor::ActorPFcoilsOpt;
+    actor::ActorPFcoilsOpt;
     time_index=nothing,
     equilibrium=true,
     build=true,
@@ -736,13 +738,13 @@ Plot ActorPFcoilsOpt optimization cross-section
     @assert typeof(plot_r_buffer) <: Real
 
     if time_index === nothing
-        time_index = length(pfactor.eq_out.time_slice)
+        time_index = length(actor.eq_out.time_slice)
     end
-    time = pfactor.eq_out.time_slice[time_index].time
+    time = actor.eq_out.time_slice[time_index].time
 
     # if there is no equilibrium then treat this as a field_null plot
     field_null = false
-    if length(pfactor.eq_out.time_slice[time_index].profiles_2d) == 0 || ismissing(pfactor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
+    if length(actor.eq_out.time_slice[time_index].profiles_2d) == 0 || ismissing(actor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
         coils_flux = equilibrium
         field_null = true
     end
@@ -753,8 +755,8 @@ Plot ActorPFcoilsOpt optimization cross-section
     end
 
     # setup plotting area
-    xlim = [0.0, maximum(pfactor.bd.layer[end].outline.r)]
-    ylim = [minimum(pfactor.bd.layer[end].outline.z), maximum(pfactor.bd.layer[end].outline.z)]
+    xlim = [0.0, maximum(actor.bd.layer[end].outline.r)]
+    ylim = [minimum(actor.bd.layer[end].outline.z), maximum(actor.bd.layer[end].outline.z)]
     xlim --> xlim * plot_r_buffer
     ylim --> ylim
     aspect_ratio --> :equal
@@ -763,7 +765,7 @@ Plot ActorPFcoilsOpt optimization cross-section
     if build
         @series begin
             exclude_layers --> [:oh]
-            pfactor.bd
+            actor.bd
         end
     end
 
@@ -774,19 +776,19 @@ Plot ActorPFcoilsOpt optimization cross-section
         Z = range(ylim[1], ylim[2], length=Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
 
         coils = GS_IMAS_pf_active__coil[]
-        for (k, coil) in enumerate(pfactor.pf_active.coil)
-            if k <= pfactor.bd.pf_active.rail[1].coils_number
-                coil_tech = pfactor.bd.oh.technology
+        for (k, coil) in enumerate(actor.pf_active.coil)
+            if k <= actor.bd.pf_active.rail[1].coils_number
+                coil_tech = actor.bd.oh.technology
             else
-                coil_tech = pfactor.bd.pf_active.technology
+                coil_tech = actor.bd.pf_active.technology
             end
-            coil = GS_IMAS_pf_active__coil(coil, coil_tech, pfactor.green_model)
+            coil = GS_IMAS_pf_active__coil(coil, coil_tech, actor.green_model)
             coil.time_index = time_index
             push!(coils, coil)
         end
 
         # ψ coil currents
-        ψbound = pfactor.eq_out.time_slice[time_index].global_quantities.psi_boundary
+        ψbound = actor.eq_out.time_slice[time_index].global_quantities.psi_boundary
         ψ = VacuumFields.coils_flux(2 * pi, coils, R, Z)
 
         ψmin = minimum(x -> isnan(x) ? Inf : x, ψ)
@@ -821,7 +823,7 @@ Plot ActorPFcoilsOpt optimization cross-section
         @series begin
             wireframe --> true
             exclude_layers --> [:oh]
-            pfactor.bd
+            actor.bd
         end
     end
 
@@ -832,14 +834,14 @@ Plot ActorPFcoilsOpt optimization cross-section
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                pfactor.eq_out.time_slice[time_index]
+                actor.eq_out.time_slice[time_index]
             end
         else
             @series begin
                 cx := true
                 label --> "Final"
                 seriescolor --> :red
-                pfactor.eq_out.time_slice[time_index]
+                actor.eq_out.time_slice[time_index]
             end
             @series begin
                 cx := true
@@ -847,7 +849,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 seriescolor --> :blue
                 lcfs --> true
                 linestyle --> :dash
-                pfactor.eq_in.time_slice[time_index]
+                actor.eq_in.time_slice[time_index]
             end
         end
     end
@@ -855,14 +857,14 @@ Plot ActorPFcoilsOpt optimization cross-section
     # plot pf_active coils
     @series begin
         time --> time
-        pfactor.pf_active
+        actor.pf_active
     end
 
     # plot optimization rails
     if rail
         @series begin
             label --> (build ? "Coil opt. rail" : "")
-            pfactor.bd.pf_active.rail
+            actor.bd.pf_active.rail
         end
     end
 

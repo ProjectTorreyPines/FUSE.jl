@@ -129,6 +129,7 @@ end
 #= ========== =#
 Base.@kwdef mutable struct ActorFluxSwing <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
     operate_at_j_crit::Bool
     j_tolerance::Real
 end
@@ -167,10 +168,15 @@ OH flux consumption based on:
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorFluxSwing(kw...)
-    actor = ActorFluxSwing(; dd, par...)
+    actor = ActorFluxSwing(dd, par)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorFluxSwing(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorFluxSwing(dd, par, par.operate_at_j_crit, par.j_tolerance)
 end
 
 """
@@ -294,6 +300,7 @@ end
 #= ========== =#
 Base.@kwdef mutable struct ActorLFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
 end
 
 function ParametersActor(::Type{Val{:ActorLFSsizing}})
@@ -315,16 +322,21 @@ Actor that resizes the Low Field Side of the build.
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorLFSsizing(kw...)
+    actor = ActorLFSsizing(dd, par)
     if par.do_plot
         plot(dd.build)
     end
-    actor = ActorLFSsizing(dd)
     step(actor; par.verbose)
     finalize(actor)
     if par.do_plot
         display(plot!(dd.build; cx=false))
     end
     return actor
+end
+
+function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorLFSsizing(dd, par)
 end
 
 function step(actor::ActorLFSsizing; verbose::Bool=false)
@@ -361,6 +373,8 @@ end
 #  HFS sizing  #
 #= ========== =#
 Base.@kwdef mutable struct ActorHFSsizing <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::ParametersActor
     stresses_actor::ActorStresses
     fluxswing_actor::ActorFluxSwing
 end
@@ -386,15 +400,13 @@ Actor that resizes the High Field Side of the build.
 !!! note 
     Manipulates radial build information in `dd.build.layer`
 """
-function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
     par = act.ActorHFSsizing(kw...)
+    actor = ActorHFSsizing(dd, par, act; kw_ActorFluxSwing, kw_ActorStresses)
     if par.do_plot
         p = plot(dd.build)
     end
-    fluxswing_actor = ActorFluxSwing(; dd, operate_at_j_crit=par.unconstrained_flattop_duration, par.j_tolerance)
-    stresses_actor = ActorStresses(dd)
-    actor = ActorHFSsizing(stresses_actor, fluxswing_actor)
-    step(actor; par.verbose, par.j_tolerance, par.stress_tolerance, par.fixed_aspect_ratio, par.unconstrained_flattop_duration)
+    step(actor)
     finalize(actor)
     if par.do_plot
         display(plot!(p, dd.build; cx=false))
@@ -402,14 +414,21 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+function ActorHFSsizing(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
+    par = act.ActorHFSsizing(kw...)
+    fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing; kw_ActorFluxSwing...)
+    stresses_actor = ActorStresses(dd, act.ActorStresses; kw_ActorStresses...)
+    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor)
+end
+
 function step(
     actor::ActorHFSsizing;
-    j_tolerance::Real=0.4,
-    stress_tolerance::Real=0.2,
-    fixed_aspect_ratio::Bool=true,
-    unconstrained_flattop_duration::Bool=true,
-    verbose::Bool=false,
-    do_plot=false
+    j_tolerance::Real=actor.par.j_tolerance,
+    stress_tolerance::Real=actor.par.stress_tolerance,
+    fixed_aspect_ratio::Bool=actor.par.fixed_aspect_ratio,
+    unconstrained_flattop_duration::Bool=actor.par.unconstrained_flattop_duration,
+    verbose::Bool=actor.par.verbose,
+    debug_plot=false
 )
 
     function target_value(value, target, tolerance) # relative error with tolerance
@@ -478,7 +497,7 @@ function step(
             c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, stress_tolerance)
         end
 
-        if do_plot
+        if debug_plot
             push!(C_JOH, c_joh)
             push!(C_SOH, c_soh)
             push!(C_JTF, c_jtf)
@@ -506,7 +525,7 @@ function step(
     old_a = plasma.thickness / 2.0
     old_ϵ = old_R0 / old_a
 
-    if do_plot
+    if debug_plot
         C_JOH = []
         C_SOH = []
         C_JTF = []
@@ -575,7 +594,7 @@ function step(
     a = plasma.thickness / 2.0
     ϵ = R0 / a
 
-    if do_plot
+    if debug_plot
         p = plot(yscale=:log10)
         plot!(p, C_JOH ./ (C_JOH .> 0.0), label="Jcrit OH")
         plot!(p, C_SOH ./ (C_SOH .> 0.0), label="Stresses OH")
@@ -634,6 +653,7 @@ end
 #= ============= =#
 Base.@kwdef mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
 end
 
 function ParametersActor(::Type{Val{:ActorCXbuild}})
@@ -653,8 +673,8 @@ Actor that builds the 2D cross section of the build.
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCXbuild(kw...)
-    actor = ActorCXbuild(dd)
-    step(actor; par.rebuild_wall)
+    actor = ActorCXbuild(dd, par)
+    step(actor)
     finalize(actor)
     if par.do_plot
         plot(dd.build)
@@ -663,7 +683,12 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorCXbuild; rebuild_wall::Bool=true)
+function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorCXbuild(dd, par)
+end
+
+function step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
     build_cx!(actor.dd; rebuild_wall)
 end
 

@@ -4,6 +4,7 @@
 
 Base.@kwdef mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
     blanket_multiplier::Real
     efficiency_reclaim::Real
     thermal_electric_conversion_efficiency::Real
@@ -11,6 +12,7 @@ end
 
 function ParametersActor(::Type{Val{:ActorBalanceOfPlant}})
     par = ParametersActor(nothing)
+    par.model = Switch([:gasc, :EU_DEMO], "", "Balance of plant model"; default=:EU_DEMO)
     par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
     par.efficiency_reclaim = Entry(Real, "", "Reclaim efficiency of thermal power hitting the blanket"; default=0.6)
     par.thermal_electric_conversion_efficiency = Entry(Real, "", "Efficiency of the steam cycle, thermal to electric"; default=0.4)
@@ -18,26 +20,31 @@ function ParametersActor(::Type{Val{:ActorBalanceOfPlant}})
 end
 
 """
-    ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; gasc_method=false, kw...)
+    ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Balance of plant actor that estimates the Net electrical power output by estimating the balance of plant electrical needs and compares it to the electricity generated from the thermal cycle.
 
-Setting `gasc_method = true` simply assumes that the power to balance a plant is 7% of the electricity generated.
+* `model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
 
-Setting `gasc_method = false` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
+* `model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
 
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
-function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; gasc_method=false, kw...)
+function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorBalanceOfPlant(kw...)
-    actor = ActorBalanceOfPlant(dd, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
+    actor = ActorBalanceOfPlant(dd, par)
     step(actor, gasc_method)
     finalize(actor)
     return actor
 end
 
-function step(actor::ActorBalanceOfPlant, gasc_method)
+function ActorBalanceOfPlant(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    ActorBalanceOfPlant(dd, par, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
+end
+
+function step(actor::ActorBalanceOfPlant)
     dd = actor.dd
     bop = dd.balance_of_plant
     empty!(bop)
@@ -73,16 +80,19 @@ function step(actor::ActorBalanceOfPlant, gasc_method)
     end
 
     ## balance of plant systems
-    if gasc_method
+    if actor.par.model == :gasc
         sys = resize!(bop_electric.system, "name" => "BOP_gasc", "index" => 2)
         sys.power = 0.07 .* bop_thermal.power_electric_generated
-    else
+
+    elseif actor.par.model == :EU_DEMO
         # More realistic DEMO numbers
         bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active] # index 2 : 5
         for (idx, system) in enumerate(bop_systems)
             sys = resize!(bop_electric.system, "name" => string(system), "index" => (idx + 1))
             sys.power = electricity(system, bop.time)
         end
+    else
+        error("act.ActorBalanceOfPlant.model = $(actor.par.model) not recognized")
     end
     return actor
 end
@@ -143,7 +153,7 @@ end
 
 function thermal_power(::Type{Val{:blanket}}, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
     power_fusion, time_array_fusion = IMAS.total_power_time(dd.core_sources, [6])
-    return actor.blanket_multiplier .* IMAS.interp1d(time_array_fusion, 4 .* power_fusion, :constant).(time_array) # blanket_multiplier * P_neutron
+    return actor.par.blanket_multiplier .* IMAS.interp1d(time_array_fusion, 4 .* power_fusion, :constant).(time_array) # blanket_multiplier * P_neutron
 end
 
 function thermal_power(::Type{Val{:diverters}}, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})

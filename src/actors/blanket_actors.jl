@@ -4,6 +4,7 @@
 
 Base.@kwdef mutable struct ActorBlanket <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
     blanket_multiplier::Real
     thermal_power_extraction_efficiency::Real
 end
@@ -30,10 +31,15 @@ Blanket actor
 """
 function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorBlanket(kw...)
-    actor = ActorBlanket(dd, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
+    actor = ActorBlanket(dd, par)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
 end
 
 function step(actor::ActorBlanket)

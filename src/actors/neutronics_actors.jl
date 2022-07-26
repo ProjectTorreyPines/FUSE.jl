@@ -21,6 +21,7 @@ end
 
 Base.@kwdef mutable struct ActorNeutronics <: PlasmaAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
 end
 
 function ParametersActor(::Type{Val{:ActorNeutronics}})
@@ -41,13 +42,18 @@ This actor estimates the neutron loading on the wall using the fusion source fro
 """
 function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNeutronics(kw...)
-    actor = ActorNeutronics(dd)
-    step(actor; N=par.N, step=par.step, do_plot=par.do_plot)
+    actor = ActorNeutronics(dd, par)
+    step(actor)
     finalize(actor)
     return actor
 end
 
-function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Bool=false)
+function ActorNeutronics(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorNeutronics(dd, par)
+end
+
+function step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.step, do_plot::Bool=actor.par.do_plot)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]

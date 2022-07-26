@@ -97,6 +97,7 @@ end
 
 Base.@kwdef mutable struct ActorCosting <: FacilityAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
 end
 
 function ParametersActor(::Type{Val{:ActorCosting}})
@@ -114,10 +115,15 @@ This actor estimates the cost of the fusion power plant.
 """
 function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCosting(kw...)
-    actor = ActorCosting(dd)
+    actor = ActorCosting(dd, par)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorCosting(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorCosting(dd, par)
 end
 
 function step(actor::ActorCosting)
