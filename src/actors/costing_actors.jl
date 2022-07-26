@@ -100,7 +100,7 @@ mutable struct ActorCosting <: FacilityAbstractActor
     par::ParametersActor
     function ActorCosting(dd::IMAS.dd, par::ParametersActor; kw...)
         par = par(kw...)
-        return ActorCosting(dd, par)
+        return new(dd, par)
     end
 end
 

@@ -6,7 +6,7 @@ mutable struct ActorStresses <: ReactorAbstractActor
     par::ParametersActor
     function ActorStresses(dd::IMAS.dd, par::ParametersActor; kw...)
         par = par(kw...)
-        return ActorStresses(dd, par)
+        return new(dd, par)
     end
 end
 
@@ -73,7 +73,7 @@ function step(actor::ActorStresses; n_points::Integer=5)
             f_struct_oh=f_struct_oh,
             f_struct_pl=1.0,
             n_points=n_points,
-            verbose=false,
+            verbose=false
         )
     end
 

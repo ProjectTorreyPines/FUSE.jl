@@ -303,7 +303,7 @@ mutable struct ActorLFSsizing <: ReactorAbstractActor
     par::ParametersActor
     function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
         par = par(kw...)
-        return ActorLFSsizing(dd, par)
+        return new(dd, par)
     end
 end
 
@@ -655,8 +655,8 @@ mutable struct ActorCXbuild <: ReactorAbstractActor
     par::ParametersActor
     function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
         par = par(kw...)
-        return ActorCXbuild(dd, par)
-    end    
+        return new(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorCXbuild}})

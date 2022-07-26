@@ -119,7 +119,7 @@ mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     par::ParametersActor
     function ActorSteadyStateCurrent(dd::IMAS.dd, par::ParametersActor; kw...)
         par = par(kw...)
-        return ActorSteadyStateCurrent(dd, par)
+        return new(dd, par)
     end
 end
 

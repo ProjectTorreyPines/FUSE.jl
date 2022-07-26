@@ -24,7 +24,7 @@ mutable struct ActorNeutronics <: PlasmaAbstractActor
     par::ParametersActor
     function ActorNeutronics(dd::IMAS.dd, par::ParametersActor; kw...)
         par = par(kw...)
-        return ActorNeutronics(dd, par)
+        return new(dd, par)
     end
 end
 
