@@ -4,6 +4,10 @@
 mutable struct ActorStresses <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    function ActorStresses(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return ActorStresses(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorStresses}})
@@ -30,11 +34,6 @@ function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
         display(plot(actor.dd.solid_mechanics.center_stack.stress))
     end
     return actor
-end
-
-function ActorStresses(dd::IMAS.dd, par::ParametersActor; kw...)
-    par = par(kw...)
-    return ActorStresses(dd, par)
 end
 
 function step(actor::ActorStresses; n_points::Integer=5)

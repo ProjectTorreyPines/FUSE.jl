@@ -22,6 +22,10 @@ end
 mutable struct ActorNeutronics <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    function ActorNeutronics(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return ActorNeutronics(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorNeutronics}})
@@ -46,11 +50,6 @@ function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorNeutronics(dd::IMAS.dd, par::ParametersActor; kw...)
-    par = par(kw...)
-    return ActorNeutronics(dd, par)
 end
 
 function step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.step, do_plot::Bool=actor.par.do_plot)

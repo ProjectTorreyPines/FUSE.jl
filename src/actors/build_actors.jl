@@ -301,6 +301,10 @@ end
 mutable struct ActorLFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return ActorLFSsizing(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorLFSsizing}})
@@ -332,11 +336,6 @@ function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
         display(plot!(dd.build; cx=false))
     end
     return actor
-end
-
-function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
-    par = par(kw...)
-    return ActorLFSsizing(dd, par)
 end
 
 function step(actor::ActorLFSsizing; verbose::Bool=false)
@@ -654,6 +653,10 @@ end
 mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return ActorCXbuild(dd, par)
+    end    
 end
 
 function ParametersActor(::Type{Val{:ActorCXbuild}})
@@ -681,11 +684,6 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
         display(plot!(dd.build; cx=false))
     end
     return actor
-end
-
-function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
-    par = par(kw...)
-    return ActorCXbuild(dd, par)
 end
 
 function step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)

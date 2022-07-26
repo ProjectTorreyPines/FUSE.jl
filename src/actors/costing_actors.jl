@@ -98,6 +98,10 @@ end
 mutable struct ActorCosting <: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    function ActorCosting(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return ActorCosting(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorCosting}})
@@ -119,11 +123,6 @@ function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorCosting(dd::IMAS.dd, par::ParametersActor; kw...)
-    par = par(kw...)
-    return ActorCosting(dd, par)
 end
 
 function step(actor::ActorCosting)

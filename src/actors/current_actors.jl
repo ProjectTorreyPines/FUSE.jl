@@ -5,6 +5,7 @@ import QED
 #= =============== =#
 mutable struct ActorQEDcurrent <: PlasmaAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
     QI::QED.QED_state
     η#::Base.Callable
     QO::Union{QED.QED_state,Missing}
@@ -27,14 +28,15 @@ This actor evolves the current using QED.
 """
 function ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorQEDcurrent(kw...)
-    actor = ActorQEDcurrent(dd)
+    actor = ActorQEDcurrent(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorQEDcurrent(dd::IMAS.dd)
-    ActorQEDcurrent(dd, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), 0.0)
+function ActorQEDcurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorQEDcurrent(dd, par, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), dd.global_time)
 end
 
 function step(actor::ActorQEDcurrent, tmax, Nt, Vedge=nothing, Ip=nothing; resume=false)
@@ -45,7 +47,6 @@ function step(actor::ActorQEDcurrent, tmax, Nt, Vedge=nothing, Ip=nothing; resum
         end
         actor.tmax += tmax
     else
-        actor.initial_time = @ddtime(dd.equilibrium.time)
         actor.tmax = tmax
     end
     actor.QO = QED.diffuse(actor.QI, actor.η, tmax, Nt; Vedge, Ip)
@@ -116,6 +117,10 @@ end
 mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    function ActorSteadyStateCurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return ActorSteadyStateCurrent(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorSteadyStateCurrent}})
@@ -139,11 +144,6 @@ function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorSteadyStateCurrent(dd::IMAS.dd, par::ParametersActor; kw...)
-    par = par(kw...)
-    return ActorSteadyStateCurrent(dd, par)
 end
 
 function step(actor::ActorSteadyStateCurrent)
