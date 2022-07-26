@@ -7,7 +7,7 @@ import Optim
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
-Base.@kwdef mutable struct ActorEquilibrium <: PlasmaAbstractActor
+mutable struct ActorEquilibrium <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     eq_actor::PlasmaAbstractActor
@@ -82,7 +82,7 @@ end
 #= ============ =#
 #  ActorSolovev  #
 #= ============ =#
-Base.@kwdef mutable struct ActorSolovev <: PlasmaAbstractActor
+mutable struct ActorSolovev <: PlasmaAbstractActor
     eq::IMAS.equilibrium
     par::ParametersActor
     S::Equilibrium.SolovevEquilibrium
@@ -332,7 +332,7 @@ end
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-Base.@kwdef mutable struct ActorCHEASE <: PlasmaAbstractActor
+mutable struct ActorCHEASE <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     chease::Union{Nothing,CHEASE.Chease}

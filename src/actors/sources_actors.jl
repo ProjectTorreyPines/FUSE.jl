@@ -3,7 +3,7 @@ import NumericalIntegration: integrate
 #= === =#
 #  NBI  #
 #= === =#
-Base.@kwdef mutable struct ActorNBIsimple <: HCDAbstractActor
+mutable struct ActorNBIsimple <: HCDAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     width::AbstractVector{<:Real}
@@ -90,7 +90,7 @@ end
 #= == =#
 #  EC  #
 #= == =#
-Base.@kwdef mutable struct ActorECsimple <: HCDAbstractActor
+mutable struct ActorECsimple <: HCDAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     width::AbstractVector{<:Real}
@@ -169,7 +169,7 @@ end
 #= == =#
 #  IC  #
 #= == =#
-Base.@kwdef mutable struct ActorICsimple <: HCDAbstractActor
+mutable struct ActorICsimple <: HCDAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     width::AbstractVector{<:Real}
@@ -248,7 +248,7 @@ end
 #= == =#
 #  LH  #
 #= == =#
-Base.@kwdef mutable struct ActorLHsimple <: HCDAbstractActor
+mutable struct ActorLHsimple <: HCDAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     width::AbstractVector{<:Real}

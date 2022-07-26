@@ -2,7 +2,7 @@
 #  ActorBlanket  #
 #= ============ =#
 
-Base.@kwdef mutable struct ActorBlanket <: ReactorAbstractActor
+mutable struct ActorBlanket <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     blanket_multiplier::Real

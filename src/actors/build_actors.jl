@@ -127,7 +127,7 @@ end
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-Base.@kwdef mutable struct ActorFluxSwing <: ReactorAbstractActor
+mutable struct ActorFluxSwing <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     operate_at_j_crit::Bool
@@ -298,7 +298,7 @@ end
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct ActorLFSsizing <: ReactorAbstractActor
+mutable struct ActorLFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
 end
@@ -372,7 +372,7 @@ end
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct ActorHFSsizing <: ReactorAbstractActor
+mutable struct ActorHFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     stresses_actor::ActorStresses
@@ -651,7 +651,7 @@ end
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-Base.@kwdef mutable struct ActorCXbuild <: ReactorAbstractActor
+mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
 end

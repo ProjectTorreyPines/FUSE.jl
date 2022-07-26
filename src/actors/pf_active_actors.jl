@@ -13,7 +13,7 @@ Base.@kwdef mutable struct PFcoilsOptTrace
     cost_total::Vector{Real} = Real[]
 end
 
-Base.@kwdef mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
+mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
     par::ParametersActor
     eq_in::IMAS.equilibrium
     eq_out::IMAS.equilibrium

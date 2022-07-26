@@ -3,7 +3,7 @@ import QED
 #= =============== =#
 #  ActorQEDcurrent  #
 #= =============== =#
-Base.@kwdef mutable struct ActorQEDcurrent <: PlasmaAbstractActor
+mutable struct ActorQEDcurrent <: PlasmaAbstractActor
     dd::IMAS.dd
     QI::QED.QED_state
     η#::Base.Callable
@@ -113,7 +113,7 @@ end
 #= ======================= =#
 #  ActorSteadyStateCurrent  #
 #= ======================= =#
-Base.@kwdef mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
+mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
 end

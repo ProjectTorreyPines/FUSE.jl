@@ -1,7 +1,7 @@
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
-Base.@kwdef mutable struct ActorStresses <: ReactorAbstractActor
+mutable struct ActorStresses <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
 end

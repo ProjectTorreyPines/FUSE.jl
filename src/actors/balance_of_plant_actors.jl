@@ -2,7 +2,7 @@
 #  ActorBalanceOfPlant  #
 #= =================== =#
 
-Base.@kwdef mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
+mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     blanket_multiplier::Real
@@ -34,7 +34,7 @@ Balance of plant actor that estimates the Net electrical power output by estimat
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorBalanceOfPlant(kw...)
     actor = ActorBalanceOfPlant(dd, par)
-    step(actor, gasc_method)
+    step(actor)
     finalize(actor)
     return actor
 end
@@ -44,7 +44,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::ParametersActor; kw...)
     ActorBalanceOfPlant(dd, par, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
 end
 
-function step(actor::ActorBalanceOfPlant)
+function step(actor::ActorBalanceOfPlant; model::Symbol=actor.par.model)
     dd = actor.dd
     bop = dd.balance_of_plant
     empty!(bop)
@@ -80,11 +80,11 @@ function step(actor::ActorBalanceOfPlant)
     end
 
     ## balance of plant systems
-    if actor.par.model == :gasc
+    if model == :gasc
         sys = resize!(bop_electric.system, "name" => "BOP_gasc", "index" => 2)
         sys.power = 0.07 .* bop_thermal.power_electric_generated
 
-    elseif actor.par.model == :EU_DEMO
+    elseif model == :EU_DEMO
         # More realistic DEMO numbers
         bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active] # index 2 : 5
         for (idx, system) in enumerate(bop_systems)
@@ -92,7 +92,7 @@ function step(actor::ActorBalanceOfPlant)
             sys.power = electricity(system, bop.time)
         end
     else
-        error("act.ActorBalanceOfPlant.model = $(actor.par.model) not recognized")
+        error("ActorBalanceOfPlant: model = $(model) not recognized")
     end
     return actor
 end
@@ -153,7 +153,7 @@ end
 
 function thermal_power(::Type{Val{:blanket}}, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
     power_fusion, time_array_fusion = IMAS.total_power_time(dd.core_sources, [6])
-    return actor.par.blanket_multiplier .* IMAS.interp1d(time_array_fusion, 4 .* power_fusion, :constant).(time_array) # blanket_multiplier * P_neutron
+    return actor.blanket_multiplier .* IMAS.interp1d(time_array_fusion, 4 .* power_fusion, :constant).(time_array) # blanket_multiplier * P_neutron
 end
 
 function thermal_power(::Type{Val{:diverters}}, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})

@@ -2,7 +2,7 @@
 #  ActorDivertors  #
 #= ============== =#
 
-Base.@kwdef mutable struct ActorDivertors <: ReactorAbstractActor
+mutable struct ActorDivertors <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     thermal_power_extraction_efficiency::Real
