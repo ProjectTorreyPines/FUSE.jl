@@ -195,7 +195,7 @@ function step(actor::ActorSolovev)
 
     actor.S = Equilibrium.solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
 
-    return res
+    return actor
 end
 
 """
