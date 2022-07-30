@@ -25,7 +25,7 @@ install_no_registry:
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT"]);\
+Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics"]);\
 Pkg.activate();\
 Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT"]);\
 '
@@ -61,7 +61,7 @@ precompile:
 	julia -e 'using Pkg; Pkg.activate("."); Pkg.precompile()'
 
 clone_update_all:
-	make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT
+	make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics
 
 update: install clone_update_all precompile
 
@@ -101,16 +101,19 @@ EPEDNN:
 QED:
 	$(call clone_update_repo,$@)
 
+FiniteElementHermite:
+	$(call clone_update_repo,$@)
+
+Fortran90Namelists:
+	$(call clone_update_repo,$@)
+
 CHEASE:
 	$(call clone_update_repo,$@)
 
 EFIT:
 	$(call clone_update_repo,$@)
 
-Fortran90Namelists:
-	$(call clone_update_repo,$@)
-
-FiniteElementHermite:
+NNeutronics:
 	$(call clone_update_repo,$@)
 
 docker_image:
