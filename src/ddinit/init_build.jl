@@ -58,7 +58,7 @@ Initialize `dd.build` starting from `ini` and `act` parameters
 """
 function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     init_from = ini.general.init_from
-    
+
     if init_from == :ods
         dd1 = IMAS.json2imas(ini.ods.filename)
         if length(keys(dd1.wall)) > 0
@@ -91,11 +91,18 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
     tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
     dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
     dd.build.layer[tf_to_plasma[2]].shape = Int(to_enum(ini.tf.shape))
+    # set all other shapes
     for k in tf_to_plasma[2:end]
         dd.build.layer[k+1].shape = Int(_convex_hull_)
     end
-    for k in tf_to_plasma[2:end-ini.build.n_first_wall_conformal_layers]
-        dd.build.layer[k+1].shape = Int(_negative_offset_)
+    k = tf_to_plasma[end]
+    if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k-1].type == Int(_blanket_)) || (dd.build.layer[k-1].type == Int(_shield_)))
+        dd.build.layer[k].shape = Int(_offset_)
+    end
+    if ini.build.n_first_wall_conformal_layers >= 0
+        for k in tf_to_plasma[2:end-ini.build.n_first_wall_conformal_layers]
+            dd.build.layer[k+1].shape = Int(_negative_offset_)
+        end
     end
 
     # 2D build cross-section

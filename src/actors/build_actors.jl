@@ -936,10 +936,12 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     # k-1 means the layer outside (ie. towards the tf)
     # k   is the current layer
     # k+1 means the layer inside (ie. towards the plasma)
+    # 
     # forward pass: from plasma to TF _convex_hull_ and then desired TF shape
     tf_to_plasma = IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true)
     plasma_to_tf = reverse(tf_to_plasma)
     for k in plasma_to_tf
+        original_shape = bd.layer[k].shape
         layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
         if k == itf + 1
             # layer that is inside of the TF sets TF shape
@@ -947,13 +949,22 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         else
             # everything else is conformal convex hull
             optimize_shape(bd, k + 1, k, _convex_hull_)
-            bd.layer[k].shape = Int(layer_shape)
+            bd.layer[k].shape = original_shape
         end
     end
     # reverse pass: from TF to plasma only with negative offset
     for k in tf_to_plasma[2:end]
         if bd.layer[k+1].shape == Int(_negative_offset_)
             optimize_shape(bd, k, k + 1, _negative_offset_)
+        end
+    end
+    # forward pass: from plasma to TF with desired shapes
+    for k in plasma_to_tf[1:end-1]
+        if bd.layer[k].shape == Int(_negative_offset_)
+            break
+        else
+            layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
+            optimize_shape(bd, k + 1, k, layer_shape)
         end
     end
 

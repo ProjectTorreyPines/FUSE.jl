@@ -259,7 +259,7 @@ function gasc_2_layers(gascsol::Dict)
         d = gascrb[replace(g2, "InnerTF" => "TF")] - gascrb[replace(g1, "InnerTF" => "TF")]
         f1 = mapper[replace(replace(replace(replace(g1, "Ri" => ""), "Ro" => ""), "Inner" => ""), "Outer" => "")]
         f2 = mapper[replace(replace(replace(replace(g2, "Ri" => ""), "Ro" => ""), "Inner" => ""), "Outer" => "")]
-        if startswith(g1, "Ri")
+        if startswith(g1, "Ri") # hfs
             if contains(g1, "Inner")
                 f1 = "hfs_" * f1
             elseif contains(g1, "Outer")
@@ -268,7 +268,8 @@ function gasc_2_layers(gascsol::Dict)
             f = f1
             f = replace(f, r".fs_gap_TF_OH" => "gap_TF_OH")
             layers[f] = d
-        elseif startswith(g1, "Ro") && d > 0
+
+        elseif startswith(g1, "Ro") && (d > 0) # lfs
             if contains(g2, "Outer")
                 f = "lfs_gap_$(f1)_$(f2)"
             else

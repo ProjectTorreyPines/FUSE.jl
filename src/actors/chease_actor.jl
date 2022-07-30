@@ -20,7 +20,8 @@ end
 """
     ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor runs the Fixed boundary equilibrium solver CHEASE"""
+This actor runs the Fixed boundary equilibrium solver CHEASE
+"""
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCHEASE(kw...)
     actor = ActorCHEASE(dd, par)
