@@ -176,7 +176,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         return shape_parameters
     end
 
-    function cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
+    function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
         R, Z = func(r_start, r_end, shape_parameters...)
 
         # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
@@ -195,7 +195,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         cost_mean_distance = mean_distance_error / target_clearance
 
         # favor up/down symmetric solutions
-        cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / maximum(abs.(Z))
+        cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
 
         if verbose
             @show minimum_distance
@@ -213,9 +213,9 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
     initial_guess = copy(shape_parameters)
-    # res = optimize(shape_parameters-> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
+    # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
     #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
-    res = Optim.optimize(shape_parameters -> cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
+    res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
         initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit); autodiff=:forward)
     if verbose
         println(res)
@@ -225,7 +225,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     # plot(func(r_start, r_end, initial_guess...); markershape=:x)
     # plot!(r_obstruction, z_obstruction, ; markershape=:x)
     # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal))
-    # cost_TF_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
+    # cost_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
     return shape_parameters
 end
 

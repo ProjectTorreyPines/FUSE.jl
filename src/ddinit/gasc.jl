@@ -289,15 +289,46 @@ function gasc_2_layers(gascsol::Dict)
         end
     end
 
-    if false # to remove gap that prevents bucking
-        for k in collect(keys(layers))
-            if k == "gap_TF_OH"
-                layers["OH"] += layers["gap_TF_OH"]
-                delete!(layers, k)
-            end
+    return layers
+end
+
+"""
+    gasc_buck_OH_TF!(layers::DataStructures.OrderedDict)
+
+Remove gap between OH and TF to allow bucking (gap gets added to OH thickness)
+"""
+function gasc_buck_OH_TF!(layers::DataStructures.OrderedDict)
+    for k in collect(keys(layers))
+        if k == "gap_TF_OH"
+            layers["OH"] += layers["gap_TF_OH"]
+            delete!(layers, k)
         end
     end
+    return layers
+end
 
+"""
+    gasc_add_wall_layers!(layers::DataStructures.OrderedDict, thickness::Float64)
+
+Add wall layer of given thickness expressed [meters] (gets subtracted from blanket layer)
+"""
+function gasc_add_wall_layers!(layers::DataStructures.OrderedDict; thickness::Float64)
+    tmp = DataStructures.OrderedDict()
+    for layer in keys(layers)
+        if layer == "hfs_blanket"
+            tmp[layer] = layers[layer] - thickness
+            tmp["hfs_first_wall"] = thickness
+        elseif layer == "lfs_blanket"
+            tmp["lfs_first_wall"] = thickness
+            tmp[layer] = layers[layer] - thickness
+        else
+            tmp[layer] = layers[layer]
+        end
+    end
+    empty!(layers)
+    for layer in keys(tmp)
+        layers[layer] = tmp[layer]
+    end
     return layers
 end
 

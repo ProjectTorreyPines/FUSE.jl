@@ -793,6 +793,15 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
     plasma_poly = xy_polygon(bd.layer[ipl])
 
+    wall_poly = xy_polygon(bd.layer[ipl-1])
+    for ltype in [_blanket_, _shield_, _wall_,]
+        iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
+        if iwl !== missing
+            wall_poly = xy_polygon(bd.layer[iwl])
+            break
+        end
+    end
+
     divertors = IMAS.IDSvectorElement[]
     for x_point in eqt.boundary.x_point
         Zx = x_point.z
@@ -804,7 +813,6 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
         pz = vcat(yy, [Zx * 5, Zx * 5], yy[1])
 
         domain = xy_polygon(pr, pz)
-        wall_poly = xy_polygon(bd.layer[ipl-1])
         divertor_poly = LibGEOS.intersection(wall_poly, domain)
         divertor_poly = LibGEOS.difference(divertor_poly, plasma_poly)
 
@@ -942,9 +950,9 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     plasma_to_tf = reverse(tf_to_plasma)
     for k in plasma_to_tf
         original_shape = bd.layer[k].shape
-        layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
         if k == itf + 1
             # layer that is inside of the TF sets TF shape
+            layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
             optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside)
         else
             # everything else is conformal convex hull

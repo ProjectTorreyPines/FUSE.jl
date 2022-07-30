@@ -42,7 +42,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     if init_from == :ods
         ini.pf_active.n_pf_coils_outside = 8
     else
-        ini.pf_active.n_pf_coils_outside = 6
+        ini.pf_active.n_pf_coils_outside = 5
     end
 
     ini.material.shield = "Tungsten"
@@ -66,10 +66,26 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     # greenwald_fraction is a powerful knob
     ini.core_profiles.greenwald_fraction = 0.9
 
-    # ini.equilibrium.δ *= -1 # negative triangularity
+    # negative triangularity
+    # ini.equilibrium.δ *= -1
 
-    # ini.equilibrium.ζ = 0.1 # squareness
+    # squareness
+    # ini.equilibrium.ζ = 0.1
     # act.ActorEquilibrium.model = :CHEASE
+
+    # add wall layer
+    if true
+        gasc_add_wall_layers!(ini.build.layers; thickness=0.02)
+        if version != :v1
+            ini.build.n_first_wall_conformal_layers = 2
+        end
+    end
+
+    # bucking
+    ini.center_stack.bucked = false
+    if ini.center_stack.bucked
+        gasc_buck_OH_TF!(ini.build.layers)
+    end
 
     return ini, act
 end
