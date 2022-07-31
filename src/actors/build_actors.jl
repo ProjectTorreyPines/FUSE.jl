@@ -44,7 +44,7 @@ function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
 
-    totalOhFluxReq = bd.flux_swing_estimates.rampup + bd.flux_swing_estimates.flattop + bd.flux_swing_estimates.pf
+    totalOhFluxReq = bd.flux_swing.rampup + bd.flux_swing.flattop + bd.flux_swing.pf
 
     # Calculate magnetic field at solenoid bore required to match flux swing request
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
@@ -58,11 +58,11 @@ function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
 end
 
 """
-    flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+    flattop_duration!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
 
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+function flattop_duration!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
     OH = IMAS.get_build(bd, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
@@ -70,8 +70,8 @@ function flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp
     # estimate oh flattop flux and duration
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
     totalOhFlux = bd.oh.max_b_field * (pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)) / 3.0
-    bd.flux_swing_estimates.flattop = totalOhFlux - bd.flux_swing_estimates.rampup - bd.flux_swing_estimates.pf
-    bd.oh.flattop_estimate = bd.flux_swing_estimates.flattop / abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel))
+    bd.flux_swing.flattop = totalOhFlux - bd.flux_swing.rampup - bd.flux_swing.pf
+    bd.oh.flattop_duration = bd.flux_swing.flattop / abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel))
 end
 
 #= ========= =#
@@ -163,7 +163,7 @@ OH flux consumption based on:
 * vertical field from PF coils
 
 !!! note
-    Stores data in `dd.build.flux_swing_estimates`, `dd.build.tf`, and `dd.build.oh`
+    Stores data in `dd.build.flux_swing`, `dd.build.tf`, and `dd.build.oh`
 
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -192,25 +192,26 @@ The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 function step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
 
     bd = actor.dd.build
+    target = actor.dd.target
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
     cp = actor.dd.core_profiles
     cp1d = cp.profiles_1d[]
 
     if only ∈ [:all, :oh]
-        bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
-        bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
+        bd.flux_swing.rampup = rampup_flux_estimates(eqt, cp)
+        bd.flux_swing.pf = pf_flux_estimates(eqt)
 
         if operate_at_j_crit
             oh_maximum_J_B!(bd; j_tolerance)
-            bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd) # target flattop flux based on available current
+            bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
         else
-            bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, cp1d) # target flattop flux based on target duration
+            bd.flux_swing.flattop = flattop_flux_estimates(target, cp1d) # flattop flux based on target duration
             oh_required_J_B!(bd)
         end
 
-        # estimate flattop duration
-        flattop_estimate!(bd, eqt, cp1d)
+        # flattop duration
+        flattop_duration!(bd, eqt, cp1d)
     end
 
     if only ∈ [:all, :tf]
@@ -250,12 +251,12 @@ function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_
 end
 
 """
-    flattop_flux_estimates(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d)
+    flattop_flux_estimates(target::IMAS.target, cp1d::IMAS.core_profiles__profiles_1d)
 
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function flattop_flux_estimates(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d)
-    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * bd.oh.flattop_duration # V*s
+function flattop_flux_estimates(target::IMAS.target, cp1d::IMAS.core_profiles__profiles_1d)
+    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * target.flattop_duration # V*s
 end
 
 """
@@ -270,7 +271,7 @@ function flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
     magneticFieldSolenoidBore = bd.oh.max_b_field
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
     totalOhFluxReq = magneticFieldSolenoidBore / 3.0 * pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)
-    bd.flux_swing_estimates.flattop = totalOhFluxReq - bd.flux_swing_estimates.rampup - bd.flux_swing_estimates.pf
+    bd.flux_swing.flattop = totalOhFluxReq - bd.flux_swing.rampup - bd.flux_swing.pf
 end
 
 """
@@ -607,8 +608,8 @@ function step(
         @show target_B0
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
 
-        @show dd.build.oh.flattop_estimate
         @show dd.build.oh.flattop_duration
+        @show dd.target.flattop_duration
 
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
@@ -638,7 +639,7 @@ function step(
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
     if !unconstrained_flattop_duration
-        @assert rel_error(dd.build.oh.flattop_estimate, dd.build.oh.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_estimate) --> $(dd.build.oh.flattop_duration))"
+        @assert rel_error(dd.build.oh.flattop_duration, dd.target.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_duration) --> $(dd.target.flattop_duration))"
     end
     if fixed_aspect_ratio
         @assert rel_error(ϵ, old_ϵ) < 0.1 "ActorHFSsizing: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"

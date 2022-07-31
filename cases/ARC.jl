@@ -50,7 +50,10 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits, Parameter
     ini.tf.n_coils = 18
     ini.tf.technology = coil_technology(:HTS)
     ini.oh.technology = coil_technology(:HTS)
-    ini.oh.flattop_duration = 1800
+
+    #ini.target.power_electric_net = 50E6 ?
+    ini.target.flattop_duration = 1800
+    #ini.target.tritium_breeding_ratio = 1.0 ?
 
     ini.core_profiles.ne_ped = 1.0e20
     ini.core_profiles.greenwald_fraction = 0.49

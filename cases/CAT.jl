@@ -29,7 +29,6 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits, Parameter
     ini.tf.technology = coil_technology(:ITER, :TF)
 
     ini.oh.technology = coil_technology(:ITER, :OH)
-    ini.oh.flattop_duration = 1000
     ini.core_profiles.ne_ped = 7E19
     ini.core_profiles.greenwald_fraction = 0.8
     ini.core_profiles.helium_fraction = 0.01
@@ -39,6 +38,8 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits, Parameter
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
+
+    ini.target.flattop_duration = 1000
 
     ini.nbi.power_launched = 20E6
     ini.nbi.beam_energy = 200e3
