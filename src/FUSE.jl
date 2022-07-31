@@ -27,7 +27,6 @@ include("technology.jl")
 #= ====== =#
 #  DDINIT  #
 #= ====== =#
-include(joinpath("ddinit", "gasc.jl"))
 include(joinpath("ddinit", "init.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
@@ -35,6 +34,7 @@ include(joinpath("ddinit", "init_core_profiles.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
+include(joinpath("ddinit", "gasc.jl"))
 
 #= ====== =#
 #  ACTORS  #
