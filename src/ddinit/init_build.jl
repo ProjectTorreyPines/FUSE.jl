@@ -108,9 +108,6 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
     # 2D build cross-section
     ActorCXbuild(dd, act)
 
-    # flattop duration
-    dd.build.oh.flattop_duration = ini.oh.flattop_duration
-
     # TF coils
     dd.build.tf.coils_n = ini.tf.n_coils
     # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils

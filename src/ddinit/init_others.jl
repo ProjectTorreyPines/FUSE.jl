@@ -19,5 +19,13 @@ function init_missing_from_ods(dd::IMAS.dd, ini::ParametersAllInits, act::Parame
         end
     end
 
+    # target
+    for field in [:power_electric_net, :flattop_duration, :tritium_breeding_ratio, :cost]
+        value = getproperty(ini.target, field, missing)
+        if value !== missing
+            setproperty!(dd.target, field, value)
+        end
+    end
+
     return dd
 end
