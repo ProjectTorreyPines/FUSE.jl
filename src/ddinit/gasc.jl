@@ -64,6 +64,8 @@ function case_parameters(gasc::GASC)
 
     gasc_2_build(gasc, ini, act)
 
+    gasc_2_target(gasc, ini, act)
+
     gasc_2_equilibrium(gasc, ini, act)
 
     gasc_2_sources(gasc, ini, act)
@@ -199,19 +201,27 @@ end
 Convert radial build information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    gascsol = gasc.solution
-    ini.build.layers = gasc_2_layers(gascsol)
-    ini.build.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
+    ini.build.layers = gasc_2_layers(gasc)
+    ini.build.symmetric = (mod(gasc.inputs["divertor metrics"]["numberDivertors"], 2) == 0)
 
     ini.tf.technology = gasc_2_coil_technology(gasc, :TF)
     ini.oh.technology = gasc_2_coil_technology(gasc, :OH)
     ini.pf_active.technology = gasc_2_coil_technology(gasc, :PF)
 
-    ini.center_stack.bucked = gascsol["INPUTS"]["radial build"]["isBucked"]
-    ini.center_stack.noslip = gascsol["INPUTS"]["radial build"]["nonSlip"]
-    ini.center_stack.plug = gascsol["INPUTS"]["radial build"]["hasPlug"]
+    ini.center_stack.bucked = gasc.inputs["radial build"]["isBucked"]
+    ini.center_stack.noslip = gasc.inputs["radial build"]["nonSlip"]
+    ini.center_stack.plug = gasc.inputs["radial build"]["hasPlug"]
+    return ini
+end
 
-    ini.oh.flattop_duration = gascsol["INPUTS"]["plasma parameters"]["flattopDuration"]
+"""
+    gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+
+Convert nominal target design information in GASC solution to FUSE `ini` and `act` parameters
+"""
+function gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+    ini.target.flattop_duration = gasc.inputs["plasma parameters"]["flattopDuration"]
+    ini.target.power_electric_net = gasc.constraints["lowerOutputConstraints"]["powerNet"] * 1E6
     return ini
 end
 
