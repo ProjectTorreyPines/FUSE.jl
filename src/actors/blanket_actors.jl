@@ -116,7 +116,7 @@ function step(actor::ActorBlanket)
     end
 
     target_tritium_breeding_ratio = 0.9
-
+    blanket_model_1d = NNeutronics.Blanket()
     res = Optim.optimize(Li6 -> target_TBR(blanket_model_1d, Li6, dd, target_tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-3)
     total_tritium_breeding_ratio = target_TBR(blanket_model_1d, res.minimizer, dd)
 
