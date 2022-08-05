@@ -94,7 +94,8 @@ end
 function cost_direct_capital(::Type{Val{:land}}, land::Real)
     1.2 * 27.0e3*4046.86 * (land) ^ 0.2
 end
-# 140.0e3 volume default
+cost_direct_capital(item::Symbol, land) = cost_operations(Val{item}, land)
+
 function cost_direct_capital(::Type{Val{:buildings}}, building_volume::Real, power_electric_net::Real, power_thermal::Real) # ARIES
     cost = 0.
     cost += 111.661e6 * (building_volume / 80.0e3) ^ 0.62 # tokamak building
@@ -110,26 +111,32 @@ function cost_direct_capital(::Type{Val{:buildings}}, building_volume::Real, pow
     cost += 4.7e6 * (power_electric_net / 1000.0) ^ 0.3 + 4.15e6 # On-site AC Power Supply and ventilation    
     return cost
 end
+cost_direct_capital(item::Symbol,  building_volume, power_electric_net, power_thermal) = cost_operations(Val{item},  building_volume, power_electric_net, power_thermal)
 
 function cost_direct_capital(::Type{Val{:turbine}},power_electric_generated::Real)
     78.9e6 * (power_electric_generated / 1246) ^ 0.5 
 end
+cost_direct_capital(item::Symbol, power_electric_generated) = cost_operations(Val{item}, power_electric_generated)
 
 function cost_direct_capital(::Type{Val{:heat_rejection}}, power_electric_net, power_thermal)
     16.804e6 * ((power_thermal - power_electric_net) / 1860.0) ^ 0.5
 end
+cost_direct_capital(item::Symbol, power_electric_net, power_thermal) = cost_operations(Val{item}, power_electric_net, power_thermal)
 
 function cost_direct_capital(::Type{Val{:electrical_equipment}}, power_electric_net)
     22.878e6 * (power_electric_net / 1000.0) ^ 0.3
 end
+cost_direct_capital(item::Symbol, power_electric_net) = cost_operations(Val{item}, power_electric_net)
 
 function cost_operations(::Type{Val{:operation_maintanance}}, power_electric_net)
     80.0e6 * (power_electric_net / 1200.0) ^ 0.5
 end
+cost_direct_capital(item::Symbol, power_electric_net) = cost_operations(Val{item}, power_electric_net)
 
 function cost_operations(::Type{Val{:fuel}})
     1.0e6
 end
+cost_direct_capital(item::Symbol, power_electric_net) = cost_operations(Val{item}, power_electric_net)
 
 function cost_operations(::Type{Val{:blanket_replacement}},cost_blanket) # find blanket and replace every x-years
     cost_blanket * 1.2
@@ -234,20 +241,20 @@ function step(actor::ActorCosting)
         for item in vcat(:land, :buildings, :turbine, :heat_rejection, :electrical_equipment)
             resize!(sys.subsystem, "name" => string(item))
             if item == :land
-                c = cost_direct_capital(Val{item}, par.land_space)
+                sub.cost = cost_direct_capital(item, par.land_space)
             elseif item == :buildings
-                c = cost_direct_capital(Val{item}, par.building_volume, power_electric_net, power_thermal)
+                sub.cost = cost_direct_capital(item, par.building_volume, power_electric_net, power_thermal)
             elseif item == :turbine
-                c = cost_direct_capital(Val{item}, power_electric_generated)
+                sub.cost = cost_direct_capital(item, power_electric_generated)
             elseif item == :heat_rejection
-                c = cost_direct_capital(Val{item}, power_electric_net, power_thermal)
+                sub.cost = cost_direct_capital(item, power_electric_net, power_thermal)
             elseif item == :electrical_equipment
-                c = cost_direct_capital(Val{item}, power_electric_net)
+                sub.cost = cost_direct_capital(item, power_electric_net)
             else
-                c = cost_direct_capital(Val{item})
+                sub.cost = cost_direct_capital(item)
             end
-            @show c(item)
-            sub.cost = c(item)
+#            @show c(item)
+#            
         end
     end
 
