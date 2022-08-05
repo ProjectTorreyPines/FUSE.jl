@@ -29,7 +29,7 @@ function unit_cost(material::String)
     end
 end
 
-function cost(layer::IMAS.build__layer)
+function cost_direct_capital(layer::IMAS.build__layer)
     if layer.type == Int(_oh_)
         build = IMAS.parent(IMAS.parent(layer))
         return unit_cost(build.oh.technology) * layer.volume
@@ -47,19 +47,19 @@ function cost(layer::IMAS.build__layer)
     end
 end
 
-function cost(ecl::IMAS.ec_launchers__launcher)
+function cost_direct_capital(ecl::IMAS.ec_launchers__launcher)
     ecl.available_launch_power / 1E6 * 3.0 # $/W #ARIES
 end
 
-function cost(ica::IMAS.ic_antennas__antenna)
+function cost_direct_capital(ica::IMAS.ic_antennas__antenna)
     ica.available_launch_power / 1E6 * 1.64 #$/W ARIES
 end
 
-function cost(lha::IMAS.lh_antennas__antenna)
+function cost_direct_capital(lha::IMAS.lh_antennas__antenna)
     lha.available_launch_power / 1E6 * 2.13 #$/W ARIES
 end
 
-function cost(nbu::IMAS.nbi__unit)
+function cost_direct_capital(nbu::IMAS.nbi__unit)
     nbu.available_launch_power / 1E6 * 4.93 #$/W ARIES
 end
 
@@ -74,21 +74,73 @@ function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__t
     end
 end
 
-function cost(pf_active::IMAS.pf_active)
+function cost_direct_capital(pf_active::IMAS.pf_active)
     dd = IMAS.top_dd(pf_active)
     c = Dict("OH" => 0.0, "PF" => 0.0)
     for coil in pf_active.coil
         if coil.name == "OH"
-            c["OH"] += cost(coil, dd.build.oh.technology)
+            c["OH"] += cost_direct_capital(coil, dd.build.oh.technology)
         else
-            c["PF"] += cost(coil, dd.build.pf_active.technology)
+            c["PF"] += cost_direct_capital(coil, dd.build.pf_active.technology)
         end
     end
     return c
 end
 
-function cost(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
+function cost_direct_capital(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
     return IMAS.volume(coil) * unit_cost(technology)
+end
+
+function cost_direct_capital(::Type{Val{:land}}, land::Real)
+    1.2 * 27.0e3*4046.86 * (land) ^ 0.2
+end
+# 140.0e3 volume default
+function cost_direct_capital(::Type{Val{:buildings}}, building_volume::Real, power_electric_net::Real, power_thermal::Real) # ARIES
+    cost = 0.
+    cost += 111.661e6 * (building_volume / 80.0e3) ^ 0.62 # tokamak building
+    cost += 4.309e6 * (power_electric_net / 1000.0) ^ 0.3 # power core service building
+    cost +=  1.513e6 * (power_electric_net / 1000.0) ^ 0.3  # service water
+    cost +=  25.0e6 * (power_thermal / 1759.0) ^ 0.3  # fuel handling
+    cost += 7.11e6 # control room
+    cost += 2.0e6 # site service
+    cost += 2.0e6 # administrative
+    cost += 2.09e6 # cyrogenic and inert gas storage
+    cost += 0.71e6 # security
+    cost += 22.878e6 * (power_electric_net / 1000.0) ^ 0.3 # service building
+    cost += 4.7e6 * (power_electric_net / 1000.0) ^ 0.3 + 4.15e6 # On-site AC Power Supply and ventilation    
+    return cost
+end
+
+function cost_direct_capital(::Type{Val{:turbine}},power_electric_generated::Real)
+    78.9e6 * (power_electric_generated / 1246) ^ 0.5 
+end
+
+function cost_direct_capital(::Type{Val{:heat_rejection}}, power_electric_net, power_thermal)
+    16.804e6 * ((power_thermal - power_electric_net) / 1860.0) ^ 0.5
+end
+
+function cost_direct_capital(::Type{Val{:electrical_equipment}}, power_electric_net)
+    22.878e6 * (power_electric_net / 1000.0) ^ 0.3
+end
+
+function cost_operations(::Type{Val{:operation_maintanance}}, power_electric_net)
+    80.0e6 * (power_electric_net / 1200.0) ^ 0.5
+end
+
+function cost_operations(::Type{Val{:fuel}})
+    1.0e6
+end
+
+function cost_operations(::Type{Val{:blanket_replacement}},cost_blanket) # find blanket and replace every x-years
+    cost_blanket * 1.2
+end
+
+function cost_decomissioning(::Type{Val{:hot_cell}},building_volume) # https://www.iter.org/mach/HotCell
+    0.4 * 111.661e6 * (building_volume / 80.0e3) ^ 0.62
+end
+
+function cost_decomissioning(::Type{Val{:decom_wild_guess}})
+    2.76e6 # gasc comment needs revisiting
 end
 
 #= ============ =#
@@ -106,6 +158,8 @@ end
 
 function ParametersActor(::Type{Val{:ActorCosting}})
     par = ParametersActor(nothing)
+    par.land_space = Entry(Real, "m^2","Plant site space required in m²";default=4.047e6) 
+    par.building_volume = Entry(Real, "m^3", "Volume of the tokmak building"; default=140.0e3)
     return par
 end
 
@@ -126,46 +180,102 @@ function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function step(actor::ActorCosting)
+    par = actor.par
     dd = actor.dd
     cst = dd.costing
-    empty!(cst)
+    cost_direct = cst.cost_direct_capital
+    cost_ops = cst.cost_operations
+    cost_decom = cst.cost_decommissioning
 
-    # TOKAMAK
-    sys = resize!(cst.system, "name" => "tokamak")
+    ###### Direct Capital ######
+
+    empty!(cost_direct)
+
+    ### Tokamak
+    
+    # build layers
+    sys = resize!(cost_direct.system, "name" => "tokamak")
     for layer in dd.build.layer
         if layer.fs == Int(_lfs_)
             continue # avoid double counting of hfs and lfs layers
         elseif layer.type == Int(_oh_)
             continue # avoid double counting of oh
         end
-        c = cost(layer)
+        c = cost_direct_capital(layer)
         if c > 0
             sub = resize!(sys.subsystem, "name" => replace(layer.name, r"^hfs " => ""))
             sub.cost = c
         end
     end
-    for (name, c) in cost(dd.pf_active)
+
+    # PF coils
+    for (name, c) in cost_direct_capital(dd.pf_active)
         sub = resize!(sys.subsystem, "name" => name)
         sub.cost = c
     end
 
-    # HCD
-    sys = resize!(cst.system, "name" => "hcd")
+    # Heating and current drive
     for hcd in vcat(dd.ec_launchers.launcher, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
-        c = cost(hcd)
+        c = cost_direct_capital(hcd)
         if c > 0
             sub = resize!(sys.subsystem, "name" => hcd.name)
             sub.cost = c
         end
     end
 
+    ### Facility
+    sys = resize!(cost_direct.system, "name" => "facility")
+
+    if @ddtime(dd.balance_of_plant.power_electric_net) < 0
+        @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
+    else
+        power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) # should be pulse average
+        power_thermal = sum([maximum(sys.power_in) for sys in dd.balance_of_plant.thermal_cycle.system]) # should be pulse average
+        for item in vcat(:land, :buildings, :turbine, :heat_rejection, :electrical_equipment)
+            resize!(sys.subsystem, "name" => string(item))
+            if item == :land
+                c = cost_direct_capital(Val{item}, par.land_space)
+            elseif item == :buildings
+                c = cost_direct_capital(Val{item}, par.building_volume, power_electric_net, power_thermal)
+            elseif item == :turbine
+                c = cost_direct_capital(Val{item}, power_electric_generated)
+            elseif item == :heat_rejection
+                c = cost_direct_capital(Val{item}, power_electric_net, power_thermal)
+            elseif item == :electrical_equipment
+                c = cost_direct_capital(Val{item}, power_electric_net)
+            else
+                c = cost_direct_capital(Val{item})
+            end
+            @show c(item)
+            sub.cost = c(item)
+        end
+    end
+
+    """
+    ### Operations cost (yearly costs)
+    sys = resize!(cost_ops.system, "name" => "maintanance and operatorss")
+
+    # Fuel Cycle
+    sys = resize!(cost_ops.system, "name" => "fuel cycle")
+
+    ###### Decomissioning ######
+
+    # Radioactive waste treatment?
+    sys = resize!(cost_decom.system, "name" => "radioactive waste treatment")
+
+    # Demolition
+    sys = resize!(cost_decom.system, "name" => "demolition")
+    """
+    display(cst)
+    display(cst.cost_direct_capital.system[2])
+
     return actor
 end
 
 function finalize(actor::ActorCosting)
     # sort system/subsystem costs
-    sort!(actor.dd.costing.system, by=x -> x.cost, rev=true)
-    for sys in actor.dd.costing.system
+    sort!(actor.dd.costing.cost_direct_capital.system, by=x -> x.cost, rev=true)
+    for sys in actor.dd.dd.costing.cost_direct_capital.system
         sort!(sys.subsystem, by=x -> x.cost, rev=true)
     end
 end
