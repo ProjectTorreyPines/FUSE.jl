@@ -90,7 +90,7 @@ function step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.ste
     wall_r, wall_z = IMAS.resample_2d_line(wall.r, wall.z; step=0.1)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
-    MillerExtendedHarmonic.reorder_flux_surface!(wall_r, wall_z, R0, Z0)
+    IMAS.reorder_flux_surface!(wall_r, wall_z, R0, Z0)
 
     # advance neutrons until they hit the wall
     rz_wall = collect(zip(wall_r, wall_z))

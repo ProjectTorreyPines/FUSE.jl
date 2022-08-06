@@ -1120,6 +1120,8 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         layer.shape_parameters = optimize_shape(oR, oZ, target_minimum_distance, func, l_start, l_end, layer.shape_parameters)
         layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...; resample=false)
     end
+
+    IMAS.reorder_flux_surface!(layer.outline.r, layer.outline.z)
     # display(plot!(layer.outline.r, layer.outline.z))
 end
 
