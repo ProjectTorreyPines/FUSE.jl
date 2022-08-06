@@ -9,6 +9,7 @@ end
 
 function ParametersActor(::Type{Val{:ActorPassiveStructures}})
     par = ParametersActor(nothing)
+    par.do_plot = Entry(Bool, "", "plot"; default=false)
     return par
 end
 
@@ -22,6 +23,9 @@ function ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPassiveStructures(dd, par)
     step(actor)
     finalize(actor)
+    if par.do_plot
+        display(plot(dd.pf_passive))
+    end
     return actor
 end
 
@@ -33,7 +37,10 @@ end
 function step(actor::ActorPassiveStructures)
     dd = actor.dd
 
-    for k in IMAS.get_build(dd.build, fs=IMAS._lfs_, return_only_one=false, return_index=true)
+    # all LFS
+    ilayers = IMAS.get_build(dd.build, fs=IMAS._lfs_, return_only_one=false, return_index=true)
+    ilayers = vcat(ilayers[1] - 1, ilayers)
+    for k in ilayers
         l = dd.build.layer[k]
         l1 = dd.build.layer[k+1]
         if l1.material == "Vacuum"
@@ -43,21 +50,24 @@ function step(actor::ActorPassiveStructures)
         add_pf_passive_loop(dd.pf_passive, l1, poly[1], poly[2])
     end
 
+    # OH and plug
     add_pf_passive_loop(dd.pf_passive, dd.build.layer[2], dd.build.layer[2].outline.r, dd.build.layer[2].outline.z)
-
     if dd.build.layer[1].material != "Vacuum"
         add_pf_passive_loop(dd.pf_passive, dd.build.layer[1], dd.build.layer[1].outline.r, dd.build.layer[1].outline.z)
     end
 
+    # cryostat
     layer = dd.build.layer[end]
-    i = findfirst(layer.outline.r .== 0)
-    r = [layer.outline.r[i+1:end-1]; layer.outline.r[1:i]]
-    z = [layer.outline.z[i+1:end-1]; layer.outline.z[1:i]]
-    layer = dd.build.layer[end-1]
-    i = findfirst(layer.outline.r .== 0)
-    r = [layer.outline.r[i+1:end-1]; layer.outline.r[1:i]; reverse(r); layer.outline.r[i+1:i+1]]
-    z = [layer.outline.z[i+1:end-1]; layer.outline.z[1:i]; reverse(z); layer.outline.z[i+1:i+1]]
-    add_pf_passive_loop(dd.pf_passive, dd.build.layer[end], r, z)
+    if layer.type == Int(IMAS._cryostat_)
+        i = findfirst(layer.outline.r .== 0)
+        r = vcat(layer.outline.r[i+1:end-1], layer.outline.r[1:i])
+        z = vcat(layer.outline.z[i+1:end-1], layer.outline.z[1:i])
+        layer = dd.build.layer[end-1]
+        i = findfirst(layer.outline.r .== 0)
+        r = vcat(layer.outline.r[i+1:end-1], layer.outline.r[1:i], reverse(r), layer.outline.r[i+1:i+1])
+        z = vcat(layer.outline.z[i+1:end-1], layer.outline.z[1:i], reverse(z), layer.outline.z[i+1:i+1])
+        add_pf_passive_loop(dd.pf_passive, dd.build.layer[end], r, z)
+    end
 end
 
 function add_pf_passive_loop(pf_passive::IMAS.pf_passive, layer::IMAS.build__layer, r::AbstractVector{T}, z::AbstractVector{T}) where {T<:Real}
