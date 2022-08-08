@@ -47,11 +47,6 @@ end
 function step(actor::ActorBlanket)
     dd = actor.dd
 
-    if IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false) === missing
-        empty!(dd.blanket)
-        return actor
-    end
-
     eqt = dd.equilibrium.time_slice[]
     nnt = dd.neutronics.time_slice[]
 
