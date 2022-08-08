@@ -92,59 +92,56 @@ function cost_direct_capital(coil::IMAS.pf_active__coil, technology::Union{IMAS.
 end
 
 function cost_direct_capital(::Type{Val{:land}}, land::Real, power_electric_net::Real)
-    1.2 * land * 20.0e-3 * (power_electric_net / 1000.0) ^ 0.3 
+    1.2 * land * 20.0e-3 * (power_electric_net / 1000.0)^0.3
 end
 cost_direct_capital(item::Symbol, land, power_electric_net) = cost_direct_capital(Val{item}, land, power_electric_net)
 
-function cost_direct_capital(::Type{Val{:buildings}},land::Real, building_volume::Real, power_electric_net::Real, power_thermal::Real) # ARIES
+function cost_direct_capital(::Type{Val{:buildings}}, land::Real, building_volume::Real, power_electric_net::Real, power_thermal::Real) # ARIES
     cost = 27.0 * (land / 1000.0)^0.2
-    cost += 111.661 * (building_volume / 80.0e3) ^ 0.62 # tokamak building
-    cost += 4.309 * (power_electric_net / 1000.0) ^ 0.3 # power core service building
-    cost +=  1.513 * (power_electric_net / 1000.0) ^ 0.3  # service water
-    cost +=  25.0 * (power_thermal / 1759.0) ^ 0.3  # fuel handling
+    cost += 111.661 * (building_volume / 80.0e3)^0.62 # tokamak building
+    cost += 4.309 * (power_electric_net / 1000.0)^0.3 # power core service building
+    cost += 1.513 * (power_electric_net / 1000.0)^0.3  # service water
+    cost += 25.0 * (power_thermal / 1759.0)^0.3  # fuel handling
     cost += 7.11 # control room
     cost += 2.0 # site service
     cost += 2.0 # administrative
     cost += 2.09 # cyrogenic and inert gas storage
     cost += 0.71 # security
-    cost += 22.878 * (power_electric_net / 1000.0) ^ 0.3 # service building
-    cost += 4.7 * (power_electric_net / 1000.0) ^ 0.3 + 4.15 # On-site AC Power Supply and ventilation    
+    cost += 22.878 * (power_electric_net / 1000.0)^0.3 # service building
+    cost += 4.7 * (power_electric_net / 1000.0)^0.3 + 4.15 # On-site AC Power Supply and ventilation    
     return cost
 end
-cost_direct_capital(item::Symbol,  building_volume,land, power_electric_net, power_thermal) = cost_direct_capital(Val{item},  building_volume, land, power_electric_net, power_thermal)
+cost_direct_capital(item::Symbol, building_volume, land, power_electric_net, power_thermal) = cost_direct_capital(Val{item}, building_volume, land, power_electric_net, power_thermal)
 
-function cost_direct_capital(::Type{Val{:turbine}},power_electric_generated::Real)
-    78.9 * (power_electric_generated / 1246) ^ 0.5 
+function cost_direct_capital(::Type{Val{:turbine}}, power_electric_generated::Real)
+    78.9 * (power_electric_generated / 1246)^0.5
 end
 cost_direct_capital(item::Symbol, power_electric_generated) = cost_direct_capital(Val{item}, power_electric_generated)
 
 function cost_direct_capital(::Type{Val{:heat_rejection}}, power_electric_net, power_thermal)
-    16.804 * ((power_thermal - power_electric_net) / 1860.0) ^ 0.5
+    16.804 * ((power_thermal - power_electric_net) / 1860.0)^0.5
 end
-cost_direct_capital(item::Symbol, power_electric_net, power_thermal) = cost_direct_capital(Val{item}, power_electric_net, power_thermal)
 
 function cost_direct_capital(::Type{Val{:electrical_equipment}}, power_electric_net)
-    22.878 * (power_electric_net / 1000.0) ^ 0.3
+    22.878 * (power_electric_net / 1000.0)^0.3
 end
-cost_direct_capital(item::Symbol, power_electric_net) = cost_direct_capital(Val{item}, power_electric_net)
+
+function cost_direct_capital(::Type{Val{:hot_cell}}, building_volume) # https://www.iter.org/mach/HotCell
+    0.4 * 111.661 * (building_volume / 80.0e3)^0.62
+end
 
 function cost_operations(::Type{Val{:operation_maintanance}}, power_electric_net)
-    80.0 * (power_electric_net / 1200.0) ^ 0.5
+    80.0 * (power_electric_net / 1200.0)^0.5
 end
-cost_operations(item::Symbol, power_electric_net) = cost_operations(Val{item}, power_electric_net)
 
 function cost_operations(::Type{Val{:fuel}})
     1.0
 end
+cost_operations(item::Symbol) = cost_operations(Val{item})
 cost_operations(item::Symbol, power_electric_net) = cost_operations(Val{item}, power_electric_net)
 
-function cost_operations(::Type{Val{:blanket_replacement}},cost_blanket) # find blanket and replace every x-years
-    cost_blanket * 1.2
-end
-cost_operations(item::Symbol, cost_blanket) = cost_operations(Val{item}, cost_blanket)
-
-function cost_decomissioning(::Type{Val{:hot_cell}},building_volume) # https://www.iter.org/mach/HotCell
-    0.4 * 111.661 * (building_volume / 80.0e3) ^ 0.62
+function cost_operations(::Type{Val{:blanket_replacement}}, cost_blanket) # find blanket and replace every x-years
+    cost_blanket * 1.2 # 20% contingency for extras
 end
 
 function cost_decomissioning(::Type{Val{:decom_wild_guess}})
@@ -167,8 +164,12 @@ end
 
 function ParametersActor(::Type{Val{:ActorCosting}})
     par = ParametersActor(nothing)
-    par.land_space = Entry(Real, "m^2","Plant site space required in m²";default=1000.) 
+    par.land_space = Entry(Real, "m^2", "Plant site space required in m²"; default=1000.0)
     par.building_volume = Entry(Real, "m^3", "Volume of the tokmak building"; default=140.0e3)
+    par.intrest_rate = Entry(Real, "", "Anual intrest rate fraction of direct capital cost"; default=0.05)
+    par.lifetime = Entry(Real, "years", "lifetime of the plant"; default=40)
+    par.availability = Entry(Real, "", "availability fraction of the plant"; default=0.9)
+    par.escalation_fraction = Entry(Real, "", "yearly escalation fraction based on risk assessment"; default=0.03)
     return par
 end
 
@@ -201,7 +202,7 @@ function step(actor::ActorCosting)
     empty!(cost_direct)
 
     ### Tokamak
-    
+
     # build layers
     sys = resize!(cost_direct.system, "name" => "tokamak")
     for layer in dd.build.layer
@@ -241,7 +242,7 @@ function step(actor::ActorCosting)
         power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) / 1e6 # should be pulse average
         power_thermal = sum([maximum(sys.power_in) for sys in dd.balance_of_plant.thermal_cycle.system]) / 1e6 # should be pulse average
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) / 1e6
-        for item in vcat(:land, :buildings, :turbine, :heat_rejection, :electrical_equipment)
+        for item in vcat(:land, :buildings, :turbine, :heat_rejection, :electrical_equipment, :hot_cell)
             sub = resize!(sys.subsystem, "name" => string(item))
             if item == :land
                 sub.cost = cost_direct_capital(item, par.land_space, power_electric_net)
@@ -253,24 +254,45 @@ function step(actor::ActorCosting)
                 sub.cost = cost_direct_capital(item, power_electric_net, power_thermal)
             elseif item == :electrical_equipment
                 sub.cost = cost_direct_capital(item, power_electric_net)
+            elseif item == :hot_cell
+                sub.cost = cost_direct_capital(item, par.building_volume)
             else
                 sub.cost = cost_direct_capital(item)
             end
         end
     end
 
-    """
-    # Fuel Cycle
+    ###### Operations ######
+    empty!(cost_ops)
+
+    blanket_cost = sum([item.cost for item in cost_direct.system[1].subsystem if item.name == "blanket"]) # system[1] is always tokamak
+
     sys = resize!(cost_ops.system, "name" => "fuel cycle")
+    sys.cost = cost_operations(:fuel)
+
+    sys = resize!(cost_ops.system, "name" => "maintanance and operators")
+    sys.cost = cost_operations(:operation_maintanance, power_electric_net)
+
+    sys = resize!(cost_ops.system, "name" => "replacements")
+    for item in [:blanket_replacement]
+        sub = resize!(sys.subsystem, "name" => string(item))
+        if item == :blanket_replacement
+            sub.cost = cost_operations(:blanket_replacement, blanket_cost)
+        else
+            sub.cost = cost_operations(item)
+        end
+    end
 
     ###### Decomissioning ######
+    empty!(cost_decom)
 
-    # Radioactive waste treatment?
-    sys = resize!(cost_decom.system, "name" => "radioactive waste treatment")
+    sys = resize!(cost_decom.system, "name" => "decommissioning guess")
+    sys.cost = cost_decomissioning(:decom_wild_guess)
 
-    # Demolition
-    sys = resize!(cost_decom.system, "name" => "demolition")
-    """
+    ### Levelized Cost Of Electricity 
+
+
+    # / 8760 * power_electric_net/1e3 * availability
 
     return actor
 end
