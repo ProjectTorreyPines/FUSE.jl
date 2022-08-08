@@ -843,7 +843,7 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     layers = bd.layer
     iblanket = IMAS.get_build(bd; type=_blanket_, fs=_lfs_, return_index=true, raise_error_on_missing=false)
-    if iblanket === nothing
+    if iblanket === missing
         return IMAS.IDSvectorElement[]
     end
     layer = layers[iblanket]
@@ -1061,8 +1061,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         R = [v[1] .+ r_offset for v in GeoInterface.coordinates(poly)[1]]
         Z = [v[2] for v in GeoInterface.coordinates(poly)[1]]
         if layer.shape == Int(_convex_hull_)
-            h = [[r, z] for (r, z) in collect(zip(R, Z))]
-            hull = convex_hull(h; closed_polygon=true)
+            hull = convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
             # resample disabled because this can lead to outlines of different layers to be crossing
