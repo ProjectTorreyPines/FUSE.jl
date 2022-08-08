@@ -119,7 +119,7 @@ function electricity(nbi::IMAS.nbi, time_array::Vector{<:Real})
 end
 
 function electricity(ec_launchers::IMAS.ec_launchers, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(ec_launchers.launcher, time_array)
+    return heating_and_current_drive_calc(ec_launchers.beam, time_array)
 end
 
 function electricity(ic_antennas::IMAS.ic_antennas, time_array::Vector{<:Real})

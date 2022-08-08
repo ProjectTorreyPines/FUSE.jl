@@ -5,6 +5,10 @@
 mutable struct ActorPassiveStructures <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    function ActorPassiveStructures(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorPassiveStructures}})
@@ -27,11 +31,6 @@ function ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
         display(plot(dd.pf_passive))
     end
     return actor
-end
-
-function ActorPassiveStructures(dd::IMAS.dd, par::ParametersActor; kw...)
-    par = par(kw...)
-    ActorPassiveStructures(dd, par)
 end
 
 function step(actor::ActorPassiveStructures)

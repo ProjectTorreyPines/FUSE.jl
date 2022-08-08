@@ -47,7 +47,7 @@ function cost_direct_capital(layer::IMAS.build__layer)
     end
 end
 
-function cost_direct_capital(ecl::IMAS.ec_launchers__launcher)
+function cost_direct_capital(ecl::IMAS.ec_launchers__beam)
     ecl.available_launch_power / 1E6 * 3.0 # $/W #ARIES
 end
 
@@ -224,7 +224,7 @@ function step(actor::ActorCosting)
     end
 
     # Heating and current drive
-    for hcd in vcat(dd.ec_launchers.launcher, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
+    for hcd in vcat(dd.ec_launchers.beam, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
         c = cost_direct_capital(hcd)
         if c > 0
             sub = resize!(sys.subsystem, "name" => hcd.name)
