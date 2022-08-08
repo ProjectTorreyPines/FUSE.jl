@@ -66,7 +66,7 @@ function init_ec_launchers(
 
     (power_launched, efficiency_conversion, efficiency_transmission) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission)
     for idx in 1:length(power_launched)
-        ecl = resize!(dd.ec_launchers.launcher, idx)[idx]
+        ecl = resize!(dd.ec_launchers.beam, idx)[idx]
         ecl.name = length(power_launched) > 1 ? "ec_$idx" : "ec"
         @ddtime(ecl.power_launched.data = power_launched[idx])
         ecl.available_launch_power = power_launched[idx]

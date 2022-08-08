@@ -103,8 +103,8 @@ end
 function ParametersInit(::Type{Val{:ec_launchers}})
     ec_launchers = ParametersInit(nothing)
     ec_launchers.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "EC launched power")
-    ec_launchers.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :conversion)
-    ec_launchers.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :transmission)
+    ec_launchers.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__beam___efficiency, :conversion)
+    ec_launchers.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__beam___efficiency, :transmission)
     return ec_launchers
 end
 

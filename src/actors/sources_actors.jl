@@ -124,13 +124,13 @@ end
 
 function ActorECsimple(dd::IMAS.dd, par::ParametersActor; kw...)
     par = par(kw...)
-    n_launchers = length(dd.ec_launchers.launcher)
+    n_launchers = length(dd.ec_launchers.beam)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_launchers, par.width, par.rho_0, par.current_efficiency)
     return ActorECsimple(dd, par, width, rho_0, current_efficiency)
 end
 
 function step(actor::ActorECsimple)
-    for (idx, ecl) in enumerate(actor.dd.ec_launchers.launcher)
+    for (idx, ecl) in enumerate(actor.dd.ec_launchers.beam)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
         cs = actor.dd.core_sources
