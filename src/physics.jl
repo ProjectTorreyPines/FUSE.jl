@@ -216,7 +216,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
     #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
     res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-        initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit); autodiff=:forward)
+        initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit))
     if verbose
         println(res)
     end
@@ -612,9 +612,9 @@ end
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
     RX = mr[i] .* α .+ R0 .* (1.0 .- α)
     ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    RZ = FUSE.convex_hull(collect(zip(vcat(mr, RX), vcat(mz, ZX))); closed_polygon=true)
-    R = [r for (r, z) in RZ]
-    Z = [z for (r, z) in RZ]
+    RZ = FUSE.convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
+    R = T[r for (r, z) in RZ]
+    Z = T[z for (r, z) in RZ]
     return RX, ZX, R, Z
 end
 
@@ -631,9 +631,13 @@ Control of the X-point location can be achieved by modifying R0, Z0
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
-    function cost(mr, mz, i, R0, Z0, α)
-        RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, α[1])
-        return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (upper ? Z .> Z0 : Z .< Z0))))^2
+    function cost(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::Float64)
+        RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, α)
+        if upper
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .> Z0))))^2.0
+        else
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .< Z0))))^2.0
+        end
     end
 
     if Z0 === nothing
@@ -674,7 +678,7 @@ function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n
         push!(ZX, ZXL)
     end
 
-    RZ = FUSE.convex_hull(collect(zip(vcat(mr, RX), vcat(mz, ZX))); closed_polygon=true)
+    RZ = FUSE.convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
 

@@ -46,7 +46,8 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits, Paramet
     ini.tf.n_coils = 18 #estimate (from ARC)
     ini.tf.technology = coil_technology(:HTS)
     ini.oh.technology = coil_technology(:HTS)
-    ini.oh.flattop_duration = 10
+
+    ini.target.flattop_duration = 10
 
     ini.core_profiles.ne_ped = 1.5e20
     ini.core_profiles.greenwald_fraction = 0.37

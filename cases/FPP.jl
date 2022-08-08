@@ -32,6 +32,9 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end
 
+    ini.target.tritium_breeding_ratio = 1.1
+    ini.target.cost = 5E9
+
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
     ini.tf.shape = :princeton_D_scaled

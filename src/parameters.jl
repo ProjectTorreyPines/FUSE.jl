@@ -199,7 +199,7 @@ Generates all initalization parameters
 """
 function ParametersAllInits()
     ini = ParametersAllInits(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersInit}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material, :target]
         setproperty!(ini, item, ParametersInit(item))
     end
     ini._name = :ini
@@ -254,7 +254,7 @@ function ParametersAllActors()
             setproperty!(act, par, ParametersActor(par))
         catch e
             if typeof(e) <: InexistentParameterException
-                @warn e
+                @warn sprint(showerror, e)
             else
                 rethrow()
             end
@@ -542,7 +542,7 @@ struct InexistentParameterException <: Exception
     parameter_type::DataType
     path::Vector{Symbol}
 end
-Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: $(e.parameter_type) $(join(e.path,".")) does not exist")
+Base.showerror(io::IO, e::InexistentParameterException) = print(io, "$(e.parameter_type).$(join(e.path,".")) does not exist")
 
 struct NotsetParameterException <: Exception
     path::Vector{Symbol}
@@ -551,9 +551,9 @@ end
 NotsetParameterException(path::Vector{Symbol}) = NotsetParameterException(path, [])
 function Base.showerror(io::IO, e::NotsetParameterException)
     if length(e.options) > 0
-        print(io, "ERROR: Parameter $(join(e.path,".")) is not set. Valid options are: $(join(map(repr,e.options),", "))")
+        print(io, "Parameter $(join(e.path,".")) is not set. Valid options are: $(join(map(repr,e.options),", "))")
     else
-        print(io, "ERROR: Parameter $(join(e.path,".")) is not set")
+        print(io, "Parameter $(join(e.path,".")) is not set")
     end
 end
 
@@ -563,7 +563,7 @@ struct BadParameterException <: Exception
     options::Vector{Any}
 end
 Base.showerror(io::IO, e::BadParameterException) =
-    print(io, "ERROR: Parameter $(join(e.path,".")) = $(repr(e.value)) is not one of the valid options: $(join(map(repr,e.options),", "))")
+    print(io, "Parameter $(join(e.path,".")) = $(repr(e.value)) is not one of the valid options: $(join(map(repr,e.options),", "))")
 
 #= ============ =#
 #  case studies  #

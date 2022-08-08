@@ -1,3 +1,9 @@
+#= =============== =#
+#  ActorNeutronics  #
+#= =============== =#
+
+using MillerExtendedHarmonic
+
 mutable struct neutron_particle
     x
     y
@@ -14,10 +20,6 @@ end
 function Zcoord(n::neutron_particle)
     n.z
 end
-
-#= =============== =#
-#  ActorNeutronics  #
-#= =============== =#
 
 mutable struct ActorNeutronics <: PlasmaAbstractActor
     dd::IMAS.dd
@@ -86,14 +88,9 @@ function step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.ste
     # resample wall and make sure it's clockwise (for COCOS = 11)
     wall = IMAS.first_wall(dd.wall)
     wall_r, wall_z = IMAS.resample_2d_line(wall.r, wall.z; step=0.1)
-    #wall_r, wall_z = deepcopy(wall.r), deepcopy(wall.z)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
-    θ = unwrap(atan.(wall_z .- Z0, wall_r .- R0))
-    if θ[1] < θ[end]
-        reverse!(wall_r)
-        reverse!(wall_z)
-    end
+    IMAS.reorder_flux_surface!(wall_r, wall_z, R0, Z0)
 
     # advance neutrons until they hit the wall
     rz_wall = collect(zip(wall_r, wall_z))

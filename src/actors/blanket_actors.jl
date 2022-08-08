@@ -63,7 +63,7 @@ function step(actor::ActorBlanket)
         bm.name = structure.name
 
         # evaluate neutron_capture_fraction
-        tmp = convex_hull(collect(zip(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z))); closed_polygon=true)
+        tmp = convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
         index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(dd.neutronics.first_wall.r, dd.neutronics.first_wall.z)])
         neutron_capture_fraction = sum(nnt.wall_loading.power[index]) / total_power_neutrons
 
@@ -81,20 +81,35 @@ function step(actor::ActorBlanket)
 
         bmt.power_thermal_extracted = actor.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
 
-        # blanket layer structure
+        # blanket layer structure (designed to handle missing wall and/or missing shield)
         resize!(bm.layer, 3)
-        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r
-            d1 = IMAS.get_build(dd.build, type=_wall_, fs=_hfs_)
+        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r # HFS
+            d1 = IMAS.get_build(dd.build, type=_wall_, fs=_hfs_, raise_error_on_missing=false)
+            d1 = missing
             d2 = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_)
-            d3 = IMAS.get_build(dd.build, type=_shield_, fs=_hfs_, return_only_one=false)[end]
-        else
+            d3 = IMAS.get_build(dd.build, type=_shield_, fs=_hfs_, return_only_one=false, raise_error_on_missing=false)
+            if d3 !== missing
+                d3 = d3[end]
+            end
+            d3 = missing
+        else  # LFS
             d1 = IMAS.get_build(dd.build, type=_wall_, fs=_lfs_)
             d2 = IMAS.get_build(dd.build, type=_blanket_, fs=_lfs_)
-            d3 = IMAS.get_build(dd.build, type=_shield_, fs=_lfs_, return_only_one=false)[1]
+            d3 = IMAS.get_build(dd.build, type=_shield_, fs=_lfs_, return_only_one=false, raise_error_on_missing=false)
+            if d3 !== missing
+                d3 = d3[1]
+            end
+        end
+        for (kl, dl) in enumerate(bm.layer)
+            dl.name = "dummy layer $kl"
+            dl.thickness = 0.0
+            dl.material = "vacuum"
         end
         for (kl, dl) in enumerate([d1, d2, d3])
-            for field in [:name, :thickness, :material]
-                setproperty!(bm.layer[kl], field, getproperty(dl, field))
+            if dl !== missing
+                for field in [:name, :thickness, :material]
+                    setproperty!(bm.layer[kl], field, getproperty(dl, field))
+                end
             end
         end
     end
@@ -104,7 +119,7 @@ function step(actor::ActorBlanket)
         total_tritium_breeding_ratio = 0.0
         for bm in dd.blanket.module
             bmt = bm.time_slice[]
-            bm.layer[2].name = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
+            bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
             bmt.tritium_breeding_ratio = NNeutronics.TBR(blanket_model, [dl.thickness for dl in bm.layer]..., Li6)
             total_tritium_breeding_ratio += bmt.tritium_breeding_ratio * bmt.power_incident_neutrons / total_power_neutrons
         end
@@ -115,10 +130,11 @@ function step(actor::ActorBlanket)
         end
     end
 
-    target_tritium_breeding_ratio = 0.9
     blanket_model_1d = NNeutronics.Blanket()
-    res = Optim.optimize(Li6 -> target_TBR(blanket_model_1d, Li6, dd, target_tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-3)
+    res = Optim.optimize(Li6 -> target_TBR(blanket_model_1d, Li6, dd, dd.target.tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
     total_tritium_breeding_ratio = target_TBR(blanket_model_1d, res.minimizer, dd)
 
     @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
+
+    return actor
 end
