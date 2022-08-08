@@ -68,7 +68,7 @@ function step(actor::ActorBlanket)
         bm.name = structure.name
 
         # evaluate neutron_capture_fraction
-        tmp = convex_hull(collect(zip(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z))); closed_polygon=true)
+        tmp = convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
         index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(dd.neutronics.first_wall.r, dd.neutronics.first_wall.z)])
         neutron_capture_fraction = sum(nnt.wall_loading.power[index]) / total_power_neutrons
 
