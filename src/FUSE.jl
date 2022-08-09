@@ -55,6 +55,7 @@ include(joinpath("actors", "transport_actors.jl"))
 include(joinpath("actors", "costing_actors.jl"))
 include(joinpath("actors", "compound_actors.jl"))
 include(joinpath("actors", "neutronics_actors.jl"))
+include(joinpath("actors", "pedestal_actors.jl"))
 
 #= ============ =#
 #  OPTIMIZATION  #
