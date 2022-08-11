@@ -276,7 +276,6 @@ function step(actor::ActorCosting)
         @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
     else
         power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) / 1e6 # should be pulse average
-        display(dd.balance_of_plant.thermal_cycle)
         power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.power_thermal_convertable_total) / 1e6 
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) / 1e6
         for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
