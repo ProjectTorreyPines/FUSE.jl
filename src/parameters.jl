@@ -432,7 +432,7 @@ function AbstractTrees.printnode(io::IO, par::AbstractParameter)
         printstyled(io, par._name)
         printstyled(io, " ➡ ")
         printstyled(io, "$(repr(par.value))"; color=color)
-        if length(replace(par.units,"-"=>"")) > 0 && par.value !== missing
+        if length(replace(par.units, "-" => "")) > 0 && par.value !== missing
             printstyled(io, " [$(par.units)]"; color=color)
         end
     end
@@ -553,18 +553,27 @@ end
 
 function dict2par!(dct::AbstractDict, par::AbstractParameters)
     for (key, val) in par
+        if key ∈ keys(dct)
+            # this is if dct was par2dict function
+            dkey = key
+            dvalue = :value
+        else
+            # this is if dct was generated from json
+            dkey = string(key)
+            dvalue = "value"
+        end
         if typeof(val) <: AbstractParameters
-            dict2par!(dct[string(key)], val)
-        elseif dct[string(key)]["value"] === nothing
+            dict2par!(dct[dkey], val)
+        elseif dct[dkey][dvalue] === nothing
             setproperty!(par, key, missing)
-        elseif typeof(dct[string(key)]["value"]) <: AbstractVector # this could be done more generally
-            setproperty!(par, key, Real[k for k in dct[string(key)]["value"]])
+        elseif typeof(dct[dkey][dvalue]) <: AbstractVector # this could be done more generally
+            setproperty!(par, key, Real[k for k in dct[dkey][dvalue]])
         else
             try
-                setproperty!(par, key, Symbol(dct[string(key)]["value"]))
+                setproperty!(par, key, Symbol(dct[dkey][dvalue]))
             catch e
                 try
-                    setproperty!(par, key, dct[string(key)]["value"])
+                    setproperty!(par, key, dct[dkey][dvalue])
                 catch e
                     display((key, e))
                 end

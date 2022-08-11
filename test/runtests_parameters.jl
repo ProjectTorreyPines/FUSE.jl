@@ -53,4 +53,8 @@ using Test
         @test typeof(FUSE.ParametersActor(par)) <: FUSE.ParametersActor
     end
 
+    # save load
+    FUSE.dict2par!(FUSE.par2dict(ini), FUSE.ParametersAllInits())
+    FUSE.dict2par!(FUSE.par2dict(act), FUSE.ParametersAllActors())
+
 end
