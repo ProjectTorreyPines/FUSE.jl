@@ -3,7 +3,6 @@ import AbstractTrees
 
 abstract type AbstractParameter end
 abstract type AbstractParameters end
-abstract type AbstractParametersActor end
 
 #= ===== =#
 #  Entry  #
@@ -288,6 +287,10 @@ function Base.keys(p::AbstractParameters)
     return keys(getfield(p, :_parameters))
 end
 
+function Base.values(p::AbstractParameters)
+    return values(getfield(p, :_parameters))
+end
+
 function Base.getindex(p::AbstractParameters, field::Symbol)
     return getfield(p, :_parameters)[field]
 end
@@ -398,7 +401,7 @@ function Base.iterate(par::AbstractParameters, state)
         return nothing
     end
     key = popfirst!(state)
-    data = par[key].value
+    data = par[key]#.value
     return key => data, state
 end
 
@@ -430,7 +433,7 @@ function AbstractTrees.printnode(io::IO, par::AbstractParameter)
         printstyled(io, par._name)
         printstyled(io, " ➡ ")
         printstyled(io, "$(repr(par.value))"; color=color)
-        if length(par.units) > 0 && par.value !== missing
+        if length(replace(par.units,"-"=>"")) > 0 && par.value !== missing
             printstyled(io, " [$(par.units)]"; color=color)
         end
     end
@@ -500,19 +503,19 @@ Convert FUSE parameters to dictionary
 """
 function par2dict(par::AbstractParameters)
     ret = Dict()
-    return par2dict(par, ret)
+    return par2dict!(par, ret)
 end
 
-function par2dict(par::AbstractParameters, ret::AbstractDict)
+function par2dict!(par::AbstractParameters, ret::AbstractDict)
     data = getfield(par, :_parameters)
-    return par2dict(data, ret)
+    return par2dict!(data, ret)
 end
 
-function par2dict(data::AbstractDict, ret::AbstractDict)
+function par2dict!(data::AbstractDict, ret::AbstractDict)
     for item in keys(data)
         if typeof(data[item]) <: AbstractParameters
             ret[item] = Dict()
-            par2dict(data[item], ret[item])
+            par2dict!(data[item], ret[item])
         elseif typeof(data[item]) <: AbstractParameter
             ret[item] = Dict()
             ret[item][:value] = data[item].value
@@ -524,15 +527,65 @@ function par2dict(data::AbstractDict, ret::AbstractDict)
 end
 
 """
-    par2json(@nospecialize(par::AbstractParameters), filename::String; kw...)
+    ini2json(ini::ParametersAllInits, filename::String; kw...)
 
 Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
+function ini2json(ini::ParametersAllInits, filename::String; kw...)
+    return par2json(ini, filename; kw...)
+end
+
+"""
+    act2json(act::ParametersAllActors, filename::String; kw...)
+
+Save the FUSE parameters to a JSON file with give `filename`
+`kw` arguments are passed to the JSON.print function
+"""
+function act2json(act::ParametersAllActors, filename::String; kw...)
+    return par2json(act, filename; kw...)
+end
+
 function par2json(@nospecialize(par::AbstractParameters), filename::String; kw...)
     open(filename, "w") do io
         JSON.print(io, par2dict(par); kw...)
     end
+end
+
+function dict2par!(dct::AbstractDict, par::AbstractParameters)
+    for (key, val) in par
+        if typeof(val) <: AbstractParameters
+            dict2par!(dct[string(key)], val)
+        elseif dct[string(key)]["value"] === nothing
+            setproperty!(par, key, missing)
+        elseif typeof(dct[string(key)]["value"]) <: AbstractVector # this could be done more generally
+            setproperty!(par, key, Real[k for k in dct[string(key)]["value"]])
+        else
+            try
+                setproperty!(par, key, Symbol(dct[string(key)]["value"]))
+            catch e
+                try
+                    setproperty!(par, key, dct[string(key)]["value"])
+                catch e
+                    display((key, e))
+                end
+            end
+        end
+    end
+    return par
+end
+
+function json2par(filename::AbstractString, par_data::AbstractParameters)
+    json_data = JSON.parsefile(filename)
+    return dict2par!(json_data, par_data)
+end
+
+function json2ini(filename::AbstractString)
+    return json2par(filename, ParametersAllInits())
+end
+
+function json2act(filename::AbstractString)
+    return json2par(filename, ParametersAllActors())
 end
 
 #= ================= =#
