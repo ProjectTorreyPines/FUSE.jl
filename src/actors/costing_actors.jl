@@ -161,6 +161,7 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital(::Type{Val{:land}}, land::Real, power_electric_net::Real)
+    power_electric_net = power_electric_net / 1E6
     return 1.2 * land * 20.0e-3 * (power_electric_net / 1000.0)^0.3
 end
 
@@ -169,23 +170,26 @@ end
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_direct_capital(::Type{Val{:buildings}}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real) # ARIES
+function cost_direct_capital(::Type{Val{:buildings}}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real)
+    power_electric_generated = power_electric_generated / 1E6
+    power_thermal = power_thermal / 1E6
+    power_electric_net = power_electric_net / 1E6
     cost = 27.0 * (land / 1000.0)^0.2 # site
     cost += 111.661 * (building_volume / 80.0e3)^0.62 # tokamak building
     cost += 78.9 * (power_electric_generated / 1246)^0.5 # turbine/generator
     cost += 16.804 * ((power_thermal - power_electric_net) / 1860.0)^0.5 # heat rejection
     cost += 22.878 * (power_electric_net / 1000.0)^0.3 # electrical equipment
-    cost += 21.96 * (power_electric_generated / 1246)^0.3  # Plant Auxiliary Systems
+    cost += 21.96 * (power_electric_generated / 1246)^0.3  # Plant auxiliary systems
     cost += 4.309 * (power_electric_generated / 1000.0)^0.3 # power core service building
     cost += 1.513 * (power_electric_generated / 1000.0)^0.3  # service water
-    cost += 25.0 * (power_thermal / 1759.0)^0.3  # fuel handling
+    cost += 25.0 * (power_thermal / 1759.0)^0.3  # tritium plant and systems
     cost += 7.11 # control room
-    cost += 4.7 * (power_electric_net / 1000.0)^0.3  # On-site AC Power Supply Building
+    cost += 4.7 * (power_electric_net / 1000.0)^0.3  # On-site AC power supply building
     cost += 2.0 # administrative
     cost += 2.0 # site service
     cost += 2.09 # cyrogenic and inert gas storage
     cost += 0.71 # security
-    cost += 4.15  # Ventilation Stack
+    cost += 4.15  # ventilation stack
     return cost
 end
 
@@ -204,6 +208,7 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
 function cost_direct_capital(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real)
+    power_thermal = power_thermal / 1E6
     cost = 50.0 * (power_thermal / 2000.0)^0.55 # water
     cost += 125.0 * (power_thermal / 2000.0)^0.55 # LiPb
     cost += 110.0 * (power_thermal / 2000.0)^0.55 # He
@@ -218,6 +223,8 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital(::Type{Val{:balance_of_plant_equipment}}, power_thermal::Real, power_electric_generated::Real)
+    power_thermal = power_thermal / 1E6
+    power_electric_generated = power_electric_generated / 1E6
     cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
     cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
     cost += 87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
@@ -231,6 +238,8 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
 function cost_direct_capital(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real)
+    power_thermal = power_thermal / 1E6
+    power_electric_net = power_electric_net /1E6
     cost = 15.0 * (power_thermal / 1758.0)^0.85 # radioactive material treatment and management
     cost += 70.0 * (power_thermal / 1758.0)^0.8 # Fuel handling and storage
     cost += 100.0 * (power_electric_net / 2000.0)^0.55 # Hot cell maintanance
@@ -239,48 +248,54 @@ function cost_direct_capital(::Type{Val{:fuel_cycle_rad_handling}}, power_therma
     return cost
 end
 
-#= =============== =#
-#  operations cost  #
-#= =============== =#
+#= ====================== =#
+#  yearly operations cost  #
+#= ====================== =#
 
 """
     cost_operations(::Type{Val{:operation_maintanance}}, power_electric_generated::Real)
 
+Yearly cost for maintenance [\$M/year]
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_operations(::Type{Val{:operation_maintanance}}, power_electric_generated::Real)
+    power_electric_generated = power_electric_generated / 1E6
     return 80.0 * (power_electric_generated / 1200.0)^0.5
 end
 
 """
-    cost_operations(::Type{Val{:fuel}})
+    cost_operations(::Type{Val{:tritium_handling}})
 
-LIKELY NEEDS FIXING
+Yearly cost for tritium_handling [\$M/year]
+!!!!WRONG!!!! Needs estiamte
 """
-function cost_operations(::Type{Val{:fuel}})
+function cost_operations(::Type{Val{:tritium_handling}})
     return 1.0
 end
 
 """
-    cost_operations(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, lifetime::Real)
+    cost_operations(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real)
 
-Replace blanket every `blanket_lifetime` over the course of plant `lifetime`
+Yearly cost for blanket replacement [\$M/year]
 """
-function cost_operations(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, lifetime::Real)
-    return cost_blanket * lifetime / blanket_lifetime
+function cost_operations(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real)
+    return cost_blanket / blanket_lifetime
 end
 
 #= =================== =#
-#  decomissioning cost  #
+#  Decomissioning cost  #
 #= =================== =#
 
 """
-    cost_decomissioning(::Type{Val{:decom_wild_guess}})
+    cost_decomissioning(::Type{Val{:decom_wild_guess}}, lifetime::Real)
+
+Cost to decommission the plant [\$M]
 
 LIKELY NEEDS FIXING
 """
-function cost_decomissioning(::Type{Val{:decom_wild_guess}})
-    2.76 # From GASC
+function cost_decomissioning(::Type{Val{:decom_wild_guess}}, lifetime::Real)
+    unit_cost = 2.76 # [$M/year]From GASC
+    return unit_cost * lifetime
 end
 
 #= ============ =#
@@ -302,7 +317,7 @@ function ParametersActor(::Type{Val{:ActorCosting}})
     par.building_volume = Entry(Real, "m^3", "Volume of the tokmak building"; default=140.0e3)
     par.intrest_rate = Entry(Real, "", "Anual intrest rate fraction of direct capital cost"; default=0.05)
     par.indirect_cost_rate = Entry(Real, "", "Indirect cost associated with construction, equipment, services, energineering construction management and owners cost"; default=0.4)
-    par.lifetime = Entry(Real, "years", "lifetime of the plant"; default=40)
+    par.lifetime = Entry(Integer, "years", "lifetime of the plant"; default=40)
     par.availability = Entry(Real, "", "availability fraction of the plant"; default=0.803)
     par.escalation_fraction = Entry(Real, "", "yearly escalation fraction based on risk assessment"; default=0.05)
     par.blanket_lifetime = Entry(Real, "years", "lifetime of the blanket"; default=6.8)
@@ -378,9 +393,9 @@ function step(actor::ActorCosting)
         power_thermal = 0.0
         power_electric_generated = 0.0
     else
-        power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) / 1e6 # should be pulse average
-        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.power_thermal_convertable_total) / 1e6
-        power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) / 1e6
+        power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) # should be pulse average
+        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.power_thermal_convertable_total)
+        power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
         
         for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
             sub = resize!(sys.subsystem, "name" => string(item))
@@ -407,11 +422,11 @@ function step(actor::ActorCosting)
     ###### Operations ######
     empty!(cost_ops)
 
-    sys = resize!(cost_ops.system, "name" => "fuel cycle")
-    sys.cost = cost_operations(:fuel)
+    sys = resize!(cost_ops.system, "name" => "tritium handling")
+    sys.yearly_cost = cost_operations(:tritium_handling)
 
     sys = resize!(cost_ops.system, "name" => "maintanance and operators")
-    sys.cost = cost_operations(:operation_maintanance, power_electric_generated)
+    sys.yearly_cost = cost_operations(:operation_maintanance, power_electric_generated)
 
     sys = resize!(cost_ops.system, "name" => "replacements")
     for item in [:blanket_replacement]
@@ -419,27 +434,27 @@ function step(actor::ActorCosting)
         if item == :blanket_replacement
             tokamak = cost_direct.system[findfirst(system -> system.name=="tokamak", cost_direct.system)]
             blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
-            sub.cost = cost_operations(:blanket_replacement, blanket_cost, par.blanket_lifetime, par.lifetime)
+            sub.yearly_cost = cost_operations(:blanket_replacement, blanket_cost, par.blanket_lifetime)
         else
-            sub.cost = cost_operations(item)
+            sub.yearly_cost = cost_operations(item)
         end
     end
 
     ###### Decomissioning ######
     empty!(cost_decom)
 
-    sys = resize!(cost_decom.system, "name" => "decommissioning guess")
-    sys.cost = cost_decomissioning(:decom_wild_guess)
+    sys = resize!(cost_decom.system, "name" => "decommissioning")
+    sys.cost = cost_decomissioning(:decom_wild_guess, par.lifetime)
 
     ###### Levelized Cost Of Electricity  ######
     capital_cost_rate = par.intrest_rate / (1 - (1 + par.intrest_rate)^(-1.0 * par.lifetime))
     lifetime_cost = 0.0
     for year in 1:par.lifetime
-        yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.cost + cost_decom.cost)
+        yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / par.lifetime)
         lifetime_cost += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
     end
     dd.costing.cost_lifetime = lifetime_cost
-    dd.costing.levelized_CoE = dd.costing.cost_lifetime / (par.lifetime * 8760 * power_electric_net / 1e3 * par.availability)
+    dd.costing.levelized_CoE = (dd.costing.cost_lifetime * 1E6) / (par.lifetime * 24 * 365 * power_electric_net / 1e3 * par.availability)
     return actor
 end
 
