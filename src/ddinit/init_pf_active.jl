@@ -125,7 +125,7 @@ function init_pf_active(
     for k in lfs_out_indexes
         layer = bd.layer[k]
 
-        if (k == gap_cryostat_index) && (length(n_coils) >= krail+1) && (n_coils[krail+1] > 0)
+        if (k == gap_cryostat_index) && (length(n_coils) >= krail + 1) && (n_coils[krail+1] > 0)
             #pass
         elseif !contains(lowercase(layer.name), "coils")
             continue
@@ -151,7 +151,7 @@ function init_pf_active(
         poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), dcoil)
         rail_r = [v[1] for v in GeoInterface.coordinates(poly)[1]]
         rail_z = [v[2] for v in GeoInterface.coordinates(poly)[1]]
-        rail_r, rail_z = IMAS.resample_2d_line(rail_r, rail_z, step=dr/3)
+        rail_r, rail_z = IMAS.resample_2d_line(rail_r, rail_z, step=dr / 3)
 
         # mark what regions on that rail do not intersect solid structures and can hold coils
         valid_k = []
