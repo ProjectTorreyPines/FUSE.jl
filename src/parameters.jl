@@ -455,12 +455,15 @@ function Base.ismissing(p::AbstractParameters, field::Symbol)::Bool
 end
 
 """
-    (par::AbstractParameters)(kw...)
+    (par::AbstractParameters)(inplace:Bool=false;kw...)
 
 This functor is used to override the parameters at function call
+`inplace` modifies parameters without making a copy
 """
-function (par::AbstractParameters)(kw...)
-    par = deepcopy(par)
+function (par::AbstractParameters)(inplace::Bool=false;kw...)
+    if !inplace
+        par = deepcopy(par)
+    end
     if !isempty(kw)
         for (key, value) in kw
             setproperty!(par, key, value)
