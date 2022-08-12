@@ -547,7 +547,7 @@ end
 
 function par2json(@nospecialize(par::AbstractParameters), filename::String; kw...)
     open(filename, "w") do io
-        JSON.print(io, par2dict(par); kw...)
+        JSON.print(io, par2dict(par), 1; kw...)
     end
 end
 
