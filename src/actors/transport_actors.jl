@@ -39,19 +39,8 @@ The pedestal in this actor is evolved using EPED-NN.
 function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTauenn(kw...)
     actor = ActorTauenn(dd, par)
-    if par.do_plot
-        ps = plot(dd.core_sources; color=:gray)
-        pp = plot(dd.core_profiles; color=:gray, label="")
-    end
     step(actor)
     finalize(actor)
-    if par.do_plot
-        display(plot!(ps, dd.core_sources))
-        display(plot!(pp, dd.core_profiles))
-    end
-    if par.verbose
-        display(actor.tauenn_parameters)
-    end
     return actor
 end
 
@@ -70,6 +59,19 @@ function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
 end
 
 function step(actor::ActorTauenn)
-    actor.tauenn_outputs = TAUENN.tau_enn(actor.dd, actor.tauenn_parameters; actor.par.verbose)
+    dd = actor.dd
+    par = actor.par
+    if par.do_plot
+        ps = plot(dd.core_sources; color=:gray)
+        pp = plot(dd.core_profiles; color=:gray, label="")
+    end
+    actor.tauenn_outputs = TAUENN.tau_enn(dd, actor.tauenn_parameters; par.verbose)
+    if par.do_plot
+        display(plot!(ps, dd.core_sources))
+        display(plot!(pp, dd.core_profiles))
+    end
+    if par.verbose
+        display(actor.tauenn_parameters)
+    end
     return actor
 end
