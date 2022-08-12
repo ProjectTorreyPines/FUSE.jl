@@ -4,6 +4,7 @@
 mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    act::ParametersAllActors
     actor_jt::ActorSteadyStateCurrent
     actor_eq::ActorEquilibrium
     actor_tr::ActorTauenn
@@ -20,38 +21,35 @@ end
     ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs the following actors in succesion:
-```julia
-ActorSteadyStateCurrent(dd, act)    # Current evolution to steady-state 
-ActorTauenn(dd, act)                # For transport
-ActorEquilibrium(dd, act)           # Equilibrium
-```
+* ActorSteadyStateCurrent
+* ActorTauenn
+* ActorEquilibrium
 
 !!! note 
     Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
-function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw_ActorSteadyStateCurrent=Dict(), kw_ActorEquilibrium=Dict(), kw_ActorTauenn=Dict(), kw...)
+function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibriumTransport(kw...)
-    actor = ActorEquilibriumTransport(dd, par, act; kw_ActorSteadyStateCurrent, kw_ActorEquilibrium, kw_ActorTauenn)
-    step(actor; act, iterations=par.iterations, do_plot=par.do_plot)
+    actor = ActorEquilibriumTransport(dd, par, act)
+    step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEquilibriumTransport(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorSteadyStateCurrent=Dict(), kw_ActorEquilibrium=Dict(), kw_ActorTauenn=Dict(), kw...)
+function ActorEquilibriumTransport(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
     par = par(kw...)
-    actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw_ActorSteadyStateCurrent...)
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw_ActorEquilibrium...)
-    actor_tr = ActorTauenn(dd, act.ActorTauenn; kw_ActorTauenn...)
-    return ActorEquilibriumTransport(dd, par, actor_jt, actor_eq, actor_tr)
+    actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent)
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
+    actor_tr = ActorTauenn(dd, act.ActorTauenn)
+    return ActorEquilibriumTransport(dd, par, act, actor_jt, actor_eq, actor_tr)
 end
 
-function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAllActors}=missing, iterations::Int=1, do_plot::Bool=false)
+function step(actor::ActorEquilibriumTransport)
     dd = actor.dd
-    if act === missing
-        act = ParametersAllActors()
-    end
+    par = actor.par
+    act = actor.act
 
-    if do_plot
+    if par.do_plot
         pe = plot(dd.equilibrium; color=:gray, label="old", coordinate=:rho_tor_norm)
         pp = plot(dd.core_profiles; color=:gray, label=" (old)")
         ps = plot(dd.core_sources; color=:gray, label=" (old)")
@@ -60,7 +58,7 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAll
     # Set j_ohmic to steady state
     finalize(step(actor.actor_jt))
 
-    for iteration in 1:iterations
+    for iteration in 1:par.iterations
         # run transport actor
         finalize(step(actor.actor_tr))
 
@@ -74,7 +72,7 @@ function step(actor::ActorEquilibriumTransport; act::Union{Missing,ParametersAll
         finalize(step(actor.actor_jt))
     end
 
-    if do_plot
+    if par.do_plot
         display(plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm))
         display(plot!(pp, dd.core_profiles))
         display(plot!(ps, dd.core_sources))

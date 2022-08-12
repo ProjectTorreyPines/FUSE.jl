@@ -39,7 +39,9 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             symmetric=ini.equilibrium.symmetric)
 
         # solve equilibrium
-        ActorEquilibrium(dd, act; kw_ActorCHEASE=Dict(:rescale_eq_to_ip=>true))
+        act_copy = deepcopy(act)
+        act_copy.ActorCHEASE.rescale_eq_to_ip = true
+        ActorEquilibrium(dd, act_copy)
 
     end
 

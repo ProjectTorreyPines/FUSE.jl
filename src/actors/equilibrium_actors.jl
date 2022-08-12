@@ -18,20 +18,20 @@ end
 
 The ActorEquilibrium provides a common interface to run multiple equilibrium actors
 """
-function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw_ActorSolovev=Dict(), kw_ActorCHEASE=Dict(), kw...)
+function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibrium(kw...)
-    actor = ActorEquilibrium(dd, par, act; kw_ActorSolovev, kw_ActorCHEASE)
+    actor = ActorEquilibrium(dd, par, act)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorSolovev=Dict(), kw_ActorCHEASE=Dict(), kw...)
+function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
     par = par(kw...)
     if par.model == :Solovev
-        eq_actor = ActorSolovev(dd, act.ActorSolovev; kw_ActorSolovev...)
+        eq_actor = ActorSolovev(dd, act.ActorSolovev)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; kw_ActorCHEASE...)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
     else
         error("ActorEquilibrium: model = $(par.model) is unknown")
     end
