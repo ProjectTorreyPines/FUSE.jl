@@ -304,7 +304,6 @@ function step(actor::ActorCosting)
     empty!(cost_ops)
 
     blanket_cost = sum([item.cost for item in cost_direct.system[1].subsystem if item.name == "blanket"]) # system[1] is always tokamak
-    blanket_cost = 275.2622
     sys = resize!(cost_ops.system, "name" => "fuel cycle")
     sys.cost = cost_operations(:fuel)
 
