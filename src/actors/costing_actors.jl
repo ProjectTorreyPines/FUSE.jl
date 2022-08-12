@@ -1,9 +1,9 @@
 #= ============== =#
-#  materials cost #
+#  materials cost  #
 #= ============== =#
 #NOTE: material should be priced by Kg
 #NOTE: if something is priced by m^3 then it is for a specific part already
-function unit_cost(material::String)
+function unit_cost(material::AbstractString)
     if material == "Vacuum"
         return 0.0 # $M/m^3
     elseif material == "ReBCO"
@@ -29,40 +29,6 @@ function unit_cost(material::String)
     end
 end
 
-function cost_direct_capital(layer::IMAS.build__layer)
-    if layer.type == Int(_oh_)
-        build = IMAS.parent(IMAS.parent(layer))
-        return unit_cost(build.oh.technology) * layer.volume
-    elseif layer.type == Int(_tf_)
-        build = IMAS.parent(IMAS.parent(layer))
-        return unit_cost(build.tf.technology) * layer.volume
-    elseif layer.type == Int(_shield_)
-        return layer.volume * 0.29  # $M/m^3
-    elseif layer.type == Int(_blanket_)
-        return layer.volume * 0.75  # $M/m^3
-    elseif layer.type ∈ [Int(_wall_), Int(_vessel_), Int(_cryostat_)]
-        return layer.volume * 0.36  # $M/m^3
-    else
-        return unit_cost(layer.material) * layer.volume
-    end
-end
-
-function cost_direct_capital(ecl::IMAS.ec_launchers__beam)
-    ecl.available_launch_power / 1E6 * 3.0 # $/W #ARIES
-end
-
-function cost_direct_capital(ica::IMAS.ic_antennas__antenna)
-    ica.available_launch_power / 1E6 * 1.64 #$/W ARIES
-end
-
-function cost_direct_capital(lha::IMAS.lh_antennas__antenna)
-    lha.available_launch_power / 1E6 * 2.13 #$/W ARIES
-end
-
-function cost_direct_capital(nbu::IMAS.nbi__unit)
-    nbu.available_launch_power / 1E6 * 4.93 #$/W ARIES
-end
-
 function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
     if coil_tech.material == "Copper"
         return unit_cost("Copper")
@@ -74,6 +40,100 @@ function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__t
     end
 end
 
+#= ================== =#
+#  Dispatch on symbol  #
+#= ================== =#
+
+function cost_direct_capital(item::Symbol, args...; kw...)
+    return cost_direct_capital(Val{item}, args...; kw...)
+end
+
+function cost_operations(item::Symbol, args...; kw...)
+    return cost_operations(Val{item}, args...; kw...)
+end
+
+function cost_decomissioning(item::Symbol, args...; kw...)
+    return cost_decomissioning(Val{item}, args...; kw...)
+end
+
+#= =================== =#
+#  direct capital cost  #
+#= =================== =#
+
+"""
+    cost_direct_capital(layer::IMAS.build__layer)
+
+Capital cost for each layer in the build
+"""
+function cost_direct_capital(layer::IMAS.build__layer)
+    if layer.type == Int(_oh_)
+        build = IMAS.parent(IMAS.parent(layer))
+        return layer.volume * unit_cost(build.oh.technology)
+    elseif layer.type == Int(_tf_)
+        build = IMAS.parent(IMAS.parent(layer))
+        return layer.volume * unit_cost(build.tf.technology)
+    elseif layer.type == Int(_shield_)
+        return layer.volume * 0.29  # $M/m^3
+    elseif layer.type == Int(_blanket_)
+        return layer.volume * 0.75  # $M/m^3
+    elseif layer.type ∈ [Int(_wall_), Int(_vessel_), Int(_cryostat_)]
+        return layer.volume * 0.36  # $M/m^3
+    else
+        return layer.volume * unit_cost(layer.material)
+    end
+end
+
+"""
+    cost_direct_capital(ecl::IMAS.ec_launchers__beam)
+
+Capital cost for each EC launcer is proportional to its power
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
+function cost_direct_capital(ecl::IMAS.ec_launchers__beam)
+    unit_cost = 3.0 # $/W
+    return ecl.available_launch_power / 1E6 * unit_cost
+end
+
+"""
+    cost_direct_capital(ica::IMAS.ic_antennas__antenna)
+
+Capital cost for each IC antenna is proportional to its power
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
+function cost_direct_capital(ica::IMAS.ic_antennas__antenna)
+    unit_cost = 1.64 # $/W
+    return ica.available_launch_power / 1E6 * unit_cost
+end
+
+"""
+    cost_direct_capital(lha::IMAS.lh_antennas__antenna)
+
+Capital cost for each LH antenna is proportional to its power
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
+function cost_direct_capital(lha::IMAS.lh_antennas__antenna)
+    unit_cost = 2.13 # $/W
+    return lha.available_launch_power / 1E6 * unit_cost
+end
+
+"""
+    cost_direct_capital(nbu::IMAS.nbi__unit)
+
+Capital cost for each NBI unit is proportional to its power
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
+function cost_direct_capital(nbu::IMAS.nbi__unit)
+    unit_cost = 4.93 # $/W
+    return nbu.available_launch_power / 1E6 * unit_cost
+end
+
+"""
+    cost_direct_capital(pf_active::IMAS.pf_active)
+"""
 function cost_direct_capital(pf_active::IMAS.pf_active)
     dd = IMAS.top_dd(pf_active)
     c = Dict("OH" => 0.0, "PF" => 0.0)
@@ -87,17 +147,28 @@ function cost_direct_capital(pf_active::IMAS.pf_active)
     return c
 end
 
+"""
+    cost_direct_capital(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
+
+"""
 function cost_direct_capital(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
     return IMAS.volume(coil) * unit_cost(technology)
 end
 
-# NOTE costs are based on ARES study https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
+    cost_direct_capital(::Type{Val{:land}}, land::Real, power_electric_net::Real)
 
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
 function cost_direct_capital(::Type{Val{:land}}, land::Real, power_electric_net::Real)
-    1.2 * land * 20.0e-3 * (power_electric_net / 1000.0)^0.3
+    return 1.2 * land * 20.0e-3 * (power_electric_net / 1000.0)^0.3
 end
-cost_direct_capital(item::Symbol, land, power_electric_generated) = cost_direct_capital(Val{item}, land, power_electric_generated)
 
+"""
+    cost_direct_capital(::Type{Val{:buildings}}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real)
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
 function cost_direct_capital(::Type{Val{:buildings}}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real) # ARIES
     cost = 27.0 * (land / 1000.0)^0.2 # site
     cost += 111.661 * (building_volume / 80.0e3)^0.62 # tokamak building
@@ -118,70 +189,99 @@ function cost_direct_capital(::Type{Val{:buildings}}, land::Real, building_volum
     return cost
 end
 
-cost_direct_capital(item::Symbol,
-    building_volume,
-    land,
-    power_electric_generated,
-    power_thermal,
-    power_electric_net) = cost_direct_capital(
-    Val{item},
-    building_volume,
-    land,
-    power_electric_generated,
-    power_thermal,
-    power_electric_net)
+"""
+    cost_direct_capital(::Type{Val{:hot_cell}}, building_volume)
 
-cost_direct_capital(item::Symbol, power_electric_generated) = cost_direct_capital(Val{item}, power_electric_generated)
-
-function cost_direct_capital(::Type{Val{:hot_cell}}, building_volume) # https://www.iter.org/mach/HotCell
-    0.34 * 111.661 * (building_volume / 80.0e3)^0.62
+NOTE: https://www.iter.org/mach/HotCell
+"""
+function cost_direct_capital(::Type{Val{:hot_cell}}, building_volume::Real)
+    return 0.34 * 111.661 * (building_volume / 80.0e3)^0.62
 end
 
-function cost_direct_capital(::Type{Val{:heat_transfer_loop_materials}},power_thermal) # ARIES (warning uses LiPb for blanket)
-    cost = 50 * (power_thermal / 2000.0) ^ 0.55 # water
-    cost += 125 * (power_thermal / 2000.0) ^ 0.55 # LiPb
-    cost +=  110.0 * (power_thermal / 2000.0) ^ 0.55 # He
+"""
+    cost_direct_capital(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real)
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
+"""
+function cost_direct_capital(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real)
+    cost = 50.0 * (power_thermal / 2000.0)^0.55 # water
+    cost += 125.0 * (power_thermal / 2000.0)^0.55 # LiPb
+    cost += 110.0 * (power_thermal / 2000.0)^0.55 # He
     cost += 0.01 * power_thermal # NbIHX
-    cost += 50.0 * (power_thermal / 2000.0) ^ 0.55 # Na
+    cost += 50.0 * (power_thermal / 2000.0)^0.55 # Na
     return cost
 end
 
-function cost_direct_capital(::Type{Val{:balance_of_plant_equipment}},power_thermal, power_electric_generated) # ARIES
-    cost = 350 * (power_thermal / 2620.0) ^ 0.7 # Turbine equipment
-    cost += 182.98 * (power_electric_generated / 1200.0) ^ 0.5 # Electrical plant equipment
-    cost +=  87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
-    cost += 88.89 * (power_electric_generated / 1200.0) ^ 0.6 # Miscellenous equipment
+"""
+    cost_direct_capital(::Type{Val{:balance_of_plant_equipment}}, power_thermal::Real, power_electric_generated::Real)
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
+function cost_direct_capital(::Type{Val{:balance_of_plant_equipment}}, power_thermal::Real, power_electric_generated::Real)
+    cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
+    cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
+    cost += 87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
+    cost += 88.89 * (power_electric_generated / 1200.0)^0.6 # Miscellenous equipment
     return cost
 end
 
-function cost_direct_capital(::Type{Val{:fuel_cycle_rad_handling}},power_thermal, power_electric_net) # ARIES (warning uses LiPb for blanket)
-    cost = 15 * (power_thermal / 1758.0) ^ 0.85 # radioactive material treatment and management
-    cost += 70 * (power_thermal / 1758.0) ^ 0.8 # Fuel handling and storage
-    cost +=  100. * (power_electric_net / 2000.0) ^ 0.55 # Hot cell maintanance
-    cost += 60. # Instrumentation and Control
-    cost += 8 * (power_thermal / 1000.0) ^ 0.8 # Misc power core equipment
+"""
+    cost_direct_capital(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real)
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
+"""
+function cost_direct_capital(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real)
+    cost = 15.0 * (power_thermal / 1758.0)^0.85 # radioactive material treatment and management
+    cost += 70.0 * (power_thermal / 1758.0)^0.8 # Fuel handling and storage
+    cost += 100.0 * (power_electric_net / 2000.0)^0.55 # Hot cell maintanance
+    cost += 60.0 # Instrumentation and Control
+    cost += 8.0 * (power_thermal / 1000.0)^0.8 # Misc power core equipment
     return cost
 end
 
-function cost_operations(::Type{Val{:operation_maintanance}}, power_electric_generated)
-    80.0 * (power_electric_generated / 1200.0)^0.5
+#= =============== =#
+#  operations cost  #
+#= =============== =#
+
+"""
+    cost_operations(::Type{Val{:operation_maintanance}}, power_electric_generated::Real)
+
+NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+"""
+function cost_operations(::Type{Val{:operation_maintanance}}, power_electric_generated::Real)
+    return 80.0 * (power_electric_generated / 1200.0)^0.5
 end
 
+"""
+    cost_operations(::Type{Val{:fuel}})
+
+LIKELY NEEDS FIXING
+"""
 function cost_operations(::Type{Val{:fuel}})
-    1.0
-end
-cost_operations(item::Symbol) = cost_operations(Val{item})
-cost_operations(item::Symbol, a) = cost_operations(Val{item}, a)
-cost_operations(item::Symbol, power_electric_generated, cost_blanket) = cost_operations(Val{item}, power_electric_generated, cost_blanket)
-
-function cost_operations(::Type{Val{:blanket_replacement}}, cost_blanket, blanket_lifetime) # find blanket and replace every x-years
-    cost_blanket * 1.2 / blanket_lifetime # 20% contingency for extras
+    return 1.0
 end
 
+"""
+    cost_operations(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, lifetime::Real)
+
+Replace blanket every `blanket_lifetime` over the course of plant `lifetime`
+"""
+function cost_operations(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, lifetime::Real)
+    return cost_blanket * lifetime / blanket_lifetime
+end
+
+#= =================== =#
+#  decomissioning cost  #
+#= =================== =#
+
+"""
+    cost_decomissioning(::Type{Val{:decom_wild_guess}})
+
+LIKELY NEEDS FIXING
+"""
 function cost_decomissioning(::Type{Val{:decom_wild_guess}})
-    2.76 # gasc comment needs revisiting
+    2.76 # From GASC
 end
-cost_decomissioning(item::Symbol) = cost_decomissioning(Val{item})
 
 #= ============ =#
 #  ActorCosting  #
@@ -272,12 +372,16 @@ function step(actor::ActorCosting)
     ### Facility
     sys = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
 
-    if @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) < 0
+    if ismissing(dd.balance_of_plant.thermal_cycle,:power_electric_generated) || @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) < 0
         @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
+        power_electric_net = 0.0
+        power_thermal = 0.0
+        power_electric_generated = 0.0
     else
         power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) / 1e6 # should be pulse average
-        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.power_thermal_convertable_total) / 1e6 
+        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.power_thermal_convertable_total) / 1e6
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) / 1e6
+        
         for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
             sub = resize!(sys.subsystem, "name" => string(item))
             if item == :land
@@ -303,7 +407,6 @@ function step(actor::ActorCosting)
     ###### Operations ######
     empty!(cost_ops)
 
-    blanket_cost = sum([item.cost for item in cost_direct.system[1].subsystem if item.name == "blanket"]) # system[1] is always tokamak
     sys = resize!(cost_ops.system, "name" => "fuel cycle")
     sys.cost = cost_operations(:fuel)
 
@@ -314,7 +417,9 @@ function step(actor::ActorCosting)
     for item in [:blanket_replacement]
         sub = resize!(sys.subsystem, "name" => string(item))
         if item == :blanket_replacement
-            sub.cost = cost_operations(:blanket_replacement, blanket_cost, par.blanket_lifetime)
+            tokamak = cost_direct.system[findfirst(system -> system.name=="tokamak", cost_direct.system)]
+            blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
+            sub.cost = cost_operations(:blanket_replacement, blanket_cost, par.blanket_lifetime, par.lifetime)
         else
             sub.cost = cost_operations(item)
         end
@@ -326,20 +431,20 @@ function step(actor::ActorCosting)
     sys = resize!(cost_decom.system, "name" => "decommissioning guess")
     sys.cost = cost_decomissioning(:decom_wild_guess)
 
-    ### Levelized Cost Of Electricity 
+    ###### Levelized Cost Of Electricity  ######
     capital_cost_rate = par.intrest_rate / (1 - (1 + par.intrest_rate)^(-1.0 * par.lifetime))
-    total_cost = 0.0
+    lifetime_cost = 0.0
     for year in 1:par.lifetime
         yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.cost + cost_decom.cost)
-        total_cost += (1. + par.escalation_fraction) * (1. + par.indirect_cost_rate) * yearly_cost
+        lifetime_cost += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
     end
-    dd.costing.levelized_CoE = total_cost / (par.lifetime * 8760 * power_electric_net / 1e3 * par.availability)
-    dd.costing.cost_lifetime = total_cost
+    dd.costing.cost_lifetime = lifetime_cost
+    dd.costing.levelized_CoE = dd.costing.cost_lifetime / (par.lifetime * 8760 * power_electric_net / 1e3 * par.availability)
     return actor
 end
 
 function finalize(actor::ActorCosting)
-    # sort system/subsystem costs
+    # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system, by=x -> x.cost, rev=true)
     for sys in actor.dd.costing.cost_direct_capital.system
         sort!(sys.subsystem, by=x -> x.cost, rev=true)
