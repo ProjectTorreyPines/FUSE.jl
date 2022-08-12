@@ -239,7 +239,7 @@ NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning
 """
 function cost_direct_capital(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real)
     power_thermal = power_thermal / 1E6
-    power_electric_net = power_electric_net /1E6
+    power_electric_net = power_electric_net / 1E6
     cost = 15.0 * (power_thermal / 1758.0)^0.85 # radioactive material treatment and management
     cost += 70.0 * (power_thermal / 1758.0)^0.8 # Fuel handling and storage
     cost += 100.0 * (power_electric_net / 2000.0)^0.55 # Hot cell maintanance
@@ -387,7 +387,7 @@ function step(actor::ActorCosting)
     ### Facility
     sys = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
 
-    if ismissing(dd.balance_of_plant.thermal_cycle,:power_electric_generated) || @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) < 0
+    if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) < 0
         @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
         power_electric_net = 0.0
         power_thermal = 0.0
@@ -396,7 +396,7 @@ function step(actor::ActorCosting)
         power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) # should be pulse average
         power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.power_thermal_convertable_total)
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
-        
+
         for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
             sub = resize!(sys.subsystem, "name" => string(item))
             if item == :land
@@ -432,7 +432,7 @@ function step(actor::ActorCosting)
     for item in [:blanket_replacement]
         sub = resize!(sys.subsystem, "name" => string(item))
         if item == :blanket_replacement
-            tokamak = cost_direct.system[findfirst(system -> system.name=="tokamak", cost_direct.system)]
+            tokamak = cost_direct.system[findfirst(system -> system.name == "tokamak", cost_direct.system)]
             blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
             sub.yearly_cost = cost_operations(:blanket_replacement, blanket_cost, par.blanket_lifetime)
         else

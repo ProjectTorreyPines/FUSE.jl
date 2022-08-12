@@ -87,6 +87,18 @@ end
 #= ================== =#
 mutable struct ActorWholeFacility <: FacilityAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
+    act::ParametersAllActors
+    EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport}
+    HFSsizing::Union{Nothing,ActorHFSsizing}
+    LFSsizing::Union{Nothing,ActorLFSsizing}
+    CXbuild::Union{Nothing,ActorCXbuild}
+    PFcoilsOpt::Union{Nothing,ActorPFcoilsOpt}
+    Neutronics::Union{Nothing,ActorNeutronics}
+    Blanket::Union{Nothing,ActorBlanket}
+    Divertors::Union{Nothing,ActorDivertors}
+    BalanceOfPlant::Union{Nothing,ActorBalanceOfPlant}
+    Costing::Union{Nothing,ActorCosting}
 end
 
 function ParametersActor(::Type{Val{:ActorWholeFacility}})
@@ -97,30 +109,57 @@ end
 """
     ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound actor that runs all the actors needed to model the whole plant
+Compound actor that runs all the actors needed to model the whole plant:
+* ActorEquilibriumTransport
+* ActorHFSsizing
+* ActorLFSsizing
+* ActorCXbuild
+* ActorPFcoilsOpt
+* ActorNeutronics
+* ActorBlanket
+* ActorDivertors
+* ActorBalanceOfPlant
+* ActorCosting
 
 !!! note 
     Stores data in `dd`
 """
 function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorWholeFacility(kw...)
-    actor = ActorWholeFacility(dd)
-    step(actor; act)
+    actor = ActorWholeFacility(dd, par, act)
+    step(actor)
     finalize(actor)
     return actor
 end
 
-function step(actor::ActorWholeFacility; act::Union{Missing,ParametersAllActors}=missing, iterations::Int=1, do_plot::Bool=false)
+function ActorWholeFacility(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+
+    par = par(kw...)
+    ActorWholeFacility(dd, par, act,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        nothing)
+end
+
+function step(actor::ActorWholeFacility)
     dd = actor.dd
-    ActorEquilibriumTransport(dd, act)
-    ActorHFSsizing(dd, act)
-    ActorLFSsizing(dd, act)
-    ActorCXbuild(dd, act)
-    ActorPFcoilsOpt(dd, act)
-    ActorNeutronics(dd, act)
-    ActorBlanket(dd, act)
-    ActorDivertors(dd, act)
-    ActorBalanceOfPlant(dd, act)
-    ActorCosting(dd, act)
+    act = actor.act
+    actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
+    actor.HFSsizing = ActorHFSsizing(dd, act)
+    actor.LFSsizing = ActorLFSsizing(dd, act)
+    actor.CXbuild = ActorCXbuild(dd, act)
+    actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
+    actor.Neutronics = ActorNeutronics(dd, act)
+    actor.Blanket = ActorBlanket(dd, act)
+    actor.Divertors = ActorDivertors(dd, act)
+    actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
+    actor.Costing = ActorCosting(dd, act)
     return actor
 end
