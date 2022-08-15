@@ -83,7 +83,17 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
                 pf_inside_tf=(ini.pf_active.n_pf_coils_inside > 0),
                 pf_outside_tf=(ini.pf_active.n_pf_coils_outside > 0))
         else
-            init_build(dd.build, ini.build.layers)
+            layers = deepcopy(ini.build.layers)
+
+            # scale layers based on plasma major radius
+            iplasma = findfirst(key -> key == "plasma", collect(keys(layers)))
+            norm = sum([d for (k, d) in enumerate(values(layers)) if k < iplasma])
+            R0_build = (norm + layers["plasma"] / 2.0)
+            for layer in keys(layers)
+                layers[layer] *= ini.equilibrium.R0 / R0_build
+            end
+
+            init_build(dd.build, layers)
         end
     end
 
