@@ -50,9 +50,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     layers[:hfs_TF] = 1.10
     layers[:hfs_vacuum_vessel] = 0.30
     layers[:hfs_shield] = 0.40
-    layers[:hfs_wall] = 0.06
+    layers[:hfs_wall] = 0.1
     layers[:plasma] = 4.40
-    layers[:lfs_wall] = 0.17
+    layers[:lfs_wall] = 0.1
     layers[:lfs_shield] = 0.40
     layers[:lfs_vacuum_vessel] = 1.05
     layers[:lfs_TF] = 1.10
