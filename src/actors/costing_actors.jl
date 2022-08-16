@@ -315,7 +315,7 @@ function ParametersActor(::Type{Val{:ActorCosting}})
     par = ParametersActor(nothing)
     par.land_space = Entry(Real, "acres", "Plant site space required in acres"; default=1000.0)
     par.building_volume = Entry(Real, "m^3", "Volume of the tokmak building"; default=140.0e3)
-    par.intrest_rate = Entry(Real, "", "Anual intrest rate fraction of direct capital cost"; default=0.05)
+    par.interest_rate = Entry(Real, "", "Anual interest rate fraction of direct capital cost"; default=0.05)
     par.indirect_cost_rate = Entry(Real, "", "Indirect cost associated with construction, equipment, services, energineering construction management and owners cost"; default=0.4)
     par.lifetime = Entry(Integer, "years", "lifetime of the plant"; default=40)
     par.availability = Entry(Real, "", "availability fraction of the plant"; default=0.803)
@@ -447,7 +447,7 @@ function step(actor::ActorCosting)
     sys.cost = cost_decomissioning(:decom_wild_guess, par.lifetime)
 
     ###### Levelized Cost Of Electricity  ######
-    capital_cost_rate = par.intrest_rate / (1 - (1 + par.intrest_rate)^(-1.0 * par.lifetime))
+    capital_cost_rate = par.interest_rate / (1 - (1 + par.interest_rate)^(-1.0 * par.lifetime))
     lifetime_cost = 0.0
     for year in 1:par.lifetime
         yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / par.lifetime)
