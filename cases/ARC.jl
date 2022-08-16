@@ -3,7 +3,7 @@
 
 CFS/MIT ARC design
 """
-function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits, ParametersAllActors}
+function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersAllInits()
     act = ParametersAllActors()
     ini.general.casename = "ARC"

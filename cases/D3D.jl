@@ -3,7 +3,7 @@
 
 DIII-D
 """
-function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits, ParametersAllActors}
+function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersAllInits()
     act = ParametersAllActors()
 

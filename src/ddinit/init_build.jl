@@ -71,31 +71,45 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         end
     end
 
-    if init_from == :scalars
-        if ismissing(ini.build, :layers)
-            init_build(
-                dd.build,
-                dd.equilibrium.time_slice[],
-                IMAS.first_wall(dd.wall);
-                shield=ini.build.shield,
-                blanket=ini.build.blanket,
-                vessel=ini.build.vessel,
-                pf_inside_tf=(ini.pf_active.n_pf_coils_inside > 0),
-                pf_outside_tf=(ini.pf_active.n_pf_coils_outside > 0))
+    # if layers are not filled explicitly, then generate them from fractions in ini.build.
+    if ismissing(ini.build, :layers)
+        layers = layers_meters_from_fractions(
+            dd.equilibrium.time_slice[],
+            IMAS.first_wall(dd.wall);
+            shield=ini.build.shield,
+            blanket=ini.build.blanket,
+            vessel=ini.build.vessel,
+            plasma_gap=ini.build.plasma_gap,
+            pf_inside_tf=(ini.pf_active.n_pf_coils_inside > 0),
+            pf_outside_tf=(ini.pf_active.n_pf_coils_outside > 0))
+    else
+        layers = deepcopy(ini.build.layers)
+    end
+
+    # scale radial build layers based on equilibrium R0 and ϵ
+    iplasma = findfirst(key -> key in ["plasma", :plasma], collect(keys(layers)))
+    R_hfs_build = sum([d for (k, d) in enumerate(values(layers)) if k < iplasma])
+    if ismissing(ini.equilibrium, :R0)
+        R0 = R_hfs_build + collect(values(layers))[iplasma] / 2.0
+    else
+        R0 = ini.equilibrium.R0
+    end
+    if ismissing(ini.equilibrium, :ϵ)
+        a_gap = collect(values(layers))[iplasma] / 2.0
+    else
+        a_gap = ini.equilibrium.ϵ * R0 * (1.0 + ini.build.plasma_gap)
+    end
+    R_hfs = R0 - a_gap
+    for key in keys(layers)
+        if key in ["plasma", :plasma]
+            layers[key] = a_gap * 2.0
         else
-            layers = deepcopy(ini.build.layers)
-
-            # scale layers based on plasma major radius
-            iplasma = findfirst(key -> key == "plasma", collect(keys(layers)))
-            norm = sum([d for (k, d) in enumerate(values(layers)) if k < iplasma])
-            R0_build = (norm + layers["plasma"] / 2.0)
-            for layer in keys(layers)
-                layers[layer] *= ini.equilibrium.R0 / R0_build
-            end
-
-            init_build(dd.build, layers)
+            layers[key] = layers[key] * R_hfs / R_hfs_build
         end
     end
+
+    # populate dd.build with radial build layers
+    init_build(dd.build, layers)
 
     # set the TF shape
     tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
@@ -229,13 +243,13 @@ end
 
 Initialization of build IDS based on equilibrium time_slice
 """
-function init_build(
-    bd::IMAS.build,
+function layers_meters_from_fractions(
     eqt::IMAS.equilibrium__time_slice,
     wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
     blanket::Float64=1.0,
     shield::Float64=0.5,
     vessel::Float64=0.125,
+    plasma_gap::Float64=0.1,
     pf_inside_tf::Bool=false,
     pf_outside_tf::Bool=true)
 
@@ -245,8 +259,7 @@ function init_build(
     else
         rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
         rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
-        gap = (rmax - rmin) / 20.0 # plasma-wall gap
-        gap = (rmax - rmin) / 20.0 # plasma-wall gap
+        gap = (rmax - rmin) / 2.0 * plasma_gap
         rmin -= gap
         rmax += gap
     end
@@ -302,8 +315,5 @@ function init_build(
         end
     end
 
-    # radial build
-    init_build(bd; layers...)
-
-    return bd
+    return layers
 end
