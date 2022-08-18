@@ -385,9 +385,10 @@ function step(actor::ActorCosting)
     end
 
     ### Facility
+
     sys = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
 
-    if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) < 0
+    if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
         @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
         power_electric_net = 0.0
         power_thermal = 0.0
