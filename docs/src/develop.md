@@ -72,12 +72,15 @@ abstract type HCDAbstractActor <: AbstractActor end
 abstract type PlasmaAbstractActor <: AbstractActor end
 ```
 
-The definition of each FUSE actor follows a well defined pattern:
+The definition of each FUSE actor follows a well defined pattern.
+**DO NOT** deviate from this pattern. This is important to ensure modularity and compostability of the actors.
 
 ```julia
 # Defintion of the actor structure
-Base.@kwdef mutable struct ActorNAME <: ???AbstractActor
+mutable struct ActorNAME <: ???AbstractActor
     dd::IMAS.dd
+    par::ParametersActor    # Actors carry with them the parameters they are run with
+    ngrid::Integer
     ...
 end
 
@@ -98,10 +101,16 @@ What does this actor do...
 """
 function ActorNAME(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNAME(kw...)
-    actor = ActorNAME(;dd, par...)
+    actor = ActorNAME(dd, par)
     step(actor)
     finalize(actor)
     return actor
+end
+
+# define `init` function for this actor as constructor with `par`
+function ActorNAME(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorNAME(dd, par, par.ngrid)
 end
 
 # define `step` function for this actor

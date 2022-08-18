@@ -3,7 +3,7 @@
 
 CFS/MIT SPARC design
 """
-function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits, ParametersAllActors}
+function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersAllInits()
     act = ParametersAllActors()
     ini.general.casename = "SPARC"
@@ -16,7 +16,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits, Paramet
     ini.equilibrium.B0 = -12.2
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 8.7e6
-    ini.equilibrium.βn = 9.05 # high beta only for purpose of getting reasonable boundary with Solovev (otherwise should be 1)
+    ini.equilibrium.pressure_core = 2.22e6
     ini.equilibrium.x_point = (1.55, 1.1)
     ini.equilibrium.symmetric = true
     act.ActorCXbuild.rebuild_wall = false
@@ -46,9 +46,10 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits, Paramet
     ini.tf.n_coils = 18 #estimate (from ARC)
     ini.tf.technology = coil_technology(:HTS)
     ini.oh.technology = coil_technology(:HTS)
-    ini.oh.flattop_duration = 10
 
-    ini.core_profiles.ne_ped = 1.9e20
+    ini.target.flattop_duration = 10
+
+    ini.core_profiles.ne_ped = 1.5e20
     ini.core_profiles.greenwald_fraction = 0.37
     ini.core_profiles.helium_fraction = 0.1 #estimate
     ini.core_profiles.T_shaping = 1.8 #estimate (from ITER)
@@ -58,12 +59,10 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits, Paramet
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
-    ini.nbi.power_launched = 0.0
-    ini.nbi.beam_energy = 0.0
-    ini.ec_launchers.power_launched = 0.0
     ini.ic_antennas.power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     act.ActorPFcoilsOpt.symmetric = true
+    # act.ActorEquilibrium.model = :CHEASE
 
     return set_new_base!(ini), set_new_base!(act)
 end

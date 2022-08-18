@@ -3,18 +3,19 @@ import NumericalIntegration: integrate
 #= === =#
 #  NBI  #
 #= === =#
-Base.@kwdef mutable struct ActorNBIsimple <: HCDAbstractActor
+mutable struct ActorNBIsimple <: HCDAbstractActor
     dd::IMAS.dd
-    width::Vector{Real}
-    rho_0::Vector{Real}
-    current_efficiency::Vector{Real}
+    par::ParametersActor
+    width::AbstractVector{<:Real}
+    rho_0::AbstractVector{<:Real}
+    current_efficiency::AbstractVector{<:Real}
 end
 
 function ParametersActor(::Type{Val{:ActorNBIsimple}})
     par = ParametersActor(nothing)
-    par.width = Entry(Real, "", "Width of the deposition profile"; default=0.3)
-    par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Real, "A/W", "Current drive efficiency"; default=0.3)
+    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.3)
+    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.3)
     return par
 end
 
@@ -28,15 +29,17 @@ This actor estimates the NBI ion/electron energy deposition, particle source, ro
 """
 function ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNBIsimple(kw...)
-    actor = ActorNBIsimple(dd; par.width, par.rho_0, par.current_efficiency)
+    actor = ActorNBIsimple(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorNBIsimple(dd::IMAS.dd; width::Real=0.3, rho_0::Real=0.0, current_efficiency::Real=0.3)
-    nbeam = ones(length(dd.nbi.unit))
-    return ActorNBIsimple(dd, nbeam .* width, nbeam .* rho_0, nbeam .* current_efficiency)
+function ActorNBIsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    n_beams = length(dd.nbi.unit)
+    _, width, rho_0, current_efficiency = same_length_vectors(1:n_beams, par.width, par.rho_0, par.current_efficiency)
+    return ActorNBIsimple(dd, par, width, rho_0, current_efficiency)
 end
 
 function step(actor::ActorNBIsimple)
@@ -87,18 +90,19 @@ end
 #= == =#
 #  EC  #
 #= == =#
-Base.@kwdef mutable struct ActorECsimple <: HCDAbstractActor
+mutable struct ActorECsimple <: HCDAbstractActor
     dd::IMAS.dd
-    width::Vector{Real}
-    rho_0::Vector{Real}
-    current_efficiency::Vector{Real}
+    par::ParametersActor
+    width::AbstractVector{<:Real}
+    rho_0::AbstractVector{<:Real}
+    current_efficiency::AbstractVector{<:Real}
 end
 
 function ParametersActor(::Type{Val{:ActorECsimple}})
     par = ParametersActor(nothing)
-    par.width = Entry(Real, "", "Width of the deposition profile"; default=0.1)
-    par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Real, "A/W", "Current drive efficiency"; default=0.2)
+    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
+    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.2)
     return par
 end
 
@@ -112,19 +116,21 @@ This actor estimates the EC electron energy deposition and current drive as a ga
 """
 function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorECsimple(kw...)
-    actor = ActorECsimple(dd; par.width, par.rho_0, par.current_efficiency)
+    actor = ActorECsimple(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorECsimple(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.2)
-    n_launchers = ones(length(dd.ec_launchers.launcher))
-    return ActorECsimple(dd, n_launchers .* width, n_launchers .* rho_0, n_launchers .* current_efficiency)
+function ActorECsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    n_launchers = length(dd.ec_launchers.beam)
+    _, width, rho_0, current_efficiency = same_length_vectors(1:n_launchers, par.width, par.rho_0, par.current_efficiency)
+    return ActorECsimple(dd, par, width, rho_0, current_efficiency)
 end
 
 function step(actor::ActorECsimple)
-    for (idx, ecl) in enumerate(actor.dd.ec_launchers.launcher)
+    for (idx, ecl) in enumerate(actor.dd.ec_launchers.beam)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
         cs = actor.dd.core_sources
@@ -163,18 +169,19 @@ end
 #= == =#
 #  IC  #
 #= == =#
-Base.@kwdef mutable struct ActorICsimple <: HCDAbstractActor
+mutable struct ActorICsimple <: HCDAbstractActor
     dd::IMAS.dd
-    width::Vector{Real}
-    rho_0::Vector{Real}
-    current_efficiency::Vector{Real}
+    par::ParametersActor
+    width::AbstractVector{<:Real}
+    rho_0::AbstractVector{<:Real}
+    current_efficiency::AbstractVector{<:Real}
 end
 
 function ParametersActor(::Type{Val{:ActorICsimple}})
     par = ParametersActor(nothing)
-    par.width = Entry(Real, "", "Width of the deposition profile"; default=0.1)
-    par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Real, "A/W", "Current drive efficiency"; default=0.125)
+    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
+    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.125)
     return par
 end
 
@@ -188,15 +195,17 @@ This actor estimates the ion-cyclotron electron/ion energy deposition and curren
 """
 function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorICsimple(kw...)
-    actor = ActorICsimple(dd; par.width, par.rho_0, par.current_efficiency)
+    actor = ActorICsimple(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorICsimple(dd::IMAS.dd; width::Real=0.1, rho_0::Real=0.0, current_efficiency::Real=0.125)
-    n_antennas = ones(length(dd.ic_antennas.antenna))
-    return ActorICsimple(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
+function ActorICsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    n_antennas = length(dd.ic_antennas.antenna)
+    _, width, rho_0, current_efficiency = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.current_efficiency)
+    return ActorICsimple(dd, par, width, rho_0, current_efficiency)
 end
 
 function step(actor::ActorICsimple)
@@ -239,18 +248,19 @@ end
 #= == =#
 #  LH  #
 #= == =#
-Base.@kwdef mutable struct ActorLHsimple <: HCDAbstractActor
+mutable struct ActorLHsimple <: HCDAbstractActor
     dd::IMAS.dd
-    width::Vector{Real}
-    rho_0::Vector{Real}
-    current_efficiency::Vector{Real}
+    par::ParametersActor
+    width::AbstractVector{<:Real}
+    rho_0::AbstractVector{<:Real}
+    current_efficiency::AbstractVector{<:Real}
 end
 
 function ParametersActor(::Type{Val{:ActorLHsimple}})
     par = ParametersActor(nothing)
-    par.width = Entry(Real, "", "Width of the deposition profile"; default=0.15)
-    par.rho_0 = Entry(Real, "", "Radial location of the deposition profile"; default=0.6)
-    par.current_efficiency = Entry(Real, "A/W", "Current drive efficiency"; default=0.4)
+    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.15)
+    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.6)
+    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.4)
     return par
 end
 
@@ -264,15 +274,17 @@ This actor estimates the Lower-hybrid electron energy deposition and current dri
 """
 function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorLHsimple(kw...)
-    actor = ActorLHsimple(dd; par.width, par.rho_0, par.current_efficiency)
+    actor = ActorLHsimple(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorLHsimple(dd::IMAS.dd; width::Real=0.15, rho_0::Real=0.6, current_efficiency::Real=0.4)
-    n_antennas = ones(length(dd.lh_antennas.antenna))
-    return ActorICsimple(dd, n_antennas .* width, n_antennas .* rho_0, n_antennas .* current_efficiency)
+function ActorLHsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    n_antennas = length(dd.lh_antennas.antenna)
+    _, width, rho_0, current_efficiency = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.current_efficiency)
+    return ActorLHsimple(dd, par, width, rho_0, current_efficiency)
 end
 
 function step(actor::ActorLHsimple)

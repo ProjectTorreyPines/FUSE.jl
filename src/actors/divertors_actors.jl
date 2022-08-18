@@ -2,8 +2,9 @@
 #  ActorDivertors  #
 #= ============== =#
 
-Base.@kwdef mutable struct ActorDivertors <: ReactorAbstractActor
+mutable struct ActorDivertors <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
     thermal_power_extraction_efficiency::Real
 end
 
@@ -24,10 +25,15 @@ Simple Divertor actor
 """
 function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorDivertors(kw...)
-    actor = ActorDivertors(dd, par.thermal_power_extraction_efficiency)
+    actor = ActorDivertors(dd, par)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorDivertors(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorDivertors(dd, par, par.thermal_power_extraction_efficiency)
 end
 
 function step(actor::ActorDivertors)

@@ -7,8 +7,6 @@ import Plots
 using Plots
 using Printf
 
-Plots.default(background_color_legend = Plots.Colors.RGBA(1.0,1.0,1.0,0.6))
-
 #= ===== =#
 #  UTILS  #
 #= ===== =#
@@ -19,11 +17,6 @@ include("utils.jl")
 #= ========== =#
 include("parameters.jl")
 include("parameters_init.jl")
-
-#= ============== =#
-#  GASC interface  #
-#= ============== =#
-include("gasc.jl")
 
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
@@ -41,6 +34,7 @@ include(joinpath("ddinit", "init_core_profiles.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
+include(joinpath("ddinit", "gasc.jl"))
 
 #= ====== =#
 #  ACTORS  #
@@ -49,6 +43,7 @@ include(joinpath("ddinit", "init_others.jl"))
 include(joinpath("actors", "abstract_actors.jl"))
 include(joinpath("actors", "equilibrium_actors.jl"))
 include(joinpath("actors", "pf_active_actors.jl"))
+include(joinpath("actors", "pf_passive_actors.jl"))
 include(joinpath("actors", "stresses_actors.jl"))
 include(joinpath("actors", "build_actors.jl"))
 include(joinpath("actors", "blanket_actors.jl"))
@@ -58,8 +53,10 @@ include(joinpath("actors", "divertors_actors.jl"))
 include(joinpath("actors", "sources_actors.jl"))
 include(joinpath("actors", "transport_actors.jl"))
 include(joinpath("actors", "costing_actors.jl"))
-include(joinpath("actors", "compound_actors.jl"))
 include(joinpath("actors", "neutronics_actors.jl"))
+include(joinpath("actors", "pedestal_actors.jl"))
+# NOTE: compound actors should be defined last
+include(joinpath("actors", "compound_actors.jl"))
 
 #= ============ =#
 #  OPTIMIZATION  #

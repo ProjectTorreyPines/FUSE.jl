@@ -1,7 +1,6 @@
 using Revise
 using FUSE
 using Test
-using InteractiveUtils: subtypes
 
 @testset "ParametersInit" begin
     par = FUSE.ParametersAllInits()
@@ -53,5 +52,9 @@ using InteractiveUtils: subtypes
         par = Symbol(replace(string(par), "FUSE." => ""))
         @test typeof(FUSE.ParametersActor(par)) <: FUSE.ParametersActor
     end
+
+    # save load
+    FUSE.dict2par!(FUSE.par2dict(ini), FUSE.ParametersAllInits())
+    FUSE.dict2par!(FUSE.par2dict(act), FUSE.ParametersAllActors())
 
 end

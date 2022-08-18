@@ -7,6 +7,7 @@ import IMAS
 import IMASDD
 import AbstractTrees
 import ProgressMeter
+using InteractiveUtils: subtypes
 
 function html_link_repr(par::FUSE.AbstractParameter)
     return "©" * join(FUSE.path(par), ".") * "©©" * string(par._name) * "©"

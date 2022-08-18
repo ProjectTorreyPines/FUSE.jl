@@ -1,3 +1,9 @@
+#= =============== =#
+#  ActorNeutronics  #
+#= =============== =#
+
+using MillerExtendedHarmonic
+
 mutable struct neutron_particle
     x
     y
@@ -15,12 +21,13 @@ function Zcoord(n::neutron_particle)
     n.z
 end
 
-#= =============== =#
-#  ActorNeutronics  #
-#= =============== =#
-
-Base.@kwdef mutable struct ActorNeutronics <: PlasmaAbstractActor
+mutable struct ActorNeutronics <: PlasmaAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
+    function ActorNeutronics(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorNeutronics}})
@@ -41,13 +48,13 @@ This actor estimates the neutron loading on the wall using the fusion source fro
 """
 function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNeutronics(kw...)
-    actor = ActorNeutronics(dd)
-    step(actor; N=par.N, step=par.step, do_plot=par.do_plot)
+    actor = ActorNeutronics(dd, par)
+    step(actor)
     finalize(actor)
     return actor
 end
 
-function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Bool=false)
+function step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.step, do_plot::Bool=actor.par.do_plot)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
@@ -81,14 +88,9 @@ function step(actor::ActorNeutronics; N::Integer=100000, step=0.05, do_plot::Boo
     # resample wall and make sure it's clockwise (for COCOS = 11)
     wall = IMAS.first_wall(dd.wall)
     wall_r, wall_z = IMAS.resample_2d_line(wall.r, wall.z; step=0.1)
-    #wall_r, wall_z = deepcopy(wall.r), deepcopy(wall.z)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
-    θ = unwrap(atan.(wall_z .- Z0, wall_r .- R0))
-    if θ[1] < θ[end]
-        reverse!(wall_r)
-        reverse!(wall_z)
-    end
+    IMAS.reorder_flux_surface!(wall_r, wall_z, R0, Z0)
 
     # advance neutrons until they hit the wall
     rz_wall = collect(zip(wall_r, wall_z))

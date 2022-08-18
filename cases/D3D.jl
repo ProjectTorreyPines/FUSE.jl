@@ -3,7 +3,7 @@
 
 DIII-D
 """
-function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits, ParametersAllActors}
+function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersAllInits()
     act = ParametersAllActors()
 
@@ -27,7 +27,6 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits, Parameter
     ini.tf.technology = coil_technology(:copper)
 
     ini.oh.technology = coil_technology(:copper)
-    ini.oh.flattop_duration = 5
 
     ini.core_profiles.ne_ped = 5E19
     ini.core_profiles.greenwald_fraction = 0.7
@@ -43,6 +42,8 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits, Parameter
     ini.nbi.beam_energy = 80e3
     ini.nbi.beam_mass = 2
     ini.nbi.toroidal_angle = 20.0 / 180 * pi
+
+    ini.target.flattop_duration = 5
 
     act.ActorPFcoilsOpt.symmetric = true
 

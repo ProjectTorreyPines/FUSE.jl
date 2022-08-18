@@ -29,7 +29,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.Z0 = 0.4
         ini.equilibrium.ip = 15e6
-        ini.equilibrium.βn = 2.0
+        ini.equilibrium.pressure_core = 0.643e6
         ini.equilibrium.x_point = true
         ini.equilibrium.symmetric = false
         ini.equilibrium.MXH_params = [
@@ -37,8 +37,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
             0.15912, -0.05842, -0.04573, 0.00694, 0.00614,
             0.00183, 0.43714, 0.09583, -0.05597, -0.01655,
             0.00204, 0.00306]
+        ini.equilibrium.boundary_from = :MXH_params
         act.ActorCXbuild.rebuild_wall = true
         act.ActorHFSsizing.fixed_aspect_ratio = true
+        # act.ActorEquilibrium.model = :CHEASE
     end
 
     # explicitly set thickness of radial build layers
@@ -48,9 +50,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     layers[:hfs_TF] = 1.10
     layers[:hfs_vacuum_vessel] = 0.30
     layers[:hfs_shield] = 0.40
-    layers[:hfs_wall] = 0.06
+    layers[:hfs_wall] = 0.1
     layers[:plasma] = 4.40
-    layers[:lfs_wall] = 0.17
+    layers[:lfs_wall] = 0.1
     layers[:lfs_shield] = 0.40
     layers[:lfs_vacuum_vessel] = 1.05
     layers[:lfs_TF] = 1.10
@@ -69,8 +71,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.tf.technology = coil_technology(:ITER, :TF)
 
     ini.oh.technology = coil_technology(:ITER, :OH)
-    ini.oh.flattop_duration = 1000
     act.ActorFluxSwing.operate_at_j_crit = false
+
+    ini.target.flattop_duration = 1800
 
     ini.core_profiles.ne_ped = 7e19
     ini.core_profiles.greenwald_fraction = 0.9

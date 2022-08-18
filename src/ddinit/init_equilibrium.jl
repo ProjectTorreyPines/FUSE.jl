@@ -31,7 +31,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             κ=ini.equilibrium.κ,
             δ=ini.equilibrium.δ,
             ζ=ini.equilibrium.ζ,
-            βn=ini.equilibrium.βn,
+            pressure_core=ini.equilibrium.pressure_core,
             ip=ini.equilibrium.ip,
             boundary_switch=ini.equilibrium.boundary_from,
             MXH_params=getproperty(ini.equilibrium, :MXH_params, missing),
@@ -39,7 +39,10 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             symmetric=ini.equilibrium.symmetric)
 
         # solve equilibrium
-        ActorEquilibrium(dd, act)
+        act_copy = deepcopy(act)
+        act_copy.ActorCHEASE.rescale_eq_to_ip = true
+        ActorEquilibrium(dd, act_copy)
+
     end
 
     # field null surface
@@ -54,7 +57,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
 end
 
 """
-    function init_equilibrium(
+    init_equilibrium(
         eq::IMAS.equilibrium;
         B0::Real,
         R0::Real,
@@ -63,9 +66,12 @@ end
         κ::Real,
         δ::Real,
         ζ::Real,
-        βn::Real,
+        pressure_core::Real,
         ip::Real,
-        x_point::Union{Vector,NTuple{2},Bool} = false,
+        boundary_switch::Symbol,
+        rz_points::Union{Missing,Vector{Vector{<:Real}}}=missing,
+        MXH_params::Union{Missing,Vector{<:Real}}=missing,
+        x_point::Union{AbstractVector,NTuple{2},Bool}=false,
         symmetric::Bool=true)
 
 Initialize equilibrium IDS based on some basic Miller geometry parameters
@@ -79,7 +85,7 @@ function init_equilibrium(
     κ::Real,
     δ::Real,
     ζ::Real,
-    βn::Real,
+    pressure_core::Real,
     ip::Real,
     boundary_switch::Symbol,
     rz_points::Union{Missing,Vector{Vector{<:Real}}}=missing,
@@ -115,34 +121,32 @@ function init_equilibrium(
 
     # scalar quantities
     eqt.global_quantities.ip = ip
-    eqt.global_quantities.beta_normal = βn
     eq.vacuum_toroidal_field.r0 = R0
     @ddtime eq.vacuum_toroidal_field.b0 = B0
 
     # initial guesses for pressure and j_tor
     eq1d = eqt.profiles_1d
     psin = eq1d.psi = LinRange(0, 1, 129)
-    p_core_estimate = 6.0 * IMAS.pressure_avg_from_beta_n(βn, minor_radius, B0, ip)
     eq1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
-    eq1d.pressure = p_core_estimate .- p_core_estimate .* psin
+    eq1d.pressure = pressure_core .* (1.0 .- psin)
 
-    # R,Z boundary from: points
     if boundary_switch == :rz_points
+        # R,Z boundary from: points
         if ismissing(rz_points)
             error("ini.equilibrium.boundary_from is set as $boundary_switch but rz_points wasn't set")
         end
         eqt.boundary.outline.r, eqt.boundary.outline.z = rz_points[1], rz_points[2]
 
-    # R,Z boundary from: MXH
     elseif boundary_switch == :MXH_params
+        # R,Z boundary from: MXH
         if ismissing(MXH_params)
             error("ini.equilibrium.boundary_from is set as $boundary_switch but MXH_params wasn't set")
         end
         mxh = IMAS.MXH(MXH_params)()
         eqt.boundary.outline.r, eqt.boundary.outline.z = mxh[1], mxh[2]
 
-    # R,Z boundary from: scalars
     elseif boundary_switch == :scalars
+        # R,Z boundary from: scalars
         eqt.boundary.outline.r, eqt.boundary.outline.z = square_miller(R0, ϵ, κ, δ, ζ; exact=true, x_points=x_point !== false)
         eqt.boundary.outline.z .+= Z0
     end

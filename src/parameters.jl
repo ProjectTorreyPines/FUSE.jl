@@ -1,9 +1,7 @@
-using InteractiveUtils: subtypes
 import AbstractTrees
 
 abstract type AbstractParameter end
 abstract type AbstractParameters end
-abstract type AbstractParametersActor end
 
 #= ===== =#
 #  Entry  #
@@ -199,7 +197,7 @@ Generates all initalization parameters
 """
 function ParametersAllInits()
     ini = ParametersAllInits(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersInit}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material, :target]
         setproperty!(ini, item, ParametersInit(item))
     end
     ini._name = :ini
@@ -254,7 +252,7 @@ function ParametersAllActors()
             setproperty!(act, par, ParametersActor(par))
         catch e
             if typeof(e) <: InexistentParameterException
-                @warn e
+                @warn sprint(showerror, e)
             else
                 rethrow()
             end
@@ -286,6 +284,10 @@ end
 
 function Base.keys(p::AbstractParameters)
     return keys(getfield(p, :_parameters))
+end
+
+function Base.values(p::AbstractParameters)
+    return values(getfield(p, :_parameters))
 end
 
 function Base.getindex(p::AbstractParameters, field::Symbol)
@@ -398,30 +400,12 @@ function Base.iterate(par::AbstractParameters, state)
         return nothing
     end
     key = popfirst!(state)
-    data = par[key].value
+    data = par[key]#.value
     return key => data, state
 end
 
 function Base.show(io::IO, ::MIME"text/plain", pars::AbstractParameters, depth::Int=0)
     return AbstractTrees.print_tree(io, pars)
-end
-
-function AbstractTrees.children(obj::AbstractDict)
-    return [obj[k] for k in sort(collect(keys(obj)))]
-end
-
-function AbstractTrees.children(obj::Pair)
-    return []
-end
-
-function AbstractTrees.printnode(io::IO, obj::Pair)
-    printstyled(io, obj.first)
-    printstyled(io, " ➡ ")
-    if typeof(obj.second) <: AbstractFloat
-        printstyled(io, @sprintf("%3.3f", obj.second))
-    else
-        printstyled(io, "$(repr(obj.second))")
-    end
 end
 
 function AbstractTrees.children(pars::AbstractParameters)
@@ -448,7 +432,7 @@ function AbstractTrees.printnode(io::IO, par::AbstractParameter)
         printstyled(io, par._name)
         printstyled(io, " ➡ ")
         printstyled(io, "$(repr(par.value))"; color=color)
-        if length(par.units) > 0 && par.value !== missing
+        if length(replace(par.units, "-" => "")) > 0 && par.value !== missing
             printstyled(io, " [$(par.units)]"; color=color)
         end
     end
@@ -476,8 +460,8 @@ end
 This functor is used to override the parameters at function call
 """
 function (par::AbstractParameters)(kw...)
+    par = deepcopy(par)
     if !isempty(kw)
-        par = deepcopy(par)
         for (key, value) in kw
             setproperty!(par, key, value)
         end
@@ -518,19 +502,19 @@ Convert FUSE parameters to dictionary
 """
 function par2dict(par::AbstractParameters)
     ret = Dict()
-    return par2dict(par, ret)
+    return par2dict!(par, ret)
 end
 
-function par2dict(par::AbstractParameters, ret::AbstractDict)
+function par2dict!(par::AbstractParameters, ret::AbstractDict)
     data = getfield(par, :_parameters)
-    return par2dict(data, ret)
+    return par2dict!(data, ret)
 end
 
-function par2dict(data::AbstractDict, ret::AbstractDict)
+function par2dict!(data::AbstractDict, ret::AbstractDict)
     for item in keys(data)
         if typeof(data[item]) <: AbstractParameters
             ret[item] = Dict()
-            par2dict(data[item], ret[item])
+            par2dict!(data[item], ret[item])
         elseif typeof(data[item]) <: AbstractParameter
             ret[item] = Dict()
             ret[item][:value] = data[item].value
@@ -542,15 +526,74 @@ function par2dict(data::AbstractDict, ret::AbstractDict)
 end
 
 """
-    par2json(@nospecialize(par::AbstractParameters), filename::String; kw...)
+    ini2json(ini::ParametersAllInits, filename::String; kw...)
 
 Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
+function ini2json(ini::ParametersAllInits, filename::String; kw...)
+    return par2json(ini, filename; kw...)
+end
+
+"""
+    act2json(act::ParametersAllActors, filename::String; kw...)
+
+Save the FUSE parameters to a JSON file with give `filename`
+`kw` arguments are passed to the JSON.print function
+"""
+function act2json(act::ParametersAllActors, filename::String; kw...)
+    return par2json(act, filename; kw...)
+end
+
 function par2json(@nospecialize(par::AbstractParameters), filename::String; kw...)
     open(filename, "w") do io
-        JSON.print(io, par2dict(par); kw...)
+        JSON.print(io, par2dict(par), 1; kw...)
     end
+end
+
+function dict2par!(dct::AbstractDict, par::AbstractParameters)
+    for (key, val) in par
+        if key ∈ keys(dct)
+            # this is if dct was par2dict function
+            dkey = key
+            dvalue = :value
+        else
+            # this is if dct was generated from json
+            dkey = string(key)
+            dvalue = "value"
+        end
+        if typeof(val) <: AbstractParameters
+            dict2par!(dct[dkey], val)
+        elseif dct[dkey][dvalue] === nothing
+            setproperty!(par, key, missing)
+        elseif typeof(dct[dkey][dvalue]) <: AbstractVector # this could be done more generally
+            setproperty!(par, key, Real[k for k in dct[dkey][dvalue]])
+        else
+            try
+                setproperty!(par, key, Symbol(dct[dkey][dvalue]))
+            catch e
+                try
+                    setproperty!(par, key, dct[dkey][dvalue])
+                catch e
+                    display((key, e))
+                end
+            end
+        end
+    end
+    return par
+end
+
+function json2par(filename::AbstractString, par_data::AbstractParameters)
+    json_data = JSON.parsefile(filename)
+    return dict2par!(json_data, par_data)
+end
+
+function json2ini(filename::AbstractString)
+    return json2par(filename, ParametersAllInits())
+end
+
+function json2act(filename::AbstractString)
+    return json2par(filename, ParametersAllActors())
 end
 
 #= ================= =#
@@ -560,7 +603,7 @@ struct InexistentParameterException <: Exception
     parameter_type::DataType
     path::Vector{Symbol}
 end
-Base.showerror(io::IO, e::InexistentParameterException) = print(io, "ERROR: $(e.parameter_type) $(join(e.path,".")) does not exist")
+Base.showerror(io::IO, e::InexistentParameterException) = print(io, "$(e.parameter_type).$(join(e.path,".")) does not exist")
 
 struct NotsetParameterException <: Exception
     path::Vector{Symbol}
@@ -569,9 +612,9 @@ end
 NotsetParameterException(path::Vector{Symbol}) = NotsetParameterException(path, [])
 function Base.showerror(io::IO, e::NotsetParameterException)
     if length(e.options) > 0
-        print(io, "ERROR: Parameter $(join(e.path,".")) is not set. Valid options are: $(join(map(repr,e.options),", "))")
+        print(io, "Parameter $(join(e.path,".")) is not set. Valid options are: $(join(map(repr,e.options),", "))")
     else
-        print(io, "ERROR: Parameter $(join(e.path,".")) is not set")
+        print(io, "Parameter $(join(e.path,".")) is not set")
     end
 end
 
@@ -581,7 +624,7 @@ struct BadParameterException <: Exception
     options::Vector{Any}
 end
 Base.showerror(io::IO, e::BadParameterException) =
-    print(io, "ERROR: Parameter $(join(e.path,".")) = $(repr(e.value)) is not one of the valid options: $(join(map(repr,e.options),", "))")
+    print(io, "Parameter $(join(e.path,".")) = $(repr(e.value)) is not one of the valid options: $(join(map(repr,e.options),", "))")
 
 #= ============ =#
 #  case studies  #

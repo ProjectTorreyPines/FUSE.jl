@@ -1,11 +1,25 @@
 import JSON
 import PeriodicTable: elements
 
-struct GASC
+mutable struct GASC
     filename::String
+    data::Dict
     case::Int
-    solution::Dict
     version::Int
+end
+
+function Base.getproperty(gasc::GASC, field::Symbol)
+    if field == :solution
+        return getfield(gasc, :data)["SOLUTIONS"][gasc.case+1]
+    elseif field == :outputs
+        return getfield(gasc, :data)["SOLUTIONS"][gasc.case+1]["OUTPUTS"]
+    elseif field == :inputs
+        return getfield(gasc, :data)["SOLUTIONS"][gasc.case+1]["INPUTS"]
+    elseif field == :constraints
+        return getfield(gasc, :data)["SETUP"]["SETTINGS"]["constraints"]
+    else
+        return getfield(gasc, field)
+    end
 end
 
 """
@@ -24,12 +38,11 @@ function GASC(filename::String, case::Int)
         version = 1
     end
     # GASC struct
-    gasc = GASC(filename, case, data["SOLUTIONS"][case_j], version)
-    # convert list of floats to arrays 
-    for item in keys(gasc.solution["OUTPUTS"]["numerical profiles"])
-        if item in ["boundaryInnerTF", "boundaryOuterTF"]
-        else
-            gasc.solution["OUTPUTS"]["numerical profiles"][item] = Vector{Float64}(gasc.solution["OUTPUTS"]["numerical profiles"][item])
+    gasc = GASC(filename, data, case, version)
+    # convert list of floats to arrays
+    for item in keys(gasc.outputs["numerical profiles"])
+        if item ∉ ["boundaryInnerTF", "boundaryOuterTF"]
+            gasc.outputs["numerical profiles"][item] = Vector{Float64}(gasc.outputs["numerical profiles"][item])
         end
     end
     return gasc
@@ -46,10 +59,12 @@ function case_parameters(gasc::GASC)
 
     ini.gasc.filename = gasc.filename
     ini.gasc.case = gasc.case
-    ini.general.casename = "GASC"
+    ini.general.casename = gasc.data["LABEL"]
     ini.general.init_from = :scalars
 
     gasc_2_build(gasc, ini, act)
+
+    gasc_2_target(gasc, ini, act)
 
     gasc_2_equilibrium(gasc, ini, act)
 
@@ -66,19 +81,17 @@ end
 Convert core_profiles information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_core_profiles(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    gascsol = gasc.solution
-
-    ini.core_profiles.ne_ped = gascsol["OUTPUTS"]["plasma parameters"]["neped"] * 1e20
-    ini.core_profiles.greenwald_fraction = gascsol["OUTPUTS"]["plasma parameters"]["greenwaldFraction"]
+    ini.core_profiles.ne_ped = gasc.outputs["plasma parameters"]["neped"] * 1e20
+    ini.core_profiles.greenwald_fraction = gasc.outputs["plasma parameters"]["greenwaldFraction"]
     ini.core_profiles.T_shaping = 1.8
-    i_ped = argmin(abs.(gascsol["OUTPUTS"]["numerical profiles"]["neProf"] .- gascsol["OUTPUTS"]["plasma parameters"]["neped"] / gascsol["OUTPUTS"]["plasma parameters"]["ne0"]))
-    ini.core_profiles.w_ped = 1 - gascsol["OUTPUTS"]["numerical profiles"]["rProf"][i_ped]
-    ini.core_profiles.zeff = gascsol["OUTPUTS"]["impurities"]["effectiveZ"]
+    i_ped = argmin(abs.(gasc.outputs["numerical profiles"]["neProf"] .- gasc.outputs["plasma parameters"]["neped"] / gasc.outputs["plasma parameters"]["ne0"]))
+    ini.core_profiles.w_ped = 1 - gasc.outputs["numerical profiles"]["rProf"][i_ped]
+    ini.core_profiles.zeff = gasc.outputs["impurities"]["effectiveZ"]
     ini.core_profiles.rot_core = 0.0  # Not in GASC
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.helium_fraction = gascsol["INPUTS"]["impurities"]["heliumFraction"]
-    ini.core_profiles.impurity = Symbol(elements[Int(gascsol["INPUTS"]["impurities"]["impurityZ"])].symbol)
-    ini.core_profiles.ejima = gascsol["INPUTS"]["plasma parameters"]["ejimaCoeff"]
+    ini.core_profiles.helium_fraction = gasc.inputs["impurities"]["heliumFraction"]
+    ini.core_profiles.impurity = Symbol(elements[Int(gasc.inputs["impurities"]["impurityZ"])].symbol)
+    ini.core_profiles.ejima = gasc.inputs["plasma parameters"]["ejimaCoeff"]
     return ini
 end
 
@@ -88,17 +101,22 @@ end
 Convert equilibrium information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    gascsol = gasc.solution
-    ini.equilibrium.B0 = gascsol["INPUTS"]["conductors"]["magneticFieldOnAxis"]
-    ini.equilibrium.R0 = gascsol["INPUTS"]["radial build"]["majorRadius"]
+    ini.equilibrium.B0 = gasc.inputs["conductors"]["magneticFieldOnAxis"]
+    ini.equilibrium.R0 = gasc.inputs["radial build"]["majorRadius"]
     ini.equilibrium.Z0 = 0.0
-    ini.equilibrium.ϵ = 1 / gascsol["INPUTS"]["radial build"]["aspectRatio"]
-    ini.equilibrium.κ = gascsol["OUTPUTS"]["plasma parameters"]["elongation"]
-    ini.equilibrium.δ = gascsol["INPUTS"]["plasma parameters"]["triangularity"]
-    ini.equilibrium.βn = gascsol["OUTPUTS"]["plasma parameters"]["betaN"]
-    ini.equilibrium.ip = gascsol["INPUTS"]["plasma parameters"]["plasmaCurrent"] * 1E6
-    ini.equilibrium.x_point = gascsol["INPUTS"]["divertor metrics"]["numberDivertors"] > 0
-    ini.equilibrium.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
+    ini.equilibrium.ϵ = 1 / gasc.inputs["radial build"]["aspectRatio"]
+    ini.equilibrium.κ = gasc.outputs["plasma parameters"]["elongation"]
+    ini.equilibrium.δ = gasc.inputs["plasma parameters"]["triangularity"]
+
+    Pavg = gasc.outputs["plasma parameters"]["pressureVolAvg"]
+    V = gasc.outputs["plasma parameters"]["plasmaVolume"]
+    vol = gasc.outputs["numerical profiles"]["volumeProf"] .* V
+    P1 = sum(IMAS.gradient(vol) .* LinRange(1.0, 0.0, length(vol))) / V
+    ini.equilibrium.pressure_core = Pavg / P1
+
+    ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
+    ini.equilibrium.x_point = gasc.inputs["divertor metrics"]["numberDivertors"] > 0
+    ini.equilibrium.symmetric = (mod(gasc.inputs["divertor metrics"]["numberDivertors"], 2) == 0)
     return ini
 end
 
@@ -108,10 +126,8 @@ end
 Convert sources (NBI, EC, IC, LH) information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    gascsol = gasc.solution
-
-    inputs = gascsol["INPUTS"]["current drive"]
-    outputs = gascsol["OUTPUTS"]["current drive"]
+    inputs = gasc.inputs["current drive"]
+    outputs = gasc.outputs["current drive"]
 
     cd_powers = Float64[]
     ini.nbi.power_launched = Float64[]
@@ -185,29 +201,37 @@ end
 Convert radial build information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    gascsol = gasc.solution
-    ini.build.layers = gasc_2_layers(gascsol)
-    ini.build.symmetric = (mod(gascsol["INPUTS"]["divertor metrics"]["numberDivertors"], 2) == 0)
+    ini.build.layers = gasc_2_layers(gasc)
+    ini.build.symmetric = (mod(gasc.inputs["divertor metrics"]["numberDivertors"], 2) == 0)
 
     ini.tf.technology = gasc_2_coil_technology(gasc, :TF)
     ini.oh.technology = gasc_2_coil_technology(gasc, :OH)
     ini.pf_active.technology = gasc_2_coil_technology(gasc, :PF)
 
-    ini.center_stack.bucked = gascsol["INPUTS"]["radial build"]["isBucked"]
-    ini.center_stack.noslip = gascsol["INPUTS"]["radial build"]["nonSlip"]
-    ini.center_stack.plug = gascsol["INPUTS"]["radial build"]["hasPlug"]
-
-    ini.oh.flattop_duration = gascsol["INPUTS"]["plasma parameters"]["flattopDuration"]
+    ini.center_stack.bucked = gasc.inputs["radial build"]["isBucked"]
+    ini.center_stack.noslip = gasc.inputs["radial build"]["nonSlip"]
+    ini.center_stack.plug = gasc.inputs["radial build"]["hasPlug"]
     return ini
 end
 
 """
-    function gasc_2_layers(gascsol::Dict)
+    gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+
+Convert nominal target design information in GASC solution to FUSE `ini` and `act` parameters
+"""
+function gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+    ini.target.flattop_duration = gasc.inputs["plasma parameters"]["flattopDuration"]
+    ini.target.power_electric_net = gasc.constraints["lowerOutputConstraints"]["powerNet"] * 1E6
+    return ini
+end
+
+"""
+    function gasc_2_layers(gasc::GASC)
 
 Convert GASC ["OUTPUTS"]["radial build"] to FUSE build layers dictionary
 """
-function gasc_2_layers(gascsol::Dict)
-    gascrb = gascsol["OUTPUTS"]["radial build"]
+function gasc_2_layers(gasc::GASC)
+    gascrb = gasc.outputs["radial build"]
 
     layers = DataStructures.OrderedDict()
     mapper = Dict(
@@ -252,7 +276,7 @@ function gasc_2_layers(gascsol::Dict)
         d = gascrb[replace(g2, "InnerTF" => "TF")] - gascrb[replace(g1, "InnerTF" => "TF")]
         f1 = mapper[replace(replace(replace(replace(g1, "Ri" => ""), "Ro" => ""), "Inner" => ""), "Outer" => "")]
         f2 = mapper[replace(replace(replace(replace(g2, "Ri" => ""), "Ro" => ""), "Inner" => ""), "Outer" => "")]
-        if startswith(g1, "Ri")
+        if startswith(g1, "Ri") # hfs
             if contains(g1, "Inner")
                 f1 = "hfs_" * f1
             elseif contains(g1, "Outer")
@@ -261,7 +285,8 @@ function gasc_2_layers(gascsol::Dict)
             f = f1
             f = replace(f, r".fs_gap_TF_OH" => "gap_TF_OH")
             layers[f] = d
-        elseif startswith(g1, "Ro") && d > 0
+
+        elseif startswith(g1, "Ro") && (d > 0) # lfs
             if contains(g2, "Outer")
                 f = "lfs_gap_$(f1)_$(f2)"
             else
@@ -281,15 +306,46 @@ function gasc_2_layers(gascsol::Dict)
         end
     end
 
-    if false # to remove gap that prevents bucking
-        for k in collect(keys(layers))
-            if k == "gap_TF_OH"
-                layers["OH"] += layers["gap_TF_OH"]
-                delete!(layers, k)
-            end
+    return layers
+end
+
+"""
+    gasc_buck_OH_TF!(layers::DataStructures.OrderedDict)
+
+Remove gap between OH and TF to allow bucking (gap gets added to OH thickness)
+"""
+function gasc_buck_OH_TF!(layers::DataStructures.OrderedDict)
+    for k in collect(keys(layers))
+        if k == "gap_TF_OH"
+            layers["OH"] += layers["gap_TF_OH"]
+            delete!(layers, k)
         end
     end
+    return layers
+end
 
+"""
+    gasc_add_wall_layers!(layers::DataStructures.OrderedDict, thickness::Float64)
+
+Add wall layer of given thickness expressed [meters] (gets subtracted from blanket layer)
+"""
+function gasc_add_wall_layers!(layers::DataStructures.OrderedDict; thickness::Float64)
+    tmp = DataStructures.OrderedDict()
+    for layer in keys(layers)
+        if layer == "hfs_blanket"
+            tmp[layer] = layers[layer] - thickness
+            tmp["hfs_first_wall"] = thickness
+        elseif layer == "lfs_blanket"
+            tmp["lfs_first_wall"] = thickness
+            tmp[layer] = layers[layer] - thickness
+        else
+            tmp[layer] = layers[layer]
+        end
+    end
+    empty!(layers)
+    for layer in keys(tmp)
+        layers[layer] = tmp[layer]
+    end
     return layers
 end
 
@@ -299,35 +355,34 @@ end
 Convert coil technology information in GASC solution to FUSE `coil_technology` data structure
 """
 function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
-    gascsol = gasc.solution
     if coil_type ∉ [:OH, :TF, :PF]
         error("Supported coil type are [:OH, :TF, :PF]")
     end
-    if gascsol["INPUTS"]["conductors"]["superConducting"] == "copper"
+    if gasc.inputs["conductors"]["superConducting"] == "copper"
         coil_tech = coil_technology(:copper)
     else
-        if gascsol["INPUTS"]["conductors"]["superConducting"] == "LTS"
+        if gasc.inputs["conductors"]["superConducting"] == "LTS"
             coil_tech = coil_technology(:LTS)
-        elseif gascsol["INPUTS"]["conductors"]["superConducting"] == "HTS"
+        elseif gasc.inputs["conductors"]["superConducting"] == "HTS"
             coil_tech = coil_technology(:HTS)
         end
         if coil_type == :PF # assume PF coils are always LTS
             coil_tech = coil_technology(:LTS)
         end
-        if "thermalStrain$coil_type" ∉ keys(gascsol["INPUTS"]["conductors"])
+        if "thermalStrain$coil_type" ∉ keys(gasc.inputs["conductors"])
             coil_tech.thermal_strain = 0.0
             coil_tech.JxB_strain = 0.0
         else
-            coil_tech.thermal_strain = gascsol["INPUTS"]["conductors"]["thermalStrain$coil_type"]
-            coil_tech.JxB_strain = gascsol["INPUTS"]["conductors"]["structuralStrain$coil_type"]
+            coil_tech.thermal_strain = gasc.inputs["conductors"]["thermalStrain$coil_type"]
+            coil_tech.JxB_strain = gasc.inputs["conductors"]["structuralStrain$coil_type"]
         end
     end
-    if "fractionVoid$coil_type" ∉ keys(gascsol["INPUTS"]["conductors"])
-        coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoidOH"]
-        coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainlessOH"]
+    if "fractionVoid$coil_type" ∉ keys(gasc.inputs["conductors"])
+        coil_tech.fraction_void = gasc.inputs["conductors"]["fractionVoidOH"]
+        coil_tech.fraction_stainless = gasc.inputs["conductors"]["fractionStainlessOH"]
     else
-        coil_tech.fraction_void = gascsol["INPUTS"]["conductors"]["fractionVoid$coil_type"]
-        coil_tech.fraction_stainless = gascsol["INPUTS"]["conductors"]["fractionStainless$coil_type"]
+        coil_tech.fraction_void = gasc.inputs["conductors"]["fractionVoid$coil_type"]
+        coil_tech.fraction_stainless = gasc.inputs["conductors"]["fractionStainless$coil_type"]
     end
     return set_new_base!(coil_tech)
 end
@@ -337,12 +392,12 @@ function compare(dd::IMAS.dd, gasc::GASC)
 
     # collisionless bootstrap coefficient
     FUSE = IMAS.collisionless_bootstrap_coefficient(dd)
-    GASC = gasc.solution["INPUTS"]["plasma parameters"]["user_bootstrapCoefficient"]
+    GASC = gasc.inputs["plasma parameters"]["user_bootstrapCoefficient"]
     df.Cbs = [FUSE, GASC]
 
     # fusion power [MW]
     FUSE = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6
-    GASC = gasc.solution["OUTPUTS"]["power balance"]["powerFusion"]
+    GASC = gasc.outputs["power balance"]["powerFusion"]
     df.Pfusion = [FUSE, GASC]
 
     df

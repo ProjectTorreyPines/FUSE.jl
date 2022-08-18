@@ -1,3 +1,4 @@
+using InteractiveUtils: subtypes
 import ForwardDiff
 
 function unwrap(v, inplace=false)
@@ -81,45 +82,7 @@ end
 # ******************************************
 # Convex Hull
 # ******************************************
-struct Point
-    x::Float64
-    y::Float64
-end
-
-function Base.isless(p::Point, q::Point)
-    p.x < q.x || (p.x == q.x && p.y < q.y)
-end
-
-function isrightturn(p::Point, q::Point, r::Point)
-    (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x) < 0
-end
-
-function halfhull(points::Vector{Point})
-    halfhull = points[1:2]
-    for p in points[3:end]
-        push!(halfhull, p)
-        while length(halfhull) > 2 && !isrightturn(halfhull[end-2:end]...)
-            deleteat!(halfhull, length(halfhull) - 1)
-        end
-    end
-    halfhull
-end
-
-function grahamscan(points::Vector{Point})
-    sorted = sort(points)
-    upperhull = halfhull(sorted)
-    lowerhull = halfhull(reverse(sorted))
-    [upperhull..., lowerhull[2:end-1]...]
-end
-
-function convex_hull(xy::Vector; closed_polygon::Bool)
-    tmp = [(k.x, k.y) for k in grahamscan([Point(xx, yx) for (xx, yx) in xy])]
-    if closed_polygon
-        return push!(tmp, tmp[1])
-    else
-        return tmp
-    end
-end
+import VacuumFields: convex_hull
 
 # ******************************************
 # TraceCAD
@@ -203,4 +166,17 @@ function fuse()
 ██║     ╚██████╔╝███████║███████╗
 ╚═╝      ╚═════╝ ╚══════╝╚══════╝
 """
+end
+
+"""
+    warmup()
+
+Function to execute to precompile the majority of FUSE
+"""
+function warmup()
+    ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+    FUSE.ActorWholeFacility(dd,act)
+    IMAS.freeze(dd)
 end

@@ -4,8 +4,9 @@ import TAUENN
 #     TAUENN actor   #
 #= ================ =#
 
-Base.@kwdef mutable struct ActorTauenn <: PlasmaAbstractActor
+mutable struct ActorTauenn <: PlasmaAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
     tauenn_parameters::TAUENN.TauennParameters
     tauenn_outputs::TAUENN.TauennOutputs
 end
@@ -28,7 +29,7 @@ end
 """
     ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the core-transport using Tauenn and evolves the kinetic profiles according to heat and particle flux matching.
+This actor estimates the core-transport using Tauenn, which evolves the kinetic profiles according to heat and particle flux matching.
 
 The pedestal in this actor is evolved using EPED-NN.
 
@@ -37,11 +38,15 @@ The pedestal in this actor is evolved using EPED-NN.
 """
 function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTauenn(kw...)
-    if par.do_plot
-        ps = plot(dd.core_sources; color=:gray)
-        pp = plot(dd.core_profiles; color=:gray, label="")
-    end
-    actor = ActorTauenn(dd;
+    actor = ActorTauenn(dd, par)
+    step(actor)
+    finalize(actor)
+    return actor
+end
+
+function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    tauenn_parameters = TAUENN.TauennParameters(;
         par.error,
         par.eped_factor,
         par.rho_fluxmatch,
@@ -50,8 +55,17 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
         par.transport_model,
         par.confinement_factor,
         par.warn_nn_train_bounds)
-    step(actor; verbose=par.verbose)
-    finalize(actor)
+    return ActorTauenn(dd, par, tauenn_parameters, TAUENN.TauennOutputs())
+end
+
+function step(actor::ActorTauenn)
+    dd = actor.dd
+    par = actor.par
+    if par.do_plot
+        ps = plot(dd.core_sources; color=:gray)
+        pp = plot(dd.core_profiles; color=:gray, label="")
+    end
+    actor.tauenn_outputs = TAUENN.tau_enn(dd, actor.tauenn_parameters; par.verbose)
     if par.do_plot
         display(plot!(ps, dd.core_sources))
         display(plot!(pp, dd.core_profiles))
@@ -59,18 +73,5 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
     if par.verbose
         display(actor.tauenn_parameters)
     end
-    return actor
-end
-
-function ActorTauenn(dd::IMAS.dd; kw...)
-    tauenn_parameters = TAUENN.TauennParameters()
-    for key in keys(kw)
-        setfield!(tauenn_parameters, key, kw[key])
-    end
-    return ActorTauenn(dd, tauenn_parameters, TAUENN.TauennOutputs())
-end
-
-function step(actor::ActorTauenn; verbose=false)
-    actor.tauenn_outputs = TAUENN.tau_enn(actor.dd, actor.tauenn_parameters; verbose)
     return actor
 end

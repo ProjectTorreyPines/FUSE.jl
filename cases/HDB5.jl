@@ -6,7 +6,7 @@ import CSV
 
 For description of cases/variables see https://osf.io/593q6/
 """
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersAllInits, ParametersAllActors}
+function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersAllInits,ParametersAllActors}
     if !ismissing(database_case)
         data_row = load_hdb5(database_case=database_case)
     elseif !ismissing(case)
@@ -30,9 +30,8 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.equilibrium.ϵ = data_row[:AMIN] / data_row[:RGEO]
     ini.equilibrium.κ = data_row[:KAPPA]
     ini.equilibrium.δ = data_row[:DELTA]
-    ini.equilibrium.βn = 1.0
     ini.equilibrium.ip = data_row[:IP]
-
+    ini.equilibrium.pressure_core = IMAS.pressure_avg_from_beta_n(1.0, data_row[:AMIN], data_row[:BT], data_row[:IP]) * 3.0
     act.ActorSolovev.area = data_row[:AREA]
     act.ActorSolovev.volume = data_row[:VOL]
 
@@ -62,8 +61,8 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
 
     # Core_profiles parameters
     ini.core_profiles.ne_ped = data_row[:NEL] / 1.3
-    ini.core_profiles.greenwald_fraction = data_row[:NEL]*1e-20 / (data_row[:IP]/1e6  / (pi * data_row[:AMIN]^2 ))
-    ini.core_profiles.helium_fraction = 0.
+    ini.core_profiles.greenwald_fraction = data_row[:NEL] * 1e-20 / (data_row[:IP] / 1e6 / (pi * data_row[:AMIN]^2))
+    ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.w_ped = 0.03
     ini.core_profiles.zeff = data_row[:ZEFF]
@@ -98,10 +97,10 @@ end
 function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Union{Int,Missing}=missing, extra_signal_names=Union{String,Symbol}[])
     # For description of variables see https://osf.io/593q6/
     run_df = CSV.read(joinpath(@__DIR__, "..", "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
-    run_df[:,"database_case"] = collect(1:length(run_df[:,"TOK"]))
+    run_df[:, "database_case"] = collect(1:length(run_df[:, "TOK"]))
 
     if !ismissing(database_case)
-        return run_df[run_df.database_case .== database_case, :]
+        return run_df[run_df.database_case.==database_case, :]
     end
 
     signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
@@ -113,8 +112,8 @@ function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::F
     # some basic filters
     run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(run_df.DELTA.<0.79).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
     # Filter cases where the ohmic power is dominating
-    run_df[:,"Paux"] = run_df[:,"PNBI"] .+ run_df[:,"PECRH"] .+ run_df[:,"PICRH"] .+ run_df[:,"POHM"]
-    run_df = run_df[run_df[:,"POHM"] .< maximum_ohmic_fraction .* (run_df[:,"Paux"] .- run_df[:,"POHM"]),:]
+    run_df[:, "Paux"] = run_df[:, "PNBI"] .+ run_df[:, "PECRH"] .+ run_df[:, "PICRH"] .+ run_df[:, "POHM"]
+    run_df = run_df[run_df[:, "POHM"].<maximum_ohmic_fraction.*(run_df[:, "Paux"].-run_df[:, "POHM"]), :]
     if !(Symbol(tokamak) in [:all, :any])
         run_df = run_df[run_df.TOK.==String(tokamak), :]
     end

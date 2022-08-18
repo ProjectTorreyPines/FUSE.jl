@@ -44,7 +44,7 @@ function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
 
-    totalOhFluxReq = bd.flux_swing_estimates.rampup + bd.flux_swing_estimates.flattop + bd.flux_swing_estimates.pf
+    totalOhFluxReq = bd.flux_swing.rampup + bd.flux_swing.flattop + bd.flux_swing.pf
 
     # Calculate magnetic field at solenoid bore required to match flux swing request
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
@@ -58,11 +58,11 @@ function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
 end
 
 """
-    flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+    flattop_duration!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
 
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
+function flattop_duration!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
     OH = IMAS.get_build(bd, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
@@ -70,8 +70,8 @@ function flattop_estimate!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, cp
     # estimate oh flattop flux and duration
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
     totalOhFlux = bd.oh.max_b_field * (pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)) / 3.0
-    bd.flux_swing_estimates.flattop = totalOhFlux - bd.flux_swing_estimates.rampup - bd.flux_swing_estimates.pf
-    bd.oh.flattop_estimate = bd.flux_swing_estimates.flattop / abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel))
+    bd.flux_swing.flattop = totalOhFlux - bd.flux_swing.rampup - bd.flux_swing.pf
+    bd.oh.flattop_duration = bd.flux_swing.flattop / abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel))
 end
 
 #= ========= =#
@@ -127,8 +127,9 @@ end
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-Base.@kwdef mutable struct ActorFluxSwing <: ReactorAbstractActor
+mutable struct ActorFluxSwing <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
     operate_at_j_crit::Bool
     j_tolerance::Real
 end
@@ -162,15 +163,20 @@ OH flux consumption based on:
 * vertical field from PF coils
 
 !!! note
-    Stores data in `dd.build.flux_swing_estimates`, `dd.build.tf`, and `dd.build.oh`
+    Stores data in `dd.build.flux_swing`, `dd.build.tf`, and `dd.build.oh`
 
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorFluxSwing(kw...)
-    actor = ActorFluxSwing(; dd, par...)
+    actor = ActorFluxSwing(dd, par)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorFluxSwing(dd::IMAS.dd, par::ParametersActor; kw...)
+    par = par(kw...)
+    return ActorFluxSwing(dd, par, par.operate_at_j_crit, par.j_tolerance)
 end
 
 """
@@ -186,25 +192,26 @@ The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 function step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
 
     bd = actor.dd.build
+    target = actor.dd.target
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
     cp = actor.dd.core_profiles
     cp1d = cp.profiles_1d[]
 
     if only ∈ [:all, :oh]
-        bd.flux_swing_estimates.rampup = rampup_flux_estimates(eqt, cp)
-        bd.flux_swing_estimates.pf = pf_flux_estimates(eqt)
+        bd.flux_swing.rampup = rampup_flux_estimates(eqt, cp)
+        bd.flux_swing.pf = pf_flux_estimates(eqt)
 
         if operate_at_j_crit
             oh_maximum_J_B!(bd; j_tolerance)
-            bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd) # target flattop flux based on available current
+            bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
         else
-            bd.flux_swing_estimates.flattop = flattop_flux_estimates(bd, cp1d) # target flattop flux based on target duration
+            bd.flux_swing.flattop = flattop_flux_estimates(target, cp1d) # flattop flux based on target duration
             oh_required_J_B!(bd)
         end
 
-        # estimate flattop duration
-        flattop_estimate!(bd, eqt, cp1d)
+        # flattop duration
+        flattop_duration!(bd, eqt, cp1d)
     end
 
     if only ∈ [:all, :tf]
@@ -244,12 +251,12 @@ function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_
 end
 
 """
-    flattop_flux_estimates(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d)
+    flattop_flux_estimates(target::IMAS.target, cp1d::IMAS.core_profiles__profiles_1d)
 
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function flattop_flux_estimates(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d)
-    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * bd.oh.flattop_duration # V*s
+function flattop_flux_estimates(target::IMAS.target, cp1d::IMAS.core_profiles__profiles_1d)
+    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * target.flattop_duration # V*s
 end
 
 """
@@ -264,7 +271,7 @@ function flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
     magneticFieldSolenoidBore = bd.oh.max_b_field
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
     totalOhFluxReq = magneticFieldSolenoidBore / 3.0 * pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)
-    bd.flux_swing_estimates.flattop = totalOhFluxReq - bd.flux_swing_estimates.rampup - bd.flux_swing_estimates.pf
+    bd.flux_swing.flattop = totalOhFluxReq - bd.flux_swing.rampup - bd.flux_swing.pf
 end
 
 """
@@ -292,8 +299,13 @@ end
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct ActorLFSsizing <: ReactorAbstractActor
+mutable struct ActorLFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
+    function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorLFSsizing}})
@@ -315,10 +327,10 @@ Actor that resizes the Low Field Side of the build.
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorLFSsizing(kw...)
+    actor = ActorLFSsizing(dd, par)
     if par.do_plot
         plot(dd.build)
     end
-    actor = ActorLFSsizing(dd)
     step(actor; par.verbose)
     finalize(actor)
     if par.do_plot
@@ -360,7 +372,9 @@ end
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct ActorHFSsizing <: ReactorAbstractActor
+mutable struct ActorHFSsizing <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::ParametersActor
     stresses_actor::ActorStresses
     fluxswing_actor::ActorFluxSwing
 end
@@ -386,15 +400,13 @@ Actor that resizes the High Field Side of the build.
 !!! note 
     Manipulates radial build information in `dd.build.layer`
 """
-function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
     par = act.ActorHFSsizing(kw...)
+    actor = ActorHFSsizing(dd, par, act; kw_ActorFluxSwing, kw_ActorStresses)
     if par.do_plot
         p = plot(dd.build)
     end
-    fluxswing_actor = ActorFluxSwing(; dd, operate_at_j_crit=par.unconstrained_flattop_duration, par.j_tolerance)
-    stresses_actor = ActorStresses(dd)
-    actor = ActorHFSsizing(stresses_actor, fluxswing_actor)
-    step(actor; par.verbose, par.j_tolerance, par.stress_tolerance, par.fixed_aspect_ratio, par.unconstrained_flattop_duration)
+    step(actor)
     finalize(actor)
     if par.do_plot
         display(plot!(p, dd.build; cx=false))
@@ -402,14 +414,21 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+function ActorHFSsizing(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
+    par = act.ActorHFSsizing(kw...)
+    fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing; kw_ActorFluxSwing...)
+    stresses_actor = ActorStresses(dd, act.ActorStresses; kw_ActorStresses...)
+    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor)
+end
+
 function step(
     actor::ActorHFSsizing;
-    j_tolerance::Real=0.4,
-    stress_tolerance::Real=0.2,
-    fixed_aspect_ratio::Bool=true,
-    unconstrained_flattop_duration::Bool=true,
-    verbose::Bool=false,
-    do_plot=false
+    j_tolerance::Real=actor.par.j_tolerance,
+    stress_tolerance::Real=actor.par.stress_tolerance,
+    fixed_aspect_ratio::Bool=actor.par.fixed_aspect_ratio,
+    unconstrained_flattop_duration::Bool=actor.par.unconstrained_flattop_duration,
+    verbose::Bool=actor.par.verbose,
+    debug_plot=false
 )
 
     function target_value(value, target, tolerance) # relative error with tolerance
@@ -478,7 +497,7 @@ function step(
             c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, stress_tolerance)
         end
 
-        if do_plot
+        if debug_plot
             push!(C_JOH, c_joh)
             push!(C_SOH, c_soh)
             push!(C_JTF, c_jtf)
@@ -506,7 +525,7 @@ function step(
     old_a = plasma.thickness / 2.0
     old_ϵ = old_R0 / old_a
 
-    if do_plot
+    if debug_plot
         C_JOH = []
         C_SOH = []
         C_JTF = []
@@ -575,7 +594,7 @@ function step(
     a = plasma.thickness / 2.0
     ϵ = R0 / a
 
-    if do_plot
+    if debug_plot
         p = plot(yscale=:log10)
         plot!(p, C_JOH ./ (C_JOH .> 0.0), label="Jcrit OH")
         plot!(p, C_SOH ./ (C_SOH .> 0.0), label="Stresses OH")
@@ -589,8 +608,8 @@ function step(
         @show target_B0
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
 
-        @show dd.build.oh.flattop_estimate
         @show dd.build.oh.flattop_duration
+        @show dd.target.flattop_duration
 
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
@@ -620,7 +639,7 @@ function step(
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
     if !unconstrained_flattop_duration
-        @assert rel_error(dd.build.oh.flattop_estimate, dd.build.oh.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_estimate) --> $(dd.build.oh.flattop_duration))"
+        @assert rel_error(dd.build.oh.flattop_duration, dd.target.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_duration) --> $(dd.target.flattop_duration))"
     end
     if fixed_aspect_ratio
         @assert rel_error(ϵ, old_ϵ) < 0.1 "ActorHFSsizing: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"
@@ -632,8 +651,13 @@ end
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-Base.@kwdef mutable struct ActorCXbuild <: ReactorAbstractActor
+mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
+    par::ParametersActor
+    function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorCXbuild}})
@@ -653,8 +677,8 @@ Actor that builds the 2D cross section of the build.
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCXbuild(kw...)
-    actor = ActorCXbuild(dd)
-    step(actor; par.rebuild_wall)
+    actor = ActorCXbuild(dd, par)
+    step(actor)
     finalize(actor)
     if par.do_plot
         plot(dd.build)
@@ -663,7 +687,7 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorCXbuild; rebuild_wall::Bool=true)
+function step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
     build_cx!(actor.dd; rebuild_wall)
 end
 
@@ -689,8 +713,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     wall_poly = LibGEOS.buffer(plasma_poly, a)
 
     # hfs and lfs spacing may not be symmetric
-    R = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
-    Z = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
+    R = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
+    Z = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
     R .+= ((R_lfs_plasma + R_hfs_plasma) - (maximum(rlcfs) + minimum(rlcfs))) / 2.0
     R[R.<R_hfs_plasma] .= R_hfs_plasma
     R[R.>R_lfs_plasma] .= R_lfs_plasma
@@ -700,7 +724,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     t = LinRange(0, 2pi, 31)
 
     # divertor lengths
-    max_divertor_length = (maximum(zlcfs) - minimum(zlcfs)) * divertor_length_fraction
+    linear_plasma_size = sqrt((maximum(zlcfs) - minimum(zlcfs)) * (maximum(rlcfs) - minimum(rlcfs)))
+    max_divertor_length = linear_plasma_size * divertor_length_fraction
 
     # private flux regions
     private = IMAS.flux_surface(eqt, ψb, false)
@@ -708,7 +733,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
             # open flux surface does not encicle the plasma
             continue
-        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > (maximum(zlcfs) - minimum(zlcfs)) / 20
+        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > linear_plasma_size / 5
             # secondary Xpoint far away
             continue
         elseif (sum(pz) - Z0) < 0
@@ -754,8 +779,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
     wall_poly = LibGEOS.buffer(wall_poly, a / 4)
 
-    pr = [v[1] for v in LibGEOS.coordinates(wall_poly)[1]]
-    pz = [v[2] for v in LibGEOS.coordinates(wall_poly)[1]]
+    pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
+    pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
     pr, pz = IMAS.resample_2d_line(pr, pz; step=0.1)
 
@@ -769,6 +794,15 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
     plasma_poly = xy_polygon(bd.layer[ipl])
 
+    wall_poly = xy_polygon(bd.layer[ipl-1])
+    for ltype in [_blanket_, _shield_, _wall_,]
+        iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
+        if iwl !== missing
+            wall_poly = xy_polygon(bd.layer[iwl])
+            break
+        end
+    end
+
     divertors = IMAS.IDSvectorElement[]
     for x_point in eqt.boundary.x_point
         Zx = x_point.z
@@ -780,12 +814,11 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
         pz = vcat(yy, [Zx * 5, Zx * 5], yy[1])
 
         domain = xy_polygon(pr, pz)
-        wall_poly = xy_polygon(bd.layer[ipl-1])
         divertor_poly = LibGEOS.intersection(wall_poly, domain)
         divertor_poly = LibGEOS.difference(divertor_poly, plasma_poly)
 
-        pr = [v[1] for v in LibGEOS.coordinates(divertor_poly)[1]]
-        pz = [v[2] for v in LibGEOS.coordinates(divertor_poly)[1]]
+        pr = [v[1] for v in GeoInterface.coordinates(divertor_poly)[1]]
+        pz = [v[2] for v in GeoInterface.coordinates(divertor_poly)[1]]
 
         # assign to build structure
         if Zx > Z0
@@ -810,7 +843,7 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     layers = bd.layer
     iblanket = IMAS.get_build(bd; type=_blanket_, fs=_lfs_, return_index=true, raise_error_on_missing=false)
-    if iblanket === nothing
+    if iblanket === missing
         return IMAS.IDSvectorElement[]
     end
     layer = layers[iblanket]
@@ -827,7 +860,7 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     geometries = LibGEOS.getGeometries(ring_poly)
     blankets = IMAS.IDSvectorElement[]
     for poly in geometries
-        coords = LibGEOS.coordinates(poly)
+        coords = GeoInterface.coordinates(poly)
         pr = [v[1] for v in coords[1]]
         pz = [v[2] for v in coords[1]]
 
@@ -872,6 +905,7 @@ function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)
     build_cx!(dd.build, pr, pz)
 
     divertor_regions!(dd.build, dd.equilibrium.time_slice[])
+
     blanket_regions!(dd.build, dd.equilibrium.time_slice[])
 
     if wall === missing || rebuild_wall
@@ -911,24 +945,35 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     # k-1 means the layer outside (ie. towards the tf)
     # k   is the current layer
     # k+1 means the layer inside (ie. towards the plasma)
+    # 
     # forward pass: from plasma to TF _convex_hull_ and then desired TF shape
     tf_to_plasma = IMAS.get_build(bd, fs=_hfs_, return_only_one=false, return_index=true)
     plasma_to_tf = reverse(tf_to_plasma)
     for k in plasma_to_tf
-        layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
+        original_shape = bd.layer[k].shape
         if k == itf + 1
             # layer that is inside of the TF sets TF shape
+            layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
             optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside)
         else
             # everything else is conformal convex hull
             optimize_shape(bd, k + 1, k, _convex_hull_)
-            bd.layer[k].shape = Int(layer_shape)
+            bd.layer[k].shape = original_shape
         end
     end
     # reverse pass: from TF to plasma only with negative offset
     for k in tf_to_plasma[2:end]
         if bd.layer[k+1].shape == Int(_negative_offset_)
             optimize_shape(bd, k, k + 1, _negative_offset_)
+        end
+    end
+    # forward pass: from plasma to TF with desired shapes
+    for k in plasma_to_tf[1:end-1]
+        if bd.layer[k].shape == Int(_negative_offset_)
+            break
+        else
+            layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
+            optimize_shape(bd, k + 1, k, layer_shape)
         end
     end
 
@@ -1013,11 +1058,10 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # handle offset, negative offset, negative offset, and convex-hull
     if layer.shape in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
         poly = LibGEOS.buffer(xy_polygon(oR, oZ), (hfs_thickness + lfs_thickness) / 2.0)
-        R = [v[1] .+ r_offset for v in LibGEOS.coordinates(poly)[1]]
-        Z = [v[2] for v in LibGEOS.coordinates(poly)[1]]
+        R = [v[1] .+ r_offset for v in GeoInterface.coordinates(poly)[1]]
+        Z = [v[2] for v in GeoInterface.coordinates(poly)[1]]
         if layer.shape == Int(_convex_hull_)
-            h = [[r, z] for (r, z) in collect(zip(R, Z))]
-            hull = convex_hull(h; closed_polygon=true)
+            hull = convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
             # resample disabled because this can lead to outlines of different layers to be crossing
@@ -1075,6 +1119,8 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         layer.shape_parameters = optimize_shape(oR, oZ, target_minimum_distance, func, l_start, l_end, layer.shape_parameters)
         layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...; resample=false)
     end
+
+    IMAS.reorder_flux_surface!(layer.outline.r, layer.outline.z)
     # display(plot!(layer.outline.r, layer.outline.z))
 end
 

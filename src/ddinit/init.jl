@@ -13,6 +13,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     if ini.general.init_from == :ods
         ods_items = keys(IMAS.json2imas(ini.ods.filename))
     end
+
     # initialize equilibrium
     if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
         init_equilibrium(dd, ini, act)

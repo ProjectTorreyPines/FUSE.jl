@@ -22,21 +22,21 @@ end
 function ParametersInit(::Type{Val{:equilibrium}})
     equilibrium = ParametersInit(nothing)
     equilibrium.B0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :b0)
-    equilibrium.R0 = Entry(Real, IMAS.equilibrium__vacuum_toroidal_field, :r0)
+    equilibrium.R0 = Entry(Real, "m", "Geometric genter of the plasma. NOTE: This also scales the radial build layers.")
     equilibrium.Z0 = Entry(Real, "m", "Z offset of the machine midplane"; default=0.0)
-    equilibrium.ϵ = Entry(Real, "", "Plasma aspect ratio")
+    equilibrium.ϵ = Entry(Real, "", "Plasma inverse aspect ratio. NOTE: This also scales the radial build layers.")
     equilibrium.κ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :elongation)
     equilibrium.δ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :triangularity)
     equilibrium.ζ = Entry(Real, IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
-    equilibrium.βn = Entry(Real, IMAS.equilibrium__time_slice___global_quantities, :beta_normal)
+    equilibrium.pressure_core = Entry(Real, "Pa", "On axis pressure")
     equilibrium.ip = Entry(Real, IMAS.equilibrium__time_slice___global_quantities, :ip)
     equilibrium.x_point = Entry(Union{NTuple{2},Bool}, IMAS.equilibrium__time_slice___boundary, :x_point)
     equilibrium.symmetric = Entry(Bool, "", "Is plasma up-down symmetric")
     equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
-    equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)#, min=0.0, max=1.0)
-    equilibrium.boundary_from = Switch([:scalars, :MXH_params, :rz_points], "" ,"The starting r, z boundary taken from"; default=:scalars)
+    equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)
+    equilibrium.boundary_from = Switch([:scalars, :MXH_params, :rz_points], "", "The starting r, z boundary taken from"; default=:scalars)
     equilibrium.MXH_params = Entry(Union{Nothing,Vector{<:Real}}, "", "Vector of MXH flats", default=missing)
-    equilibrium.rz_points = Entry(Union{Nothing, Vector{Vector{<:Real}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
+    equilibrium.rz_points = Entry(Union{Nothing,Vector{Vector{<:Real}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
     return equilibrium
 end
 
@@ -78,7 +78,6 @@ end
 function ParametersInit(::Type{Val{:oh}})
     oh = ParametersInit(nothing)
     oh.technology = ParametersInit(:coil_technology)
-    oh.flattop_duration = Entry(Real, "s", "Duration of the flattop (use Inf for steady-state)")
     return oh
 end
 
@@ -89,7 +88,6 @@ function ParametersInit(::Type{Val{:center_stack}})
     center_stack.plug = Entry(Bool, "", "flag for center plug"; default=false)
     return center_stack
 end
-
 
 function ParametersInit(::Type{Val{:nbi}})
     nbi = ParametersInit(nothing)
@@ -105,8 +103,8 @@ end
 function ParametersInit(::Type{Val{:ec_launchers}})
     ec_launchers = ParametersInit(nothing)
     ec_launchers.power_launched = Entry(Union{X,Vector{X}} where {X<:Real}, "W", "EC launched power")
-    ec_launchers.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :conversion)
-    ec_launchers.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__launcher___efficiency, :transmission)
+    ec_launchers.efficiency_conversion = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__beam___efficiency, :conversion)
+    ec_launchers.efficiency_transmission = Entry(Union{X,Vector{X}} where {X<:Real}, IMAS.ec_launchers__beam___efficiency, :transmission)
     return ec_launchers
 end
 
@@ -134,6 +132,7 @@ function ParametersInit(::Type{Val{:build}})
     build.blanket = Entry(Float64, "", "Fraction of blanket in radial build")
     build.shield = Entry(Float64, "", "Fraction of shield in radial build")
     build.vessel = Entry(Float64, "", "Fraction of vessel in radial build")
+    build.plasma_gap = Entry(Real, "", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1)
     build.symmetric = Entry(Bool, "", "Is the build up-down symmetric")
     build.n_first_wall_conformal_layers = Entry(Integer, "", "Number of layers that are conformal to the first wall"; default=1)
     return build
@@ -162,4 +161,13 @@ function ParametersInit(::Type{Val{:coil_technology}})
     coil_tech.fraction_void = Entry(Real, "", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor.")
     coil_tech.ratio_SC_to_copper = Entry(Real, "", "Fraction of superconductor to copper cross-sectional areas")
     return coil_tech
+end
+
+function ParametersInit(::Type{Val{:target}})
+    target = ParametersInit(nothing)
+    target.power_electric_net = Entry(Real, "W", "Target net electric power generated by the fusion power plant")
+    target.flattop_duration = Entry(Real, "s", "Target duration of the flattop (use Inf for steady-state)")
+    target.tritium_breeding_ratio = Entry(Real, "", "Target tritium breeding ratio of the whole plant")
+    target.cost = Entry(Real, "\$M", "Target total FPP cost")
+    return target
 end
