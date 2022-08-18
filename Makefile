@@ -52,7 +52,7 @@ IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage
 IJulia:
 	julia -e '\
 using Pkg;\
-Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots", "IJulia"]);\
+Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots", "IJulia","Interact"]);\
 Pkg.build("IJulia");\
 '
 	python3 -m pip install --upgrade webio_jupyter_extension

@@ -83,6 +83,10 @@ function init_core_profiles(
     fill!(ion, IMAS.ion_element(ion_symbol=:He))
 
     # pedestal
+    if ne_ped * greenwald_fraction > IMAS.greenwald_density(eqt)
+        @warn "pedestal density * greenwald_fraction is larger than greenwald density"
+    end
+
     @ddtime summary.local.pedestal.n_e.value = ne_ped
     @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - w_ped
     @ddtime summary.local.pedestal.zeff.value = zeff
