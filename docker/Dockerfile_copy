@@ -1,23 +1,29 @@
-FROM julia:latest
+FROM --platform=linux/amd64 julia:latest
 RUN apt-get -y update
-RUN apt-get -y install --no-install-recommends git make
+RUN apt-get -y install --no-install-recommends git make procps
 RUN apt-get autoclean
 
 WORKDIR /root/.julia/dev
+COPY ./CHEASE CHEASE/
 COPY ./CoordinateConventions CoordinateConventions/
+COPY ./EFIT EFIT/
 COPY ./EPEDNN EPEDNN/
 COPY ./Equilibrium Equilibrium/
-COPY ./FUSE FUSE/
 COPY ./FiniteElementHermite FiniteElementHermite/
+COPY ./Fortran90Namelists Fortran90Namelists/
+COPY ./FUSE FUSE/
 COPY ./FusionMaterials FusionMaterials/
 COPY ./IMAS IMAS/
 COPY ./IMASDD IMASDD/
+COPY ./MillerExtendedHarmonic MillerExtendedHarmonic/
+COPY ./NNeutronics NNeutronics/
 COPY ./QED QED/
 COPY ./TAUENN TAUENN/
 COPY ./TGLFNN TGLFNN/
 COPY ./VacuumFields VacuumFields/
 
 WORKDIR /root/.julia/dev/FUSE
-RUN cat Makefile
-RUN make develop_no_registry
+RUN make rm_manifests
+RUN make install_no_registry
 RUN make precompile
+WORKDIR /root/.julia/dev
