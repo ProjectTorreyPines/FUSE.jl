@@ -171,12 +171,11 @@ end
 """
     warmup()
 
-Function to execute to precompile the majority of FUSE
+Function used to precompile the majority of FUSE
 """
 function warmup()
     ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
-    dd = IMAS.dd()
-    FUSE.init(dd, ini, act)
-    FUSE.ActorWholeFacility(dd,act)
+    dd = FUSE.init(ini, act)
+    FUSE.ActorWholeFacility(dd, act)
     IMAS.freeze(dd)
 end
