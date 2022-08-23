@@ -11,8 +11,10 @@ endef
 all:
 	@echo 'FUSE makefile help'
 	@echo ''
-	@echo ' - make install  : install FUSE and its PTP dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update   : git pull FUSE and its PTP dependencies'
+	@echo ' - make install      : install FUSE and its PTP dependencies to $(JULIA_PKG_DEVDIR)'
+	@echo ' - make update       : git pull FUSE and its PTP dependencies'
+	@echo ' - make IJulia       : Install IJulia'
+	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
 	@echo ''
 
 registry:
@@ -29,6 +31,9 @@ Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic"
 Pkg.activate();\
 Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics"]);\
 '
+
+rm_manifests:
+	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
 
 install: clone_update_all install_no_registry precompile
 
@@ -52,13 +57,13 @@ IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage
 IJulia:
 	julia -e '\
 using Pkg;\
-Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots", "IJulia","Interact"]);\
+Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots", "IJulia", "Interact"]);\
 Pkg.build("IJulia");\
 '
 	python3 -m pip install --upgrade webio_jupyter_extension
 
 precompile:
-	julia -e 'using Pkg; Pkg.activate("."); Pkg.precompile()'
+	julia -e 'using Pkg; Pkg.precompile()'
 
 clone_update_all:
 	make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics
@@ -116,18 +121,23 @@ EFIT:
 NNeutronics:
 	$(call clone_update_repo,$@)
 
+# build a new docker image
+# Docker files under `FUSE/docker/` folder
 docker_image:
 	rm -rf ../Dockerfile
-	cp docker/Dockerfile ..
+	cp docker/Dockerfile_copy ../Dockerfile
 	cp .gitignore ../.dockerignore
 	cd .. ; sudo docker build -t julia_fuse .
 
+# build a new docker image without using caching
+# Docker files under `FUSE/docker/` folder
 docker_fresh:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile_fresh ../Dockerfile
 	cp .gitignore ../.dockerignore
 	cd .. ; sudo docker build --no-cache --progress=plain -t julia_fuse .
 
+# generate a docker volume whith FUSE in it
 docker_volume:
 	docker volume create FUSE
 	docker run --rm -v FUSE:/root julia_fuse mkdir -p /root/.julia
@@ -138,9 +148,11 @@ docker_volume:
 	docker rm temp
 	docker run --rm -v FUSE:/root julia_fuse bash -c "cd /root/.julia/dev/FUSE && make install_no_registry && make precompile"
 
+# run FUSE docker
 docker_run:
 	docker run -it --rm julia_fuse julia
 
+# run FUSE docker with volume mount
 docker_run_volume:
 	docker run -it --rm -v FUSE:/root julia_fuse
 
