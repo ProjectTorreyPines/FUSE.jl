@@ -77,16 +77,15 @@ function finalize(actor::ActorTGLF)
     eqt = dd.equilibrium.time_slice[]
     
     model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.tglf_model)][1]]
-    rho_idx = findfirst(i -> i == actor.par.rho_tglf, model.profiles_1d[].grid_flux.rho_tor_norm)
-    if isnothing(rho_idx)
+    rho_transp_idx = findfirst(i -> i == actor.par.rho_tglf, model.profiles_1d[].grid_flux.rho_tor_norm)
+    rho_cp_idx = findfirst(i -> i == actor.par.rho_tglf, cp1d.grid.rho_tor_norm)
+    if isnothing(rho_transp_idx)
         error("The transport grid doesn't have the tglf flux matching gridpoint")
     end
-    @show actor.input_tglf._Qgb
-    model.profiles_1d[].electrons.energy.flux[rho_idx] = actor.flux_solution.ENERGY_FLUX_e / IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_idx]
-    model.profiles_1d[].total_ion_energy.flux[rho_idx] = actor.flux_solution.ENERGY_FLUX_i / IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_idx]
-    model.profiles_1d[].electrons.particles.flux[rho_idx] = actor.flux_solution.PARTICLE_FLUX_e / IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_idx]
-    model.profiles_1d[].momentum_tor.flux[rho_idx] = actor.flux_solution.STRESS_TOR_i / IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_idx]
-    @show IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_idx], actor.input_tglf._Qgb
+    model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_e / IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx]
+    model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_i / IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx]
+    model.profiles_1d[].electrons.particles.flux[rho_transp_idx] = actor.flux_solution.PARTICLE_FLUX_e / IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx]
+    model.profiles_1d[].momentum_tor.flux[rho_transp_idx] = actor.flux_solution.STRESS_TOR_i / IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx]
     return actor
 end
 
@@ -114,8 +113,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     mi = ions[1].element[1].a * 1.6726e-24
 
     Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.gm8 * m_to_cm).(cp1d.grid.rho_tor_norm)
-    rmin_eq = m_to_cm * 0.5 * (eq1d.r_outboard - eq1d.r_inboard)
-    rmin = IMAS.interp1d(eq1d.rho_tor_norm, rmin_eq).(cp1d.grid.rho_tor_norm)
+    rmin = IMAS.r_min_core_profiles(cp1d, eqt)
 
     q = eq1d.q[gridpoint_eq]
     kappa = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.elongation).(cp1d.grid.rho_tor_norm)
@@ -224,29 +222,18 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     dpdr = IMAS.gradient(rmin, press .* Pa_to_dyn)[gridpoint_cp]
     input_tglf.P_PRIME_LOC = abs(q) / (rmin[gridpoint_cp] / a)^2 * rmin[gridpoint_cp] / bunit^2 * dpdr
 
-    dqdr = IMAS.gradient(rmin_eq, eq1d.q)[gridpoint_eq]
+    dqdr = IMAS.gradient(m_to_cm .* 0.5 .* (eq1d.r_outboard .- eq1d.r_inboard), eq1d.q)[gridpoint_eq]
     s = rmin[gridpoint_cp] / q * dqdr
     input_tglf.Q_PRIME_LOC = q^2 * a^2 / rmin[gridpoint_cp]^2 * s
-
-    input_tglf._Qgb = ne * k * Te * c_s * (rho_s / a)^2 * 1.0e-7
 
     return input_tglf
 end
 
 function tglf_multi(dd::IMAS.dd, model::Symbol, rho_gridpoints::Vector{<:Real}, parallel::Bool)
     model = resize!(dd.core_transport.model, "identifier.name" => string(model))
-    setup_transport_grid!(model, rho_gridpoints)
+    IMAS.setup_transport_grid!(model, rho_gridpoints)
 
     # call ActorTGLF multiple times (so this should using Distributed?)
-end
-
-function setup_transport_grid!(model::IMAS.core_transport__model, rho_gridpoints::Vector{<:Real})
-    m1d = resize!(model.profiles_1d)
-    m1d.grid_flux.rho_tor_norm = rho_gridpoints
-    m1d.electrons.particles.flux = zeros(length(rho_gridpoints))
-    m1d.electrons.energy.flux = zeros(length(rho_gridpoints))
-    m1d.total_ion_energy.flux = zeros(length(rho_gridpoints))
-    m1d.momentum_tor.flux = zeros(length(rho_gridpoints))
 end
 
 function lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{IMAS.core_profiles__profiles_1d___ion})
