@@ -232,8 +232,7 @@ end
 function tglf_multi(dd::IMAS.dd, model::Symbol, rho_gridpoints::Vector{<:Real}, parallel::Bool)
     model = resize!(dd.core_transport.model, "identifier.name" => string(model))
     IMAS.setup_transport_grid!(model, rho_gridpoints)
-
-    # call ActorTGLF multiple times (so this should using Distributed?)
+    output = map(rho_tglf -> FUSE.ActorTGLF(dd,act,rho_tglf=rho_tglf), rho_gridpoints)
 end
 
 function lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{IMAS.core_profiles__profiles_1d___ion})
