@@ -82,10 +82,10 @@ function finalize(actor::ActorTGLF)
     if isnothing(rho_transp_idx)
         error("The transport grid doesn't have the tglf flux matching gridpoint")
     end
-    model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_e / IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx]
-    model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_i / IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx]
-    model.profiles_1d[].electrons.particles.flux[rho_transp_idx] = actor.flux_solution.PARTICLE_FLUX_e / IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx]
-    model.profiles_1d[].momentum_tor.flux[rho_transp_idx] = actor.flux_solution.STRESS_TOR_i / IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx]
+    model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] * 1e4 # W / m^2
+    model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] * 1e4 # W / m^2
+    model.profiles_1d[].electrons.particles.flux[rho_transp_idx] = actor.flux_solution.PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx] * 1e4 # 1 / m^2 / s
+    model.profiles_1d[].momentum_tor.flux[rho_transp_idx] = actor.flux_solution.STRESS_TOR_i * IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx] * 1e4 #
     return actor
 end
 
