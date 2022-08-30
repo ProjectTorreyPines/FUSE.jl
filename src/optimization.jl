@@ -56,7 +56,7 @@ function Base.show(io::IO, f::ObjectiveFunction)
     print(io, " [$(f.units)]")
 end
 
-function optimization_engine(ini::ParametersAllInits, act::ParametersAllActors, actor_or_workflow::Union{DataType,Function}, x::AbstractVector, opt_ini, objectives_functions::AbstractVector{<:ObjectiveFunction})
+function optimization_engine(ini::ParametersAllInits, act::ParametersAllActors, actor_or_workflow::Union{DataType,Function}, x::AbstractVector, opt_ini::Vector{<:AbstractParameter}, objectives_functions::AbstractVector{<:ObjectiveFunction})
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
         if typeof(optpar.value) <: Integer
@@ -65,7 +65,7 @@ function optimization_engine(ini::ParametersAllInits, act::ParametersAllActors, 
             optpar.value = xx
         end
     end
-    # call the problem
+    # run the problem
     try
         if typeof(actor_or_workflow) <: DataType
             actor = actor_or_workflow(init(ini, act), act)
