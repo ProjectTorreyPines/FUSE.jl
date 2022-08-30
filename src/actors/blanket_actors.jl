@@ -85,13 +85,11 @@ function step(actor::ActorBlanket)
         resize!(bm.layer, 3)
         if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r # HFS
             d1 = IMAS.get_build(dd.build, type=_wall_, fs=_hfs_, raise_error_on_missing=false)
-            d1 = missing
             d2 = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_)
             d3 = IMAS.get_build(dd.build, type=_shield_, fs=_hfs_, return_only_one=false, raise_error_on_missing=false)
             if d3 !== missing
                 d3 = d3[end]
             end
-            d3 = missing
         else  # LFS
             d1 = IMAS.get_build(dd.build, type=_wall_, fs=_lfs_)
             d2 = IMAS.get_build(dd.build, type=_blanket_, fs=_lfs_)
