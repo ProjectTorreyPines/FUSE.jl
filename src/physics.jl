@@ -851,5 +851,3 @@ function private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{
 
     return rr_u, zz_u, rr_l, zz_l
 end
-
-export Hmode_profiles

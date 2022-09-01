@@ -33,16 +33,6 @@ end
 
 function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
     par = par(kw...)
-    return ActorTGLF(dd, par, missing, missing)
-end
-"""
-    step(actor::ActorTGLF)
-
-Runs TGLF actor to evaluate the turbulence flux on a gridpoint
-"""
-function step(actor::ActorTGLF)
-    par = actor.par
-    dd = actor.dd
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     cp1d = dd.core_profiles.profiles_1d[]
 
@@ -51,7 +41,18 @@ function step(actor::ActorTGLF)
     gridpoint_eq = argmin(abs.(rho_eq .- par.rho_tglf))
     gridpoint_cp = argmin(abs.(rho_cp .- par.rho_tglf))
 
-    actor.input_tglf = input_tglf = inputtglf(dd, gridpoint_eq, gridpoint_cp)
+    input_tglf = inputtglf(dd, gridpoint_eq, gridpoint_cp)
+
+    return ActorTGLF(dd, par, input_tglf, missing)
+end
+
+"""
+    step(actor::ActorTGLF)
+
+Runs TGLF actor to evaluate the turbulence flux on a gridpoint
+"""
+function step(actor::ActorTGLF)
+    par = actor.par
 
     if par.tglf_model == :tglfnn
         sol = run_tglfnn(input_tglf, par.warn_nn_train_bounds)
@@ -73,19 +74,19 @@ Writes results to dd.summary.local.pedestal
 """
 function finalize(actor::ActorTGLF)
     dd = actor.dd
-    cp1d = dd.core_profiles.profiles_1d[] 
+    cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
-    
+
     model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.tglf_model)][1]]
     rho_transp_idx = findfirst(i -> i == actor.par.rho_tglf, model.profiles_1d[].grid_flux.rho_tor_norm)
     rho_cp_idx = findfirst(i -> i == actor.par.rho_tglf, cp1d.grid.rho_tor_norm)
     if isnothing(rho_transp_idx)
         error("The transport grid doesn't have the tglf flux matching gridpoint")
     end
-    model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] * 1e4 # W / m^2
-    model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] * 1e4 # W / m^2
-    model.profiles_1d[].electrons.particles.flux[rho_transp_idx] = actor.flux_solution.PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx] * 1e4 # 1 / m^2 / s
-    model.profiles_1d[].momentum_tor.flux[rho_transp_idx] = actor.flux_solution.STRESS_TOR_i * IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx] * 1e4 #
+    model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
+    model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
+    model.profiles_1d[].electrons.particles.flux[rho_transp_idx] = actor.flux_solution.PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx] # 1 / m^2 / s
+    model.profiles_1d[].momentum_tor.flux[rho_transp_idx] = actor.flux_solution.STRESS_TOR_i * IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx] #
     return actor
 end
 
@@ -191,7 +192,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     loglam = 24.0 - log(sqrt(ne) / (Te))
     input_tglf.XNUE = a / c_s * sqrt(ions[1].element[1].a) * e^4 * pi * ne * loglam / (sqrt(me) * (k * Te)^1.5)
     input_tglf.ZEFF = cp1d.zeff[gridpoint_cp]
-    rho_s = IMAS.rho_s(cp1d,eqt)[gridpoint_cp]
+    rho_s = IMAS.rho_s(cp1d, eqt)[gridpoint_cp]
     input_tglf.DEBYE = 7.43e2 * sqrt(Te / (ne)) / rho_s
     input_tglf.RMIN_LOC = rmin[gridpoint_cp] / a
     input_tglf.RMAJ_LOC = Rmaj[gridpoint_cp] / a
@@ -229,16 +230,26 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     return input_tglf
 end
 
-function tglf_multi(dd::IMAS.dd, model::Symbol, rho_gridpoints::Vector{<:Real}, parallel::Bool)
+"""
+    tglf_multi(dd::IMAS.dd, model::Symbol, rho_gridpoints::Vector{<:Real})
+
+Sets up the transport grid and runs ActorTGLF on all the transport gird points serially
+"""
+function tglf_multi(dd::IMAS.dd, model::Symbol, rho_gridpoints::Vector{<:Real})
     model = resize!(dd.core_transport.model, "identifier.name" => string(model))
     IMAS.setup_transport_grid!(model, rho_gridpoints)
-    output = map(rho_tglf -> FUSE.ActorTGLF(dd,act,rho_tglf=rho_tglf), rho_gridpoints)
-end
+    return map(rho_tglf -> FUSE.ActorTGLF(dd, act, rho_tglf=rho_tglf), rho_gridpoints)
 
+end
+"""
+    lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{IMAS.core_profiles__profiles_1d___ion})
+
+Changes core_profiles.ion to 2 species, bulk specie (H, D, T) and combined impurity specie by weigthing masses and densities 
+"""
 function lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{IMAS.core_profiles__profiles_1d___ion})
     if length(ions) < 2
         error("TAUENN requires two ion species to run")
-    elseif any(!ismissing(ion,:density_fast) for ion in ions)
+    elseif any(!ismissing(ion, :density_fast) for ion in ions)
         error("lump_ions_as_bulk_and_impurity! is not setup for handling fast ions")
     elseif length(ions) == 2
         return ions
@@ -278,8 +289,8 @@ function lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{IMAS.core_profiles
         ion.element[1].z_n = 0.0
         ion.element[1].a = 0.0
         for ix in index # z_average is tricky since it's a single constant for the whole profile
-            ion.element[1].z_n += sum(zs[ix] .* ratios[:,ix]) / length(ratios[:,ix])
-            ion.element[1].a += sum(as[ix] .* ratios[:,ix]) / length(ratios[:,ix])
+            ion.element[1].z_n += sum(zs[ix] .* ratios[:, ix]) / length(ratios[:, ix])
+            ion.element[1].a += sum(as[ix] .* ratios[:, ix]) / length(ratios[:, ix])
         end
         for item in [:density_thermal, :temperature, :rotation_frequency_tor]
             if typeof(getfield(ions[index[1]], item)) <: Union{Vector{T},T} where {T<:AbstractFloat}
