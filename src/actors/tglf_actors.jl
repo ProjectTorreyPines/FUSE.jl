@@ -55,9 +55,9 @@ function step(actor::ActorTGLF)
     par = actor.par
 
     if par.tglf_model == :tglfnn
-        sol = run_tglfnn(input_tglf, par.warn_nn_train_bounds)
+        sol = run_tglfnn(actor.input_tglf, par.warn_nn_train_bounds)
     elseif par.tglf_model == :tglf_sat0
-        sol = run_tglf(input_tglf)
+        sol = run_tglf(actor.input_tglf)
     end
 
     actor.flux_solution = sol
@@ -99,7 +99,6 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     e = IMAS.gacode_units.e
     k = IMAS.gacode_units.k
     me = IMAS.gacode_units.me
-    c = IMAS.gacode_units.c
     m_to_cm = IMAS.gacode_units.m_to_cm
     T_to_Gauss = IMAS.gacode_units.T_to_Gauss
 
@@ -235,9 +234,10 @@ end
 
 Sets up the transport grid and runs ActorTGLF on all the transport gird points serially
 """
-function tglf_multi(dd::IMAS.dd, model::Symbol, rho_gridpoints::Vector{<:Real})
-    model = resize!(dd.core_transport.model, "identifier.name" => string(model))
-    IMAS.setup_transport_grid!(model, rho_gridpoints)
+function tglf_multi(dd::IMAS.dd, act::ParametersAllActors, rho_gridpoints::Vector{<:Real})
+    model = resize!(dd.core_transport.model, "identifier.name" => string(act.ActorTGLF.tglf_model))
+    m1d = resize!(model.profiles_1d)
+    IMAS.setup_transport_grid!(m1d, rho_gridpoints)
     return map(rho_tglf -> FUSE.ActorTGLF(dd, act, rho_tglf=rho_tglf), rho_gridpoints)
 
 end
