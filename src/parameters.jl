@@ -474,7 +474,7 @@ end
 
 Look for differences between two `ini` or `act` sets of parameters
 """
-function diff(p1::AbstractParameters, p2::AbstractParameters)
+function Base.diff(p1::AbstractParameters, p2::AbstractParameters)
     commonkeys = intersect(Set(keys(p1)),Set(keys(p2)))
     if length(commonkeys) != length(keys(p1))
         error("p1 has more keys")
