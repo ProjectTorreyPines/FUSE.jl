@@ -584,7 +584,7 @@ function dict2par!(dct::AbstractDict, par::AbstractParameters)
 end
 
 function json2par(filename::AbstractString, par_data::AbstractParameters)
-    json_data = JSON.parsefile(filename)
+    json_data = JSON.parsefile(filename, dicttype=DataStructures.OrderedDict)
     return dict2par!(json_data, par_data)
 end
 
