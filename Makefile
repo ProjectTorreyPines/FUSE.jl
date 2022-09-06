@@ -1,6 +1,11 @@
 JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
 JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
 CURRENTDIR = $(shell pwd)
+LOCALHOST := $(shell ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
+
+DOCKER_PLATFORM := amd64
+DOCKER_PLATFORM := arm64
+DOCKER_PLATFORM := $(shell uname -m)
 
 define clone_update_repo
     if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
@@ -15,6 +20,8 @@ all:
 	@echo ' - make update       : git pull FUSE and its PTP dependencies'
 	@echo ' - make IJulia       : Install IJulia'
 	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
+	@echo ' - make docker_image : generate a new FUSE docker image'
+	@echo ' - make docker_run   : run the FUSE docker image'
 	@echo ''
 
 registry:
@@ -27,9 +34,9 @@ install_no_registry:
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics"]);\
+Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "Broker", "ZMQ"]);\
 Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics"]);\
+Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "Broker", "ZMQ"]);\
 '
 
 rm_manifests:
@@ -66,7 +73,7 @@ precompile:
 	julia -e 'using Pkg; Pkg.precompile()'
 
 clone_update_all:
-	make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics
+	make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics Broker ZMQ
 
 update: install clone_update_all precompile
 
@@ -121,40 +128,40 @@ EFIT:
 NNeutronics:
 	$(call clone_update_repo,$@)
 
-# build a new docker image
-# Docker files under `FUSE/docker/` folder
+Broker:
+	$(call clone_update_repo,$@)
+
+ZMQ:
+	$(call clone_update_repo,$@)
+
+docker_network:
+	docker network create fuse-net
+
+# build a new FUSE docker image
 docker_image:
 	rm -rf ../Dockerfile
-	cp docker/Dockerfile_copy ../Dockerfile
+	cp docker/Dockerfile_base ../Dockerfile
 	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build -t julia_fuse .
+	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM) .
 
-# build a new docker image without using caching
-# Docker files under `FUSE/docker/` folder
-docker_fresh:
+# update the base FUSE docker image
+docker_update:
 	rm -rf ../Dockerfile
-	cp docker/Dockerfile_fresh ../Dockerfile
+	cp docker/Dockerfile_update ../Dockerfile
 	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build --no-cache --progress=plain -t julia_fuse .
+	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM)_updated .
 
-# generate a docker volume whith FUSE in it
-docker_volume:
-	docker volume create FUSE
-	docker run --rm -v FUSE:/root julia_fuse mkdir -p /root/.julia
-	docker run --rm -v FUSE:/root julia_fuse rm -rf /root/.julia/dev
-	docker container create --name temp -v FUSE:/root alpine
-	docker cp $(HOME)/.julia/dev/. temp:/root/.julia/dev
-	#docker cp $(HOME)/.julia/dev/FUSE/Makefile temp:/root/.julia/dev/FUSE/Makefile
-	docker rm temp
-	docker run --rm -v FUSE:/root julia_fuse bash -c "cd /root/.julia/dev/FUSE && make install_no_registry && make precompile"
+# run FUSE worker container
+broker_run:
+	docker run -it --rm --network=fuse-net -p 6666:6666 -p 7777:7777 -p 8888:8888 -p 9999:9999 --name=broker julia_fuse_updated python3 Broker/src/broker.py
 
-# run FUSE docker
-docker_run:
-	docker run -it --rm julia_fuse julia
+# run FUSE worker container
+worker_run:
+	docker run -it --rm --network=fuse-net julia_fuse_updated julia -e 'import FUSE; FUSE.start_worker("tcp://$(LOCALHOST):8888","tcp://$(LOCALHOST):7777","tcp://$(LOCALHOST):6666")'
 
-# run FUSE docker with volume mount
-docker_run_volume:
-	docker run -it --rm -v FUSE:/root julia_fuse
+# test FUSE client container 
+client_test:
+	docker run -it --rm --network=fuse-net julia_fuse_updated julia -e 'import FUSE; FUSE.client_test("tcp://$(LOCALHOST):9999")'
 
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'

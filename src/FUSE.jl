@@ -18,6 +18,11 @@ include("utils.jl")
 include("parameters.jl")
 include("parameters_init.jl")
 
+#= ====== =#
+#  REMOTE  #
+#= ====== =#
+include("remote.jl")
+
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
 #= ====================== =#
