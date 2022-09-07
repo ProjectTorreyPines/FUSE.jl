@@ -1,16 +1,23 @@
 import Broker
 
-url_balive = "tcp://127.0.0.1:6666"
-url_walive = "tcp://127.0.0.1:7777"
-url_worker = "tcp://127.0.0.1:8888"
-url_client = "tcp://127.0.0.1:9999"
+const url_balive = "tcp://127.0.0.1:6666"
+const url_walive = "tcp://127.0.0.1:7777"
+const url_worker = "tcp://127.0.0.1:8888"
+const url_client = "tcp://127.0.0.1:9999"
 
-function client_test(url_client::String=url_client)
+function client_test(url::String="127.0.0.1"; url_client::String=url_client)
     ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars);
-    return remote_run(ini, act; url_client)
+    return remote_run(ini, act, url; url_client)
 end
 
-function remote_run(ini::ParametersAllInits, act::ParametersAllActors; url_client::String=url_client)
+function client_tests(n_clients, url::String="127.0.0.1"; url_client::String=url_client)
+    @sync for k in 1:n_clients
+        @async client_test(url; url_client)
+    end
+end
+
+function remote_run(ini::ParametersAllInits, act::ParametersAllActors, url::String="127.0.0.1"; url_client::String=url_client)
+    url_client = replace(url_client, "127.0.0.1"=>url)
     payload = Dict("ini" => FUSE.par2dict(ini), "act" => FUSE.par2dict(act))
     json_payload = FUSE.JSON.sprint(payload)
     tmp = Broker.client(json_payload, url_client)
@@ -35,21 +42,20 @@ function worker_function(json_payload::String)
         # return dd data
         return FUSE.JSON.sprint(IMAS.imas2dict(dd; freeze=false))
     catch e
+        display(e)
         return string(e)
     end
 end
 
-function start_broker()
-    broker_py = joinpath(dirname(pathof(Broker)), "broker.py")
-    run(`python $broker_py`)
-end
-
-function start_worker(url_worker::String=url_worker, url_walive::String=url_walive, url_balive::String=url_balive)
+function worker_start(url::String="127.0.0.1"; url_worker::String=url_worker, url_walive::String=url_walive, url_balive::String=url_balive)
+    url_worker = replace(url_worker, "127.0.0.1"=>url)
+    url_walive = replace(url_walive, "127.0.0.1"=>url)
+    url_balive = replace(url_balive, "127.0.0.1"=>url)
     return Broker.worker(worker_function, url_worker, url_walive, url_balive)
 end
 
-function start_workers(n_workers::Integer, url_worker::String=url_worker, url_walive::String=url_walive, url_balive::String=url_balive)
+function worker_start(n_workers::Integer, url::String="127.0.0.1"; url_worker::String=url_worker, url_walive::String=url_walive, url_balive::String=url_balive)
     for k in 1:n_workers
-        Threads.@spawn start_worker(url_worker, url_walive, url_balive)
+        Threads.@spawn start_worker(url; url_worker, url_walive, url_balive)
     end
 end
