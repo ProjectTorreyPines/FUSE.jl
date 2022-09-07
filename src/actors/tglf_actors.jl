@@ -5,14 +5,14 @@ import TGLFNN: run_tglf, run_tglfnn, InputTGLF, flux_solution
 mutable struct ActorTGLF <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
-    input_tglf::Union{InputTGLF,Missing}
-    flux_solution::Union{flux_solution,Missing}
+    input_tglfs::AbstractVector{<:Union{InputTGLF,Missing}}
+    flux_solutions::AbstractVector{Union{flux_solution,Missing}}
 end
 
 function ParametersActor(::Type{Val{:ActorTGLF}})
     par = ParametersActor(nothing)
     par.tglf_model = Switch([:tglf_sat0, :tglfnn], "", "TGLF model to run"; default=:tglfnn)
-    par.rho_tglf = Entry(Real, "", "rho value to compute tglf fluxes"; default=0.6)
+    par.rho_tglf_grid = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=collect(0.2:0.1:0.8))
     par.warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     return par
 end
@@ -20,7 +20,7 @@ end
 """
     ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorTGLF evaluates the TGLF predicted turbulence at single rho 
+The ActorTGLF evaluates the TGLF predicted turbulence at a set of rho_tor_norm grid points
 """
 
 function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -36,41 +36,39 @@ function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     cp1d = dd.core_profiles.profiles_1d[]
 
+
     rho_cp = cp1d.grid.rho_tor_norm
     rho_eq = eq1d.rho_tor_norm
-    gridpoint_eq = argmin(abs.(rho_eq .- par.rho_tglf))
-    gridpoint_cp = argmin(abs.(rho_cp .- par.rho_tglf))
 
-    input_tglf = inputtglf(dd, gridpoint_eq, gridpoint_cp)
-
-    return ActorTGLF(dd, par, input_tglf, missing)
+    input_tglfs = [inputtglf(dd, argmin(abs.(rho_eq .- rho)), argmin(abs.(rho_cp .- rho))) for rho in par.rho_tglf_grid]
+    return ActorTGLF(dd, par, input_tglfs, [missing])
 end
 
 """
     step(actor::ActorTGLF)
 
-Runs TGLF actor to evaluate the turbulence flux on a gridpoint
+Runs TGLF actor to evaluate the turbulence flux on a Vector of gridpoints
 """
 function step(actor::ActorTGLF)
     par = actor.par
+    dd = actor.dd
 
+    model = resize!(dd.core_transport.model, "identifier.name" => string(par.tglf_model))
+    m1d = resize!(model.profiles_1d)
+    IMAS.setup_transport_grid!(m1d, par.rho_tglf_grid)
     if par.tglf_model == :tglfnn
-        sol = run_tglfnn(actor.input_tglf, par.warn_nn_train_bounds)
+        actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds), actor.input_tglfs)
     elseif par.tglf_model == :tglf_sat0
-        sol = run_tglf(actor.input_tglf)
+        actor.flux_solutions = map(input_tglf -> run_tglf(input_tglf), actor.input_tglfs)
     end
-
-    actor.flux_solution = sol
 
     return actor
 end
 
 """
-    finalize(actor::ActorTGLF;
-        temp_pedestal_ratio::Real=actor.par.temp_pedestal_ratio,
-        eped_factor::Real=actor.par.eped_factor)
+    function finalize(actor::ActorTGLF)
 
-Writes results to dd.summary.local.pedestal
+Writes results to dd.core_transport
 """
 function finalize(actor::ActorTGLF)
     dd = actor.dd
@@ -78,15 +76,14 @@ function finalize(actor::ActorTGLF)
     eqt = dd.equilibrium.time_slice[]
 
     model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.tglf_model)][1]]
-    rho_transp_idx = findfirst(i -> i == actor.par.rho_tglf, model.profiles_1d[].grid_flux.rho_tor_norm)
-    rho_cp_idx = findfirst(i -> i == actor.par.rho_tglf, cp1d.grid.rho_tor_norm)
-    if isnothing(rho_transp_idx)
-        error("The transport grid doesn't have the tglf flux matching gridpoint")
+    for (tglf_idx, rho) in enumerate(actor.par.rho_tglf_grid)
+        rho_transp_idx = findfirst(i -> i == rho, model.profiles_1d[].grid_flux.rho_tor_norm)
+        rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
+        model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
+        model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
+        model.profiles_1d[].electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx] # 1 / m^2 / s
+        model.profiles_1d[].momentum_tor.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].STRESS_TOR_i * IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx] #
     end
-    model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
-    model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solution.ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
-    model.profiles_1d[].electrons.particles.flux[rho_transp_idx] = actor.flux_solution.PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx] # 1 / m^2 / s
-    model.profiles_1d[].momentum_tor.flux[rho_transp_idx] = actor.flux_solution.STRESS_TOR_i * IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx] #
     return actor
 end
 
@@ -229,18 +226,6 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     return input_tglf
 end
 
-"""
-    tglf_multi(dd::IMAS.dd, model::Symbol, rho_gridpoints::Vector{<:Real})
-
-Sets up the transport grid and runs ActorTGLF on all the transport gird points serially
-"""
-function tglf_multi(dd::IMAS.dd, act::ParametersAllActors, rho_gridpoints::Vector{<:Real})
-    model = resize!(dd.core_transport.model, "identifier.name" => string(act.ActorTGLF.tglf_model))
-    m1d = resize!(model.profiles_1d)
-    IMAS.setup_transport_grid!(m1d, rho_gridpoints)
-    return map(rho_tglf -> FUSE.ActorTGLF(dd, act, rho_tglf=rho_tglf), rho_gridpoints)
-
-end
 """
     lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{IMAS.core_profiles__profiles_1d___ion})
 
