@@ -8,8 +8,6 @@ function uwanted_warnings_filter(log_args)
     ])
 end
 
-logger = LoggingExtras.ActiveFilteredLogger(uwanted_warnings_filter, Logging.global_logger())
-
 const log_topics = Dict{Symbol,Logging.LogLevel}()
 for topic in [:actors]
     log_topics[topic] = Logging.Error
@@ -28,11 +26,14 @@ function logging(level::Logging.LogLevel, topic::Symbol, text::AbstractString)
 end
 
 """
-    logging(; topics...)
+    logging(level::Union{Nothing,Logging.LogLevel}=nothing; topics...)
 
-Set min_level for different topics
+Set global ConsoleLogger based on level and set min_level for logging of different topics
 """
-function logging(; topics...)
+function logging(level::Union{Nothing,Logging.LogLevel}=nothing; topics...)
+    if level !== nothing
+        Logging.global_logger(LoggingExtras.ActiveFilteredLogger(uwanted_warnings_filter, Logging.ConsoleLogger(level)))
+    end
     for (topic, value) in topics
         if topic ∈ keys(log_topics)
             if typeof(value) <: Logging.LogLevel
@@ -44,11 +45,11 @@ function logging(; topics...)
             error("Valid FUSE logging topics are: $(Symbol[topic for topic in keys(log_topics)])")
         end
     end
+    return nothing
 end
 
 function logging_actor_init(typeof_actor::DataType, args...; kw...)
     logging(Logging.Debug, :actors, "$typeof_actor @ init")
-    return nothing
 end
 
 function step(actor::AbstractActor, args...; kw...)
