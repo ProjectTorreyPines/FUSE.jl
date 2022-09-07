@@ -6,7 +6,7 @@ mutable struct ActorPassiveStructures <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorPassiveStructures(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging(ActorPassiveStructures)
+        logging_actor_init(ActorPassiveStructures)
         par = par(kw...)
         return new(dd, par)
     end

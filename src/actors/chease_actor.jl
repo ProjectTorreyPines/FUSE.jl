@@ -31,7 +31,7 @@ function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorCHEASE(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorCHEASE)
+    logging_actor_init(ActorCHEASE)
     par = par(kw...)
     ActorCHEASE(dd, par, nothing)
 end

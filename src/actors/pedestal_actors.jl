@@ -35,7 +35,7 @@ function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorPedestal(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorPedestal)
+    logging_actor_init(ActorPedestal)
     par = par(kw...)
 
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")

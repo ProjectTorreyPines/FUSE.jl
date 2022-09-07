@@ -40,7 +40,7 @@ function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorBlanket)
+    logging_actor_init(ActorBlanket)
     par = par(kw...)
     return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
 end

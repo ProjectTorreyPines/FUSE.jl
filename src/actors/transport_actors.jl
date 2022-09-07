@@ -45,7 +45,7 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorTauenn)
+    logging_actor_init(ActorTauenn)
     par = par(kw...)
 
     tauenn_parameters = TAUENN.TauennParameters(;

@@ -105,7 +105,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorPFcoilsOpt(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorPFcoilsOpt)
+    logging_actor_init(ActorPFcoilsOpt)
     par = par(kw...)
 
     eq_in = dd.equilibrium

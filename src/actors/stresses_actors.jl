@@ -5,7 +5,7 @@ mutable struct ActorStresses <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorStresses(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging(ActorStresses)
+        logging_actor_init(ActorStresses)
         par = par(kw...)
         return new(dd, par)
     end

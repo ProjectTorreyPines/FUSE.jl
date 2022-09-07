@@ -27,7 +27,7 @@ function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
-    logging(ActorEquilibrium)
+    logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :Solovev
         eq_actor = ActorSolovev(dd, act.ActorSolovev)

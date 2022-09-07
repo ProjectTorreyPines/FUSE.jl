@@ -35,7 +35,7 @@ function ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorQEDcurrent(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorQEDcurrent)
+    logging_actor_init(ActorQEDcurrent)
     par = par(kw...)
     return ActorQEDcurrent(dd, par, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), dd.global_time)
 end
@@ -119,7 +119,7 @@ mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorSteadyStateCurrent(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging(ActorSteadyStateCurrent)
+        logging_actor_init(ActorSteadyStateCurrent)
         par = par(kw...)
         return new(dd, par)
     end

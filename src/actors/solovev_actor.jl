@@ -42,7 +42,7 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorSolovev)
+    logging_actor_init(ActorSolovev)
     par = par(kw...)
 
     # extract info from dd

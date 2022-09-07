@@ -27,10 +27,12 @@ end
 
 function worker_function(json_payload::String)
     try
+        logging(actors=Logging.Info)
+
         # read json input
-        tmp = JSON.parse(json_payload, dicttype=DataStructures.OrderedDict)
-        ini = FUSE.dict2par!(tmp["ini"], FUSE.ParametersAllInits())
-        act = FUSE.dict2par!(tmp["act"], FUSE.ParametersAllActors())
+        data = JSON.parse(json_payload, dicttype=DataStructures.OrderedDict)
+        ini = FUSE.dict2par!(data["ini"], FUSE.ParametersAllInits())
+        act = FUSE.dict2par!(data["act"], FUSE.ParametersAllActors())
 
         # init
         dd = FUSE.init(ini, act)

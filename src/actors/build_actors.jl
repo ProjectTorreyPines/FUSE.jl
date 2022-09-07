@@ -175,7 +175,7 @@ function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorFluxSwing(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorFluxSwing)
+    logging_actor_init(ActorFluxSwing)
     par = par(kw...)
     return ActorFluxSwing(dd, par, par.operate_at_j_crit, par.j_tolerance)
 end
@@ -304,7 +304,7 @@ mutable struct ActorLFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging(ActorLFSsizing)
+        logging_actor_init(ActorLFSsizing)
         par = par(kw...)
         return new(dd, par)
     end
@@ -657,7 +657,7 @@ mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging(ActorCXbuild)
+        logging_actor_init(ActorCXbuild)
         par = par(kw...)
         return new(dd, par)
     end

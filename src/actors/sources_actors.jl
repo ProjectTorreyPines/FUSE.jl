@@ -36,7 +36,7 @@ function ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorNBIsimple(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorNBIsimple)
+    logging_actor_init(ActorNBIsimple)
     par = par(kw...)
     n_beams = length(dd.nbi.unit)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_beams, par.width, par.rho_0, par.current_efficiency)
@@ -124,7 +124,7 @@ function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorECsimple(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorECsimple)
+    logging_actor_init(ActorECsimple)
     par = par(kw...)
     n_launchers = length(dd.ec_launchers.beam)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_launchers, par.width, par.rho_0, par.current_efficiency)
@@ -204,7 +204,7 @@ function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorICsimple(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorICsimple)
+    logging_actor_init(ActorICsimple)
     par = par(kw...)
     n_antennas = length(dd.ic_antennas.antenna)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.current_efficiency)
@@ -284,7 +284,7 @@ function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorLHsimple(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging(ActorLHsimple)
+    logging_actor_init(ActorLHsimple)
     par = par(kw...)
     n_antennas = length(dd.lh_antennas.antenna)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.current_efficiency)
