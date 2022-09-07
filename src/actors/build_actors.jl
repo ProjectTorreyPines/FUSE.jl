@@ -175,6 +175,7 @@ function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorFluxSwing(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorFluxSwing)
     par = par(kw...)
     return ActorFluxSwing(dd, par, par.operate_at_j_crit, par.j_tolerance)
 end
@@ -189,7 +190,7 @@ These currents may or may not exceed the OH and TF current limits.
 
 The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 """
-function step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
+function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
 
     bd = actor.dd.build
     target = actor.dd.target
@@ -303,6 +304,7 @@ mutable struct ActorLFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging(ActorLFSsizing)
         par = par(kw...)
         return new(dd, par)
     end
@@ -339,7 +341,7 @@ function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorLFSsizing; verbose::Bool=false)
+function _step(actor::ActorLFSsizing; verbose::Bool=false)
     dd = actor.dd
 
     new_TF_radius = IMAS.R_tf_ripple(IMAS.get_build(dd.build, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
@@ -655,6 +657,7 @@ mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging(ActorCXbuild)
         par = par(kw...)
         return new(dd, par)
     end
@@ -687,7 +690,7 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
+function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
     build_cx!(actor.dd; rebuild_wall)
 end
 

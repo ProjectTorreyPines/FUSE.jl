@@ -6,6 +6,7 @@ mutable struct ActorPassiveStructures <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorPassiveStructures(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging(ActorPassiveStructures)
         par = par(kw...)
         return new(dd, par)
     end
@@ -33,7 +34,7 @@ function ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorPassiveStructures)
+function _step(actor::ActorPassiveStructures)
     dd = actor.dd
 
     # all LFS

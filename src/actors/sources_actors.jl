@@ -36,13 +36,14 @@ function ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorNBIsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorNBIsimple)
     par = par(kw...)
     n_beams = length(dd.nbi.unit)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_beams, par.width, par.rho_0, par.current_efficiency)
     return ActorNBIsimple(dd, par, width, rho_0, current_efficiency)
 end
 
-function step(actor::ActorNBIsimple)
+function _step(actor::ActorNBIsimple)
     for (idx, nbu) in enumerate(actor.dd.nbi.unit)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -123,13 +124,14 @@ function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorECsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorECsimple)
     par = par(kw...)
     n_launchers = length(dd.ec_launchers.beam)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_launchers, par.width, par.rho_0, par.current_efficiency)
     return ActorECsimple(dd, par, width, rho_0, current_efficiency)
 end
 
-function step(actor::ActorECsimple)
+function _step(actor::ActorECsimple)
     for (idx, ecl) in enumerate(actor.dd.ec_launchers.beam)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -202,13 +204,14 @@ function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorICsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorICsimple)
     par = par(kw...)
     n_antennas = length(dd.ic_antennas.antenna)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.current_efficiency)
     return ActorICsimple(dd, par, width, rho_0, current_efficiency)
 end
 
-function step(actor::ActorICsimple)
+function _step(actor::ActorICsimple)
     for (idx, ica) in enumerate(actor.dd.ic_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]
@@ -281,13 +284,14 @@ function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorLHsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorLHsimple)
     par = par(kw...)
     n_antennas = length(dd.lh_antennas.antenna)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.current_efficiency)
     return ActorLHsimple(dd, par, width, rho_0, current_efficiency)
 end
 
-function step(actor::ActorLHsimple)
+function _step(actor::ActorLHsimple)
     for (idx, lha) in enumerate(actor.dd.lh_antennas.antenna)
         eqt = actor.dd.equilibrium.time_slice[]
         cp1d = actor.dd.core_profiles.profiles_1d[]

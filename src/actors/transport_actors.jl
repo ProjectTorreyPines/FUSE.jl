@@ -45,7 +45,9 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorTauenn)
     par = par(kw...)
+
     tauenn_parameters = TAUENN.TauennParameters(;
         par.error,
         par.eped_factor,
@@ -55,10 +57,11 @@ function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
         par.transport_model,
         par.confinement_factor,
         par.warn_nn_train_bounds)
+
     return ActorTauenn(dd, par, tauenn_parameters, TAUENN.TauennOutputs())
 end
 
-function step(actor::ActorTauenn)
+function _step(actor::ActorTauenn)
     dd = actor.dd
     par = actor.par
     if par.do_plot

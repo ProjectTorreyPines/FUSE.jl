@@ -25,6 +25,7 @@ mutable struct ActorNeutronics <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorNeutronics(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging(ActorNeutronics)
         par = par(kw...)
         return new(dd, par)
     end
@@ -54,7 +55,7 @@ function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.step, do_plot::Bool=actor.par.do_plot)
+function _step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.step, do_plot::Bool=actor.par.do_plot)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]

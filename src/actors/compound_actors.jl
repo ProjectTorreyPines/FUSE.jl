@@ -37,6 +37,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorEquilibriumTransport(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+    logging(ActorEquilibriumTransport)
     par = par(kw...)
     actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
@@ -44,7 +45,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, par::ParametersActor, act::Param
     return ActorEquilibriumTransport(dd, par, act, actor_jt, actor_eq, actor_tr)
 end
 
-function step(actor::ActorEquilibriumTransport)
+function _step(actor::ActorEquilibriumTransport)
     dd = actor.dd
     par = actor.par
     act = actor.act
@@ -133,8 +134,9 @@ function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorWholeFacility(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
-
+    logging(ActorWholeFacility)
     par = par(kw...)
+
     ActorWholeFacility(dd, par, act,
         nothing,
         nothing,
@@ -148,7 +150,7 @@ function ActorWholeFacility(dd::IMAS.dd, par::ParametersActor, act::ParametersAl
         nothing)
 end
 
-function step(actor::ActorWholeFacility)
+function _step(actor::ActorWholeFacility)
     dd = actor.dd
     act = actor.act
     actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)

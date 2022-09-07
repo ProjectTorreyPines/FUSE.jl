@@ -32,11 +32,12 @@ function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorDivertors(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorDivertors)
     par = par(kw...)
     return ActorDivertors(dd, par, par.thermal_power_extraction_efficiency)
 end
 
-function step(actor::ActorDivertors)
+function _step(actor::ActorDivertors)
     dd = actor.dd
 
     empty!(dd.divertors)

@@ -40,11 +40,12 @@ function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorBlanket)
     par = par(kw...)
     return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
 end
 
-function step(actor::ActorBlanket)
+function _step(actor::ActorBlanket)
     dd = actor.dd
 
     eqt = dd.equilibrium.time_slice[]

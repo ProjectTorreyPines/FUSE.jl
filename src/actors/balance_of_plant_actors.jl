@@ -40,11 +40,12 @@ function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorBalanceOfPlant(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging(ActorBalanceOfPlant)
     par = par(kw...)
     ActorBalanceOfPlant(dd, par, par.blanket_multiplier, par.efficiency_reclaim, par.thermal_electric_conversion_efficiency)
 end
 
-function step(actor::ActorBalanceOfPlant; model::Symbol=actor.par.model)
+function _step(actor::ActorBalanceOfPlant; model::Symbol=actor.par.model)
     dd = actor.dd
     bop = dd.balance_of_plant
     empty!(bop)

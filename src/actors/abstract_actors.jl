@@ -4,6 +4,6 @@ abstract type ReactorAbstractActor <: AbstractActor end
 abstract type HCDAbstractActor <: AbstractActor end
 abstract type PlasmaAbstractActor <: AbstractActor end
 
-function finalize(actor::AbstractActor)
+function _finalize(actor::AbstractActor)
     actor
 end
