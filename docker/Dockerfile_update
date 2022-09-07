@@ -1,4 +1,5 @@
-FROM julia_fuse:latest
+FROM --platform=linux/_PLATFORM_ julia_fuse__PLATFORM_:latest
+RUN apt-get -y install --no-install-recommends net-tools
 
 WORKDIR /root/.julia/dev
 COPY ./Broker Broker/
@@ -30,3 +31,4 @@ WORKDIR /root/.julia/dev
 EXPOSE 9999
 EXPOSE 8888
 EXPOSE 7777
+EXPOSE 6666

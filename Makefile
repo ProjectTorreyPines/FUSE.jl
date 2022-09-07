@@ -141,6 +141,9 @@ docker_network:
 docker_image:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile_base ../Dockerfile
+	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
+	mv tmp ../Dockerfile
+	cat ../Dockerfile
 	cp .gitignore ../.dockerignore
 	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM) .
 
@@ -148,20 +151,23 @@ docker_image:
 docker_update:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile_update ../Dockerfile
+	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
+	mv tmp ../Dockerfile
+	cat ../Dockerfile
 	cp .gitignore ../.dockerignore
 	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM)_updated .
 
 # run FUSE worker container
 broker_run:
-	docker run -it --rm --network=fuse-net -p 6666:6666 -p 7777:7777 -p 8888:8888 -p 9999:9999 --name=broker julia_fuse_updated python3 Broker/src/broker.py
+	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net -p 6666:6666 -p 7777:7777 -p 8888:8888 -p 9999:9999 --name=broker julia_fuse_$(DOCKER_PLATFORM)_updated python3 Broker/src/broker.py
 
 # run FUSE worker container
 worker_run:
-	docker run -it --rm --network=fuse-net julia_fuse_updated julia -e 'import FUSE; FUSE.start_worker("tcp://$(LOCALHOST):8888","tcp://$(LOCALHOST):7777","tcp://$(LOCALHOST):6666")'
+	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.start_worker(url="$(LOCALHOST)")'
 
 # test FUSE client container 
 client_test:
-	docker run -it --rm --network=fuse-net julia_fuse_updated julia -e 'import FUSE; FUSE.client_test("tcp://$(LOCALHOST):9999")'
+	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.client_test(url="$(LOCALHOST)")'
 
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'

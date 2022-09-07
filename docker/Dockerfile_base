@@ -1,6 +1,6 @@
-FROM julia:latest
+FROM --platform=linux/_PLATFORM_ julia:latest
 RUN apt-get -y update
-RUN apt-get -y install --no-install-recommends git make python3 pip
+RUN apt-get -y install --no-install-recommends git make python3 pip net-tools
 
 RUN pip3 install zmq tornado
 RUN apt-get autoclean
@@ -36,3 +36,4 @@ WORKDIR /root/.julia/dev
 EXPOSE 9999
 EXPOSE 8888
 EXPOSE 7777
+EXPOSE 6666
