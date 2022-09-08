@@ -5,8 +5,8 @@ import TGLFNN: run_tglf, run_tglfnn, InputTGLF, flux_solution
 mutable struct ActorTGLF <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
-    input_tglfs::AbstractVector{<:Union{InputTGLF,Missing}}
-    flux_solutions::AbstractVector{Union{flux_solution,Missing}}
+    input_tglfs::AbstractVector{<:InputTGLF}
+    flux_solutions::AbstractVector{<:flux_solution}
 end
 
 function ParametersActor(::Type{Val{:ActorTGLF}})
@@ -41,7 +41,7 @@ function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
     rho_eq = eq1d.rho_tor_norm
 
     input_tglfs = [inputtglf(dd, argmin(abs.(rho_eq .- rho)), argmin(abs.(rho_cp .- rho))) for rho in par.rho_tglf_grid]
-    return ActorTGLF(dd, par, input_tglfs, [missing])
+    return ActorTGLF(dd, par, input_tglfs, flux_solution[])
 end
 
 """
