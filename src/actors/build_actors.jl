@@ -475,8 +475,8 @@ function step(
     function cost(x0, what)
         # assign optimization arguments and evaluate coils currents and stresses
         c_extra = assign_PL_OH_TF_thicknesses(x0, what)
-        step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=what)
-        step(actor.stresses_actor)
+        _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=what)
+        _step(actor.stresses_actor)
 
         # OH and plug sizing based on stresses
         c_joh = c_soh = c_spl = 0.0
@@ -551,8 +551,8 @@ function step(
         autodiff=:forward
     )
     assign_PL_OH_TF_thicknesses(res.minimizer, :oh)
-    step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:oh)
-    step(actor.stresses_actor)
+    _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:oh)
+    _step(actor.stresses_actor)
     if verbose
         display(res)
     end
@@ -567,8 +567,8 @@ function step(
         autodiff=:forward
     )
     assign_PL_OH_TF_thicknesses(res.minimizer, :tf)
-    step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:tf)
-    step(actor.stresses_actor)
+    _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:tf)
+    _step(actor.stresses_actor)
     if verbose
         display(res)
     end
@@ -585,8 +585,8 @@ function step(
             autodiff=:forward
         )
         assign_PL_OH_TF_thicknesses(res.minimizer, :all)
-        step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance)
-        step(actor.stresses_actor)
+        _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance)
+        _step(actor.stresses_actor)
         if verbose
             display(res)
         end
@@ -888,7 +888,6 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     return blankets
 end
-
 
 """
     build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)
