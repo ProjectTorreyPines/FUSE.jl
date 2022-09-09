@@ -1,10 +1,9 @@
 JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
 JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
 CURRENTDIR = $(shell pwd)
-LOCALHOST := $(shell ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
 
-DOCKER_PLATFORM := amd64
-DOCKER_PLATFORM := arm64
+FUSE_BROKER := 35.247.84.151
+
 DOCKER_PLATFORM := $(shell uname -m)
 
 define clone_update_repo
@@ -163,11 +162,11 @@ broker_run:
 
 # run FUSE worker container
 worker_run:
-	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.start_worker(url="$(LOCALHOST)")'
+	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.start_worker(url="$(FUSE_BROKER)")'
 
 # test FUSE client container 
 client_test:
-	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.client_test(url="$(LOCALHOST)")'
+	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.client_test(url="$(FUSE_BROKER)")'
 
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
