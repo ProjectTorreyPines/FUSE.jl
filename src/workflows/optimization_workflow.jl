@@ -83,11 +83,11 @@ function workflow_multiobjective_optimization(
 end
 
 """
-    save_optimization(filename::AbstractString, results::FUSE.MultiobjectiveOptimizationResults)
+    save_optimization(filename::AbstractString, results::MultiobjectiveOptimizationResults)
 
 Save MultiobjectiveOptimizationResults to file in BSON format
 """
-function save_optimization(filename::AbstractString, results::FUSE.MultiobjectiveOptimizationResults)
+function save_optimization(filename::AbstractString, results::MultiobjectiveOptimizationResults)
     return BSON.bson(filename, Dict("results" => results))
 end
 
