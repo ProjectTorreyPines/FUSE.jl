@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: fusebroker
+  name: fusebroker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fusebroker
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: fusebroker
+    spec:
+      containers:
+      - image: gcr.io/sdsc-20220719-60951/fuse_zmq
+        name: fusebroker
+        resources:
+          limits:
+            cpu: 0.95
+            memory: 3.9G
+          requests:
+            cpu: 0.95
+            memory: 3.9G
+        command: ["python3", "Broker/src/broker.py"]
