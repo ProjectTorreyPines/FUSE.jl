@@ -112,11 +112,13 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.gm8 * m_to_cm).(cp1d.grid.rho_tor_norm)
     rmin = IMAS.r_min_core_profiles(cp1d, eqt)
 
-    q = eq1d.q[gridpoint_eq]
+    q_profile = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.q).(cp1d.grid.rho_tor_norm)
     kappa = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.elongation).(cp1d.grid.rho_tor_norm)
     delta = IMAS.interp1d(eq1d.rho_tor_norm, 0.5 * (eq1d.triangularity_lower + eq1d.triangularity_upper)).(cp1d.grid.rho_tor_norm)
+    zeta = IMAS.interp1d(eq1d.rho_tor_norm, 0.25 * (eq1d.squareness_lower_inner .+ eq1d.squareness_lower_outer .+ eq1d.squareness_upper_inner .+ eq1d.squareness_upper_outer)).(cp1d.grid.rho_tor_norm)
 
     a = rmin[end]
+    q = q_profile[gridpoint_cp]
 
     Te = cp1d.electrons.temperature
     dlntedr = -IMAS.gradient(rmin, Te) ./ Te
