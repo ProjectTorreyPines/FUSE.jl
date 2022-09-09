@@ -154,7 +154,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     if any(i -> i == 0, w0)
         w0p = zeros(length(w0))
     else
-        w0p = IMAS.gradient(w0, rmin)
+        w0p = IMAS.gradient(rmin, w0)
     end
     gamma_p = -Rmaj[gridpoint_cp] * w0p[gridpoint_cp]
     gamma_e = -rmin[gridpoint_cp] / q * w0p[gridpoint_cp]
@@ -208,12 +208,13 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
 
     skappa = rmin .* IMAS.gradient(rmin, kappa) ./ kappa
     sdelta = rmin .* IMAS.gradient(rmin, delta)
+    szeta = rmin .* IMAS.gradient(rmin, zeta)
 
     input_tglf.S_KAPPA_LOC = skappa[gridpoint_cp]
     input_tglf.DELTA_LOC = delta[gridpoint_cp]
     input_tglf.S_DELTA_LOC = sdelta[gridpoint_cp]
-    input_tglf.ZETA_LOC = 0.0
-    input_tglf.S_ZETA_LOC = 0.0
+    input_tglf.ZETA_LOC = zeta[gridpoint_cp]
+    input_tglf.S_ZETA_LOC = szeta[gridpoint_cp]
 
     press = cp1d.pressure_thermal
     Pa_to_dyn = 10.0
@@ -221,7 +222,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     dpdr = IMAS.gradient(rmin, press .* Pa_to_dyn)[gridpoint_cp]
     input_tglf.P_PRIME_LOC = abs(q) / (rmin[gridpoint_cp] / a)^2 * rmin[gridpoint_cp] / bunit^2 * dpdr
 
-    dqdr = IMAS.gradient(m_to_cm .* 0.5 .* (eq1d.r_outboard .- eq1d.r_inboard), eq1d.q)[gridpoint_eq]
+    dqdr = IMAS.gradient(rmin, q_profile)[gridpoint_cp]
     s = rmin[gridpoint_cp] / q * dqdr
     input_tglf.Q_PRIME_LOC = q^2 * a^2 / rmin[gridpoint_cp]^2 * s
 
