@@ -156,17 +156,29 @@ docker_update:
 	cp .gitignore ../.dockerignore
 	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM)_updated .
 
-# run FUSE worker container
-broker_run:
+# run FUSE broker in container
+docker_broker:
 	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net -p 6666:6666 -p 7777:7777 -p 8888:8888 -p 9999:9999 --name=broker julia_fuse_$(DOCKER_PLATFORM)_updated python3 Broker/src/broker.py
 
-# run FUSE worker container
-worker_run:
+# run FUSE worker in container
+docker_worker:
 	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.worker_start("$(FUSE_BROKER)")'
 
-# test FUSE client container 
-client_test:
+# test FUSE client in container 
+docker_client_test:
 	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.client_test("$(FUSE_BROKER)")'
+
+# run FUSE broker
+broker:
+	python3 ../Broker/src/broker.py
+
+# run FUSE worker
+worker:
+	julia -e 'import FUSE; FUSE.worker_start("$(FUSE_BROKER)")'
+
+# test FUSE client
+client_test:
+	julia -e 'import FUSE; FUSE.client_test("$(FUSE_BROKER)")'
 
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
