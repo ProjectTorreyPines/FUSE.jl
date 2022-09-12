@@ -5,7 +5,7 @@ metadata:
     app: fuseworker
   name: fuseworker
 spec:
-  replicas: 8
+  replicas: 2
   selector:
     matchLabels:
       app: fuseworker
@@ -23,12 +23,12 @@ spec:
           value: 35.247.84.151
         resources:
           limits:
-            cpu: 0.95
-            memory: 2.9G
+            cpu: 1.0
+            memory: 4Gi
             ephemeral-storage: 1G
           requests:
-            cpu: 0.95
-            memory: 2.9G
+            cpu: 1.0
+            memory: 4Gi
             ephemeral-storage: 1G
         #command: ["sh", "-c", "sleep infinity"]
         command: ["julia", "-e", "import FUSE; FUSE.worker_start()"]

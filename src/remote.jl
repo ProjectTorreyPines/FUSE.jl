@@ -12,8 +12,9 @@ function client_test(url::String=get(ENV, "FUSE_BROKER", "127.0.0.1"); url_clien
 end
 
 function client_tests(n_clients, url::String=get(ENV, "FUSE_BROKER", "127.0.0.1"); url_client::String=url_client, url_balive::String=url_balive)
+    ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
     @sync for k in 1:n_clients
-        @async client_test(url; url_client, url_balive)
+        @async remote_run(ini, act, url; url_client, url_balive)
     end
 end
 

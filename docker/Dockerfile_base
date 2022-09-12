@@ -2,7 +2,7 @@ FROM --platform=linux/_PLATFORM_ julia:latest
 RUN apt-get -y update
 RUN apt-get -y install --no-install-recommends git make python3 pip net-tools
 
-RUN pip3 install zmq tornado
+RUN pip3 install zmq tornado coloredlogs
 RUN apt-get autoclean
 
 WORKDIR /root/.julia/dev

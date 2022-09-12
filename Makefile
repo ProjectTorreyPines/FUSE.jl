@@ -156,6 +156,11 @@ docker_update:
 	cp .gitignore ../.dockerignore
 	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM)_updated .
 
+# upload docker image to gke
+docker_upload:
+	docker tag julia_fuse_amd64_updated gcr.io/sdsc-20220719-60951/fuse_zmq
+	docker push gcr.io/sdsc-20220719-60951/fuse_zmq
+
 # run FUSE broker in container
 docker_broker:
 	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net -p 6666:6666 -p 7777:7777 -p 8888:8888 -p 9999:9999 --name=broker julia_fuse_$(DOCKER_PLATFORM)_updated python3 Broker/src/broker.py
@@ -178,7 +183,7 @@ worker:
 
 # test FUSE client
 client_test:
-	julia -e 'import FUSE; FUSE.client_test("$(FUSE_BROKER)")'
+	julia -e 'import FUSE; @time FUSE.client_tests(10, "$(FUSE_BROKER)")'
 
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'

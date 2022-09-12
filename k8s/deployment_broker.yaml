@@ -27,4 +27,4 @@ spec:
             cpu: 0.1
             memory: 0.1G
             ephemeral-storage: 1G
-        command: ["python3", "Broker/src/broker.py"]
+        command: ["python3", "Broker/src/broker.py", "--log_file=broker.log"]
