@@ -41,11 +41,12 @@ function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging_actor_init(ActorBlanket)
     par = par(kw...)
     return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
 end
 
-function step(actor::ActorBlanket)
+function _step(actor::ActorBlanket)
     if actor.par.model==:TBR_1D
         return TBR_1D(actor)
     elseif actor.par.model==:TBR_2D

@@ -35,11 +35,12 @@ function ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorQEDcurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging_actor_init(ActorQEDcurrent)
     par = par(kw...)
     return ActorQEDcurrent(dd, par, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), dd.global_time)
 end
 
-function step(actor::ActorQEDcurrent, tmax, Nt, Vedge=nothing, Ip=nothing; resume=false)
+function _step(actor::ActorQEDcurrent, tmax, Nt, Vedge=nothing, Ip=nothing; resume=false)
     if resume
         if actor.QO !== missing
             actor.QI = actor.QO
@@ -52,7 +53,7 @@ function step(actor::ActorQEDcurrent, tmax, Nt, Vedge=nothing, Ip=nothing; resum
     actor.QO = QED.diffuse(actor.QI, actor.η, tmax, Nt; Vedge, Ip)
 end
 
-function finalize(actor::ActorQEDcurrent)
+function _finalize(actor::ActorQEDcurrent)
     dd = actor.dd
 
     eqt = dd.equilibrium.time_slice[]
@@ -118,6 +119,7 @@ mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorSteadyStateCurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging_actor_init(ActorSteadyStateCurrent)
         par = par(kw...)
         return new(dd, par)
     end
@@ -146,7 +148,7 @@ function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorSteadyStateCurrent)
+function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
     IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
     # update core_sources related to current

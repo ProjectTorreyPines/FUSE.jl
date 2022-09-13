@@ -306,6 +306,7 @@ mutable struct ActorCosting <: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorCosting(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging_actor_init(ActorCosting)
         par = par(kw...)
         return new(dd, par)
     end
@@ -340,7 +341,7 @@ function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorCosting)
+function _step(actor::ActorCosting)
     par = actor.par
     dd = actor.dd
     cst = dd.costing
@@ -459,7 +460,7 @@ function step(actor::ActorCosting)
     return actor
 end
 
-function finalize(actor::ActorCosting)
+function _finalize(actor::ActorCosting)
     # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system, by=x -> x.cost, rev=true)
     for sys in actor.dd.costing.cost_direct_capital.system

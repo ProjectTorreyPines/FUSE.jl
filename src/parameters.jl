@@ -469,29 +469,30 @@ function (par::AbstractParameters)(kw...)
     return par
 end
 
-function doc(parameters::AbstractParameters)
-    if typeof(parameters) <: ParametersActor
-        ppath = "act.$(parameters._name)"
-    else
-        ppath = "ini.$(parameters._name)"
+"""
+    diff(p1::AbstractParameters, p2::AbstractParameters)
+
+Look for differences between two `ini` or `act` sets of parameters
+"""
+function Base.diff(p1::AbstractParameters, p2::AbstractParameters)
+    commonkeys = intersect(Set(keys(p1)),Set(keys(p2)))
+    if length(commonkeys) != length(keys(p1))
+        error("p1 has more keys")
+    elseif length(commonkeys) != length(keys(p2))
+        error("p2 has more keys")
     end
-    txt = []
-    for par in sort(collect(keys(parameters)))
-        if typeof(parameters[par]) <: AbstractParameters
-            push!(txt, "**`$(ppath).$par`**: $(typeof(parameters[par]))")
-        else
-            if isempty(parameters[par].units)
-                units = ""
-            else
-                units = " [$(parameters[par].units)]"
-            end
-            push!(txt, "**`$(ppath).$par`**:$units $(parameters[par].description)")
+    for key in commonkeys
+        v1 = p1._parameters[key]
+        v2 = p2._parameters[key]
+        if typeof(v1) !== typeof(v2)
+            error("$key is of different type")
+        elseif typeof(v1) <: AbstractParameters
+            diff(v1, v2)
+        elseif typeof(v1.value) === typeof(v2.value) === Missing
+            continue
+        elseif v1.value != v2.value
+            error("$key had different value:\n$v1\n\n$v2")
         end
-    end
-    if isempty(txt)
-        return ""
-    else
-        return "* " * join(txt, "\n* ")
     end
 end
 
@@ -584,7 +585,7 @@ function dict2par!(dct::AbstractDict, par::AbstractParameters)
 end
 
 function json2par(filename::AbstractString, par_data::AbstractParameters)
-    json_data = JSON.parsefile(filename)
+    json_data = JSON.parsefile(filename, dicttype=DataStructures.OrderedDict)
     return dict2par!(json_data, par_data)
 end
 

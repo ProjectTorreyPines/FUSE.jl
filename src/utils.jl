@@ -174,8 +174,8 @@ end
 Function used to precompile the majority of FUSE
 """
 function warmup()
-    ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
-    dd = FUSE.init(ini, act)
-    FUSE.ActorWholeFacility(dd, act)
+    ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
+    dd = init(ini, act)
+    ActorWholeFacility(dd, act)
     IMAS.freeze(dd)
 end

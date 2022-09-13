@@ -29,7 +29,7 @@ Here is an example, illustrating how a simple FUSE simulation can be setup and r
 # using the Revise and FUSE packages (Revise for development)
 using Revise
 using FUSE
-global_logger(FUSE.logger)
+FUSE.logging(Logging.Info; actors=Logging.Info); # set log-level
 # get `ini` and `act` for a given use-case
 ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
 # initialize `dd` from 0D parameters

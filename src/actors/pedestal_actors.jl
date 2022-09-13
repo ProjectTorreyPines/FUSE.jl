@@ -35,6 +35,7 @@ function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorPedestal(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging_actor_init(ActorPedestal)
     par = par(kw...)
 
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
@@ -77,7 +78,7 @@ end
 
 Runs pedestal actor to evaluate pedestal width and height
 """
-function step(actor::ActorPedestal;
+function _step(actor::ActorPedestal;
     warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
     only_powerlaw::Bool=false)
 
@@ -96,7 +97,7 @@ end
 
 Writes results to dd.summary.local.pedestal
 """
-function finalize(actor::ActorPedestal;
+function _finalize(actor::ActorPedestal;
     temp_pedestal_ratio::Real=actor.par.temp_pedestal_ratio,
     eped_factor::Real=actor.par.eped_factor)
 
