@@ -14,7 +14,7 @@ end
 function ParametersActor(::Type{Val{:ActorBlanket}})
     par = ParametersActor(nothing)
     par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
-    par.model = Switch([:TBR_1D, :TBR_2D], "", "Blanket model"; default=:TBR_2D)
+    par.model = Switch([:midplane, :sectors], "", "Blanket model"; default=:sectors)
     par.thermal_power_extraction_efficiency = Entry(
         Real,
         "",
@@ -48,21 +48,55 @@ end
 
 function _step(actor::ActorBlanket)
     @warn "currently only using GAMBL materials in blanket and first wall."
-    empty!(actor.dd.blanket)
-    blanket = IMAS.get_build(actor.dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
+    dd = actor.dd
+    empty!(dd.blanket)
+    blanket = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
     if blanket === missing
         @warn "No blanket present for ActorBlanket to do anything"
         return actor
     end
-    if actor.par.model == :TBR_1D
-        TBR_1D(actor)
-    elseif actor.par.model == :TBR_2D
-        TBR_2D(actor)
+
+    if actor.par.model == :midplane
+        midplane_blanket_model(actor)
+    elseif actor.par.model == :sectors
+        sectors_blanket_model(actor)
+    else
+        error("ActorBlanket model `$(actor.par.model)` is not supported")
     end
+
+    # Optimize Li6/Li7 ratio to obtain target TBR
+    function target_TBR(blanket_model, Li6, dd, target=nothing)
+        total_tritium_breeding_ratio = 0.0
+        total_power_neutrons = sum([bm.time_slice[].power_incident_neutrons for bm in dd.blanket.module])
+        for bm in dd.blanket.module
+            bmt = bm.time_slice[]
+            bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
+            bmt.tritium_breeding_ratio = NNeutronics.TBR(blanket_model, [dl.thickness for dl in bm.layer]..., Li6)
+            total_tritium_breeding_ratio += bmt.tritium_breeding_ratio * bmt.power_incident_neutrons / total_power_neutrons
+        end
+        if target === nothing
+            return total_tritium_breeding_ratio
+        else
+            return (total_tritium_breeding_ratio - target)^2
+        end
+    end
+
+    blanket_model_1d = NNeutronics.Blanket()
+    res = Optim.optimize(Li6 -> target_TBR(blanket_model_1d, Li6, dd, dd.target.tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
+    total_tritium_breeding_ratio = target_TBR(blanket_model_1d, res.minimizer, dd)
+
+    @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
+
     return actor
 end
 
-function TBR_1D(actor::ActorBlanket)
+"""
+    midplane_blanket_model(actor::ActorBlanket)
+
+Uses wall,blanket,shield thicknesses at midplane.
+Calculates wall neutron/radiation loading for hfs and lfs blankets.
+"""
+function midplane_blanket_model(actor::ActorBlanket)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     nnt = dd.neutronics.time_slice[]
@@ -128,40 +162,17 @@ function TBR_1D(actor::ActorBlanket)
         end
     end
 
-    # Optimize Li6/Li7 ratio to obtain target TBR
-    function target_TBR(blanket_model, Li6, dd, target=nothing)
-        total_tritium_breeding_ratio = 0.0
-        for bm in dd.blanket.module
-            bmt = bm.time_slice[]
-            bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
-            bmt.tritium_breeding_ratio = NNeutronics.TBR(blanket_model, [dl.thickness for dl in bm.layer]..., Li6)
-            total_tritium_breeding_ratio += bmt.tritium_breeding_ratio * bmt.power_incident_neutrons / total_power_neutrons
-        end
-        if target === nothing
-            return total_tritium_breeding_ratio
-        else
-            return (total_tritium_breeding_ratio - target)^2
-        end
-    end
-
-    blanket_model_1d = NNeutronics.Blanket()
-    res = Optim.optimize(Li6 -> target_TBR(blanket_model_1d, Li6, dd, dd.target.tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
-    total_tritium_breeding_ratio = target_TBR(blanket_model_1d, res.minimizer, dd)
-
-    @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
-
     return actor
 end
 
 """
-    TBR_2D(actor::ActorBlanket)
+    sectors_blanket_model(actor::ActorBlanket)
 
-Calculates 2-dimensional TBR from dd using NNeutronics.TBR(). Calculates layer
-thicknesses and wall loading at poloidal angles, a local TBR at each segment, 
-then sums for a 2D TBR calculation. Blanket Li6 enrichment given to function in %.
+Splits poloidal space into sectors and calculates wall,blanket,shield thicknesses for each segment.
+alculates wall neutron/radiation loading for each sector.
 """
-function TBR_2D(actor::ActorBlanket)
-    Li6 = 90.0
+function sectors_blanket_model(actor::ActorBlanket)
+
     num_of_sections = 25
     debug_plot = true
 
@@ -312,16 +323,9 @@ function TBR_2D(actor::ActorBlanket)
     wall_angles .-= wall_angles[1]
     wall_angles = unwrap(wall_angles)
 
-    # load the 1D blanket model
-    blanket_model_1d = NNeutronics.Blanket()
-
     # fractional wall loading for each section
-    global_tbr = 0.0
     for (k, (angle_end, angle_start)) in enumerate(zip(angle_bounds[1:end-1], angle_bounds[2:end]))
         bm = dd.blanket.module[k]
-        if bm.layer[2].thickness == 0
-            continue
-        end
         index = findall(x -> (x > angle_start) && (x <= angle_end), wall_angles)
 
         neutron_capture_fraction = sum(nnt.wall_loading.power[index]) / total_power_neutrons
@@ -338,12 +342,7 @@ function TBR_2D(actor::ActorBlanket)
         bmt.power_thermal_radiated = bmt.power_incident_radiated
 
         bmt.power_thermal_extracted = actor.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
-
-        local_tbr = NNeutronics.TBR(blanket_model_1d, bm.layer[1].thickness, bm.layer[2].thickness, bm.layer[3].thickness, Li6)
-        global_tbr += local_tbr * neutron_capture_fraction
     end
-
-    println("Total TBR: ", global_tbr)
 
     if debug_plot
         p = plot(legend=false, xlabel="R (m)", ylabel="Z (m)", size=(600, 600), aspect_ratio=:equal)
