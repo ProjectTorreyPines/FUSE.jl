@@ -192,33 +192,28 @@ function sectors_blanket_model(actor::ActorBlanket)
         resize!(bm.layer, 3)
     end
 
-    TBRdd = Dict()
-
     # magnetic axis (where most of fusion is likely to occur)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
 
     # layers
-    wall_layer_names = String[]
+    wall_layers = []
     for layer in dd.build.layer
         if layer.type == Int(_plasma_)
-            TBRdd[layer.name] = layer
-            push!(wall_layer_names, layer.name)
+            push!(wall_layers, layer)
         elseif layer.type == Int(_wall_) && layer.fs == Int(_hfs_)
-            TBRdd[layer.name] = layer
-            push!(wall_layer_names, layer.name)
+            push!(wall_layers, layer)
         end
     end
 
     # structures
-    divertor_struct_names = String[]
-    blanket_struct_names = String[]
+    divertor_structs = []
+    blanket_structs = []
     for layer in dd.build.structure
-        TBRdd[layer.name] = layer
         if layer.type == Int(_blanket_)
-            push!(blanket_struct_names, layer.name)
+            push!(blanket_structs, layer)
         elseif layer.type == Int(_divertor_)
-            push!(divertor_struct_names, layer.name)
+            push!(divertor_structs, layer)
         end
     end
 
@@ -237,28 +232,28 @@ function sectors_blanket_model(actor::ActorBlanket)
         z_star = [sin(angle) * 1000 + Z0, Z0]
 
         current_coords = Tuple{Float64,Float64}[]
-        for layer_name in wall_layer_names
+        for layer in wall_layers
             append!(current_coords, IMAS.intersection(
                 r_star, z_star,
-                TBRdd[layer_name].outline.r, TBRdd[layer_name].outline.z)
+                layer.outline.r, layer.outline.z)
             )
         end
         push!(wall_intersections_per_angle, current_coords)
 
         current_coords = Tuple{Float64,Float64}[]
-        for layer_name in blanket_struct_names
+        for layer in blanket_structs
             append!(current_coords, IMAS.intersection(
                 r_star, z_star,
-                TBRdd[layer_name].outline.r, TBRdd[layer_name].outline.z)
+                layer.outline.r, layer.outline.z)
             )
         end
         push!(blanket_intersections_per_angle, current_coords)
 
         current_coords = Tuple{Float64,Float64}[]
-        for layer_name in divertor_struct_names
+        for layer in divertor_structs
             append!(current_coords, IMAS.intersection(
                 r_star, z_star,
-                TBRdd[layer_name].outline.r, TBRdd[layer_name].outline.z)
+                layer.outline.r, layer.outline.z)
             )
         end
         push!(divertor_intersections_per_angle, current_coords)
@@ -363,9 +358,9 @@ function sectors_blanket_model(actor::ActorBlanket)
         end
 
         plot!(p, xvals, yvals, seriestype=:scatter)
-        for layer in vcat(wall_layer_names, blanket_struct_names, divertor_struct_names)
-            rcoords = TBRdd[layer].outline.r
-            zcoords = TBRdd[layer].outline.z
+        for layer in vcat(wall_layers, blanket_structs, divertor_structs)
+            rcoords = layer.outline.r
+            zcoords = layer.outline.z
             plot!(p, rcoords, zcoords)
         end
         display(p)
