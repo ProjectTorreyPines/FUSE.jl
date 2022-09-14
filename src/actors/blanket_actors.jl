@@ -173,21 +173,21 @@ function TBR_2D(actor::ActorBlanket)
 
     # magnetic axis (where most of fusion is likely to occur)
     eqt = dd.equilibrium.time_slice[]
-    R0 = eqt.global_quantities.magnetic_axis.r * 100
-    Z0 = eqt.global_quantities.magnetic_axis.z * 100
+    R0 = eqt.global_quantities.magnetic_axis.r
+    Z0 = eqt.global_quantities.magnetic_axis.z
 
     # layers
     wall_layer_names = String[]
     for layer in dd.build.layer
         if layer.type == Int(_plasma_)
             TBRdd[layer.name] = Dict()
-            TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r .* 100)
-            TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z .* 100)
+            TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r)
+            TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z)
             push!(wall_layer_names, layer.name)
         elseif layer.type == Int(_wall_) && layer.fs == Int(_hfs_)
             TBRdd[layer.name] = Dict()
-            TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r .* 100)
-            TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z .* 100)
+            TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r)
+            TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z)
             push!(wall_layer_names, layer.name)
         end
     end
@@ -197,8 +197,8 @@ function TBR_2D(actor::ActorBlanket)
     blanket_layer_names = String[]
     for layer in dd.build.structure
         TBRdd[layer.name] = Dict()
-        TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r .* 100)
-        TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z .* 100)
+        TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r)
+        TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z)
         if layer.type == Int(_blanket_)
             push!(blanket_layer_names, layer.name)
         elseif layer.type == Int(_divertor_)
@@ -207,8 +207,8 @@ function TBR_2D(actor::ActorBlanket)
     end
 
     # angles
-    TBRdd["angles"] = range(0, 2π - 2π / num_of_sections, num_of_sections)
-    TBRdd["angle_boundaries"] = TBRdd["angles"] .- π / num_of_sections
+    angles = range(0, 2π - 2π / num_of_sections, num_of_sections)
+    angle_bounds = angles .- π / num_of_sections
 
     TBRdd["r_values_by_angle"] = Dict()
     TBRdd["z_values_by_angle"] = Dict()
@@ -216,9 +216,9 @@ function TBR_2D(actor::ActorBlanket)
     for num in range(1, num_of_sections)
         TBRdd["r_values_by_angle"][num] = Float64[]
         TBRdd["z_values_by_angle"][num] = Float64[]
-        push!(TBRdd["r_values_by_angle"][num], (cos(TBRdd["angles"][num]) * 1000 + R0))
+        push!(TBRdd["r_values_by_angle"][num], (cos(angles[num]) * 1000 + R0))
         push!(TBRdd["r_values_by_angle"][num], R0)
-        push!(TBRdd["z_values_by_angle"][num], (sin(TBRdd["angles"][num]) * 1000 + Z0))
+        push!(TBRdd["z_values_by_angle"][num], (sin(angles[num]) * 1000 + Z0))
         push!(TBRdd["z_values_by_angle"][num], Z0)
     end
 
@@ -296,8 +296,8 @@ function TBR_2D(actor::ActorBlanket)
 
     # neutron wall loading
     fw_power_list = dd.neutronics.time_slice[].wall_loading.power
-    wall_r = [r * 100 - R0 for r in dd.neutronics.time_slice[].wall_loading.flux_r]
-    wall_z = [z * 100 - Z0 for z in dd.neutronics.time_slice[].wall_loading.flux_z]
+    wall_r = [r - R0 for r in dd.neutronics.time_slice[].wall_loading.flux_r]
+    wall_z = [z - Z0 for z in dd.neutronics.time_slice[].wall_loading.flux_z]
     wall_angles = Float64[]
     for (r, z) in zip(wall_r, wall_z)
         if r < 0 && z < 0
@@ -312,8 +312,7 @@ function TBR_2D(actor::ActorBlanket)
     end
 
     fw_total_power = sum(dd.neutronics.time_slice[].wall_loading.power)
-    fw_fractional_power_list = [0.0 for x in TBRdd["angles"]]
-    angle_bounds = TBRdd["angle_boundaries"]
+    fw_fractional_power_list = [0.0 for x in angles]
     for (wall_angle_index, wall_angle) in enumerate(wall_angles)
         if wall_angle >= 2 * pi
             error("Angle exceeds 2*pi, problem somewhere")
@@ -344,7 +343,7 @@ function TBR_2D(actor::ActorBlanket)
         if bm[index].layer[2].thickness == 0
             local_tbr = 0.0
         else
-            local_tbr = NNeutronics.TBR(blanket_model_section, bm[index].layer[1].thickness / 100, bm[index].layer[2].thickness / 100, bm[index].layer[3].thickness / 100, Li6)
+            local_tbr = NNeutronics.TBR(blanket_model_section, bm[index].layer[1].thickness, bm[index].layer[2].thickness, bm[index].layer[3].thickness, Li6)
         end
         tbr += local_tbr * power_frac
         # println("wall:",TBRdd["wall_thickness_per_angle"][index]/100,"  blanket:",TBRdd["blanket_thickness_per_angle"][index]/100," divertor:", TBRdd["divertor_thickness_per_angle"][index]/100," TBR:",local_tbr)
@@ -357,27 +356,27 @@ function TBR_2D(actor::ActorBlanket)
         yvals = []
         for intersections in TBRdd["divertor_intersections_per_angle"]
             for intersection in intersections
-                append!(xvals, intersection[1] / 100)
-                append!(yvals, intersection[2] / 100)
+                append!(xvals, intersection[1])
+                append!(yvals, intersection[2])
             end
         end
         for intersections in TBRdd["blanket_intersections_per_angle"]
             for intersection in intersections
-                append!(xvals, intersection[1] / 100)
-                append!(yvals, intersection[2] / 100)
+                append!(xvals, intersection[1])
+                append!(yvals, intersection[2])
             end
         end
         for intersections in TBRdd["wall_intersections_per_angle"]
             for intersection in intersections
-                append!(xvals, intersection[1] / 100)
-                append!(yvals, intersection[2] / 100)
+                append!(xvals, intersection[1])
+                append!(yvals, intersection[2])
             end
         end
 
         plot!(plot, xvals, yvals, seriestype=:scatter)
         for layer in vcat(wall_layer_names, vcat(blanket_layer_names, divertor_layer_names))
-            rcoords = TBRdd[layer]["r_coordinates"] ./ 100
-            zcoords = TBRdd[layer]["z_coordinates"] ./ 100
+            rcoords = TBRdd[layer]["r_coordinates"]
+            zcoords = TBRdd[layer]["z_coordinates"]
             plot!(plot, rcoords, zcoords)
         end
         display(plot)
