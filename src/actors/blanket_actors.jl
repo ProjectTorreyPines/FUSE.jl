@@ -210,28 +210,20 @@ function TBR_2D(actor::ActorBlanket)
     angles = range(0, 2π - 2π / num_of_sections, num_of_sections)
     angle_bounds = angles .- π / num_of_sections
 
-    TBRdd["r_values_by_angle"] = Dict()
-    TBRdd["z_values_by_angle"] = Dict()
-
-    for num in range(1, num_of_sections)
-        TBRdd["r_values_by_angle"][num] = Float64[]
-        TBRdd["z_values_by_angle"][num] = Float64[]
-        push!(TBRdd["r_values_by_angle"][num], (cos(angles[num]) * 1000 + R0))
-        push!(TBRdd["r_values_by_angle"][num], R0)
-        push!(TBRdd["z_values_by_angle"][num], (sin(angles[num]) * 1000 + Z0))
-        push!(TBRdd["z_values_by_angle"][num], Z0)
-    end
-
     TBRdd["divertor_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
     TBRdd["blanket_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
     TBRdd["wall_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
     current_coords = Tuple{Float64,Float64}[]
 
-    for angle_idx in 1:length(TBRdd["r_values_by_angle"])
+    # find intersections
+    for angle in angles
+        r_star = [cos(angle) * 1000 + R0, R0]
+        z_star = [sin(angle) * 1000 + Z0, Z0]
+
         current_coords = Tuple{Float64,Float64}[]
         for layer_name in blanket_layer_names
             append!(current_coords, IMAS.intersection(
-                TBRdd["r_values_by_angle"][angle_idx], TBRdd["z_values_by_angle"][angle_idx],
+                r_star, z_star,
                 TBRdd[layer_name]["r_coordinates"], TBRdd[layer_name]["z_coordinates"])
             )
         end
@@ -240,7 +232,7 @@ function TBR_2D(actor::ActorBlanket)
         current_coords = Tuple{Float64,Float64}[]
         for layer_name in wall_layer_names
             append!(current_coords, IMAS.intersection(
-                TBRdd["r_values_by_angle"][angle_idx], TBRdd["z_values_by_angle"][angle_idx],
+                r_star, z_star,
                 TBRdd[layer_name]["r_coordinates"], TBRdd[layer_name]["z_coordinates"])
             )
         end
@@ -249,7 +241,7 @@ function TBR_2D(actor::ActorBlanket)
         current_coords = Tuple{Float64,Float64}[]
         for layer_name in divertor_layer_names
             append!(current_coords, IMAS.intersection(
-                TBRdd["r_values_by_angle"][angle_idx], TBRdd["z_values_by_angle"][angle_idx],
+                r_star, z_star,
                 TBRdd[layer_name]["r_coordinates"], TBRdd[layer_name]["z_coordinates"])
             )
         end
@@ -314,9 +306,7 @@ function TBR_2D(actor::ActorBlanket)
     fw_total_power = sum(dd.neutronics.time_slice[].wall_loading.power)
     fw_fractional_power_list = [0.0 for x in angles]
     for (wall_angle_index, wall_angle) in enumerate(wall_angles)
-        if wall_angle >= 2 * pi
-            error("Angle exceeds 2*pi, problem somewhere")
-        end
+        @assert wall_angle < 2 * pi "Angle exceeds 2π, problem somewhere"
         for (angle_bin_index, angle_bin_lower_bound) in enumerate(angle_bounds)
             if angle_bin_lower_bound == last(angle_bounds)
                 if wall_angle >= angle_bin_lower_bound && wall_angle < first(angle_bounds) + 2 * pi
@@ -336,10 +326,9 @@ function TBR_2D(actor::ActorBlanket)
         end
     end
 
-    TBRdd["power fraction per angle"] = fw_fractional_power_list
     tbr = 0.0
     blanket_model_section = NNeutronics.Blanket()
-    for (index, power_frac) in enumerate(TBRdd["power fraction per angle"])
+    for (index, power_frac) in enumerate(fw_fractional_power_list)
         if bm[index].layer[2].thickness == 0
             local_tbr = 0.0
         else
@@ -351,7 +340,7 @@ function TBR_2D(actor::ActorBlanket)
     println("Total TBR: ", tbr)
 
     if debug_plot
-        plot = Plots.plot(legend=false, xlabel="R (m)", ylabel="Z (m)", size=(600, 600))
+        p = plot(legend=false, xlabel="R (m)", ylabel="Z (m)", size=(600, 600))
         xvals = []
         yvals = []
         for intersections in TBRdd["divertor_intersections_per_angle"]
@@ -373,13 +362,13 @@ function TBR_2D(actor::ActorBlanket)
             end
         end
 
-        plot!(plot, xvals, yvals, seriestype=:scatter)
+        plot!(p, xvals, yvals, seriestype=:scatter)
         for layer in vcat(wall_layer_names, vcat(blanket_layer_names, divertor_layer_names))
             rcoords = TBRdd[layer]["r_coordinates"]
             zcoords = TBRdd[layer]["z_coordinates"]
-            plot!(plot, rcoords, zcoords)
+            plot!(p, rcoords, zcoords)
         end
-        display(plot)
+        display(p)
     end
 
     return actor
