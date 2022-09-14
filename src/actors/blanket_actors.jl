@@ -54,9 +54,7 @@ function _step(actor::ActorBlanket)
     end
 end
 
-
-
-function TBR_1D( actor::ActorBlanket)
+function TBR_1D(actor::ActorBlanket)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     nnt = dd.neutronics.time_slice[]
@@ -158,8 +156,11 @@ in %.
 """
 function TBR_2D(actor::ActorBlanket)
     Li6=90.0
+    num_of_sections=25
     do_plot=true
     dd = actor.dd
+    resize!(dd.blanket.module, num_of_sections)
+    bm=dd.blanket.module
     println("WARNING: currently only using GAMBL materials in blanket and first wall.")
     
     TBRdd=Dict()
@@ -201,7 +202,6 @@ function TBR_2D(actor::ActorBlanket)
         end
     end
 
-    num_of_sections=25
     TBRdd["angles"]=range(0,2π-2π/num_of_sections,num_of_sections)
     TBRdd["angle_boundaries"]=TBRdd["angles"].-π/num_of_sections
     fw_power_list=dd.neutronics.time_slice[1].wall_loading.power
@@ -249,30 +249,7 @@ function TBR_2D(actor::ActorBlanket)
         push!(TBRdd["divertor_intersections_per_angle"], current_coords)
     end
 
-    TBRdd["divertor_thickness_per_angle"]=[]
-    TBRdd["blanket_thickness_per_angle"]=[]
-    TBRdd["wall_thickness_per_angle"]=[]
-    for intersection_points in TBRdd["divertor_intersections_per_angle"]
-        if length(intersection_points)==0
-            divertor_thickness=0.0
-        elseif length(intersection_points)==2
-            divertor_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))
-        elseif length(intersection_points)==4
-            divertor_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))+norm(vcat(intersection_points[3][1]-intersection_points[4][1],intersection_points[3][2]-intersection_points[4][2]))
-        end
-        append!(TBRdd["divertor_thickness_per_angle"],divertor_thickness)
-    end
-    for intersection_points in TBRdd["blanket_intersections_per_angle"]
-        if length(intersection_points)==0
-            blanket_thickness=0.0
-        elseif length(intersection_points)==2
-            blanket_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))
-        elseif length(intersection_points)==4
-            blanket_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))+norm(vcat(intersection_points[3][1]-intersection_points[4][1],intersection_points[3][2]-intersection_points[4][2]))
-        end
-        append!(TBRdd["blanket_thickness_per_angle"],blanket_thickness)
-    end
-    for intersection_points in TBRdd["wall_intersections_per_angle"]
+    for (k, intersection_points) in enumerate(TBRdd["wall_intersections_per_angle"])
         if length(intersection_points)==0
             wall_thickness=0.0
         elseif length(intersection_points)==2
@@ -280,7 +257,28 @@ function TBR_2D(actor::ActorBlanket)
         elseif length(intersection_points)==4
             wall_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))+norm(vcat(intersection_points[3][1]-intersection_points[4][1],intersection_points[3][2]-intersection_points[4][2]))
         end
-        append!(TBRdd["wall_thickness_per_angle"],wall_thickness)
+        resize!(bm[k].layer,3)
+        bm[k].layer[1].thickness=wall_thickness
+    end
+    for (k, intersection_points) in enumerate(TBRdd["blanket_intersections_per_angle"])
+        if length(intersection_points)==0
+            blanket_thickness=0.0
+        elseif length(intersection_points)==2
+            blanket_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))
+        elseif length(intersection_points)==4
+            blanket_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))+norm(vcat(intersection_points[3][1]-intersection_points[4][1],intersection_points[3][2]-intersection_points[4][2]))
+        end
+        bm[k].layer[2].thickness=blanket_thickness
+    end
+    for (k, intersection_points) in enumerate(TBRdd["divertor_intersections_per_angle"])
+        if length(intersection_points)==0
+            divertor_thickness=0.0
+        elseif length(intersection_points)==2
+            divertor_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))
+        elseif length(intersection_points)==4
+            divertor_thickness=norm(vcat(intersection_points[1][1]-intersection_points[2][1],intersection_points[1][2]-intersection_points[2][2]))+norm(vcat(intersection_points[3][1]-intersection_points[4][1],intersection_points[3][2]-intersection_points[4][2]))
+        end
+        bm[k].layer[3].thickness=divertor_thickness
     end
 
     wall_r=[r*100-plasma_midpoint[1] for r in dd.neutronics.time_slice[1].wall_loading.flux_r]
@@ -299,7 +297,7 @@ function TBR_2D(actor::ActorBlanket)
     end
 
 
-    fw_total_power=sum(dd.neutronics.time_slice[1].wall_loading.power)
+    fw_total_power=sum(dd.neutronics.time_slice[].wall_loading.power)
     fw_fractional_power_list=[0.0 for x in TBRdd["angles"]]
     angle_bounds=TBRdd["angle_boundaries"]
     for (wall_angle_index, wall_angle) in enumerate(wall_angles)
@@ -329,10 +327,10 @@ function TBR_2D(actor::ActorBlanket)
     tbr=0.0
     blanket_model_section=NNeutronics.Blanket()
     for (index, power_frac) in enumerate(TBRdd["power fraction per angle"])
-        if TBRdd["blanket_thickness_per_angle"][index] == 0
+        if bm[index].layer[2].thickness == 0
             local_tbr=0.0
         else
-            local_tbr=NNeutronics.TBR(blanket_model_section,TBRdd["wall_thickness_per_angle"][index]/100,TBRdd["blanket_thickness_per_angle"][index]/100, TBRdd["divertor_thickness_per_angle"][index]/100, Li6)
+            local_tbr=NNeutronics.TBR(blanket_model_section, bm[index].layer[1].thickness/100, bm[index].layer[2].thickness/100, bm[index].layer[3].thickness/100, Li6)
         end
         tbr+=local_tbr*power_frac
         # println("wall:",TBRdd["wall_thickness_per_angle"][index]/100,"  blanket:",TBRdd["blanket_thickness_per_angle"][index]/100," divertor:", TBRdd["divertor_thickness_per_angle"][index]/100," TBR:",local_tbr)
