@@ -48,6 +48,7 @@ end
 
 function _step(actor::ActorBlanket)
     @warn "currently only using GAMBL materials in blanket and first wall."
+    empty!(actor.dd.blanket)
     blanket = IMAS.get_build(actor.dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
     if blanket === missing
         @warn "No blanket present for ActorBlanket to do anything"
@@ -68,7 +69,6 @@ function TBR_1D(actor::ActorBlanket)
 
     total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4 / 5
     total_power_neutrons = sum(nnt.wall_loading.power)
-
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
 
     blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
@@ -83,8 +83,8 @@ function TBR_1D(actor::ActorBlanket)
         index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(dd.neutronics.first_wall.r, dd.neutronics.first_wall.z)])
         neutron_capture_fraction = sum(nnt.wall_loading.power[index]) / total_power_neutrons
 
-        # evaluate radiative_capture_fraction (to be fixed)
-        radiative_capture_fraction = 1.0 / length(dd.blanket.module)
+        # evaluate radiative_capture_fraction (could be done better, since ratiation source may not be coming from core)
+        radiative_capture_fraction = neutron_capture_fraction
 
         resize!(bm.time_slice)
         bmt = bm.time_slice[]
@@ -166,13 +166,24 @@ function TBR_2D(actor::ActorBlanket)
     debug_plot = true
 
     dd = actor.dd
+
+    dd = actor.dd
+    eqt = dd.equilibrium.time_slice[]
+    nnt = dd.neutronics.time_slice[]
+
+    total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4 / 5
+    total_power_neutrons = sum(nnt.wall_loading.power)
+    total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
+
     resize!(dd.blanket.module, num_of_sections)
-    bm = dd.blanket.module
+    for k in 1:num_of_sections
+        bm = dd.blanket.module[k]
+        resize!(bm.layer, 3)
+    end
 
     TBRdd = Dict()
 
     # magnetic axis (where most of fusion is likely to occur)
-    eqt = dd.equilibrium.time_slice[]
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
 
@@ -207,27 +218,18 @@ function TBR_2D(actor::ActorBlanket)
     end
 
     # angles
-    angles = range(0, 2π - 2π / num_of_sections, num_of_sections)
-    angle_bounds = angles .- π / num_of_sections
+    angle_bounds = range(0, -2π, num_of_sections + 1)
+    angles = angle_bounds[1:end-1] .+ diff(angle_bounds) / 2.0
 
-    TBRdd["divertor_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
-    TBRdd["blanket_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
     TBRdd["wall_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
+    TBRdd["blanket_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
+    TBRdd["divertor_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
     current_coords = Tuple{Float64,Float64}[]
 
     # find intersections
     for angle in angles
         r_star = [cos(angle) * 1000 + R0, R0]
         z_star = [sin(angle) * 1000 + Z0, Z0]
-
-        current_coords = Tuple{Float64,Float64}[]
-        for layer_name in blanket_layer_names
-            append!(current_coords, IMAS.intersection(
-                r_star, z_star,
-                TBRdd[layer_name]["r_coordinates"], TBRdd[layer_name]["z_coordinates"])
-            )
-        end
-        push!(TBRdd["blanket_intersections_per_angle"], current_coords)
 
         current_coords = Tuple{Float64,Float64}[]
         for layer_name in wall_layer_names
@@ -237,6 +239,15 @@ function TBR_2D(actor::ActorBlanket)
             )
         end
         push!(TBRdd["wall_intersections_per_angle"], current_coords)
+
+        current_coords = Tuple{Float64,Float64}[]
+        for layer_name in blanket_layer_names
+            append!(current_coords, IMAS.intersection(
+                r_star, z_star,
+                TBRdd[layer_name]["r_coordinates"], TBRdd[layer_name]["z_coordinates"])
+            )
+        end
+        push!(TBRdd["blanket_intersections_per_angle"], current_coords)
 
         current_coords = Tuple{Float64,Float64}[]
         for layer_name in divertor_layer_names
@@ -258,9 +269,11 @@ function TBR_2D(actor::ActorBlanket)
         else
             error("number of intersections $(length(intersection_points))")
         end
-        resize!(bm[k].layer, 3)
-        bm[k].layer[1].thickness = wall_thickness
+        bm = dd.blanket.module[k]
+        bm.layer[1].name = "wall"
+        bm.layer[1].thickness = wall_thickness
     end
+
     for (k, intersection_points) in enumerate(TBRdd["blanket_intersections_per_angle"])
         if length(intersection_points) == 0
             blanket_thickness = 0.0
@@ -271,8 +284,11 @@ function TBR_2D(actor::ActorBlanket)
         else
             error("number of intersections $(length(intersection_points))")
         end
-        bm[k].layer[2].thickness = blanket_thickness
+        bm = dd.blanket.module[k]
+        bm.layer[2].name = "blanket"
+        bm.layer[2].thickness = blanket_thickness
     end
+
     for (k, intersection_points) in enumerate(TBRdd["divertor_intersections_per_angle"])
         if length(intersection_points) == 0
             divertor_thickness = 0.0
@@ -283,53 +299,55 @@ function TBR_2D(actor::ActorBlanket)
         else
             error("number of intersections $(length(intersection_points))")
         end
-        bm[k].layer[3].thickness = divertor_thickness
+        bm = dd.blanket.module[k]
+        bm.layer[3].name = "divertor"
+        bm.layer[3].thickness = divertor_thickness
     end
 
     # neutron wall loading as a function of the poloidal angle
-    fw_power_list = dd.neutronics.time_slice[].wall_loading.power
-    wall_angles = atan.(dd.neutronics.first_wall.z.-Z0, dd.neutronics.first_wall.r.-R0)
+    wall_r = dd.neutronics.first_wall.r .- R0
+    wall_z = dd.neutronics.first_wall.z .- Z0
+    IMAS.reorder_flux_surface!(wall_r, wall_z, 0.0, 0.0)
+    wall_angles = atan.(wall_z, wall_r)
+    wall_angles .-= wall_angles[1]
     wall_angles = unwrap(wall_angles)
-    wall_angles .-= wall_angles[end]
 
-    fw_total_power = sum(dd.neutronics.time_slice[].wall_loading.power)
-    fw_fractional_power_list = [0.0 for x in angles]
-    for (wall_angle_index, wall_angle) in enumerate(wall_angles)
-        @assert wall_angle <= 2 * pi "Angle exceeds 2π, problem somewhere"
-        for (angle_bin_index, angle_bin_lower_bound) in enumerate(angle_bounds)
-            if angle_bin_lower_bound == last(angle_bounds)
-                if wall_angle >= angle_bin_lower_bound && wall_angle < first(angle_bounds) + 2 * pi
-                    fw_fractional_power_list[angle_bin_index] += fw_power_list[wall_angle_index] / fw_total_power
-                end
-            elseif angle_bin_lower_bound < 0.0
-                angle_bin_upper_bound = angle_bounds[angle_bin_index+1]
-                if wall_angle >= 2 * pi + angle_bin_lower_bound || wall_angle < angle_bin_upper_bound
-                    fw_fractional_power_list[angle_bin_index] += fw_power_list[wall_angle_index] / fw_total_power
-                end
-            else
-                angle_bin_upper_bound = angle_bounds[angle_bin_index+1]
-                if wall_angle >= angle_bin_lower_bound && wall_angle < angle_bin_upper_bound
-                    fw_fractional_power_list[angle_bin_index] += fw_power_list[wall_angle_index] / fw_total_power
-                end
-            end
+    # load the 1D blanket model
+    blanket_model_1d = NNeutronics.Blanket()
+
+    # fractional wall loading for each section
+    global_tbr = 0.0
+    for (k, (angle_end, angle_start)) in enumerate(zip(angle_bounds[1:end-1], angle_bounds[2:end]))
+        bm = dd.blanket.module[k]
+        if bm.layer[2].thickness == 0
+            continue
         end
+        index = findall(x -> (x > angle_start) && (x <= angle_end), wall_angles)
+
+        neutron_capture_fraction = sum(nnt.wall_loading.power[index]) / total_power_neutrons
+        # evaluate radiative_capture_fraction (could be done better, since ratiation source may not be coming from
+        radiative_capture_fraction = neutron_capture_fraction
+
+        resize!(bm.time_slice)
+        bmt = bm.time_slice[]
+
+        bmt.power_incident_neutrons = total_power_neutrons .* neutron_capture_fraction
+        bmt.power_incident_radiated = total_power_radiated .* radiative_capture_fraction
+
+        bmt.power_thermal_neutrons = bmt.power_incident_neutrons * actor.blanket_multiplier
+        bmt.power_thermal_radiated = bmt.power_incident_radiated
+
+        bmt.power_thermal_extracted = actor.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
+
+        local_tbr = NNeutronics.TBR(blanket_model_1d, bm.layer[1].thickness, bm.layer[2].thickness, bm.layer[3].thickness, Li6)
+        global_tbr += local_tbr * neutron_capture_fraction
     end
 
-    tbr = 0.0
-    blanket_model_section = NNeutronics.Blanket()
-    for (index, power_frac) in enumerate(fw_fractional_power_list)
-        if bm[index].layer[2].thickness == 0
-            local_tbr = 0.0
-        else
-            local_tbr = NNeutronics.TBR(blanket_model_section, bm[index].layer[1].thickness, bm[index].layer[2].thickness, bm[index].layer[3].thickness, Li6)
-        end
-        tbr += local_tbr * power_frac
-        # println("wall:",TBRdd["wall_thickness_per_angle"][index]/100,"  blanket:",TBRdd["blanket_thickness_per_angle"][index]/100," divertor:", TBRdd["divertor_thickness_per_angle"][index]/100," TBR:",local_tbr)
-    end
-    println("Total TBR: ", tbr)
+    println("Total TBR: ", global_tbr)
 
     if debug_plot
-        p = plot(legend=false, xlabel="R (m)", ylabel="Z (m)", size=(600, 600))
+        p = plot(legend=false, xlabel="R (m)", ylabel="Z (m)", size=(600, 600), aspect_ratio=:equal)
+        plot!(p, [R0], [Z0], marker=:cross)
         xvals = []
         yvals = []
         for intersections in TBRdd["divertor_intersections_per_angle"]
