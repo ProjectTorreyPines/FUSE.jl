@@ -286,27 +286,16 @@ function TBR_2D(actor::ActorBlanket)
         bm[k].layer[3].thickness = divertor_thickness
     end
 
-    # neutron wall loading
+    # neutron wall loading as a function of the poloidal angle
     fw_power_list = dd.neutronics.time_slice[].wall_loading.power
-    wall_r = [r - R0 for r in dd.neutronics.time_slice[].wall_loading.flux_r]
-    wall_z = [z - Z0 for z in dd.neutronics.time_slice[].wall_loading.flux_z]
-    wall_angles = Float64[]
-    for (r, z) in zip(wall_r, wall_z)
-        if r < 0 && z < 0
-            append!(wall_angles, atan(z / r) + pi)
-        elseif r >= 0 && z < 0
-            append!(wall_angles, 2 * pi + atan(z / r))
-        elseif r < 0 && z >= 0
-            append!(wall_angles, pi + atan(z / r))
-        else
-            append!(wall_angles, atan(z / r))
-        end
-    end
+    wall_angles = atan.(dd.neutronics.time_slice[].wall_loading.flux_z.-Z0, dd.neutronics.time_slice[].wall_loading.flux_r.-R0)
+    wall_angles = unwrap(wall_angles)
+    wall_angles .-= wall_angles[end]
 
     fw_total_power = sum(dd.neutronics.time_slice[].wall_loading.power)
     fw_fractional_power_list = [0.0 for x in angles]
     for (wall_angle_index, wall_angle) in enumerate(wall_angles)
-        @assert wall_angle < 2 * pi "Angle exceeds 2π, problem somewhere"
+        @assert wall_angle <= 2 * pi "Angle exceeds 2π, problem somewhere"
         for (angle_bin_index, angle_bin_lower_bound) in enumerate(angle_bounds)
             if angle_bin_lower_bound == last(angle_bounds)
                 if wall_angle >= angle_bin_lower_bound && wall_angle < first(angle_bounds) + 2 * pi
