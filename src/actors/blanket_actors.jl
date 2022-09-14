@@ -288,7 +288,7 @@ function TBR_2D(actor::ActorBlanket)
 
     # neutron wall loading as a function of the poloidal angle
     fw_power_list = dd.neutronics.time_slice[].wall_loading.power
-    wall_angles = atan.(dd.neutronics.time_slice[].wall_loading.flux_z.-Z0, dd.neutronics.time_slice[].wall_loading.flux_r.-R0)
+    wall_angles = atan.(dd.neutronics.first_wall.z.-Z0, dd.neutronics.first_wall.r.-R0)
     wall_angles = unwrap(wall_angles)
     wall_angles .-= wall_angles[end]
 
