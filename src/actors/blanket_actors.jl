@@ -202,29 +202,23 @@ function sectors_blanket_model(actor::ActorBlanket)
     wall_layer_names = String[]
     for layer in dd.build.layer
         if layer.type == Int(_plasma_)
-            TBRdd[layer.name] = Dict()
-            TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r)
-            TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z)
+            TBRdd[layer.name] = layer
             push!(wall_layer_names, layer.name)
         elseif layer.type == Int(_wall_) && layer.fs == Int(_hfs_)
-            TBRdd[layer.name] = Dict()
-            TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r)
-            TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z)
+            TBRdd[layer.name] = layer
             push!(wall_layer_names, layer.name)
         end
     end
 
     # structures
-    divertor_layer_names = String[]
-    blanket_layer_names = String[]
+    divertor_struct_names = String[]
+    blanket_struct_names = String[]
     for layer in dd.build.structure
-        TBRdd[layer.name] = Dict()
-        TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r)
-        TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z)
+        TBRdd[layer.name] = layer
         if layer.type == Int(_blanket_)
-            push!(blanket_layer_names, layer.name)
+            push!(blanket_struct_names, layer.name)
         elseif layer.type == Int(_divertor_)
-            push!(divertor_layer_names, layer.name)
+            push!(divertor_struct_names, layer.name)
         end
     end
 
@@ -232,9 +226,9 @@ function sectors_blanket_model(actor::ActorBlanket)
     angle_bounds = range(0, -2π, num_of_sections + 1)
     angles = angle_bounds[1:end-1] .+ diff(angle_bounds) / 2.0
 
-    TBRdd["wall_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
-    TBRdd["blanket_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
-    TBRdd["divertor_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
+    wall_intersections_per_angle = Vector{Tuple{Float64,Float64}}[]
+    blanket_intersections_per_angle = Vector{Tuple{Float64,Float64}}[]
+    divertor_intersections_per_angle = Vector{Tuple{Float64,Float64}}[]
     current_coords = Tuple{Float64,Float64}[]
 
     # find intersections
@@ -246,37 +240,37 @@ function sectors_blanket_model(actor::ActorBlanket)
         for layer_name in wall_layer_names
             append!(current_coords, IMAS.intersection(
                 r_star, z_star,
-                TBRdd[layer_name]["r_coordinates"], TBRdd[layer_name]["z_coordinates"])
+                TBRdd[layer_name].outline.r, TBRdd[layer_name].outline.z)
             )
         end
-        push!(TBRdd["wall_intersections_per_angle"], current_coords)
+        push!(wall_intersections_per_angle, current_coords)
 
         current_coords = Tuple{Float64,Float64}[]
-        for layer_name in blanket_layer_names
+        for layer_name in blanket_struct_names
             append!(current_coords, IMAS.intersection(
                 r_star, z_star,
-                TBRdd[layer_name]["r_coordinates"], TBRdd[layer_name]["z_coordinates"])
+                TBRdd[layer_name].outline.r, TBRdd[layer_name].outline.z)
             )
         end
-        push!(TBRdd["blanket_intersections_per_angle"], current_coords)
+        push!(blanket_intersections_per_angle, current_coords)
 
         current_coords = Tuple{Float64,Float64}[]
-        for layer_name in divertor_layer_names
+        for layer_name in divertor_struct_names
             append!(current_coords, IMAS.intersection(
                 r_star, z_star,
-                TBRdd[layer_name]["r_coordinates"], TBRdd[layer_name]["z_coordinates"])
+                TBRdd[layer_name].outline.r, TBRdd[layer_name].outline.z)
             )
         end
-        push!(TBRdd["divertor_intersections_per_angle"], current_coords)
+        push!(divertor_intersections_per_angle, current_coords)
     end
 
-    for (k, intersection_points) in enumerate(TBRdd["wall_intersections_per_angle"])
+    for (k, intersection_points) in enumerate(wall_intersections_per_angle)
         if length(intersection_points) == 0
             wall_thickness = 0.0
         elseif length(intersection_points) == 2
-            wall_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
+            wall_thickness = norm((intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
         elseif length(intersection_points) == 4
-            wall_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm(vcat(intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
+            wall_thickness = norm((intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm((intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
         else
             error("number of intersections $(length(intersection_points))")
         end
@@ -285,13 +279,13 @@ function sectors_blanket_model(actor::ActorBlanket)
         bm.layer[1].thickness = wall_thickness
     end
 
-    for (k, intersection_points) in enumerate(TBRdd["blanket_intersections_per_angle"])
+    for (k, intersection_points) in enumerate(blanket_intersections_per_angle)
         if length(intersection_points) == 0
             blanket_thickness = 0.0
         elseif length(intersection_points) == 2
-            blanket_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
+            blanket_thickness = norm((intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
         elseif length(intersection_points) == 4
-            blanket_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm(vcat(intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
+            blanket_thickness = norm((intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm((intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
         else
             error("number of intersections $(length(intersection_points))")
         end
@@ -300,13 +294,13 @@ function sectors_blanket_model(actor::ActorBlanket)
         bm.layer[2].thickness = blanket_thickness
     end
 
-    for (k, intersection_points) in enumerate(TBRdd["divertor_intersections_per_angle"])
+    for (k, intersection_points) in enumerate(divertor_intersections_per_angle)
         if length(intersection_points) == 0
             divertor_thickness = 0.0
         elseif length(intersection_points) == 2
-            divertor_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
+            divertor_thickness = norm((intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
         elseif length(intersection_points) == 4
-            divertor_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm(vcat(intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
+            divertor_thickness = norm((intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm((intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
         else
             error("number of intersections $(length(intersection_points))")
         end
@@ -349,19 +343,19 @@ function sectors_blanket_model(actor::ActorBlanket)
         plot!(p, [R0], [Z0], marker=:cross)
         xvals = []
         yvals = []
-        for intersections in TBRdd["divertor_intersections_per_angle"]
+        for intersections in divertor_intersections_per_angle
             for intersection in intersections
                 append!(xvals, intersection[1])
                 append!(yvals, intersection[2])
             end
         end
-        for intersections in TBRdd["blanket_intersections_per_angle"]
+        for intersections in blanket_intersections_per_angle
             for intersection in intersections
                 append!(xvals, intersection[1])
                 append!(yvals, intersection[2])
             end
         end
-        for intersections in TBRdd["wall_intersections_per_angle"]
+        for intersections in wall_intersections_per_angle
             for intersection in intersections
                 append!(xvals, intersection[1])
                 append!(yvals, intersection[2])
@@ -369,9 +363,9 @@ function sectors_blanket_model(actor::ActorBlanket)
         end
 
         plot!(p, xvals, yvals, seriestype=:scatter)
-        for layer in vcat(wall_layer_names, vcat(blanket_layer_names, divertor_layer_names))
-            rcoords = TBRdd[layer]["r_coordinates"]
-            zcoords = TBRdd[layer]["z_coordinates"]
+        for layer in vcat(wall_layer_names, blanket_struct_names, divertor_struct_names)
+            rcoords = TBRdd[layer].outline.r
+            zcoords = TBRdd[layer].outline.z
             plot!(p, rcoords, zcoords)
         end
         display(p)
