@@ -47,11 +47,18 @@ function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
 end
 
 function _step(actor::ActorBlanket)
-    if actor.par.model == :TBR_1D
-        return TBR_1D(actor)
-    elseif actor.par.model == :TBR_2D
-        return TBR_2D(actor)
+    @warn "currently only using GAMBL materials in blanket and first wall."
+    blanket = IMAS.get_build(actor.dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
+    if blanket === missing
+        @warn "No blanket present for ActorBlanket to do anything"
+        return actor
     end
+    if actor.par.model == :TBR_1D
+        TBR_1D(actor)
+    elseif actor.par.model == :TBR_2D
+        TBR_2D(actor)
+    end
+    return actor
 end
 
 function TBR_1D(actor::ActorBlanket)
@@ -147,33 +154,32 @@ function TBR_1D(actor::ActorBlanket)
 end
 
 """
-    TBR_2D(dd::IMAS.dd, Li6::Float64; do_plot::Bool=false)
+    TBR_2D(actor::ActorBlanket)
 
 Calculates 2-dimensional TBR from dd using NNeutronics.TBR(). Calculates layer
 thicknesses and wall loading at poloidal angles, a local TBR at each segment, 
-then sums for a 2D TBR calculation. Blanket Li6 enrichment given to function
-in %.
+then sums for a 2D TBR calculation. Blanket Li6 enrichment given to function in %.
 """
 function TBR_2D(actor::ActorBlanket)
     Li6 = 90.0
     num_of_sections = 25
-    do_plot = true
+    debug_plot = true
+
     dd = actor.dd
     resize!(dd.blanket.module, num_of_sections)
     bm = dd.blanket.module
-    println("WARNING: currently only using GAMBL materials in blanket and first wall.")
 
     TBRdd = Dict()
-    plasma_midpoint = ()
-    blanket_present = false
-    wall_layer_names = []
-    blanket_layer_names = []
-    divertor_layer_names = []
 
+    # magnetic axis (where most of fusion is likely to occur)
+    eqt = dd.equilibrium.time_slice[]
+    R0 = eqt.global_quantities.magnetic_axis.r * 100
+    Z0 = eqt.global_quantities.magnetic_axis.z * 100
+
+    # layers
+    wall_layer_names = String[]
     for layer in dd.build.layer
         if layer.type == Int(_plasma_)
-            plasma_midpoint = [(layer.end_radius * 100 + layer.start_radius * 100) / 2]
-            plasma_midpoint = hcat(plasma_midpoint, 0)
             TBRdd[layer.name] = Dict()
             TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r .* 100)
             TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z .* 100)
@@ -183,14 +189,12 @@ function TBR_2D(actor::ActorBlanket)
             TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r .* 100)
             TBRdd[layer.name]["z_coordinates"] = push!(layer.outline.z .* 100)
             push!(wall_layer_names, layer.name)
-        elseif layer.type == Int(_blanket_)
-            blanket_present = true
         end
     end
-    if !blanket_present
-        error("No blanket present, TBR not evaluated.")
-    end
 
+    # structures
+    divertor_layer_names = String[]
+    blanket_layer_names = String[]
     for layer in dd.build.structure
         TBRdd[layer.name] = Dict()
         TBRdd[layer.name]["r_coordinates"] = push!(layer.outline.r .* 100)
@@ -202,28 +206,29 @@ function TBR_2D(actor::ActorBlanket)
         end
     end
 
+    # angles
     TBRdd["angles"] = range(0, 2π - 2π / num_of_sections, num_of_sections)
     TBRdd["angle_boundaries"] = TBRdd["angles"] .- π / num_of_sections
-    fw_power_list = dd.neutronics.time_slice[1].wall_loading.power
 
     TBRdd["r_values_by_angle"] = Dict()
     TBRdd["z_values_by_angle"] = Dict()
 
     for num in range(1, num_of_sections)
-        TBRdd["r_values_by_angle"][num] = zeros(0)
-        TBRdd["z_values_by_angle"][num] = zeros(0)
-        push!(TBRdd["r_values_by_angle"][num], (cos(TBRdd["angles"][num]) * 1000 + plasma_midpoint[1]))
-        push!(TBRdd["r_values_by_angle"][num], plasma_midpoint[1])
-        push!(TBRdd["z_values_by_angle"][num], (sin(TBRdd["angles"][num]) * 1000 + plasma_midpoint[2]))
-        push!(TBRdd["z_values_by_angle"][num], plasma_midpoint[2])
+        TBRdd["r_values_by_angle"][num] = Float64[]
+        TBRdd["z_values_by_angle"][num] = Float64[]
+        push!(TBRdd["r_values_by_angle"][num], (cos(TBRdd["angles"][num]) * 1000 + R0))
+        push!(TBRdd["r_values_by_angle"][num], R0)
+        push!(TBRdd["z_values_by_angle"][num], (sin(TBRdd["angles"][num]) * 1000 + Z0))
+        push!(TBRdd["z_values_by_angle"][num], Z0)
     end
 
-    TBRdd["divertor_intersections_per_angle"] = []
-    TBRdd["blanket_intersections_per_angle"] = []
-    TBRdd["wall_intersections_per_angle"] = []
+    TBRdd["divertor_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
+    TBRdd["blanket_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
+    TBRdd["wall_intersections_per_angle"] = Vector{Tuple{Float64,Float64}}[]
+    current_coords = Tuple{Float64,Float64}[]
 
-    for (angle_idx, r_values) in enumerate(TBRdd["r_values_by_angle"])
-        current_coords = []
+    for angle_idx in 1:length(TBRdd["r_values_by_angle"])
+        current_coords = Tuple{Float64,Float64}[]
         for layer_name in blanket_layer_names
             append!(current_coords, IMAS.intersection(
                 TBRdd["r_values_by_angle"][angle_idx], TBRdd["z_values_by_angle"][angle_idx],
@@ -231,7 +236,8 @@ function TBR_2D(actor::ActorBlanket)
             )
         end
         push!(TBRdd["blanket_intersections_per_angle"], current_coords)
-        current_coords = []
+
+        current_coords = Tuple{Float64,Float64}[]
         for layer_name in wall_layer_names
             append!(current_coords, IMAS.intersection(
                 TBRdd["r_values_by_angle"][angle_idx], TBRdd["z_values_by_angle"][angle_idx],
@@ -239,7 +245,8 @@ function TBR_2D(actor::ActorBlanket)
             )
         end
         push!(TBRdd["wall_intersections_per_angle"], current_coords)
-        current_coords = []
+
+        current_coords = Tuple{Float64,Float64}[]
         for layer_name in divertor_layer_names
             append!(current_coords, IMAS.intersection(
                 TBRdd["r_values_by_angle"][angle_idx], TBRdd["z_values_by_angle"][angle_idx],
@@ -256,6 +263,8 @@ function TBR_2D(actor::ActorBlanket)
             wall_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
         elseif length(intersection_points) == 4
             wall_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm(vcat(intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
+        else
+            error("number of intersections $(length(intersection_points))")
         end
         resize!(bm[k].layer, 3)
         bm[k].layer[1].thickness = wall_thickness
@@ -267,6 +276,8 @@ function TBR_2D(actor::ActorBlanket)
             blanket_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
         elseif length(intersection_points) == 4
             blanket_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm(vcat(intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
+        else
+            error("number of intersections $(length(intersection_points))")
         end
         bm[k].layer[2].thickness = blanket_thickness
     end
@@ -277,13 +288,17 @@ function TBR_2D(actor::ActorBlanket)
             divertor_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2]))
         elseif length(intersection_points) == 4
             divertor_thickness = norm(vcat(intersection_points[1][1] - intersection_points[2][1], intersection_points[1][2] - intersection_points[2][2])) + norm(vcat(intersection_points[3][1] - intersection_points[4][1], intersection_points[3][2] - intersection_points[4][2]))
+        else
+            error("number of intersections $(length(intersection_points))")
         end
         bm[k].layer[3].thickness = divertor_thickness
     end
 
-    wall_r = [r * 100 - plasma_midpoint[1] for r in dd.neutronics.time_slice[1].wall_loading.flux_r]
-    wall_z = [z * 100 - plasma_midpoint[2] for z in dd.neutronics.time_slice[1].wall_loading.flux_z]
-    wall_angles = []
+    # neutron wall loading
+    fw_power_list = dd.neutronics.time_slice[].wall_loading.power
+    wall_r = [r * 100 - R0 for r in dd.neutronics.time_slice[].wall_loading.flux_r]
+    wall_z = [z * 100 - Z0 for z in dd.neutronics.time_slice[].wall_loading.flux_z]
+    wall_angles = Float64[]
     for (r, z) in zip(wall_r, wall_z)
         if r < 0 && z < 0
             append!(wall_angles, atan(z / r) + pi)
@@ -295,7 +310,6 @@ function TBR_2D(actor::ActorBlanket)
             append!(wall_angles, atan(z / r))
         end
     end
-
 
     fw_total_power = sum(dd.neutronics.time_slice[].wall_loading.power)
     fw_fractional_power_list = [0.0 for x in TBRdd["angles"]]
@@ -337,7 +351,7 @@ function TBR_2D(actor::ActorBlanket)
     end
     println("Total TBR: ", tbr)
 
-    if do_plot
+    if debug_plot
         plot = Plots.plot(legend=false, xlabel="R (m)", ylabel="Z (m)", size=(600, 600))
         xvals = []
         yvals = []
