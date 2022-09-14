@@ -170,19 +170,19 @@ function TBR_2D(actor::ActorBlanket)
     divertor_layer_names=[]
 
     for layer in dd.build.layer
-        if layer.type==-1
+        if layer.type==Int(_plasma_)
             plasma_midpoint=[(layer.end_radius*100+layer.start_radius*100)/2]
             plasma_midpoint=hcat(plasma_midpoint,0)
             TBRdd[layer.name]=Dict()
             TBRdd[layer.name]["r_coordinates"]=push!(layer.outline.r.*100)
             TBRdd[layer.name]["z_coordinates"]=push!(layer.outline.z.*100)
             push!(wall_layer_names,layer.name)
-        elseif layer.type == 5 && occursin("hfs",layer.name)
+        elseif layer.type == Int(_wall_) && layer.fs==Int(_hfs_)
             TBRdd[layer.name]=Dict()
             TBRdd[layer.name]["r_coordinates"]=push!(layer.outline.r.*100)
             TBRdd[layer.name]["z_coordinates"]=push!(layer.outline.z.*100)
             push!(wall_layer_names,layer.name)
-        elseif layer.type==4
+        elseif layer.type==Int(_blanket_)
             blanket_present=true
         end
     end
@@ -194,9 +194,9 @@ function TBR_2D(actor::ActorBlanket)
         TBRdd[layer.name]=Dict()
         TBRdd[layer.name]["r_coordinates"]=push!(layer.outline.r.*100)
         TBRdd[layer.name]["z_coordinates"]=push!(layer.outline.z.*100)
-        if layer.type==4
+        if layer.type==Int(_blanket_)
             push!(blanket_layer_names, layer.name)
-        elseif layer.type==8
+        elseif layer.type==Int(_divertor_)
             push!(divertor_layer_names, layer.name)
         end
     end
@@ -337,7 +337,7 @@ function TBR_2D(actor::ActorBlanket)
         tbr+=local_tbr*power_frac
         # println("wall:",TBRdd["wall_thickness_per_angle"][index]/100,"  blanket:",TBRdd["blanket_thickness_per_angle"][index]/100," divertor:", TBRdd["divertor_thickness_per_angle"][index]/100," TBR:",local_tbr)
     end
-    # println("Total TBR: ", tbr)
+    println("Total TBR: ", tbr)
 
     if do_plot
         plot=Plots.plot(legend=false, xlabel="R (m)", ylabel="Z (m)",size=(600,600))
