@@ -1,10 +1,11 @@
-#= ============= =#
+import TGLFNN:  flux_solution
+#= ===================== =#
 #  ActorNeoclassical      #
-#= ============= =#
+#= ===================== =#
 mutable struct ActorNeoclassical <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
-    flux_solutions::AbstractVector{Union{flux_solution,Missing}}
+    flux_solutions::AbstractVector{<:flux_solution}
 end
 
 function ParametersActor(::Type{Val{:ActorNeoclassical}})
@@ -30,14 +31,7 @@ end
 
 function ActorNeoclassical(dd::IMAS.dd, par::ParametersActor; kw...)
     par = par(kw...)
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
-    cp1d = dd.core_profiles.profiles_1d[]
-
-    rho_cp = cp1d.grid.rho_tor_norm
-    rho_eq = eq1d.rho_tor_norm
-
-    input_tglfs = [inputtglf(dd, argmin(abs.(rho_eq .- rho)), argmin(abs.(rho_cp .- rho))) for rho in par.rho_neoclassical_grid]
-    return ActorNeoclassical(dd, par, input_tglfs, [missing])
+    return ActorNeoclassical(dd, par, flux_solution[])#, par.neoclassical_model, par.rho_neoclassical_grid)
 end
 
 """
@@ -45,19 +39,18 @@ end
 
 Runs Neoclassical actor to evaluate the turbulence flux on a Vector of gridpoints
 """
+
 function step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
-
     model = resize!(dd.core_transport.model, "identifier.name" => string(par.neoclassical_model))
     m1d = resize!(model.profiles_1d)
+    display(par.rho_neoclassical_grid)
     IMAS.setup_transport_grid!(m1d, par.rho_neoclassical_grid)
-    if par.neoclassical_model == :neoclassicalnn
-        actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds), actor.input_tglfs)
-    elseif par.neoclassical_model == :tglf_sat0
-        actor.flux_solutions = map(input_tglf -> run_tglf(input_tglf), actor.input_tglfs)
-    end
 
+    if par.neoclassical_model == :changhinton
+        actor.flux_solutions = [neoclassical_changhinton(dd, rho, 1) for rho in  par.rho_neoclassical_grid]
+    end
     return actor
 end
 
@@ -66,6 +59,7 @@ end
 
 Writes results to dd.core_transport
 """
+
 function finalize(actor::ActorNeoclassical)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
@@ -80,13 +74,12 @@ function finalize(actor::ActorNeoclassical)
     return actor
 end
 
-
 """
     calc_neo(dd::IMAS.dd, rho_fluxmatch::Float64, iion::Integer, AS_ion::Float64)
 
 This function calculates the neoclassical flux using Chang-Hinton model which has has been modified assuming Zi = 1, and ni=ne 
 """
-function neoclassical_changhinton(dd::IMAS.dd, rho_fluxmatch::Real, iion::Integer)
+function neoclassical_changhinton( dd::IMAS.dd, rho_fluxmatch::Real, iion::Integer)
     eq = dd.equilibrium
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
@@ -170,5 +163,6 @@ function neoclassical_changhinton(dd::IMAS.dd, rho_fluxmatch::Real, iion::Intege
          * ((K2 + K1) * dlntdr + K1 * dlnndr)) 
     
     qneo_gb = neo_rho_star_in^2
-    return efluxi/qneo_gb
+    sol = flux_solution(0.0,0.0,0.0, efluxi/qneo_gb)
+    return sol
 end
