@@ -43,7 +43,8 @@ Runs Neoclassical actor to evaluate the turbulence flux on a Vector of gridpoint
 function step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
-    model = resize!(dd.core_transport.model, "identifier.name" => string(par.neoclassical_model))
+    model = resize!(dd.core_transport.model, "identifier.index" => 5)
+    model.identifier.name = string(par.neoclassical_model)
     m1d = resize!(model.profiles_1d)
     display(par.rho_neoclassical_grid)
     IMAS.setup_transport_grid!(m1d, par.rho_neoclassical_grid)
