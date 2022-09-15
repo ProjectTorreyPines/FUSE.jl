@@ -56,6 +56,7 @@ include(joinpath("actors", "costing_actors.jl"))
 include(joinpath("actors", "neutronics_actors.jl"))
 include(joinpath("actors", "pedestal_actors.jl"))
 include(joinpath("actors", "tglf_actors.jl"))
+include(joinpath("actors", "transport_solver_actors.jl"))
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound_actors.jl"))
 

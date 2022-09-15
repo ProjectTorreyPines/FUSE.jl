@@ -53,15 +53,15 @@ function step(actor::ActorTGLF)
     par = actor.par
     dd = actor.dd
 
-    model = resize!(dd.core_transport.model, "identifier.name" => string(par.tglf_model))
+    model = resize!(dd.core_transport.model, "identifier.index" => 6)
+    model.identifier.name = string(par.tglf_model)
     m1d = resize!(model.profiles_1d)
     IMAS.setup_transport_grid!(m1d, par.rho_tglf_grid)
     if par.tglf_model == :tglfnn
         actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds), actor.input_tglfs)
     elseif par.tglf_model == :tglf_sat0
-        actor.flux_solutions = map(input_tglf -> run_tglf(input_tglf), actor.input_tglfs)
+        actor.flux_solutions = asyncmap(input_tglf -> run_tglf(input_tglf), actor.input_tglfs)
     end
-
     return actor
 end
 
