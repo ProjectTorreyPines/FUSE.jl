@@ -109,7 +109,7 @@ function _step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.st
     d = sqrt.(IMAS.gradient(vcat(wall_r, wall_r[1])) .^ 2.0 .+ IMAS.gradient(vcat(wall_z, wall_z[1])) .^ 2.0)
     d = (d[1:end-1] .+ d[2:end]) / 2.0
     l = cumsum(d)
-    s = d .* wall_r .* 2pi
+    wall_s = d .* wall_r .* 2π
     ns = 10
     stencil = collect(-ns:ns)
 
@@ -134,21 +134,20 @@ function _step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.st
         window = window ./ sum(window)
         unit_vector = sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
 
-        nflux_r[index] += (new_r - old_r) ./ unit_vector .* window .* W_per_trace ./ s[index]
-        nflux_z[index] += (new_z - old_z) ./ unit_vector .* window .* W_per_trace ./ s[index]
+        nflux_r[index] += (new_r - old_r) ./ unit_vector .* window .* W_per_trace ./ wall_s[index]
+        nflux_z[index] += (new_z - old_z) ./ unit_vector .* window .* W_per_trace ./ wall_s[index]
     end
 
     # IMAS assignements
     dd.neutronics.first_wall.r = wall_r
     dd.neutronics.first_wall.z = wall_z
-    resize!(dd.neutronics.time_slice)
-    dd.neutronics.time_slice[].wall_loading.flux_r = nflux_r
-    dd.neutronics.time_slice[].wall_loading.flux_z = nflux_z
-    dd.neutronics.time_slice[].wall_loading.power = sqrt.(nflux_r .^ 2.0 .+ nflux_z .^ 2.0) .* s
+    ntt = resize!(dd.neutronics.time_slice)
+    ntt.wall_loading.flux_r = nflux_r
+    ntt.wall_loading.flux_z = nflux_z
+    ntt.wall_loading.power = sqrt.(nflux_r .^ 2.0 .+ nflux_z .^ 2.0) .* wall_s
 
     # plot neutron wall loading cx
     if do_plot
-
         neutrons = neutron_particle.(R[draw] .* cos.(ϕ), R[draw] .* sin.(ϕ), Z[draw], step * sin.(ϕv) .* cos.(θv), step * sin.(ϕv) .* sin.(θv), step * cos.(ϕv))
 
         histogram2d(
@@ -159,7 +158,7 @@ function _step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.st
             weights=zeros(N) .+ 1 / 40,
         )
 
-        plot!(dd.neutronics.time_slice[].wall_loading, xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title="First wall neutron loading")
+        plot!(ntt.wall_loading, xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title="First wall neutron loading")
         display(plot!(wall.r, wall.z, color=:black, label="", xlim=[minimum(wall.r) * 0.9, maximum(wall.r) * 1.1], title=""))
     end
 
