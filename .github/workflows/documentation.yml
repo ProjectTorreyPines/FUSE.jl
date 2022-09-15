@@ -1,13 +1,10 @@
-name: runtests
+name: documentation
 
 # From: https://github.com/JuliaDocs/Documenter.jl/blob/master/.github/workflows/CI.yml
 #     + https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765
 on:
-  push:
-    branches:
-      - master
-  pull_request:
   workflow_dispatch:
+
 
 jobs:
   test:
@@ -43,4 +40,5 @@ jobs:
             Pkg.add(dependencies)
             '
       - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+      - run: |
+          cd docs; julia make.jl
