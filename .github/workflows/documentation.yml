@@ -5,6 +5,10 @@ name: documentation
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
@@ -23,9 +27,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v3 # for nbconvert
+      - uses: actions/setup-python@v4
       - run: |
-          pip install jupyterlab
+          pip install nbconvert
       - run: |
           make blank_examples
       - uses: julia-actions/setup-julia@v1
