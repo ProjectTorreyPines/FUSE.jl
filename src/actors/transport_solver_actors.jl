@@ -1,4 +1,4 @@
-#using NLsolve
+import NLsolve: nlsolve
 
 #= ========================== =#
 #     transport solver actor   #
@@ -11,11 +11,12 @@ end
 
 function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par = ParametersActor(nothing)
-    par.evolve_Ti = Switch([:flux_match, :fixed], "", "How to evolve the average ion temperature "; default=:evolve)
-    par.evolve_Te = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:evolve)
+    par.evolve_Ti = Switch([:flux_match, :fixed], "", "How to evolve the average ion temperature "; default=:flux_match)
+    par.evolve_Te = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:flux_match)
     par.evolve_densities = Entry(Union{Dict,Symbol}, "", "OrderedDict to specify which ion species are evolved, kept constant or used for quasi neutarlity"; default=:fixed)
     par.evolve_rotation = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:fixed)
-    par.rho_transport = Entry(Vector{Real}, "", "Rho transport grid")
+    par.rho_transport = Entry(Vector{Float64}, "", "Rho transport grid")
+    par.do_plot = Entry(Bool, "", "plots the flux matching"; default=false)
     return par
 end
 
@@ -27,41 +28,53 @@ end
 function ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTransportSolver(kw...)
     actor = ActorTransportSolver(dd, par)
-    step(actor)
+    step(actor, act)
     finalize(actor)
     return actor
 end
 
+"""
 function ActorTransportSolver(dd::IMAS.dd, par::ParametersActor; kw...)
     par = par(kw...)
     return ActorTransportSolver(dd, par)
 end
+"""
 
-function step(actor::ActorTransportSolver; iterations::Int=50, factor=1.0)
+function step(actor::ActorTransportSolver, act::ParametersAllActors; iterations::Int=50, factor=1.0)
     dd = actor.dd
     par = actor.par
 
     z_init = pack_z_profiles(dd, par)
     dd_before = deepcopy(dd)
+    @show length(z_init) == length(get_flux_match_error(dd, act, z_init))
+    res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=factor)#, iterations=iterations, factor=factor)
+#    dd = unpack_z_profiles(dd_before, par, res.minimum)
+    dd = unpack_z_profiles(dd_before, par, res.minimum)
+#    get_flux_match_error(dd,act, res.minimum)
+    get_flux_match_error(dd,act, res.minimum)
 
-    res = nlsolve(z -> get_flux_match_error(dd, par.rho_transport, z), z_init, show_trace=true, iterations=iterations, factor=factor)
-    dd = unpack(dd_before, res.minimum, rho_transport)
-    get_flux_match_error(dd, rho_transport, res.minimum)
     actor.dd = dd
+
+    if par.do_plot
+        display(plot(dd.core_transport))
+        plot(dd_before.core_profiles,label="before")
+        display(plot!(dd.core_profiles,label="after"))
+    end
+
     return actor
 end
 
 
-function get_flux_match_error(dd::IMAS.dd, par::ParametersActor, z_profiles::AbstractVector{<:Real})
-    unpack(dd, z_profiles, rho_transport) # modify dd with new z_profiles
+function get_flux_match_error(dd::IMAS.dd, act::ParametersAllActors, z_profiles::AbstractVector{<:Float64})
+    par = act.ActorTransportSolver
+    unpack_z_profiles(dd, par, z_profiles) # modify dd with new z_profiles
     act.ActorTGLF.tglf_model = :tglfnn
-    act.ActorTGLF.rho_tglf = par.rho_transport
+    act.ActorTGLF.rho_transport = par.rho_transport
+    act.ActorNeoclassical.rho_transport = par.rho_transport
     FUSE.ActorTGLF(dd, act)
-
+    FUSE.ActorNeoclassical(dd, act)
     IMAS.sources!(dd)
-
-    pack_flux_match_errors(dd, par)
-
+    return pack_flux_match_errors(dd, par)
 end
 
 
@@ -69,8 +82,39 @@ function pack_flux_match_errors(dd, par)
     total_sources = IMAS.total_sources(dd)
     total_fluxes = IMAS.total_fluxes(dd)
 
+    cp1d = dd.core_profiles.profiles_1d[]
+    cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm).^2) for rho_x in par.rho_transport]
+    ct_gridpoints = [argmin((rho_x .- total_fluxes.grid_flux.rho_tor_norm).^2) for rho_x in par.rho_transport]
+    surface = total_sources.grid.surface[cs_gridpoints]
+
     energy_norm = 1e4
     particles_norm = 1e19
+    momentum_norm = 0.1
+
+    error = Vector{Float64}()
+
+    if par.evolve_Ti == :flux_match
+        append!(error, (total_sources.total_ion_power_inside[cs_gridpoints] ./ surface .- total_fluxes.total_ion_energy.flux[ct_gridpoints]) ./ energy_norm)
+    end
+
+    if par.evolve_Te == :flux_match
+        append!(error, (total_sources.electrons.power_inside[cs_gridpoints] ./ surface .- total_fluxes.electrons.energy.flux[ct_gridpoints]) ./ energy_norm)
+    end
+
+    if par.evolve_rotation == :flux_match
+        append!(error, (total_sources.torque_tor_inside[cs_gridpoints] ./ surface .- total_fluxes.momentum_tor.flux[ct_gridpoints]) ./ momentum_norm)
+    end
+
+    if par.evolve_densities != :fixed
+        if par.evolve_densities[:electrons] == :flux_match
+            append!(error, (total_sources.electrons.particles_inside[cs_gridpoints] ./ surface .- total_fluxes.electrons.particles.flux[ct_gridpoints]) ./ particles_norm)
+        end
+        for ion in cp1d.ion
+            if par.evolve_densities[Symbol(ion.label)] == :flux_match
+                error("This is currently not working will fix later")
+            end
+        end
+    end
     return error
 end
 
@@ -83,39 +127,41 @@ Note the order for packing and unpacking is always:
 
 function pack_z_profiles(dd, par)
     cp1d = dd.core_profiles.profiles_1d[]
-    z_profiles = Vector{Real}()
+    z_profiles = Vector{Float64}()
+    cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm).^2) for rho_x in par.rho_transport]
 
-    if par.evolve_Ti
-        append!(z_profiles, IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature))
+    if par.evolve_Ti == :flux_match
+        append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature)[cp_gridpoints]))
     end
 
-    if par.evolve_Te
-        append!(z_profiles, IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature))
+    if par.evolve_Te == :flux_match
+        append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature)[cp_gridpoints]))
     end
 
-    if par.evolve_rotation
-        append!(z_profiles, IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic))
+    if par.evolve_rotation == :flux_match
+        append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic)[cp_gridpoints]))
     end
 
     if par.evolve_densities != :fixed
         if par.evolve_densities[:electrons] == :flux_match
-            append!(z_profiles, cp1d.electrons.density_thermal)
+            append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)[cp_gridpoints]))
         end
         for ion in cp1d.ion
             if par.evolve_densities[Symbol(ion.label)] == :flux_match
-                append!(z_profiles, ion.density_thermal)
+                append!(z_profiles, (IMAS.calcz(cp1d.grid.rho_tor_norm, ion.density_thermal)[cp_gridpoints]))
             end
         end
     end
     return z_profiles
 end
 
-function unpack(dd, z_profiles, rho_transport)
+function unpack_z_profiles(dd, par, z_profiles)
     cp1d = dd.core_profiles.profiles_1d[]
+    rho_transport = par.rho_transport
     counter = 0
-    N = length(z_profiles) / length(rho_transport)
+    N = Int(length(rho_transport))
 
-    if par.evolve_Ti
+    if par.evolve_Ti == :flux_match
         Ti_new = IMAS.profile_from_z_transport(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
         counter += N
         for ion in cp1d.ion
@@ -123,12 +169,12 @@ function unpack(dd, z_profiles, rho_transport)
         end
     end
 
-    if par.evolve_Te
+    if par.evolve_Te == :flux_match
         cp1d.electrons.temperature = IMAS.profile_from_z_transport(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
         counter += 4
     end
 
-    if par.evolve_rotation
+    if par.evolve_rotation == :flux_match
         cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
         counter += 4
     end
@@ -145,6 +191,7 @@ function unpack(dd, z_profiles, rho_transport)
             end
         end
     end
+    return dd
 end
 
 function check_evolve_densities(dd::IMAS.dd, evolve_densities::Dict)

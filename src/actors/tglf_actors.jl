@@ -12,7 +12,7 @@ end
 function ParametersActor(::Type{Val{:ActorTGLF}})
     par = ParametersActor(nothing)
     par.tglf_model = Switch([:tglf_sat0, :tglfnn], "", "TGLF model to run"; default=:tglfnn)
-    par.rho_tglf_grid = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=collect(0.2:0.1:0.8))
+    par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=collect(0.2:0.1:0.8))
     par.warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     return par
 end
@@ -40,7 +40,7 @@ function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
     rho_cp = cp1d.grid.rho_tor_norm
     rho_eq = eq1d.rho_tor_norm
 
-    input_tglfs = [inputtglf(dd, argmin(abs.(rho_eq .- rho)), argmin(abs.(rho_cp .- rho))) for rho in par.rho_tglf_grid]
+    input_tglfs = [inputtglf(dd, argmin(abs.(rho_eq .- rho)), argmin(abs.(rho_cp .- rho))) for rho in par.rho_transport]
     return ActorTGLF(dd, par, input_tglfs, flux_solution[])
 end
 
@@ -56,7 +56,7 @@ function step(actor::ActorTGLF)
     model = resize!(dd.core_transport.model, "identifier.index" => 6)
     model.identifier.name = string(par.tglf_model)
     m1d = resize!(model.profiles_1d)
-    IMAS.setup_transport_grid!(m1d, par.rho_tglf_grid)
+    IMAS.setup_transport_grid!(m1d, par.rho_transport)
     if par.tglf_model == :tglfnn
         actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds), actor.input_tglfs)
     elseif par.tglf_model == :tglf_sat0
@@ -76,7 +76,7 @@ function finalize(actor::ActorTGLF)
     eqt = dd.equilibrium.time_slice[]
 
     model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.tglf_model)][1]]
-    for (tglf_idx, rho) in enumerate(actor.par.rho_tglf_grid)
+    for (tglf_idx, rho) in enumerate(actor.par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, model.profiles_1d[].grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
         model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
