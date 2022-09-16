@@ -210,7 +210,7 @@ web:
 	make web_push
 
 web_ci:
-	git clone $PWD docs/pages
+	git clone $(PWD) docs/pages
 	cp .git/config docs/pages/.git/config
 	cd docs/pages; git fetch; git checkout gh-pages
 	cd docs/pages; git config user.email "fuse@fusion.gat.com"
