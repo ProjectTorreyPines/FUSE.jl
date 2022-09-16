@@ -4,6 +4,11 @@ name: documentation
 #     + https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765
 on:
   workflow_dispatch:
+    inputs:
+      debug:
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -52,3 +57,6 @@ jobs:
       #     make html
       - run: |
           make web
+      - name: Debug with tmate if failure + manual triggrer + debug mode
+        if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
+        uses: mxschmitt/action-tmate@v3
