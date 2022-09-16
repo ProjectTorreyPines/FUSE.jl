@@ -48,6 +48,10 @@ using Test
         dd, ini, act = FUSE.init(:SPARC)
     end
 
+    @testset "warmup" begin
+        FUSE.warmup()
+    end
+    
 end
 
 
