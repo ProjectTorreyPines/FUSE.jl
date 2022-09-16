@@ -5,6 +5,8 @@ CURRENTDIR = $(shell pwd)
 FUSE_BROKER := 35.247.84.151
 
 DOCKER_PLATFORM := $(shell uname -m)
+DOCKER_PLATFORM := amd64
+#DOCKER_PLATFORM := arm64
 
 define clone_update_repo
     if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
@@ -13,14 +15,19 @@ define clone_update_repo
 endef
 
 all:
-	@echo 'FUSE makefile help'
 	@echo ''
-	@echo ' - make install      : install FUSE and its PTP dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update       : git pull FUSE and its PTP dependencies'
+	@echo '  ███████╗██╗   ██╗███████╗███████╗'
+	@echo '  ██╔════╝██║   ██║██╔════╝██╔════╝'
+	@echo '  █████╗  ██║   ██║███████╗█████╗  '
+	@echo '  ██╔══╝  ██║   ██║╚════██║██╔══╝  '
+	@echo '  ██║     ╚██████╔╝███████║███████╗'
+	@echo '  ╚═╝      ╚═════╝ ╚══════╝╚══════╝'
+	@echo ''
+	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
+	@echo ' - make update       : git pull FUSE and its dependencies'
 	@echo ' - make IJulia       : Install IJulia'
 	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
-	@echo ' - make docker_image : generate a new FUSE docker image'
-	@echo ' - make docker_run   : run the FUSE docker image'
+	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
 	@echo ''
 
 registry:
@@ -198,6 +205,10 @@ web:
 	cd docs; cp -rf build/* pages/
 	cd docs/pages; touch .nojekyll
 	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
+
+all_examples: .PHONY
+	cd docs/src; rm example_*.md
+	make examples
 
 examples: .PHONY
 	cd docs; julia notebooks_to_html.jl
