@@ -46,16 +46,14 @@ function step(actor::ActorTransportSolver, act::ParametersAllActors; iterations:
 
     z_init = pack_z_profiles(dd, par)
     dd_before = deepcopy(dd)
-    @show length(z_init) == length(get_flux_match_error(dd, act, z_init))
     res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=factor)#, iterations=iterations, factor=factor)
-#    dd = unpack_z_profiles(dd_before, par, res.minimum)
-    dd = unpack_z_profiles(dd_before, par, res.minimum)
-#    get_flux_match_error(dd,act, res.minimum)
-    get_flux_match_error(dd,act, res.minimum)
+    dd = unpack_z_profiles(dd_before, par, res.zero)
+    get_flux_match_error(dd,act, res.zero)
 
     actor.dd = dd
 
     if par.do_plot
+        display(["output of the optimization", res])
         display(plot(dd.core_transport))
         plot(dd_before.core_profiles,label="before")
         display(plot!(dd.core_profiles,label="after"))
