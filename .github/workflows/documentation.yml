@@ -1,7 +1,5 @@
 name: documentation
 
-# From: https://github.com/JuliaDocs/Documenter.jl/blob/master/.github/workflows/CI.yml
-#     + https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765
 on:
   workflow_dispatch:
     inputs:
@@ -29,34 +27,34 @@ jobs:
           #- windows-latest # avoid buring github actions hours
         arch:
           - x64
-
     steps:
       - uses: actions/checkout@v2
-      # - uses: actions/setup-python@v4
-      # - run: |
-      #     pip install nbconvert
-      # - run: |
-      #     make blank_examples
-      # - uses: julia-actions/setup-julia@v1
-      #   with:
-      #     version: ${{ matrix.version }}
-      #     arch: ${{ matrix.arch }}
-      #     show-versioninfo: true
-      # - run: |
-      #     julia -e '
-      #       using Pkg
-      #       Pkg.activate(".")
-      #       dependencies = PackageSpec[]
-      #       for package in ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "Broker", "ZMQ"]
-      #         push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
-      #       end
-      #       Pkg.add(dependencies)
-      #       '
-      # - uses: julia-actions/julia-buildpkg@v1
-      # - run: |
-      #     make html
+      - uses: actions/setup-python@v4
       - run: |
-          make web
+          pip install nbconvert
+      - run: |
+          make blank_examples
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+          show-versioninfo: true
+      - run: |
+          julia -e '
+            using Pkg
+            Pkg.activate(".")
+            dependencies = PackageSpec[]
+            for package in ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "Broker", "ZMQ"]
+              push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
+            end
+            Pkg.add(dependencies)
+            '
+      - uses: julia-actions/julia-buildpkg@v1
+      - run: |
+          make html
+      - run: |
+          make web_ci
       - name: Debug with tmate if failure + manual triggrer + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60

@@ -1,13 +1,16 @@
 name: runtests
 
-# From: https://github.com/JuliaDocs/Documenter.jl/blob/master/.github/workflows/CI.yml
-#     + https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765
 on:
+  workflow_dispatch:
+    inputs:
+      debug:
+        type: boolean
+        required: false
+        default: false
   push:
     branches:
       - master
   pull_request:
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -48,3 +51,7 @@ jobs:
             '
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+      - name: Debug with tmate if failure + manual triggrer + debug mode
+        if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60

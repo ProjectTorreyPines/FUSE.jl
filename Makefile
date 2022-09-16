@@ -198,13 +198,24 @@ cleanup:
 html:
 	cd docs; julia make.jl
 
-web:
-	if [ ! -d "$(PWD)/docs/pages" ]; then cd docs; git clone --single-branch -b gh-pages git@github.com:ProjectTorreyPines/FUSE.jl.git pages; fi
-	#cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
-	cd docs/pages; git pull
+web_push:
+	cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
 	cd docs; cp -rf build/* pages/
 	cd docs/pages; touch .nojekyll
 	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
+
+web:
+	if [ ! -d "$(PWD)/docs/pages" ]; then cd docs; git clone --single-branch -b gh-pages git@github.com:ProjectTorreyPines/FUSE.jl.git pages; fi
+	cd docs/pages; git pull
+	make web_push
+
+web_ci:
+	git clone $PWD docs/pages
+	cp .git/config docs/pages/.git/config
+	cd docs/pages; git fetch; git checkout gh-pages
+	cd docs/pages; git config user.email "fuse@fusion.gat.com"
+	cd docs/pages; git config user.name "FUSE-BOT"
+	make web_push
 
 clean_examples:
 	cd docs/src; rm -rf example_*.md
