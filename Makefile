@@ -206,11 +206,17 @@ web:
 	cd docs/pages; touch .nojekyll
 	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
 
-all_examples: .PHONY
-	cd docs/src; rm example_*.md
-	make examples
+clean_examples:
+	cd docs/src; rm -rf example_*.md
+
+all_examples: clean_examples examples
 
 examples: .PHONY
+	cd docs; julia notebooks_to_html.jl --execute
+
+all_blank_examples: clean_examples blank_examples
+
+blank_examples: .PHONY
 	cd docs; julia notebooks_to_html.jl
 
 dd:

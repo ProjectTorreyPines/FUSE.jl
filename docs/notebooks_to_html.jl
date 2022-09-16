@@ -2,7 +2,7 @@ using Pkg
 Pkg.activate(joinpath(@__DIR__, ".."))
 using ProgressMeter
 
-execute = false
+execute = "--execute" in ARGS
 
 dirs = ["cases", "actors", "tutorials", "workflows"]
 
