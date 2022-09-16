@@ -18,6 +18,11 @@ include("utils.jl")
 include("parameters.jl")
 include("parameters_init.jl")
 
+#= ====== =#
+#  REMOTE  #
+#= ====== =#
+include("remote.jl")
+
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
 #= ====================== =#
@@ -80,6 +85,6 @@ include("logging.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, global_logger
+export IMAS, @ddtime, constants, ±, ↔, Logging
 
 end

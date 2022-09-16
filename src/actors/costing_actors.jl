@@ -306,6 +306,7 @@ mutable struct ActorCosting <: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorCosting(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging_actor_init(ActorCosting)
         par = par(kw...)
         return new(dd, par)
     end
@@ -340,7 +341,7 @@ function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorCosting)
+function _step(actor::ActorCosting)
     par = actor.par
     dd = actor.dd
     cst = dd.costing
@@ -385,9 +386,10 @@ function step(actor::ActorCosting)
     end
 
     ### Facility
+
     sys = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
 
-    if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated) < 0
+    if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
         @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
         power_electric_net = 0.0
         power_thermal = 0.0
@@ -458,7 +460,7 @@ function step(actor::ActorCosting)
     return actor
 end
 
-function finalize(actor::ActorCosting)
+function _finalize(actor::ActorCosting)
     # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system, by=x -> x.cost, rev=true)
     for sys in actor.dd.costing.cost_direct_capital.system

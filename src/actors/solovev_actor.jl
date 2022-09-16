@@ -42,6 +42,7 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging_actor_init(ActorSolovev)
     par = par(kw...)
 
     # extract info from dd
@@ -91,7 +92,7 @@ end
 
 Non-linear optimization to obtain a target `ip` and `pressure_core`
 """
-function step(actor::ActorSolovev)
+function _step(actor::ActorSolovev)
     S0 = actor.S
     par = actor.par
 
@@ -131,7 +132,7 @@ end
 
 Store ActorSolovev data in IMAS.equilibrium format
 """
-function finalize(
+function _finalize(
     actor::ActorSolovev;
     rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
     zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)

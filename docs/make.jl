@@ -147,7 +147,7 @@ background-color: transparent !important;
         )
     end
 end
-files_to_convert = readdir("$(@__DIR__)/build")[findall(x -> startswith(x, "example_") && endswith(x, ".html"), readdir("$docs_dir/build"))]
+files_to_convert = readdir("$(@__DIR__)/build")[findall(x -> startswith(x, "example_") && endswith(x, ".html"), readdir("$(@__DIR__)/build"))]
 for file in files_to_convert
     local txt = open("$(@__DIR__)/build/$file", "r") do io
         read(io, String)

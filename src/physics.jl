@@ -613,7 +613,7 @@ end
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
     RX = mr[i] .* α .+ R0 .* (1.0 .- α)
     ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    RZ = FUSE.convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
+    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
     R = T[r for (r, z) in RZ]
     Z = T[z for (r, z) in RZ]
     return RX, ZX, R, Z
@@ -655,7 +655,7 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
         R0 = mr[i]
     end
 
-    res = FUSE.Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, FUSE.Optim.GoldenSection())
+    res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
     RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, res.minimizer[1])
 
     return RX, ZX, R, Z
@@ -679,7 +679,7 @@ function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n
         push!(ZX, ZXL)
     end
 
-    RZ = FUSE.convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
+    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
 

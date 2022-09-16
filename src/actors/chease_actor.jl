@@ -31,6 +31,7 @@ function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorCHEASE(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging_actor_init(ActorCHEASE)
     par = par(kw...)
     ActorCHEASE(dd, par, nothing)
 end
@@ -54,7 +55,7 @@ end
 
 Runs CHEASE on the r_z boundary, equilibrium pressure and equilibrium j_tor
 """
-function step(actor::ActorCHEASE)
+function _step(actor::ActorCHEASE)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
@@ -113,7 +114,7 @@ function step(actor::ActorCHEASE)
 end
 
 # define `finalize` function for this actor
-function finalize(actor::ActorCHEASE)
+function _finalize(actor::ActorCHEASE)
     gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
     return actor
 end

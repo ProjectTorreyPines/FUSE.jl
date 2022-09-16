@@ -161,7 +161,7 @@ function init_pf_active(
             if (ir < 1) || (ir > length(rmask)) || (iz < 1) || (iz > length(zmask))
                 continue
             end
-            if all(mask[ir, iz] .== 0)
+            if (r > (minimum(rail_r) + (maximum(rail_r) - minimum(rail_r)) / 20)) && all(mask[ir, iz] .== 0)
                 push!(valid_k, k)
             end
         end

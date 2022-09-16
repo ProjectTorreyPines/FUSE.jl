@@ -1,17 +1,16 @@
-using Pkg
-Pkg.activate(joinpath(@__DIR__,".."))
-using ProgressMeter
+execute = "--execute" in ARGS
 
-dirs = ["cases", "actors","tutorials", "workflows"]
+dirs = ["cases", "actors", "tutorials", "workflows"]
 
 # Converts all notebooks in examples/... to .md and stores them in docs/src
 current_path = @__DIR__
 
+failed = String[]
 for dir in dirs
     example_folder = joinpath(current_path, "..", "examples", dir)
     files_to_convert = readdir(example_folder)[findall(x -> endswith(x, ".ipynb"), readdir(example_folder))]
 
-    @showprogress for case in files_to_convert
+    for case in files_to_convert
         ipynb = joinpath(example_folder, case)
         casename = split(case, ".")[1]
         srcname = joinpath(example_folder, "$casename.md")
@@ -20,9 +19,20 @@ for dir in dirs
         dstfiles = joinpath(current_path, "src", "assets", "$(casename)_files")
 
         if isfile(dstname)
-            println("$dstname exists: skipping nbconvert")
+            @warn "$dstname exists: skipping nbconvert"
         else
-            run(`jupyter nbconvert --execute --to markdown $ipynb`)
+            if !execute
+                run(`jupyter nbconvert --to markdown $ipynb`)
+            else
+                try
+                    @info "converting $ipynb"
+                    run(`jupyter nbconvert --execute --to markdown $ipynb`)
+                catch e
+                    run(`jupyter nbconvert --to markdown $ipynb`)
+                    push!(failed, ipynb)
+                    @error "error executing $ipynb: skipping nbconvert"
+                end
+            end
             run(`rm -rf $dstfiles`)
             if isdir(srcfiles)
                 run(`mv -f $srcfiles $dstfiles`)
@@ -43,5 +53,10 @@ for dir in dirs
             end
         end
     end
+end
 
+if length(failed) > 0
+    for ipynb in failed
+        @error @error "error executing $ipynb"
+    end
 end

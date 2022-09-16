@@ -1,16 +1,14 @@
-name: runtests
+name: documentation
 
 on:
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       debug:
         type: boolean
         required: false
         default: false
-  push:
-    branches:
-      - master
-  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -31,9 +29,13 @@ jobs:
           #- windows-latest # avoid buring github actions hours
         arch:
           - x64
-
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-python@v4
+      - run: |
+          pip install nbconvert
+      - run: |
+          make blank_examples
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
@@ -50,7 +52,10 @@ jobs:
             Pkg.add(dependencies)
             '
       - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+      - run: |
+          make html
+      - run: |
+          make web_ci
       - name: Debug with tmate if failure + manual triggrer + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3
