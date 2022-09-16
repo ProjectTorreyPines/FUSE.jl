@@ -11,7 +11,7 @@ end
 function ParametersActor(::Type{Val{:ActorNeoclassical}})
     par = ParametersActor(nothing)
     par.neoclassical_model = Switch([:changhinton], "", "Neoclassical model to run"; default=:changhinton)
-    par.rho_neoclassical_grid = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute neoclassical fluxes on"; default=collect(0.2:0.1:0.8))
+    par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute neoclassical fluxes on"; default=collect(0.2:0.1:0.8))
     return par
 end
 
@@ -31,7 +31,7 @@ end
 
 function ActorNeoclassical(dd::IMAS.dd, par::ParametersActor; kw...)
     par = par(kw...)
-    return ActorNeoclassical(dd, par, flux_solution[])#, par.neoclassical_model, par.rho_neoclassical_grid)
+    return ActorNeoclassical(dd, par, flux_solution[])
 end
 
 """
@@ -46,11 +46,10 @@ function step(actor::ActorNeoclassical)
     model = resize!(dd.core_transport.model, "identifier.index" => 5)
     model.identifier.name = string(par.neoclassical_model)
     m1d = resize!(model.profiles_1d)
-    display(par.rho_neoclassical_grid)
-    IMAS.setup_transport_grid!(m1d, par.rho_neoclassical_grid)
+    IMAS.setup_transport_grid!(m1d, par.rho_transport, setup_grid_for = [:total_ion_energy])
 
     if par.neoclassical_model == :changhinton
-        actor.flux_solutions = [neoclassical_changhinton(dd, rho, 1) for rho in  par.rho_neoclassical_grid]
+        actor.flux_solutions = [neoclassical_changhinton(dd, rho, 1) for rho in  par.rho_transport]
     end
     return actor
 end
@@ -67,7 +66,7 @@ function finalize(actor::ActorNeoclassical)
     eqt = dd.equilibrium.time_slice[]
 
     model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.neoclassical_model)][1]]
-    for (neoclassical_idx, rho) in enumerate(actor.par.rho_neoclassical_grid)
+    for (neoclassical_idx, rho) in enumerate(actor.par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, model.profiles_1d[].grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
         model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
