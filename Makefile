@@ -201,7 +201,7 @@ html:
 web_push:
 	cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
 	cd docs; cp -rf build/* pages/
-	cd docs/pages; echo "fuse.help" > CNAME ### this is to set the custom domain name for ghpages
+	cd docs/pages; echo "fuse.help" > CNAME ### this is to set the custom domain name for gh-pages
 	cd docs/pages; touch .nojekyll
 	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
 
@@ -230,6 +230,9 @@ all_blank_examples: clean_examples blank_examples
 
 blank_examples: .PHONY
 	cd docs; julia notebooks_to_html.jl
+
+daily_example: .PHONY
+	cd docs; julia notebooks_to_html.jl --daily --execute
 
 dd:
 	julia ../IMASDD/src/generate_dd.jl

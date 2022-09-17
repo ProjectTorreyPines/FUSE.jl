@@ -1,16 +1,37 @@
+using Dates
+
+# argument: execute the notebook
 execute = "--execute" in ARGS
+# argument: only process one case a day (used to maintain documentation up-to-date)
+daily = "--daily" in ARGS
 
 dirs = ["cases", "actors", "tutorials", "workflows"]
 
 # Converts all notebooks in examples/... to .md and stores them in docs/src
 current_path = @__DIR__
 
+# count the number of files to convert
+global n_cases = 0
+for dir in dirs
+    example_folder = joinpath(current_path, "..", "examples", dir)
+    files_to_convert = readdir(example_folder)[findall(x -> endswith(x, ".ipynb"), readdir(example_folder))]
+    global n_cases += length(files_to_convert)
+end
+
+# convert notebooks to markdown
+global k_case
+k_case = 0
 failed = String[]
 for dir in dirs
     example_folder = joinpath(current_path, "..", "examples", dir)
     files_to_convert = readdir(example_folder)[findall(x -> endswith(x, ".ipynb"), readdir(example_folder))]
 
     for case in files_to_convert
+        global k_case += 1
+        if daily && (k_case != (mod(dayofyear(now()), n_cases) + 1))
+            continue
+        end
+
         ipynb = joinpath(example_folder, case)
         casename = split(case, ".")[1]
         srcname = joinpath(example_folder, "$casename.md")
@@ -18,7 +39,7 @@ for dir in dirs
         dstname = joinpath(current_path, "src", "example_$(dir)__$(casename).md")
         dstfiles = joinpath(current_path, "src", "assets", "$(casename)_files")
 
-        if isfile(dstname)
+        if ! daily && isfile(dstname)
             @warn "$dstname exists: skipping nbconvert"
         else
             if !execute
