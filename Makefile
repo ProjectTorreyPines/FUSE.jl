@@ -232,7 +232,7 @@ blank_examples: .PHONY
 	cd docs; julia notebooks_to_html.jl
 
 daily_example: .PHONY
-	cd docs; julia notebooks_to_html.jl --daily --execute
+	cd docs; julia notebooks_to_html.jl --daily --execute --canfail
 
 dd:
 	julia ../IMASDD/src/generate_dd.jl

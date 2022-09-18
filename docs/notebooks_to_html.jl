@@ -1,9 +1,11 @@
 using Dates
 
-# argument: execute the notebook
+# execute: execute the notebook
 execute = "--execute" in ARGS
-# argument: only process one case a day (used to maintain documentation up-to-date)
+# daily: only process one case a day (used to maintain documentation up-to-date)
 daily = "--daily" in ARGS
+# canfail: --execute can fail
+canfail = "--canfail" in ARGS
 
 dirs = ["cases", "actors", "tutorials", "workflows"]
 
@@ -49,9 +51,12 @@ for dir in dirs
                     @info "converting $ipynb"
                     run(`jupyter nbconvert --execute --to markdown $ipynb`)
                 catch e
-                    run(`jupyter nbconvert --to markdown $ipynb`)
-                    push!(failed, ipynb)
-                    @error "error executing $ipynb: skipping nbconvert"
+                    if canfail
+                        rethrow(e)
+                    else
+                        run(`jupyter nbconvert --to markdown $ipynb`)
+                        push!(failed, ipynb)
+                        @error "error executing $ipynb: skipping nbconvert"
                 end
             end
             run(`rm -rf $dstfiles`)
