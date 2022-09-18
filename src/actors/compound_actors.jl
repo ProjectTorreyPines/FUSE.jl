@@ -95,6 +95,7 @@ mutable struct ActorWholeFacility <: FacilityAbstractActor
     LFSsizing::Union{Nothing,ActorLFSsizing}
     CXbuild::Union{Nothing,ActorCXbuild}
     PFcoilsOpt::Union{Nothing,ActorPFcoilsOpt}
+    PassiveStructures::Union{Nothing,ActorPassiveStructures}
     Neutronics::Union{Nothing,ActorNeutronics}
     Blanket::Union{Nothing,ActorBlanket}
     Divertors::Union{Nothing,ActorDivertors}
@@ -116,6 +117,7 @@ Compound actor that runs all the actors needed to model the whole plant:
 * ActorLFSsizing
 * ActorCXbuild
 * ActorPFcoilsOpt
+* ActorPassiveStructures
 * ActorNeutronics
 * ActorBlanket
 * ActorDivertors
@@ -147,6 +149,7 @@ function ActorWholeFacility(dd::IMAS.dd, par::ParametersActor, act::ParametersAl
         nothing,
         nothing,
         nothing,
+        nothing,
         nothing)
 end
 
@@ -158,6 +161,7 @@ function _step(actor::ActorWholeFacility)
     actor.LFSsizing = ActorLFSsizing(dd, act)
     actor.CXbuild = ActorCXbuild(dd, act)
     actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
+    actor.PassiveStructures = ActorPassiveStructures(dd, act)
     actor.Neutronics = ActorNeutronics(dd, act)
     actor.Blanket = ActorBlanket(dd, act)
     actor.Divertors = ActorDivertors(dd, act)

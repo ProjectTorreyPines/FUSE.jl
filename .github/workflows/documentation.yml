@@ -25,17 +25,13 @@ jobs:
           - "1.x"
         os:
           - ubuntu-latest
-          #- macos-latest # avoid buring github actions hours
-          #- windows-latest # avoid buring github actions hours
         arch:
           - x64
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v4
-      - run: |
-          pip install nbconvert
-      - run: |
-          make blank_examples
+      - run: pip install nbconvert
+      #============
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
@@ -52,10 +48,10 @@ jobs:
             Pkg.add(dependencies)
             '
       - uses: julia-actions/julia-buildpkg@v1
-      - run: |
-          make html
-      - run: |
-          make web_ci
+      #============
+      - run: make blank_examples
+      - run: make html
+      - run: make web_ci
       - name: Debug with tmate if failure + manual triggrer + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3
