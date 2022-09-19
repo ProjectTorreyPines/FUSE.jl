@@ -51,6 +51,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       #============
       - uses: julia-actions/julia-runtest@v1
+      #============
       - name: Debug with tmate if failure + manual triggrer + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3

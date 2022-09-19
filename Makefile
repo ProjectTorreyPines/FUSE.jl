@@ -1,7 +1,7 @@
 JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
 JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
-CURRENTDIR = $(shell pwd)
-
+CURRENTDIR := $(shell pwd)
+TODAY := $(shell date +'%Y-%m-%d')
 FUSE_BROKER := 35.247.84.151
 
 DOCKER_PLATFORM := $(shell uname -m)
@@ -228,11 +228,20 @@ examples: .PHONY
 
 all_blank_examples: clean_examples blank_examples
 
-blank_examples: .PHONY
+blank_examples:
 	cd docs; julia notebooks_to_html.jl
 
-daily_example: .PHONY
+daily_example:
 	cd docs; julia notebooks_to_html.jl --daily --execute --canfail
+
+daily_example_commit:
+    git checkout -b examples_$(TODAY)
+    git add -A
+    git config user.email "fuse-bot@fusion.gat.com"
+    git config user.name "fuse bot"
+    git config push.autoSetupRemote true
+    git commit --allow-empty -m "example of the day"
+    git push --set-upstream origin examples_$(TODAY)
 
 dd:
 	julia ../IMASDD/src/generate_dd.jl

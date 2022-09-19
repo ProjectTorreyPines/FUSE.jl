@@ -52,6 +52,7 @@ jobs:
       - run: make blank_examples
       - run: make html
       - run: make web_ci
+      #============
       - name: Debug with tmate if failure + manual triggrer + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3
