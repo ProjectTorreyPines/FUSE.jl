@@ -22,7 +22,6 @@ end
 
 The ActorTGLF evaluates the TGLF predicted turbulence at a set of rho_tor_norm grid points
 """
-
 function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTGLF(kw...)
     actor = ActorTGLF(dd, par)

@@ -46,6 +46,10 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.target.flattop_duration = 5
 
     act.ActorPFcoilsOpt.symmetric = true
+    act.ActorTransportSolver.evolve_densities = Dict(
+        :D         => :match_ne_scale,
+        :electrons => :flux_match,
+        :C         => :match_ne_scale)
 
     return set_new_base!(ini), set_new_base!(act)
 end
