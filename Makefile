@@ -235,13 +235,13 @@ daily_example:
 	cd docs; julia notebooks_to_html.jl --daily --execute --canfail
 
 daily_example_commit:
-    git checkout -b examples_$(TODAY)
-    git add -A
-    git config user.email "fuse-bot@fusion.gat.com"
-    git config user.name "fuse bot"
-    git config push.autoSetupRemote true
-    git commit --allow-empty -m "example of the day"
-    git push --set-upstream origin examples_$(TODAY)
+	git checkout -b examples_$(TODAY)
+	git add -A
+	git config user.email "fuse-bot@fusion.gat.com"
+	git config user.name "fuse bot"
+	git config push.autoSetupRemote true
+	git commit --allow-empty -m "example of the day"
+	git push --set-upstream origin examples_$(TODAY)
 
 dd:
 	julia ../IMASDD/src/generate_dd.jl
