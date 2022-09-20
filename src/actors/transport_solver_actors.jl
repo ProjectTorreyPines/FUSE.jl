@@ -16,6 +16,7 @@ function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par.evolve_densities = Entry(Union{Dict,Symbol}, "", "OrderedDict to specify which ion species are evolved, kept constant or used for quasi neutarlity"; default=:fixed)
     par.evolve_rotation = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:fixed)
     par.rho_transport = Entry(Vector{Float64}, "", "Rho transport grid")
+    par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
     par.do_plot = Entry(Bool, "", "plots the flux matching"; default=false)
     return par
 end
@@ -38,16 +39,24 @@ end
 
 ActorTransportSolver step
 """
-function step(actor::ActorTransportSolver, act::ParametersAllActors; max_iterations::Int=50, factor=1.0)
+function step(actor::ActorTransportSolver, act::ParametersAllActors; factor=1.0)
     dd = actor.dd
     par = actor.par
 
     z_init = pack_z_profiles(dd, par)
+#    display(plot(z_init,label="init"))
     dd_before = deepcopy(dd)
-    res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=factor, iterations=max_iterations)
-    dd = unpack_z_profiles(dd_before, par, res.zero)
-    get_flux_match_error(dd,act, res.zero)
+    res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-0.1, iterations=par.max_iterations)
+#    res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=factor, iterations = par.max_iterations)
 
+    unpack_z_profiles(dd_before.core_profiles.profiles_1d[], par, res.zero) # res.zero == z_profiles for the smallest error iteration
+    dd.core_profiles = dd_before.core_profiles
+    IMAS.enforce_quasi_neutrality!(dd,  [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
+    """
+    if !IMAS.is_quasi_neutral(dd)
+        IMAS.enforce_quasi_neutrality!(dd,  [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
+    end
+    """
     actor.dd = dd
     if par.do_plot
         display(["output of the optimization", res])
@@ -65,9 +74,10 @@ Runs the transport actors, calculate sources and return the flux_match error for
 """
 function get_flux_match_error(dd::IMAS.dd, act::ParametersAllActors, z_profiles::AbstractVector{<:Float64})
     par = act.ActorTransportSolver
-    unpack_z_profiles(dd, par, z_profiles) # modify dd with new z_profiles
+#    display(plot!(z_profiles))
+    unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles) # modify dd with new z_profiles
     ### This will be handeled by compound actor ActorTransport in the future
-    act.ActorTGLF.tglf_model = :tglfnn
+    #FUSE.ActorTransport(dd,act)
     act.ActorTGLF.rho_transport = par.rho_transport
     act.ActorNeoclassical.rho_transport = par.rho_transport
     FUSE.ActorTGLF(dd, act)
@@ -170,8 +180,7 @@ unpack z_profiles based on evolution parameters
 Note the order for packing and unpacking is always:
     [Ti, Te, Rotation, ne, nis...]
 """
-function unpack_z_profiles(dd, par, z_profiles)
-    cp1d = dd.core_profiles.profiles_1d[]
+function unpack_z_profiles(cp1d, par, z_profiles)
     rho_transport = par.rho_transport
     counter = 0
     N = Int(length(rho_transport))
@@ -211,12 +220,12 @@ function unpack_z_profiles(dd, par, z_profiles)
         end
     end
     # Ensure Quasi neutrality
-    if !IMAS.is_quasi_neutral(dd)
+    if !IMAS.is_quasi_neutral(cp1d) && par.evolve_densities != :fixed
         q_specie = [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1]
         @assert q_specie !== nothing "no quasi neutrality specie while quasi neutrality is broken"
-        IMAS.enforce_quasi_neutrality!(dd, q_specie)
+        IMAS.enforce_quasi_neutrality!(cp1d, q_specie)
     end
-    return dd
+    return cp1d
 end
 
 """
@@ -232,7 +241,6 @@ end
 Checks if the evolve_densities dictionary makes sense and return sensible errors if this is not the case
 """
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::Dict)
-    cp1d = dd.core_profiles.profiles_1d[]
     dd_species = vcat([Symbol(ion.label) for ion in cp1d.ion], :electrons)
     dd_species = vcat(dd_species, [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if sum(ion.density_fast) > 0.0])
     # Check if evolve_densities contains all of dd species

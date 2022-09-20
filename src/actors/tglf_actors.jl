@@ -109,6 +109,8 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     mi = ions[1].element[1].a * 1.6726e-24
 
     Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.gm8 * m_to_cm).(cp1d.grid.rho_tor_norm)
+    Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, m_to_cm * 0.5 * (eq1d.r_outboard .+ eq1d.r_inboard)).(cp1d.grid.rho_tor_norm)
+
     rmin = IMAS.r_min_core_profiles(cp1d, eqt)
 
     q_profile = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.q).(cp1d.grid.rho_tor_norm)
@@ -120,12 +122,12 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     q = q_profile[gridpoint_cp]
 
     Te = cp1d.electrons.temperature
-    dlntedr = -IMAS.gradient(rmin, Te) ./ Te
+    dlntedr = -IMAS.calc_z(rmin, Te)
     Te = Te[gridpoint_cp]
     dlntedr = dlntedr[gridpoint_cp]
 
     ne = cp1d.electrons.density_thermal .* 1e-6
-    dlnnedr = -IMAS.gradient(rmin, ne) ./ ne
+    dlnnedr = -IMAS.calc_z(rmin, ne)
     ne = ne[gridpoint_cp]
     dlnnedr = dlnnedr[gridpoint_cp]
 
@@ -160,7 +162,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     mach = Rmaj[gridpoint_cp] * w0[gridpoint_cp] / c_s
     input_tglf.VPAR_1 = -input_tglf.SIGN_IT * mach
     input_tglf.VPAR_SHEAR_1 = -1 * input_tglf.SIGN_IT * (a / c_s) * gamma_p
-    input_tglf.VEXB_SHEAR = -1 * gamma_e * (a / c_s)
+    input_tglf.VEXB_SHEAR = 1 * gamma_e * (a / c_s)
 
     for iion in 1:length(ions)
         species = iion + 1
@@ -168,7 +170,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
         setfield!(input_tglf, Symbol("ZS_$species"), Int(floor(ions[iion].element[1].z_n / ions[1].element[1].z_n)))
 
         Ti = ions[iion].temperature
-        dlntidr = -IMAS.gradient(rmin, Ti) ./ Ti
+        dlntidr = -IMAS.calc_z(rmin, Ti)
         Ti = Ti[gridpoint_cp]
         dlntidr = dlntidr[gridpoint_cp]
 
