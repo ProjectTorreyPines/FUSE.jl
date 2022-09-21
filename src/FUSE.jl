@@ -18,6 +18,11 @@ include("utils.jl")
 include("parameters.jl")
 include("parameters_init.jl")
 
+#= ====== =#
+#  REMOTE  #
+#= ====== =#
+include("remote.jl")
+
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
 #= ====================== =#
@@ -58,8 +63,8 @@ include(joinpath("actors", "neutronics_actors.jl"))
 include(joinpath("actors", "neoclassical_actors.jl"))
 include(joinpath("actors", "pedestal_actors.jl"))
 include(joinpath("actors", "tglf_actors.jl"))
-include(joinpath("actors", "transport_solver_actors.jl"))
 # NOTE: compound actors should be defined last
+include(joinpath("actors", "transport_solver_actors.jl"))
 include(joinpath("actors", "compound_actors.jl"))
 
 #= ============ =#
@@ -81,6 +86,6 @@ include("logging.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, global_logger
+export IMAS, @ddtime, constants, ±, ↔, Logging
 
 end

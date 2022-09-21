@@ -175,6 +175,7 @@ function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorFluxSwing(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging_actor_init(ActorFluxSwing)
     par = par(kw...)
     return ActorFluxSwing(dd, par, par.operate_at_j_crit, par.j_tolerance)
 end
@@ -189,7 +190,7 @@ These currents may or may not exceed the OH and TF current limits.
 
 The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 """
-function step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
+function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
 
     bd = actor.dd.build
     target = actor.dd.target
@@ -303,6 +304,7 @@ mutable struct ActorLFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging_actor_init(ActorLFSsizing)
         par = par(kw...)
         return new(dd, par)
     end
@@ -339,7 +341,7 @@ function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorLFSsizing; verbose::Bool=false)
+function _step(actor::ActorLFSsizing; verbose::Bool=false)
     dd = actor.dd
 
     new_TF_radius = IMAS.R_tf_ripple(IMAS.get_build(dd.build, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
@@ -473,8 +475,8 @@ function step(
     function cost(x0, what)
         # assign optimization arguments and evaluate coils currents and stresses
         c_extra = assign_PL_OH_TF_thicknesses(x0, what)
-        step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=what)
-        step(actor.stresses_actor)
+        _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=what)
+        _step(actor.stresses_actor)
 
         # OH and plug sizing based on stresses
         c_joh = c_soh = c_spl = 0.0
@@ -549,8 +551,8 @@ function step(
         autodiff=:forward
     )
     assign_PL_OH_TF_thicknesses(res.minimizer, :oh)
-    step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:oh)
-    step(actor.stresses_actor)
+    _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:oh)
+    _step(actor.stresses_actor)
     if verbose
         display(res)
     end
@@ -565,8 +567,8 @@ function step(
         autodiff=:forward
     )
     assign_PL_OH_TF_thicknesses(res.minimizer, :tf)
-    step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:tf)
-    step(actor.stresses_actor)
+    _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:tf)
+    _step(actor.stresses_actor)
     if verbose
         display(res)
     end
@@ -583,8 +585,8 @@ function step(
             autodiff=:forward
         )
         assign_PL_OH_TF_thicknesses(res.minimizer, :all)
-        step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance)
-        step(actor.stresses_actor)
+        _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance)
+        _step(actor.stresses_actor)
         if verbose
             display(res)
         end
@@ -655,6 +657,7 @@ mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging_actor_init(ActorCXbuild)
         par = par(kw...)
         return new(dd, par)
     end
@@ -687,7 +690,7 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
+function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
     build_cx!(actor.dd; rebuild_wall)
 end
 
@@ -885,7 +888,6 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     return blankets
 end
-
 
 """
     build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)

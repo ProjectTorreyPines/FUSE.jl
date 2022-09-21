@@ -83,9 +83,9 @@ This function is handy if no customization of `ini` or `act` is needed (eg. for 
 otherwise it is recommended to do this in steps:
 
 ```julia
-ini, act = FUSE.case_parameters(case::Symbol; kw...)
+ini, act = case_parameters(case::Symbol; kw...)
 dd = IMAS.dd()
-FUSE.init(dd, ini, act; do_plot::Bool)
+init(dd, ini, act; do_plot::Bool)
 ```
 """
 function init(case::Symbol; do_plot::Bool=false, kw...)

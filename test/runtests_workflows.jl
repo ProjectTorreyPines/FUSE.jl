@@ -51,7 +51,7 @@ using Test
     @testset "warmup" begin
         FUSE.warmup()
     end
-
+    
 end
 
 

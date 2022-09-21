@@ -27,6 +27,7 @@ function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :Solovev
         eq_actor = ActorSolovev(dd, act.ActorSolovev)
@@ -60,7 +61,7 @@ end
 
 Runs through the selected equilibrium actor's step
 """
-function step(actor::ActorEquilibrium)
+function _step(actor::ActorEquilibrium)
     step(actor.eq_actor)
 end
 
@@ -69,7 +70,7 @@ end
 
 Finalizes the selected equilibrium actor
 """
-function finalize(actor::ActorEquilibrium)
+function _finalize(actor::ActorEquilibrium)
     finalize(actor.eq_actor)
 end
 

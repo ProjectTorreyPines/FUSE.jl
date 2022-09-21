@@ -12,7 +12,7 @@ end
 function ParametersActor(::Type{Val{:ActorTGLF}})
     par = ParametersActor(nothing)
     par.tglf_model = Switch([:tglf_sat0, :tglfnn], "", "TGLF model to run"; default=:tglfnn)
-    par.rho_tglf_grid = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=collect(0.2:0.1:0.8))
+    par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=collect(0.2:0.1:0.8))
     par.warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     return par
 end
@@ -22,7 +22,6 @@ end
 
 The ActorTGLF evaluates the TGLF predicted turbulence at a set of rho_tor_norm grid points
 """
-
 function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTGLF(kw...)
     actor = ActorTGLF(dd, par)
@@ -40,7 +39,7 @@ function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
     rho_cp = cp1d.grid.rho_tor_norm
     rho_eq = eq1d.rho_tor_norm
 
-    input_tglfs = [inputtglf(dd, argmin(abs.(rho_eq .- rho)), argmin(abs.(rho_cp .- rho))) for rho in par.rho_tglf_grid]
+    input_tglfs = [inputtglf(dd, argmin(abs.(rho_eq .- rho)), argmin(abs.(rho_cp .- rho))) for rho in par.rho_transport]
     return ActorTGLF(dd, par, input_tglfs, flux_solution[])
 end
 
@@ -56,7 +55,7 @@ function step(actor::ActorTGLF)
     model = resize!(dd.core_transport.model, "identifier.index" => 6)
     model.identifier.name = string(par.tglf_model)
     m1d = resize!(model.profiles_1d)
-    IMAS.setup_transport_grid!(m1d, par.rho_tglf_grid)
+    IMAS.setup_transport_grid!(m1d, par.rho_transport)
     if par.tglf_model == :tglfnn
         actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds), actor.input_tglfs)
     elseif par.tglf_model == :tglf_sat0
@@ -76,7 +75,7 @@ function finalize(actor::ActorTGLF)
     eqt = dd.equilibrium.time_slice[]
 
     model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.tglf_model)][1]]
-    for (tglf_idx, rho) in enumerate(actor.par.rho_tglf_grid)
+    for (tglf_idx, rho) in enumerate(actor.par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, model.profiles_1d[].grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
         model.profiles_1d[].electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
@@ -110,6 +109,8 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     mi = ions[1].element[1].a * 1.6726e-24
 
     Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.gm8 * m_to_cm).(cp1d.grid.rho_tor_norm)
+    Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, m_to_cm * 0.5 * (eq1d.r_outboard .+ eq1d.r_inboard)).(cp1d.grid.rho_tor_norm)
+
     rmin = IMAS.r_min_core_profiles(cp1d, eqt)
 
     q_profile = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.q).(cp1d.grid.rho_tor_norm)
@@ -121,12 +122,12 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     q = q_profile[gridpoint_cp]
 
     Te = cp1d.electrons.temperature
-    dlntedr = -IMAS.gradient(rmin, Te) ./ Te
+    dlntedr = -IMAS.calc_z(rmin, Te)
     Te = Te[gridpoint_cp]
     dlntedr = dlntedr[gridpoint_cp]
 
     ne = cp1d.electrons.density_thermal .* 1e-6
-    dlnnedr = -IMAS.gradient(rmin, ne) ./ ne
+    dlnnedr = -IMAS.calc_z(rmin, ne)
     ne = ne[gridpoint_cp]
     dlnnedr = dlnnedr[gridpoint_cp]
 
@@ -161,7 +162,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     mach = Rmaj[gridpoint_cp] * w0[gridpoint_cp] / c_s
     input_tglf.VPAR_1 = -input_tglf.SIGN_IT * mach
     input_tglf.VPAR_SHEAR_1 = -1 * input_tglf.SIGN_IT * (a / c_s) * gamma_p
-    input_tglf.VEXB_SHEAR = -1 * gamma_e * (a / c_s)
+    input_tglf.VEXB_SHEAR = 1 * gamma_e * (a / c_s)
 
     for iion in 1:length(ions)
         species = iion + 1
@@ -169,7 +170,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
         setfield!(input_tglf, Symbol("ZS_$species"), Int(floor(ions[iion].element[1].z_n / ions[1].element[1].z_n)))
 
         Ti = ions[iion].temperature
-        dlntidr = -IMAS.gradient(rmin, Ti) ./ Ti
+        dlntidr = -IMAS.calc_z(rmin, Ti)
         Ti = Ti[gridpoint_cp]
         dlntidr = dlntidr[gridpoint_cp]
 

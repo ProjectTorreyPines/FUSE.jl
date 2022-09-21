@@ -105,7 +105,9 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorPFcoilsOpt(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging_actor_init(ActorPFcoilsOpt)
     par = par(kw...)
+
     eq_in = dd.equilibrium
     eq_out = deepcopy(eq_in)
     pf = dd.pf_active
@@ -136,7 +138,7 @@ end
 
 Optimize coil currents and positions to produce sets of equilibria while minimizing coil currents
 """
-function step(actor::ActorPFcoilsOpt;
+function _step(actor::ActorPFcoilsOpt;
     symmetric::Bool=actor.symmetric,
     λ_regularize::Real=actor.λ_regularize,
     weight_lcfs::Real=actor.par.weight_lcfs,
@@ -180,7 +182,7 @@ end
 
 Update actor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
-function finalize(
+function _finalize(
     actor::ActorPFcoilsOpt;
     update_equilibrium::Bool=actor.par.update_equilibrium,
     scale_eq_domain_size::Real=1.0)

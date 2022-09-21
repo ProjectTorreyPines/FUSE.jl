@@ -1,17 +1,39 @@
-using Pkg
-Pkg.activate(joinpath(@__DIR__,".."))
-using ProgressMeter
+using Dates
 
-dirs = ["cases", "actors","tutorials", "workflows"]
+# execute: execute the notebook
+execute = "--execute" in ARGS
+# daily: only process one case a day (used to maintain documentation up-to-date)
+daily = "--daily" in ARGS
+# canfail: --execute can fail
+canfail = "--canfail" in ARGS
+
+dirs = ["cases", "actors", "tutorials", "workflows"]
 
 # Converts all notebooks in examples/... to .md and stores them in docs/src
 current_path = @__DIR__
 
+# count the number of files to convert
+global n_cases = 0
+for dir in dirs
+    example_folder = joinpath(current_path, "..", "examples", dir)
+    files_to_convert = readdir(example_folder)[findall(x -> endswith(x, ".ipynb"), readdir(example_folder))]
+    global n_cases += length(files_to_convert)
+end
+
+# convert notebooks to markdown
+global k_case
+k_case = 0
+failed = String[]
 for dir in dirs
     example_folder = joinpath(current_path, "..", "examples", dir)
     files_to_convert = readdir(example_folder)[findall(x -> endswith(x, ".ipynb"), readdir(example_folder))]
 
-    @showprogress for case in files_to_convert
+    for case in files_to_convert
+        global k_case += 1
+        if daily && (k_case != (mod(dayofyear(now()), n_cases) + 1))
+            continue
+        end
+
         ipynb = joinpath(example_folder, case)
         casename = split(case, ".")[1]
         srcname = joinpath(example_folder, "$casename.md")
@@ -19,10 +41,24 @@ for dir in dirs
         dstname = joinpath(current_path, "src", "example_$(dir)__$(casename).md")
         dstfiles = joinpath(current_path, "src", "assets", "$(casename)_files")
 
-        if isfile(dstname)
-            println("$dstname exists: skipping nbconvert")
+        if ! daily && isfile(dstname)
+            @warn "$dstname exists: skipping nbconvert"
         else
-            run(`jupyter nbconvert --execute --to markdown $ipynb`)
+            if !execute
+                run(`jupyter nbconvert --to markdown $ipynb`)
+            else
+                try
+                    @info "converting $ipynb"
+                    run(`jupyter nbconvert --execute --to markdown $ipynb`)
+                catch e
+                    if canfail
+                        rethrow(e)
+                    else
+                        run(`jupyter nbconvert --to markdown $ipynb`)
+                        push!(failed, ipynb)
+                        @error "error executing $ipynb: skipping nbconvert"
+                end
+            end
             run(`rm -rf $dstfiles`)
             if isdir(srcfiles)
                 run(`mv -f $srcfiles $dstfiles`)
@@ -43,5 +79,10 @@ for dir in dirs
             end
         end
     end
+end
 
+if length(failed) > 0
+    for ipynb in failed
+        @error @error "error executing $ipynb"
+    end
 end

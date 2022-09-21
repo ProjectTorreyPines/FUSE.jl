@@ -5,6 +5,7 @@ mutable struct ActorStresses <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     function ActorStresses(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging_actor_init(ActorStresses)
         par = par(kw...)
         return new(dd, par)
     end
@@ -36,7 +37,7 @@ function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function step(actor::ActorStresses; n_points::Integer=5)
+function _step(actor::ActorStresses; n_points::Integer=5)
     eq = actor.dd.equilibrium
     bd = actor.dd.build
     sm = actor.dd.solid_mechanics
