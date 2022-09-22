@@ -17,6 +17,7 @@ function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par.evolve_rotation = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:fixed)
     par.rho_transport = Entry(Vector{Float64}, "", "Rho transport grid")
     par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
+    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm"; default=0.25)
     par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:jacobian_based)
     par.do_plot = Entry(Bool, "", "plots the flux matching"; default=false)
     return par
@@ -47,9 +48,9 @@ function step(actor::ActorTransportSolver, act::ParametersAllActors)
     z_init = pack_z_profiles(dd, par)
     dd_before = deepcopy(dd)
     if par.optimizer_algorithm == :anderson
-        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-0.025, iterations=par.max_iterations)
+        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-par.step_size, iterations=par.max_iterations)
     elseif par.optimizer_algorithm == :jacobian_based
-        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=1.0, iterations=par.max_iterations)
+        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=par.step_size, iterations=par.max_iterations)
     end
     unpack_z_profiles(dd_before.core_profiles.profiles_1d[], par, res.zero) # res.zero == z_profiles for the smallest error iteration
     dd.core_profiles = dd_before.core_profiles

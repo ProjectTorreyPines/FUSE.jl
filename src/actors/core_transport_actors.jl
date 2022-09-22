@@ -11,7 +11,8 @@ end
 function ParametersActor(::Type{Val{:ActorCoreTransport}})
     par = ParametersActor(nothing)
     par.rho_transport = Entry(AbstractVector, "", "rho core transport grid"; default=0.2:0.1:0.8)
-    par.model = Switch([:tglfnn, :tglf_sat0], "", "Turbulence actor to run"; default=:tglfnn)
+    par.turbulence_actor = Switch([:TGLF, :None], "", "Turbulence Actor to run"; default=:TGLF)
+    par.neoclassical_actor = Switch([:Neoclassical, :None], "", "Neocalssical actor to run"; default=:Neoclassical)
     return par
 end
 
@@ -30,14 +31,15 @@ end
 
 function ActorCoreTransport(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
     par = par(kw...)
-    if par.model == :tglfnn || par.model == :tglf_sat0
+    if par.turbulence_actor == :TGLF
         act.ActorTGLF.rho_transport = par.rho_transport
         turb_actor = ActorTGLF(dd, act.ActorTGLF)
-    else
-        error("ActorCoreTransport: model = $(par.model) is unknown")
     end
-    act.ActorNeoclassical.rho_transport = par.rho_transport
-    neoclassical_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
+
+    if par.neoclassical_actor == :Neoclassical
+        act.ActorNeoclassical.rho_transport = par.rho_transport
+        neoclassical_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
+    end
     return ActorCoreTransport(dd, par, turb_actor, neoclassical_actor)
 end
 

@@ -72,15 +72,20 @@ function init_core_profiles(
 
     # Set ions:
     # 1. DT
-    # 2. Imp
-    # 3. He
     ion = resize!(cp1d.ion, "label" => String(bulk))
     fill!(ion, IMAS.ion_element(ion_symbol=bulk))
+    ion.z_ion = sum([element.z_n for element in ion.element]) / length(ion.element)
     @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
+
+    # 2. Imp
     ion = resize!(cp1d.ion, "label" => String(impurity))
     fill!(ion, IMAS.ion_element(ion_symbol=impurity))
+    ion.z_ion = sum([element.z_n for element in ion.element]) / length(ion.element)
+
+    # 3. He
     ion = resize!(cp1d.ion, "label" => "He")
     fill!(ion, IMAS.ion_element(ion_symbol=:He))
+    ion.z_ion = sum([element.z_n for element in ion.element]) / length(ion.element)
 
     # pedestal
     if ne_ped * greenwald_fraction > IMAS.greenwald_density(eqt)
