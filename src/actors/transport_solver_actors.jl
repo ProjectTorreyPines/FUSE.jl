@@ -49,12 +49,12 @@ function step(actor::ActorTransportSolver, act::ParametersAllActors)
     if par.optimizer_algorithm == :anderson
         res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-0.025, iterations=par.max_iterations)
     elseif par.optimizer_algorithm == :jacobian_based
-        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=1.0, iterations = par.max_iterations)
+        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=1.0, iterations=par.max_iterations)
     end
     unpack_z_profiles(dd_before.core_profiles.profiles_1d[], par, res.zero) # res.zero == z_profiles for the smallest error iteration
     dd.core_profiles = dd_before.core_profiles
     if par.evolve_densities !== :fixed
-       IMAS.enforce_quasi_neutrality!(dd,  [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
+        IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
     end
     """
     if !IMAS.is_quasi_neutral(dd)
@@ -65,8 +65,8 @@ function step(actor::ActorTransportSolver, act::ParametersAllActors)
     if par.do_plot
         display(["output of the optimization", res])
         display(plot(dd.core_transport))
-        plot(dd_before.core_profiles,label="before")
-        display(plot!(dd.core_profiles,label="after"))
+        plot(dd_before.core_profiles, label="before")
+        display(plot!(dd.core_profiles, label="after"))
     end
     return actor
 end
@@ -80,7 +80,7 @@ function get_flux_match_error(dd::IMAS.dd, act::ParametersAllActors, z_profiles:
     par = act.ActorTransportSolver
     unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles) # modify dd with new z_profiles
     act.ActorCoreTransport.rho_transport = par.rho_transport
-    FUSE.ActorCoreTransport(dd,act)
+    FUSE.ActorCoreTransport(dd, act)
     IMAS.sources!(dd)
 
     return pack_flux_match_errors(dd, par)
@@ -96,8 +96,8 @@ function pack_flux_match_errors(dd, par)
     total_fluxes = IMAS.total_fluxes(dd)
 
     cp1d = dd.core_profiles.profiles_1d[]
-    cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm).^2) for rho_x in par.rho_transport]
-    ct_gridpoints = [argmin((rho_x .- total_fluxes.grid_flux.rho_tor_norm).^2) for rho_x in par.rho_transport]
+    cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
+    ct_gridpoints = [argmin((rho_x .- total_fluxes.grid_flux.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
     surface = total_sources.grid.surface[cs_gridpoints]
 
     energy_norm = 1e4
@@ -143,7 +143,7 @@ Note the order for packing and unpacking is always:
 function pack_z_profiles(dd, par)
     cp1d = dd.core_profiles.profiles_1d[]
     z_profiles = Vector{Float64}()
-    cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm).^2) for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
 
     if par.evolve_Ti == :flux_match
         append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature)[cp_gridpoints]))
@@ -258,7 +258,7 @@ Sets up the evolve_density dict to evolve only ne and keep the rest matching the
 function setup_density_evolution_electron_flux_match_rest_ne_scale(dd)
     dd_thermal = [Symbol(ion.label) for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_thermal) > 0.0]
     dd_fast = [Symbol(String(ion.label) * "_fast") for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_fast) > 0.0]
-    return evolve_densities_dict_creation([:electrons],dd_fast, dd_thermal)
+    return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal)
 end
 
 """

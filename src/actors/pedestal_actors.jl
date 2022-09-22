@@ -114,7 +114,7 @@ function _finalize(actor::ActorPedestal;
     nval = actor.inputs.neped * 1e19 - zi * nival
     nsum = actor.inputs.neped * 1e19 + nval + nival
     tped = (actor.pped * 1e6) / nsum / constants.e
-    
+
     @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + temp_pedestal_ratio) * eped_factor
     @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * temp_pedestal_ratio
     @ddtime dd_ped.position.rho_tor_norm = 1 - actor.wped * sqrt(eped_factor)
