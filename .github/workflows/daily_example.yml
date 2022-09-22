@@ -49,9 +49,10 @@ jobs:
             '
       - uses: julia-actions/julia-buildpkg@v1
       #============
+      - run: make IJulia
       - run: make daily_example
-      # - run: make html
-      # - run: make web_ci
+      - run: make daily_example_commit
+      #============
       - name: Debug with tmate if failure + manual triggrer + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3

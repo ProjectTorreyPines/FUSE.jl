@@ -57,6 +57,7 @@ for dir in dirs
                         run(`jupyter nbconvert --to markdown $ipynb`)
                         push!(failed, ipynb)
                         @error "error executing $ipynb: skipping nbconvert"
+                    end
                 end
             end
             run(`rm -rf $dstfiles`)
