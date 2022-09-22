@@ -17,6 +17,7 @@ function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par.evolve_rotation = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:fixed)
     par.rho_transport = Entry(Vector{Float64}, "", "Rho transport grid")
     par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
+    par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:jacobian_based)
     par.do_plot = Entry(Bool, "", "plots the flux matching"; default=false)
     return par
 end
@@ -39,19 +40,22 @@ end
 
 ActorTransportSolver step
 """
-function step(actor::ActorTransportSolver, act::ParametersAllActors; factor=1.0)
+function step(actor::ActorTransportSolver, act::ParametersAllActors)
     dd = actor.dd
     par = actor.par
 
     z_init = pack_z_profiles(dd, par)
-#    display(plot(z_init,label="init"))
     dd_before = deepcopy(dd)
-    res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-0.1, iterations=par.max_iterations)
-#    res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=factor, iterations = par.max_iterations)
-
+    if par.optimizer_algorithm == :anderson
+        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-0.025, iterations=par.max_iterations)
+    elseif par.optimizer_algorithm == :jacobian_based
+        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=1.0, iterations = par.max_iterations)
+    end
     unpack_z_profiles(dd_before.core_profiles.profiles_1d[], par, res.zero) # res.zero == z_profiles for the smallest error iteration
     dd.core_profiles = dd_before.core_profiles
-    IMAS.enforce_quasi_neutrality!(dd,  [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
+    if par.evolve_densities !== :fixed
+       IMAS.enforce_quasi_neutrality!(dd,  [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
+    end
     """
     if !IMAS.is_quasi_neutral(dd)
         IMAS.enforce_quasi_neutrality!(dd,  [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
@@ -74,16 +78,11 @@ Runs the transport actors, calculate sources and return the flux_match error for
 """
 function get_flux_match_error(dd::IMAS.dd, act::ParametersAllActors, z_profiles::AbstractVector{<:Float64})
     par = act.ActorTransportSolver
-#    display(plot!(z_profiles))
     unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles) # modify dd with new z_profiles
-    ### This will be handeled by compound actor ActorTransport in the future
-    #FUSE.ActorTransport(dd,act)
-    act.ActorTGLF.rho_transport = par.rho_transport
-    act.ActorNeoclassical.rho_transport = par.rho_transport
-    FUSE.ActorTGLF(dd, act)
-    FUSE.ActorNeoclassical(dd, act)
-    ###
+    act.ActorCoreTransport.rho_transport = par.rho_transport
+    FUSE.ActorCoreTransport(dd,act)
     IMAS.sources!(dd)
+
     return pack_flux_match_errors(dd, par)
 end
 
