@@ -13,7 +13,9 @@ end
 
 function ParametersActor(::Type{Val{:ActorBlanket}})
     par = ParametersActor(nothing)
-    par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
+    par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default = 1.2)
+    par.optimize_parameter = Switch([:TBR, :leakage], "", "Blanket parameter to be optimized"; default = :TBR)
+    par.optimize_variable = Switch([:d1, :d2, :d3, :Li6], "", "Blanket variable to be adjusted"; default = :Li6)
     par.thermal_power_extraction_efficiency = Entry(
         Real,
         "",
@@ -61,6 +63,7 @@ function _step(actor::ActorBlanket)
 
     total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4 / 5
     total_power_neutrons = sum(nnt.wall_loading.power)
+    total_neutrons_per_second = total_power_neutrons / 2.259E-12  # 14.1 MeV = 2.259E-12 J
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
 
     blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
@@ -162,31 +165,46 @@ function _step(actor::ActorBlanket)
         push!(modules_wall_loading_power, nnt.wall_loading.power[index])
     end
 
-    # Optimize Li6/Li7 ratio to obtain target TBR
-    function target_TBR(blanket_model, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, target=nothing)
-        total_tritium_breeding_ratio = 0.0
+    function target(blanket_model, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, target=nothing)
+        total_optimize_parameter_value = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
             bmt = bm.time_slice[]
             bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
-            bmt.tritium_breeding_ratio = 0.0
+            optimize_parameter_value = 0.0
             module_wall_loading_power = sum(modules_wall_loading_power[ibm])
-            for k in 1:length(modules_wall_loading_power[ibm])
-                bmt.tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, modules_effective_thickness[ibm][k, :]..., Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
+            if actor.par.optimize_parameter == :TBR
+                for k in 1:length(modules_wall_loading_power[ibm])
+                    optimize_parameter_value += (NNeutronics.TBR(blanket_model, modules_effective_thickness[ibm][k, :]..., Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
+                end
+            elseif actor.par.optimize_parameter == :leakage
+                for k in 1:length(modules_wall_loading_power[ibm])
+                    optimize_parameter_value += ((sum(NNeutronics.leakeage_energy(blanket_model, modules_effective_thickness[1][k, :]..., Li6)) * modules_wall_loading_power[1][k] / module_wall_loading_power)) * total_neutrons_per_second
+                end
             end
-            total_tritium_breeding_ratio += bmt.tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
+            total_optimize_parameter_value += optimize_parameter_value * module_wall_loading_power / total_power_neutrons
         end
         if target === nothing
-            return total_tritium_breeding_ratio
+            return total_optimize_parameter_value
         else
-            return (total_tritium_breeding_ratio - target)^2
+            return (total_optimize_parameter_value - target)^2
         end
     end
 
     blanket_model_1d = NNeutronics.Blanket()
-    res = Optim.optimize(Li6 -> target_TBR(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, dd.target.tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
-    total_tritium_breeding_ratio = target_TBR(blanket_model_1d, res.minimizer, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
-
-    @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
+    if actor.par.optimize_parameter == :TBR
+        if actor.par.optimize_variable == :Li6
+            res = Optim.optimize(Li6 -> target(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, dd.target.tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
+            total_tritium_breeding_ratio = target(blanket_model_1d, res.minimizer, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
+            @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
+        end
+    elseif actor.par.optimize_parameter == :leakage
+        leakage_target = 6E19  ## placeholder
+        if actor.par.optimize_variable == :Li6
+            res = Optim.optimize(Li6 -> target(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, leakage_target), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
+            total_leakage = target(blanket_model_1d, res.minimizer, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
+            print(total_leakage) ## placeholder
+        end
+    end
 
     return actor
 end
