@@ -62,13 +62,3 @@ function finalize(actor::ActorCoreTransport)
     finalize(actor.turb_actor)
     finalize(actor.neoclassical_actor)
 end
-
-#= ============ =#
-#  ActorTGLF  #
-#= ============ =#
-include("tglf_actors.jl")
-
-#= ================= =#
-#  ActorNeoclassical  #
-#= ================= =#
-include("neoclassical_actors.jl")

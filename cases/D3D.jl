@@ -47,7 +47,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorPFcoilsOpt.symmetric = true
     act.ActorTransportSolver.evolve_densities = Dict(
-        :D         => :match_ne_scale,
+        :D         => :quasi_neutrality,
         :electrons => :flux_match,
         :C         => :match_ne_scale)
 

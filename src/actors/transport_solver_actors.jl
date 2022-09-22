@@ -15,10 +15,10 @@ function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par.evolve_Te = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:flux_match)
     par.evolve_densities = Entry(Union{Dict,Symbol}, "", "OrderedDict to specify which ion species are evolved, kept constant or used for quasi neutarlity"; default=:fixed)
     par.evolve_rotation = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:fixed)
-    par.rho_transport = Entry(Vector{Float64}, "", "Rho transport grid")
+    par.rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
     par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
     par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm"; default=0.25)
-    par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:jacobian_based)
+    par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
     par.do_plot = Entry(Bool, "", "plots the flux matching"; default=false)
     return par
 end
@@ -199,7 +199,7 @@ function unpack_z_profiles(cp1d, par, z_profiles)
     end
 
     if par.evolve_rotation == :flux_match
-        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
+        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic.+1, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
         counter += N
     end
 
@@ -221,9 +221,9 @@ function unpack_z_profiles(cp1d, par, z_profiles)
     end
     # Ensure Quasi neutrality
     if !IMAS.is_quasi_neutral(cp1d) && par.evolve_densities != :fixed
-        q_specie = [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1]
-        @assert q_specie !== nothing "no quasi neutrality specie while quasi neutrality is broken"
-        IMAS.enforce_quasi_neutrality!(cp1d, q_specie)
+        q_specie = [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality]
+        @assert q_specie != Symbol[] "no quasi neutrality specie while quasi neutrality is broken"
+        IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
     end
     return cp1d
 end

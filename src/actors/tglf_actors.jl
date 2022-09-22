@@ -12,7 +12,7 @@ end
 function ParametersActor(::Type{Val{:ActorTGLF}})
     par = ParametersActor(nothing)
     par.tglf_model = Switch([:tglf_sat0, :tglfnn], "", "TGLF model to run"; default=:tglfnn)
-    par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=collect(0.2:0.1:0.8))
+    par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
     par.warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     return par
 end
@@ -34,7 +34,6 @@ function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
     par = par(kw...)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     cp1d = dd.core_profiles.profiles_1d[]
-
 
     rho_cp = cp1d.grid.rho_tor_norm
     rho_eq = eq1d.rho_tor_norm
