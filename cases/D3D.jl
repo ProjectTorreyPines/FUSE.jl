@@ -43,7 +43,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.nbi.beam_mass = 2
     ini.nbi.toroidal_angle = 20.0 / 180 * pi
 
-    ini.target.flattop_duration = 5
+    ini.target.flattop_duration = 5.0
 
     act.ActorPFcoilsOpt.symmetric = true
     act.ActorTransportSolver.evolve_densities = Dict(
