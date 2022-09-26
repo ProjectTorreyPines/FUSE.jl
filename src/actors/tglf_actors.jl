@@ -76,6 +76,10 @@ function finalize(actor::ActorTGLF)
     eqt = dd.equilibrium.time_slice[]
 
     model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.tglf_model)][1]]
+    model.profiles_1d[].electrons.energy.flux = zeros(length(actor.par.rho_transport))
+    model.profiles_1d[].total_ion_energy.flux = zeros(length(actor.par.rho_transport))
+    model.profiles_1d[].electrons.particles.flux = zeros(length(actor.par.rho_transport))
+    model.profiles_1d[].momentum_tor.flux = zeros(length(actor.par.rho_transport))
     for (tglf_idx, rho) in enumerate(actor.par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, model.profiles_1d[].grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))

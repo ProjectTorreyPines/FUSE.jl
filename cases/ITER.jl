@@ -92,7 +92,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
 
     act.ActorTransportSolver.evolve_densities = Dict(
         :Ne        => :match_ne_scale,
-        :DT        => :match_ne_scale,
+        :DT        => :quasi_neutrality,
         :He        => :match_ne_scale,
         :electrons => :flux_match)
 
