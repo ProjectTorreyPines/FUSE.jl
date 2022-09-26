@@ -54,12 +54,14 @@ function step(actor::ActorTGLF)
     model = resize!(dd.core_transport.model, "identifier.index" => 6)
     model.identifier.name = string(par.tglf_model)
     m1d = resize!(model.profiles_1d)
-    IMAS.setup_transport_grid!(m1d, par.rho_transport)
+    m1d.grid_flux.rho_tor_norm = par.rho_transport
+
     if par.tglf_model == :tglfnn
         actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds), actor.input_tglfs)
     elseif par.tglf_model == :tglf_sat0
         actor.flux_solutions = asyncmap(input_tglf -> run_tglf(input_tglf), actor.input_tglfs)
     end
+
     return actor
 end
 
@@ -230,11 +232,11 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
 end
 
 """
-    lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{IMAS.core_profiles__profiles_1d___ion})
+    lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{<:IMAS.core_profiles__profiles_1d___ion})
 
 Changes core_profiles.ion to 2 species, bulk specie (H, D, T) and combined impurity specie by weigthing masses and densities 
 """
-function lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{IMAS.core_profiles__profiles_1d___ion})
+function lump_ions_as_bulk_and_impurity!(ions::IMAS.IDSvector{<:IMAS.core_profiles__profiles_1d___ion})
     if length(ions) < 2
         error("TAUENN requires two ion species to run")
     elseif any(!ismissing(ion, :density_fast) for ion in ions)

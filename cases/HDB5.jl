@@ -79,7 +79,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         else
             ini.nbi.beam_energy = 100e3
         end
-        ini.nbi.beam_mass = 2
+        ini.nbi.beam_mass = 2.0
         ini.nbi.toroidal_angle = 0.0
     end
 

@@ -20,7 +20,6 @@ end
 
 The ActorNeoclassical evaluates the neoclassical predicted turbulence at a set of rho_tor_norm grid points
 """
-
 function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNeoclassical(kw...)
     actor = ActorNeoclassical(dd, par)
@@ -39,18 +38,18 @@ end
 
 Runs Neoclassical actor to evaluate the turbulence flux on a Vector of gridpoints
 """
-
 function step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
     model = resize!(dd.core_transport.model, "identifier.index" => 5)
     model.identifier.name = string(par.neoclassical_model)
     m1d = resize!(model.profiles_1d)
-    IMAS.setup_transport_grid!(m1d, par.rho_transport, setup_grid_for=[:total_ion_energy])
+    m1d.grid_flux.rho_tor_norm = par.rho_transport
 
     if par.neoclassical_model == :changhinton
         actor.flux_solutions = [neoclassical_changhinton(dd, rho, 1) for rho in par.rho_transport]
     end
+
     return actor
 end
 
@@ -59,7 +58,6 @@ end
 
 Writes results to dd.core_transport
 """
-
 function finalize(actor::ActorNeoclassical)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]

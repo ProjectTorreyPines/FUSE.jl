@@ -92,9 +92,9 @@ end
 
 Packs the flux_matching errors for the flux_match species
 """
-function pack_flux_match_errors(dd, par)
-    total_sources = IMAS.total_sources(dd)
-    total_fluxes = IMAS.total_fluxes(dd)
+function pack_flux_match_errors(dd::IMAS.dd, par::ParametersActor)
+    total_sources = IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[])
+    total_fluxes = IMAS.total_fluxes(dd.core_transport)
 
     cp1d = dd.core_profiles.profiles_1d[]
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
@@ -134,14 +134,14 @@ end
 
 
 """
-    pack_z_profiles(dd, par)
+    pack_z_profiles(dd::IMAS.dd, par::ParametersActor)
 
 Packs the z_profiles based on evolution parameters
 
 Note the order for packing and unpacking is always:
     [Ti, Te, Rotation, ne, nis...]
 """
-function pack_z_profiles(dd, par)
+function pack_z_profiles(dd::IMAS.dd, par::ParametersActor)
     cp1d = dd.core_profiles.profiles_1d[]
     z_profiles = Vector{Float64}()
     cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
@@ -173,17 +173,16 @@ function pack_z_profiles(dd, par)
 end
 
 """
-    unpack_z_profiles(dd, par, z_profiles)
+    unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::ParametersActor, z_profiles::AbstractVector{<:Real})
 
 unpack z_profiles based on evolution parameters
 
-Note the order for packing and unpacking is always:
-    [Ti, Te, Rotation, ne, nis...]
+NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
-function unpack_z_profiles(cp1d, par, z_profiles)
+function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::ParametersActor, z_profiles::AbstractVector{<:Real})
     rho_transport = par.rho_transport
     counter = 0
-    N = Int(length(rho_transport))
+    N = length(rho_transport)
 
     if par.evolve_Ti == :flux_match
         Ti_new = IMAS.profile_from_z_transport(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
@@ -252,11 +251,11 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
 end
 
 """
-    setup_density_evolution_electron_flux_match_rest_ne_scale(dd)
+    setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
 
 Sets up the evolve_density dict to evolve only ne and keep the rest matching the ne_scale lengths
 """
-function setup_density_evolution_electron_flux_match_rest_ne_scale(dd)
+function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
     dd_thermal = [Symbol(ion.label) for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_thermal) > 0.0]
     dd_fast = [Symbol(String(ion.label) * "_fast") for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_fast) > 0.0]
     return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal)
