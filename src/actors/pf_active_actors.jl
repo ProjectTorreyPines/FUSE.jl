@@ -297,7 +297,7 @@ function transfer_info_GS_coil_to_IMAS(bd::IMAS.build, coil::GS_IMAS_pf_active__
     pf_active__coil.element[1].geometry.rectangle.z = coil.z
     pf_active__coil.element[1].geometry.rectangle.width = coil.width
     pf_active__coil.element[1].geometry.rectangle.height = coil.height
-    pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
+    pf_active__coil.element[1].turns_with_sign = float(coil.turns_with_sign)
     pf_active__coil.b_field_max = range(0.1, 30, step=0.1)
     pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
     pf_active__coil.current_limit_max = [abs(coil_J_B_crit(b, coil.coil_tech)[1] * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
@@ -322,7 +322,7 @@ function set_turns_from_spacing!(pf_active__coil::IMAS.pf_active__coil, spacing:
 end
 
 function set_turns_from_spacing!(pf_active__coil::IMAS.pf_active__coil, spacing::Real, s::Int)
-    pf_active__coil.element[1].turns_with_sign = s * Int(ceil(IMAS.area(pf_active__coil) / spacing^2))
+    pf_active__coil.element[1].turns_with_sign = float(s * Int(ceil(IMAS.area(pf_active__coil) / spacing^2)))
 end
 
 function get_spacing_from_turns(coil::GS_IMAS_pf_active__coil)
