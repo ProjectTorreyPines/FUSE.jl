@@ -1,5 +1,3 @@
-import TAUENN: Hmode_profiles
-
 """
     init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
@@ -72,15 +70,20 @@ function init_core_profiles(
 
     # Set ions:
     # 1. DT
-    # 2. Imp
-    # 3. He
     ion = resize!(cp1d.ion, "label" => String(bulk))
     fill!(ion, IMAS.ion_element(ion_symbol=bulk))
-    @assert ion.element[1].z_n == 1.0 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
+    ion.z_ion = sum([element.z_n for element in ion.element]) / length(ion.element)
+    @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogen isotope [:H, :D, :DT, :T]"
+
+    # 2. Imp
     ion = resize!(cp1d.ion, "label" => String(impurity))
     fill!(ion, IMAS.ion_element(ion_symbol=impurity))
+    ion.z_ion = sum([element.z_n for element in ion.element]) / length(ion.element)
+
+    # 3. He
     ion = resize!(cp1d.ion, "label" => "He")
     fill!(ion, IMAS.ion_element(ion_symbol=:He))
+    ion.z_ion = sum([element.z_n for element in ion.element]) / length(ion.element)
 
     # pedestal
     if ne_ped * greenwald_fraction > IMAS.greenwald_density(eqt)
@@ -94,7 +97,7 @@ function init_core_profiles(
     # Set densities
     function cost_greenwald_fraction(ne0)
         ne0 = ne0[1]
-        cp1d.electrons.density_thermal = Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
+        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
         nel = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
         ngw = IMAS.greenwald_density(eqt)
         return (nel / ngw - greenwald_fraction)^2
@@ -102,7 +105,10 @@ function init_core_profiles(
     ne0_guess = ne_ped * 1.4
     res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
     ne_core = res.minimizer[1]
-    cp1d.electrons.density_thermal = Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
+    if ne_core < ne_ped
+        @warn "The core density is lower than the pedestal density, lower the pedestal density (ini.core_profiles.ne_ped)"
+    end
+    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
     # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
     niFraction = zeros(3)
     # DT == 1
@@ -123,7 +129,7 @@ function init_core_profiles(
     Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
     Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
 
-    cp1d.electrons.temperature = Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
+    cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cp1d.ion)
         cp1d.ion[i].temperature = cp1d.electrons.temperature ./ T_ratio
     end

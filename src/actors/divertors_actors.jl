@@ -11,7 +11,7 @@ end
 function ParametersActor(::Type{Val{:ActorDivertors}})
     par = ParametersActor(nothing)
     par.thermal_power_extraction_efficiency = Entry(Real, "",
-     "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures."; default=1.0)
+        "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures."; default=1.0)
     return par
 end
 
@@ -47,7 +47,7 @@ function _step(actor::ActorDivertors)
 
     total_power_incident = IMAS.total_power_source(IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[]))
     dd.divertors.time = div_time = dd.core_sources.time
-    for (k,structure) in enumerate(divertors)
+    for (k, structure) in enumerate(divertors)
 
         div = dd.divertors.divertor[k]
         div.name = structure.name
@@ -67,7 +67,7 @@ function _step(actor::ActorDivertors)
         div.power_thermal_extracted.time = div_time
         div.power_thermal_extracted.data = actor.thermal_power_extraction_efficiency .* (
             div.power_incident.data .+
-            div.power_radiated.data .+ 
+            div.power_radiated.data .+
             div.power_recombination_neutrals.data)
     end
 end

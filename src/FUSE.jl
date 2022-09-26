@@ -56,11 +56,15 @@ include(joinpath("actors", "balance_of_plant_actors.jl"))
 include(joinpath("actors", "current_actors.jl"))
 include(joinpath("actors", "divertors_actors.jl"))
 include(joinpath("actors", "sources_actors.jl"))
-include(joinpath("actors", "transport_actors.jl"))
+include(joinpath("actors", "tauenn_actors.jl"))
 include(joinpath("actors", "costing_actors.jl"))
 include(joinpath("actors", "neutronics_actors.jl"))
+include(joinpath("actors", "neoclassical_actors.jl"))
 include(joinpath("actors", "pedestal_actors.jl"))
+include(joinpath("actors", "tglf_actors.jl"))
 # NOTE: compound actors should be defined last
+include(joinpath("actors", "core_transport_actors.jl"))
+include(joinpath("actors", "transport_solver_actors.jl"))
 include(joinpath("actors", "compound_actors.jl"))
 
 #= ============ =#

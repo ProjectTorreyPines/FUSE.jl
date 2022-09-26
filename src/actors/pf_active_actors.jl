@@ -113,8 +113,8 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::ParametersActor; kw...)
     pf = dd.pf_active
     bd = dd.build
     par.symmetric
-    λ_regularize=1E-3
-    trace=PFcoilsOptTrace()
+    λ_regularize = 1E-3
+    trace = PFcoilsOptTrace()
     par.green_model
 
     # reset pf coil rails
