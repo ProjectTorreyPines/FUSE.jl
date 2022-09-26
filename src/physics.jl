@@ -3,7 +3,6 @@ import QuadGK
 import Interpolations
 import PolygonOps
 import Interact
-import TAUENN: Hmode_profiles
 
 #= =============== =#
 #  Shape functions  #
