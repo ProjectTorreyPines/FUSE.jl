@@ -90,5 +90,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
 
+    act.ActorTransportSolver.evolve_densities = Dict(
+        :Ne        => :match_ne_scale,
+        :DT        => :match_ne_scale,
+        :He        => :match_ne_scale,
+        :electrons => :flux_match)
+
     return set_new_base!(ini), set_new_base!(act)
 end
