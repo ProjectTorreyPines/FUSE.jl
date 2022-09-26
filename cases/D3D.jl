@@ -40,7 +40,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
 
     ini.nbi.power_launched = 5E6
     ini.nbi.beam_energy = 80e3
-    ini.nbi.beam_mass = 2
+    ini.nbi.beam_mass = 2.0
     ini.nbi.toroidal_angle = 20.0 / 180 * pi
 
     ini.target.flattop_duration = 5.0
