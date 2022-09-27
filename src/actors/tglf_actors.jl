@@ -12,8 +12,9 @@ end
 
 function ParametersActor(::Type{Val{:ActorTGLF}})
     par = ParametersActor(nothing)
-    par.tglfnn = Entry(Bool, "", "Use TGLF-NN"; default=true)
-    par.tglf_model = Switch([:sat0_es, :sat0_em, :sat1_em], "", "TGLF model to run"; default=:sat0_es)
+    par.nn = Entry(Bool, "", "Use TGLF-NN"; default=true)
+    par.sat_rule = Switch([:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "", "Saturation rule"; default=:sat0)
+    par.electromagnetic = Entry(Bool, "", "Electromagnetic or electrostatic"; default=false)
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
     par.warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     return par
@@ -37,10 +38,10 @@ function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     cp1d = dd.core_profiles.profiles_1d[]
 
-    rho_cp = cp1d.grid.rho_tor_norm
-    rho_eq = eq1d.rho_tor_norm
+    ix_eq = [argmin(abs.(eq1d.rho_tor_norm .- rho)) for rho in par.rho_transport]
+    ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
 
-    input_tglfs = [inputtglf(dd, argmin(abs.(rho_eq .- rho)), argmin(abs.(rho_cp .- rho))) for rho in par.rho_transport]
+    input_tglfs = [inputtglf(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic) for (gridpoint_eq,gridpoint_cp) in zip(ix_eq,ix_cp)]
     return ActorTGLF(dd, par, input_tglfs, flux_solution[])
 end
 
@@ -53,16 +54,17 @@ function step(actor::ActorTGLF)
     par = actor.par
     dd = actor.dd
 
+    tglf_model = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+
     anomalous_index = IMAS.name_2_index(dd.core_transport.model)[:anomalous]
     model = resize!(dd.core_transport.model, "identifier.index" => anomalous_index)
-    model.identifier.name = (par.tglfnn ? "TGLF-NN" : "TGLF") * " " * string(par.tglf_model)
+    model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * tglf_model
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    if par.tglfnn
-        actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds; model_filename=string(par.tglf_model)), actor.input_tglfs)
+    if par.nn
+        actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds; model_filename=tglf_model), actor.input_tglfs)
     else
-        @assert par.tglf_model == :sat0_es "Only `sat0_es` is implemented for full TGLF"
         actor.flux_solutions = asyncmap(input_tglf -> run_tglf(input_tglf), actor.input_tglfs)
     end
 
@@ -100,7 +102,7 @@ end
 
 Evaluate TGLF input parameters at given radii
 """
-function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
+function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer, sat::Symbol=:sat0, electromagnetic::Bool=false)
     e = IMAS.gacode_units.e
     k = IMAS.gacode_units.k
     me = IMAS.gacode_units.me
@@ -235,6 +237,47 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer)
     dqdr = IMAS.gradient(rmin, q_profile)[gridpoint_cp]
     s = rmin[gridpoint_cp] / q * dqdr
     input_tglf.Q_PRIME_LOC = q^2 * a^2 / rmin[gridpoint_cp]^2 * s
+
+    # saturation rules
+    input_tglf.UNITS = "CGYRO"
+    input_tglf.ALPHA_ZF = 1.0 # 1=default, -1=low ky cutoff kypeak search
+    input_tglf.USE_MHD_RULE = true #default is true
+    input_tglf.NKY = 12 # 17 for NN, 12 for validation
+    if sat == :sat2
+        input_tglf.SAT_RULE = 2
+        input_tglf.KYGRID_MODEL = 4
+        input_tglf.NMODES = 5
+        input_tglf.NBASIS_MAX = 6
+        input_tglf.USE_AVE_ION_GRID = true
+        input_tglf.ALPHA_QUENCH = 0 # 0=spectral shift, 1=quench
+    else
+        if sat == :sat1
+            input_tglf.SAT_RULE = 1
+            input_tglf.ALPHA_QUENCH = 0
+        elseif sat == :sat1geo
+            input_tglf.SAT_RULE = 1
+            input_tglf.ALPHA_QUENCH = 0
+        elseif sat == :sat0
+            input_tglf.SAT_RULE = 0
+            input_tglf.ALPHA_QUENCH = 0
+        elseif sat == :sat0quench
+            input_tglf.SAT_RULE = 0
+            input_tglf.ALPHA_QUENCH = 1
+        end
+        input_tglf.KYGRID_MODEL = 1
+        input_tglf.NMODES = 2
+        input_tglf.NBASIS_MAX = 4
+        input_tglf.USE_AVE_ION_GRID = false # default is false
+    end
+
+    # electrostatic/electromagnetic
+    if electromagnetic
+        input_tglf.USE_BPER = true
+        input_tglf.USE_BPAR = true
+    else
+        input_tglf.USE_BPER = false
+        input_tglf.USE_BPAR = false
+    end
 
     return input_tglf
 end
