@@ -239,11 +239,11 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer, sa
     input_tglf.Q_PRIME_LOC = q^2 * a^2 / rmin[gridpoint_cp]^2 * s
 
     # saturation rules
-    input_tglf.UNITS = "CGYRO"
     input_tglf.ALPHA_ZF = 1.0 # 1=default, -1=low ky cutoff kypeak search
     input_tglf.USE_MHD_RULE = true #default is true
     input_tglf.NKY = 12 # 17 for NN, 12 for validation
     if sat == :sat2
+        input_tglf.UNITS = "CGYRO"
         input_tglf.SAT_RULE = 2
         input_tglf.KYGRID_MODEL = 4
         input_tglf.NMODES = 5
@@ -251,12 +251,14 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer, sa
         input_tglf.USE_AVE_ION_GRID = true
         input_tglf.ALPHA_QUENCH = 0 # 0=spectral shift, 1=quench
     else
+        input_tglf.UNITS = "GYRO"
         if sat == :sat1
             input_tglf.SAT_RULE = 1
             input_tglf.ALPHA_QUENCH = 0
         elseif sat == :sat1geo
             input_tglf.SAT_RULE = 1
             input_tglf.ALPHA_QUENCH = 0
+            input_tglf.UNITS = "CGYRO"
         elseif sat == :sat0
             input_tglf.SAT_RULE = 0
             input_tglf.ALPHA_QUENCH = 0
