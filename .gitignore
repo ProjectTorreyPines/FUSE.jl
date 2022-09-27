@@ -21,6 +21,7 @@ docs/build/
 docs/site/
 docs/pages/
 # These pages are automatically generated
+docs/src/index.md
 docs/src/dd.md
 docs/src/actors.md
 docs/src/inits.md

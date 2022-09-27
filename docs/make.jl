@@ -1,5 +1,5 @@
 using Pkg
-Pkg.activate(joinpath(@__DIR__,".."))
+Pkg.activate(joinpath(@__DIR__, ".."))
 using Revise
 using Documenter
 import FUSE
@@ -7,6 +7,7 @@ import IMAS
 import IMASDD
 import AbstractTrees
 import ProgressMeter
+import Dates
 using InteractiveUtils: subtypes
 
 function html_link_repr(par::FUSE.AbstractParameter)
@@ -64,6 +65,11 @@ function parameters_details_md(io::IO, pars::FUSE.AbstractParameters)
     end
 end
 
+# ================== #
+# generate main page #
+# ================== #
+include("$(@__DIR__)/src/index.jl")
+
 # ================ #
 # generate DD page #
 # ================ #
@@ -115,7 +121,7 @@ makedocs(;
         "Development" => "develop.md",
         "Install" => "install.md",
         "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md", "HPC" => "parallel.md"],
-    ],
+    ]
 )
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
 @info "Converting links"
