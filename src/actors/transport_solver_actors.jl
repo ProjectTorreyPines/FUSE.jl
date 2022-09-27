@@ -48,9 +48,9 @@ function step(actor::ActorTransportSolver, act::ParametersAllActors)
     z_init = pack_z_profiles(dd, par)
     dd_before = deepcopy(dd)
     if par.optimizer_algorithm == :anderson
-        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+        res = NLsolve.nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
     elseif par.optimizer_algorithm == :jacobian_based
-        res = nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+        res = NLsolve.nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
     end
     unpack_z_profiles(dd_before.core_profiles.profiles_1d[], par, res.zero) # res.zero == z_profiles for the smallest error iteration
     dd.core_profiles = dd_before.core_profiles

@@ -1,4 +1,5 @@
 import TGLFNN: run_tglf, run_tglfnn, InputTGLF, flux_solution
+
 #= ============= =#
 #  ActorTGLF      #
 #= ============= =#
@@ -11,7 +12,8 @@ end
 
 function ParametersActor(::Type{Val{:ActorTGLF}})
     par = ParametersActor(nothing)
-    par.tglf_model = Switch([:tglf_sat0, :tglfnn], "", "TGLF model to run"; default=:tglfnn)
+    par.tglfnn = Entry(Bool, "", "Use TGLF-NN"; default=true)
+    par.tglf_model = Switch([:sat0_es, :sat0_em, :sat1_em], "", "TGLF model to run"; default=:sat0_es)
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
     par.warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     return par
@@ -51,14 +53,16 @@ function step(actor::ActorTGLF)
     par = actor.par
     dd = actor.dd
 
-    model = resize!(dd.core_transport.model, "identifier.index" => 6)
-    model.identifier.name = string(par.tglf_model)
+    anomalous_index = IMAS.name_2_index(dd.core_transport.model)[:anomalous]
+    model = resize!(dd.core_transport.model, "identifier.index" => anomalous_index)
+    model.identifier.name = (par.tglfnn ? "TGLF-NN" : "TGLF") * " " * string(par.tglf_model)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    if par.tglf_model == :tglfnn
-        actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds), actor.input_tglfs)
-    elseif par.tglf_model == :tglf_sat0
+    if par.tglfnn
+        actor.flux_solutions = map(input_tglf -> run_tglfnn(input_tglf, par.warn_nn_train_bounds; model_filename=string(par.tglf_model)), actor.input_tglfs)
+    else
+        @assert par.tglf_model == :sat0_es "Only `sat0_es` is implemented for full TGLF"
         actor.flux_solutions = asyncmap(input_tglf -> run_tglf(input_tglf), actor.input_tglfs)
     end
 
@@ -66,7 +70,7 @@ function step(actor::ActorTGLF)
 end
 
 """
-    function finalize(actor::ActorTGLF)
+    finalize(actor::ActorTGLF)
 
 Writes results to dd.core_transport
 """
@@ -75,7 +79,7 @@ function finalize(actor::ActorTGLF)
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
-    model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.tglf_model)][1]]
+    model = findfirst(:anomalous, actor.dd.core_transport.model)
     model.profiles_1d[].electrons.energy.flux = zeros(length(actor.par.rho_transport))
     model.profiles_1d[].total_ion_energy.flux = zeros(length(actor.par.rho_transport))
     model.profiles_1d[].electrons.particles.flux = zeros(length(actor.par.rho_transport))

@@ -41,7 +41,8 @@ Runs Neoclassical actor to evaluate the turbulence flux on a Vector of gridpoint
 function step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
-    model = resize!(dd.core_transport.model, "identifier.index" => 5)
+    neoclassical_index = IMAS.name_2_index(dd.core_transport.model)[:neoclassical]
+    model = resize!(dd.core_transport.model, "identifier.index" => neoclassical_index)
     model.identifier.name = string(par.neoclassical_model)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
@@ -54,7 +55,7 @@ function step(actor::ActorNeoclassical)
 end
 
 """
-    function finalize(actor::ActorNeoclassical)
+    finalize(actor::ActorNeoclassical)
 
 Writes results to dd.core_transport
 """
@@ -63,7 +64,7 @@ function finalize(actor::ActorNeoclassical)
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
-    model = dd.core_transport.model[[idx for idx in keys(actor.dd.core_transport.model) if actor.dd.core_transport.model[idx].identifier.name == string(actor.par.neoclassical_model)][1]]
+    model = findfirst(:neoclassical, actor.dd.core_transport.model)
     model.profiles_1d[].total_ion_energy.flux = zeros(length(actor.par.rho_transport))
     for (neoclassical_idx, rho) in enumerate(actor.par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, model.profiles_1d[].grid_flux.rho_tor_norm)
