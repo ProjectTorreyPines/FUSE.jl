@@ -179,3 +179,31 @@ function warmup()
     ActorWholeFacility(dd, act)
     IMAS.freeze(dd)
 end
+
+function warmup(actor::Symbol, args...)
+    actors = [actor]
+    return warmup(actors, args...)
+end
+
+function warmup(actors::Vector{<:Symbol})
+    ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
+    dd = init(ini, act)
+    return warmup(actors, dd, act)
+end
+
+function warmup(actors::Vector{<:Symbol}, dd, act)
+
+    :EquilibriumTransport in actors && ActorEquilibriumTransport(dd, act)
+    :HFSsizing in actors && ActorHFSsizing(dd, act)
+    :LFSsizing in actors && ActorLFSsizing(dd, act)
+    :CXbuild in actors && ActorCXbuild(dd, act)
+    :PFcoilsOpt in actors && ActorPFcoilsOpt(dd, act)
+    :PassiveStructures in actors && ActorPassiveStructures(dd, act)
+    :Neutronics in actors && ActorNeutronics(dd, act)
+    :Blanket in actors && ActorBlanket(dd, act)
+    :Divertors in actors && ActorDivertors(dd, act)
+    :BalanceOfPlant in actors && ActorBalanceOfPlant(dd, act)
+    :Costing in actors && ActorCosting(dd, act)
+
+    IMAS.freeze(dd)
+end
