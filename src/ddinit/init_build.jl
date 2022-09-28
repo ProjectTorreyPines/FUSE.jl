@@ -18,7 +18,7 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
         type = replace(type, r"^gap" => "")
         details = replace(lowercase(layer.name), r"^[hl]fs " => "")
         details = replace(details, r"^gap .*" => "")
-        details = replace(details, r"\b"*type*r"\b" => "")
+        details = replace(details, r"\b" * type * r"\b" => "")
         material = getproperty(layer, :material, "?")
         material = split(material, ",")[1]
         material = replace(material, "Vacuum" => "")
