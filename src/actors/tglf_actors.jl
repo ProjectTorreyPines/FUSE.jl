@@ -41,7 +41,7 @@ function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
     ix_eq = [argmin(abs.(eq1d.rho_tor_norm .- rho)) for rho in par.rho_transport]
     ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
 
-    input_tglfs = [inputtglf(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic) for (gridpoint_eq,gridpoint_cp) in zip(ix_eq,ix_cp)]
+    input_tglfs = [inputtglf(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic) for (gridpoint_eq, gridpoint_cp) in zip(ix_eq, ix_cp)]
     return ActorTGLF(dd, par, input_tglfs, flux_solution[])
 end
 
@@ -240,7 +240,7 @@ function inputtglf(dd::IMAS.dd, gridpoint_eq::Integer, gridpoint_cp::Integer, sa
 
     # saturation rules
     input_tglf.ALPHA_ZF = 1.0 # 1=default, -1=low ky cutoff kypeak search
-    input_tglf.USE_MHD_RULE = true #default is true
+    input_tglf.USE_MHD_RULE = true # default is true
     input_tglf.NKY = 12 # 17 for NN, 12 for validation
     if sat == :sat2
         input_tglf.UNITS = "CGYRO"

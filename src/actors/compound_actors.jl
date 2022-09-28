@@ -161,6 +161,9 @@ function _step(actor::ActorWholeFacility)
     actor.LFSsizing = ActorLFSsizing(dd, act)
     actor.CXbuild = ActorCXbuild(dd, act)
     actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
+    if act.ActorPFcoilsOpt.update_equilibrium
+        actor.CXbuild = ActorCXbuild(dd, act; rebuild_wall=true)
+    end
     actor.PassiveStructures = ActorPassiveStructures(dd, act)
     actor.Neutronics = ActorNeutronics(dd, act)
     actor.Blanket = ActorBlanket(dd, act)
