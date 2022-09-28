@@ -700,31 +700,31 @@ end
 Generate first wall outline starting from an equilibrium
 """
 function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_fraction::Real=0.2)
-    # Radii of the plasma
-    plasma = IMAS.get_build(bd, type=_plasma_)
-    R_hfs_plasma = plasma.start_radius
-    R_lfs_plasma = plasma.end_radius
-
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
 
-    # main chamber
+    # lcfs
     ψb = IMAS.find_psi_boundary(eqt)
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
-    plasma_poly = xy_polygon(rlcfs, zlcfs)
-    a = (maximum(rlcfs) - minimum(rlcfs)) / 15.0
-    wall_poly = LibGEOS.buffer(plasma_poly, a)
 
-    # hfs and lfs spacing may not be symmetric
+    # Set the radial build thickness of the plasma
+    plasma = IMAS.get_build(bd, type=_plasma_)
+    a = (minimum(rlcfs) - plasma.start_radius)
+    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2 * a
+    R_hfs_plasma = plasma.start_radius
+    R_lfs_plasma = plasma.end_radius
+
+    # main chamber (clip elements that go beyond plasma radial build thickness)
+    plasma_poly = xy_polygon(rlcfs, zlcfs)
+    wall_poly = LibGEOS.buffer(plasma_poly, a)
     R = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
     Z = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
-    R .+= ((R_lfs_plasma + R_hfs_plasma) - (maximum(rlcfs) + minimum(rlcfs))) / 2.0
     R[R.<R_hfs_plasma] .= R_hfs_plasma
     R[R.>R_lfs_plasma] .= R_lfs_plasma
     Z = (Z .- Z0) .* 1.05 .+ Z0
     wall_poly = xy_polygon(R, Z)
 
-    t = LinRange(0, 2pi, 31)
+    t = LinRange(0, 2π, 31)
 
     # divertor lengths
     linear_plasma_size = sqrt((maximum(zlcfs) - minimum(zlcfs)) * (maximum(rlcfs) - minimum(rlcfs)))
@@ -739,13 +739,10 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > linear_plasma_size / 5
             # secondary Xpoint far away
             continue
-        elseif (sum(pz) - Z0) < 0
-            # lower private region
-            index = argmax(pz)
-        else
-            # upper private region
-            index = argmin(pz)
         end
+
+        # xpoint at location of maximum curvature
+        index = argmax(abs.(IMAS.curvature(pr,pz)))
         Rx = pr[index]
         Zx = pz[index]
 
