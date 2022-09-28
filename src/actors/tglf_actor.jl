@@ -50,7 +50,7 @@ end
 
 Runs TGLF actor to evaluate the turbulence flux on a Vector of gridpoints
 """
-function step(actor::ActorTGLF)
+function _step(actor::ActorTGLF)
     par = actor.par
     dd = actor.dd
 

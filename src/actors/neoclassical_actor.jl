@@ -1,4 +1,5 @@
 import TGLFNN: flux_solution
+
 #= ===================== =#
 #  ActorNeoclassical      #
 #= ===================== =#
@@ -36,9 +37,9 @@ end
 """
     step(actor::ActorNeoclassical)
 
-Runs Neoclassical actor to evaluate the turbulence flux on a Vector of gridpoints
+Runs Neoclassical actor to evaluate the transport flux on a vector of gridpoints
 """
-function step(actor::ActorNeoclassical)
+function _step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
     neoclassical_index = IMAS.name_2_index(dd.core_transport.model)[:neoclassical]

@@ -41,7 +41,7 @@ end
 
 ActorTransportSolver step
 """
-function step(actor::ActorTransportSolver, act::ParametersAllActors)
+function _step(actor::ActorTransportSolver, act::ParametersAllActors)
     dd = actor.dd
     par = actor.par
 

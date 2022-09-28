@@ -2,8 +2,6 @@
 #  ActorNeutronics  #
 #= =============== =#
 
-using MillerExtendedHarmonic
-
 mutable struct neutron_particle{T<:Real}
     x::T
     y::T

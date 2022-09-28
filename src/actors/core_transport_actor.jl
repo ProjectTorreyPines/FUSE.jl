@@ -48,7 +48,7 @@ end
 
 Runs through the selected equilibrium actor's step
 """
-function step(actor::ActorCoreTransport)
+function _step(actor::ActorCoreTransport)
     step(actor.turb_actor)
     step(actor.neoclassical_actor)
 end
