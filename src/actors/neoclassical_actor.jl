@@ -37,19 +37,23 @@ end
 """
     step(actor::ActorNeoclassical)
 
-Runs Neoclassical actor to evaluate the transport flux on a vector of gridpoints
+Runs ActorNeoclassical to evaluate the neoclassical transport flux on a vector of gridpoints
 """
 function _step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
     neoclassical_index = IMAS.name_2_index(dd.core_transport.model)[:neoclassical]
     model = resize!(dd.core_transport.model, "identifier.index" => neoclassical_index)
-    model.identifier.name = string(par.neoclassical_model)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
     if par.neoclassical_model == :changhinton
-        actor.flux_solutions = [neoclassical_changhinton(dd, rho, 1) for rho in par.rho_transport]
+        model.identifier.name = "Chang-Hinton"
+        eqt = dd.equilibrium.time_slice[]
+        prof1d = dd.core_profiles.profiles_1d[]
+        actor.flux_solutions = [neoclassical_changhinton(eqt, prof1d, rho, 1) for rho in par.rho_transport]
+    else
+        error("$(par.neoclassical_model) is not implemented")
     end
 
     return actor
@@ -58,7 +62,7 @@ end
 """
     finalize(actor::ActorNeoclassical)
 
-Writes results to dd.core_transport
+Writes ActorNeoclassical results to dd.core_transport
 """
 function finalize(actor::ActorNeoclassical)
     dd = actor.dd
@@ -72,25 +76,33 @@ function finalize(actor::ActorNeoclassical)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
         model.profiles_1d[].total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
     end
+
     return actor
 end
 
 """
-    calc_neo(dd::IMAS.dd, rho_fluxmatch::Float64, iion::Integer, AS_ion::Float64)
+    neoclassical_changhinton(
+        eq1d::IMAS.equilibrium__time_slice___profiles_1d, 
+        prof1d::IMAS.core_profiles__profiles_1d,
+        rho_fluxmatch::Real,
+        iion::Integer)
 
-This function calculates the neoclassical flux using Chang-Hinton model which has has been modified assuming Zi = 1, and ni=ne 
+Calculates the neoclassical flux using Chang-Hinton model which has has been modified assuming Zi = 1, and ni=ne 
 """
-function neoclassical_changhinton(dd::IMAS.dd, rho_fluxmatch::Real, iion::Integer)
-    eq = dd.equilibrium
-    eqt = eq.time_slice[]
+function neoclassical_changhinton(
+    eqt::IMAS.equilibrium__time_slice,
+    prof1d::IMAS.core_profiles__profiles_1d,
+    rho_fluxmatch::Real,
+    iion::Integer)
+
     eq1d = eqt.profiles_1d
-    prof1d = dd.core_profiles.profiles_1d[]
+
     rmin = 0.5 * (eq1d.r_outboard - eq1d.r_inboard)
 
     m_to_cm = 1e2
     Rmaj0 = eq1d.geometric_axis.r[1] * m_to_cm
 
-    a = dd.equilibrium.time_slice[].boundary.minor_radius * m_to_cm
+    a = eqt.boundary.minor_radius * m_to_cm
     rho_cp = prof1d.grid.rho_tor_norm
     rho_eq = eq1d.rho_tor_norm
     gridpoint_eq = argmin(abs.(rho_eq .- rho_fluxmatch))
