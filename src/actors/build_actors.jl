@@ -423,7 +423,7 @@ function ActorHFSsizing(dd::IMAS.dd, par::ParametersActor, act::ParametersAllAct
     return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor)
 end
 
-function step(
+function _step(
     actor::ActorHFSsizing;
     j_tolerance::Real=actor.par.j_tolerance,
     stress_tolerance::Real=actor.par.stress_tolerance,
@@ -890,12 +890,12 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 end
 
 """
-    build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)
+    build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
 
 Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
-function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=true)
+function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
     wall = IMAS.first_wall(dd.wall)
     if wall === missing || rebuild_wall
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
