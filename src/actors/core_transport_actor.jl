@@ -31,15 +31,21 @@ end
 
 function ActorCoreTransport(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
     par = par(kw...)
+
     if par.turbulence_actor == :TGLF
         act.ActorTGLF.rho_transport = par.rho_transport
         turb_actor = ActorTGLF(dd, act.ActorTGLF)
+    else
+        error("turbulence_actor $(par.turbulence_actor) is not supported yet")
     end
 
     if par.neoclassical_actor == :Neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport
         neoclassical_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
+    else
+        error("neoclassical_actor $(par.neoclassical_actor) is not supported yet")
     end
+
     return ActorCoreTransport(dd, par, turb_actor, neoclassical_actor)
 end
 
@@ -51,6 +57,7 @@ Runs through the selected equilibrium actor's step
 function _step(actor::ActorCoreTransport)
     step(actor.turb_actor)
     step(actor.neoclassical_actor)
+    return actor
 end
 
 """
@@ -61,4 +68,5 @@ Finalizes the selected equilibrium actor
 function finalize(actor::ActorCoreTransport)
     finalize(actor.turb_actor)
     finalize(actor.neoclassical_actor)
+    return actor
 end

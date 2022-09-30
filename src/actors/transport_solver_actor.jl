@@ -7,6 +7,7 @@ import NLsolve
 mutable struct ActorTransportSolver <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    actor_ct::ActorCoreTransport
 end
 
 function ParametersActor(::Type{Val{:ActorTransportSolver}})
@@ -20,6 +21,7 @@ function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm"; default=0.25)
     par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
     par.do_plot = Entry(Bool, "", "plots the flux matching"; default=false)
+    par.verbose = Entry(Bool, "", "print trace and optimization result"; default=false)
     return par
 end
 
@@ -30,69 +32,98 @@ The ActorTransportSolver evalutes the transport fluxes and source fluxes and min
 """
 function ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTransportSolver(kw...)
-    actor = ActorTransportSolver(dd, par)
-    step(actor, act)
+    actor = ActorTransportSolver(dd, par, act)
+    step(actor)
     finalize(actor)
     return actor
 end
 
+function ActorTransportSolver(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorTransportSolver)
+    par = par(kw...)
+    actor_ct = ActorCoreTransport(dd, act.ActorCoreTransport, act; par.rho_transport)
+    ActorTransportSolver(dd, par, actor_ct)
+end
+
 """
-    step(actor::ActorTransportSolver, act::ParametersAllActors; max_iterations::Int=50, factor=1.0)
+    _step(actor::ActorTransportSolver)
 
 ActorTransportSolver step
 """
-function _step(actor::ActorTransportSolver, act::ParametersAllActors)
+function _step(actor::ActorTransportSolver)
     dd = actor.dd
     par = actor.par
 
-    z_init = pack_z_profiles(dd, par)
-    dd_before = deepcopy(dd)
-    if par.optimizer_algorithm == :anderson
-        res = NLsolve.nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, method=:anderson, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
-    elseif par.optimizer_algorithm == :jacobian_based
-        res = NLsolve.nlsolve(z -> get_flux_match_error(dd, act, z), z_init, show_trace=true, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+    if par.do_plot
+        p = plot(dd.core_profiles, label="before")
     end
-    unpack_z_profiles(dd_before.core_profiles.profiles_1d[], par, res.zero) # res.zero == z_profiles for the smallest error iteration
-    dd.core_profiles = dd_before.core_profiles
+
+    z_init = pack_z_profiles(dd, par)
+    old_log_level = log_topics[:actors]
+    res = try
+        log_topics[:actors] = Logging.Warn
+        if par.optimizer_algorithm == :anderson
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init, show_trace=par.verbose, method=:anderson, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+        elseif par.optimizer_algorithm == :jacobian_based
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init, show_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+        end
+        res
+    finally
+        log_topics[:actors] = old_log_level
+    end
+
+    if par.verbose
+        display(res)
+    end
+
+    flux_match_errors(actor::ActorTransportSolver, res.zero) # res.zero == z_profiles for the smallest error iteration
     if par.evolve_densities !== :fixed
         IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
     end
+
     """
     if !IMAS.is_quasi_neutral(dd)
         IMAS.enforce_quasi_neutrality!(dd,  [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
     end
     """
-    actor.dd = dd
+
     if par.do_plot
-        display(["output of the optimization", res])
         display(plot(dd.core_transport))
-        plot(dd_before.core_profiles, label="before")
-        display(plot!(dd.core_profiles, label="after"))
+        display(plot!(p, dd.core_profiles, label="after"))
     end
+
     return actor
 end
 
 """
-    get_flux_match_error(dd::IMAS.dd, act::ParametersAllActors, z_profiles::AbstractVector{<:Float64})
+    flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVector{<:Float64})
 
-Runs the transport actors, calculate sources and return the flux_match error for the flux_match species
+Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
-function get_flux_match_error(dd::IMAS.dd, act::ParametersAllActors, z_profiles::AbstractVector{<:Float64})
-    par = act.ActorTransportSolver
-    unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles) # modify dd with new z_profiles
-    act.ActorCoreTransport.rho_transport = par.rho_transport
-    FUSE.ActorCoreTransport(dd, act)
+function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVector{<:Float64})
+    dd = actor.dd
+    par = actor.par
+
+    # modify dd with new z_profiles
+    unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
+
+    # evaludate neoclassical + turbulent fluxes
+    finalize(step(actor.actor_ct))
+
+    # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
 
-    return pack_flux_match_errors(dd, par)
+    # compare fluxes
+    return flux_match_errors(dd, par)
 end
 
 """
-    pack_flux_match_errors(dd, par)
+    flux_match_errors(dd::IMAS.dd, par::ParametersActor)
 
-Packs the flux_matching errors for the flux_match species
+Evaluates the flux_matching errors for the :flux_match species and channels
+NOTE: flux matching is done in physical units
 """
-function pack_flux_match_errors(dd::IMAS.dd, par::ParametersActor)
+function flux_match_errors(dd::IMAS.dd, par::ParametersActor)
     total_sources = IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[])
     total_fluxes = IMAS.total_fluxes(dd.core_transport)
 
@@ -105,7 +136,7 @@ function pack_flux_match_errors(dd::IMAS.dd, par::ParametersActor)
     particles_norm = 1e19
     momentum_norm = 0.1
 
-    error = Vector{Float64}()
+    error = Float64[]
 
     if par.evolve_Ti == :flux_match
         append!(error, (total_sources.total_ion_power_inside[cs_gridpoints] ./ surface .- total_fluxes.total_ion_energy.flux[ct_gridpoints]) ./ energy_norm)
@@ -129,6 +160,7 @@ function pack_flux_match_errors(dd::IMAS.dd, par::ParametersActor)
             end
         end
     end
+
     return error
 end
 
@@ -137,12 +169,11 @@ end
 
 Packs the z_profiles based on evolution parameters
 
-Note the order for packing and unpacking is always:
-    [Ti, Te, Rotation, ne, nis...]
+NOTE: the order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
 function pack_z_profiles(dd::IMAS.dd, par::ParametersActor)
     cp1d = dd.core_profiles.profiles_1d[]
-    z_profiles = Vector{Float64}()
+    z_profiles = Float64[]
     cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
 
     if par.evolve_Ti == :flux_match
@@ -168,13 +199,14 @@ function pack_z_profiles(dd::IMAS.dd, par::ParametersActor)
             end
         end
     end
+
     return z_profiles
 end
 
 """
     unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::ParametersActor, z_profiles::AbstractVector{<:Real})
 
-unpack z_profiles based on evolution parameters
+Unpacks z_profiles based on evolution parameters
 
 NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
@@ -197,7 +229,7 @@ function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::Parameter
     end
 
     if par.evolve_rotation == :flux_match
-        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic.+1, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
+        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
         counter += N
     end
 
@@ -217,12 +249,14 @@ function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::Parameter
             end
         end
     end
+
     # Ensure Quasi neutrality
     if !IMAS.is_quasi_neutral(cp1d) && par.evolve_densities != :fixed
         q_specie = [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality]
         @assert q_specie != Symbol[] "no quasi neutrality specie while quasi neutrality is broken"
         IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
     end
+
     return cp1d
 end
 
