@@ -591,7 +591,9 @@ function solve_1D_solid_mechanics!(
 
     smcs.grid.r_tf = r_tf
     smcs.grid.r_oh = r_oh
-    smcs.grid.r_pl = r_pl
+    if plug
+        smcs.grid.r_pl = r_pl
+    end
 
     # keep the worse case based on the Von Mises stresses
     if ismissing(smcs.stress.vonmises, :tf) || maximum(abs.(smcs.stress.vonmises.tf)) < maximum(abs.(vonmises_stress_tf))
