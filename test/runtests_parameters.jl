@@ -18,7 +18,7 @@ using Test
     ini = FUSE.ParametersAllInits()
     ini1 = FUSE.ParametersAllInits()
     ini.tf = ini1.tf
-    @test ini.tf._parent.value !== ini1.tf._parent.value
+    @test getfield(ini.tf, :_parent).value !== getfield(ini1.tf, :_parent).value
 
     @test_throws Exception par.equilibrium.B0 = "a string"
 
