@@ -76,7 +76,7 @@ function _step(actor::ActorBalanceOfPlant; model::Symbol=actor.par.model)
     sys.power = zeros(length(bop.time))
     for (idx, hcd_system) in enumerate(intersect([:nbi, :ec_launchers, :ic_antennas, :lh_antennas], keys(dd)))
         sub_sys = resize!(sys.subsystem, "name" => string(hcd_system), "index" => idx)
-        sub_sys.power = electricity(getfield(dd, hcd_system), bop.time)
+        sub_sys.power = electricity(getproperty(dd, hcd_system), bop.time)
         sys.power .+= sub_sys.power
     end
 

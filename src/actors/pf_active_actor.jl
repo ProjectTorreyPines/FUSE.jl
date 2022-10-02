@@ -221,7 +221,7 @@ function _finalize(
         if false # hack to force up-down symmetric equilibrium
             actor.eq_out.time_slice[time_index].profiles_2d[1].psi = (ψ_f2f .+ ψ_f2f[1:end, end:-1:1]) ./ 2.0
         else
-            actor.eq_out.time_slice[time_index].profiles_2d[1].psi = ψ_f2f
+            actor.eq_out.time_slice[time_index].profiles_2d[1].psi = copy(ψ_f2f)
         end
     end
 

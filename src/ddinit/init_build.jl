@@ -220,7 +220,7 @@ function init_build(bd::IMAS.build; layers...)
                 layer.fs = Int(_out_)
             end
         end
-        layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
+        layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => ""))) % Int
         radius_end += layer.thickness
         radius_start = radius_end
     end

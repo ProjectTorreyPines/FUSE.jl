@@ -18,10 +18,10 @@ function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par.evolve_rotation = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:fixed)
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
     par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
-    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm"; default=0.25)
+    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.25)
     par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    par.do_plot = Entry(Bool, "", "plots the flux matching"; default=false)
-    par.verbose = Entry(Bool, "", "print trace and optimization result"; default=false)
+    par.do_plot = Entry(Bool, "", "Plots the flux matching"; default=false)
+    par.verbose = Entry(Bool, "", "Print trace and optimization result"; default=false)
     return par
 end
 
