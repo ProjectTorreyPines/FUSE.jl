@@ -183,50 +183,35 @@ function _step(actor::ActorBlanket)
         end
     end
 
-    function target_leakage(blanket_model, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, target=nothing)
-        total_leakage = 0.0
-        for (ibm, bm) in enumerate(dd.blanket.module)
-            # bmt = bm.time_slice[]
-            blank_mod_time_leakage = 0.0 # bmt.neutron_leakage = 0.0, need to add to data structure
-            module_wall_loading_power = sum(modules_wall_loading_power[ibm])
-            for k in 1:length(modules_wall_loading_power[ibm])
-                blank_mod_time_leakage += (sum(NNeutronics.leakeage_energy(blanket_model, modules_effective_thickness[ibm][k, :]..., Li6)) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
-            end
-            total_leakage += blank_mod_time_leakage * module_wall_loading_power / total_power_neutrons
-        end
-        if target === nothing
-            return total_leakage
-        else
-            return (total_leakage - target)^2
-        end
-    end
-
-    function optimize_layers_for_leakage(blanket_model, Li6, dd)
+    function optimize_layers(blanket_model, dd, target=1.1)
         energy_grid = NNeutronics.energy_grid()
         modules_thickness = [dd.blanket.module[1].layer[x].midplane_thickness for x in range(1, length(dd.blanket.module[1].layer))]
         blanket_thickness = sum(modules_thickness)
         
-       total_neutron_leakage(d1, d2, d3) = sum(NNeutronics.leakeage_energy(blanket_model, d1, d2, d3, Li6, energy_grid))
-
-        function ∇f(g::AbstractVector{T}, x::T, y::T, z::T) where {T}
+        total_neutron_leakage(d1, d2, d3, Li6) = sum(NNeutronics.leakeage_energy(blanket_model, d1, d2, d3, Li6, energy_grid))
+        total_TBR(d1, d2, d3, Li6) = NNeutronics.TBR(blanket_model, d1, d2, d3, Li6)
+        function ∇f(g::AbstractVector{T}, x::T, y::T, z::T, a::T) where {T}
             g[1] = -exp(-x)
             g[2] = -exp(-y)
             g[3] = -exp(-z)
+            g[4] = -exp(-a)
             return
         end
 
         model = Model(NLopt.Optimizer)
         set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
 
-        register(model, :total_neutron_leakage, 3, total_neutron_leakage, ∇f)
-
+        register(model, :total_neutron_leakage, 4, total_neutron_leakage, ∇f)
+        register(model, :total_TBR, 4, total_TBR, ∇f)
         @variable(model, d1>=0)
         @variable(model, d2>=0)
         @variable(model, d3>=0)
+        @variable(model, 0<=Li6<=100)
 
-        @NLobjective(model, Min, total_neutron_leakage(d1, d2, d3))
+        @NLobjective(model, Min, total_neutron_leakage(d1, d2, d3, Li6))
 
         @NLconstraint(model, blanket_thickness >= d1 + d2 + d3)
+        @NLconstraint(model, target <= total_TBR(d1, d2, d3, Li6))
         
         JuMP.optimize!(model)
         
@@ -234,42 +219,9 @@ function _step(actor::ActorBlanket)
         l1 = value(d1)
         l2 = value(d2)
         l3 = value(d3)
-        return total_leakage, l1, l2, l3
-    end
-
-    function optimize_layers_for_TBR(blanket_model, Li6, dd)
-        modules_thickness = [dd.blanket.module[1].layer[x].midplane_thickness for x in range(1, length(dd.blanket.module[1].layer))]
-        blanket_thickness = sum(modules_thickness)
-        
-       total_TBR(d1, d2, d3) = sum(NNeutronics.TBR(blanket_model, d1, d2, d3, Li6))
-
-        function ∇f(g::AbstractVector{T}, x::T, y::T, z::T) where {T}
-            g[1] = -exp(-x)
-            g[2] = 1/x
-            g[3] = -exp(-z)
-            return
-        end
-
-        model = Model(NLopt.Optimizer)
-        set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
-
-        register(model, :total_TBR, 3, total_TBR, ∇f)
-
-        @variable(model, d1>=0)
-        @variable(model, d2>=0)
-        @variable(model, d3>=0)
-
-        @NLobjective(model, Max, total_TBR(d1, d2, d3))
-
-        @NLconstraint(model, blanket_thickness >= d1 + d2 + d3)
-        
-        JuMP.optimize!(model)
-        
-        result_TBR = objective_value(model)
-        l1 = value(d1)
-        l2 = value(d2)
-        l3 = value(d3)
-        return result_TBR, l1, l2, l3
+        Li6 = value(Li6)
+        TBR = total_TBR(l1, l2, l3, Li6)
+        return total_leakage, l1, l2, l3, Li6, TBR
     end
 
     blanket_model_1d = NNeutronics.Blanket()
@@ -283,11 +235,9 @@ function _step(actor::ActorBlanket)
     # res = Optim.optimize(modules_effective_thickness -> target_leakage(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, desired_leakage), modules_effective_thickness_guess, rel_tol=1E-6)
     # println(res)
     
-    total_leakage, d1, d2, d3 = optimize_layers_for_leakage(blanket_model_1d, Li6, dd)
+    total_leakage, d1, d2, d3, Li6, TBR = optimize_layers(blanket_model_1d, dd)
     println("got ", total_leakage, " at ", [d1, d2, d3])  ## placeholder
-
-    total_TBR, d1, d2, d3 = optimize_layers_for_TBR(blanket_model_1d, Li6, dd)
-    println("got ", total_TBR, " at ", [d1, d2, d3])  ## placeholder
+    println("Li6: ", Li6, "    TBR: ", TBR)
 
     return actor
 end
