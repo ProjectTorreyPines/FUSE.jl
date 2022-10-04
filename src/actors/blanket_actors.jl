@@ -233,10 +233,6 @@ function _step(actor::ActorBlanket)
         @NLobjective(model, Min, total_neutron_leakage(d1, d2, d3))
 
         @NLconstraint(model, blanket_thickness >= d1 + d2 + d3)
-
-        # set_start_value(d1, 1)
-        # set_start_value(d2, 1)
-        # set_start_value(d3, 1)
         
         JuMP.optimize!(model)
         
@@ -257,7 +253,7 @@ function _step(actor::ActorBlanket)
     # total_leakage = target_leakage(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
     # res = Optim.optimize(modules_effective_thickness -> target_leakage(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, desired_leakage), modules_effective_thickness_guess, rel_tol=1E-6)
     # println(res)
-
+    
     total_leakage, d1, d2, d3 = optimize_layers_for_leakage(blanket_model_1d, Li6, dd)
     println("got ", total_leakage, " at ", [d1, d2, d3])  ## placeholder
 
