@@ -239,6 +239,41 @@ function _step(actor::ActorBlanket)
         return total_leakage, l1, l2, l3
     end
 
+    function optimize_layers_for_TBR(blanket_model, Li6, dd)
+        modules_thickness = [dd.blanket.module[1].layer[x].midplane_thickness for x in range(1, length(dd.blanket.module[1].layer))]
+        blanket_thickness = sum(modules_thickness)
+        
+       total_TBR(d1, d2, d3) = sum(NNeutronics.TBR(blanket_model, d1, d2, d3, Li6))
+
+        function ∇f(g::AbstractVector{T}, x::T, y::T, z::T) where {T}
+            g[1] = -exp(-x)
+            g[2] = 1/x
+            g[3] = -exp(-z)
+            return
+        end
+
+        model = Model(NLopt.Optimizer)
+        set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
+
+        register(model, :total_TBR, 3, total_TBR, ∇f)
+
+        @variable(model, d1>=0)
+        @variable(model, d2>=0)
+        @variable(model, d3>=0)
+
+        @NLobjective(model, Max, total_TBR(d1, d2, d3))
+
+        @NLconstraint(model, blanket_thickness >= d1 + d2 + d3)
+        
+        JuMP.optimize!(model)
+        
+        result_TBR = objective_value(model)
+        l1 = value(d1)
+        l2 = value(d2)
+        l3 = value(d3)
+        return result_TBR, l1, l2, l3
+    end
+
     blanket_model_1d = NNeutronics.Blanket()
     res = Optim.optimize(Li6 -> target_TBR(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, dd.target.tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
     total_tritium_breeding_ratio = target_TBR(blanket_model_1d, res.minimizer, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
@@ -252,6 +287,9 @@ function _step(actor::ActorBlanket)
     
     total_leakage, d1, d2, d3 = optimize_layers_for_leakage(blanket_model_1d, Li6, dd)
     println("got ", total_leakage, " at ", [d1, d2, d3])  ## placeholder
+
+    total_TBR, d1, d2, d3 = optimize_layers_for_TBR(blanket_model_1d, Li6, dd)
+    println("got ", total_TBR, " at ", [d1, d2, d3])  ## placeholder
 
     return actor
 end
