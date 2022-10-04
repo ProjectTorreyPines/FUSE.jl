@@ -220,7 +220,7 @@ end
 Convert nominal target design information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    ini.target.flattop_duration = gasc.inputs["plasma parameters"]["flattopDuration"]
+    ini.target.flattop_duration = float(gasc.inputs["plasma parameters"]["flattopDuration"])
     ini.target.power_electric_net = gasc.constraints["lowerOutputConstraints"]["powerNet"] * 1E6
     return ini
 end
@@ -373,16 +373,16 @@ function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
             coil_tech.thermal_strain = 0.0
             coil_tech.JxB_strain = 0.0
         else
-            coil_tech.thermal_strain = gasc.inputs["conductors"]["thermalStrain$coil_type"]
-            coil_tech.JxB_strain = gasc.inputs["conductors"]["structuralStrain$coil_type"]
+            coil_tech.thermal_strain = float(gasc.inputs["conductors"]["thermalStrain$coil_type"])
+            coil_tech.JxB_strain = float(gasc.inputs["conductors"]["structuralStrain$coil_type"])
         end
     end
     if "fractionVoid$coil_type" ∉ keys(gasc.inputs["conductors"])
-        coil_tech.fraction_void = gasc.inputs["conductors"]["fractionVoidOH"]
-        coil_tech.fraction_stainless = gasc.inputs["conductors"]["fractionStainlessOH"]
+        coil_tech.fraction_void = float(gasc.inputs["conductors"]["fractionVoidOH"])
+        coil_tech.fraction_stainless = float(gasc.inputs["conductors"]["fractionStainlessOH"])
     else
-        coil_tech.fraction_void = gasc.inputs["conductors"]["fractionVoid$coil_type"]
-        coil_tech.fraction_stainless = gasc.inputs["conductors"]["fractionStainless$coil_type"]
+        coil_tech.fraction_void = float(gasc.inputs["conductors"]["fractionVoid$coil_type"])
+        coil_tech.fraction_stainless = float(gasc.inputs["conductors"]["fractionStainless$coil_type"])
     end
     return set_new_base!(coil_tech)
 end

@@ -344,26 +344,18 @@ function solve_1D_solid_mechanics!(
     # du_oh/dr = C_oh * g_oh(r) + A_oh - B_oh/r^2
     function f_tf(r)
         logr = log(r)
-        try
-            logr[!isfinite(logr)] = -100.0 # avoid nan output for non-positive r
-        catch
-            if !isfinite(logr)
-                logr = -100.0
-            end
-            return 1.0 / 8.0 * r^2 - R_tf_in^2 / 2.0 * (logr - 0.5)
+        if !isfinite(logr)
+            logr = -100.0
         end
+        return 1.0 / 8.0 * r^2 - R_tf_in^2 / 2.0 * (logr - 0.5)
     end
 
     function g_tf(r)
         logr = log(r)
-        try
-            logr[!isfinite(logr)] = -100.0 # avoid nan output for non-positive r
-        catch
-            if !isfinite(logr)
-                logr = -100.0
-            end
-            return 3.0 / 8.0 * r^2 - R_tf_in^2 / 2.0 * (logr + 0.5)
+        if !isfinite(logr)
+            logr = -100.0
         end
+        return 3.0 / 8.0 * r^2 - R_tf_in^2 / 2.0 * (logr + 0.5)
     end
 
     function f_oh(r)
@@ -486,35 +478,35 @@ function solve_1D_solid_mechanics!(
     end
 
     function dudr_tf(r)
-        return @. C_tf * g_tf(r) + A_tf - B_tf / r^2
+        return C_tf * g_tf(r) + A_tf - B_tf / r^2
     end
 
     function u_oh(r)
-        return @. r * (C_oh * f_oh(r) + A_oh + B_oh / r^2)
+        return r * (C_oh * f_oh(r) + A_oh + B_oh / r^2)
     end
 
     function dudr_oh(r)
-        return @. C_oh * g_oh(r) + A_oh - B_oh / r^2
+        return C_oh * g_oh(r) + A_oh - B_oh / r^2
     end
 
     function u_pl(r)
-        return @. r * A_pl
+        return r * A_pl
     end
 
     function dudr_pl(r)
-        return @. A_pl
+        return A_pl
     end
 
     function sr(r, em, gam, u, dudr)
-        return @. em / (1 - gam^2) * (dudr + u / r * gam)
+        return em / (1 - gam^2) * (dudr + u / r * gam)
     end
 
     function sh(r, em, gam, u, dudr)
-        return @. em / (1 - gam^2) * (u / r + dudr * gam)
+        return em / (1 - gam^2) * (u / r + dudr * gam)
     end
 
     function svm(sr, sh, sa)
-        return @. sqrt(((sh - sa)^2 + (sa - sr)^2 + (sr - sh)^2) / 2.0)
+        return sqrt(((sh - sa)^2 + (sa - sr)^2 + (sr - sh)^2) / 2.0)
     end
 
     ## calculate radial and hoop stresses
@@ -523,16 +515,16 @@ function solve_1D_solid_mechanics!(
     r_oh = LinRange(R_oh_in, R_oh_out, n_points)
     r_tf = LinRange(R_tf_in, R_tf_out, n_points)
 
-    displacement_oh = u_oh(r_oh)
-    displacement_tf = u_tf(r_tf)
-    ddiplacementdr_oh = dudr_oh(r_oh)
-    ddiplacementdr_tf = dudr_tf(r_tf)
+    displacement_oh = u_oh.(r_oh)
+    displacement_tf = u_tf.(r_tf)
+    ddiplacementdr_oh = dudr_oh.(r_oh)
+    ddiplacementdr_tf = dudr_tf.(r_tf)
 
-    radial_stress_oh = sr(r_oh, em_oh, gam_oh, displacement_oh, ddiplacementdr_oh)
-    radial_stress_tf = sr(r_tf, em_tf, gam_tf, displacement_tf, ddiplacementdr_tf)
+    radial_stress_oh = sr.(r_oh, em_oh, gam_oh, displacement_oh, ddiplacementdr_oh)
+    radial_stress_tf = sr.(r_tf, em_tf, gam_tf, displacement_tf, ddiplacementdr_tf)
 
-    hoop_stress_oh = sh(r_oh, em_oh, gam_oh, displacement_oh, ddiplacementdr_oh)
-    hoop_stress_tf = sh(r_tf, em_tf, gam_tf, displacement_tf, ddiplacementdr_tf)
+    hoop_stress_oh = sh.(r_oh, em_oh, gam_oh, displacement_oh, ddiplacementdr_oh)
+    hoop_stress_tf = sh.(r_tf, em_tf, gam_tf, displacement_tf, ddiplacementdr_tf)
 
     if axial_stress_tf_avg === nothing
         hoop_stress_tf_avg = sum(hoop_stress_tf) / length(hoop_stress_tf)
@@ -544,8 +536,8 @@ function solve_1D_solid_mechanics!(
     end
 
     ## calculate Von Mises stress
-    vonmises_stress_tf = svm(radial_stress_tf, hoop_stress_tf, axial_stress_tf_avg)
-    vonmises_stress_oh = svm(radial_stress_oh, hoop_stress_oh, axial_stress_oh_avg)
+    vonmises_stress_tf = svm.(radial_stress_tf, hoop_stress_tf, axial_stress_tf_avg)
+    vonmises_stress_oh = svm.(radial_stress_oh, hoop_stress_oh, axial_stress_oh_avg)
 
     if noslip
         # calc cross-sectional areas of OH and TF
@@ -562,12 +554,12 @@ function solve_1D_solid_mechanics!(
 
     if plug
         r_pl = LinRange(0, R_pl, n_points)[2:end]
-        displacement_pl = u_pl(r_pl)
-        ddiplacementdr_pl = dudr_pl(r_pl)
-        radial_stress_pl = sr(r_pl, em_pl, gam_pl, displacement_pl, ddiplacementdr_pl)
-        hoop_stress_pl = sh(r_pl, em_pl, gam_pl, displacement_pl, ddiplacementdr_pl)
+        displacement_pl = u_pl.(r_pl)
+        ddiplacementdr_pl = dudr_pl.(r_pl)
+        radial_stress_pl = sr.(r_pl, em_pl, gam_pl, displacement_pl, ddiplacementdr_pl)
+        hoop_stress_pl = sh.(r_pl, em_pl, gam_pl, displacement_pl, ddiplacementdr_pl)
         axial_stress_pl_avg = 0.0
-        vonmises_stress_pl = svm(radial_stress_pl, hoop_stress_pl, axial_stress_pl_avg)
+        vonmises_stress_pl = svm.(radial_stress_pl, hoop_stress_pl, axial_stress_pl_avg)
     else
         r_pl = missing
         displacement_pl = missing
@@ -599,7 +591,9 @@ function solve_1D_solid_mechanics!(
 
     smcs.grid.r_tf = r_tf
     smcs.grid.r_oh = r_oh
-    smcs.grid.r_pl = r_pl
+    if plug
+        smcs.grid.r_pl = r_pl
+    end
 
     # keep the worse case based on the Von Mises stresses
     if ismissing(smcs.stress.vonmises, :tf) || maximum(abs.(smcs.stress.vonmises.tf)) < maximum(abs.(vonmises_stress_tf))

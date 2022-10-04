@@ -1,5 +1,5 @@
 using Pkg
-Pkg.activate(joinpath(@__DIR__,".."))
+Pkg.activate(joinpath(@__DIR__, ".."))
 using Revise
 using Documenter
 import FUSE
@@ -7,6 +7,7 @@ import IMAS
 import IMASDD
 import AbstractTrees
 import ProgressMeter
+import Dates
 using InteractiveUtils: subtypes
 
 function html_link_repr(par::FUSE.AbstractParameter)
@@ -64,6 +65,11 @@ function parameters_details_md(io::IO, pars::FUSE.AbstractParameters)
     end
 end
 
+# ================== #
+# generate main page #
+# ================== #
+include("$(@__DIR__)/src/index.jl")
+
 # ================ #
 # generate DD page #
 # ================ #
@@ -115,7 +121,7 @@ makedocs(;
         "Development" => "develop.md",
         "Install" => "install.md",
         "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md", "HPC" => "parallel.md"],
-    ],
+    ]
 )
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
 @info "Converting links"
@@ -147,7 +153,7 @@ background-color: transparent !important;
         )
     end
 end
-files_to_convert = readdir("$(@__DIR__)/build")[findall(x -> startswith(x, "example_") && endswith(x, ".html"), readdir("$docs_dir/build"))]
+files_to_convert = readdir("$(@__DIR__)/build")[findall(x -> startswith(x, "example_") && endswith(x, ".html"), readdir("$(@__DIR__)/build"))]
 for file in files_to_convert
     local txt = open("$(@__DIR__)/build/$file", "r") do io
         read(io, String)

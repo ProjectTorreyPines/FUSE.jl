@@ -73,7 +73,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.oh.technology = coil_technology(:ITER, :OH)
     act.ActorFluxSwing.operate_at_j_crit = false
 
-    ini.target.flattop_duration = 1800
+    ini.target.flattop_duration = 1800.0
 
     ini.core_profiles.ne_ped = 7e19
     ini.core_profiles.greenwald_fraction = 0.9
@@ -89,6 +89,12 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.nbi.beam_energy = 1e6
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
+
+    act.ActorTransportSolver.evolve_densities = Dict(
+        :Ne        => :match_ne_scale,
+        :DT        => :quasi_neutrality,
+        :He        => :match_ne_scale,
+        :electrons => :flux_match)
 
     return set_new_base!(ini), set_new_base!(act)
 end

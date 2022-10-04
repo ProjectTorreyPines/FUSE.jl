@@ -1,10 +1,13 @@
 JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
 JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
-CURRENTDIR = $(shell pwd)
-
+CURRENTDIR := $(shell pwd)
+TODAY := $(shell date +'%Y-%m-%d')
 FUSE_BROKER := 35.247.84.151
+SERIAL ?= false
 
 DOCKER_PLATFORM := $(shell uname -m)
+DOCKER_PLATFORM := amd64
+#DOCKER_PLATFORM := arm64
 
 define clone_update_repo
     if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
@@ -13,14 +16,19 @@ define clone_update_repo
 endef
 
 all:
-	@echo 'FUSE makefile help'
 	@echo ''
-	@echo ' - make install      : install FUSE and its PTP dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update       : git pull FUSE and its PTP dependencies'
+	@echo '  ███████╗██╗   ██╗███████╗███████╗'
+	@echo '  ██╔════╝██║   ██║██╔════╝██╔════╝'
+	@echo '  █████╗  ██║   ██║███████╗█████╗  '
+	@echo '  ██╔══╝  ██║   ██║╚════██║██╔══╝  '
+	@echo '  ██║     ╚██████╔╝███████║███████╗'
+	@echo '  ╚═╝      ╚═════╝ ╚══════╝╚══════╝'
+	@echo ''
+	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
+	@echo ' - make update       : git pull FUSE and its dependencies' : OPTIONS [$SERIAL = false (default) -> runs paralel update $SERIAL = true updates serially to see error message of failed package]
 	@echo ' - make IJulia       : Install IJulia'
 	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
-	@echo ' - make docker_image : generate a new FUSE docker image'
-	@echo ' - make docker_run   : run the FUSE docker image'
+	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
 	@echo ''
 
 registry:
@@ -63,7 +71,7 @@ IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage
 IJulia:
 	julia -e '\
 using Pkg;\
-Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots", "IJulia", "Interact"]);\
+Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots", "IJulia", "WebIO", "Interact"]);\
 Pkg.build("IJulia");\
 '
 	python3 -m pip install --upgrade webio_jupyter_extension
@@ -72,7 +80,11 @@ precompile:
 	julia -e 'using Pkg; Pkg.precompile()'
 
 clone_update_all:
-	make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics Broker ZMQ
+	if [ "$(SERIAL)" = true || "$(SERIAL)" = True ] ; then \
+		make FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics Broker ZMQ ; \
+	else \
+		make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics Broker ZMQ ; \
+	fi
 
 update: install clone_update_all precompile
 
@@ -191,16 +203,50 @@ cleanup:
 html:
 	cd docs; julia make.jl
 
-web:
-	if [ ! -d "$(PWD)/docs/pages" ]; then cd docs; git clone --single-branch -b gh-pages git@github.com:ProjectTorreyPines/FUSE.jl.git pages; fi
-	#cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
-	cd docs/pages; git pull
+web_push:
+	cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
 	cd docs; cp -rf build/* pages/
+	cd docs/pages; echo "fuse.help" > CNAME ### this is to set the custom domain name for gh-pages
 	cd docs/pages; touch .nojekyll
 	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
 
+web:
+	if [ ! -d "$(PWD)/docs/pages" ]; then cd docs; git clone --single-branch -b gh-pages git@github.com:ProjectTorreyPines/FUSE.jl.git pages; fi
+	cd docs/pages; git pull
+	make web_push
+
+web_ci:
+	git clone $(PWD) docs/pages
+	cp .git/config docs/pages/.git/config
+	cd docs/pages; git fetch; git checkout gh-pages
+	cd docs/pages; git config user.email "fuse@fusion.gat.com"
+	cd docs/pages; git config user.name "FUSE-BOT"
+	make web_push
+
+clean_examples:
+	cd docs/src; rm -rf example_*.md
+
+all_examples: clean_examples examples
+
 examples: .PHONY
+	cd docs; julia notebooks_to_html.jl --execute
+
+all_blank_examples: clean_examples blank_examples
+
+blank_examples:
 	cd docs; julia notebooks_to_html.jl
+
+daily_example:
+	cd docs; julia notebooks_to_html.jl --daily --execute --canfail
+
+daily_example_commit:
+	git checkout -b examples_$(TODAY)
+	git add -A
+	git config user.email "fuse-bot@fusion.gat.com"
+	git config user.name "fuse bot"
+	git config push.autoSetupRemote true
+	git commit --allow-empty -m "example of the day"
+	git push --set-upstream origin examples_$(TODAY)
 
 dd:
 	julia ../IMASDD/src/generate_dd.jl

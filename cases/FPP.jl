@@ -27,13 +27,13 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     end
 
     if init_from == :ods
-        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "FPPv1.0_demount_eq.json")
+        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbetap_fpp_325_ods.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         act.ActorHFSsizing.fixed_aspect_ratio = true
     end
 
     ini.target.tritium_breeding_ratio = 1.1
-    ini.target.cost = 5E9
+    ini.target.cost = 5000. # M$
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
@@ -73,7 +73,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     # ini.equilibrium.δ *= -1
 
     # squareness
-    # ini.equilibrium.ζ = 0.1
+    # ini.equilibrium.ζ = 0.15
     # act.ActorEquilibrium.model = :CHEASE
 
     # add wall layer

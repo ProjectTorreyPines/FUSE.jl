@@ -11,17 +11,20 @@ import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princ
 #  Visualization of IMAS.build.layer as table  #
 #= ========================================== =#
 function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
-    df = DataFrames.DataFrame(group=String[], name=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[])
+    df = DataFrames.DataFrame(group=String[], details=String[], type=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[])
     for layer in layers
+        group = replace(string(BuildLayerSide(layer.fs)), "_" => "")
+        type = replace(string(BuildLayerType(layer.type)), "_" => "")
+        type = replace(type, r"^gap" => "")
+        details = replace(lowercase(layer.name), r"^[hl]fs " => "")
+        details = replace(details, r"^gap .*" => "")
+        details = replace(details, r"\b" * type * r"\b" => "")
         material = getproperty(layer, :material, "?")
         material = split(material, ",")[1]
         material = replace(material, "Vacuum" => "")
         area = getproperty(layer, :area, NaN)
         volume = getproperty(layer, :volume, NaN)
-        group = replace(string(BuildLayerSide(layer.fs)), "_" => "")
-        name = replace(layer.name, r"^[hl]fs " => "")
-        name = replace(name, r"^gap .*" => "")
-        push!(df, [group, name, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume])
+        push!(df, [group, details, type, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume])
     end
     return df
 end
@@ -217,7 +220,7 @@ function init_build(bd::IMAS.build; layers...)
                 layer.fs = Int(_out_)
             end
         end
-        layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => "")))
+        layer.identifier = UInt(hash(replace(replace(lowercase(layer.name), "hfs" => ""), "lfs" => ""))) % Int
         radius_end += layer.thickness
         radius_start = radius_end
     end

@@ -7,10 +7,13 @@ using LinearAlgebra
 #  ActorPFcoilsOpt  #
 #= =============== =#
 Base.@kwdef mutable struct PFcoilsOptTrace
-    params::Vector{Vector{Real}} = Vector{Real}[]
-    cost_lcfs::Vector{Real} = Real[]
-    cost_currents::Vector{Real} = Real[]
-    cost_total::Vector{Real} = Real[]
+    params::Vector{Vector{Float64}} = Vector{Float64}[]
+    cost_lcfs::Vector{Float64} = Float64[]
+    cost_currents::Vector{Float64} = Float64[]
+    cost_oh::Vector{Float64} = Float64[]
+    cost_1to1::Vector{Float64} = Float64[]
+    cost_spacing::Vector{Float64} = Float64[]
+    cost_total::Vector{Float64} = Float64[]
 end
 
 mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
@@ -35,17 +38,17 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
     ]
     par.green_model = Switch(options, "", "Model used for the coils Green function calculations"; default=:simple)
     par.symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
-    par.weight_currents = Entry(Real, "", "Weight of current limit constraint"; default=0.5)
-    par.weight_strike = Entry(Real, "", "Weight given to matching the strike-points"; default=0.0)
-    par.weight_lcfs = Entry(Real, "", "Weight given to matching last closed flux surface"; default=1.0)
-    par.weight_null = Entry(Real, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
+    par.weight_currents = Entry(Float64, "", "Weight of current limit constraint"; default=0.5)
+    par.weight_strike = Entry(Float64, "", "Weight given to matching the strike-points"; default=0.1)
+    par.weight_lcfs = Entry(Float64, "", "Weight given to matching last closed flux surface"; default=1.0)
+    par.weight_null = Entry(Float64, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
     par.maxiter = Entry(Integer, "", "Maximum number of optimizer iterations"; default=1000)
     options = [
         :none => "Do not optimize",
         :currents => "Find optimial coil currents but do not change coil positions",
         :rail => "Find optimial coil positions"
     ]
-    par.optimization_scheme = Switch(options, "", "Optimization to carry out"; default=:rail)
+    par.optimization_scheme = Switch(options, "", "Type of PF coil optimization to carry out"; default=:rail)
     par.update_equilibrium = Entry(Bool, "", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
@@ -84,17 +87,17 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
             finalize(actor; update_equilibrium=false)
 
             if par.do_plot
-                display(plot(actor.trace, :cost))
-                display(plot(actor.trace, :params))
+                display(plot(actor.trace, :cost, title="Evolution of cost"))
+                display(plot(actor.trace, :params, title="Evolution of optimized parameters"))
             end
         end
 
         if par.do_plot
             # field null time slice
-            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[1]))
+            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[1], title="Current limits at t=$(dd.equilibrium.time[1]) s"))
             display(plot(actor, equilibrium=true, rail=true, time_index=1))
             # final time slice
-            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[end]))
+            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[end], title="Current limits at t=$(dd.equilibrium.time[end]) s"))
             display(plot(actor, equilibrium=true, time_index=length(dd.equilibrium.time)))
         end
 
@@ -113,8 +116,8 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::ParametersActor; kw...)
     pf = dd.pf_active
     bd = dd.build
     par.symmetric
-    λ_regularize=1E-3
-    trace=PFcoilsOptTrace()
+    λ_regularize = 1E-3
+    trace = PFcoilsOptTrace()
     par.green_model
 
     # reset pf coil rails
@@ -127,12 +130,12 @@ end
 """
     step(actor::ActorPFcoilsOpt;
         symmetric::Bool=actor.symmetric,
-        λ_regularize::Real=actor.λ_regularize,
-        weight_lcfs::Real=actor.par.weight_lcfs,
-        weight_null::Real=actor.par.weight_null,
-        weight_currents::Real=actor.par.weight_currents,
-        weight_strike::Real=actor.par.weight_strike,
-        maxiter::Real=actor.par.maxiter,
+        λ_regularize::Float64=actor.λ_regularize,
+        weight_lcfs::Float64=actor.par.weight_lcfs,
+        weight_null::Float64=actor.par.weight_null,
+        weight_currents::Float64=actor.par.weight_currents,
+        weight_strike::Float64=actor.par.weight_strike,
+        maxiter::Int=actor.par.maxiter,
         optimization_scheme::Symbol=actor.par.optimization_scheme,
         verbose::Bool=actor.par.verbose)
 
@@ -140,12 +143,12 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 """
 function _step(actor::ActorPFcoilsOpt;
     symmetric::Bool=actor.symmetric,
-    λ_regularize::Real=actor.λ_regularize,
-    weight_lcfs::Real=actor.par.weight_lcfs,
-    weight_null::Real=actor.par.weight_null,
-    weight_currents::Real=actor.par.weight_currents,
-    weight_strike::Real=actor.par.weight_strike,
-    maxiter::Real=actor.par.maxiter,
+    λ_regularize::Float64=actor.λ_regularize,
+    weight_lcfs::Float64=actor.par.weight_lcfs,
+    weight_null::Float64=actor.par.weight_null,
+    weight_currents::Float64=actor.par.weight_currents,
+    weight_strike::Float64=actor.par.weight_strike,
+    maxiter::Int=actor.par.maxiter,
     optimization_scheme::Symbol=actor.par.optimization_scheme,
     verbose::Bool=actor.par.verbose)
 
@@ -178,14 +181,14 @@ end
     finalize(
         actor::ActorPFcoilsOpt;
         update_equilibrium::Bool=actor.par.update_equilibrium,
-        scale_eq_domain_size::Real=1.0)
+        scale_eq_domain_size::Float64=1.0)
 
 Update actor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
 function _finalize(
     actor::ActorPFcoilsOpt;
     update_equilibrium::Bool=actor.par.update_equilibrium,
-    scale_eq_domain_size::Real=1.0)
+    scale_eq_domain_size::Float64=1.0)
 
     coils = GS_IMAS_pf_active__coil[]
     for (k, coil) in enumerate(actor.pf_active.coil)
@@ -218,7 +221,7 @@ function _finalize(
         if false # hack to force up-down symmetric equilibrium
             actor.eq_out.time_slice[time_index].profiles_2d[1].psi = (ψ_f2f .+ ψ_f2f[1:end, end:-1:1]) ./ 2.0
         else
-            actor.eq_out.time_slice[time_index].profiles_2d[1].psi = ψ_f2f
+            actor.eq_out.time_slice[time_index].profiles_2d[1].psi = copy(ψ_f2f)
         end
     end
 
@@ -297,7 +300,7 @@ function transfer_info_GS_coil_to_IMAS(bd::IMAS.build, coil::GS_IMAS_pf_active__
     pf_active__coil.element[1].geometry.rectangle.z = coil.z
     pf_active__coil.element[1].geometry.rectangle.width = coil.width
     pf_active__coil.element[1].geometry.rectangle.height = coil.height
-    pf_active__coil.element[1].turns_with_sign = coil.turns_with_sign
+    pf_active__coil.element[1].turns_with_sign = float(coil.turns_with_sign)
     pf_active__coil.b_field_max = range(0.1, 30, step=0.1)
     pf_active__coil.temperature = [-1, coil.coil_tech.temperature]
     pf_active__coil.current_limit_max = [abs(coil_J_B_crit(b, coil.coil_tech)[1] * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
@@ -322,7 +325,7 @@ function set_turns_from_spacing!(pf_active__coil::IMAS.pf_active__coil, spacing:
 end
 
 function set_turns_from_spacing!(pf_active__coil::IMAS.pf_active__coil, spacing::Real, s::Int)
-    pf_active__coil.element[1].turns_with_sign = s * Int(ceil(IMAS.area(pf_active__coil) / spacing^2))
+    pf_active__coil.element[1].turns_with_sign = float(s * Int(ceil(IMAS.area(pf_active__coil) / spacing^2)))
 end
 
 function get_spacing_from_turns(coil::GS_IMAS_pf_active__coil)
@@ -617,18 +620,20 @@ function optimize_coils_rail(
         cost_oh = norm(all_cost_oh) / length(all_cost_oh)
         #spacing
         cost_spacing = 0.0
-        for (k1, c1) in enumerate(optim_coils)
-            for (k2, c2) in enumerate(optim_coils)
-                if k1 < k2
-                    cost_spacing += 1.0 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
+        if length(optim_coils) > 0
+            for (k1, c1) in enumerate(optim_coils)
+                for (k2, c2) in enumerate(optim_coils)
+                    if k1 < k2
+                        cost_spacing += 1.0 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
+                    end
                 end
             end
+            cost_spacing = cost_spacing / length(optim_coils)^2 / R0
         end
-        cost_spacing = cost_spacing / length(optim_coils)^2 / R0
 
         cost_lcfs_2 = cost_lcfs^2 * 10000.0
         cost_currents_2 = cost_currents^2
-        cost_oh_2 = cost_oh^2
+        cost_oh_2 = cost_oh^2 * 0.1
         cost_1to1_2 = cost_1to1^2
         cost_spacing_2 = cost_spacing^2
 
@@ -638,6 +643,9 @@ function optimize_coils_rail(
             push!(trace.params, packed)
             push!(trace.cost_lcfs, sqrt(cost_lcfs_2))
             push!(trace.cost_currents, sqrt(cost_currents_2))
+            push!(trace.cost_oh, sqrt(cost_oh_2))
+            push!(trace.cost_1to1, sqrt(cost_1to1_2))
+            push!(trace.cost_spacing, sqrt(cost_spacing_2))
             push!(trace.cost_total, cost)
         end
         if isnan(cost)
@@ -671,7 +679,7 @@ function optimize_coils_rail(
         placement_cost(packed)
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
     else
-        res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb, g_tol=1E-4); autodiff=:forward)
+        res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(time_limit=60 * 2, iterations=maxiter, callback=clb, g_tol=1E-4, show_trace=verbose); autodiff=:forward)
         if verbose
             println(res)
         end
@@ -893,17 +901,48 @@ Attributes:
     legend --> :bottomleft
     if what == :cost
         if sum(trace.cost_lcfs[start_at:end]) > 0.0
+            data = trace.cost_lcfs[start_at:end]
+            index = data .> 0.0
             @series begin
                 label --> "ψ"
                 yscale --> :log10
-                x, trace.cost_lcfs[start_at:end]
+                x[index], data[index]
             end
         end
         if sum(trace.cost_currents[start_at:end]) > 0.0
+            data = trace.cost_currents[start_at:end]
+            index = data .> 0.0
             @series begin
                 label --> "currents"
                 yscale --> :log10
-                x, trace.cost_currents[start_at:end]
+                x[index], data[index]
+            end
+        end
+        if sum(trace.cost_oh[start_at:end]) > 0.0
+            data = trace.cost_oh[start_at:end]
+            index = data .> 0.0
+            @series begin
+                label --> "oh"
+                yscale --> :log10
+                x[index], data[index]
+            end
+        end
+        if sum(trace.cost_1to1[start_at:end]) > 0.0
+            data = trace.cost_1to1[start_at:end]
+            index = data .> 0.0
+            @series begin
+                label --> "1to1"
+                yscale --> :log10
+                x[index], data[index]
+            end
+        end
+        if sum(trace.cost_spacing[start_at:end]) > 0.0
+            data = trace.cost_spacing[start_at:end]
+            index = data .> 0.0
+            @series begin
+                label --> "spacing"
+                yscale --> :log10
+                x[index], data[index]
             end
         end
         @series begin

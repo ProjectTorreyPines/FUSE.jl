@@ -2,15 +2,13 @@
 #  ActorNeutronics  #
 #= =============== =#
 
-using MillerExtendedHarmonic
-
-mutable struct neutron_particle
-    x
-    y
-    z
-    δvx
-    δvy
-    δvz
+mutable struct neutron_particle{T<:Real}
+    x::T
+    y::T
+    z::T
+    δvx::T
+    δvy::T
+    δvz::T
 end
 
 function Rcoord(n::neutron_particle)
@@ -34,7 +32,7 @@ end
 function ParametersActor(::Type{Val{:ActorNeutronics}})
     par = ParametersActor(nothing)
     par.N = Entry(Integer, "", "Number of particles"; default=100000)
-    par.step = Entry(Real, "", "Interator stepping"; default=0.05)
+    par.step = Entry(Float64, "", "Interator stepping"; default=0.05)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     return par
 end
@@ -55,7 +53,7 @@ function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function _step(actor::ActorNeutronics; N::Integer=actor.par.N, step=actor.par.step, do_plot::Bool=actor.par.do_plot)
+function _step(actor::ActorNeutronics; N::Integer=actor.par.N, step::Float64=actor.par.step, do_plot::Bool=actor.par.do_plot)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]

@@ -253,7 +253,7 @@ function assign_coil_technology(dd::IMAS.dd, ini::ParametersAllInits, coil_type:
     end
     coil_tech = getproperty(dd.build, coil_type).technology
     for property in fieldnames(IMAS.build__tf__technology)
-        if property == :_parent
+        if startswith(string(property), "_")
             continue
         end
         coil_params = getproperty(ini, coil_type).technology

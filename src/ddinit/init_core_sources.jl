@@ -38,8 +38,12 @@ function init_nbi(
         beamlet = resize!(nbu.beamlets_group, 1)[1]
         beamlet.angle = toroidal_angle[idx] / 360 * 2pi
         # Efficiencies
-        nbu.efficiency.conversion = efficiency_conversion[idx]
-        nbu.efficiency.transmission = efficiency_transmission[idx]
+        if efficiency_conversion[idx] !== missing
+            nbu.efficiency.conversion = efficiency_conversion[idx]
+        end
+        if efficiency_transmission[idx] !== missing
+            nbu.efficiency.transmission = efficiency_transmission[idx]
+        end
     end
 
     return dd
@@ -70,8 +74,12 @@ function init_ec_launchers(
         ecl.name = length(power_launched) > 1 ? "ec_$idx" : "ec"
         @ddtime(ecl.power_launched.data = power_launched[idx])
         ecl.available_launch_power = power_launched[idx]
-        ecl.efficiency.conversion = efficiency_conversion[idx]
-        ecl.efficiency.transmission = efficiency_transmission[idx]
+        if efficiency_conversion[idx] !== missing
+            ecl.efficiency.conversion = efficiency_conversion[idx]
+        end
+        if efficiency_transmission[idx] !== missing
+            ecl.efficiency.transmission = efficiency_transmission[idx]
+        end
     end
 end
 
@@ -103,8 +111,12 @@ function init_ic_antennas(
         @ddtime(ica.power_launched.data = power_launched[idx])
         ica.available_launch_power = power_launched[idx]
         ica.efficiency.conversion = efficiency_conversion[idx]
-        ica.efficiency.transmission = efficiency_transmission[idx]
-        ica.efficiency.coupling = efficiency_coupling[idx]
+        if efficiency_conversion[idx] !== missing
+            ica.efficiency.conversion = efficiency_conversion[idx]
+        end
+        if efficiency_transmission[idx] !== missing
+            ica.efficiency.transmission = efficiency_transmission[idx]
+        end
     end
 end
 
@@ -135,8 +147,12 @@ function init_lh_antennas(
         @ddtime(lha.power_launched.data = power_launched[idx])
         lha.available_launch_power = power_launched[idx]
         lha.efficiency.conversion = efficiency_conversion[idx]
-        lha.efficiency.transmission = efficiency_transmission[idx]
-        lha.efficiency.coupling = efficiency_coupling[idx]
+        if efficiency_conversion[idx] !== missing
+            lha.efficiency.conversion = efficiency_conversion[idx]
+        end
+        if efficiency_transmission[idx] !== missing
+            lha.efficiency.transmission = efficiency_transmission[idx]
+        end
     end
 end
 

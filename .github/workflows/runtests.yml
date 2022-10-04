@@ -1,12 +1,21 @@
-name: CI
+name: runtests
 
-# From: https://github.com/JuliaDocs/Documenter.jl/blob/master/.github/workflows/CI.yml
-#     + https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765
 on:
+  workflow_dispatch:
+    inputs:
+      debug:
+        type: boolean
+        required: false
+        default: false
   push:
     branches:
       - master
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
@@ -18,18 +27,18 @@ jobs:
           - "1.x"
         os:
           - ubuntu-latest
-          #- macos-latest # avoid buring github actions hours
-          #- windows-latest # avoid buring github actions hours
         arch:
           - x64
 
     steps:
       - uses: actions/checkout@v2
+      #============
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
+      - uses: julia-actions/cache@v1
       - run: |
           julia -e '
             using Pkg
@@ -41,4 +50,10 @@ jobs:
             Pkg.add(dependencies)
             '
       - uses: julia-actions/julia-buildpkg@v1
+      #============
       - uses: julia-actions/julia-runtest@v1
+      #============
+      - name: Debug with tmate if failure + manual triggrer + debug mode
+        if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60

@@ -50,7 +50,6 @@ function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
 end
 
 function _step(actor::ActorBlanket)
-    @warn "currently only using GAMBL materials in blanket and first wall."
     dd = actor.dd
     empty!(dd.blanket)
     blanket = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
@@ -68,16 +67,14 @@ function _step(actor::ActorBlanket)
     total_neutrons_per_second = total_power_neutrons / 2.259E-12  # 14.1 MeV = 2.259E-12 J
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
 
-    blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
-    resize!(dd.blanket.module, length(blankets))
-
     fwr = dd.neutronics.first_wall.r
     fwz = dd.neutronics.first_wall.z
 
+    # for all blanket modules
+    blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
+    resize!(dd.blanket.module, length(blankets))
     modules_effective_thickness = []
     modules_wall_loading_power = []
-    modules_effective_thickness_guess = []
-
     for (istructure, structure) in enumerate(blankets)
         bm = dd.blanket.module[istructure]
         bm.name = structure.name
@@ -165,7 +162,6 @@ function _step(actor::ActorBlanket)
         bmt.power_thermal_extracted = actor.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
 
         push!(modules_effective_thickness, effective_thickness)
-        push!(modules_effective_thickness_guess, effective_thickness)
         push!(modules_wall_loading_power, nnt.wall_loading.power[index])
     end
 

@@ -504,11 +504,11 @@ function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
 end
 
 """
-    volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{IMAS.build__structure})
+    volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{<:IMAS.build__structure})
 
 Returns volume of the layer without structures
 """
-function volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{IMAS.build__structure})
+function volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{<:IMAS.build__structure})
     vol = 0.0
     for structure in structures
         vol += layer_structure_intersect_volume(layer, structure)

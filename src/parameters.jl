@@ -272,12 +272,12 @@ function path(p::Union{AbstractParameter,AbstractParameters})
         return Symbol[]
     end
     pp = Symbol[name]
-    while typeof(p._parent.value) <: AbstractParameters
-        if p._parent.value._name === missing
+    while typeof(getfield(p,:_parent).value) <: AbstractParameters
+        if getfield(p,:_parent).value._name === missing
             break
         end
-        pushfirst!(pp, p._parent.value._name)
-        p = p._parent.value
+        pushfirst!(pp, getfield(p,:_parent).value._name)
+        p = getfield(p,:_parent).value
     end
     return pp
 end
@@ -343,7 +343,7 @@ end
 
 function Base.deepcopy(p::Union{AbstractParameter,AbstractParameters})
     p1 = Base.deepcopy_internal(p, Base.IdDict())
-    p1._parent = WeakRef(missing)
+    setfield!(p1, :_parent, WeakRef(missing))
     return p1
 end
 
@@ -351,7 +351,7 @@ function Base.setproperty!(p::AbstractParameters, key::Symbol, value)
     if key ∈ fieldnames(typeof(p))
         return setfield!(p, key, value)
     elseif typeof(value) <: Union{AbstractParameter,AbstractParameters}
-        if typeof(value._parent.value) <: Union{AbstractParameter,AbstractParameters}
+        if typeof(getfield(value, :_parent).value) <: Union{AbstractParameter,AbstractParameters}
             value = deepcopy(value)
         end
         setfield!(value, :_parent, WeakRef(p))

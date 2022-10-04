@@ -1,11 +1,9 @@
 # Setup the FUSE environment
 
 ## Julia installation
-* Download the latest stable Julia version: [https://julialang.org](https://julialang.org)
-* Setup your `$PATH` environment variable
-  - Under OSX edit your `~/.zshrc` and add ` PATH=/Applications/Julia-1.7.app/Contents/Resources/julia/bin:$PATH`
-  - Under Linux edit your `~/.bashrc` and add ` PATH=/PATH_TO_PARENT_JULIA_FOLDER/julia/bin:$PATH`
-* Test that your Julia interpreter starts by typing `julia` at the terminal
+We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) manager to install Julia
+* Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
+* Windows: `winget install julia -s msstore`
 
 ## Install FUSE packages
 1. Clone the FUSE repository under the `~/.julia/dev` folder (note that the repository ends with `.jl` but the install folder does not):
