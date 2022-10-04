@@ -16,8 +16,6 @@ end
 function ParametersActor(::Type{Val{:ActorBlanket}})
     par = ParametersActor(nothing)
     par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default = 1.2)
-    par.optimize_parameter = Switch([:TBR, :leakage], "", "Blanket parameter to be optimized"; default = :TBR)
-    par.optimize_variable = Switch([:d1, :d2, :d3, :Li6], "", "Blanket variable to be adjusted"; default = :Li6)
     par.thermal_power_extraction_efficiency = Entry(
         Real,
         "",
