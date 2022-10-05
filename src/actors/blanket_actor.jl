@@ -78,7 +78,7 @@ function _step(actor::ActorBlanket)
         bm.name = structure.name
 
         # get the relevant blanket layers
-        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r # HFS
+        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r && length(blankets) > 1# HFS
             fs = _hfs_
         else
             fs = _lfs_
@@ -221,6 +221,8 @@ function _step(actor::ActorBlanket)
         l3 = value(d3)
         Li6 = value(Li6)
         TBR = total_TBR(l1, l2, l3, Li6)
+
+        dd.build.layer
         return total_leakage, l1, l2, l3, Li6, TBR
     end
 
