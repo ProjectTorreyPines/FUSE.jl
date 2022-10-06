@@ -191,7 +191,7 @@ function _step(actor::ActorBlanket)
     return actor
 end
 
-function optimize_layers(blanket_model, l1, l2, l3, target=1.1)
+function optimize_layers(blanket_model, l1, l2, l3, target = 1.1, objective = :leakage)
     energy_grid = NNeutronics.energy_grid()
     modules_thickness = [l1, l2, l3]
     blanket_thickness = sum(modules_thickness)
@@ -202,7 +202,15 @@ function optimize_layers(blanket_model, l1, l2, l3, target=1.1)
         g[1] = -exp(-x)
         g[2] = -exp(-y)
         g[3] = -exp(-z)
-        g[4] = -exp(-a)
+        g[4] = 1
+        return
+    end
+
+    function ∇g(g::AbstractVector{T}, x::T, y::T, z::T, a::T) where {T}
+        g[1] = -exp(-x)
+        g[2] = 1/y
+        g[3] = 1/z
+        g[4] = 1
         return
     end
 
@@ -210,25 +218,29 @@ function optimize_layers(blanket_model, l1, l2, l3, target=1.1)
     set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
 
     register(model, :total_neutron_leakage, 4, total_neutron_leakage, ∇f)
-    register(model, :total_TBR, 4, total_TBR, ∇f)
-    @variable(model, d1>=0)
-    @variable(model, d2>=0)
-    @variable(model, d3>=0)
-    @variable(model, 0<=Li6<=100)
-
-    @NLobjective(model, Min, total_neutron_leakage(d1, d2, d3, Li6))
-
+    register(model, :total_TBR, 4, total_TBR, ∇g)
+    @variable(model, d1 >= 0.0)
+    @variable(model, d2 >= 0.0)
+    @variable(model, d3 >= 0.0)
+    @variable(model, 0.0 <= Li6 <= 100.0)
     @NLconstraint(model, blanket_thickness >= d1 + d2 + d3)
-    @NLconstraint(model, target <= total_TBR(d1, d2, d3, Li6))
-    
-    JuMP.optimize!(model)
-    
-    total_leakage = objective_value(model)
-    l1 = value(d1)
-    l2 = value(d2)
-    l3 = value(d3)
-    Li6 = value(Li6)
-    TBR = total_TBR(l1, l2, l3, Li6)
+
+    if objective == :leakage
+        @NLconstraint(model, target <= total_TBR(d1, d2, d3, Li6))
+        @NLobjective(model, Min, total_neutron_leakage(d1, d2, d3, Li6))
+        JuMP.optimize!(model)
+        total_leakage = objective_value(model)
+        l1, l2, l3, Li6 = (value(d1), value(d2), value(d3), value(Li6))
+        TBR = total_TBR(l1, l2, l3, Li6)
+    elseif objective == :TBR
+        target = 0.1
+        @NLconstraint(model, target >= total_neutron_leakage(d1, d2, d3, Li6))
+        @NLobjective(model, Max, total_TBR(d1, d2, d3, Li6))
+        JuMP.optimize!(model)
+        TBR = objective_value(model)
+        l1, l2, l3, Li6 = (value(d1), value(d2), value(d3), value(Li6))
+        total_leakage = total_neutron_leakage(l1, l2, l3, Li6)
+    end
 
     return total_leakage, l1, l2, l3, Li6, TBR
 end
