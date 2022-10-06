@@ -3,6 +3,7 @@ import QuadGK
 import Interpolations
 import PolygonOps
 import Interact
+import Memoize
 
 #= =============== =#
 #  Shape functions  #
@@ -849,4 +850,43 @@ function private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{
     zz_l = vcat(zz_l_hfs[1:end-1], zz_l_lfs[2:end])
 
     return rr_u, zz_u, rr_l, zz_l
+end
+
+Memoize.@memoize function avgZinterpolator(filename::String)
+    txt = open(filename, "r") do io
+        strip(read(io, String))
+    end
+
+    iion = Vector{Int}()
+    Ti = Vector{Float64}()
+    for (k, line) in enumerate(split(txt, "\n"))
+        if k == 1
+            continue
+        elseif k == 2
+            continue
+        elseif k == 3
+            append!(iion, collect(map(x -> parse(Int, x), split(line))))
+        elseif k == 4
+            append!(Ti, collect(map(x -> parse(Float64, x), split(line))))
+        end
+    end
+
+    data = zeros(length(Ti), length(iion))
+    for (k, line) in enumerate(split(txt, "\n"))
+        if k > 4
+            data[k-4, :] = map(x -> parse(Float64, x), split(line))
+        end
+    end
+
+    return Interpolations.interpolate((log10.(Ti), iion), log10.(data .+ 1), Interpolations.Gridded(Interpolations.Linear()))
+
+end
+
+"""
+    Zavg(Z::Int,Ti::T)::T
+
+Returns average ionization state of an ion at a given temperature
+"""
+function Zavg(Z::Int, Ti::T,)::T where {T}
+    return 10.0 .^ (avgZinterpolator(joinpath((@__DIR__), "data", "Zavg_z_t.dat")).(log10.(Ti ./ 1E3), Z)) .- 1.0
 end
