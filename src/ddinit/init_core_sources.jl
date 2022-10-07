@@ -110,7 +110,9 @@ function init_ic_antennas(
         ica.name = length(power_launched) > 1 ? "ic_$idx" : "ic"
         @ddtime(ica.power_launched.data = power_launched[idx])
         ica.available_launch_power = power_launched[idx]
-        ica.efficiency.conversion = efficiency_conversion[idx]
+        if efficiency_coupling[idx] !== missing
+            ica.efficiency.coupling = efficiency_coupling[idx]
+        end
         if efficiency_conversion[idx] !== missing
             ica.efficiency.conversion = efficiency_conversion[idx]
         end
@@ -146,7 +148,9 @@ function init_lh_antennas(
         lha.name = length(power_launched) > 1 ? "lh_$idx" : "lh"
         @ddtime(lha.power_launched.data = power_launched[idx])
         lha.available_launch_power = power_launched[idx]
-        lha.efficiency.conversion = efficiency_conversion[idx]
+        if efficiency_coupling[idx] !== missing
+            lha.efficiency.coupling = efficiency_coupling[idx]
+        end
         if efficiency_conversion[idx] !== missing
             lha.efficiency.conversion = efficiency_conversion[idx]
         end
