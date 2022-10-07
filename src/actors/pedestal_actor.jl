@@ -43,8 +43,9 @@ function ActorPedestal(dd::IMAS.dd, par::ParametersActor; kw...)
 
     eq = dd.equilibrium
     eqt = eq.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
 
-    m = [ion.element[1].a for ion in dd.core_profiles.profiles_1d[].ion if Int(floor(ion.element[1].z_n)) == 1]
+    m = [ion.element[1].a for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) == 1]
     m = sum(m) / length(m)
     if m < 2
         m = 2
@@ -107,7 +108,8 @@ function _finalize(actor::ActorPedestal;
     dd = actor.dd
     dd_ped = dd.summary.local.pedestal
 
-    impurity = [ion.element[1].z_n for ion in dd.core_profiles.profiles_1d[].ion if Int(floor(ion.element[1].z_n)) != 1][1]
+    cp1d = dd.core_profiles.profiles_1d[]
+    impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
     zi = sum(impurity) / length(impurity)
 
     nival = actor.inputs.neped * 1e19 * (actor.inputs.zeffped - 1) / (zi^2 - zi)
@@ -120,6 +122,6 @@ function _finalize(actor::ActorPedestal;
     @ddtime dd_ped.position.rho_tor_norm = 1 - actor.wped * sqrt(eped_factor)
 
     if blend_core_pedestal
-        IMAS.blend_core_pedestal_Hmode(dd)
+        IMAS.blend_core_pedestal_Hmode(cp1d, dd_ped)
     end
 end

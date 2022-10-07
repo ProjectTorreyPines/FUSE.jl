@@ -140,7 +140,7 @@ function neoclassical_changhinton(
     b0 = 0.31
     c0 = 0.74
 
-    Zi = prof1d.ion[iion].element[1].z_n
+    Zi = IMAS.avgZ(prof1d.ion[iion].element[1].z_n, Ti)
     alpha = Zi - 1
     nui = sqrt(2.0) * pi * ne * (Zi * e)^4 * loglam / sqrt(mi) / (k * Ti)^1.5
     nu = nui * a / c_s / sqrt(Ti / Ti) * (Ti / Te)^1.5

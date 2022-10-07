@@ -3,7 +3,13 @@ JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
 CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
 FUSE_BROKER := 35.247.84.151
-SERIAL ?= false
+
+# define SERIAL environmental variable to run update serially
+ifdef SERIAL
+	PARALLELISM := -j 1
+else
+	PARALLELISM := -j 100
+endif
 
 DOCKER_PLATFORM := $(shell uname -m)
 DOCKER_PLATFORM := amd64
@@ -25,7 +31,7 @@ all:
 	@echo '  ╚═╝      ╚═════╝ ╚══════╝╚══════╝'
 	@echo ''
 	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update       : git pull FUSE and its dependencies' : OPTIONS [$SERIAL = false (default) -> runs paralel update $SERIAL = true updates serially to see error message of failed package]
+	@echo ' - make update       : git pull FUSE and its dependencies'
 	@echo ' - make IJulia       : Install IJulia'
 	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
 	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
@@ -80,11 +86,7 @@ precompile:
 	julia -e 'using Pkg; Pkg.precompile()'
 
 clone_update_all:
-	if [ "$(SERIAL)" = true || "$(SERIAL)" = True ] ; then \
-		make FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics Broker ZMQ ; \
-	else \
-		make -j 100 FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics Broker ZMQ ; \
-	fi
+	make $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics Broker ZMQ
 
 update: install clone_update_all precompile
 
