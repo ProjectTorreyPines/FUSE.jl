@@ -72,7 +72,7 @@ function init_core_profiles(
     # 1. DT
     ion = resize!(cp1d.ion, "label" => String(bulk))
     fill!(ion, IMAS.ion_element(ion_symbol=bulk))
-    @assert ion.element[1].z_n == 1 "Bulk ion must be a Hydrogenic isotope [:H, :D, :DT, :T]"
+    @assert ion.element[1].z_n == 1.0 "Bulk ion must be a Hydrogenic isotope [:H, :D, :DT, :T]"
 
     # 2. Imp
     ion = resize!(cp1d.ion, "label" => String(impurity))
