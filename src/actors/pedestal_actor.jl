@@ -14,11 +14,12 @@ end
 
 function ParametersActor(::Type{Val{:ActorPedestal}})
     par = ParametersActor(nothing)
-    par.blend_core_pedestal = Entry(Bool, "", "Blends the core and pedestal at the finalize step using default settings for the blender (rho_bound=0.8)"; default=true)
+    par.update_core_profiles = Entry(Bool, "", "Update core_profiles"; default=true)
+    par.edge_bound = Entry(Real, "", "Defines rho at which edge starts"; default=0.8)
     par.temp_pedestal_ratio = Entry(Real, "", "Ratio of ion to electron temperatures"; default=1.0)
-    par.eped_factor = Entry(Real, "", "Pedestal height multiplier (affects width by the squareroot)"; default=1.0)
-    par.warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
-    par.only_powerlaw = Entry(Bool, "", "Use power-law pedestal fit (without NN correction)"; default=false)
+    par.ped_factor = Entry(Real, "", "Pedestal height multiplier"; default=1.0)
+    par.warn_nn_train_bounds = Entry(Bool, "", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
+    par.only_powerlaw = Entry(Bool, "", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     return par
 end
 
@@ -93,35 +94,36 @@ function _step(actor::ActorPedestal;
 end
 
 """
-    finalize(actor::ActorPedestal;
+    _finalize(actor::ActorPedestal;
         temp_pedestal_ratio::Real=actor.par.temp_pedestal_ratio,
-        eped_factor::Real=actor.par.eped_factor,
-        blend_core_pedestal::Bool=actor.par.blend_core_pedestal))
+        ped_factor::Real=actor.par.ped_factor,
+        edge_bound::Real=actor.par.edge_bound,
+        update_core_profiles::Bool=actor.par.update_core_profiles)
 
-Writes results to dd.summary.local.pedestal and blends the pedestal if blend_core_pedestal == true
+Writes results to dd.summary.local.pedestal and possibly updates core_profiles
 """
 function _finalize(actor::ActorPedestal;
     temp_pedestal_ratio::Real=actor.par.temp_pedestal_ratio,
-    eped_factor::Real=actor.par.eped_factor,
-    blend_core_pedestal::Bool=actor.par.blend_core_pedestal)
+    ped_factor::Real=actor.par.ped_factor,
+    edge_bound::Real=actor.par.edge_bound,
+    update_core_profiles::Bool=actor.par.update_core_profiles)
 
     dd = actor.dd
-    dd_ped = dd.summary.local.pedestal
 
     cp1d = dd.core_profiles.profiles_1d[]
     impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
     zi = sum(impurity) / length(impurity)
-
     nival = actor.inputs.neped * 1e19 * (actor.inputs.zeffped - 1) / (zi^2 - zi)
     nval = actor.inputs.neped * 1e19 - zi * nival
     nsum = actor.inputs.neped * 1e19 + nval + nival
     tped = (actor.pped * 1e6) / nsum / constants.e
 
-    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + temp_pedestal_ratio) * eped_factor
+    dd_ped = dd.summary.local.pedestal
+    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + temp_pedestal_ratio) * ped_factor
     @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * temp_pedestal_ratio
-    @ddtime dd_ped.position.rho_tor_norm = 1 - actor.wped * sqrt(eped_factor)
+    @ddtime dd_ped.position.rho_tor_norm = 1 - actor.wped * sqrt(ped_factor)
 
-    if blend_core_pedestal
-        IMAS.blend_core_pedestal_Hmode(cp1d, dd_ped)
+    if update_core_profiles
+        IMAS.blend_core_edge_Hmode(cp1d, dd_ped, edge_bound)
     end
 end
