@@ -124,6 +124,6 @@ function _finalize(actor::ActorPedestal;
     @ddtime dd_ped.position.rho_tor_norm = 1 - actor.wped * sqrt(ped_factor)
 
     if update_core_profiles
-        IMAS.blend_core_pedestal_Hmode(cp1d, dd_ped, edge_bound)
+        IMAS.blend_core_edge_Hmode(cp1d, dd_ped, edge_bound)
     end
 end
