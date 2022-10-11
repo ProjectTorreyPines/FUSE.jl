@@ -73,6 +73,8 @@ function _step(actor::ActorBlanket)
     resize!(dd.blanket.module, length(blankets))
     modules_effective_thickness = []
     modules_wall_loading_power = []
+    Li6 = 0.0
+    blanket_model_1d = NNeutronics.Blanket()
     for (istructure, structure) in enumerate(blankets)
         bm = dd.blanket.module[istructure]
         bm.name = structure.name
@@ -111,7 +113,6 @@ function _step(actor::ActorBlanket)
         end
 
         # optimize layer thickensses
-        blanket_model_1d = NNeutronics.Blanket()
         total_leakage, d1_thickness, d2_thickness, d3_thickness, Li6, TBR = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness)
         bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness = d1_thickness, d2_thickness, d3_thickness
         for (kl, dl) in enumerate([d1, d2, d3])
@@ -194,6 +195,10 @@ function _step(actor::ActorBlanket)
             return (total_tritium_breeding_ratio - target)^2
         end
     end
+
+    ActorCXbuild(dd, actor.par)
+    target_TBR(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
+
     return actor
 end
 
