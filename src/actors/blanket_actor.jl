@@ -11,6 +11,7 @@ mutable struct ActorBlanket <: ReactorAbstractActor
     par::ParametersActor
     blanket_multiplier::Real
     thermal_power_extraction_efficiency::Real
+    objective::Symbol
 end
 
 function ParametersActor(::Type{Val{:ActorBlanket}})
@@ -22,6 +23,7 @@ function ParametersActor(::Type{Val{:ActorBlanket}})
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0
     )
+    par.objective = Switch([:leakage, :TBR], "", "Blanket layers optimization objective"; default = :leakage)
     return par
 end
 
@@ -44,7 +46,7 @@ end
 function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
     logging_actor_init(ActorBlanket)
     par = par(kw...)
-    return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
+    return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency, par.objective)
 end
 
 function _step(actor::ActorBlanket)
@@ -113,7 +115,7 @@ function _step(actor::ActorBlanket)
         end
 
         # optimize layer thickensses
-        total_leakage, d1_thickness, d2_thickness, d3_thickness, Li6, TBR = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness)
+        total_leakage, d1_thickness, d2_thickness, d3_thickness, Li6, TBR = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, actor.objective)
         bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness = d1_thickness, d2_thickness, d3_thickness
         for (kl, dl) in enumerate([d1, d2, d3])
             if dl !== missing
@@ -202,7 +204,7 @@ function _step(actor::ActorBlanket)
     return actor
 end
 
-function optimize_layers(blanket_model, l1, l2, l3, target = 1.1, objective = :leakage)
+function optimize_layers(blanket_model, l1, l2, l3, objective = :leakage, target = 1.1)
     energy_grid = NNeutronics.energy_grid()
     modules_thickness = [l1, l2, l3]
     blanket_thickness = sum(modules_thickness)
@@ -259,7 +261,7 @@ function optimize_layers(blanket_model, l1, l2, l3, target = 1.1, objective = :l
         l1, l2, l3, Li6 = (value(d1), value(d2), value(d3), value(Li6))
         TBR = total_TBR(l1, l2, l3, Li6)
     elseif objective == :TBR
-        target = 0.1
+        target = 0.25
         @NLconstraint(model, target >= total_neutron_leakage(d1, d2, d3, Li6))
         @NLobjective(model, Max, total_TBR(d1, d2, d3, Li6))
         JuMP.optimize!(model)
