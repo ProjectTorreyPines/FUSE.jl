@@ -95,12 +95,6 @@ function _step(actor::ActorBlanket)
             end
         end
 
-        # optimize layer thickensses
-        blanket_model_1d = NNeutronics.Blanket()
-        total_leakage, d1.thickness, d2.thickness, d3.thickness, Li6, TBR = optimize_layers(blanket_model_1d, d1.thickness, d2.thickness, d3.thickness)
-        println("got ", total_leakage, " at ", [d1.thickness, d2.thickness, d3.thickness])  ## placeholder
-        println("Li6: ", Li6, "    TBR: ", TBR)
-
         # assign blanket module layers (designed to handle missing wall and/or missing shield)
         resize!(bm.layer, 3)
         for (kl, dl) in enumerate(bm.layer)
@@ -113,6 +107,18 @@ function _step(actor::ActorBlanket)
                 bm.layer[kl].name = dl.name
                 bm.layer[kl].midplane_thickness = dl.thickness
                 bm.layer[kl].material = dl.material
+            end
+        end
+
+        # optimize layer thickensses
+        blanket_model_1d = NNeutronics.Blanket()
+        total_leakage, d1_thickness, d2_thickness, d3_thickness, Li6, TBR = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness)
+        bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness = d1_thickness, d2_thickness, d3_thickness
+        for (kl, dl) in enumerate([d1, d2, d3])
+            if dl !== missing
+                dl.name = bm.layer[kl].name
+                dl.thickness = bm.layer[kl].midplane_thickness 
+                dl.material = bm.layer[kl].material
             end
         end
 
@@ -202,7 +208,7 @@ function optimize_layers(blanket_model, l1, l2, l3, target = 1.1, objective = :l
         g[1] = -exp(-x)
         g[2] = -exp(-y)
         g[3] = -exp(-z)
-        g[4] = 1
+        g[4] = a
         return
     end
 
@@ -210,20 +216,35 @@ function optimize_layers(blanket_model, l1, l2, l3, target = 1.1, objective = :l
         g[1] = -exp(-x)
         g[2] = 1/y
         g[3] = 1/z
-        g[4] = 1
+        g[4] = a
         return
     end
 
     model = Model(NLopt.Optimizer)
+    empty!(model)
     set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
 
     register(model, :total_neutron_leakage, 4, total_neutron_leakage, ∇f)
     register(model, :total_TBR, 4, total_TBR, ∇g)
-    @variable(model, d1 >= 0.0)
-    @variable(model, d2 >= 0.0)
-    @variable(model, d3 >= 0.0)
+
+    if l1 == 0.0
+        @variable(model, d1 == 0.0)
+    else
+        @variable(model, d1 >= 0.0)
+    end
+    if l2 == 0.0
+        @variable(model, d2 == 0.0)
+    else
+        @variable(model, d2 >= 0.0)
+    end
+    if l3 == 0.0
+        @variable(model, d3 == 0.0)
+    else
+        @variable(model, d3 >= 0.0)
+    end
+
     @variable(model, 0.0 <= Li6 <= 100.0)
-    @NLconstraint(model, blanket_thickness >= d1 + d2 + d3)
+    @NLconstraint(model, blanket_thickness == d1 + d2 + d3)
 
     if objective == :leakage
         @NLconstraint(model, target <= total_TBR(d1, d2, d3, Li6))
