@@ -68,11 +68,11 @@ function _step(actor::ActorPassiveStructures)
     # cryostat
     layer = dd.build.layer[end]
     if layer.type == Int(IMAS._cryostat_)
-        i = findfirst(layer.outline.r .== 0)
+        i = argmin(abs.(layer.outline.r))
         r = vcat(layer.outline.r[i+1:end-1], layer.outline.r[1:i])
         z = vcat(layer.outline.z[i+1:end-1], layer.outline.z[1:i])
         layer = dd.build.layer[end-1]
-        i = findfirst(layer.outline.r .== 0)
+        i = argmin(abs.(layer.outline.r))
         r = vcat(layer.outline.r[i+1:end-1], layer.outline.r[1:i], reverse(r), layer.outline.r[i+1:i+1])
         z = vcat(layer.outline.z[i+1:end-1], layer.outline.z[1:i], reverse(z), layer.outline.z[i+1:i+1])
         add_pf_passive_loop(dd.pf_passive, dd.build.layer[end].name, r, z)
