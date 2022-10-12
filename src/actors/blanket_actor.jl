@@ -3,7 +3,6 @@
 #= ============ =#
 
 import NNeutronics
-using NLopt
 using JuMP
 
 mutable struct ActorBlanket <: ReactorAbstractActor
