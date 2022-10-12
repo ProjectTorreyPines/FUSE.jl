@@ -75,12 +75,20 @@ function _step(actor::ActorBlanket)
         bm.name = structure.name
 
         # get the relevant blanket layers
-        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r # HFS
+        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r
             fs = _hfs_
         else
             fs = _lfs_
         end
-        d1 = IMAS.get_build(dd.build, type=_wall_, fs=fs, raise_error_on_missing=false)
+        d1 = IMAS.get_build(dd.build, type=_wall_, fs=fs, return_only_one=false, raise_error_on_missing=false)
+        if d1 !== missing
+            # if there are multiple walls we choose the one closest to the plasma
+            if fs == _hfs_
+                d1 = d1[end]
+            else
+                d1 = d1[1]
+            end
+        end
         d2 = IMAS.get_build(dd.build, type=_blanket_, fs=fs)
         d3 = IMAS.get_build(dd.build, type=_shield_, fs=fs, return_only_one=false, raise_error_on_missing=false)
         if d3 !== missing

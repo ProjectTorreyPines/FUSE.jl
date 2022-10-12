@@ -338,6 +338,14 @@ function gasc_add_wall_layers!(layers::DataStructures.OrderedDict; thickness::Fl
         elseif layer == "lfs_blanket"
             tmp["lfs_first_wall"] = thickness
             tmp[layer] = layers[layer] - thickness
+        elseif layer == "hfs_vacuum_vessel"
+            tmp["hfs_vacuum_vessel_wall_outer"] = thickness
+            tmp[layer] = layers[layer] - 2 * thickness
+            tmp["hfs_vacuum_vessel_wall_inner"] = thickness
+        elseif layer == "lfs_vacuum_vessel"
+            tmp["lfs_vacuum_vessel_wall_inner"] = thickness
+            tmp[layer] = layers[layer] - 2 * thickness
+            tmp["lfs_vacuum_vessel_wall_outer"] = thickness
         else
             tmp[layer] = layers[layer]
         end
