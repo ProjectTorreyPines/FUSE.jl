@@ -115,8 +115,7 @@ function _step(actor::ActorBlanket, act)
         end
 
         # optimize layer thickensses
-        total_leakage, d1_thickness, d2_thickness, d3_thickness, Li6, TBR = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, actor.objective)
-        bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness = d1_thickness, d2_thickness, d3_thickness
+        total_leakage, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, Li6, TBR = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, actor.objective)
         for (kl, dl) in enumerate([d1, d2, d3])
             if dl !== missing
                 dl.name = bm.layer[kl].name
@@ -179,7 +178,7 @@ function _step(actor::ActorBlanket, act)
     end
 
     # Optimize Li6/Li7 ratio to obtain target TBR
-    function target_TBR(blanket_model, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, target=nothing)
+    function target_TBR(blanket_model::NNeutronics.Blanket, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{Any}, modules_wall_loading_power::Vector{Any}, total_power_neutrons::Real, target=nothing)
         total_tritium_breeding_ratio = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
             bmt = bm.time_slice[]
@@ -204,7 +203,7 @@ function _step(actor::ActorBlanket, act)
     return actor
 end
 
-function optimize_layers(blanket_model, l1, l2, l3, objective = :leakage, target = 1.1)
+function optimize_layers(blanket_model::NNeutronics.Blanket, l1::Real, l2::Real, l3::Real, objective::Symbol = :leakage, target = 1.1)
     energy_grid = NNeutronics.energy_grid()
     modules_thickness = [l1, l2, l3]
     blanket_thickness = sum(modules_thickness)
