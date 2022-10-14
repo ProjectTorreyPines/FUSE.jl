@@ -38,7 +38,7 @@ Blanket actor
 function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorBlanket(kw...)
     actor = ActorBlanket(dd, par)
-    step(actor)
+    step(actor, act)
     finalize(actor)
     return actor
 end
@@ -49,7 +49,7 @@ function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
     return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency, par.objective)
 end
 
-function _step(actor::ActorBlanket)
+function _step(actor::ActorBlanket, act)
     dd = actor.dd
     empty!(dd.blanket)
     blanket = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
@@ -198,7 +198,7 @@ function _step(actor::ActorBlanket)
         end
     end
 
-    ActorCXbuild(dd, actor.par)
+    ActorCXbuild(dd, act)
     target_TBR(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
 
     return actor
