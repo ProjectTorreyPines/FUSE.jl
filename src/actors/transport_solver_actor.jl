@@ -12,14 +12,14 @@ end
 
 function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par = ParametersActor(nothing)
-    par.evolve_Ti = Switch([:flux_match, :fixed], "", "How to evolve the average ion temperature "; default=:flux_match)
-    par.evolve_Te = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:flux_match)
-    par.evolve_densities = Entry(Union{Dict,Symbol}, "", "OrderedDict to specify which ion species are evolved, kept constant or used for quasi neutarlity"; default=:fixed)
-    par.evolve_rotation = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:fixed)
+    par.evolve_Ti = Switch([:flux_match, :fixed], "", "Evolve ion temperature "; default=:flux_match)
+    par.evolve_Te = Switch([:flux_match, :fixed], "", "Evolve electron temperature"; default=:flux_match)
+    par.evolve_densities = Entry(Union{Dict,Symbol}, "", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
+    par.evolve_rotation = Switch([:flux_match, :fixed], "", "Evolve the electron temperature"; default=:fixed)
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
     par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
-    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.25)
     par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.1)
     par.do_plot = Entry(Bool, "", "Plots the flux matching"; default=false)
     par.verbose = Entry(Bool, "", "Print trace and optimization result"; default=false)
     return par
@@ -157,7 +157,7 @@ function flux_match_errors(dd::IMAS.dd, par::ParametersActor)
     end
 
     if par.evolve_rotation == :flux_match
-        norm = 0.1 #[kg / m s^2]
+        norm = 0.01 #[kg / m s^2]
         err = total_sources.torque_tor_inside[cs_gridpoints] ./ surface .- total_fluxes.momentum_tor.flux[ct_gridpoints]
         append!(error, error_transformation!(err, norm))
     end
