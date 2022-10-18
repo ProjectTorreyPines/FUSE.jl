@@ -81,7 +81,7 @@ function _step(actor::ActorBlanket, act)
         bm = dd.blanket.module[istructure]
         bm.name = structure.name
 
-        # get the relevant blanket layers
+        # get the relevant blanket layers, pre-optimization
         if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r && length(blankets) > 1 # HFS
             fs = _hfs_
         else
@@ -121,6 +121,31 @@ function _step(actor::ActorBlanket, act)
                 dl.name = bm.layer[kl].name
                 dl.thickness = bm.layer[kl].midplane_thickness 
                 dl.material = bm.layer[kl].material
+            end
+        end
+    end
+    
+    ActorCXbuild(dd, act) # rebuild geometry
+
+    for (istructure, structure) in enumerate(blankets)
+
+        bm = dd.blanket.module[istructure]
+
+        # get the relevant optimized blanket layers
+        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r && length(blankets) > 1 # HFS
+            fs = _hfs_
+        else
+            fs = _lfs_
+        end
+        d1 = IMAS.get_build(dd.build, type=_wall_, fs=fs, raise_error_on_missing=false)
+        d2 = IMAS.get_build(dd.build, type=_blanket_, fs=fs)
+        d3 = IMAS.get_build(dd.build, type=_shield_, fs=fs, return_only_one=false, raise_error_on_missing=false)
+        if d3 !== missing
+            # if there are multiple shields we choose the one closest to the plasma
+            if fs == _hfs_
+                d3 = d3[end]
+            else
+                d3 = d3[1]
             end
         end
 
@@ -197,7 +222,7 @@ function _step(actor::ActorBlanket, act)
         end
     end
 
-    ActorCXbuild(dd, act)
+    # run target TBR on optimized geometry
     target_TBR(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
 
     return actor
