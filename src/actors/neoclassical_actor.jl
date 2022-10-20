@@ -117,7 +117,7 @@ function neoclassical_changhinton(
     Ti = prof1d.ion[iion].temperature
 
     rmin = IMAS.interp1d(rho_eq, rmin).(rho_cp)
-    Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, eq1d.gm8).(prof1d.grid.rho_tor_norm)
+    Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, 0.5 * (eq1d.r_outboard .+ eq1d.r_inboard)).(cp1d.grid.rho_tor_norm)
     drmaj = IMAS.gradient(rmin, Rmaj)
     shift = -drmaj[gridpoint_cp]
 
