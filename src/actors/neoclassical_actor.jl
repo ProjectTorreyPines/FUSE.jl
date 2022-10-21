@@ -50,8 +50,8 @@ function _step(actor::ActorNeoclassical)
     if par.neoclassical_model == :changhinton
         model.identifier.name = "Chang-Hinton"
         eqt = dd.equilibrium.time_slice[]
-        prof1d = dd.core_profiles.profiles_1d[]
-        actor.flux_solutions = [neoclassical_changhinton(eqt, prof1d, rho, 1) for rho in par.rho_transport]
+        cp1d = dd.core_profiles.profiles_1d[]
+        actor.flux_solutions = [neoclassical_changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
     else
         error("$(par.neoclassical_model) is not implemented")
     end
@@ -84,7 +84,7 @@ end
 """
     neoclassical_changhinton(
         eq1d::IMAS.equilibrium__time_slice___profiles_1d, 
-        prof1d::IMAS.core_profiles__profiles_1d,
+        cp1d::IMAS.core_profiles__profiles_1d,
         rho_fluxmatch::Real,
         iion::Integer)
 
@@ -92,7 +92,7 @@ Calculates the neoclassical flux using Chang-Hinton model which has has been mod
 """
 function neoclassical_changhinton(
     eqt::IMAS.equilibrium__time_slice,
-    prof1d::IMAS.core_profiles__profiles_1d,
+    cp1d::IMAS.core_profiles__profiles_1d,
     rho_fluxmatch::Real,
     iion::Integer)
 
@@ -104,7 +104,7 @@ function neoclassical_changhinton(
     Rmaj0 = eq1d.geometric_axis.r[1] * m_to_cm
 
     a = eqt.boundary.minor_radius * m_to_cm
-    rho_cp = prof1d.grid.rho_tor_norm
+    rho_cp = cp1d.grid.rho_tor_norm
     rho_eq = eq1d.rho_tor_norm
     gridpoint_eq = argmin(abs.(rho_eq .- rho_fluxmatch))
     gridpoint_cp = argmin(abs.(rho_cp .- rho_fluxmatch))
@@ -112,9 +112,9 @@ function neoclassical_changhinton(
 
     q = eq1d.q[gridpoint_eq]
 
-    ne = prof1d.electrons.density_thermal * 1e-6
-    Te = prof1d.electrons.temperature[gridpoint_cp]
-    Ti = prof1d.ion[iion].temperature
+    ne = cp1d.electrons.density_thermal * 1e-6
+    Te = cp1d.electrons.temperature[gridpoint_cp]
+    Ti = cp1d.ion[iion].temperature
 
     rmin = IMAS.interp1d(rho_eq, rmin).(rho_cp)
     Rmaj = IMAS.interp1d(eq1d.rho_tor_norm, 0.5 * (eq1d.r_outboard .+ eq1d.r_inboard)).(cp1d.grid.rho_tor_norm)
@@ -130,7 +130,7 @@ function neoclassical_changhinton(
     k = 1.6e-12
     e = 4.8e-10
 
-    mi = 1.6726e-24 * prof1d.ion[iion].element[1].a
+    mi = 1.6726e-24 * cp1d.ion[iion].element[1].a
 
     c_s = sqrt(k * Te / mi)
     loglam = 24.0 - log(sqrt(ne / Te))
@@ -140,7 +140,7 @@ function neoclassical_changhinton(
     b0 = 0.31
     c0 = 0.74
 
-    Zi = IMAS.avgZ(prof1d.ion[iion].element[1].z_n, Ti)
+    Zi = IMAS.avgZ(cp1d.ion[iion].element[1].z_n, Ti)
     alpha = Zi - 1
     nui = sqrt(2.0) * pi * ne * (Zi * e)^4 * loglam / sqrt(mi) / (k * Ti)^1.5
     nu = nui * a / c_s / sqrt(Ti / Ti) * (Ti / Te)^1.5
@@ -181,7 +181,7 @@ function neoclassical_changhinton(
     efluxi = (CH_I_div_psip^2
               *
               Ti / Te
-              * (prof1d.ion[iion].element[1].a / Zi^2
+              * (cp1d.ion[iion].element[1].a / Zi^2
                  * neo_rho_star_in^2 * sqrt(eps) * nui_HH)
               * ((K2 + K1) * dlntdr + K1 * dlnndr))
 
