@@ -1,33 +1,30 @@
-txt = ["""
-# IMAS data structure
-
-FUSE data is organized into hierarchical Interface Data Structures (IDSs), according to the ITER IMAS ontology.
-In addition to the usual IMAS IDSs (which we support on a need-by-need basis) FUSE also defines some of its own IDSs,
-to hold data that does not (yet?) fit into IMAS. Notable examples are the `build`, `solid_mechanics`, `balance_of_plant`, and `costing` IDSs.
+txt = String["""
 
 ```@meta
 CurrentModule = IMAS
 ```
 
-### dd
+# IMAS data structure
+
+FUSE data is organized into hierarchical Interface Data Structures (IDSs), according to the ITER IMAS ontology.
+In addition to the usual IMAS IDSs (which we include on a need-by-need basis) FUSE also defines some of its own IDSs,
+to hold data that does not (yet?) fit into IMAS. Notable examples are the `build`, `solid_mechanics`, `balance_of_plant`, and `costing` IDSs.
 
 `dd = IMAS.dd()` (which stands for "data dictionary") is the root of the FUSE data structure
 
-```@example
-using IMAS # hide
-IMAS.dd # hide
-```
 """]
 
 for name in sort(collect(fieldnames(IMAS.dd)))
-    if name ∉ [:_parent, :global_time]
+    if name == :global_time || startswith(string(name), "_")
+        continue
+    else
         basename = replace("$name", "_" => " ")
         push!(
             txt,
-            """### $basename
+            """## $basename
             ```@example
             using IMASDD # hide
-            IMASDD.$name # hide
+            IMASDD.$name{Float64} # hide
             ```\n""",
         )
     end
@@ -38,20 +35,20 @@ end
 
 function dd_details_md(io, ids)
     ProgressMeter.@showprogress "$ids" for leaf in collect(AbstractTrees.Leaves(ids))
-        name="$(leaf.location)"
+        name = "$(leaf.location)"
         info = IMAS.info(name)
         documentation = get(info, "documentation", "N/A")
         units = get(info, "units", "")
         if !isempty(units)
-            units="* **Units:** `$(units)`\n    "
+            units = "* **Units:** `$(units)`\n    "
         end
         data_type = get(info, "data_type", "")
         if !isempty(data_type)
-            data_type="* **Data Type:** `$(data_type)`\n    "
+            data_type = "* **Data Type:** `$(data_type)`\n    "
         end
         coordinates = get(info, "coordinates", "")
         if !isempty(coordinates)
-            coordinates="* **Coordinates:** `$(String[k for k in coordinates])`\n    "
+            coordinates = "* **Coordinates:** `$(String[k for k in coordinates])`\n    "
         end
         txt = """
 
@@ -69,10 +66,10 @@ function dd_details_md(io, ids)
 end
 
 open("$(@__DIR__)/dd_details.md", "w") do io
-    for ids in AbstractTrees.Leaves(IMAS.dd)
-        if ids.key == :global_time
+    for key in fieldnames(IMAS.dd)
+        if key == :global_time || startswith(string(key), "_")
             continue
         end
-        dd_details_md(io, ids.tp.b)
+        dd_details_md(io, getfield(IMAS, key){Float64})
     end
 end
