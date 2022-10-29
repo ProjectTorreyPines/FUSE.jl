@@ -56,16 +56,16 @@ function _step(actor::ActorTGLF)
         actor.input_tglfs[k] = TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
     end
 
-    tglf_model = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+    model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
 
     anomalous_index = IMAS.name_2_index(dd.core_transport.model)[:anomalous]
     model = resize!(dd.core_transport.model, "identifier.index" => anomalous_index)
-    model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * tglf_model
+    model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
     if par.nn
-        actor.flux_solutions = map(input_tglf -> TGLFNN.run_tglfnn(input_tglf, par.warn_nn_train_bounds; model_filename=tglf_model), actor.input_tglfs)
+        actor.flux_solutions = map(input_tglf -> TGLFNN.run_tglfnn(input_tglf; par.warn_nn_train_bounds, model_filename), actor.input_tglfs)
     else
         actor.flux_solutions = asyncmap(input_tglf -> TGLFNN.run_tglf(input_tglf), actor.input_tglfs)
     end
