@@ -19,7 +19,7 @@ function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
     par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
     par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.1)
+    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.2)
     par.do_plot = Entry(Bool, "", "Plots the flux matching"; default=false)
     par.verbose = Entry(Bool, "", "Print trace and optimization result"; default=false)
     return par
@@ -63,9 +63,9 @@ function _step(actor::ActorTransportSolver)
     res = try
         log_topics[:actors] = Logging.Warn
         if par.optimizer_algorithm == :anderson
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init, show_trace=par.verbose, method=:anderson, m=5, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, method=:anderson, m=5, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init, show_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         end
         res
     finally
@@ -117,10 +117,9 @@ function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVect
     return flux_match_errors(dd, par)
 end
 
-function error_transformation!(error, norm)
-    error .= error ./ norm
-    error .= asinh.(error) # avoid exploding errors, improve robustness
-    return error
+function error_transformation!(target::T, output::T, norm::Float64) where T<:AbstractVector{<:Real}
+    error = (target .- output) ./ norm
+    return asinh.(error)
 end
 
 """
@@ -139,34 +138,37 @@ function flux_match_errors(dd::IMAS.dd, par::ParametersActor)
     total_fluxes = IMAS.total_fluxes(dd.core_transport)
 
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
-    ct_gridpoints = [argmin((rho_x .- total_fluxes.grid_flux.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
-    surface = total_sources.grid.surface[cs_gridpoints]
+    cf_gridpoints = [argmin((rho_x .- total_fluxes.grid_flux.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
 
     error = Float64[]
 
     if par.evolve_Ti == :flux_match
         norm = 1E4 #[W / m^2]
-        err = total_sources.total_ion_power_inside[cs_gridpoints] ./ surface .- total_fluxes.total_ion_energy.flux[ct_gridpoints]
-        append!(error, error_transformation!(err, norm))
+        target = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        output = total_fluxes.total_ion_energy.flux[cf_gridpoints]
+        append!(error, error_transformation!(target, output, norm))
     end
 
     if par.evolve_Te == :flux_match
         norm = 1E4 #[W / m^2]
-        err = total_sources.electrons.power_inside[cs_gridpoints] ./ surface .- total_fluxes.electrons.energy.flux[ct_gridpoints]
-        append!(error, error_transformation!(err, norm))
+        target = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        output = total_fluxes.electrons.energy.flux[cf_gridpoints]
+        append!(error, error_transformation!(target, output, norm))
     end
 
     if par.evolve_rotation == :flux_match
         norm = 0.01 #[kg / m s^2]
-        err = total_sources.torque_tor_inside[cs_gridpoints] ./ surface .- total_fluxes.momentum_tor.flux[ct_gridpoints]
-        append!(error, error_transformation!(err, norm))
+        target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        output = total_fluxes.momentum_tor.flux[cf_gridpoints]
+        append!(error, error_transformation!(target, output, norm))
     end
 
     if par.evolve_densities != :fixed
         norm = 1E19 #[m^-2 s^-1]
         if par.evolve_densities[:electrons] == :flux_match
-            err = total_sources.electrons.particles_inside[cs_gridpoints] ./ surface .- total_fluxes.electrons.particles.flux[ct_gridpoints]
-            append!(error, error_transformation!(err, norm))
+            target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+            output = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            append!(error, error_transformation!(target, output, norm))
         end
         for ion in cp1d.ion
             if par.evolve_densities[Symbol(ion.label)] == :flux_match
