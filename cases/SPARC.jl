@@ -49,7 +49,6 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
 
     ini.target.flattop_duration = 10.0
 
-    ini.core_profiles.ne_ped = 1.5e20
     ini.core_profiles.greenwald_fraction = 0.37
     ini.core_profiles.helium_fraction = 0.1 #estimate
     ini.core_profiles.T_shaping = 1.8 #estimate (from ITER)

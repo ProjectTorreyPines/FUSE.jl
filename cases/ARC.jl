@@ -55,7 +55,6 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.target.flattop_duration = 1800.0
     #ini.target.tritium_breeding_ratio = 1.0 ?
 
-    ini.core_profiles.ne_ped = 1.0e20
     ini.core_profiles.greenwald_fraction = 0.49
     ini.core_profiles.helium_fraction = 0.10 #estimate
     ini.core_profiles.T_shaping = 1.8 #estimate (from ITER)
