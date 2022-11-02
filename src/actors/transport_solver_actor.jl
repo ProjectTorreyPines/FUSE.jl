@@ -8,6 +8,7 @@ mutable struct ActorTransportSolver <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     actor_ct::ActorCoreTransport
+    actor_ped::ActorPedestal
 end
 
 function ParametersActor(::Type{Val{:ActorTransportSolver}})
@@ -17,6 +18,7 @@ function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par.evolve_densities = Entry(Union{Dict,Symbol}, "", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
     par.evolve_rotation = Switch([:flux_match, :fixed], "", "Evolve the electron temperature"; default=:fixed)
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
+    par.evolve_pedestal = Entry(Bool, "", "Evolve the pedestal inside the transport solver"; default=false)
     par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
     par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
     par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.1)
@@ -42,7 +44,8 @@ function ActorTransportSolver(dd::IMAS.dd, par::ParametersActor, act::Parameters
     logging_actor_init(ActorTransportSolver)
     par = par(kw...)
     actor_ct = ActorCoreTransport(dd, act.ActorCoreTransport, act; par.rho_transport)
-    ActorTransportSolver(dd, par, actor_ct)
+    actor_ped = ActorPedestal(dd, act)
+    ActorTransportSolver(dd, par, actor_ct, actor_ped)
 end
 
 """
@@ -106,6 +109,11 @@ function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVect
 
     # modify dd with new z_profiles
     unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
+
+    # evolve pedestal
+    if par.evolve_pedestal
+        finalize(step(actor.actor_ped))
+    end
 
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
