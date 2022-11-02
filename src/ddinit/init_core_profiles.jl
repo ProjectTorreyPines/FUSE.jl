@@ -141,6 +141,7 @@ function init_core_profiles(
     # Set temperatures
     Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
     Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
+    @ddtime summary.local.pedestal.t_e.value = Te_ped
 
     cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cp1d.ion)
