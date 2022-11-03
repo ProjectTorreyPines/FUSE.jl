@@ -14,11 +14,13 @@ addprocs(SlurmManager(np-nprocs()+1), partition="preemptable", ntasks_per_core=1
 ## Parallel Jupyter on Saga cluster
 
 On `cybele` via NoMachine connect to `saga`
-Copy the token that you see on this session it should look something like token=1f1e0259cbc1..................
 
 ```
 jupyter lab --no-browser --port 55667
 ```
+
+Copy the token that you see on this session it should look something like ```token=1f1e0259cbc1..................```
+
 
 On your computer setup your `~/.ssh/config` this way:
 ```
