@@ -7,7 +7,7 @@ mutable struct ActorPedestal <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     epedmod::EPEDNN.EPEDmodel
-    inputs::EPEDNN.InputEPED
+    inputs::Union{Missing,EPEDNN.InputEPED}
     wped::Union{Missing,Real}
     pped::Union{Missing,Real}
 end
@@ -39,20 +39,9 @@ end
 function ActorPedestal(dd::IMAS.dd, par::ParametersActor; kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
-    inputs = EPEDNN.InputEPED(
-        NaN,
-        NaN,
-        NaN,
-        NaN,
-        NaN,
-        NaN,
-        NaN,
-        NaN,
-        NaN,
-        NaN) # placeholder
-    epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
 
-    return ActorPedestal(dd, par, epedmod, inputs, missing, missing)
+    epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
+    return ActorPedestal(dd, par, epedmod, missing, missing, missing)
 end
 
 """
@@ -95,7 +84,6 @@ function _step(actor::ActorPedestal;
         neped / 1e19,
         eqt.boundary.geometric_axis.r,
         zeffped)
-
 
     sol = actor.epedmod(actor.inputs; only_powerlaw, warn_nn_train_bounds)
 
