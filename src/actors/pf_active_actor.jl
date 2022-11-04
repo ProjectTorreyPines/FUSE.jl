@@ -38,7 +38,7 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
     ]
     par.green_model = Switch(options, "", "Model used for the coils Green function calculations"; default=:simple)
     par.symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
-    par.weight_currents = Entry(Float64, "", "Weight of current limit constraint"; default=0.5)
+    par.weight_currents = Entry(Float64, "", "Weight of current limit constraint"; default=2.0)
     par.weight_strike = Entry(Float64, "", "Weight given to matching the strike-points"; default=0.1)
     par.weight_lcfs = Entry(Float64, "", "Weight given to matching last closed flux surface"; default=1.0)
     par.weight_null = Entry(Float64, "", "Weight given to get field null for plasma breakdown"; default=1E-3)

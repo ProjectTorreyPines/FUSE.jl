@@ -273,7 +273,9 @@ function layers_meters_from_fractions(
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
     if vessel > 0.0
-        layers[:gap_hfs_vacuum_vessel] = vessel
+        layers[:hfs_vacuum_vessel_wall_outer] = vessel * 0.1
+        layers[:gap_hfs_vacuum_vessel] = vessel * 0.8
+        layers[:hfs_vacuum_vessel_wall_inner] = vessel * 0.1
     end
     layers[:gap_hfs_coils] = pf_inside_tf ? 0 : -1
     if shield > 0.0
@@ -293,7 +295,9 @@ function layers_meters_from_fractions(
     end
     layers[:gap_lfs_coils] = 1.0 * (pf_inside_tf ? 2.25 : -1)
     if vessel > 0.0
-        layers[:gap_lfs_vacuum_vessel] = vessel
+        layers[:lfs_vacuum_vessel_wall_inner] = vessel * 0.1
+        layers[:gap_lfs_vacuum_vessel] = vessel * 0.8
+        layers[:lfs_vacuum_vessel_wall_outer] = vessel * 0.1
     end
     layers[:lfs_TF] = 1.0
     layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 3 : 1)

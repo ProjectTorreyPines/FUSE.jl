@@ -75,11 +75,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
 
     ini.target.flattop_duration = 1800.0
 
-    ini.core_profiles.ne_ped = 7e19
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.w_ped = 0.04
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT

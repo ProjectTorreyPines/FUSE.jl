@@ -81,11 +81,11 @@ end
 Convert core_profiles information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_core_profiles(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    ini.core_profiles.ne_ped = gasc.outputs["plasma parameters"]["neped"] * 1e20
     ini.core_profiles.greenwald_fraction = gasc.outputs["plasma parameters"]["greenwaldFraction"]
+    # ini.core_profiles.ne_ped = gasc.outputs["plasma parameters"]["neped"] * 1e20
+    # i_ped = argmin(abs.(gasc.outputs["numerical profiles"]["neProf"] .- gasc.outputs["plasma parameters"]["neped"] / gasc.outputs["plasma parameters"]["ne0"]))
+    # ini.core_profiles.w_ped = 1 - gasc.outputs["numerical profiles"]["rProf"][i_ped]
     ini.core_profiles.T_shaping = 1.8
-    i_ped = argmin(abs.(gasc.outputs["numerical profiles"]["neProf"] .- gasc.outputs["plasma parameters"]["neped"] / gasc.outputs["plasma parameters"]["ne0"]))
-    ini.core_profiles.w_ped = 1 - gasc.outputs["numerical profiles"]["rProf"][i_ped]
     ini.core_profiles.zeff = gasc.outputs["impurities"]["effectiveZ"]
     ini.core_profiles.rot_core = 0.0  # Not in GASC
     ini.core_profiles.bulk = :DT
@@ -338,6 +338,14 @@ function gasc_add_wall_layers!(layers::DataStructures.OrderedDict; thickness::Fl
         elseif layer == "lfs_blanket"
             tmp["lfs_first_wall"] = thickness
             tmp[layer] = layers[layer] - thickness
+        elseif layer == "hfs_vacuum_vessel"
+            tmp["hfs_vacuum_vessel_wall_outer"] = thickness
+            tmp[layer] = layers[layer] - 2 * thickness
+            tmp["hfs_vacuum_vessel_wall_inner"] = thickness
+        elseif layer == "lfs_vacuum_vessel"
+            tmp["lfs_vacuum_vessel_wall_inner"] = thickness
+            tmp[layer] = layers[layer] - 2 * thickness
+            tmp["lfs_vacuum_vessel_wall_outer"] = thickness
         else
             tmp[layer] = layers[layer]
         end

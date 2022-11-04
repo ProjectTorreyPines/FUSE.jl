@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: manager-pod
+spec:
+  serviceAccountName: julia-manager
+  containers:
+  - name: manager
+    image: gcr.io/sdsc-20220719-60951/fuse
+    resources:
+      limits:
+        cpu: "1"
+        ephemeral-storage: 1Gi
+        memory: 4Gi
+      requests:
+        cpu: "1"
+        ephemeral-storage: 1Gi
+        memory: 4Gi
+    stdin: true
+    tty: true

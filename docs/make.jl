@@ -18,17 +18,8 @@ function AbstractTrees.printnode(io::IO, par::FUSE.AbstractParameter)
     return printstyled(io, html_link_repr(par))
 end
 
-function AbstractTrees.printnode(io::IO, @nospecialize(ids::Type{T}); kwargs...) where {T<:IMAS.IDS}
-    txt = split(split("$ids", "___")[end], "__")[end]
-    return printstyled(io, txt; bold=true)
-end
-
 function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASleafRepr; kwargs...)
-    if startswith(leaf.location, "dd.")
-        printstyled(io, "©$(replace(leaf.location[4:end],"_"=>"-"))©©©$(leaf.key)©")
-    else
-        printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
-    end
+    printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
 end
 
 function parameters_details_md(io::IO, pars::FUSE.AbstractParameters)

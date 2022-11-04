@@ -21,9 +21,9 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             dd.core_profiles,
             dd.equilibrium,
             dd.summary;
-            ne_ped=ini.core_profiles.ne_ped,
+            ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
             pressure_core=dd.equilibrium.time_slice[].profiles_1d.pressure[1],
-            greenwald_fraction=ini.core_profiles.greenwald_fraction,
+            greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
             helium_fraction=ini.core_profiles.helium_fraction,
             T_shaping=ini.core_profiles.T_shaping,
             w_ped=ini.core_profiles.w_ped,
@@ -46,9 +46,9 @@ function init_core_profiles(
     cp::IMAS.core_profiles,
     eq::IMAS.equilibrium,
     summary::IMAS.summary;
-    ne_ped::Real,
+    ne_ped::Union{Real,Missing},
     pressure_core::Real,
-    greenwald_fraction::Real,
+    greenwald_fraction::Union{Real,Missing},
     helium_fraction::Real,
     w_ped::Real,
     zeff::Real,
@@ -67,6 +67,22 @@ function init_core_profiles(
     cp1d.grid.rho_tor_norm = LinRange(0, 1, ngrid)
     cp1d.zeff = ones(ngrid) .* zeff
     cp1d.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cp1d.grid.rho_tor_norm)
+
+    # Density handling
+
+    if ismissing(ne_ped) && ismissing(greenwald_fraction)
+        error("Set at least the pedestal density or the greenwald fraction")
+    elseif ismissing(ne_ped)
+        # get ne_ped from fraction
+        ne_ped = greenwald_fraction * IMAS.greenwald_density(eqt) / 1.35 # 1.35 is fixed constant for initialization
+    elseif ismissing(greenwald_fraction)
+        ne_profile = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_ped * 1.4, ngrid, n_shaping, n_shaping, w_ped)
+        nel = IMAS.geometric_midplane_line_averaged_density(eqt, ne_profile, LinRange(0, 1, ngrid))
+        ngw = IMAS.greenwald_density(eqt)
+        greenwald_fraction = nel / ngw
+    else
+        # use ne_ped and greenwald_fraction as given
+    end
 
     # Set ions:
     # 1. DT
@@ -125,6 +141,7 @@ function init_core_profiles(
     # Set temperatures
     Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
     Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
+    @ddtime summary.local.pedestal.t_e.value = Te_ped
 
     cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cp1d.ion)

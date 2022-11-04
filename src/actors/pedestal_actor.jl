@@ -7,7 +7,7 @@ mutable struct ActorPedestal <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     epedmod::EPEDNN.EPEDmodel
-    inputs::EPEDNN.InputEPED
+    inputs::Union{Missing,EPEDNN.InputEPED}
     wped::Union{Missing,Real}
     pped::Union{Missing,Real}
 end
@@ -41,7 +41,21 @@ function ActorPedestal(dd::IMAS.dd, par::ParametersActor; kw...)
     par = par(kw...)
 
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
+    return ActorPedestal(dd, par, epedmod, missing, missing, missing)
+end
 
+"""
+    step(actor::ActorPedestal;
+        warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
+        only_powerlaw::Bool=false)
+
+Runs pedestal actor to evaluate pedestal width and height
+"""
+function _step(actor::ActorPedestal;
+    warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
+    only_powerlaw::Bool=false)
+
+    dd = actor.dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
@@ -59,7 +73,7 @@ function ActorPedestal(dd::IMAS.dd, par::ParametersActor; kw...)
     Bt = abs(@ddtime(eq.vacuum_toroidal_field.b0)) * eq.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
     βn = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
 
-    inputs = EPEDNN.InputEPED(
+    actor.inputs = EPEDNN.InputEPED(
         eqt.boundary.minor_radius,
         βn,
         Bt,
@@ -70,20 +84,6 @@ function ActorPedestal(dd::IMAS.dd, par::ParametersActor; kw...)
         neped / 1e19,
         eqt.boundary.geometric_axis.r,
         zeffped)
-
-    return ActorPedestal(dd, par, epedmod, inputs, missing, missing)
-end
-
-"""
-    step(actor::ActorPedestal;
-        warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
-        only_powerlaw::Bool=false)
-
-Runs pedestal actor to evaluate pedestal width and height
-"""
-function _step(actor::ActorPedestal;
-    warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
-    only_powerlaw::Bool=false)
 
     sol = actor.epedmod(actor.inputs; only_powerlaw, warn_nn_train_bounds)
 

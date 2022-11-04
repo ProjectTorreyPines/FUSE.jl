@@ -45,7 +45,7 @@ function (objf::ObjectiveFunction)(x::Float64)
 end
 
 const ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
-ObjectiveFunction(:min_cost, "\$M", dd -> dd.costing.cost, -Inf)
+ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
 ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
 ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
 ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)

@@ -150,7 +150,7 @@ ZMQ:
 docker_network:
 	docker network create fuse-net
 
-# build a new FUSE docker image
+# build a new FUSE docker base image
 docker_image:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile_base ../Dockerfile
@@ -172,8 +172,8 @@ docker_update:
 
 # upload docker image to gke
 docker_upload:
-	docker tag julia_fuse_amd64_updated gcr.io/sdsc-20220719-60951/fuse_zmq
-	docker push gcr.io/sdsc-20220719-60951/fuse_zmq
+	docker tag julia_fuse_amd64_updated gcr.io/sdsc-20220719-60951/fuse
+	docker push gcr.io/sdsc-20220719-60951/fuse
 
 # run FUSE broker in container
 docker_broker:

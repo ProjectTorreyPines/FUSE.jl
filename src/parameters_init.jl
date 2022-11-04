@@ -42,10 +42,10 @@ end
 
 function ParametersInit(::Type{Val{:core_profiles}})
     core_profiles = ParametersInit(nothing)
-    core_profiles.ne_ped = Entry(Real, "m^-3", "Pedestal electron density")
     core_profiles.greenwald_fraction = Entry(Real, "", "Greenwald fraction, ne_vol / ne_gw")
+    core_profiles.ne_ped = Entry(Real, "m^-3", "Pedestal electron density")
+    core_profiles.w_ped = Entry(Real, "", "Pedestal width expressed in fraction of ψₙ", default=0.05)
     core_profiles.T_shaping = Entry(Real, "", "Temperature shaping factor")
-    core_profiles.w_ped = Entry(Real, "", "Pedestal width expressed in fraction of ψₙ")
     core_profiles.zeff = Entry(Real, "", "Effective ion charge")
     core_profiles.rot_core = Entry(Real, IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     core_profiles.ngrid = Entry(Int, "", "Resolution of the core_profiles grid"; default=101)

@@ -8,18 +8,20 @@ mutable struct ActorTransportSolver <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     actor_ct::ActorCoreTransport
+    actor_ped::ActorPedestal
 end
 
 function ParametersActor(::Type{Val{:ActorTransportSolver}})
     par = ParametersActor(nothing)
-    par.evolve_Ti = Switch([:flux_match, :fixed], "", "How to evolve the average ion temperature "; default=:flux_match)
-    par.evolve_Te = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:flux_match)
-    par.evolve_densities = Entry(Union{Dict,Symbol}, "", "OrderedDict to specify which ion species are evolved, kept constant or used for quasi neutarlity"; default=:fixed)
-    par.evolve_rotation = Switch([:flux_match, :fixed], "", "How to evolve the electron temperature"; default=:fixed)
+    par.evolve_Ti = Switch([:flux_match, :fixed], "", "Evolve ion temperature "; default=:flux_match)
+    par.evolve_Te = Switch([:flux_match, :fixed], "", "Evolve electron temperature"; default=:flux_match)
+    par.evolve_densities = Entry(Union{Dict,Symbol}, "", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
+    par.evolve_rotation = Switch([:flux_match, :fixed], "", "Evolve the electron temperature"; default=:fixed)
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
+    par.evolve_pedestal = Entry(Bool, "", "Evolve the pedestal inside the transport solver"; default=false)
     par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
-    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.25)
     par.optimizer_algorithm = Switch([:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.2)
     par.do_plot = Entry(Bool, "", "Plots the flux matching"; default=false)
     par.verbose = Entry(Bool, "", "Print trace and optimization result"; default=false)
     return par
@@ -42,7 +44,8 @@ function ActorTransportSolver(dd::IMAS.dd, par::ParametersActor, act::Parameters
     logging_actor_init(ActorTransportSolver)
     par = par(kw...)
     actor_ct = ActorCoreTransport(dd, act.ActorCoreTransport, act; par.rho_transport)
-    ActorTransportSolver(dd, par, actor_ct)
+    actor_ped = ActorPedestal(dd, act)
+    ActorTransportSolver(dd, par, actor_ct, actor_ped)
 end
 
 """
@@ -63,9 +66,9 @@ function _step(actor::ActorTransportSolver)
     res = try
         log_topics[:actors] = Logging.Warn
         if par.optimizer_algorithm == :anderson
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init, show_trace=par.verbose, method=:anderson, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, method=:anderson, m=5, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init, show_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         end
         res
     finally
@@ -107,6 +110,11 @@ function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVect
     # modify dd with new z_profiles
     unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
 
+    # evolve pedestal
+    if par.evolve_pedestal
+        finalize(step(actor.actor_ped))
+    end
+
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
@@ -117,6 +125,11 @@ function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVect
     return flux_match_errors(dd, par)
 end
 
+function error_transformation!(target::T, output::T, norm::Float64) where T<:AbstractVector{<:Real}
+    error = (target .- output) ./ norm
+    return asinh.(error)
+end
+
 """
     flux_match_errors(dd::IMAS.dd, par::ParametersActor)
 
@@ -124,35 +137,46 @@ Evaluates the flux_matching errors for the :flux_match species and channels
 NOTE: flux matching is done in physical units
 """
 function flux_match_errors(dd::IMAS.dd, par::ParametersActor)
-    total_sources = IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[])
-    total_fluxes = IMAS.total_fluxes(dd.core_transport)
+    if par.verbose
+        flush(stdout)
+    end
 
     cp1d = dd.core_profiles.profiles_1d[]
-    cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
-    ct_gridpoints = [argmin((rho_x .- total_fluxes.grid_flux.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
-    surface = total_sources.grid.surface[cs_gridpoints]
+    total_sources = IMAS.total_sources(dd.core_sources, cp1d)
+    total_fluxes = IMAS.total_fluxes(dd.core_transport)
 
-    energy_norm = 1e4
-    particles_norm = 1e19
-    momentum_norm = 0.1
+    cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
+    cf_gridpoints = [argmin((rho_x .- total_fluxes.grid_flux.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
 
     error = Float64[]
 
     if par.evolve_Ti == :flux_match
-        append!(error, (total_sources.total_ion_power_inside[cs_gridpoints] ./ surface .- total_fluxes.total_ion_energy.flux[ct_gridpoints]) ./ energy_norm)
+        norm = 1E4 #[W / m^2]
+        target = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        output = total_fluxes.total_ion_energy.flux[cf_gridpoints]
+        append!(error, error_transformation!(target, output, norm))
     end
 
     if par.evolve_Te == :flux_match
-        append!(error, (total_sources.electrons.power_inside[cs_gridpoints] ./ surface .- total_fluxes.electrons.energy.flux[ct_gridpoints]) ./ energy_norm)
+        norm = 1E4 #[W / m^2]
+        target = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        output = total_fluxes.electrons.energy.flux[cf_gridpoints]
+        append!(error, error_transformation!(target, output, norm))
     end
 
     if par.evolve_rotation == :flux_match
-        append!(error, (total_sources.torque_tor_inside[cs_gridpoints] ./ surface .- total_fluxes.momentum_tor.flux[ct_gridpoints]) ./ momentum_norm)
+        norm = 0.01 #[kg / m s^2]
+        target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        output = total_fluxes.momentum_tor.flux[cf_gridpoints]
+        append!(error, error_transformation!(target, output, norm))
     end
 
     if par.evolve_densities != :fixed
+        norm = 1E19 #[m^-2 s^-1]
         if par.evolve_densities[:electrons] == :flux_match
-            append!(error, (total_sources.electrons.particles_inside[cs_gridpoints] ./ surface .- total_fluxes.electrons.particles.flux[ct_gridpoints]) ./ particles_norm)
+            target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+            output = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            append!(error, error_transformation!(target, output, norm))
         end
         for ion in cp1d.ion
             if par.evolve_densities[Symbol(ion.label)] == :flux_match
@@ -177,25 +201,30 @@ function pack_z_profiles(dd::IMAS.dd, par::ParametersActor)
     cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
 
     if par.evolve_Ti == :flux_match
-        append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature)[cp_gridpoints]))
+        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature)[cp_gridpoints]
+        append!(z_profiles, z_Ti)
     end
 
     if par.evolve_Te == :flux_match
-        append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature)[cp_gridpoints]))
+        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature)[cp_gridpoints]
+        append!(z_profiles, z_Te)
     end
 
     if par.evolve_rotation == :flux_match
-        append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic)[cp_gridpoints]))
+        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic)[cp_gridpoints]
+        append!(z_profiles, z_rot)
     end
 
     if par.evolve_densities != :fixed
         check_evolve_densities(dd, par.evolve_densities)
         if par.evolve_densities[:electrons] == :flux_match
-            append!(z_profiles, (IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)[cp_gridpoints]))
+            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)[cp_gridpoints]
+            append!(z_profiles, z_ne)
         end
         for ion in cp1d.ion
             if par.evolve_densities[Symbol(ion.label)] == :flux_match
-                append!(z_profiles, (IMAS.calcz(cp1d.grid.rho_tor_norm, ion.density_thermal)[cp_gridpoints]))
+                z_ni = IMAS.calcz(cp1d.grid.rho_tor_norm, ion.density_thermal)[cp_gridpoints]
+                append!(z_profiles, z_ni)
             end
         end
     end
