@@ -3,27 +3,32 @@
 #= ============ =#
 
 import NNeutronics
-using NLopt
-using JuMP
+import NLopt
+import JuMP
 
 mutable struct ActorBlanket <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
-    blanket_multiplier::Real
-    thermal_power_extraction_efficiency::Real
-    objective::Symbol
+    act::ParametersAllActors
+
+    function ActorBlanket(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+        logging_actor_init(ActorBlanket)
+        par = par(kw...)
+        return new(dd, par, act)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorBlanket}})
     par = ParametersActor(nothing)
-    par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default = 1.2)
+    par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
     par.thermal_power_extraction_efficiency = Entry(
         Real,
         "",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0
     )
-    par.objective = Switch([:leakage, :TBR], "", "Blanket layers optimization objective"; default = :leakage)
+    par.objective = Switch([:leakage, :TBR], "", "Blanket layers optimization objective"; default=:leakage)
+    par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
 
@@ -37,19 +42,13 @@ Blanket actor
 """
 function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorBlanket(kw...)
-    actor = ActorBlanket(dd, par)
-    step(actor, act)
+    actor = ActorBlanket(dd, par, act)
+    step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging_actor_init(ActorBlanket)
-    par = par(kw...)
-    return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency, par.objective)
-end
-
-function _step(actor::ActorBlanket, act)
+function _step(actor::ActorBlanket)
     dd = actor.dd
     empty!(dd.blanket)
     blanket = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
@@ -59,6 +58,9 @@ function _step(actor::ActorBlanket, act)
     end
 
     dd = actor.dd
+    par = actor.par
+    act = actor.act
+
     eqt = dd.equilibrium.time_slice[]
     nnt = dd.neutronics.time_slice[]
 
@@ -70,12 +72,15 @@ function _step(actor::ActorBlanket, act)
     fwr = dd.neutronics.first_wall.r
     fwz = dd.neutronics.first_wall.z
 
-    # for all blanket modules
+    # all blanket modules
     blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
     resize!(dd.blanket.module, length(blankets))
-    modules_effective_thickness = []
-    modules_wall_loading_power = []
-    Li6 = 0.0
+
+    # Optimize midplane layers thicknesses that:
+    # - achieve target TBR
+    # - minimize leakage
+    # - while fitting in current blanket thickness
+    modules_Li6 = Float64[]
     blanket_model_1d = NNeutronics.Blanket()
     for (istructure, structure) in enumerate(blankets)
         bm = dd.blanket.module[istructure]
@@ -87,7 +92,15 @@ function _step(actor::ActorBlanket, act)
         else
             fs = _lfs_
         end
-        d1 = IMAS.get_build(dd.build, type=_wall_, fs=fs, raise_error_on_missing=false)
+        d1 = IMAS.get_build(dd.build, type=_wall_, fs=fs, return_only_one=false, raise_error_on_missing=false)
+        if d1 !== missing
+            # if there are multiple walls we choose the one closest to the plasma
+            if fs == _hfs_
+                d1 = d1[end]
+            else
+                d1 = d1[1]
+            end
+        end
         d2 = IMAS.get_build(dd.build, type=_blanket_, fs=fs)
         d3 = IMAS.get_build(dd.build, type=_shield_, fs=fs, return_only_one=false, raise_error_on_missing=false)
         if d3 !== missing
@@ -115,20 +128,25 @@ function _step(actor::ActorBlanket, act)
         end
 
         # optimize layer thickensses
-        total_leakage, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, Li6, TBR = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, actor.objective)
+        res = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, dd.target.tritium_breeding_ratio, par.verbose)
+        bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, Li6, TBR, total_leakage = res
+        push!(modules_Li6, Li6)
         for (kl, dl) in enumerate([d1, d2, d3])
             if dl !== missing
                 dl.name = bm.layer[kl].name
-                dl.thickness = bm.layer[kl].midplane_thickness 
+                dl.thickness = bm.layer[kl].midplane_thickness
                 dl.material = bm.layer[kl].material
             end
         end
+
     end
-    
+
     ActorCXbuild(dd, act) # rebuild geometry
 
+    # Evaluate TBR in 2D geometry
+    modules_effective_thickness = []
+    modules_wall_loading_power = []
     for (istructure, structure) in enumerate(blankets)
-
         bm = dd.blanket.module[istructure]
 
         # get the relevant optimized blanket layers
@@ -137,7 +155,15 @@ function _step(actor::ActorBlanket, act)
         else
             fs = _lfs_
         end
-        d1 = IMAS.get_build(dd.build, type=_wall_, fs=fs, raise_error_on_missing=false)
+        d1 = IMAS.get_build(dd.build, type=_wall_, fs=fs, return_only_one=false, raise_error_on_missing=false)
+        if d1 !== missing
+            # if there are multiple walls we choose the one closest to the plasma
+            if fs == _hfs_
+                d1 = d1[end]
+            else
+                d1 = d1[1]
+            end
+        end
         d2 = IMAS.get_build(dd.build, type=_blanket_, fs=fs)
         d3 = IMAS.get_build(dd.build, type=_shield_, fs=fs, return_only_one=false, raise_error_on_missing=false)
         if d3 !== missing
@@ -194,18 +220,19 @@ function _step(actor::ActorBlanket, act)
         bmt = bm.time_slice[]
         bmt.power_incident_neutrons = total_power_neutrons .* total_neutron_capture_fraction
         bmt.power_incident_radiated = total_power_radiated .* total_radiative_capture_fraction
-        bmt.power_thermal_neutrons = bmt.power_incident_neutrons * actor.blanket_multiplier
+        bmt.power_thermal_neutrons = bmt.power_incident_neutrons * par.blanket_multiplier
         bmt.power_thermal_radiated = bmt.power_incident_radiated
-        bmt.power_thermal_extracted = actor.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
+        bmt.power_thermal_extracted = par.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
 
         push!(modules_effective_thickness, effective_thickness)
         push!(modules_wall_loading_power, nnt.wall_loading.power[index])
     end
 
-    # Optimize Li6/Li7 ratio to obtain target TBR
-    function target_TBR(blanket_model::NNeutronics.Blanket, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{Any}, modules_wall_loading_power::Vector{Any}, total_power_neutrons::Real, target=nothing)
+    # Evaluate TBR in realistic geometry
+    function TBR2D(blanket_model::NNeutronics.Blanket, modules_Li6::Vector{<:Real}, dd::IMAS.dd, modules_effective_thickness::Vector{<:Any}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real)
         total_tritium_breeding_ratio = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
+            Li6 = modules_Li6[ibm]
             bmt = bm.time_slice[]
             bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
             bmt.tritium_breeding_ratio = 0.0
@@ -215,84 +242,64 @@ function _step(actor::ActorBlanket, act)
             end
             total_tritium_breeding_ratio += bmt.tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
         end
-        if target === nothing
-            return total_tritium_breeding_ratio
-        else
-            return (total_tritium_breeding_ratio - target)^2
-        end
+        return total_tritium_breeding_ratio
     end
-
-    # run target TBR on optimized geometry
-    target_TBR(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
+    TBR2D(blanket_model_1d, modules_Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
 
     return actor
 end
 
-function optimize_layers(blanket_model::NNeutronics.Blanket, l1::Real, l2::Real, l3::Real, objective::Symbol = :leakage, target = 1.1)
+function optimize_layers(blanket_model::NNeutronics.Blanket, l1::Real, l2::Real, l3::Real, target_Li6::Real, verbose::Bool)
     energy_grid = NNeutronics.energy_grid()
     modules_thickness = [l1, l2, l3]
     blanket_thickness = sum(modules_thickness)
-    
-    total_neutron_leakage(d1, d2, d3, Li6) = sum(NNeutronics.leakeage_energy(blanket_model, d1, d2, d3, Li6, energy_grid))
-    total_TBR(d1, d2, d3, Li6) = NNeutronics.TBR(blanket_model, d1, d2, d3, Li6)
-    function ∇f(g::AbstractVector{T}, x::T, y::T, z::T, a::T) where {T}
-        g[1] = -exp(-x)
-        g[2] = -exp(-y)
-        g[3] = -exp(-z)
-        g[4] = a
-        return
-    end
 
-    function ∇g(g::AbstractVector{T}, x::T, y::T, z::T, a::T) where {T}
-        g[1] = -exp(-x)
-        g[2] = 1/y
-        g[3] = 1/z
-        g[4] = a
-        return
-    end
-
-    model = Model(NLopt.Optimizer)
+    model = JuMP.Model(NLopt.Optimizer)
     empty!(model)
-    set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
+    JuMP.set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
 
-    register(model, :total_neutron_leakage, 4, total_neutron_leakage, ∇f)
-    register(model, :total_TBR, 4, total_TBR, ∇g)
+    # leakage neutron model
+    total_neutron_leakage(d1, d2, d3, Li6) = sum(NNeutronics.leakeage_energy(blanket_model, d1, d2, d3, Li6, energy_grid))
+    JuMP.register(model, :total_neutron_leakage, 4, total_neutron_leakage, autodiff=true)
 
+    # TBR model
+    total_TBR(d1, d2, d3, Li6) = NNeutronics.TBR(blanket_model, d1, d2, d3, Li6)
+    JuMP.register(model, :total_TBR, 4, total_TBR, autodiff=true)
+
+    # variables and constraints
     if l1 == 0.0
-        @variable(model, d1 == 0.0)
+        JuMP.@variable(model, d1 == 0.0)
     else
-        @variable(model, d1 >= 0.0)
+        JuMP.@variable(model, d1 >= 0.0)
     end
     if l2 == 0.0
-        @variable(model, d2 == 0.0)
+        JuMP.@variable(model, d2 == 0.0)
     else
-        @variable(model, d2 >= 0.0)
+        JuMP.@variable(model, d2 >= 0.0)
     end
     if l3 == 0.0
-        @variable(model, d3 == 0.0)
+        JuMP.@variable(model, d3 == 0.0)
     else
-        @variable(model, d3 >= 0.0)
+        JuMP.@variable(model, d3 >= 0.0)
+    end
+    JuMP.@variable(model, 0.0 <= Li6 <= 100.0)
+
+    JuMP.@NLconstraint(model, blanket_thickness == d1 + d2 + d3)
+    JuMP.@NLconstraint(model, total_TBR(d1, d2, d3, Li6) >= target_Li6)
+    JuMP.@NLobjective(model, Min, total_neutron_leakage(d1, d2, d3, Li6))
+    JuMP.optimize!(model)
+
+    l1, l2, l3, Li6 = (JuMP.value(d1), JuMP.value(d2), JuMP.value(d3), JuMP.value(Li6))
+    total_leakage = total_neutron_leakage(l1, l2, l3, Li6)
+    TBR = total_TBR(l1, l2, l3, Li6)
+
+    if verbose
+        println(model)
+        println(JuMP.solution_summary(model))
+        println("l1=$l1  l2=$l2  l3=$l3  Li6=$Li6")
+        println("TBR=$TBR")
+        println("total_leakage=$total_leakage")
     end
 
-    @variable(model, 0.0 <= Li6 <= 100.0)
-    @NLconstraint(model, blanket_thickness == d1 + d2 + d3)
-
-    if objective == :leakage
-        @NLconstraint(model, target <= total_TBR(d1, d2, d3, Li6))
-        @NLobjective(model, Min, total_neutron_leakage(d1, d2, d3, Li6))
-        JuMP.optimize!(model)
-        total_leakage = objective_value(model)
-        l1, l2, l3, Li6 = (value(d1), value(d2), value(d3), value(Li6))
-        TBR = total_TBR(l1, l2, l3, Li6)
-    elseif objective == :TBR
-        target = 0.25
-        @NLconstraint(model, target >= total_neutron_leakage(d1, d2, d3, Li6))
-        @NLobjective(model, Max, total_TBR(d1, d2, d3, Li6))
-        JuMP.optimize!(model)
-        TBR = objective_value(model)
-        l1, l2, l3, Li6 = (value(d1), value(d2), value(d3), value(Li6))
-        total_leakage = total_neutron_leakage(l1, l2, l3, Li6)
-    end
-
-    return total_leakage, l1, l2, l3, Li6, TBR
+    return l1, l2, l3, Li6, TBR, total_leakage
 end
