@@ -14,11 +14,15 @@ addprocs(SlurmManager(np-nprocs()+1), partition="preemptable", ntasks_per_core=1
 ## Parallel Jupyter on Saga cluster
 
 On `cybele` via NoMachine connect to `saga`
+
 ```
 jupyter lab --no-browser --port 55667
 ```
 
-On your computer setup your `~/.ssh.config` this way:
+Copy the token that you see on this session it should look something like ```token=1f1e0259cbc1..................```
+
+
+On your computer setup your `~/.ssh/config` this way:
 ```
 Host cybele cybele.gat.com
    Hostname cybele.gat.com
@@ -35,6 +39,8 @@ and start a tunnel going through `cybele` to `saga` (keep this open)
 ```
 ssh -N -L localhost:33445:localhost:55667 sagae
 ```
+
+Use the token that you coppied from your nomachine session and use it in the http://localhost:33445 login page
 
 Now, on your computer open a web browser tab to `localhost:33445` to connect to the Jupyter-lab session on `saga`.
 

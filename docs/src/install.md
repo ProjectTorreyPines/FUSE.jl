@@ -17,6 +17,10 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
    !!! note
        To clone the FUSE repository you will need to [setup your public key on git GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
 
+   !!! note
+       If you are installing from an old install and the package update isn't able to resolve itself feel free to remove every folder except the `dev` folder in your `.julia` folder
+
+   !!! tip
 1. Add FUSE and its dependencies to the julia environment (this may take a few minutes):
 
    ```bash
