@@ -127,7 +127,7 @@ function _step(actor::ActorBlanket)
             end
         end
 
-        # optimize layer thickensses
+        # optimize layers thickeness
         res = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, dd.target.tritium_breeding_ratio, par.verbose)
         bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, Li6, TBR, total_leakage = res
         push!(modules_Li6, Li6)
@@ -141,7 +141,8 @@ function _step(actor::ActorBlanket)
 
     end
 
-    ActorCXbuild(dd, act) # rebuild geometry
+    # rebuild geometry
+    ActorCXbuild(dd, act)
 
     # Evaluate TBR in 2D geometry
     modules_effective_thickness = []
@@ -187,7 +188,7 @@ function _step(actor::ActorBlanket)
             index = vcat(index[i+1:end], index[1:i])
         end
 
-        # calculate effective thickness of the layers based on the direction of the impinging neutron flux
+        # calculate effective thickness of the layers based on the direction of the average impinging neutron flux
         effective_thickness = zeros(length(index), 3)
         r_coords = zeros(4)
         z_coords = zeros(4)
@@ -228,11 +229,10 @@ function _step(actor::ActorBlanket)
         push!(modules_wall_loading_power, nnt.wall_loading.power[index])
     end
 
-    # Evaluate TBR in realistic geometry
-    function TBR2D(blanket_model::NNeutronics.Blanket, modules_Li6::Vector{<:Real}, dd::IMAS.dd, modules_effective_thickness::Vector{<:Any}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real)
+    # Evaluate TBR in realistic geometry and optimize for single Li6 enrichment
+    function target_TBR2D(blanket_model::NNeutronics.Blanket, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{<:Any}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real, target::Float64=0.0)
         total_tritium_breeding_ratio = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
-            Li6 = modules_Li6[ibm]
             bmt = bm.time_slice[]
             bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
             bmt.tritium_breeding_ratio = 0.0
@@ -242,9 +242,17 @@ function _step(actor::ActorBlanket)
             end
             total_tritium_breeding_ratio += bmt.tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
         end
-        return total_tritium_breeding_ratio
+        if target === 0.0
+            return total_tritium_breeding_ratio
+        else
+            return (total_tritium_breeding_ratio - target)^2
+        end
     end
-    TBR2D(blanket_model_1d, modules_Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
+
+    res = Optim.optimize(Li6 -> target_TBR2D(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, dd.target.tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
+    total_tritium_breeding_ratio = target_TBR2D(blanket_model_1d, res.minimizer, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
+
+    @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
 
     return actor
 end
