@@ -267,12 +267,12 @@ function optimize_layers(blanket_model::NNeutronics.Blanket, l1::Real, l2::Real,
     JuMP.set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
 
     # leakage neutron model
-    total_neutron_leakage(d1, d2, d3, Li6) = sum(NNeutronics.leakeage_energy(blanket_model, d1, d2, d3, Li6, energy_grid))
+    total_neutron_leakage(l1, l2, l3, Li6) = integrate(energy_grid, NNeutronics.leakeage_energy(blanket_model, l1, l2, l3, Li6, energy_grid))
     JuMP.register(model, :total_neutron_leakage, 4, total_neutron_leakage, autodiff=true)
 
     # TBR model
-    total_TBR(d1, d2, d3, Li6) = NNeutronics.TBR(blanket_model, d1, d2, d3, Li6)
-    JuMP.register(model, :total_TBR, 4, total_TBR, autodiff=true)
+    JuMP_TBR(l1, l2, l3, Li6) = NNeutronics.TBR(blanket_model, l1, l2, l3, Li6)
+    JuMP.register(model, :JuMP_TBR, 4, JuMP_TBR, autodiff=true)
 
     # variables and constraints
     if l1 == 0.0
@@ -293,13 +293,13 @@ function optimize_layers(blanket_model::NNeutronics.Blanket, l1::Real, l2::Real,
     JuMP.@variable(model, 0.0 <= Li6 <= 100.0)
 
     JuMP.@NLconstraint(model, blanket_thickness == d1 + d2 + d3)
-    JuMP.@NLconstraint(model, total_TBR(d1, d2, d3, Li6) >= target_Li6)
+    JuMP.@NLconstraint(model, JuMP_TBR(d1, d2, d3, Li6) >= target_Li6)
     JuMP.@NLobjective(model, Min, total_neutron_leakage(d1, d2, d3, Li6))
     JuMP.optimize!(model)
 
     l1, l2, l3, Li6 = (JuMP.value(d1), JuMP.value(d2), JuMP.value(d3), JuMP.value(Li6))
     total_leakage = total_neutron_leakage(l1, l2, l3, Li6)
-    TBR = total_TBR(l1, l2, l3, Li6)
+    TBR = JuMP_TBR(l1, l2, l3, Li6)
 
     if verbose
         println(model)
