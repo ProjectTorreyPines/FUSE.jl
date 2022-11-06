@@ -131,14 +131,6 @@ function _step(actor::ActorBlanket)
         res = optimize_layers(blanket_model_1d, bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, dd.target.tritium_breeding_ratio, par.verbose)
         bm.layer[1].midplane_thickness, bm.layer[2].midplane_thickness, bm.layer[3].midplane_thickness, Li6, TBR, total_leakage = res
         push!(modules_Li6, Li6)
-        for (kl, dl) in enumerate([d1, d2, d3])
-            if dl !== missing
-                dl.name = bm.layer[kl].name
-                dl.thickness = bm.layer[kl].midplane_thickness
-                dl.material = bm.layer[kl].material
-            end
-        end
-
     end
 
     # rebuild geometry
