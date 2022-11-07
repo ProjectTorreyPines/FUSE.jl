@@ -53,13 +53,13 @@ FUSE
 
 `ini` parameters are of type `ParametersInit`.
 
-1.  The `ParametersInit` are defined all `FUSE/src/parameters_init.jl` file. Add/edit entries there.
+*  The `ParametersInit` are defined all `FUSE/src/parameters_init.jl` file. Add/edit entries there.
 
 ### Add/modify entries in `act`
 
 `act` parameters are of type `ParametersActor`.
 
-1. The `ParametersActor` of each actor are defined where that actor is defined. Add/edit entries there.
+* The `ParametersActor` of each actor are defined where that actor is defined. Add/edit entries there.
 
 ### What constitutes an Actor
 
@@ -135,7 +135,7 @@ end
    ```julia
    include("make.jl")
    ```
-   !!! $note Interactive documentation build
+   !!! note Interactive documentation build
        One can call `include("make.jl")` over and over within the same Julia session to avoid dealing with startup time.
 
 1. Check page by opening `FUSE/docs/build/index.html` page in web-browser.
