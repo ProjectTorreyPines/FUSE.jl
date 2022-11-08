@@ -7,8 +7,13 @@ import NNeutronics
 mutable struct ActorBlanket <: ReactorAbstractActor
     dd::IMAS.dd
     par::ParametersActor
-    blanket_multiplier::Real
-    thermal_power_extraction_efficiency::Real
+    act::ParametersAllActors
+
+    function ActorBlanket(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+        logging_actor_init(ActorBlanket)
+        par = par(kw...)
+        return new(dd, par, act)
+    end
 end
 
 function ParametersActor(::Type{Val{:ActorBlanket}})
@@ -20,6 +25,7 @@ function ParametersActor(::Type{Val{:ActorBlanket}})
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0
     )
+    par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
 
@@ -33,16 +39,10 @@ Blanket actor
 """
 function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorBlanket(kw...)
-    actor = ActorBlanket(dd, par)
+    actor = ActorBlanket(dd, par, act)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorBlanket(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging_actor_init(ActorBlanket)
-    par = par(kw...)
-    return ActorBlanket(dd, par, par.blanket_multiplier, par.thermal_power_extraction_efficiency)
 end
 
 function _step(actor::ActorBlanket)
@@ -55,27 +55,36 @@ function _step(actor::ActorBlanket)
     end
 
     dd = actor.dd
-    eqt = dd.equilibrium.time_slice[]
-    nnt = dd.neutronics.time_slice[]
+    par = actor.par
+    act = actor.act
 
-    total_power_neutrons = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4 / 5
-    total_power_neutrons = sum(nnt.wall_loading.power)
+    eqt = dd.equilibrium.time_slice[]
+    ntt = dd.neutronics.time_slice[]
+
+    total_power_neutrons = sum(ntt.wall_loading.power)
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
 
     fwr = dd.neutronics.first_wall.r
     fwz = dd.neutronics.first_wall.z
 
-    # for all blanket modules
+    # all blanket modules
     blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
     resize!(dd.blanket.module, length(blankets))
+
+    # Optimize midplane layers thicknesses that:
+    # - achieve target TBR
+    # - minimize leakage
+    # - while fitting in current blanket thickness
+    modules_relative_thickness13 = Float64[]
     modules_effective_thickness = []
     modules_wall_loading_power = []
+    blanket_model_1d = NNeutronics.Blanket()
     for (istructure, structure) in enumerate(blankets)
         bm = dd.blanket.module[istructure]
         bm.name = structure.name
 
-        # get the relevant blanket layers
-        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r
+        # get the relevant blanket layers (d1, d2, d3)
+        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r && length(blankets) > 1 # HFS
             fs = _hfs_
         else
             fs = _lfs_
@@ -99,6 +108,7 @@ function _step(actor::ActorBlanket)
                 d3 = d3[1]
             end
         end
+        append!(modules_relative_thickness13, [1.0,1.0])
 
         # assign blanket module layers (designed to handle missing wall and/or missing shield)
         resize!(bm.layer, 3)
@@ -127,11 +137,11 @@ function _step(actor::ActorBlanket)
             index = vcat(index[i+1:end], index[1:i])
         end
 
-        # calculate effective thickness of the layers based on the direction of the impinging neutron flux
+        # calculate effective thickness of the layers based on the direction of the average impinging neutron flux
         effective_thickness = zeros(length(index), 3)
         r_coords = zeros(4)
         z_coords = zeros(4)
-        for (k, (r0, z0, fr, fz)) in enumerate(zip(fwr[index], fwz[index], nnt.wall_loading.flux_r[index], nnt.wall_loading.flux_z[index]))
+        for (k, (r0, z0, fr, fz)) in enumerate(zip(fwr[index], fwz[index], ntt.wall_loading.flux_r[index], ntt.wall_loading.flux_z[index]))
             fn = norm(fr, fz)
             r_coords[1] = r0
             z_coords[1] = z0
@@ -153,46 +163,75 @@ function _step(actor::ActorBlanket)
         end
 
         # assign totals in IDS
-        total_neutron_capture_fraction = sum(nnt.wall_loading.power[index]) / total_power_neutrons
+        total_neutron_capture_fraction = sum(ntt.wall_loading.power[index]) / total_power_neutrons
         # evaluate radiative_capture_fraction (could be done better, since ratiation source may not be coming from core)
         total_radiative_capture_fraction = total_neutron_capture_fraction
         resize!(bm.time_slice)
         bmt = bm.time_slice[]
         bmt.power_incident_neutrons = total_power_neutrons .* total_neutron_capture_fraction
         bmt.power_incident_radiated = total_power_radiated .* total_radiative_capture_fraction
-        bmt.power_thermal_neutrons = bmt.power_incident_neutrons * actor.blanket_multiplier
+        bmt.power_thermal_neutrons = bmt.power_incident_neutrons * par.blanket_multiplier
         bmt.power_thermal_radiated = bmt.power_incident_radiated
-        bmt.power_thermal_extracted = actor.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
+        bmt.power_thermal_extracted = par.thermal_power_extraction_efficiency * (bmt.power_thermal_neutrons + bmt.power_thermal_radiated)
 
         push!(modules_effective_thickness, effective_thickness)
-        push!(modules_wall_loading_power, nnt.wall_loading.power[index])
+        push!(modules_wall_loading_power, ntt.wall_loading.power[index])
     end
 
-    # Optimize Li6/Li7 ratio to obtain target TBR
-    function target_TBR(blanket_model, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, target=nothing)
+    # Optimize layers thicknesses and minimize Li6 enrichment needed to match
+    # target TBR and minimize neutron leakage (realistic geometry and wall loading)
+    function target_TBR2D(blanket_model::NNeutronics.Blanket, modules_relative_thickness13::Vector{<:Real}, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{<:Any}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real, target::Float64=0.0)
+        energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
+        Li6 = min(max(Li6, 0.0), 100.0)
+        modules_neutron_shine_through = []
         for (ibm, bm) in enumerate(dd.blanket.module)
             bmt = bm.time_slice[]
             bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
-            bmt.tritium_breeding_ratio = 0.0
+            module_tritium_breeding_ratio = 0.0
+            module_neutron_shine_through = 0.0
             module_wall_loading_power = sum(modules_wall_loading_power[ibm])
+            d1 = bm.layer[1].midplane_thickness * abs(modules_relative_thickness13[1+(ibm-1)*2])
+            d2 = bm.layer[2].midplane_thickness
+            d3 = bm.layer[3].midplane_thickness * abs(modules_relative_thickness13[2+(ibm-1)*2])
+            dtot = d1 + d2 + d3
+            x1 = d1 / dtot
+            x2 = d2 / dtot
+            x3 = d3 / dtot
             for k in 1:length(modules_wall_loading_power[ibm])
-                bmt.tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, modules_effective_thickness[ibm][k, :]..., Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
+                ed1 = modules_effective_thickness[ibm][k, 1] * x1
+                ed2 = modules_effective_thickness[ibm][k, 2] * x2
+                ed3 = modules_effective_thickness[ibm][k, 3] * x3
+                module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
+                module_neutron_shine_through += integrate(energy_grid, NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)) * modules_wall_loading_power[ibm][k] / total_power_neutrons
             end
-            total_tritium_breeding_ratio += bmt.tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
+            push!(modules_neutron_shine_through, module_neutron_shine_through)
+            total_tritium_breeding_ratio += module_tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
+            if target === 0.0
+                bmt.tritium_breeding_ratio = module_tritium_breeding_ratio
+                bmt.neutron_shine_through = module_neutron_shine_through
+                bm.layer[1].midplane_thickness = d1
+                bm.layer[2].midplane_thickness = d2
+                bm.layer[3].midplane_thickness = d3
+            end
         end
-        if target === nothing
-            return total_tritium_breeding_ratio
+        if target === 0.0
+            @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
         else
-            return (total_tritium_breeding_ratio - target)^2
+            cost = [sqrt(abs(total_tritium_breeding_ratio - target)); maximum(modules_neutron_shine_through)] .^ 2
+            return sum(cost) * (1.0 + (Li6 / 100.0).^2)
         end
     end
 
-    blanket_model_1d = NNeutronics.Blanket()
-    res = Optim.optimize(Li6 -> target_TBR(blanket_model_1d, Li6, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, dd.target.tritium_breeding_ratio), 0.0, 100.0, Optim.GoldenSection(), rel_tol=1E-6)
-    total_tritium_breeding_ratio = target_TBR(blanket_model_1d, res.minimizer, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
+    res = Optim.optimize(x -> target_TBR2D(blanket_model_1d, x[1:end-1], x[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, dd.target.tritium_breeding_ratio), vcat(modules_relative_thickness13, 50.0), Optim.NelderMead())#; autodiff=:forward)#, rel_tol=1E-6)
+    total_tritium_breeding_ratio = target_TBR2D(blanket_model_1d, res.minimizer[1:end-1], res.minimizer[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons)
 
-    @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
+    if par.verbose
+        println(res)
+    end
+
+    # rebuild geometry
+    ActorCXbuild(dd, act)
 
     return actor
 end
