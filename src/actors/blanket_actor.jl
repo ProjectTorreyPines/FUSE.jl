@@ -3,8 +3,6 @@
 #= ============ =#
 
 import NNeutronics
-import NLopt
-import JuMP
 
 mutable struct ActorBlanket <: ReactorAbstractActor
     dd::IMAS.dd
@@ -27,7 +25,6 @@ function ParametersActor(::Type{Val{:ActorBlanket}})
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0
     )
-    par.objective = Switch([:leakage, :TBR], "", "Blanket layers optimization objective"; default=:leakage)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
     return par
 end
