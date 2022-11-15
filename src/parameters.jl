@@ -197,7 +197,7 @@ Generates all initalization parameters
 """
 function ParametersAllInits()
     ini = ParametersAllInits(missing, WeakRef(missing), Dict{Symbol,Union{AbstractParameter,ParametersInit}}())
-    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material, :target]
+    for item in [:general, :equilibrium, :core_profiles, :pf_active, :oh, :stability, :tf, :center_stack, :nbi, :ec_launchers, :ic_antennas, :lh_antennas, :build, :gasc, :ods, :material, :target]
         setproperty!(ini, item, ParametersInit(item))
     end
     ini._name = :ini

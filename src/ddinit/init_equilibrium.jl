@@ -6,7 +6,7 @@
 
 Initialize `dd.equilibrium` starting from `ini` and `act` parameters
 """
-function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; set_B0_from_b_max=false, set_ip_from_q_cyl=false, kwargs...)
     init_from = ini.general.init_from
 
     if init_from == :ods
@@ -22,6 +22,17 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
 
     if init_from == :scalars
         # init equilibrium
+        # use keyword argument options
+        if set_B0_from_b_max
+            idices = [idx for (idx,item) in enumerate(ini.build.layers) if item[1] == "hfs_TF" || item[1] == "plasma"]
+            distance_tf_to_plasma = sum([item[2] for item in ini.build.layers][idices[1]+1:idices[2]-1])
+            ini.equilibrium.B0 = B0_from_b_max(ini.tf.b_max, distance_tf_to_plasma, ini.equilibrium.R0 * ini.equilibrium.ϵ, ini.equilibrium.R0)
+        end
+
+        if set_ip_from_q_cyl
+            ini.equilibrium.ip = ip_from_q_cyl(ini.equilibrium.R0 * ini.equilibrium.ϵ, ini.equilibrium.B0, ini.stability.q_cyl, ini.equilibrium.R0, ini.equilibrium.κ)
+        end
+
         init_equilibrium(
             dd.equilibrium;
             B0=ini.equilibrium.B0,
@@ -78,7 +89,7 @@ Initialize equilibrium IDS based on some basic Miller geometry parameters
 """
 function init_equilibrium(
     eq::IMAS.equilibrium;
-    B0::Real,
+    B0::Union{Real,Symbol},
     R0::Real,
     Z0::Real,
     ϵ::Real,

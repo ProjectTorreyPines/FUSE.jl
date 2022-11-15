@@ -59,7 +59,7 @@ end
 
 Initialize `dd.build` starting from `ini` and `act` parameters
 """
-function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; set_B0_from_b_max=false, kargs...)
     init_from = ini.general.init_from
 
     if init_from == :ods
@@ -132,6 +132,11 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         end
     end
 
+    if set_B0_from_b_max
+        tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=false)        
+        B0 = B0_from_b_max(ini.tf.b_max, tf_to_plasma[end].start_radius - tf_to_plasma[1].end_radius, ini.equilibrium.R0 * ini.equilibrium.ϵ, ini.equilibrium.R0)
+        @ddtime (dd.equilibrium.vacuum_toroidal_field.b0) = ini.equilibrium.B0 = B0
+    end
     # 2D build cross-section
     ActorCXbuild(dd, act)
 

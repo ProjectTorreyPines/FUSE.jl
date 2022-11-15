@@ -7,7 +7,7 @@ FUSE provides this high-level `init` function to populate `dd` starting from the
 This function essentially calls all other `FUSE.init...` functions in FUSE.
 For most applications, calling this high level function is sufficient.
 """
-function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
+function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, kwargs...)
     ods_items = []
     # Check what is in the ods to load
     if ini.general.init_from == :ods
@@ -16,7 +16,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
 
     # initialize equilibrium
     if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
-        init_equilibrium(dd, ini, act)
+        init_equilibrium(dd, ini, act; kwargs...)
         if do_plot
             display(plot(dd.equilibrium.time_slice[end]))
             plot(dd.equilibrium.time_slice[end]; cx=true, x_point=true)
@@ -26,7 +26,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
 
     # initialize build
     if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || :build ∈ ods_items
-        init_build(dd, ini, act)
+        init_build(dd, ini, act; kwargs...)
         if do_plot
             plot(dd.equilibrium; cx=true, color=:gray)
             plot!(dd.build)
@@ -69,9 +69,9 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     return dd
 end
 
-function init(ini::ParametersAllInits, act::ParametersAllActors; do_plot=false)
+function init(ini::ParametersAllInits, act::ParametersAllActors; do_plot=false, kwargs...)
     dd = IMAS.dd()
-    return init(dd, ini, act; do_plot)
+    return init(dd, ini, act; do_plot, kwargs...)
 end
 
 """
