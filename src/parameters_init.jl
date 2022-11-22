@@ -7,15 +7,15 @@ function ParametersInit(::Type{Val{:general}})
         :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
         :scalars => "Initialize FUSE run from scalar parameters"
     ]
-    general.init_from = Switch(options, "", "Initialize run from")
+    general.init_from = Switch(Symbol, options, "", "Initialize run from")
     return general
 end
 
 function ParametersInit(::Type{Val{:material}})
     material = ParametersInit(nothing)
-    material.wall = Switch(FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default="Steel, Stainless 316")
-    material.blanket = Switch(FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
-    material.shield = Switch(FusionMaterials.available_materials("shield_materials"), "", "Material used for the shield")
+    material.wall = Switch(String, FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default="Steel, Stainless 316")
+    material.blanket = Switch(String, FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
+    material.shield = Switch(String, FusionMaterials.available_materials("shield_materials"), "", "Material used for the shield")
     return material
 end
 
@@ -34,7 +34,7 @@ function ParametersInit(::Type{Val{:equilibrium}})
     equilibrium.symmetric = Entry(Bool, "", "Is plasma up-down symmetric")
     equilibrium.ngrid = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
     equilibrium.field_null_surface = Entry(Real, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)
-    equilibrium.boundary_from = Switch([:scalars, :MXH_params, :rz_points], "", "The starting r, z boundary taken from"; default=:scalars)
+    equilibrium.boundary_from = Switch(Symbol, [:scalars, :MXH_params, :rz_points], "", "The starting r, z boundary taken from"; default=:scalars)
     equilibrium.MXH_params = Entry(Union{Nothing,Vector{<:Real}}, "", "Vector of MXH flats", default=missing)
     equilibrium.rz_points = Entry(Union{Nothing,Vector{Vector{<:Real}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
     return equilibrium
@@ -69,7 +69,7 @@ function ParametersInit(::Type{Val{:tf}})
     tf = ParametersInit(nothing)
     tf.n_coils = Entry(Int, "", "Number of TF coils")
     options = [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :triple_arc, :miller, :spline]
-    tf.shape = Switch(options, "", "Shape of the TF coils"; default=:princeton_D_scaled)
+    tf.shape = Switch(Symbol, options, "", "Shape of the TF coils"; default=:princeton_D_scaled)
     tf.ripple = Entry(Real, "", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
     tf.technology = ParametersInit(:coil_technology)
     return tf
@@ -153,7 +153,7 @@ end
 
 function ParametersInit(::Type{Val{:coil_technology}})
     coil_tech = ParametersInit(nothing)
-    coil_tech.material = Switch(FusionMaterials.available_materials("magnet_materials"), "", "Technology used for the coil.")
+    coil_tech.material = Switch(String, FusionMaterials.available_materials("magnet_materials"), "", "Technology used for the coil.")
     coil_tech.temperature = Entry(Real, "K", "Coil temperature")
     coil_tech.thermal_strain = Entry(Real, "", "Fraction of thermal expansion strain over maximum total strain on coil")
     coil_tech.JxB_strain = Entry(Real, "", "Fraction of maximum JxB strain over maximum total strain on coil")

@@ -11,23 +11,23 @@ mutable struct Entry{T} <: AbstractParameter
     _parent::WeakRef
     units::String
     description::String
-    value::T
-    base::T
-    default::T
+    value::Union{Missing,T}
+    base::Union{Missing,T}
+    default::Union{Missing,T}
     lower::Union{Missing,Float64}
     upper::Union{Missing,Float64}
 end
 
 """
-    Entry(T, units::String, description::String; default = missing)
+    Entry(T::DataType, units::String, description::String; default = missing)
 
 Defines a entry parameter
 """
-function Entry(T, units::String, description::String; default=missing)
-    return Entry{Union{Missing,T}}(missing, WeakRef(missing), units, description, default, default, default, missing, missing)
+function Entry(T::Type, units::String, description::String; default=missing)
+    return Entry{T}(missing, WeakRef(missing), units, description, default, default, default, missing, missing)
 end
 
-function Entry(T, ids::Type, field::Symbol; default=missing)
+function Entry(T::Type, ids::Type, field::Symbol; default=missing)
     txt = IMAS.info(ids, field)
     return Entry(T, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end
@@ -40,49 +40,49 @@ struct SwitchOption
     description::String
 end
 
-mutable struct Switch <: AbstractParameter
+mutable struct Switch{T} <: AbstractParameter
     _name::Union{Missing,Symbol}
     _parent::WeakRef
     options::Dict{Any,SwitchOption}
     units::String
     description::String
-    value::Any
-    base::Any
-    default::Any
+    value::Union{Missing,T}
+    base::Union{Missing,T}
+    default::Union{Missing,T}
 end
 
 """
-    Switch(options, units::String, description::String; default = missing)
+    Switch(T::Type, options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
 
 Defines a switch parameter
 """
-function Switch(options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
+function Switch(T::Type, options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
-    return Switch(missing, WeakRef(missing), options, units, description, default, default, default)
+    return Switch{T}(missing, WeakRef(missing), options, units, description, default, default, default)
 end
 
-function Switch(options::Vector{<:Pair}, units::String, description::String; default=missing)
+function Switch(T::Type, options::Vector{<:Pair}, units::String, description::String; default=missing)
     opts = Dict{Any,SwitchOption}()
     for (key, desc) in options
         opts[key] = SwitchOption(key, desc)
     end
-    return Switch(missing, WeakRef(missing), opts, units, description, default, default, default)
+    return Switch{T}(missing, WeakRef(missing), opts, units, description, default, default, default)
 end
 
-function Switch(options::Vector{<:Union{Symbol,String}}, units::String, description::String; default=missing)
+function Switch(T::Type, options::Vector{<:Union{Symbol,String}}, units::String, description::String; default=missing)
     opts = Dict{eltype(options),SwitchOption}()
     for key in options
         opts[key] = SwitchOption(key, "$key")
     end
-    return Switch(missing, WeakRef(missing), opts, units, description, default, default, default)
+    return Switch{T}(missing, WeakRef(missing), opts, units, description, default, default, default)
 end
 
-function Switch(options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing)
+function Switch(T::Type, options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing)
     location = "$(IMAS.fs2u(ids)).$(field)"
     txt = IMAS.info(location)
-    return Switch(options, get(txt, "units", ""), get(txt, "documentation", ""); default)
+    return Switch(T, options, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end
 
 function Base.setproperty!(p::Switch, key::Symbol, value)

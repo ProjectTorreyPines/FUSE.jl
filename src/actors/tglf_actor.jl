@@ -13,7 +13,7 @@ end
 function ParametersActor(::Type{Val{:ActorTGLF}})
     par = ParametersActor(nothing)
     par.nn = Entry(Bool, "", "Use TGLF-NN"; default=true)
-    par.sat_rule = Switch([:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "", "Saturation rule"; default=:sat0)
+    par.sat_rule = Switch(Symbol, [:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "", "Saturation rule"; default=:sat0)
     par.electromagnetic = Entry(Bool, "", "Electromagnetic or electrostatic"; default=false)
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
     par.warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
