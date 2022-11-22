@@ -272,12 +272,13 @@ function path(p::Union{AbstractParameter,AbstractParameters})
         return Symbol[]
     end
     pp = Symbol[name]
-    while typeof(getfield(p,:_parent).value) <: AbstractParameters
-        if getfield(p,:_parent).value._name === missing
+    value = getfield(p, :_parent).value
+    while typeof(value) <: AbstractParameters
+        if getfield(value, :_name) === missing
             break
         end
-        pushfirst!(pp, getfield(p,:_parent).value._name)
-        p = getfield(p,:_parent).value
+        pushfirst!(pp, getfield(value, :_name))
+        value = getfield(value, :_parent).value
     end
     return pp
 end
@@ -298,32 +299,36 @@ function Base.setindex!(p::AbstractParameters, value::Any, field::Symbol)
     return getfield(p, :_parameters)[field] = value
 end
 
+function value(parameter::Entry{T}, path::Vector{Symbol})::T where {T}
+    value = parameter.value
+    if value === missing
+        throw(NotsetParameterException(path))
+    else
+        return value::T
+    end
+end
+
+function value(parameter::Switch{T}, path::Vector{Symbol})::T where {T}
+    if parameter.value === missing
+        throw(NotsetParameterException(path, collect(keys(parameter.options))))
+    end
+    value = parameter.options[parameter.value].value
+    if value === missing
+        throw(NotsetParameterException(path))
+    else
+        return value::T
+    end
+end
+
+function value(parameter::T, path::Vector{Symbol})::T where {T<:AbstractParameters}
+    return parameter::T
+end
+
 function Base.getproperty(p::AbstractParameters, key::Symbol)
-    if key ∈ fieldnames(typeof(p))
-        return getfield(p, key)
-    elseif key ∉ keys(p)
+    if key ∉ keys(p)
         throw(InexistentParameterException(typeof(p), vcat(path(p), key)))
     end
-    parameter = p[key]
-
-    if typeof(parameter) <: AbstractParameters
-        value = parameter
-    elseif typeof(parameter) <: Entry
-        value = parameter.value
-    elseif typeof(parameter) <: Switch
-        if parameter.value === missing
-            throw(NotsetParameterException(vcat(path(p), key), collect(keys(parameter.options))))
-        end
-        value = parameter.options[parameter.value].value
-    else
-        error("Unrecognized type $(typeof(parameter))")
-    end
-
-    if value === missing
-        throw(NotsetParameterException(vcat(path(p), key)))
-    end
-
-    return value
+    return value(p[key], vcat(path(p), key))
 end
 
 """
@@ -333,11 +338,12 @@ Return value of `key` parameter or `default` if parameter is missing
 NOTE: This is useful because accessing a `missing` parameter would raise an error
 """
 function Base.getproperty(p::AbstractParameters, key::Symbol, default)
-    value = p[key].value
+    parameter = p[key]
+    value = parameter.value
     if value === missing
         return default
     else
-        return value
+        return value::(typeof(parameter).parameters[1])
     end
 end
 
@@ -360,7 +366,7 @@ function Base.setproperty!(p::AbstractParameters, key::Symbol, value)
         return value
     end
 
-    if !(key in keys(p))
+    if key ∉ keys(p)
         throw(InexistentParameterException(typeof(p), vcat(path(p), key)))
     end
     parameter = p[key]
@@ -413,7 +419,7 @@ function AbstractTrees.children(pars::AbstractParameters)
 end
 
 function AbstractTrees.printnode(io::IO, pars::AbstractParameters)
-    printstyled(io, pars._name; bold=true)
+    printstyled(io, getfield(pars, :_name); bold=true)
 end
 
 function AbstractTrees.children(par::AbstractParameter)
@@ -427,9 +433,9 @@ end
 function AbstractTrees.printnode(io::IO, par::AbstractParameter)
     color = parameter_color(par)
     if typeof(par.value) <: AbstractDict
-        printstyled(io, "$(par._name)[:]"; bold=true)
+        printstyled(io, "$(getfield(par,:_name))[:]"; bold=true)
     else
-        printstyled(io, par._name)
+        printstyled(io, getfield(par, :_name))
         printstyled(io, " ➡ ")
         printstyled(io, "$(repr(par.value))"; color=color)
         if length(replace(par.units, "-" => "")) > 0 && par.value !== missing
@@ -475,7 +481,7 @@ end
 Look for differences between two `ini` or `act` sets of parameters
 """
 function Base.diff(p1::AbstractParameters, p2::AbstractParameters)
-    commonkeys = intersect(Set(keys(p1)),Set(keys(p2)))
+    commonkeys = intersect(Set(keys(p1)), Set(keys(p2)))
     if length(commonkeys) != length(keys(p1))
         error("p1 has more keys")
     elseif length(commonkeys) != length(keys(p2))
