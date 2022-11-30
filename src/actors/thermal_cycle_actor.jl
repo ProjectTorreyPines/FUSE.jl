@@ -16,8 +16,8 @@ function ParametersActor(::Type{Val{:ActorThermalCycle}})
     par.model   = Entry(String, "", "Power Cycle model"; default="brayton")
     par.rp      = Entry(Real, "", "Overall Compression Ratio"; default=3.0)
     par.Pmax    = Entry(Real, "", "Max System Pressure (kPa)"; default=8000)
-    par.Tmax    = Entry(Real,"","Max Cycle Temperature °C";default = 800.0)
-    par.Tmin    = Entry(Real,"","Min Cycle Temperature °C";default = 35.0)
+    par.Tmax    = Entry(Real,"","Max Cycle Temperature K";default = 600.0+273.15)
+    par.Tmin    = Entry(Real,"","Min Cycle Temperature K";default = 35.0+273.15)
     par.Nt      = Entry(Int, "", "Number of Turbine Stages"; default=2)
     par.Nc      = Entry(Int, "", "Number of Compression Stages"; default=2)
     return par
@@ -58,20 +58,20 @@ function _step(actor::ActorThermalCycle)
     ### BLANKET AND DIVERTOR POWER###
     # blanket_power   =       [sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time]
     # div_power       =       sum([IMAS.get_time_array(div.power_thermal_extracted, :data, bop.time, :constant) for div in dd.divertors.divertor])
-    div_power       = bop.IHTS.divertor_heat_power
-    blanket_power   = bop.IHTS.blanket_heat_power
+    div_power       = abs.(bop.IHTS.divertor_heat_power)
+    blanket_power   = abs.(bop.IHTS.blanket_heat_power)
 
     bop_thermal.total_heat_power = div_power+blanket_power  #power from divertor and blanket
     braytonOut = braytonCycle(actor.par.rp,actor.par.Pmax,actor.par.Tmin,actor.par.Tmax, actor.par.Nt, actor.par.Nc)
 
-    bop_thermal.thermal_effeciency      = braytonOut.η_th
-    bop_thermal.mass_flow_rate          = bop_thermal.total_heat_power/braytonOut.η_th
-    bop_thermal.cycle_work_output       = bop_thermal.mass_flow_rate * braytonOut.w_out
-    bop_thermal.cycle_work_input        = bop_thermal.mass_flow_rate * braytonOut.w_in
-    bop_thermal.cycle_net_work          = bop_thermal.mass_flow_rate * braytonOut.w_net
+    bop_thermal.thermal_effeciency      = braytonOut.η_th.*ones(length(dd.core_profiles.time))
+    bop_thermal.mass_flow_rate          = bop_thermal.total_heat_power./braytonOut.η_th
+    bop_thermal.cycle_work_output       = bop_thermal.mass_flow_rate .* braytonOut.w_out
+    bop_thermal.cycle_work_input        = bop_thermal.mass_flow_rate .* braytonOut.w_in
+    bop_thermal.cycle_net_work          = bop_thermal.mass_flow_rate .* braytonOut.w_net
 
-    bop_thermal.heat_waste              = bop_thermal.mass_flow_rate * braytonOut.q_L
-    bop_thermal.IHTS_inlet_temperature  = braytonOut.T_HX
+    bop_thermal.heat_waste              = bop_thermal.mass_flow_rate .* braytonOut.q_L
+    bop_thermal.IHTS_inlet_temperature  = braytonOut.T_HX .* ones(length(dd.core_profiles.time))
 
     return actor
 end
@@ -142,5 +142,5 @@ function braytonCycle(rp::Real,Pmax::Real,Tmin::Real,Tmax::Real, Nt::Int, Nc::In
     # SOME return result = (netWork = wnet, turbWork = wt, compWork = wc, heatIn = q_in, heatWaste = q_waste+q_intercool, η_th = η_thermal)
     # SOME return result = (wc = wc,wt=wt,q_rh = q_reheat,q_ic = q_intercool,q_fus = q_primary,q_rej = q_waste,T_HX = Primary_inlet_temp)
     # ONLY NECECCARY
-    return BraytonOutput(η_thermal, wnet,wc,wt, abs(wc/wt), q_in ,q_out,Primary_inlet_temp)
+    return BraytonOutput(η_thermal, abs(wnet),abs(wc),abs(wt), abs(wc/wt), abs(q_in) ,abs(q_out),Primary_inlet_temp)
 end
