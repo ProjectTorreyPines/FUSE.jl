@@ -13,7 +13,7 @@ using Test
     @test par.equilibrium.B0 == 1.0
 
     @test par.equilibrium[:B0]._name == :B0
-    @test par[:equilibrium]._name == :equilibrium
+    @test getfield(par[:equilibrium],:_name) == :equilibrium
 
     ini = FUSE.ParametersAllInits()
     ini1 = FUSE.ParametersAllInits()
