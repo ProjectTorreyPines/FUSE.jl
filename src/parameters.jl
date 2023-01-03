@@ -11,23 +11,23 @@ mutable struct Entry{T} <: AbstractParameter
     _parent::WeakRef
     units::String
     description::String
-    value::T
-    base::T
-    default::T
+    value::Union{Missing,T}
+    base::Union{Missing,T}
+    default::Union{Missing,T}
     lower::Union{Missing,Float64}
     upper::Union{Missing,Float64}
 end
 
 """
-    Entry(T, units::String, description::String; default = missing)
+    Entry(T::DataType, units::String, description::String; default = missing)
 
 Defines a entry parameter
 """
-function Entry(T, units::String, description::String; default=missing)
-    return Entry{Union{Missing,T}}(missing, WeakRef(missing), units, description, default, default, default, missing, missing)
+function Entry(T::Type, units::String, description::String; default=missing)
+    return Entry{T}(missing, WeakRef(missing), units, description, default, default, default, missing, missing)
 end
 
-function Entry(T, ids::Type, field::Symbol; default=missing)
+function Entry(T::Type, ids::Type, field::Symbol; default=missing)
     txt = IMAS.info(ids, field)
     return Entry(T, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end
@@ -40,49 +40,49 @@ struct SwitchOption
     description::String
 end
 
-mutable struct Switch <: AbstractParameter
+mutable struct Switch{T} <: AbstractParameter
     _name::Union{Missing,Symbol}
     _parent::WeakRef
     options::Dict{Any,SwitchOption}
     units::String
     description::String
-    value::Any
-    base::Any
-    default::Any
+    value::Union{Missing,T}
+    base::Union{Missing,T}
+    default::Union{Missing,T}
 end
 
 """
-    Switch(options, units::String, description::String; default = missing)
+    Switch(T::Type, options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
 
 Defines a switch parameter
 """
-function Switch(options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
+function Switch(T::Type, options::Dict{Any,SwitchOption}, units::String, description::String; default=missing)
     if !in(default, keys(options))
         error("$(repr(default)) is not a valid option: $(collect(keys(options)))")
     end
-    return Switch(missing, WeakRef(missing), options, units, description, default, default, default)
+    return Switch{T}(missing, WeakRef(missing), options, units, description, default, default, default)
 end
 
-function Switch(options::Vector{<:Pair}, units::String, description::String; default=missing)
+function Switch(T::Type, options::Vector{<:Pair}, units::String, description::String; default=missing)
     opts = Dict{Any,SwitchOption}()
     for (key, desc) in options
         opts[key] = SwitchOption(key, desc)
     end
-    return Switch(missing, WeakRef(missing), opts, units, description, default, default, default)
+    return Switch{T}(missing, WeakRef(missing), opts, units, description, default, default, default)
 end
 
-function Switch(options::Vector{<:Union{Symbol,String}}, units::String, description::String; default=missing)
+function Switch(T::Type, options::Vector{<:Union{Symbol,String}}, units::String, description::String; default=missing)
     opts = Dict{eltype(options),SwitchOption}()
     for key in options
         opts[key] = SwitchOption(key, "$key")
     end
-    return Switch(missing, WeakRef(missing), opts, units, description, default, default, default)
+    return Switch{T}(missing, WeakRef(missing), opts, units, description, default, default, default)
 end
 
-function Switch(options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing)
+function Switch(T::Type, options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing)
     location = "$(IMAS.fs2u(ids)).$(field)"
     txt = IMAS.info(location)
-    return Switch(options, get(txt, "units", ""), get(txt, "documentation", ""); default)
+    return Switch(T, options, get(txt, "units", ""), get(txt, "documentation", ""); default)
 end
 
 function Base.setproperty!(p::Switch, key::Symbol, value)
@@ -272,12 +272,13 @@ function path(p::Union{AbstractParameter,AbstractParameters})
         return Symbol[]
     end
     pp = Symbol[name]
-    while typeof(getfield(p,:_parent).value) <: AbstractParameters
-        if getfield(p,:_parent).value._name === missing
+    value = getfield(p, :_parent).value
+    while typeof(value) <: AbstractParameters
+        if getfield(value, :_name) === missing
             break
         end
-        pushfirst!(pp, getfield(p,:_parent).value._name)
-        p = getfield(p,:_parent).value
+        pushfirst!(pp, getfield(value, :_name))
+        value = getfield(value, :_parent).value
     end
     return pp
 end
@@ -298,32 +299,36 @@ function Base.setindex!(p::AbstractParameters, value::Any, field::Symbol)
     return getfield(p, :_parameters)[field] = value
 end
 
+function value(parameter::Entry{T}, path::Vector{Symbol})::T where {T}
+    value = parameter.value
+    if value === missing
+        throw(NotsetParameterException(path))
+    else
+        return value::T
+    end
+end
+
+function value(parameter::Switch{T}, path::Vector{Symbol})::T where {T}
+    if parameter.value === missing
+        throw(NotsetParameterException(path, collect(keys(parameter.options))))
+    end
+    value = parameter.options[parameter.value].value
+    if value === missing
+        throw(NotsetParameterException(path))
+    else
+        return value::T
+    end
+end
+
+function value(parameter::T, path::Vector{Symbol})::T where {T<:AbstractParameters}
+    return parameter::T
+end
+
 function Base.getproperty(p::AbstractParameters, key::Symbol)
-    if key ∈ fieldnames(typeof(p))
-        return getfield(p, key)
-    elseif key ∉ keys(p)
+    if key ∉ keys(p)
         throw(InexistentParameterException(typeof(p), vcat(path(p), key)))
     end
-    parameter = p[key]
-
-    if typeof(parameter) <: AbstractParameters
-        value = parameter
-    elseif typeof(parameter) <: Entry
-        value = parameter.value
-    elseif typeof(parameter) <: Switch
-        if parameter.value === missing
-            throw(NotsetParameterException(vcat(path(p), key), collect(keys(parameter.options))))
-        end
-        value = parameter.options[parameter.value].value
-    else
-        error("Unrecognized type $(typeof(parameter))")
-    end
-
-    if value === missing
-        throw(NotsetParameterException(vcat(path(p), key)))
-    end
-
-    return value
+    return value(p[key], vcat(path(p), key))
 end
 
 """
@@ -333,11 +338,12 @@ Return value of `key` parameter or `default` if parameter is missing
 NOTE: This is useful because accessing a `missing` parameter would raise an error
 """
 function Base.getproperty(p::AbstractParameters, key::Symbol, default)
-    value = p[key].value
+    parameter = p[key]
+    value = parameter.value
     if value === missing
         return default
     else
-        return value
+        return value::(typeof(parameter).parameters[1])
     end
 end
 
@@ -360,7 +366,7 @@ function Base.setproperty!(p::AbstractParameters, key::Symbol, value)
         return value
     end
 
-    if !(key in keys(p))
+    if key ∉ keys(p)
         throw(InexistentParameterException(typeof(p), vcat(path(p), key)))
     end
     parameter = p[key]
@@ -413,7 +419,7 @@ function AbstractTrees.children(pars::AbstractParameters)
 end
 
 function AbstractTrees.printnode(io::IO, pars::AbstractParameters)
-    printstyled(io, pars._name; bold=true)
+    printstyled(io, getfield(pars, :_name); bold=true)
 end
 
 function AbstractTrees.children(par::AbstractParameter)
@@ -427,9 +433,9 @@ end
 function AbstractTrees.printnode(io::IO, par::AbstractParameter)
     color = parameter_color(par)
     if typeof(par.value) <: AbstractDict
-        printstyled(io, "$(par._name)[:]"; bold=true)
+        printstyled(io, "$(getfield(par,:_name))[:]"; bold=true)
     else
-        printstyled(io, par._name)
+        printstyled(io, getfield(par, :_name))
         printstyled(io, " ➡ ")
         printstyled(io, "$(repr(par.value))"; color=color)
         if length(replace(par.units, "-" => "")) > 0 && par.value !== missing
@@ -475,7 +481,7 @@ end
 Look for differences between two `ini` or `act` sets of parameters
 """
 function Base.diff(p1::AbstractParameters, p2::AbstractParameters)
-    commonkeys = intersect(Set(keys(p1)),Set(keys(p2)))
+    commonkeys = intersect(Set(keys(p1)), Set(keys(p2)))
     if length(commonkeys) != length(keys(p1))
         error("p1 has more keys")
     elseif length(commonkeys) != length(keys(p2))

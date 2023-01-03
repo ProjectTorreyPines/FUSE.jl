@@ -12,7 +12,7 @@ end
 
 function ParametersActor(::Type{Val{:ActorNeoclassical}})
     par = ParametersActor(nothing)
-    par.neoclassical_model = Switch([:changhinton], "", "Neoclassical model to run"; default=:changhinton)
+    par.neoclassical_model = Switch(Symbol, [:changhinton], "", "Neoclassical model to run"; default=:changhinton)
     par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
     return par
 end

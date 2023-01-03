@@ -9,7 +9,7 @@ end
 
 function ParametersActor(::Type{Val{:ActorEquilibrium}})
     par = ParametersActor(nothing)
-    par.model = Switch([:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
+    par.model = Switch(Symbol, [:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
     return par
 end
 

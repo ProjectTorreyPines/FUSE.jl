@@ -36,7 +36,7 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
         :corners => "like :simple, but PF coils have filaments at the four corners",
         :realistic => "possibly hundreds of filaments per coil (very slow!)",
     ]
-    par.green_model = Switch(options, "", "Model used for the coils Green function calculations"; default=:simple)
+    par.green_model = Switch(Symbol, options, "", "Model used for the coils Green function calculations"; default=:simple)
     par.symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
     par.weight_currents = Entry(Float64, "", "Weight of current limit constraint"; default=2.0)
     par.weight_strike = Entry(Float64, "", "Weight given to matching the strike-points"; default=0.1)
@@ -48,7 +48,7 @@ function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
         :currents => "Find optimial coil currents but do not change coil positions",
         :rail => "Find optimial coil positions"
     ]
-    par.optimization_scheme = Switch(options, "", "Type of PF coil optimization to carry out"; default=:rail)
+    par.optimization_scheme = Switch(Symbol, options, "", "Type of PF coil optimization to carry out"; default=:rail)
     par.update_equilibrium = Entry(Bool, "", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     par.do_plot = Entry(Bool, "", "plot"; default=false)
     par.verbose = Entry(Bool, "", "verbose"; default=false)
