@@ -7,10 +7,8 @@ mutable struct ActorEquilibrium <: PlasmaAbstractActor
     eq_actor::PlasmaAbstractActor
 end
 
-function ParametersActor(::Type{Val{:ActorEquilibrium}})
-    par = ParametersActor(nothing)
-    par.model = Switch(Symbol, [:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
-    return par
+Base.@kwdef struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
+    model = Switch(Symbol, [:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
 end
 
 """

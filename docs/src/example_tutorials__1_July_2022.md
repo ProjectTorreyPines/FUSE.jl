@@ -286,7 +286,7 @@ IMAS.diff(dd, dd1);
 
 
 ```@julia
-new_ini = FUSE.ParametersAllInits()
+new_ini = FUSE.ParametersInits()
 ```
 
 
