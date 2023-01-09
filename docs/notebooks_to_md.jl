@@ -12,7 +12,7 @@ dirs = ["cases", "actors", "tutorials", "workflows"]
 # Converts all notebooks in examples/... to .md and stores them in docs/src
 current_path = @__DIR__
 
-# count the number of files to convert
+# count the number of files to convertz 
 global n_cases = 0
 for dir in dirs
     example_folder = joinpath(current_path, "..", "examples", dir)

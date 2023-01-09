@@ -231,15 +231,15 @@ clean_examples:
 all_examples: clean_examples examples
 
 examples: .PHONY
-	cd docs; julia notebooks_to_html.jl --execute
+	cd docs; julia notebooks_to_md.jl --execute
 
 all_blank_examples: clean_examples blank_examples
 
 blank_examples:
-	cd docs; julia notebooks_to_html.jl
+	cd docs; julia notebooks_to_md.jl
 
 daily_example:
-	cd docs; julia notebooks_to_html.jl --daily --execute --canfail
+	cd docs; julia notebooks_to_md.jl --daily --execute --canfail
 
 daily_example_commit:
 	git checkout -b examples_$(TODAY)
