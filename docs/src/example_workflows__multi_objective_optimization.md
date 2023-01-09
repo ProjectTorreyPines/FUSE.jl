@@ -103,8 +103,7 @@ optimization_parameters = Dict(
     :continue_results => continue_results)
 
 # run optimization
-#results = FUSE.workflow_multiobjective_optimization(ini, act, FUSE.ActorWholeFacility, objective_functions; optimization_parameters...);
-results = FUSE.workflow_multiobjective_optimization(ini, act, Val{:remote}, objective_functions; optimization_parameters...);
+results = FUSE.workflow_multiobjective_optimization(ini, act, FUSE.ActorWholeFacility, objective_functions; optimization_parameters...);
 ```
 
 ### Save optimization results to file

@@ -12,15 +12,13 @@ mutable struct ActorSolovev <: PlasmaAbstractActor
     S::Equilibrium.SolovevEquilibrium
 end
 
-function ParametersActor(::Type{Val{:ActorSolovev}})
-    par = ParametersActor(nothing)
-    par.ngrid = Entry(Integer, "", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
-    par.qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
-    par.alpha = Entry(Real, "", "Initial guess of constant relating to pressure"; default=0.0)
-    par.volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
-    par.area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
+    ngrid = Entry(Integer, "", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
+    qstar = Entry(Real, "", "Initial guess of kink safety factor"; default=1.5)
+    alpha = Entry(Real, "", "Initial guess of constant relating to pressure"; default=0.0)
+    volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
+    area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
+    verbose = Entry(Bool, "", "verbose"; default=false)
 end
 
 """

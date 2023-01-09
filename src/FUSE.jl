@@ -12,16 +12,10 @@ using Printf
 #= ===== =#
 include("utils.jl")
 
-#= ========== =#
-#  PARAMETERS  #
-#= ========== =#
+#= =================== =#
+#  ABSTRACT PARAMETERS  #
+#= =================== =#
 include("parameters.jl")
-include("parameters_init.jl")
-
-#= ====== =#
-#  REMOTE  #
-#= ====== =#
-include("remote.jl")
 
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
@@ -66,6 +60,12 @@ include(joinpath("actors", "core_transport_actor.jl"))
 include(joinpath("actors", "transport_solver_actor.jl"))
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound_actors.jl"))
+
+#= ========== =#
+#  PARAMETERS  #
+#= ========== =#
+include("parameters_inits.jl")
+include("parameters_actors.jl")
 
 #= ============ =#
 #  OPTIMIZATION  #

@@ -4,8 +4,8 @@
 DIII-D
 """
 function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersAllInits()
-    act = ParametersAllActors()
+    ini = ParametersInits()
+    act = ParametersActors()
 
     ini.general.casename = "D3D"
     ini.general.init_from = :ods
