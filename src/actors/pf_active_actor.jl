@@ -28,31 +28,31 @@ mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
     green_model::Symbol
 end
 
-function ParametersActor(::Type{Val{:ActorPFcoilsOpt}})
-    par = ParametersActor(nothing)
-    options = [
+options_green_model = [
         :point => "one filament per coil",
         :simple => "like :point, but OH coils have three filaments",
         :corners => "like :simple, but PF coils have filaments at the four corners",
         :realistic => "possibly hundreds of filaments per coil (very slow!)",
     ]
-    par.green_model = Switch(Symbol, options, "", "Model used for the coils Green function calculations"; default=:simple)
-    par.symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
-    par.weight_currents = Entry(Float64, "", "Weight of current limit constraint"; default=2.0)
-    par.weight_strike = Entry(Float64, "", "Weight given to matching the strike-points"; default=0.1)
-    par.weight_lcfs = Entry(Float64, "", "Weight given to matching last closed flux surface"; default=1.0)
-    par.weight_null = Entry(Float64, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
-    par.maxiter = Entry(Integer, "", "Maximum number of optimizer iterations"; default=1000)
-    options = [
-        :none => "Do not optimize",
-        :currents => "Find optimial coil currents but do not change coil positions",
-        :rail => "Find optimial coil positions"
-    ]
-    par.optimization_scheme = Switch(Symbol, options, "", "Type of PF coil optimization to carry out"; default=:rail)
-    par.update_equilibrium = Entry(Bool, "", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
+
+options_optimization_scheme = [
+    :none => "Do not optimize",
+    :currents => "Find optimial coil currents but do not change coil positions",
+    :rail => "Find optimial coil positions"
+]
+
+Base.@kwdef struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor where {T<:Real}
+    green_model = Switch(Symbol, options_green_model, "", "Model used for the coils Green function calculations"; default=:simple)
+    symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
+    weight_currents = Entry(Float64, "", "Weight of current limit constraint"; default=2.0)
+    weight_strike = Entry(Float64, "", "Weight given to matching the strike-points"; default=0.1)
+    weight_lcfs = Entry(Float64, "", "Weight given to matching last closed flux surface"; default=1.0)
+    weight_null = Entry(Float64, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
+    maxiter = Entry(Integer, "", "Maximum number of optimizer iterations"; default=1000)
+    optimization_scheme = Switch(Symbol, options_optimization_scheme, "", "Type of PF coil optimization to carry out"; default=:rail)
+    update_equilibrium = Entry(Bool, "", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
+    do_plot = Entry(Bool, "", "plot"; default=false)
+    verbose = Entry(Bool, "", "verbose"; default=false)
 end
 
 """

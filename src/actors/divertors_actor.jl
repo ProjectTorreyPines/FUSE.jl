@@ -8,11 +8,9 @@ mutable struct ActorDivertors <: ReactorAbstractActor
     thermal_power_extraction_efficiency::Real
 end
 
-function ParametersActor(::Type{Val{:ActorDivertors}})
-    par = ParametersActor(nothing)
-    par.thermal_power_extraction_efficiency = Entry(Real, "",
+Base.@kwdef struct FUSEparameters__ActorDivertors{T} <: ParametersActor where {T<:Real}
+    thermal_power_extraction_efficiency = Entry(Real, "",
         "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures."; default=1.0)
-    return par
 end
 
 """

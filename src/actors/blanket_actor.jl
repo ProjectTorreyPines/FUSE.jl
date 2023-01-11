@@ -16,18 +16,16 @@ mutable struct ActorBlanket <: ReactorAbstractActor
     end
 end
 
-function ParametersActor(::Type{Val{:ActorBlanket}})
-    par = ParametersActor(nothing)
-    par.minimum_first_wall_thickness = Entry(Float64, "m", "Minimum first wall thickness"; default=0.02)
-    par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
-    par.thermal_power_extraction_efficiency = Entry(
+Base.@kwdef struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
+    minimum_first_wall_thickness = Entry(Float64, "m", "Minimum first wall thickness"; default=0.02)
+    blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
+    thermal_power_extraction_efficiency = Entry(
         Real,
         "",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0
     )
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
+    verbose = Entry(Bool, "", "verbose"; default=false)
 end
 
 """
