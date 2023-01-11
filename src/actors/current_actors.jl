@@ -13,9 +13,7 @@ mutable struct ActorQEDcurrent <: PlasmaAbstractActor
     tmax
 end
 
-function ParametersActor(::Type{Val{:ActorQEDcurrent}})
-    par = ParametersActor(nothing)
-    return par
+Base.@kwdef struct FUSEparameters__ActorQEDcurrent{T} <: ParametersActor where {T<:Real}
 end
 
 """
@@ -125,9 +123,7 @@ mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     end
 end
 
-function ParametersActor(::Type{Val{:ActorSteadyStateCurrent}})
-    par = ParametersActor(nothing)
-    return par
+Base.@kwdef struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
 end
 
 """

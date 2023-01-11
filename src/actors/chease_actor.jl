@@ -9,12 +9,10 @@ mutable struct ActorCHEASE <: PlasmaAbstractActor
     chease::Union{Nothing,CHEASE.Chease}
 end
 
-function ParametersActor(::Type{Val{:ActorCHEASE}})
-    par = ParametersActor(nothing)
-    par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
-    par.clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
-    par.rescale_eq_to_ip = Entry(Bool, "", "Scale equilibrium to match Ip"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
+    free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
+    clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
+    rescale_eq_to_ip = Entry(Bool, "", "Scale equilibrium to match Ip"; default=false)
 end
 
 """

@@ -134,9 +134,8 @@ mutable struct ActorFluxSwing <: ReactorAbstractActor
     j_tolerance::Real
 end
 
-function ParametersActor(::Type{Val{:ActorFluxSwing}})
-    par = ParametersActor(nothing)
-    par.operate_at_j_crit = Entry(
+Base.@kwdef struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
+    operate_at_j_crit = Entry(
         Bool,
         "",
         """
@@ -146,8 +145,7 @@ Otherwise we evaluate what are the currents needed for a given flattop duration 
 These currents may or may not exceed the OH and TF current limits.""";
         default=true
     )
-    par.j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
-    return par
+    j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
 end
 
 """
@@ -310,11 +308,9 @@ mutable struct ActorLFSsizing <: ReactorAbstractActor
     end
 end
 
-function ParametersActor(::Type{Val{:ActorLFSsizing}})
-    par = ParametersActor(nothing)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
+    do_plot = Entry(Bool, "", "plot"; default=false)
+    verbose = Entry(Bool, "", "verbose"; default=false)
 end
 
 """
@@ -381,15 +377,13 @@ mutable struct ActorHFSsizing <: ReactorAbstractActor
     fluxswing_actor::ActorFluxSwing
 end
 
-function ParametersActor(::Type{Val{:ActorHFSsizing}})
-    par = ParametersActor(nothing)
-    par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
-    par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
-    par.fixed_aspect_ratio = Entry(Bool, "", "Raise an error if aspect_ratio changes more than 10%"; default=true)
-    par.unconstrained_flattop_duration = Entry(Bool, "", "Maximize flux_duration without targeting a specific value"; default=true)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
+    j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
+    stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
+    fixed_aspect_ratio = Entry(Bool, "", "Raise an error if aspect_ratio changes more than 10%"; default=true)
+    unconstrained_flattop_duration = Entry(Bool, "", "Maximize flux_duration without targeting a specific value"; default=true)
+    do_plot = Entry(Bool, "", "plot"; default=false)
+    verbose = Entry(Bool, "", "verbose"; default=false)
 end
 
 """
@@ -663,11 +657,9 @@ mutable struct ActorCXbuild <: ReactorAbstractActor
     end
 end
 
-function ParametersActor(::Type{Val{:ActorCXbuild}})
-    par = ParametersActor(nothing)
-    par.rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
+    rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
+    do_plot = Entry(Bool, "", "plot"; default=false)
 end
 
 """

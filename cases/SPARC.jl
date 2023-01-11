@@ -4,8 +4,8 @@
 CFS/MIT SPARC design
 """
 function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersAllInits()
-    act = ParametersAllActors()
+    ini = ParametersInits()
+    act = ParametersActors()
     ini.general.casename = "SPARC"
     ini.general.init_from = :scalars
 

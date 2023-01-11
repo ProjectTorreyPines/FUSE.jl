@@ -12,10 +12,8 @@ mutable struct ActorPassiveStructures <: ReactorAbstractActor
     end
 end
 
-function ParametersActor(::Type{Val{:ActorPassiveStructures}})
-    par = ParametersActor(nothing)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorPassiveStructures{T} <: ParametersActor where {T<:Real}
+    do_plot = Entry(Bool, "", "plot"; default=false)
 end
 
 """

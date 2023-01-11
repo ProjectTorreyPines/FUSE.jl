@@ -10,11 +10,9 @@ mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
     actor_tr::ActorTauenn
 end
 
-function ParametersActor(::Type{Val{:ActorEquilibriumTransport}})
-    par = ParametersActor(nothing)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.iterations = Entry(Int, "", "transport-equilibrium iterations"; default=1)
-    return par
+Base.@kwdef struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
+    do_plot = Entry(Bool, "", "plot"; default=false)
+    iterations = Entry(Int, "", "transport-equilibrium iterations"; default=1)
 end
 
 """
@@ -103,9 +101,7 @@ mutable struct ActorWholeFacility <: FacilityAbstractActor
     Costing::Union{Nothing,ActorCosting}
 end
 
-function ParametersActor(::Type{Val{:ActorWholeFacility}})
-    par = ParametersActor(nothing)
-    return par
+Base.@kwdef struct FUSEparameters__ActorWholeFacility{T} <: ParametersActor where {T<:Real}
 end
 
 """
