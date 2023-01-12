@@ -99,11 +99,11 @@ function _step(actor::ActorCHEASE)
 
     # convert from fixed to free boundary equilibrium
     if actor.par.free_boundary
-        EQ = Equilibrium.efit(actor.chease.gfile, 1)
+        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psi_free_rz = VacuumFields.fixed2free(EQ, actor.chease.gfile.nbbbs)
         actor.chease.gfile.psirz = psi_free_rz
-        EQ = Equilibrium.efit(actor.chease.gfile, 1)
-        psi_b = Equilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
+        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
+        psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
         psi_a = EQ.psi_rz(EQ.axis...)
         actor.chease.gfile.psirz = (psi_free_rz .- psi_a) * ((actor.chease.gfile.psi[end] - actor.chease.gfile.psi[1]) / (psi_b - psi_a)) .+ actor.chease.gfile.psi[1]
     end
@@ -120,7 +120,7 @@ end
 """
     gEQDSK2IMAS(GEQDSKFile::GEQDSKFile,eq::IMAS.equilibrium)
 
-Convert IMAS.equilibrium__time_slice to Equilibrium.jl EFIT structure
+Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
 function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
 

@@ -1,4 +1,4 @@
-import Equilibrium
+import MXHEquilibrium
 import EFIT
 import ForwardDiff
 import Optim
@@ -9,7 +9,7 @@ import Optim
 mutable struct ActorSolovev <: PlasmaAbstractActor
     eq::IMAS.equilibrium
     par::ParametersActor
-    S::Equilibrium.SolovevEquilibrium
+    S::MXHEquilibrium.SolovevEquilibrium
 end
 
 Base.@kwdef struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
@@ -48,8 +48,13 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     eqt = eq.time_slice[]
     a = eqt.boundary.minor_radius
     R0 = eqt.boundary.geometric_axis.r
+    Z0 = eqt.boundary.geometric_axis.z
     κ = eqt.boundary.elongation
     δ = eqt.boundary.triangularity
+    ζ = eqt.boundary.squareness
+
+    plasma_shape = TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
+
     ϵ = a / R0
     B0 = @ddtime eq.vacuum_toroidal_field.b0
 
@@ -68,7 +73,7 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     end
 
     # run Solovev
-    S = Equilibrium.solovev(abs(B0), R0, ϵ, δ, κ, par.alpha, par.qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
+    S = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
     return ActorSolovev(dd.equilibrium, par, S)
 end
@@ -98,14 +103,12 @@ function _step(actor::ActorSolovev)
     target_ip = abs(eqt.global_quantities.ip)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
-    B0, R0, epsilon, delta, kappa, alpha, qstar, target_ip, target_pressure_core = promote(S0.B0, S0.R0, S0.epsilon, S0.delta, S0.kappa, S0.alpha, S0.qstar, target_ip, target_pressure_core)
-
+    S0, target_ip, target_pressure_core = promote(S0, target_ip, target_pressure_core)
     function cost(x)
-        # NOTE: Ip/pressure calculation is very much off in Equilibrium.jl for diverted plasmas because boundary calculation is wrong
-        S = Equilibrium.solovev(abs(B0), R0, epsilon, delta, kappa, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
-        psimag, psibry = Equilibrium.psi_limits(S)
-        pressure_cost = (Equilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
-        ip_cost = (Equilibrium.plasma_current(S) - target_ip) / target_ip
+        S = MXHEquilibrium.solovev(abs(B0), S0.S, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
+        psimag, psibry = MXHEquilibrium.psi_limits(S)
+        pressure_cost = (MXHEquilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
+        ip_cost = (MXHEquilibrium.plasma_current(S) - target_ip) / target_ip
         c = pressure_cost^2 + ip_cost^2
         return c
     end
@@ -116,7 +119,7 @@ function _step(actor::ActorSolovev)
         println(res)
     end
 
-    actor.S = Equilibrium.solovev(abs(B0), R0, epsilon, delta, kappa, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
+    actor.S = MXHEquilibrium.solovev(abs(B0), S0.S, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
 
     return actor
 end
@@ -159,14 +162,14 @@ function _finalize(
     eqt.global_quantities.ip = ip
     eqt.boundary.geometric_axis.r = actor.S.R0
     eqt.boundary.geometric_axis.z = Z0
-    orig_psi = collect(range(Equilibrium.psi_limits(actor.S)..., length=ngrid))
+    orig_psi = collect(range(MXHEquilibrium.psi_limits(actor.S)..., length=ngrid))
     eqt.profiles_1d.psi = orig_psi * (tc["PSI"] * sign_Ip)
 
-    eqt.profiles_1d.pressure = Equilibrium.pressure(actor.S, orig_psi)
-    eqt.profiles_1d.dpressure_dpsi = Equilibrium.pressure_gradient(actor.S, orig_psi) / (tc["PSI"] * sign_Ip)
+    eqt.profiles_1d.pressure = MXHEquilibrium.pressure(actor.S, orig_psi)
+    eqt.profiles_1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient(actor.S, orig_psi) / (tc["PSI"] * sign_Ip)
 
-    eqt.profiles_1d.f = Equilibrium.poloidal_current(actor.S, orig_psi) * (tc["F"] * sign_Bt)
-    eqt.profiles_1d.f_df_dpsi = Equilibrium.poloidal_current(actor.S, orig_psi) .* Equilibrium.poloidal_current_gradient(actor.S, orig_psi) * (tc["F_FPRIME"] * sign_Bt * sign_Ip)
+    eqt.profiles_1d.f = MXHEquilibrium.poloidal_current(actor.S, orig_psi) * (tc["F"] * sign_Bt)
+    eqt.profiles_1d.f_df_dpsi = MXHEquilibrium.poloidal_current(actor.S, orig_psi) .* MXHEquilibrium.poloidal_current_gradient(actor.S, orig_psi) * (tc["F_FPRIME"] * sign_Bt * sign_Ip)
 
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
@@ -190,7 +193,7 @@ end
 """
     IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
 
-Convert IMAS.equilibrium__time_slice to Equilibrium.jl EFIT structure
+Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
 function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
     dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
@@ -200,7 +203,7 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
     psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length=length(eqt.profiles_1d.psi))
     @assert collect(psi) ≈ eqt.profiles_1d.psi
 
-    Equilibrium.efit(Equilibrium.cocos(11), # COCOS
+    MXHEquilibrium.efit(MXHEquilibrium.cocos(11), # COCOS
         dim1, # Radius/R range
         dim2, # Elevation/Z range
         psi, # Polodial Flux range (polodial flux from magnetic axis)

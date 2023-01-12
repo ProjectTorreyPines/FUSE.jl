@@ -209,7 +209,7 @@ function _finalize(
             coil.time_index = time_index
         end
 
-        # convert equilibrium to Equilibrium.jl format, since this is what VacuumFields uses
+        # convert equilibrium to MXHEquilibrium.jl format, since this is what VacuumFields uses
         EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
         # # update ψ map
