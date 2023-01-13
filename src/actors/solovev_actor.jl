@@ -103,9 +103,16 @@ function _step(actor::ActorSolovev)
     target_ip = abs(eqt.global_quantities.ip)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
-    S0, target_ip, target_pressure_core = promote(S0, target_ip, target_pressure_core)
+    ptype = promote_type(eltype(S0.S),typeof(S0.B0),typeof(S0.alpha),typeof(S0.qstar),typeof(target_ip),typeof(target_pressure_core))
+    SS = convert_eltype(S0.S, ptype)
+    B0 = convert(ptype,S0.B0)
+    alpha = convert(ptype,S0.alpha)
+    qstar = convert(ptype,S0.qstar)
+    target_ip = convert(ptype, target_ip)
+    target_pressure_core = convert(ptype, target_pressure_core)
+
     function cost(x)
-        S = MXHEquilibrium.solovev(abs(B0), S0.S, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
+        S = MXHEquilibrium.solovev(abs(B0), SS, x[1], x[2], B0_dir=sign(B0), Ip_dir=1, symmetric=true, x_point=nothing)
         psimag, psibry = MXHEquilibrium.psi_limits(S)
         pressure_cost = (MXHEquilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
         ip_cost = (MXHEquilibrium.plasma_current(S) - target_ip) / target_ip
@@ -119,7 +126,7 @@ function _step(actor::ActorSolovev)
         println(res)
     end
 
-    actor.S = MXHEquilibrium.solovev(abs(B0), S0.S, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
+    actor.S = MXHEquilibrium.solovev(abs(B0), SS, res.minimizer[1], res.minimizer[2], B0_dir=sign(B0), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
 
     return actor
 end
