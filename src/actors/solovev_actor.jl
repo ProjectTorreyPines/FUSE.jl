@@ -49,13 +49,13 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     a = eqt.boundary.minor_radius
     R0 = eqt.boundary.geometric_axis.r
     Z0 = eqt.boundary.geometric_axis.z
+    ϵ = a / R0
     κ = eqt.boundary.elongation
     δ = eqt.boundary.triangularity
     ζ = eqt.boundary.squareness
 
-    plasma_shape = TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
+    plasma_shape = MXHEquilibrium.TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
 
-    ϵ = a / R0
     B0 = @ddtime eq.vacuum_toroidal_field.b0
 
     # check number of x_points to infer symmetry
