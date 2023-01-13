@@ -14,7 +14,7 @@ end
 """
     ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorEquilibrium provides a common interface to run multiple equilibrium actors
+Provides a common interface to run multiple equilibrium actors
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibrium(kw...)

@@ -18,7 +18,7 @@ end
 """
     ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorNeoclassical evaluates the neoclassical predicted turbulence at a set of rho_tor_norm grid points
+Evaluates the neoclassical transport fluxes
 """
 function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNeoclassical(kw...)

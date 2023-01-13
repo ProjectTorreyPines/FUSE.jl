@@ -151,8 +151,8 @@ end
 """
     ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor operate in two ways, depending on `operate_at_j_crit`
-* true => Figure out what is the OH and TF current limit, and evaluate flattop duration and maximum toroidal magnetic field follow from that
+Depending on `operate_at_j_crit`
+* true => Evaluate the OH and TF current limits, and evaluate flattop duration and maximum toroidal magnetic field from that.
 * false => Evaluate what are the currents needed for a given flattop duration and toroidal magnetic field, which may or may not exceed the OH and TF current limits.
 
 OH flux consumption based on:
@@ -316,7 +316,7 @@ end
 """
     ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that resizes the Low Field Side of the build.
+Actor that resizes the Low Field Side of the tokamak radial build
 * Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
 * Other low-field side layers are scaled proportionally
 
@@ -389,7 +389,7 @@ end
 """
     ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that resizes the High Field Side of the build.
+Actor that resizes the High Field Side of the tokamak radial build
 * takes into account the OH maximum allowed superconductor current/Field
 * takes into account the stresses on the center stack
     
@@ -665,7 +665,7 @@ end
 """
     ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that builds the 2D cross section of the build.
+Generates the 2D cross section of the tokamak build
 
 !!! note 
     Manipulates data in `dd.build`

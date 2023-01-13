@@ -326,7 +326,7 @@ end
 """
     ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the cost of the fusion power plant.
+Estimates the cost of building, operating, and recommission the fusion power plant.
 
 !!! note 
     Stores data in `dd.costing`

@@ -19,7 +19,7 @@ end
 """
     ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor evolves the current using QED.
+Evolves the plasma current using the QED current diffusion solver
 
 !!! note 
     Stores data in `dd.equilibrium`
@@ -129,7 +129,7 @@ end
 """
     ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor evolves the current to steady state using the conductivity from `dd.core_profiles` and current profile form `dd.equilibrium`.
+Evolves the current to steady state using the conductivity from `dd.core_profiles` and current profile form `dd.equilibrium`.
 
 Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_profiles`
 

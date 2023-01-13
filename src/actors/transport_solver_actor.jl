@@ -27,7 +27,7 @@ end
 """
     ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorTransportSolver evalutes the transport fluxes and source fluxes and minimizes the flux_match error
+Evalutes the transport fluxes and source fluxes and minimizes the flux_match error
 """
 function ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTransportSolver(kw...)

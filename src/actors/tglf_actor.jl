@@ -21,7 +21,7 @@ end
 """
     ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorTGLF evaluates the TGLF predicted turbulence at a set of rho_tor_norm grid points
+Evaluates the TGLF predicted turbulence
 """
 function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTGLF(kw...)
@@ -40,7 +40,7 @@ end
 """
     step(actor::ActorTGLF)
 
-Runs TGLF actor to evaluate the turbulence flux on a Vector of gridpoints
+Runs TGLF actor to evaluate the turbulence flux on a vector of gridpoints
 """
 function _step(actor::ActorTGLF)
     par = actor.par

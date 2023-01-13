@@ -27,9 +27,9 @@ end
 """
     ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the core-transport using Tauenn, which evolves the kinetic profiles according to heat and particle flux matching.
+Estimates the core-transport using TAUENN, which evolves the kinetic profiles according to heat and particle flux matching.
 
-The pedestal in this actor is evolved using EPED-NN.
+The pedestal is evolved using the EPED-NN model
 
 !!! note 
     Stores data in `dd.core_profiles`
