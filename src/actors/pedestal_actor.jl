@@ -86,8 +86,13 @@ function _step(actor::ActorPedestal;
     sol = actor.epedmod(actor.inputs; only_powerlaw, warn_nn_train_bounds)
 
     actor.wped = sol.width.GH.H
-    actor.pped = sol.pressure.GH.H
+    if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
+        actor.pped = 1.5* sol.pressure.GH.H
+        @warn "EPED-NN output pedestal pressure is lower than edge pressure, p_ped=p_edge * 1.5 = $(round(actor.pped*1e6)) [Pa] assumed "
 
+    else
+        actor.pped = sol.pressure.GH.H
+    end
     return actor
 end
 
