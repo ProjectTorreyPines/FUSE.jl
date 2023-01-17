@@ -1,8 +1,6 @@
 FROM --platform=linux/_PLATFORM_ julia_fuse__PLATFORM_:latest
-RUN apt-get -y install --no-install-recommends net-tools
 
 WORKDIR /root/.julia/dev
-COPY ./Broker Broker/
 COPY ./CHEASE CHEASE/
 COPY ./CoordinateConventions CoordinateConventions/
 COPY ./EFIT EFIT/
@@ -17,18 +15,13 @@ COPY ./IMASDD IMASDD/
 COPY ./MillerExtendedHarmonic MillerExtendedHarmonic/
 COPY ./NNeutronics NNeutronics/
 COPY ./QED QED/
+COPY ./SimulationParameters SimulationParameters/
 COPY ./TAUENN TAUENN/
 COPY ./TGLFNN TGLFNN/
 COPY ./VacuumFields VacuumFields/
-COPY ./ZMQ ZMQ/
 
 WORKDIR /root/.julia/dev/FUSE
 RUN make rm_manifests
 RUN make precompile
 WORKDIR /root/.julia/dev
 
-# ports
-EXPOSE 9999
-EXPOSE 8888
-EXPOSE 7777
-EXPOSE 6666

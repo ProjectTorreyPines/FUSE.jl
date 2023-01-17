@@ -3,6 +3,11 @@ JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
 CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
 
+PTP_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
+
+# use command line interface for git to work nicely with private repos
+export JULIA_PKG_USE_CLI_GIT := true
+
 # define SERIAL environmental variable to run update serially
 ifdef SERIAL
 	PARALLELISM := -j 1
@@ -42,7 +47,10 @@ registry:
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
 
-install_no_registry:
+register:
+	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)");using LocalRegistry; register("$(package)", registry="GAregistry")';)
+
+develop:
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
@@ -54,7 +62,11 @@ Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedH
 rm_manifests:
 	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
 
-install: clone_update_all install_no_registry precompile
+install_no_registry: clone_update_all develop precompile
+
+install_via_registry: registry develop precompile
+
+install: install_no_registry
 
 sysimage:
 	julia -e '\
@@ -143,8 +155,14 @@ NNeutronics:
 SimulationParameters:
 	$(call clone_update_repo,$@)
 
-docker_network:
-	docker network create fuse-net
+docker_clean:
+	rm -rf ../Dockerfile
+	cp docker/Dockerfile_clean ../Dockerfile
+	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
+	mv tmp ../Dockerfile
+	cat ../Dockerfile
+	cp .gitignore ../.dockerignore
+	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_clean_$(DOCKER_PLATFORM) .
 
 # build a new FUSE docker base image
 docker_image:
