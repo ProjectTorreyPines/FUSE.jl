@@ -41,7 +41,7 @@ jobs:
       - uses: julia-actions/cache@v1
       - uses: julia-actions/add-julia-registry@v1
         with:
-          key: ${{ secrets.SSH_KEY }}
+          key: ${{ secrets.PTP_READ_TOKEN }}
           registry: ProjectTorreyPines/GAregistry
       - uses: julia-actions/julia-buildpkg@v1
       #============
