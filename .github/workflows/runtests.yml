@@ -42,6 +42,7 @@ jobs:
       - run: |
           julia -e '
             using Pkg
+            Pkg.add("Revise")
             Pkg.Registry.add(RegistrySpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/GAregistry.git"))
             Pkg.add("FUSE")
             '
