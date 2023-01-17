@@ -20,7 +20,6 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
    !!! note
        If you are installing from an old install and the package update isn't able to resolve itself feel free to remove every folder except the `dev` folder in your `.julia` folder
 
-   !!! tip
 1. Add FUSE and its dependencies to the julia environment (this may take a few minutes):
 
    ```bash
@@ -60,3 +59,16 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
    ```bash
    jupyter-lab
    ```
+
+## Troubleshooting
+When using the ProjectTorreyPines private Julia [GA registry](https://github.com/ProjectTorreyPines/GAregistry), one may get `SSH host verification` errors when installing and updating Julia packages:
+
+```
+SSH host verification: the identity of the server `github.com:22` does not match its known hosts record. Someone could be trying to man-in-the-middle your connection. It is also possible that the server has changed its key, in which case you should check with the server administrator and if they confirm that the key has been changed, update your known hosts file.
+```
+
+this can be resolved by telling Julia to use the git command line interface, via the environmental variable:
+
+```julia
+export JULIA_PKG_USE_CLI_GIT=true
+```
