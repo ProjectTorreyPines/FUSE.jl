@@ -11,27 +11,25 @@ mutable struct ActorTauenn <: PlasmaAbstractActor
     tauenn_outputs::TAUENN.TauennOutputs
 end
 
-function ParametersActor(::Type{Val{:ActorTauenn}})
-    par = ParametersActor(nothing)
-    par.error = Entry(Real, "", "Target convergence error"; default=1E-2)
-    par.eped_factor = Entry(Real, "", "Scaling parameter for EPED-NN prediction"; default=1.0)
-    par.rho_fluxmatch = Entry(Real, "", "Radial location where flux-macthing is done"; default=0.6)
-    par.T_shaping = Entry(Real, "", "Shaping coefficient for the temperature profile"; default=1.8)
-    par.temp_pedestal_ratio = Entry(Real, "", "Ion to electron temperature ratio in the pedestal"; default=1.0)
-    par.transport_model = Switch(Symbol, [:tglfnn, :tglf, :h98y2, :ds03], "", "Transport model"; default=:tglfnn)
-    par.warn_nn_train_bounds = Entry(Bool, "", "Warn if EPED-NN / TGLF-NN training bounds are exceeded"; default=false)
-    par.confinement_factor = Entry(Real, "", "Confinement multiplier"; default=1.0)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
+    error = Entry(Real, "", "Target convergence error"; default=1E-2)
+    eped_factor = Entry(Real, "", "Scaling parameter for EPED-NN prediction"; default=1.0)
+    rho_fluxmatch = Entry(Real, "", "Radial location where flux-macthing is done"; default=0.6)
+    T_shaping = Entry(Real, "", "Shaping coefficient for the temperature profile"; default=1.8)
+    temp_pedestal_ratio = Entry(Real, "", "Ion to electron temperature ratio in the pedestal"; default=1.0)
+    transport_model = Switch(Symbol, [:tglfnn, :tglf, :h98y2, :ds03], "", "Transport model"; default=:tglfnn)
+    warn_nn_train_bounds = Entry(Bool, "", "Warn if EPED-NN / TGLF-NN training bounds are exceeded"; default=false)
+    confinement_factor = Entry(Real, "", "Confinement multiplier"; default=1.0)
+    do_plot = Entry(Bool, "", "plot"; default=false)
+    verbose = Entry(Bool, "", "verbose"; default=false)
 end
 
 """
     ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the core-transport using Tauenn, which evolves the kinetic profiles according to heat and particle flux matching.
+Estimates the core-transport using TAUENN, which evolves the kinetic profiles according to heat and particle flux matching.
 
-The pedestal in this actor is evolved using EPED-NN.
+The pedestal is evolved using the EPED-NN model
 
 !!! note 
     Stores data in `dd.core_profiles`

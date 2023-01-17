@@ -2,7 +2,11 @@ JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
 JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
 CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
-FUSE_BROKER := 35.247.84.151
+
+PTP_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
+
+# use command line interface for git to work nicely with private repos
+export JULIA_PKG_USE_CLI_GIT := true
 
 # define SERIAL environmental variable to run update serially
 ifdef SERIAL
@@ -43,19 +47,26 @@ registry:
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
 
-install_no_registry:
+register:
+	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)");using LocalRegistry; register("$(package)", registry="GAregistry")';)
+
+develop:
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "Broker", "ZMQ"]);\
+Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "SimulationParameters"]);\
 Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "Broker", "ZMQ"]);\
+Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "SimulationParameters"]);\
 '
 
 rm_manifests:
 	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
 
-install: clone_update_all install_no_registry precompile
+install_no_registry: clone_update_all develop precompile
+
+install_via_registry: registry develop precompile
+
+install: install_no_registry
 
 sysimage:
 	julia -e '\
@@ -86,7 +97,7 @@ precompile:
 	julia -e 'using Pkg; Pkg.precompile()'
 
 clone_update_all:
-	make $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics Broker ZMQ
+	make $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE EFIT NNeutronics SimulationParameters
 
 update: install clone_update_all precompile
 
@@ -141,14 +152,17 @@ EFIT:
 NNeutronics:
 	$(call clone_update_repo,$@)
 
-Broker:
+SimulationParameters:
 	$(call clone_update_repo,$@)
 
-ZMQ:
-	$(call clone_update_repo,$@)
-
-docker_network:
-	docker network create fuse-net
+docker_clean:
+	rm -rf ../Dockerfile
+	cp docker/Dockerfile_clean ../Dockerfile
+	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
+	mv tmp ../Dockerfile
+	cat ../Dockerfile
+	cp .gitignore ../.dockerignore
+	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_clean_$(DOCKER_PLATFORM) .
 
 # build a new FUSE docker base image
 docker_image:
@@ -174,30 +188,6 @@ docker_update:
 docker_upload:
 	docker tag julia_fuse_amd64_updated gcr.io/sdsc-20220719-60951/fuse
 	docker push gcr.io/sdsc-20220719-60951/fuse
-
-# run FUSE broker in container
-docker_broker:
-	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net -p 6666:6666 -p 7777:7777 -p 8888:8888 -p 9999:9999 --name=broker julia_fuse_$(DOCKER_PLATFORM)_updated python3 Broker/src/broker.py
-
-# run FUSE worker in container
-docker_worker:
-	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.worker_start("$(FUSE_BROKER)")'
-
-# test FUSE client in container 
-docker_client_test:
-	docker run -it --rm --platform=linux/$(DOCKER_PLATFORM) --network=fuse-net julia_fuse_$(DOCKER_PLATFORM)_updated julia -e 'import FUSE; FUSE.client_test("$(FUSE_BROKER)")'
-
-# run FUSE broker
-broker:
-	python3 ../Broker/src/broker.py
-
-# run FUSE worker
-worker:
-	julia -e 'import FUSE; FUSE.worker_start("$(FUSE_BROKER)")'
-
-# test FUSE client
-client_test:
-	julia -e 'import FUSE; @time FUSE.client_tests(10, "$(FUSE_BROKER)")'
 
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'

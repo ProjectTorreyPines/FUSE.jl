@@ -7,16 +7,14 @@ mutable struct ActorEquilibrium <: PlasmaAbstractActor
     eq_actor::PlasmaAbstractActor
 end
 
-function ParametersActor(::Type{Val{:ActorEquilibrium}})
-    par = ParametersActor(nothing)
-    par.model = Switch(Symbol, [:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
-    return par
+Base.@kwdef struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
+    model = Switch(Symbol, [:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
 end
 
 """
     ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorEquilibrium provides a common interface to run multiple equilibrium actors
+Provides a common interface to run multiple equilibrium actors
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibrium(kw...)

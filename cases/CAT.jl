@@ -4,8 +4,8 @@
 GA Compact Advanced Tokamak design
 """
 function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersAllInits()
-    act = ParametersAllActors()
+    ini = ParametersInits()
+    act = ParametersActors()
 
     ini.general.casename = "CAT"
     ini.general.init_from = :ods

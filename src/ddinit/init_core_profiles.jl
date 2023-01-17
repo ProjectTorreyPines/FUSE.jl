@@ -69,7 +69,6 @@ function init_core_profiles(
     cp1d.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cp1d.grid.rho_tor_norm)
 
     # Density handling
-
     if ismissing(ne_ped) && ismissing(greenwald_fraction)
         error("Set at least the pedestal density or the greenwald fraction")
     elseif ismissing(ne_ped)

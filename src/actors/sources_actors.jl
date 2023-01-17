@@ -11,18 +11,16 @@ mutable struct ActorNBIsimple <: HCDAbstractActor
     current_efficiency::AbstractVector{<:Real}
 end
 
-function ParametersActor(::Type{Val{:ActorNBIsimple}})
-    par = ParametersActor(nothing)
-    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.3)
-    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.3)
-    return par
+Base.@kwdef struct FUSEparameters__ActorNBIsimple{T} <: ParametersActor where {T<:Real}
+    width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.3)
+    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.3)
 end
 
 """
     ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
+Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
 !!! note 
     Stores data in `dd.nbi, dd.core_sources`
@@ -99,18 +97,16 @@ mutable struct ActorECsimple <: HCDAbstractActor
     current_efficiency::AbstractVector{<:Real}
 end
 
-function ParametersActor(::Type{Val{:ActorECsimple}})
-    par = ParametersActor(nothing)
-    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
-    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.2)
-    return par
+Base.@kwdef struct FUSEparameters__ActorECsimple{T} <: ParametersActor where {T<:Real}
+    width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
+    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.2)
 end
 
 """
     ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the EC electron energy deposition and current drive as a gaussian.
+Estimates the EC electron energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.ec_launchers, dd.core_sources`
@@ -179,18 +175,16 @@ mutable struct ActorICsimple <: HCDAbstractActor
     current_efficiency::AbstractVector{<:Real}
 end
 
-function ParametersActor(::Type{Val{:ActorICsimple}})
-    par = ParametersActor(nothing)
-    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
-    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.125)
-    return par
+Base.@kwdef struct FUSEparameters__ActorICsimple{T} <: ParametersActor where {T<:Real}
+    width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
+    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.125)
 end
 
 """
     ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
+Estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.ic_antennas, dd.core_sources`
@@ -259,18 +253,16 @@ mutable struct ActorLHsimple <: HCDAbstractActor
     current_efficiency::AbstractVector{<:Real}
 end
 
-function ParametersActor(::Type{Val{:ActorLHsimple}})
-    par = ParametersActor(nothing)
-    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.15)
-    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.6)
-    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.4)
-    return par
+Base.@kwdef struct FUSEparameters__ActorLHsimple{T} <: ParametersActor where {T<:Real}
+    width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.15)
+    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.6)
+    current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.4)
 end
 
 """
     ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
+Estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.lh_antennas, dd.core_sources`

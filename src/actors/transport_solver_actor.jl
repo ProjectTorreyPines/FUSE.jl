@@ -3,7 +3,6 @@ import NLsolve
 #= ========================== =#
 #     transport solver actor   #
 #= ========================== =#
-
 mutable struct ActorTransportSolver <: PlasmaAbstractActor
     dd::IMAS.dd
     par::ParametersActor
@@ -11,26 +10,24 @@ mutable struct ActorTransportSolver <: PlasmaAbstractActor
     actor_ped::ActorPedestal
 end
 
-function ParametersActor(::Type{Val{:ActorTransportSolver}})
-    par = ParametersActor(nothing)
-    par.evolve_Ti = Switch(Symbol, [:flux_match, :fixed], "", "Evolve ion temperature "; default=:flux_match)
-    par.evolve_Te = Switch(Symbol, [:flux_match, :fixed], "", "Evolve electron temperature"; default=:flux_match)
-    par.evolve_densities = Entry(Union{Dict,Symbol}, "", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
-    par.evolve_rotation = Switch(Symbol, [:flux_match, :fixed], "", "Evolve the electron temperature"; default=:fixed)
-    par.rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
-    par.evolve_pedestal = Entry(Bool, "", "Evolve the pedestal inside the transport solver"; default=false)
-    par.max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
-    par.optimizer_algorithm = Switch(Symbol, [:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    par.step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.2)
-    par.do_plot = Entry(Bool, "", "Plots the flux matching"; default=false)
-    par.verbose = Entry(Bool, "", "Print trace and optimization result"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorTransportSolver{T} <: ParametersActor where {T<:Real}
+    evolve_Ti = Switch(Symbol, [:flux_match, :fixed], "", "Evolve ion temperature "; default=:flux_match)
+    evolve_Te = Switch(Symbol, [:flux_match, :fixed], "", "Evolve electron temperature"; default=:flux_match)
+    evolve_densities = Entry(Union{Dict,Symbol}, "", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
+    evolve_rotation = Switch(Symbol, [:flux_match, :fixed], "", "Evolve the electron temperature"; default=:fixed)
+    rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
+    evolve_pedestal = Entry(Bool, "", "Evolve the pedestal inside the transport solver"; default=false)
+    max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
+    optimizer_algorithm = Switch(Symbol, [:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.2)
+    do_plot = Entry(Bool, "", "Plots the flux matching"; default=false)
+    verbose = Entry(Bool, "", "Print trace and optimization result"; default=false)
 end
 
 """
     ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorTransportSolver evalutes the transport fluxes and source fluxes and minimizes the flux_match error
+Evalutes the transport fluxes and source fluxes and minimizes the flux_match error
 """
 function ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorTransportSolver(kw...)

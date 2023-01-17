@@ -54,8 +54,8 @@ end
 Map GASC inputs and solution to FUSE input scalar parameters
 """
 function case_parameters(gasc::GASC)
-    ini = ParametersAllInits()
-    act = ParametersAllActors()
+    ini = ParametersInits()
+    act = ParametersActors()
 
     ini.gasc.filename = gasc.filename
     ini.gasc.case = gasc.case

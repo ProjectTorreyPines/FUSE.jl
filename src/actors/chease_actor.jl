@@ -9,18 +9,16 @@ mutable struct ActorCHEASE <: PlasmaAbstractActor
     chease::Union{Nothing,CHEASE.Chease}
 end
 
-function ParametersActor(::Type{Val{:ActorCHEASE}})
-    par = ParametersActor(nothing)
-    par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
-    par.clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
-    par.rescale_eq_to_ip = Entry(Bool, "", "Scale equilibrium to match Ip"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
+    free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
+    clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
+    rescale_eq_to_ip = Entry(Bool, "", "Scale equilibrium to match Ip"; default=false)
 end
 
 """
     ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor runs the Fixed boundary equilibrium solver CHEASE
+Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCHEASE(kw...)
@@ -113,7 +111,7 @@ function _step(actor::ActorCHEASE)
     return actor
 end
 
-# define `finalize` function for this actor
+# define `finalize` function
 function _finalize(actor::ActorCHEASE)
     gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
     return actor

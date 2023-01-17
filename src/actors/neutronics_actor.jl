@@ -31,18 +31,16 @@ end
 
 ActorNeutronics(dd::IMAS.dd{T}, par::ParametersActor; kw...) where {T} = ActorNeutronics{T}(dd, par; kw...)
 
-function ParametersActor(::Type{Val{:ActorNeutronics}})
-    par = ParametersActor(nothing)
-    par.N = Entry(Integer, "", "Number of particles"; default=100000)
-    par.step = Entry(Float64, "", "Interator stepping"; default=0.05)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorNeutronics{T} <: ParametersActor where {T<:Real}
+    N = Entry(Integer, "", "Number of particles"; default=100000)
+    step = Entry(Float64, "", "Interator stepping"; default=0.05)
+    do_plot = Entry(Bool, "", "plot"; default=false)
 end
 
 """
     ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the neutron loading on the wall using the fusion source from `dd.core_sources`.
+Estimates the neutron wall loading
 
 !!! note 
     Stores data in `dd.neutronics`
@@ -183,7 +181,6 @@ function intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, 
 end
 
 function _step(actor::ActorNeutronics)
-    
     do_plot::Bool = actor.par.do_plot
     p = do_plot ? plot() : nothing
 

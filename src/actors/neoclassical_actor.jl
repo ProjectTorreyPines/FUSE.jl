@@ -10,17 +10,15 @@ mutable struct ActorNeoclassical <: PlasmaAbstractActor
     flux_solutions::AbstractVector{<:TGLFNN.flux_solution}
 end
 
-function ParametersActor(::Type{Val{:ActorNeoclassical}})
-    par = ParametersActor(nothing)
-    par.neoclassical_model = Switch(Symbol, [:changhinton], "", "Neoclassical model to run"; default=:changhinton)
-    par.rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
-    return par
+Base.@kwdef struct FUSEparameters__ActorNeoclassical{T} <: ParametersActor where {T<:Real}
+    neoclassical_model = Switch(Symbol, [:changhinton], "", "Neoclassical model to run"; default=:changhinton)
+    rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
 end
 
 """
     ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorNeoclassical evaluates the neoclassical predicted turbulence at a set of rho_tor_norm grid points
+Evaluates the neoclassical transport fluxes
 """
 function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNeoclassical(kw...)

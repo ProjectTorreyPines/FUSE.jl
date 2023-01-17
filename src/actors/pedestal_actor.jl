@@ -12,21 +12,19 @@ mutable struct ActorPedestal <: PlasmaAbstractActor
     pped::Union{Missing,Real}
 end
 
-function ParametersActor(::Type{Val{:ActorPedestal}})
-    par = ParametersActor(nothing)
-    par.update_core_profiles = Entry(Bool, "", "Update core_profiles"; default=true)
-    par.edge_bound = Entry(Real, "", "Defines rho at which edge starts"; default=0.8)
-    par.temp_pedestal_ratio = Entry(Real, "", "Ratio of ion to electron temperatures"; default=1.0)
-    par.ped_factor = Entry(Real, "", "Pedestal height multiplier"; default=1.0)
-    par.warn_nn_train_bounds = Entry(Bool, "", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
-    par.only_powerlaw = Entry(Bool, "", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
-    return par
+Base.@kwdef struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
+    update_core_profiles = Entry(Bool, "", "Update core_profiles"; default=true)
+    edge_bound = Entry(Real, "", "Defines rho at which edge starts"; default=0.8)
+    temp_pedestal_ratio = Entry(Real, "", "Ratio of ion to electron temperatures"; default=1.0)
+    ped_factor = Entry(Real, "", "Pedestal height multiplier"; default=1.0)
+    warn_nn_train_bounds = Entry(Bool, "", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
+    only_powerlaw = Entry(Bool, "", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
 end
 
 """
     ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorPedestal evaluates the pedestal boundary condition (height and width)
+Evaluates the pedestal boundary condition (height and width)
 """
 function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorPedestal(kw...)

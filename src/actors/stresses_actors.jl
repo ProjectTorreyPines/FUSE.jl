@@ -11,17 +11,15 @@ mutable struct ActorStresses <: ReactorAbstractActor
     end
 end
 
-function ParametersActor(::Type{Val{:ActorStresses}})
-    par = ParametersActor(nothing)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.n_points = Entry(Integer, "", "Number of grid points"; default=5)
-    return par
+Base.@kwdef struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
+    do_plot = Entry(Bool, "", "plot"; default=false)
+    n_points = Entry(Integer, "", "Number of grid points"; default=5)
 end
 
 """
     ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates vertical field from PF coils and its contribution to flux swing
+Estimates mechanical stresses on the center stack
 
 !!! note 
     Stores data in `dd.solid_mechanics`

@@ -1,0 +1,23 @@
+FROM --platform=linux/_PLATFORM_ julia:latest
+
+RUN apt-get -y update
+RUN apt-get -y install --no-install-recommends git make openssh-client
+
+WORKDIR /root/.ssh
+COPY .ssh/ ./
+RUN chmod 700 id_rsa
+
+RUN git config --global pull.rebase false
+
+WORKDIR /root/.julia/dev
+
+# test cloning of FUSE
+RUN git clone git@github.com:ProjectTorreyPines/FUSE.jl.git FUSE
+# overwrite with current copy
+WORKDIR /root/.julia/dev
+COPY ./FUSE FUSE/
+
+WORKDIR /root/.julia/dev/FUSE
+RUN make install_via_registry
+
+RUN rm /root/.ssh/id_rsa
