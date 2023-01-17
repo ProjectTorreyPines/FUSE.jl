@@ -19,6 +19,7 @@ Base.@kwdef struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:R
     temp_pedestal_ratio = Entry(Real, "", "Ion to electron temperature ratio in the pedestal"; default=1.0)
     transport_model = Switch(Symbol, [:tglfnn, :tglf, :h98y2, :ds03], "", "Transport model"; default=:tglfnn)
     warn_nn_train_bounds = Entry(Bool, "", "Warn if EPED-NN / TGLF-NN training bounds are exceeded"; default=false)
+    update_pedestal = Entry(Bool, "","update pedestal with eped_nn inside TAUENN" ;default=true)
     confinement_factor = Entry(Real, "", "Confinement multiplier"; default=1.0)
     do_plot = Entry(Bool, "", "plot"; default=false)
     verbose = Entry(Bool, "", "verbose"; default=false)
@@ -54,7 +55,8 @@ function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
         par.temp_pedestal_ratio,
         par.transport_model,
         par.confinement_factor,
-        par.warn_nn_train_bounds)
+        par.warn_nn_train_bounds,
+        par.update_pedestal)
 
     return ActorTauenn(dd, par, tauenn_parameters, TAUENN.TauennOutputs())
 end
