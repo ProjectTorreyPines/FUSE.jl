@@ -861,3 +861,20 @@ function check_ped_finder(profile::AbstractVector{<:Real},psi_norm::AbstractVect
     plot(psi_norm,profile,label="original profile")
     plot!(psi_norm,IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width),label="fitted profile (pedestal region is important only)")
 end
+
+
+"""
+    ip_from_q_star(a::Real, B0::Real, q_star::Real, R0::Real, κ::Real)
+Calculate ip from the cylindrical equivalent safety factor
+"""
+function ip_from_q_cyl(a::Real, B0::Real, q_cyl::Real, R0::Real, κ::Real)
+    return 1e6 * abs((5 * a^2 * B0) / (R0 * (q_cyl)) * (1 + κ^2) / 2)
+end
+
+"""
+    B0_from_Bmax(Bmax::Real, distance_tf_to_plasma::Real, a::Real, R0::Real)
+Calculate the on axis magnetic field from the maximum magnetic field at the tf coils
+"""
+function B0_from_b_max(b_max::Real, distance_tf_to_plasma::Real, a::Real, R0::Real)
+    return b_max * (1 - (a + distance_tf_to_plasma) / R0)
+end
