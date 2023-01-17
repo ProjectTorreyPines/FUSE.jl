@@ -20,7 +20,7 @@ end
 """
     ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
+Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
 !!! note 
     Stores data in `dd.nbi, dd.core_sources`
@@ -106,7 +106,7 @@ end
 """
     ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the EC electron energy deposition and current drive as a gaussian.
+Estimates the EC electron energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.ec_launchers, dd.core_sources`
@@ -184,7 +184,7 @@ end
 """
     ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
+Estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.ic_antennas, dd.core_sources`
@@ -262,7 +262,7 @@ end
 """
     ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
+Estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.lh_antennas, dd.core_sources`

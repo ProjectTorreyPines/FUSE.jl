@@ -58,7 +58,7 @@ end
 """
     ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor finds the optimal coil currents and locations of the poloidal field coils
+Finds the optimal coil currents and locations of the poloidal field coils
 to match the equilibrium boundary shape and obtain a field-null region at plasma start-up.
 
 !!! note 

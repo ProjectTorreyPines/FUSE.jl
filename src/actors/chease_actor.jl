@@ -18,7 +18,7 @@ end
 """
     ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor runs the Fixed boundary equilibrium solver CHEASE
+Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCHEASE(kw...)
@@ -111,7 +111,7 @@ function _step(actor::ActorCHEASE)
     return actor
 end
 
-# define `finalize` function for this actor
+# define `finalize` function
 function _finalize(actor::ActorCHEASE)
     gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
     return actor

@@ -107,7 +107,7 @@ end
 """
     ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound actor that runs all the actors needed to model the whole plant:
+Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
 * ActorEquilibriumTransport
 * ActorHFSsizing
 * ActorLFSsizing

@@ -16,7 +16,7 @@ end
 """
     ActorSimpleDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Simple Divertor actor
+Evaluates divertor loading and deposited power
 
 !!! note 
     Stores data in `dd.divertors`

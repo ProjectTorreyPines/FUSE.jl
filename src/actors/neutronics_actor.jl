@@ -40,7 +40,7 @@ end
 """
     ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the neutron loading on the wall using the fusion source from `dd.core_sources`.
+Estimates the neutron wall loading
 
 !!! note 
     Stores data in `dd.neutronics`

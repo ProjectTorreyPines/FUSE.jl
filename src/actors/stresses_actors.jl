@@ -19,7 +19,7 @@ end
 """
     ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates vertical field from PF coils and its contribution to flux swing
+Estimates mechanical stresses on the center stack
 
 !!! note 
     Stores data in `dd.solid_mechanics`
