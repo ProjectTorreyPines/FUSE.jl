@@ -32,7 +32,8 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             ngrid=ini.core_profiles.ngrid,
             bulk=ini.core_profiles.bulk,
             impurity=ini.core_profiles.impurity,
-            ejima=ini.core_profiles.ejima)
+            ejima=ini.core_profiles.ejima,
+            polarized_fuel_fraction=ini.core_profiles.polarized_fuel_fraction)
     end
 
     if ismissing(dd.core_profiles.profiles_1d[], :j_ohmic)
@@ -56,6 +57,7 @@ function init_core_profiles(
     impurity::Symbol,
     rot_core::Real,
     ejima::Real,
+    polarized_fuel_fraction::Real,
     T_ratio::Real=1.0,
     T_shaping::Real=1.8,
     n_shaping::Real=0.9,
@@ -154,5 +156,8 @@ function init_core_profiles(
 
     # ejima
     IMAS.set_time_array(cp.global_quantities, :ejima, ejima)
+
+    # set spin polarization
+    cp.global_quantities.polarized_fuel_fraction = polarized_fuel_fraction
     return cp
 end
