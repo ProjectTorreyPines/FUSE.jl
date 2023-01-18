@@ -244,6 +244,7 @@ dd:
 	julia ../IMASDD/src/generate_dd.jl
 
 milestones:
+    # NOTE, to get this running: `gh auth login` then `gh extension install valeriobelli/gh-milestone`
 	$(foreach package,$(PTP_PACKAGES),cd  ../$(package);\
 	gh milestone create --due-date 2023-05-01 --title "Stability: Scaling Laws" --description "BOE 2.02.01.01.04.01: STATIONARY MODEL DEVELOPMENT -> Plasma Core -> Stability -> Scaling laws";\
 	gh milestone create --due-date 2025-06-01 --title "Stability: Low-n Ideal MHD" --description "BOE 2.02.01.01.04.02: STATIONARY MODEL DEVELOPMENT -> Plasma Core -> Stability -> Low-n ideal MHD";\
@@ -300,6 +301,5 @@ milestones:
 	gh milestone create --due-date 2026-01-01 --title "Control: GATM Two-Way" --description "BOE 2.02.03.02.02.02: CONTROL INTEGRATION -> External Coupling -> GATM -> Two-way";\
 	gh milestone create --due-date 2023-04-01 --title "Support: Cloud Execution" --description "BOE 2.02.04.01.01: SUPPORT, TESTING, AND UPGRADES -> Framework -> Cloud execution";\
 	gh milestone create --due-date 2023-04-01 --title "Support: UQ Workflows" --description "BOE 2.02.04.01.02: SUPPORT, TESTING, AND UPGRADES -> Framework -> UQ workflows";)
-
 
 .PHONY:
