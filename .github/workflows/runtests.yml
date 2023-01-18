@@ -41,6 +41,7 @@ jobs:
       - uses: julia-actions/cache@v1
       - run: |
           julia -e '
+            ENV["JULIA_PKG_USE_CLI_GIT"] = "true"
             using Pkg
             Pkg.add("Revise")
             Pkg.Registry.add(RegistrySpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/GAregistry.git"))
