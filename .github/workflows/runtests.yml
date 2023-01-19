@@ -44,7 +44,7 @@ jobs:
             using Pkg
             Pkg.activate(".")
             dependencies = PackageSpec[]
-            for package in ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "MXHEquilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "SimulationParameters"]
+            for package in ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "SimulationParameters"]
               push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
             end
             Pkg.add(dependencies)
