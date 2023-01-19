@@ -53,7 +53,7 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     δ = eqt.boundary.triangularity
     ζ = eqt.boundary.squareness
 
-    plasma_shape = MXHEquilibrium .TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
+    plasma_shape = MXHEquilibrium.TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
 
     ϵ = a / R0
     B0 = @ddtime eq.vacuum_toroidal_field.b0
