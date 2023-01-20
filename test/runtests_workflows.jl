@@ -51,7 +51,10 @@ using Test
     @testset "warmup" begin
         FUSE.warmup()
     end
-    
+    @testset "optimization" begin
+        ini = FUSE.ParametersInits()
+        ini.core_profiles.zeff = 2.0 ↔ [1.2, 2.5]
+    end
 end
 
 
