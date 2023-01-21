@@ -47,16 +47,27 @@ using Test
     @testset "SPARC" begin
         dd, ini, act = FUSE.init(:SPARC)
     end
-
-    @testset "warmup" begin
-        FUSE.warmup()
-    end
-    @testset "optimization" begin
-        ini = FUSE.ParametersInits()
-        ini.core_profiles.zeff = 2.0 ↔ [1.2, 2.5]
-    end
 end
 
+@testset "warmup" begin
+    FUSE.warmup()
+end
+
+@testset "optimization" begin
+    ini = FUSE.ParametersInits()
+
+    ini.core_profiles.zeff = 2.0 ↔ [1.2, 2.5]
+    @test ini.core_profiles.zeff == 2.0
+    @test typeof(ini.core_profiles.zeff) <: Float64
+
+    ini.equilibrium.ngrid = 200.0 ↔ [129, 257]
+    @test ini.equilibrium.ngrid == 200
+    @test typeof(ini.equilibrium.ngrid) <: Int
+
+    ini.build.symmetric = 1.0 ↔ [0, 1]
+    @test ini.build.symmetric == true
+    @test typeof(ini.build.symmetric) <: Bool
+end
 
 # @testset "QEDcurrent_actor" begin
 #     # Load TRANSP data at 2.91 s
