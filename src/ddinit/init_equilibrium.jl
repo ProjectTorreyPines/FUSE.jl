@@ -93,6 +93,8 @@ function init_equilibrium(
     x_point::Union{AbstractVector,NTuple{2},Bool}=false,
     symmetric::Bool=true)
 
+    @assert -1.0 <= δ <= 1.0 "δ should be between -1.0 and 1.0"
+
     eqt = resize!(eq.time_slice)
     eqt.boundary.minor_radius = minor_radius = ϵ * R0
     eqt.boundary.geometric_axis.r = R0
