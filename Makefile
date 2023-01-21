@@ -46,9 +46,10 @@ registry:
 	if [ ! -d "$(JULIA_PKG_REGDIR)" ]; then mkdir -p $(JULIA_PKG_REGDIR); fi
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
+	julia -e 'using Pkg; Pkg.Registry.update("GAregistry")'
 
 register:
-	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)");using LocalRegistry; register("$(package)", registry="GAregistry")';)
+	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate("."); using LocalRegistry; register("$(package)", registry="GAregistry")';)
 
 develop:
 	julia -e '\
