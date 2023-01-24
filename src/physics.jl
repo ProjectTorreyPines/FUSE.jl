@@ -693,7 +693,8 @@ end
 
 Plot and manipulate Miller Extended Harmonic (MXH) boundary
 """
-function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot}=nothing)
+function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p=nothing)
+    @assert typeof(p)<:Union{Nothing,Plots.Plot}
     n = 101
     if length(mxh.c) != 3
         mxh = IMAS.MXH(mxh()..., 3)
