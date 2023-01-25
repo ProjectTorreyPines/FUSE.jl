@@ -143,8 +143,8 @@ Store ActorSolovev data in IMAS.equilibrium format
 """
 function _finalize(
     actor::ActorSolovev;
-    rlims::NTuple{2,<:Real}=limits(actor.S.S; pad=0)[1],
-    zlims::NTuple{2,<:Real}=limits(actor.S.S; pad=0)[2])::IMAS.equilibrium__time_slice
+    rlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0)[1],
+    zlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0)[2])::IMAS.equilibrium__time_slice
 
     ngrid = actor.par.ngrid
     tc = transform_cocos(3, 11)
