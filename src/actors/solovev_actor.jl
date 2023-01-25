@@ -172,11 +172,11 @@ function _finalize(
     orig_psi = collect(range(MXHEquilibrium.psi_limits(actor.S)..., length=ngrid))
     eqt.profiles_1d.psi = orig_psi * (tc["PSI"] * sign_Ip)
 
-    eqt.profiles_1d.pressure = MXHEquilibrium.pressure(actor.S, orig_psi)
-    eqt.profiles_1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient(actor.S, orig_psi) / (tc["PSI"] * sign_Ip)
+    eqt.profiles_1d.pressure = MXHEquilibrium.pressure.(actor.S, orig_psi)
+    eqt.profiles_1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(actor.S, orig_psi) ./ (tc["PSI"] * sign_Ip)
 
-    eqt.profiles_1d.f = MXHEquilibrium.poloidal_current(actor.S, orig_psi) * (tc["F"] * sign_Bt)
-    eqt.profiles_1d.f_df_dpsi = MXHEquilibrium.poloidal_current(actor.S, orig_psi) .* MXHEquilibrium.poloidal_current_gradient(actor.S, orig_psi) * (tc["F_FPRIME"] * sign_Bt * sign_Ip)
+    eqt.profiles_1d.f = MXHEquilibrium.poloidal_current.(actor.S, orig_psi) .* (tc["F"] * sign_Bt)
+    eqt.profiles_1d.f_df_dpsi = MXHEquilibrium.poloidal_current.(actor.S, orig_psi) .* MXHEquilibrium.poloidal_current_gradient.(actor.S, orig_psi) .* (tc["F_FPRIME"] * sign_Bt * sign_Ip)
 
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
