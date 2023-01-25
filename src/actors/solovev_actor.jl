@@ -104,6 +104,7 @@ function _step(actor::ActorSolovev)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
     ptype = promote_type(eltype(S0.S),typeof(S0.B0),typeof(S0.alpha),typeof(S0.qstar),typeof(target_ip),typeof(target_pressure_core))
+
     SS = convert_eltype(S0.S, ptype)
     B0 = convert(ptype,S0.B0)
     alpha = convert(ptype,S0.alpha)
