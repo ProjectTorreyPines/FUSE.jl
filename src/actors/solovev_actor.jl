@@ -135,17 +135,16 @@ end
 """
     finalize(
         actor::ActorSolovev;
-        rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
-        zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
+        rlims::NTuple{2,<:Real}=(maximum([actor.S.S.R0 * (1 - actor.S.S.epsilon * 2), 0.0]), actor.S.S.R0 * (1 + actor.S.S.epsilon * 2)),
+        zlims::NTuple{2,<:Real}=(-actor.S.S.R0 * actor.S.S.epsilon * actor.S.S.kappa * 1.7, actor.S.S.R0 * actor.S.S.epsilon * actor.S.S.kappa * 1.7)
     )::IMAS.equilibrium__time_slice
 
 Store ActorSolovev data in IMAS.equilibrium format
 """
 function _finalize(
     actor::ActorSolovev;
-    rlims::NTuple{2,<:Real}=(maximum([actor.S.R0 * (1 - actor.S.epsilon * 2), 0.0]), actor.S.R0 * (1 + actor.S.epsilon * 2)),
-    zlims::NTuple{2,<:Real}=(-actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7, actor.S.R0 * actor.S.epsilon * actor.S.kappa * 1.7)
-)::IMAS.equilibrium__time_slice
+    rlims::NTuple{2,<:Real}=limits(actor.S.S; pad=0)[1],
+    zlims::NTuple{2,<:Real}=limits(actor.S.S; pad=0)[2])::IMAS.equilibrium__time_slice
 
     ngrid = actor.par.ngrid
     tc = transform_cocos(3, 11)
@@ -162,13 +161,13 @@ function _finalize(
         flip_z = -1.0
     end
 
-    eq.vacuum_toroidal_field.r0 = actor.S.R0
+    eq.vacuum_toroidal_field.r0 = actor.S.S.R0
     @ddtime eq.vacuum_toroidal_field.b0 = actor.S.B0 * sign_Bt
 
     empty!(eqt)
 
     eqt.global_quantities.ip = ip
-    eqt.boundary.geometric_axis.r = actor.S.R0
+    eqt.boundary.geometric_axis.r = actor.S.S.R0
     eqt.boundary.geometric_axis.z = Z0
     orig_psi = collect(range(MXHEquilibrium.psi_limits(actor.S)..., length=ngrid))
     eqt.profiles_1d.psi = orig_psi * (tc["PSI"] * sign_Ip)
@@ -182,7 +181,7 @@ function _finalize(
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
     eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * actor.S.kappa)))
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * actor.S.S.kappa)))
 
     eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
     IMAS.flux_surfaces(eqt)
