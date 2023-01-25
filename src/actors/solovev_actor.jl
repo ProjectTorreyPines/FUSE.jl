@@ -135,8 +135,8 @@ end
 """
     finalize(
         actor::ActorSolovev;
-        rlims::NTuple{2,<:Real}=(maximum([actor.S.S.R0 * (1 - actor.S.S.epsilon * 2), 0.0]), actor.S.S.R0 * (1 + actor.S.S.epsilon * 2)),
-        zlims::NTuple{2,<:Real}=(-actor.S.S.R0 * actor.S.S.epsilon * actor.S.S.kappa * 1.7, actor.S.S.R0 * actor.S.S.epsilon * actor.S.S.kappa * 1.7)
+        rlims::NTuple{2,<:Real}=(maximum([actor.S.S.R0 * (1 - actor.S.S.ϵ * 2), 0.0]), actor.S.S.R0 * (1 + actor.S.S.ϵ * 2)),
+        zlims::NTuple{2,<:Real}=(-actor.S.S.R0 * actor.S.S.ϵ * actor.S.S.κ 1.7, actor.S.S.R0 * actor.S.S.ϵ * actor.S.S.κ * 1.7)
     )::IMAS.equilibrium__time_slice
 
 Store ActorSolovev data in IMAS.equilibrium format
@@ -181,7 +181,7 @@ function _finalize(
     resize!(eqt.profiles_2d, 1)
     eqt.profiles_2d[1].grid_type.index = 1
     eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * actor.S.S.kappa)))
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * actor.S.S.κ)))
 
     eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
     IMAS.flux_surfaces(eqt)
