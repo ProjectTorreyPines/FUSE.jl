@@ -210,7 +210,8 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
     psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length=length(eqt.profiles_1d.psi))
     @assert collect(psi) ≈ eqt.profiles_1d.psi
 
-    MXHEquilibrium.efit(MXHEquilibrium.cocos(11), # COCOS
+    MXHEquilibrium.efit(
+        MXHEquilibrium.cocos(11), # COCOS
         dim1, # Radius/R range
         dim2, # Elevation/Z range
         psi, # Polodial Flux range (polodial flux from magnetic axis)
