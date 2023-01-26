@@ -96,10 +96,10 @@ Pkg.build("IJulia");\
 	python3 -m pip install --upgrade webio_jupyter_extension
 
 precompile:
-	julia -e 'using Pkg; Pkg.precompile()'
+	julia -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 
 clone_update_all:
-	make $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
+	make -i $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
 
 update: install clone_update_all precompile
 
