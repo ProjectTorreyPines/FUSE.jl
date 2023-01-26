@@ -76,6 +76,10 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     # ini.equilibrium.ζ = 0.15
     # act.ActorEquilibrium.model = :CHEASE
 
+    # simple analytic AT confinement
+    act.ActorTauenn.transport_model = :ds03
+    act.ActorTauenn.confinement_factor = 1.4
+
     # add wall layer
     if true
         gasc_add_wall_layers!(ini.build.layers; thickness=0.02)
