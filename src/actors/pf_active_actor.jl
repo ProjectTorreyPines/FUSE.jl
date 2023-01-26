@@ -1,4 +1,4 @@
-using Equilibrium
+import MXHEquilibrium
 import Optim
 import VacuumFields
 using LinearAlgebra
