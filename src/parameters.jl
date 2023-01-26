@@ -33,37 +33,3 @@ function case_parameters(case::Symbol; kw...)
     end
     return case_parameters(Val{case}; kw...)
 end
-
-#= ====================== =#
-#  Optimization parameter  #
-#= ====================== =#
-struct OptParameter
-    nominal::Real
-    lower::Real
-    upper::Real
-end
-
-"""
-    ↔(x::Real, r::AbstractVector)
-
-"leftrightarrow" unicode constructor for OptParameter
-"""
-function ↔(x::Real, r::AbstractVector)
-    @assert typeof(x) == typeof(r[1]) == typeof(r[end]) "type of optimization range does not match the nominal value"
-    return OptParameter(x, r[1], r[end])
-end
-
-function opt_parameters(p::AbstractParameters, opt_vector=AbstractParameter[])
-    _parameters = getfield(p, :_parameters)
-    for k in keys(_parameters)
-        parameter = _parameters[k]
-        if typeof(parameter) <: AbstractParameters
-            opt_parameters(parameter, opt_vector)
-        elseif typeof(parameter) <: Entry
-            if parameter.lower !== missing
-                push!(opt_vector, parameter)
-            end
-        end
-    end
-    return opt_vector
-end

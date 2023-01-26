@@ -46,15 +46,17 @@ registry:
 	if [ ! -d "$(JULIA_PKG_REGDIR)" ]; then mkdir -p $(JULIA_PKG_REGDIR); fi
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
+	julia -e 'using Pkg; Pkg.Registry.update("GAregistry")'
 
 register:
-	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)");using LocalRegistry; register("$(package)", registry="GAregistry")';)
+	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate("."); using LocalRegistry; register("$(package)", registry="GAregistry")';)
 
 develop:
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
 Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
+# install in global environment to easily develop and test changes made across multiple packages at once;\
 Pkg.activate();\
 Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
 '
@@ -224,15 +226,15 @@ clean_examples:
 all_examples: clean_examples examples
 
 examples: .PHONY
-	cd docs; julia notebooks_to_html.jl --execute
+	cd docs; julia notebooks_to_md.jl --execute
 
 all_blank_examples: clean_examples blank_examples
 
 blank_examples:
-	cd docs; julia notebooks_to_html.jl
+	cd docs; julia notebooks_to_md.jl
 
 daily_example:
-	cd docs; julia notebooks_to_html.jl --daily --execute --canfail
+	cd docs; julia notebooks_to_md.jl --daily --execute --canfail
 
 daily_example_commit:
 	git checkout -b examples_$(TODAY)

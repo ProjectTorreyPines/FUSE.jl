@@ -63,7 +63,7 @@ function _step(actor::ActorTGLF)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
     if par.nn
-        actor.flux_solutions = map(input_tglf -> TGLFNN.run_tglfnn(input_tglf; par.warn_nn_train_bounds, model_filename), actor.input_tglfs)
+        actor.flux_solutions = map(input_tglf -> TGLFNN.run_tglfnn(input_tglf, par.warn_nn_train_bounds; model_filename), actor.input_tglfs)
     else
         actor.flux_solutions = asyncmap(input_tglf -> TGLFNN.run_tglf(input_tglf), actor.input_tglfs)
     end

@@ -85,8 +85,14 @@ function _step(actor::ActorPedestal;
 
     sol = actor.epedmod(actor.inputs; only_powerlaw, warn_nn_train_bounds)
 
-    actor.wped = sol.width.GH.H
-    actor.pped = sol.pressure.GH.H
+    if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
+        actor.pped = 1.5 * sol.pressure.GH.H
+        actor.wped = maximum(sol.width.GH.H,0.01)
+        @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.5 = $(round(actor.pped*1e6)) [Pa] assumed "
+    else
+        actor.pped = sol.pressure.GH.H
+        actor.wped = sol.width.GH.H
+    end
 
     return actor
 end
@@ -119,7 +125,7 @@ function _finalize(actor::ActorPedestal;
     dd_ped = dd.summary.local.pedestal
     @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + temp_pedestal_ratio) * ped_factor
     @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * temp_pedestal_ratio
-    @ddtime dd_ped.position.rho_tor_norm = 1 - actor.wped * sqrt(ped_factor)
+    @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(ped_factor))
 
     if update_core_profiles
         IMAS.blend_core_edge_Hmode(cp1d, dd_ped, edge_bound)
