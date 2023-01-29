@@ -73,7 +73,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     # ini.equilibrium.δ *= -1
 
     # squareness
-    # ini.equilibrium.ζ = 0.15
+    ini.equilibrium.ζ = 0.15
     # act.ActorEquilibrium.model = :CHEASE
 
     # add wall layer

@@ -46,15 +46,23 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     # extract info from dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
-    a = eqt.boundary.minor_radius
-    R0 = eqt.boundary.geometric_axis.r
-    Z0 = eqt.boundary.geometric_axis.z
-    ϵ = a / R0
-    κ = eqt.boundary.elongation
-    δ = eqt.boundary.triangularity
-    ζ = eqt.boundary.squareness
 
-    plasma_shape = MXHEquilibrium.TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
+    # define plasma shape
+    if false
+        a = eqt.boundary.minor_radius
+        R0 = eqt.boundary.geometric_axis.r
+        Z0 = eqt.boundary.geometric_axis.z
+        ϵ = a / R0
+        κ = eqt.boundary.elongation
+        δ = eqt.boundary.triangularity
+        ζ = eqt.boundary.squareness
+        plasma_shape = MXHEquilibrium.TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
+    else
+        pr = eqt.boundary.outline.r
+        pz = eqt.boundary.outline.z
+        mxh = IMAS.MXH(pr, pz, 2)
+        plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)
+    end
 
     B0 = @ddtime eq.vacuum_toroidal_field.b0
 
@@ -103,12 +111,12 @@ function _step(actor::ActorSolovev)
     target_ip = abs(eqt.global_quantities.ip)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
-    ptype = promote_type(eltype(S0.S),typeof(S0.B0),typeof(S0.alpha),typeof(S0.qstar),typeof(target_ip),typeof(target_pressure_core))
+    ptype = promote_type(eltype(S0.S), typeof(S0.B0), typeof(S0.alpha), typeof(S0.qstar), typeof(target_ip), typeof(target_pressure_core))
 
     SS = MXHEquilibrium.convert_eltype(S0.S, ptype)
-    B0 = convert(ptype,S0.B0)
-    alpha = convert(ptype,S0.alpha)
-    qstar = convert(ptype,S0.qstar)
+    B0 = convert(ptype, S0.B0)
+    alpha = convert(ptype, S0.alpha)
+    qstar = convert(ptype, S0.qstar)
     target_ip = convert(ptype, target_ip)
     target_pressure_core = convert(ptype, target_pressure_core)
 
