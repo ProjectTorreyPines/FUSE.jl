@@ -121,7 +121,7 @@ function _step(actor::ActorSolovev)
     target_pressure_core = convert(ptype, target_pressure_core)
 
     function cost(x)
-        S = MXHEquilibrium.solovev(abs(B0), SS, x[1], x[2], B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric=true, x_point=nothing)
+        S = MXHEquilibrium.solovev(abs(B0), SS, x[1], x[2], B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
         psimag, psibry = MXHEquilibrium.psi_limits(S)
         pressure_cost = (MXHEquilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
         ip_cost = (MXHEquilibrium.plasma_current(S) - target_ip) / target_ip
