@@ -844,7 +844,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                actor.eq_out.time_slice[time_index]
+                actor.eq_out.time_slice[time_index].boundary
             end
         else
             @series begin
