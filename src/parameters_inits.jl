@@ -28,7 +28,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     x_point::Entry{Union{NTuple{2},Bool}} = Entry(Union{NTuple{2},Bool}, IMAS.equilibrium__time_slice___boundary, :x_point)
     symmetric::Entry{Bool} = Entry(Bool, "", "Is plasma up-down symmetric")
     ngrid::Entry{Int} = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
-    field_null_surface::Entry{T} = Entry(T, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)
+    field_null_surface::Entry{T} = Entry(T, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.5)
     boundary_from::Switch{Symbol} = Switch(Symbol, [:scalars, :MXH_params, :rz_points], "", "The starting r, z boundary taken from"; default=:scalars)
     MXH_params::Entry{Union{Nothing,Vector{<:T}}} = Entry(Union{Nothing,Vector{<:T}}, "", "Vector of MXH flats", default=missing)
     rz_points::Entry{Union{Nothing,Vector{Vector{<:T}}}} = Entry(Union{Nothing,Vector{Vector{<:T}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
