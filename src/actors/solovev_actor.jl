@@ -58,9 +58,10 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
         ζ = eqt.boundary.squareness
         plasma_shape = MXHEquilibrium.TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
     else
-        pr = eqt.boundary.outline.r
-        pz = eqt.boundary.outline.z
-        mxh = IMAS.MXH(pr, pz, 2)
+        pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
+        pr, pz = IMAS.resample_2d_line(pr, pz; n_points=101)
+        pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+        mxh = IMAS.MXH(pr, pz, 5)
         plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)
     end
 
@@ -81,7 +82,7 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     end
 
     # run Solovev
-    S = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar, B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
+    S = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar; B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
     return ActorSolovev(dd.equilibrium, par, S)
 end
@@ -111,17 +112,18 @@ function _step(actor::ActorSolovev)
     target_ip = abs(eqt.global_quantities.ip)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
-    ptype = promote_type(eltype(S0.S), typeof(S0.B0), typeof(S0.alpha), typeof(S0.qstar), typeof(target_ip), typeof(target_pressure_core))
+    pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
+    pr, pz = IMAS.resample_2d_line(pr, pz; n_points=101)
+    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+    mxh = IMAS.MXH(pr, pz, 5)
+    plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)
 
-    SS = MXHEquilibrium.convert_eltype(S0.S, ptype)
-    B0 = convert(ptype, S0.B0)
-    alpha = convert(ptype, S0.alpha)
-    qstar = convert(ptype, S0.qstar)
-    target_ip = convert(ptype, target_ip)
-    target_pressure_core = convert(ptype, target_pressure_core)
+    B0 = S0.B0
+    alpha = S0.alpha
+    qstar = S0.qstar
 
     function cost(x)
-        S = MXHEquilibrium.solovev(abs(B0), SS, x[1], x[2], B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
+        S = MXHEquilibrium.solovev(abs(B0), plasma_shape, x[1], x[2]; B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
         psimag, psibry = MXHEquilibrium.psi_limits(S)
         pressure_cost = (MXHEquilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
         ip_cost = (MXHEquilibrium.plasma_current(S) - target_ip) / target_ip
@@ -135,7 +137,7 @@ function _step(actor::ActorSolovev)
         println(res)
     end
 
-    actor.S = MXHEquilibrium.solovev(abs(B0), SS, res.minimizer[1], res.minimizer[2], B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
+    actor.S = MXHEquilibrium.solovev(abs(B0), plasma_shape, res.minimizer[1], res.minimizer[2]; B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
 
     return actor
 end
