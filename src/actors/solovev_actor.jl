@@ -125,7 +125,7 @@ function _step(actor::ActorSolovev)
         psimag, psibry = MXHEquilibrium.psi_limits(S)
         pressure_cost = (MXHEquilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
         ip_cost = (MXHEquilibrium.plasma_current(S) - target_ip) / target_ip
-        c = pressure_cost^2 + ip_cost^2
+        c = sqrt(pressure_cost^2 + ip_cost^2)
         return c
     end
 
