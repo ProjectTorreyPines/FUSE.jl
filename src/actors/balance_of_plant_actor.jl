@@ -12,7 +12,7 @@ mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     par::ParametersActor
     thermal_electric_conversion_efficiency::Real
     thermal_cycle_actor::ActorThermalCycle
-    IHTS_actor::ActorIHTS
+    IHTS_actor::ActorHeatTxSystem
 end
 # POWER CYCLE MODEL TYPES
 #   
@@ -61,7 +61,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::ParametersActor, act::ParametersA
 
     rp_default = 3.0
 
-    IHTS_actor              = ActorIHTS(dd,act;breeder_hi_temp = breeder_tmax, breeder_low_temp = breeder_tmin)
+    IHTS_actor              = ActorHeatTxSystem(dd,act;breeder_hi_temp = breeder_tmax, breeder_low_temp = breeder_tmin)
     thermal_cycle_actor     = ActorThermalCycle(dd,act;Tmax = cycle_tmax,rp = rp_default,regen = regenBool)
     return ActorBalanceOfPlant(dd, par, par.thermal_electric_conversion_efficiency,thermal_cycle_actor,IHTS_actor)
 end
@@ -93,9 +93,9 @@ function _step(actor::ActorBalanceOfPlant)
 
     bop_thermal = bop.thermal_cycle
     bop_thermal.thermal_electric_conversion_efficiency = actor.thermal_electric_conversion_efficiency .* ones(length(bop.time))
-    bop_thermal.power_electric_generated =bop_thermal.cycle_net_work.*actor.thermal_electric_conversion_efficiency.* ones(length(bop.time))
+    bop_thermal.power_electric_generated =bop_thermal.net_work.*actor.thermal_electric_conversion_efficiency.* ones(length(bop.time))
 
-    @ddtime(bop_thermal.total_heat_power = @ddtime(bop.IHTS.blanket.heat_delivered) +@ddtime(bop.IHTS.divertor.heat_delivered) + @ddtime(bop.IHTS.breeder.heat_delivered))
+    @ddtime(bop_thermal.total_heat_power = @ddtime(bop.heat_tx_system.blanket.heat_delivered) +@ddtime(bop.heat_tx_system.divertor.heat_delivered) + @ddtime(bop.heat_tx_system.breeder.heat_delivered))
     bop_electric = bop.power_electric_plant_operation
 
     sys = resize!(bop_electric.system, "name" => "H&CD", "index" => 1)
@@ -129,29 +129,42 @@ function _step(actor::ActorBalanceOfPlant)
         core = sys_coords(dd);
         corevec = sys2vec(core)
         pl=plot(core)
+        regen_xpt = 13.5
+        blk_hx_xpoint = 18.5
+        div_hx_xpoint = 23.5
+        breeder_hx_xpoint = 28.5
+        turb_xpt = 33
+
+        if dd.balance_of_plant.power_cycle_type=="complex_brayton"
+            breeder_hx_xpoint = 26.5
+            blk_hx_xpoint = 13.5
+            div_hx_xpoint = 18.5
+            regen_xpt = 22.5
+            turb_xpt = 30
+        end
 
         blanket_path = blanket_cooling_route(core)
-        hx1 = init_hx("blanket hx",13.5,-8,2,4)
+        hx1 = init_hx("blanket hx",blk_hx_xpoint,-8,2,4)
         plot!(hx1)
         blanket_path = attach2hx(blanket_path,hx1)
         plot!(blanket_path.x,blanket_path.y,color = :black, linewidth = 5,label = nothing)
         plot!(blanket_path.x,blanket_path.y,color = :steelblue, linewidth = 2.5,label =blanket_path.name)
 
         divertor_path = divertor_flow_path(core)
-        hx2 = init_hx("divertor hx",18.5,-8,2,4)
+        hx2 = init_hx("divertor hx",div_hx_xpoint,-8,2,4)
         plot!(hx2)
         divertor_path = attach2hx(divertor_path,hx2)
         plot!(divertor_path.x,divertor_path.y,color = :black, linewidth = 5,label = nothing)
         plot!(divertor_path.x,divertor_path.y,color = :lightpink, linewidth = 2.5,label =divertor_path.name,legend = false)
 
-        breeder_hx_xpoint = 23.5
-        regen_xpt = 28.5
-        turb_xpt = 33
-        if dd.balance_of_plant.power_cycle_type=="complex_brayton"
-            breeder_hx_xpoint = 26.5
-            regen_xpt = 22.5
-            turb_xpt = 30
-        end
+        # breeder_hx_xpoint = 23.5
+        # regen_xpt = 28.5
+        # turb_xpt = 33
+        # if dd.balance_of_plant.power_cycle_type=="complex_brayton"
+        #     breeder_hx_xpoint = 26.5
+        #     regen_xpt = 22.5
+        #     turb_xpt = 30
+        # end
         breeder_path = breeder_cooling_route(core)
         hx3 = init_hx("breeder hx",breeder_hx_xpoint,-8,2,4)
         plot!(hx3)
@@ -171,7 +184,7 @@ function _step(actor::ActorBalanceOfPlant)
         ic1 = intercooler("ic",coords("ic",2.5,-10),1.5,3.5)
         ic2 = intercooler("ic",coords("ic",7.5,-10),1.5,3.5)
         v1 = [C1,ic1,C2,ic2,C3,hx1,hx2,regen,hx3,T];
-        v2 = [C1,ic1,C2,ic2,C3,hx1,hx2,hx3,regen,T];
+        v2 = [C1,ic1,C2,ic2,C3,regen,hx1,hx2,hx3,T];
         cp = v2;
         if dd.balance_of_plant.power_cycle_type=="complex_brayton"
             cp = v1;

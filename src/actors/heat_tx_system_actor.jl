@@ -1,16 +1,16 @@
 #= =================== =#
-#  ActorIHTS (INTERMEDIATE HEAT TRANSFER SYSTEM) #
+#  ActorHeatTxSystem (INTERMEDIATE HEAT TRANSFER SYSTEM) #
 #= =================== =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
 
-mutable struct ActorIHTS <: FacilityAbstractActor
+mutable struct ActorHeatTxSystem<: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
     radiation_factor::Float64
 end
 
 
-function ParametersActor(::Type{Val{:ActorIHTS}})
+function ParametersActor(::Type{Val{:ActorHeatTxSystem}})
     par = ParametersActor(nothing)
     #  BREEDER INFO
     par.breeder_pressure     = Entry(Real, "", "Pressure across pump in breeder fluid circuit"; default = 1e6)
@@ -41,32 +41,32 @@ function ParametersActor(::Type{Val{:ActorIHTS}})
 end
 
 """
-    ActorIHTS(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorHeatTxSystem(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
 
-function ActorIHTS(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorIHTS(kw...)
+function ActorHeatTxSystem(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorHeatTxSystem(kw...)
     bop = dd.balance_of_plant;
-    bop.IHTS.divertor.working_fluid  = par.divertor_coolant
-    bop.IHTS.blanket.working_fluid   = par.blanket_coolant
-    bop.IHTS.breeder.working_fluid   = par.breeder_fluid
-    actor = ActorIHTS(dd, par)
+    bop.heat_tx_system.divertor.working_fluid  = par.divertor_coolant
+    bop.heat_tx_system.blanket.working_fluid   = par.blanket_coolant
+    bop.heat_tx_system.breeder.working_fluid   = par.breeder_fluid
+    actor = ActorHeatTxSystem(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorIHTS(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging_actor_init(ActorIHTS)
+function ActorHeatTxSystem(dd::IMAS.dd, par::ParametersActor; kw...)
+    logging_actor_init(ActorHeatTxSystem)
     par = par(kw...)
-    return ActorIHTS(dd, par, par.radiation_factor)
+    return ActorHeatTxSystem(dd, par, par.radiation_factor)
 end
 
 
-function _step(actor::ActorIHTS)
+function _step(actor::ActorHeatTxSystem)
     dd = actor.dd
     par = actor.par
     bop = dd.balance_of_plant
@@ -74,7 +74,7 @@ function _step(actor::ActorIHTS)
     # ======= #
     # THERMAL #
     # ======= #
-    bop_IHTS = bop.IHTS
+    bop_IHTS = bop.heat_tx_system
     
     # breeder_heat_load   = (sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time)
     breeder_heat_load   = abs.(sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module]))
@@ -100,9 +100,9 @@ function _step(actor::ActorIHTS)
     # inital values as guess
     ΔT_cycle_breeder = par.breeder_hi_temp - par.divertor_max_temp;
 
-    @ddtime(bop.thermal_cycle.mass_flow_rate = breeder_heat_load/(ΔT_cycle_breeder*cp_he))
+    @ddtime(bop.thermal_cycle.flow_rate = breeder_heat_load/(ΔT_cycle_breeder*cp_he))
     
-    cycle_flow = @ddtime(bop.thermal_cycle.mass_flow_rate) ;
+    cycle_flow = @ddtime(bop.thermal_cycle.flow_rate) ;
 
     @ddtime(bop_IHTS.blanket.flow_rate = cycle_flow);
     @ddtime(bop_IHTS.divertor.flow_rate = cycle_flow);
