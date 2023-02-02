@@ -3,6 +3,7 @@
 #= ============ =#
 
 import NNeutronics
+using PyCall
 
 mutable struct ActorBlanket <: ReactorAbstractActor
     dd::IMAS.dd
@@ -180,6 +181,14 @@ function _step(actor::ActorBlanket)
     # Optimize layers thicknesses and minimize Li6 enrichment needed to match
     # target TBR and minimize neutron leakage (realistic geometry and wall loading)
     function target_TBR2D(blanket_model::NNeutronics.Blanket, modules_relative_thickness13::Vector{<:Real}, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{<:Any}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real, min_d1::Float64=0.02, target::Float64=0.0)
+        data_path = "/home/mclaughlink/dev/mgxs_generator/data/500_cycles/"
+        data_filename= "combined_mgxs_lib.h5"  
+        py"""
+        from MOCNeutronics import cylinders_openmoc
+        def get_tbr(layer_thicknesses, layer_materials, data_path, data_filename):
+            return cylinders_openmoc.run_openmoc(layer_thicknesses, layer_materials, data_path, data_filename)
+        """
+        
         energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
         Li6 = min(max(Li6, 0.0), 100.0)
@@ -187,7 +196,7 @@ function _step(actor::ActorBlanket)
         extra_cost = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
             bmt = bm.time_slice[]
-            bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
+            bm.layer[2].material = @sprintf(bm.layer[2].material + "-Li6enrich=" + str(Li6))
             module_tritium_breeding_ratio = 0.0
             module_neutron_shine_through = 0.0
             module_wall_loading_power = sum(modules_wall_loading_power[ibm])
@@ -202,7 +211,12 @@ function _step(actor::ActorBlanket)
                 ed1 = modules_effective_thickness[ibm][k, 1] * x1
                 ed2 = modules_effective_thickness[ibm][k, 2] * x2
                 ed3 = modules_effective_thickness[ibm][k, 3] * x3
-                module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
+                layer_thicknesses = [ed1*100, ed2*100, ed3*100] # OpenMOC takes cm
+                layer_materials = [replace(bm.layer[l].material, " " => "-") for l in 1:length(bm.layer)]
+                print(layer_thicknesses, layer_materials)
+                # module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
+                local_tritium_breeding_ratio = py"get_tbr"(layer_thicknesses, layer_materials, data_path, data_filename)
+                module_tritium_breeding_ratio += (local_tritium_breeding_ratio * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
                 #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
                 module_neutron_shine_through += sum(NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)) * modules_wall_loading_power[ibm][k] / total_power_neutrons
             end
