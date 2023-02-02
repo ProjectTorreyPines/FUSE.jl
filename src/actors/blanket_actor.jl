@@ -182,6 +182,7 @@ function _step(actor::ActorBlanket)
     function target_TBR2D(blanket_model::NNeutronics.Blanket, modules_relative_thickness13::Vector{<:Real}, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{<:Any}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real, min_d1::Float64=0.02, target::Float64=0.0)
         energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
+        @assert Li6 < 0.0 "There is no Li6/Li7 that satisfies the TBR ratio in the ActorBlanket"
         Li6 = min(max(Li6, 0.0), 100.0)
         modules_neutron_shine_through = []
         extra_cost = 0.0
