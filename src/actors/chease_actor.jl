@@ -100,7 +100,7 @@ function _step(actor::ActorCHEASE)
     # convert from fixed to free boundary equilibrium
     if actor.par.free_boundary
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = VacuumFields.fixed2free(EQ, actor.chease.gfile.nbbbs)
+        psi_free_rz = VacuumFields.fixed2free(EQ, 128)
         actor.chease.gfile.psirz = psi_free_rz
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
@@ -111,9 +111,19 @@ function _step(actor::ActorCHEASE)
     return actor
 end
 
-# define `finalize` function
+# finalize by converting gEQDSK data to IMAS
 function _finalize(actor::ActorCHEASE)
-    gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
+    try
+        gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
+    catch e
+        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
+        psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
+        psi_a = EQ.psi_rz(EQ.axis...)
+        delta = (psi_b - psi_a) / 10.0
+        levels = LinRange(psi_a - delta, psi_b + delta, 101)
+        display(contour(EQ.r, EQ.z, transpose(actor.chease.gfile.psirz); levels, aspect_ratio=:equal, clim=(levels[1], levels[end])))
+        rethrow(e)
+    end
     return actor
 end
 

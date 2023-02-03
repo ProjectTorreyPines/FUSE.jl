@@ -26,7 +26,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.equilibrium.ip = 15e6
         ini.equilibrium.pressure_core = 0.643e6
 
-        ini.equilibrium.boundary_from = :scalars
+        ini.equilibrium.boundary_from = :MXH_params
 
         R0 = 6.2
         Z0 = 0.0
