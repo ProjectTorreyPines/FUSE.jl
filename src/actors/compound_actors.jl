@@ -57,27 +57,73 @@ function _step(actor::ActorEquilibriumTransport)
     # Set j_ohmic to steady state
     finalize(step(actor.actor_jt))
 
-    for iteration in 1:par.iterations
-        # run transport actor
-        finalize(step(actor.actor_tr))
+    if act.ActorEquilibrium.model == :CHEASE
+        @assert act.ActorCHEASE.rescale_eq_to_ip "Running CHEASE with ActorEquilibriumTransport requires ActorCHEASE.rescale_eq_to_ip = true"
+        act_chease = deepcopy(act.ActorCHEASE)
+        
+        actor.actor_eq.par = act_chease
+        act_chease.free_boundary = false
 
-        # prepare equilibrium input based on transport core_profiles output
-        prepare(dd, :ActorEquilibrium, act)
+        max_iter = 5
+        iter = 0
+        ip = dd.equilibrium.time_slice[].global_quantities.ip
+        conv_criteria = ip/1e2
+        avg_diff = conv_criteria + 1
 
-        # run equilibrium actor with the updated beta
-        finalize(step(actor.actor_eq))
+        while avg_diff > conv_criteria
+            # run transport actor
+            finalize(step(actor.actor_tr))
 
-        # Set j_ohmic to steady state
-        finalize(step(actor.actor_jt))
+            # Set j_ohmic to steady state
+            finalize(step(actor.actor_jt))
+
+            j_tor_before = dd.core_profiles.profiles_1d[].j_tor 
+
+            # prepare equilibrium input based on transport core_profiles output
+            prepare(dd, :ActorEquilibrium, act)
+
+            # run equilibrium actor with the updated beta
+            finalize(step(actor.actor_eq))
+
+            j_tor_after = dd.core_profiles.profiles_1d[].j_tor
+
+            avg_diff = sum(abs.(j_tor_after .- j_tor_before)) / length(j_tor_after)
+
+            iter += 1
+            if iter == max_iter
+                @warn "Max number of iterations has been reached ($max_iter), current difference is $(round(avg_diff,digits = 3)), convergence criteria is $conv_criteria"
+                break
+            end
+        end
+        if act.ActorCHEASE.free_boundary 
+            act_chease.free_boundary = true
+            finalize(step(actor.actor_eq))
+        end
+
+    else
+        for iteration in 1:par.iterations
+            # run transport actor
+            finalize(step(actor.actor_tr))
+
+            # Set j_ohmic to steady state
+            finalize(step(actor.actor_jt))
+
+            # prepare equilibrium input based on transport core_profiles output
+            prepare(dd, :ActorEquilibrium, act)
+
+            # run equilibrium actor with the updated beta
+            finalize(step(actor.actor_eq))
+
+        end
+
+        if par.do_plot
+            display(plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm))
+            display(plot!(pp, dd.core_profiles))
+            display(plot!(ps, dd.core_sources))
+        end
+
+        return actor
     end
-
-    if par.do_plot
-        display(plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm))
-        display(plot!(pp, dd.core_profiles))
-        display(plot!(ps, dd.core_sources))
-    end
-
-    return actor
 end
 
 
