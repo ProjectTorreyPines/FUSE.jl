@@ -60,14 +60,14 @@ function _step(actor::ActorEquilibriumTransport)
     if act.ActorEquilibrium.model == :CHEASE
         @assert act.ActorCHEASE.rescale_eq_to_ip "Running CHEASE with ActorEquilibriumTransport requires ActorCHEASE.rescale_eq_to_ip = true"
         act_chease = deepcopy(act.ActorCHEASE)
-        
+
         actor.actor_eq.par = act_chease
         act_chease.free_boundary = false
 
         max_iter = 5
         iter = 0
         ip = dd.equilibrium.time_slice[].global_quantities.ip
-        conv_criteria = ip/1e2
+        conv_criteria = ip / 1e2
         avg_diff = conv_criteria + 1
 
         while avg_diff > conv_criteria
@@ -77,7 +77,7 @@ function _step(actor::ActorEquilibriumTransport)
             # Set j_ohmic to steady state
             finalize(step(actor.actor_jt))
 
-            j_tor_before = dd.core_profiles.profiles_1d[].j_tor 
+            j_tor_before = dd.core_profiles.profiles_1d[].j_tor
 
             # prepare equilibrium input based on transport core_profiles output
             prepare(dd, :ActorEquilibrium, act)
@@ -95,7 +95,7 @@ function _step(actor::ActorEquilibriumTransport)
                 break
             end
         end
-        if act.ActorCHEASE.free_boundary 
+        if act.ActorCHEASE.free_boundary
             act_chease.free_boundary = true
             finalize(step(actor.actor_eq))
         end
