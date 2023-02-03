@@ -9,6 +9,7 @@ import Optim
 mutable struct ActorSolovev <: PlasmaAbstractActor
     eq::IMAS.equilibrium
     par::ParametersActor
+    mxh::IMAS.MXH
     S::MXHEquilibrium.SolovevEquilibrium
 end
 
@@ -47,26 +48,17 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     eq = dd.equilibrium
     eqt = eq.time_slice[]
 
-    # define plasma shape
-    if false
-        a = eqt.boundary.minor_radius
-        R0 = eqt.boundary.geometric_axis.r
-        Z0 = eqt.boundary.geometric_axis.z
-        ϵ = a / R0
-        κ = eqt.boundary.elongation
-        δ = eqt.boundary.triangularity
-        ζ = eqt.boundary.squareness
-        plasma_shape = MXHEquilibrium.TurnbullMillerShape(R0, Z0, ϵ, κ, δ, ζ)
-    else
-        pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-        pr, pz = IMAS.resample_2d_line(pr, pz; n_points=101)
-        pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-        mxh = IMAS.MXH(pr, pz, 5)
-        plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)
-    end
-
+    # magnetic field
     B0 = @ddtime eq.vacuum_toroidal_field.b0
 
+    # plasma shape as MXH
+    pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
+    pr, pz = IMAS.resample_2d_line(pr, pz)
+    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+    mxh = IMAS.MXH(pr, pz, 5)
+    Z0off = mxh.Z0 # Solovev has a bug for Z!=0.0
+    mxh.Z0 -= Z0off
+    plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)
     # check number of x_points to infer symmetry
     if mod(length(eqt.boundary.x_point), 2) == 0
         symmetric = true
@@ -76,7 +68,7 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
 
     # add x_point info
     if length(eqt.boundary.x_point) > 0
-        x_point = (eqt.boundary.x_point[1].r, -abs(eqt.boundary.x_point[1].z))
+        x_point = (eqt.boundary.x_point[1].r, -abs(eqt.boundary.x_point[1].z) - Z0off)
     else
         x_point = nothing
     end
@@ -84,7 +76,7 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     # run Solovev
     S = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar; B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
-    return ActorSolovev(dd.equilibrium, par, S)
+    return ActorSolovev(dd.equilibrium, par, mxh, S)
 end
 
 """
@@ -112,11 +104,7 @@ function _step(actor::ActorSolovev)
     target_ip = abs(eqt.global_quantities.ip)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
-    pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-    pr, pz = IMAS.resample_2d_line(pr, pz; n_points=101)
-    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-    mxh = IMAS.MXH(pr, pz, 5)
-    plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)
+    plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(actor.mxh.R0, actor.mxh.Z0, actor.mxh.ϵ, actor.mxh.κ, actor.mxh.c0, actor.mxh.c, actor.mxh.s)
 
     B0 = S0.B0
     alpha = S0.alpha
@@ -195,6 +183,16 @@ function _finalize(
 
     eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
     IMAS.flux_surfaces(eqt)
+
+    # this is to fix the boundary back to its original input
+    # since Solovev will not satisfy the original boundary
+    eqt.boundary.outline.r, eqt.boundary.outline.z = actor.mxh()
+    eqt.boundary.elongation = actor.mxh.κ
+    eqt.boundary.triangularity = asin(actor.mxh.s[1])
+    eqt.boundary.squareness = -actor.mxh.s[2]
+    eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
+    eqt.boundary.geometric_axis.r = actor.mxh.R0
+    eqt.boundary.geometric_axis.z = actor.mxh.Z0
 
     # correct equilibrium volume and area
     if !ismissing(actor.par, :volume)

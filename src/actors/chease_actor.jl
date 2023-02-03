@@ -123,8 +123,7 @@ end
 Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
 function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
-
-    tc = transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
+    tc = MXHEquilibrium.transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
 
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d

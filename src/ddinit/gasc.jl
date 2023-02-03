@@ -104,7 +104,7 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     ini.equilibrium.B0 = gasc.inputs["conductors"]["magneticFieldOnAxis"]
     ini.equilibrium.R0 = gasc.inputs["radial build"]["majorRadius"]
     ini.equilibrium.Z0 = 0.0
-    ini.equilibrium.ϵ = 1 / gasc.inputs["radial build"]["aspectRatio"]
+    ini.equilibrium.ϵ = 1.0 / gasc.inputs["radial build"]["aspectRatio"]
     ini.equilibrium.κ = gasc.outputs["plasma parameters"]["elongation"]
     ini.equilibrium.δ = gasc.inputs["plasma parameters"]["triangularity"]
 
@@ -115,8 +115,7 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     ini.equilibrium.pressure_core = Pavg / P1
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
-    ini.equilibrium.x_point = gasc.inputs["divertor metrics"]["numberDivertors"] > 0
-    ini.equilibrium.symmetric = (mod(gasc.inputs["divertor metrics"]["numberDivertors"], 2) == 0)
+    ini.equilibrium.x_point = Integer(round(gasc.inputs["divertor metrics"]["numberDivertors"]))
     return ini
 end
 
