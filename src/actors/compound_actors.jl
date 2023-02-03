@@ -89,11 +89,11 @@ function _step(actor::ActorEquilibriumTransport)
 
             avg_diff = sum(abs.(j_tor_after .- j_tor_before)) / length(j_tor_after)
 
-            iter += 1
             if iter == max_iter
                 @warn "Max number of iterations has been reached ($max_iter), current difference is $(round(avg_diff,digits = 3)), convergence criteria is $conv_criteria"
                 break
             end
+            iter += 1
         end
         if act.ActorCHEASE.free_boundary
             act_chease.free_boundary = true
