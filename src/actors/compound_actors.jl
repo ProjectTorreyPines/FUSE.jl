@@ -66,8 +66,7 @@ function _step(actor::ActorEquilibriumTransport)
 
         max_iter = 5
         iter = 0
-        ip = dd.equilibrium.time_slice[].global_quantities.ip
-        conv_criteria = ip / 1e2
+        conv_criteria = dd.equilibrium.time_slice[].global_quantities.ip / 1e2
         avg_diff = conv_criteria + 1
 
         while avg_diff > conv_criteria
