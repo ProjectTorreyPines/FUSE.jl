@@ -55,7 +55,7 @@ function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
     pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
     pr, pz = IMAS.resample_2d_line(pr, pz)
     pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-    mxh = IMAS.MXH(pr, pz, 5)
+    mxh = IMAS.MXH(pr, pz, 4)
     Z0off = mxh.Z0 # Solovev has a bug for Z!=0.0
     mxh.Z0 -= Z0off
     plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)

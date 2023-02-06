@@ -61,7 +61,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         end
 
         # make arrays compatible with MXH parametrization
-        pr,pz = IMAS.MXH(pr, pz, 5)()
+        pr,pz = IMAS.MXH(pr, pz, 4)()
 
         # ultimately always initialize from R, Z points
         init_equilibrium(
