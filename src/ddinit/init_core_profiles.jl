@@ -14,6 +14,9 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         else
             init_from = :scalars
         end
+        if ismissing(dd.core_profiles.global_quantities, :ejima) && ~ismissing(ini.core_profiles, :ejima)
+            IMAS.set_time_array(dd.core_profiles.global_quantities, :ejima, ini.core_profiles.ejima)
+        end
     end
 
     if init_from == :scalars

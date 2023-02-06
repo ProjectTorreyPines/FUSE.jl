@@ -44,7 +44,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     bulk::Entry{Symbol} = Entry(Symbol, "", "Bulk ion species")
     impurity::Entry{Symbol} = Entry(Symbol, "", "Impurity ion species")
     helium_fraction::Entry{T} = Entry(T, "", "Helium density / electron density fraction")
-    ejima::Entry{T} = Entry(T, "", "Ejima coefficient"; default=0.4)
+    ejima::Entry{T} = Entry(T, "", "Ejima coefficient")
     polarized_fuel_fraction::Entry{T} = Entry(T, "", "Spin polarized fuel fraction", default=0.0)
 end
 
