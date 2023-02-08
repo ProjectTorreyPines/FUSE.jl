@@ -73,7 +73,6 @@ develop:
 using Pkg;\
 Pkg.activate(".");\
 Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
-# install in global environment to easily develop and test changes made across multiple packages at once;\
 Pkg.activate();\
 Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
 '
