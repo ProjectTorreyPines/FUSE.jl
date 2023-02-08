@@ -115,7 +115,7 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     ini.equilibrium.pressure_core = Pavg / P1
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
-    ini.equilibrium.x_point = Integer(round(gasc.inputs["divertor metrics"]["numberDivertors"]))
+    ini.equilibrium.x_point = Int(round(gasc.inputs["divertor metrics"]["numberDivertors"]))
     return ini
 end
 
