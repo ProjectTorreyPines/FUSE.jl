@@ -163,15 +163,21 @@ function init_equilibrium_boundary(
 end
 
 """
-    field_null_surface(eqt, scale = 0.25, abs_psi_boundary = 0.1)
+    field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real=0.5, abs_psi_boundary::Real=0.1)
 
 Return field null surface by scaling an existing equilibrium time_slice
 """
-function field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real=0.25, abs_psi_boundary::Real=0.1)
+function field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real=0.5, abs_psi_boundary::Real=0.1)
     eqb = IMAS.equilibrium__time_slice()
-    eqb.global_quantities.psi_boundary = sign(eqt.profiles_1d.psi[1] - eqt.profiles_1d.psi[end]) * abs_psi_boundary
-    eqb.boundary.outline.r, eqb.boundary.outline.z, _ = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[1] * (1 - scale) + eqt.profiles_1d.psi[end] * scale)
-    eqb.boundary.outline.r .-= minimum(eqb.boundary.outline.r) .- minimum(IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end])[1])
+
+    pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
+    pr, pz = IMAS.resample_2d_line(pr, pz; n_points=101)
+    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+    mxh = IMAS.MXH(pr, pz, 4)
+    mxh.ϵ *= scale
+    eqb.boundary.outline.r, eqb.boundary.outline.z = mxh()
+
+    eqb.global_quantities.psi_boundary = abs_psi_boundary
     eqb.profiles_1d.psi = [eqb.global_quantities.psi_boundary]
     eqb.profiles_1d.f = [eqt.profiles_1d.f[end]]
     return eqb
