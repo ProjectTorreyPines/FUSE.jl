@@ -719,7 +719,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     t = LinRange(0, 2π, 31)
 
     # divertor lengths
-    linear_plasma_size = sqrt((maximum(zlcfs) - minimum(zlcfs)) * (maximum(rlcfs) - minimum(rlcfs)))
+    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
     max_divertor_length = linear_plasma_size * divertor_length_fraction
 
     # private flux regions
@@ -728,7 +728,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
             # open flux surface does not encicle the plasma
             continue
-        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > linear_plasma_size / 5
+        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > (linear_plasma_size / 20)
             # secondary Xpoint far away
             continue
         end
@@ -748,8 +748,9 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         pr = [rr for (rr, zz) in slot]
         pz = [zz for (rr, zz) in slot]
 
-        if isempty(pr)
-            error("Something is wrong with the geometry and equilibrium")
+        # too small of a private flux region to bother
+        if length(pr) < 10
+            continue
         end
 
         # remove private flux region from wall (necessary because of Z expansion)
@@ -785,7 +786,10 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
     plasma_poly = xy_polygon(bd.layer[ipl])
-
+    ψb = IMAS.find_psi_boundary(eqt)
+    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
+    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
+    
     wall_poly = xy_polygon(bd.layer[ipl-1])
     for ltype in [_blanket_, _shield_, _wall_,]
         iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
@@ -797,8 +801,13 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     divertors = IMAS.IDSvectorElement[]
     for x_point in eqt.boundary.x_point
-        Zx = x_point.z
         Rx = x_point.r
+        Zx = x_point.z
+        if IMAS.minimum_distance_two_shapes(rlcfs, zlcfs, [Rx], [Zx]) > (linear_plasma_size / 20)
+            # secondary Xpoint far away
+            continue
+        end
+
         m = (Zx - Z0) / (Rx - R0)
         xx = [0, R0 * 2.0]
         yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)
