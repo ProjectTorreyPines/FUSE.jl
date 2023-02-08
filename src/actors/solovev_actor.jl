@@ -149,8 +149,8 @@ function _finalize(
 
     eq = actor.eq
     eqt = eq.time_slice[]
-    ip = eqt.global_quantities.ip
-    sign_Ip = sign(ip)
+    target_ip = eqt.global_quantities.ip
+    sign_Ip = sign(target_ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
 
     Z0 = eqt.boundary.geometric_axis.z
@@ -164,7 +164,7 @@ function _finalize(
 
     empty!(eqt)
 
-    eqt.global_quantities.ip = ip
+    eqt.global_quantities.ip = target_ip
     eqt.boundary.geometric_axis.r = actor.S.S.R0
     eqt.boundary.geometric_axis.z = Z0
     orig_psi = collect(range(MXHEquilibrium.psi_limits(actor.S)..., length=ngrid))
@@ -193,6 +193,8 @@ function _finalize(
     eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
     eqt.boundary.geometric_axis.r = actor.mxh.R0
     eqt.boundary.geometric_axis.z = actor.mxh.Z0
+    # force total plasma current to target ip since Solovev integration of Jtor is not accurate
+    eqt.global_quantities.ip = target_ip
 
     # correct equilibrium volume and area
     if !ismissing(actor.par, :volume)
