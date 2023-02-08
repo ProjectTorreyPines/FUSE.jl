@@ -17,7 +17,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 8.7e6
     ini.equilibrium.pressure_core = 2.22e6
-    ini.equilibrium.x_point = 2
+    ini.equilibrium.xpoints_number = 2
     act.ActorCXbuild.rebuild_wall = false
     act.ActorHFSsizing.fixed_aspect_ratio = true
 

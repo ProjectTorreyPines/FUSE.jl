@@ -48,7 +48,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
                 asin(δ), -ζ, -0.05597, -0.01655, 0.00204, 0.00306]
         end
 
-        ini.equilibrium.x_point = 1
+        ini.equilibrium.xpoints_number = 1
 
         act.ActorCXbuild.rebuild_wall = true
         act.ActorHFSsizing.fixed_aspect_ratio = true

@@ -76,7 +76,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         end
 
         # ultimately always initialize from mxh
-        init_equilibrium_boundary(eqt, mxh, ini.equilibrium.x_point)
+        init_equilibrium_boundary(eqt, mxh, ini.equilibrium.xpoints_number)
 
         # scalar quantities
         eqt.global_quantities.ip = ini.equilibrium.ip
@@ -87,12 +87,12 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         psin = eqt.profiles_1d.psi = LinRange(0, 1, 129)
         eqt.profiles_1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
         eqt.profiles_1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
-
         # solve equilibrium
         act_copy = deepcopy(act)
         act_copy.ActorCHEASE.rescale_eq_to_ip = true
         ActorEquilibrium(dd, act_copy)
     end
+
 
     # field null surface
     if ini.equilibrium.field_null_surface > 0.0
@@ -109,18 +109,18 @@ end
     init_equilibrium_boundary(
         eqt::IMAS.equilibrium__time_slice,
         mxh::IMAS.MXH,
-        x_point::Integer)
+        xpoints_number::Integer)
 
 Initialize equilibrium boundary based on MXH boundary and number of x_points
 """
 function init_equilibrium_boundary(
     eqt::IMAS.equilibrium__time_slice,
     mxh::IMAS.MXH,
-    x_point::Integer)
+    xpoints_number::Integer)
 
-    if x_point > 0
+    if xpoints_number > 0
         # MXHboundary adds x-points
-        mxhb = fitMXHboundary(mxh; lower_x_point=x_point >= 1, upper_x_point=x_point == 2)
+        mxhb = fitMXHboundary(mxh; lower_x_point=(xpoints_number >= 1), upper_x_point=(xpoints_number == 2))
         pr = mxhb.r_boundary
         pz = mxhb.z_boundary
 
@@ -139,11 +139,11 @@ function init_equilibrium_boundary(
 
     # x points at maximum curvature
     x_points = []
-    if x_point >= 1
+    if xpoints_number >= 1
         i1 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .< Z0))
         push!(x_points, (pr[i1], pz[i1]))
     end
-    if x_point == 2
+    if xpoints_number == 2
         i2 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .> Z0))
         push!(x_points, (pr[i2], pz[i2]))
     end

@@ -728,8 +728,6 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     end
     res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead())
     mxhb = mxhb_from_params(res.minimizer; upper_x_point, lower_x_point, n_points)
-    plot(mxhb)
-    display(plot!(mxh))
     return mxhb
 end
 
