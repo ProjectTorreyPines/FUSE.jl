@@ -85,7 +85,6 @@ function _step(actor::ActorEquilibriumTransport)
         finalize(step(actor.actor_eq))
 
         j_tor_after = dd.core_profiles.profiles_1d[].j_tor
-
         avg_diff = sum(abs.(j_tor_after .- j_tor_before)) / length(j_tor_after)
 
         if act.ActorEquilibrium.model == :Solovev
