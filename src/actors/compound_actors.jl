@@ -75,7 +75,6 @@ function _step(actor::ActorEquilibriumTransport)
 
         # Set j_ohmic to steady state
         finalize(step(actor.actor_jt))
-
         j_tor_before = dd.core_profiles.profiles_1d[].j_tor
 
         # prepare equilibrium input based on transport core_profiles output
