@@ -65,6 +65,7 @@ function _step(actor::ActorEquilibriumTransport)
     act_chease.rescale_eq_to_ip = true
 
     iter = 1
+    total_error = 0.0
     while (iter == 1) || (total_error > par.convergence_error)
         # get current and pressure profiles before updating them
         j_tor_before = dd.core_profiles.profiles_1d[].j_tor
@@ -88,6 +89,10 @@ function _step(actor::ActorEquilibriumTransport)
         error_jtor = sum((j_tor_after .- j_tor_before) .^ 2) / sum(j_tor_before .^ 2)
         error_pressure = sum((pressure_after .- pressure_before) .^ 2) / sum(pressure_before .^ 2)
         total_error = sqrt(error_jtor + error_pressure) / 2.0
+
+        if act.ActorEquilibrium.model == :Solovev
+            total_error = 0 # temporary fix to force Solovev to run exactly once
+        end
 
         if iter == par.max_iter
             @warn "Max number of iterations ($max_iter) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $par.convergence_error"
