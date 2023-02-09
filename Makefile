@@ -71,11 +71,13 @@ end;\
 develop:
 	# install in global environment to easily develop and test changes made across multiple packages at once
 	julia -e '\
+fuse_packages = ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"];\
 using Pkg;\
 Pkg.activate(".");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
+Pkg.develop(fuse_packages);\
 Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
+Pkg.develop(fuse_packages);\
+Pkg.add(["Revise", "JuliaFormatter", "Test"]);\
 '
 
 rm_manifests:
@@ -107,7 +109,7 @@ IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage
 IJulia:
 	julia -e '\
 using Pkg;\
-Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots", "IJulia", "WebIO", "Interact"]);\
+Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
 Pkg.build("IJulia");\
 '
 	python3 -m pip install --upgrade webio_jupyter_extension
