@@ -12,7 +12,8 @@ end
 
 Base.@kwdef struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
     do_plot = Entry(Bool, "", "plot"; default=false)
-    iterations = Entry(Int, "", "transport-equilibrium iterations"; default=1)
+    max_iter = Entry(Int, "", "max number of transport-equilibrium iterations"; default=5)
+    convergence_error = Entry(Float64, "", "Convergence error threshold"; default=1E-2)
 end
 
 """
@@ -57,20 +58,14 @@ function _step(actor::ActorEquilibriumTransport)
     # Set j_ohmic to steady state
     finalize(step(actor.actor_jt))
 
+    # set CHEASE switches specific to this workflow
     act_chease = deepcopy(act.ActorCHEASE)
-
     actor.actor_eq.par = act_chease
     act_chease.free_boundary = false
+    act_chease.rescale_eq_to_ip = true
 
-    if act_chease.rescale_eq_to_ip == false
-        act_chease.rescale_eq_to_ip = true
-        @warn "ActorCHEASE.rescale_eq_to_ip has been set to true (required for CHEASE)"
-    end
-
-    max_iter = 5
     iter = 1
-    conv_criteria = 1e-2
-    while (iter == 1) || (total_error > conv_criteria)
+    while (iter == 1) || (total_error > par.convergence_error)
         # get current and pressure profiles before updating them
         j_tor_before = dd.core_profiles.profiles_1d[].j_tor
         pressure_before = dd.core_profiles.profiles_1d[].pressure
@@ -94,8 +89,8 @@ function _step(actor::ActorEquilibriumTransport)
         error_pressure = sum((pressure_after .- pressure_before) .^ 2) / sum(pressure_before .^ 2)
         total_error = sqrt(error_jtor + error_pressure) / 2.0
 
-        if iter == max_iter
-            @warn "Max number of iterations ($max_iter) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $conv_criteria"
+        if iter == par.max_iter
+            @warn "Max number of iterations ($max_iter) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $par.convergence_error"
             break
         end
         iter += 1
