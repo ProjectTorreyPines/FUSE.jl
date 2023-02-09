@@ -68,13 +68,13 @@ function _step(actor::ActorEquilibriumTransport)
     end
 
     max_iter = 5
-    iter = 0
-    conv_criteria = 1e-4
-    total_error = conv_criteria + 1
-
-    while total_error > conv_criteria
+    iter = 1
+    conv_criteria = 1e-2
+    while (iter == 1) || (total_error > conv_criteria)
+        # get current and pressure profiles before updating them
         j_tor_before = dd.core_profiles.profiles_1d[].j_tor
         pressure_before = dd.core_profiles.profiles_1d[].pressure
+
         # run transport actor
         finalize(step(actor.actor_tr))
 
@@ -87,19 +87,15 @@ function _step(actor::ActorEquilibriumTransport)
         # run equilibrium actor with the updated beta
         finalize(step(actor.actor_eq))
 
+        # evaluate change in current and pressure profiles after the update
         j_tor_after = dd.core_profiles.profiles_1d[].j_tor
         pressure_after = dd.core_profiles.profiles_1d[].pressure
-
-        error_jtor = sum(j_tor_after .- j_tor_before) .^ 2 / sum(j_tor_before) .^ 2
-        error_pressure = sum(pressure_after .- pressure_before) .^ 2 / sum(pressure_before) .^ 2
-        total_error = (error_jtor + error_pressure) / 2
-
-        if act.ActorEquilibrium.model == :Solovev
-            total_error = 0 # temporary fix to force Solovev to run exactly once
-        end
+        error_jtor = sum((j_tor_after .- j_tor_before) .^ 2) / sum(j_tor_before .^ 2)
+        error_pressure = sum((pressure_after .- pressure_before) .^ 2) / sum(pressure_before .^ 2)
+        total_error = sqrt(error_jtor + error_pressure) / 2.0
 
         if iter == max_iter
-            @warn "Max number of iterations has been reached ($max_iter), current difference is $(round(total_error,digits = 3)), convergence criteria is $conv_criteria"
+            @warn "Max number of iterations ($max_iter) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $conv_criteria"
             break
         end
         iter += 1
