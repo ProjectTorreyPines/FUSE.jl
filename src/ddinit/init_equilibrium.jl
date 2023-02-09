@@ -46,6 +46,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             else
                 mxh = IMAS.MXH(pr, pz, 4)
             end
+            ini.equilibrium.xpoints_number = 0 # to use the x-points from ODS
 
         else
             eqt = resize!(dd.equilibrium.time_slice)

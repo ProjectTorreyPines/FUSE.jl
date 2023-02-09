@@ -24,6 +24,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.general.init_from = :scalars
 
     # Equilibrium parameters
+    ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.B0 = data_row[:BT]
     ini.equilibrium.R0 = data_row[:RGEO]
     ini.equilibrium.Z0 = 0.0

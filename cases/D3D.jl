@@ -9,6 +9,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
 
     ini.general.casename = "D3D"
     ini.general.init_from = :ods
+    ini.equilibrium.boundary_from = :ods
 
     ini.ods.filename = joinpath(@__DIR__, "..", "sample", "D3D_eq_ods.json")
 

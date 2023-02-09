@@ -9,6 +9,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.general.casename = "ARC"
     ini.general.init_from = :scalars
 
+    ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 3.45
     ini.equilibrium.ϵ = 0.27 #a/R0
     ini.equilibrium.κ = 1.80 #kappa_a = 1.60, kappa_sep = 1.80

@@ -9,6 +9,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.general.casename = "SPARC"
     ini.general.init_from = :scalars
 
+    ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 1.85
     ini.equilibrium.ϵ = 0.308 #a/R0
     ini.equilibrium.κ = 1.97 #kappa_a = 1.75 (kappa_lower-single-null = 1.65), kappa_sep = 1.97
