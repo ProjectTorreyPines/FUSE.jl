@@ -73,13 +73,13 @@ function _step(actor::ActorEquilibriumTransport)
     total_error = conv_criteria + 1
 
     while total_error > conv_criteria
+        j_tor_before = dd.core_profiles.profiles_1d[].j_tor
+        pressure_before = dd.core_profiles.profiles_1d[].pressure
         # run transport actor
         finalize(step(actor.actor_tr))
 
         # Set j_ohmic to steady state
         finalize(step(actor.actor_jt))
-        j_tor_before = dd.core_profiles.profiles_1d[].j_tor
-        pressure_before = dd.core_profiles.profiles_1d[].pressure
 
         # prepare equilibrium input based on transport core_profiles output
         prepare(dd, :ActorEquilibrium, act)
