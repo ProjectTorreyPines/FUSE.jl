@@ -25,11 +25,10 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     ζ::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
     pressure_core::Entry{T} = Entry(T, "Pa", "On axis pressure")
     ip::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___global_quantities, :ip)
-    x_point::Entry{Union{NTuple{2},Bool}} = Entry(Union{NTuple{2},Bool}, IMAS.equilibrium__time_slice___boundary, :x_point)
-    symmetric::Entry{Bool} = Entry(Bool, "", "Is plasma up-down symmetric")
+    xpoints_number::Entry{Integer} = Entry(Integer, "", "Number of x-points")
     ngrid::Entry{Int} = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
-    field_null_surface::Entry{T} = Entry(T, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.25)
-    boundary_from::Switch{Symbol} = Switch(Symbol, [:scalars, :MXH_params, :rz_points], "", "The starting r, z boundary taken from"; default=:scalars)
+    field_null_surface::Entry{T} = Entry(T, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.5)
+    boundary_from::Switch{Symbol} = Switch(Symbol, [:scalars, :MXH_params, :rz_points, :ods], "", "The starting r, z boundary taken from"; default=:scalars)
     MXH_params::Entry{Union{Nothing,Vector{<:T}}} = Entry(Union{Nothing,Vector{<:T}}, "", "Vector of MXH flats", default=missing)
     rz_points::Entry{Union{Nothing,Vector{Vector{<:T}}}} = Entry(Union{Nothing,Vector{Vector{<:T}}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]", default=missing)
 end
@@ -45,7 +44,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     bulk::Entry{Symbol} = Entry(Symbol, "", "Bulk ion species")
     impurity::Entry{Symbol} = Entry(Symbol, "", "Impurity ion species")
     helium_fraction::Entry{T} = Entry(T, "", "Helium density / electron density fraction")
-    ejima::Entry{T} = Entry(T, "", "Ejima coefficient"; default=0.4)
+    ejima::Entry{T} = Entry(T, "", "Ejima coefficient")
     polarized_fuel_fraction::Entry{T} = Entry(T, "", "Spin polarized fuel fraction", default=0.0)
 end
 

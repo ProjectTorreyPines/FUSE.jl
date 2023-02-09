@@ -51,22 +51,39 @@ registry:
 register:
 	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate("."); using LocalRegistry; register("$(package)", registry="GAregistry")';)
 
+forward_compatibility:
+	julia -e '\
+using Pkg;\
+for package in ["Equilibrium", "Broker", "ZMQ"];\
+	try;\
+		Pkg.activate();\
+		Pkg.rm(package);\
+	catch;\
+	end;\
+	try;\
+		Pkg.activate(".");\
+		Pkg.rm(package);\
+	catch;\
+	end;\
+end;\
+'
+
 develop:
+	# install in global environment to easily develop and test changes made across multiple packages at once
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
-# install in global environment to easily develop and test changes made across multiple packages at once;\
+Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
 Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
+Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
 '
 
 rm_manifests:
 	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
 
-install_no_registry: clone_update_all develop precompile
+install_no_registry: forward_compatibility clone_update_all develop
 
-install_via_registry: registry develop precompile
+install_via_registry: forward_compatibility registry develop
 
 install: install_no_registry
 
@@ -96,12 +113,12 @@ Pkg.build("IJulia");\
 	python3 -m pip install --upgrade webio_jupyter_extension
 
 precompile:
-	julia -e 'using Pkg; Pkg.precompile()'
+	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.instantiate(); Pkg.update(); Pkg.precompile()'
 
 clone_update_all:
-	make $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
+	make -i $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
 
-update: install clone_update_all precompile
+update: install_no_registry precompile
 
 FUSE:
 	$(call clone_update_repo,$@)
@@ -124,7 +141,10 @@ FusionMaterials:
 VacuumFields:
 	$(call clone_update_repo,$@)
 
-Equilibrium:
+MXHEquilibrium:
+	$(call clone_update_repo,$@)
+
+MeshTools:
 	$(call clone_update_repo,$@)
 
 TAUENN:

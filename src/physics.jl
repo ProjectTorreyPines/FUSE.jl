@@ -660,8 +660,18 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     return RX, ZX, R, Z
 end
 
-function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Union{Nothing,Integer}=nothing)
+"""
+    MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Union{Nothing,Integer}=nothing)
+
+Return MXHboundary structure of boundary with x-points based on input MXH boundary parametrization
+"""
+function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Union{Nothing,Integer}=nothing)
     mr, mz = mxh()
+
+    if ~upper_x_point && ~lower_x_point && n_points === nothing
+        return MXHboundary(deepcopy(mxh), Float64[], Float64[], mr, mz)
+    end
+
     R0 = mxh.R0
     Z0 = mxh.Z0
 
@@ -689,12 +699,45 @@ function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n
 end
 
 """
+    fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Union{Nothing,Integer}=nothing)
+
+Find boundary such that the output MXH parametrization (with x-points) matches the input MXH parametrization (without x-points)
+"""
+function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Union{Nothing,Integer}=nothing)
+
+    if ~upper_x_point && ~lower_x_point
+        return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
+    end
+
+    # change mxh parameters so that the boundary with x-points has the desired elongation, triangularity, squareness
+    mxh1 = deepcopy(mxh)
+
+    function mxhb_from_params(params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
+        mxh1.κ = params[1]
+        mxh1.c0 = params[2]
+        mxh1.s = params[3:2+Integer((end - 2) / 2)]
+        mxh1.c = params[2+Integer((end - 2) / 2)+1:end]
+        return MXHboundary(mxh1; upper_x_point, lower_x_point, n_points)
+    end
+
+    function cost(params::AbstractVector{<:Real}; mxh, upper_x_point, lower_x_point, n_points)
+        mxhb1 = mxhb_from_params(params; upper_x_point, lower_x_point, n_points)
+        mxh0 = IMAS.MXH(mxhb1.r_boundary, mxhb1.z_boundary, length(mxh.c))
+        c = norm(vcat(mxh0.κ - mxh.κ, mxh0.c0 - mxh.c0, mxh0.s .- mxh.s, mxh0.c .- mxh.c))
+        return c
+    end
+    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead())
+    mxhb = mxhb_from_params(res.minimizer; upper_x_point, lower_x_point, n_points)
+    return mxhb
+end
+
+"""
     boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot})
 
-Plot and manipulate Miller Extended Harmonic (MXH) boundary
+Plot and interactively manipulate Miller Extended Harmonic (MXH) boundary
 """
 function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p=nothing)
-    @assert typeof(p)<:Union{Nothing,Plots.Plot}
+    @assert typeof(p) <: Union{Nothing,Plots.Plot}
     n = 101
     if length(mxh.c) != 3
         mxh = IMAS.MXH(mxh()..., 3)
@@ -728,7 +771,7 @@ function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         end
 
         if upper_x_point || lower_x_point
-            mxhb = MXH_boundary(mxh; upper_x_point, lower_x_point)
+            mxhb = MXHboundary(mxh; upper_x_point, lower_x_point)
             plot!(q, mxh, color=:gray, linewidth=1.5)
             plot!(q, mxhb.r_boundary, mxhb.z_boundary, color=:black, linewidth=2, label="")
         else
@@ -775,35 +818,12 @@ function square_miller(
     mxh.s[2] = -squareness
 
     if exact
-        function cost(mxh::IMAS.MXH, x_points::Bool, elongation::Real, triangularity::Real, x::Vector{<:Real})
-            mxh.κ = x[1]
-            mxh.s[1] = x[2]
-            mxhb = MXH_boundary(mxh; upper_x_point=x_points, lower_x_point=x_points)
-            pr = mxhb.r_boundary
-            pz = mxhb.z_boundary
-            _, imaxr = findmax(pr)
-            _, iminr = findmin(pr)
-            _, imaxz = findmax(pz)
-            _, iminz = findmin(pz)
-            r_at_max_z, max_z = pr[imaxz], pz[imaxz]
-            r_at_min_z, min_z = pr[iminz], pz[iminz]
-            z_at_max_r, max_r = pz[imaxr], pr[imaxr]
-            z_at_min_r, min_r = pz[iminr], pr[iminr]
-            Rm = 0.5 * (max_r + min_r)
-            a = 0.5 * (max_r - min_r)
-            b = 0.5 * (max_z - min_z)
-            κ = b / a
-            δu = (Rm - r_at_max_z) / a
-            δl = (Rm - r_at_min_z) / a
-            δ = (δu + δl) / 2.0
-            return sqrt((κ - elongation)^2 + (δ - triangularity)^2)
-        end
-        res = Optim.optimize(x -> cost(mxh, x_points, elongation, triangularity, x), [mxh.κ, mxh.s[1]], Optim.NelderMead())
-        mxh.κ = res.minimizer[1]
-        mxh.s[1] = res.minimizer[2]
+        func = fitMXHboundary
+    else
+        func = MXHboundary
     end
+    mxhb = func(mxh; upper_x_point=x_points, lower_x_point=x_points, n_points)
 
-    mxhb = MXH_boundary(mxh; upper_x_point=x_points, lower_x_point=x_points, n_points=n_points)
     return mxhb.r_boundary, mxhb.z_boundary
 end
 
@@ -857,10 +877,10 @@ end
 
 Plots the profile and fitted profile for pedestal finding (region outside pedestal not important for fit)
 """
-function check_ped_finder(profile::AbstractVector{<:Real},psi_norm::AbstractVector{<:Real})
-    ped_height,ped_width = IMAS.pedestal_finder(profile,psi_norm)
-    plot(psi_norm,profile,label="original profile")
-    plot!(psi_norm,IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width),label="fitted profile (pedestal region is important only)")
+function check_ped_finder(profile::AbstractVector{<:Real}, psi_norm::AbstractVector{<:Real})
+    ped_height, ped_width = IMAS.pedestal_finder(profile, psi_norm)
+    plot(psi_norm, profile, label="original profile")
+    plot!(psi_norm, IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width), label="fitted profile (pedestal region is important only)")
 end
 
 

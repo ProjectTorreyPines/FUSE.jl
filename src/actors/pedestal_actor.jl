@@ -75,7 +75,7 @@ function _step(actor::ActorPedestal;
         eqt.boundary.minor_radius,
         βn,
         Bt,
-        eqt.boundary.triangularity,
+        EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper),
         abs(eqt.global_quantities.ip / 1e6),
         eqt.boundary.elongation,
         m,
