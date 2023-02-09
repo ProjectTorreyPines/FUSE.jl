@@ -24,9 +24,13 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
     boundary_from = ini.equilibrium.boundary_from
 
     if init_from == :scalars || (init_from == :ods && ini.equilibrium.boundary_from != :ods)
-        
+
+        # we make a copy because we overwrite some parameters
+        # locally to this functions so that things work from
+        # different entry points
+        ini = deepcopy(ini)
+
         if init_from == :ods
-            ini = deepcopy(ini)
             ini.equilibrium.ip = eqt.global_quantities.ip
             ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
             ini.equilibrium.B0 = @ddtime dd.equilibrium.vacuum_toroidal_field.b0
@@ -73,6 +77,14 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                     [0.0, 0.0],
                     [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
             end
+
+            # scalars consistent with MXH parametrization
+            ini.equilibrium.ϵ = mxh.ϵ
+            ini.equilibrium.R0 = mxh.R0
+            ini.equilibrium.Z0 = mxh.Z0
+            ini.equilibrium.κ = mxh.κ
+            ini.equilibrium.δ = sin(mxh.s[1])
+            ini.equilibrium.ζ = -mxh.s[2]
         end
 
         # ultimately always initialize from mxh
