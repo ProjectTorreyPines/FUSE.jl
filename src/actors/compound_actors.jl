@@ -57,19 +57,22 @@ function _step(actor::ActorEquilibriumTransport)
     # Set j_ohmic to steady state
     finalize(step(actor.actor_jt))
 
-    @assert act.ActorCHEASE.rescale_eq_to_ip "Running CHEASE with ActorEquilibriumTransport requires ActorCHEASE.rescale_eq_to_ip = true"
     act_chease = deepcopy(act.ActorCHEASE)
 
     actor.actor_eq.par = act_chease
     act_chease.free_boundary = false
 
+    if act_chease.rescale_eq_to_ip == false
+        act_chease.rescale_eq_to_ip = true
+        @warn "ActorCHEASE.rescale_eq_to_ip has been set to true (required for CHEASE)"
+    end
+
     max_iter = 5
     iter = 0
-    ip = dd.equilibrium.time_slice[].global_quantities.ip
-    conv_criteria = ip / 1e2
-    avg_diff = conv_criteria + 1
+    conv_criteria = 1e-4
+    total_error = conv_criteria + 1
 
-    while avg_diff > conv_criteria
+    while total_error > conv_criteria
         # run transport actor
         finalize(step(actor.actor_tr))
 
@@ -77,6 +80,7 @@ function _step(actor::ActorEquilibriumTransport)
         finalize(step(actor.actor_jt))
 
         j_tor_before = dd.core_profiles.profiles_1d[].j_tor
+        pressure_before = dd.core_profiles.profiles_1d[].pressure
 
         # prepare equilibrium input based on transport core_profiles output
         prepare(dd, :ActorEquilibrium, act)
@@ -85,15 +89,18 @@ function _step(actor::ActorEquilibriumTransport)
         finalize(step(actor.actor_eq))
 
         j_tor_after = dd.core_profiles.profiles_1d[].j_tor
+        pressure_after = dd.core_profiles.profiles_1d[].pressure
 
-        avg_diff = sum(abs.(j_tor_after .- j_tor_before)) / length(j_tor_after)
+        error_jtor = sum(j_tor_after .- j_tor_before) .^ 2 / sum(j_tor_before) .^ 2
+        error_pressure = sum(pressure_after .- pressure_before) .^ 2 / sum(pressure_before) .^ 2
+        total_error = (error_jtor + error_pressure) / 2
 
         if act.ActorEquilibrium.model == :Solovev
-            avg_diff = 0 # temporary fix to force Solovev to run exactly once
+            total_error = 0 # temporary fix to force Solovev to run exactly once
         end
 
         if iter == max_iter
-            @warn "Max number of iterations has been reached ($max_iter), current difference is $(round(avg_diff,digits = 3)), convergence criteria is $conv_criteria"
+            @warn "Max number of iterations has been reached ($max_iter), current difference is $(round(total_error,digits = 3)), convergence criteria is $conv_criteria"
             break
         end
         iter += 1
