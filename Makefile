@@ -69,6 +69,7 @@ end;\
 '
 
 develop:
+	# install in global environment to easily develop and test changes made across multiple packages at once
 	julia -e '\
 using Pkg;\
 Pkg.activate(".");\
