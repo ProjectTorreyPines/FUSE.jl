@@ -16,7 +16,9 @@ mutable struct ActorBlanket <: ReactorAbstractActor
     end
 end
 
-Base.@kwdef struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :ActorBlanket
     minimum_first_wall_thickness = Entry(Float64, "m", "Minimum first wall thickness"; default=0.02)
     blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
     thermal_power_extraction_efficiency = Entry(

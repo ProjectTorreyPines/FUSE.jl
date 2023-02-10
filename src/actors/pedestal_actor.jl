@@ -12,7 +12,9 @@ mutable struct ActorPedestal <: PlasmaAbstractActor
     pped::Union{Missing,Real}
 end
 
-Base.@kwdef struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     update_core_profiles = Entry(Bool, "", "Update core_profiles"; default=true)
     edge_bound = Entry(Real, "", "Defines rho at which edge starts"; default=0.8)
     temp_pedestal_ratio = Entry(Real, "", "Ratio of ion to electron temperatures"; default=1.0)

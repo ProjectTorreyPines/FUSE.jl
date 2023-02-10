@@ -100,12 +100,12 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         psin = eqt.profiles_1d.psi = LinRange(0, 1, 129)
         eqt.profiles_1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
         eqt.profiles_1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
+
         # solve equilibrium
         act_copy = deepcopy(act)
         act_copy.ActorCHEASE.rescale_eq_to_ip = true
         ActorEquilibrium(dd, act_copy)
     end
-
 
     # field null surface
     if ini.equilibrium.field_null_surface > 0.0

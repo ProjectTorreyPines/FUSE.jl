@@ -2,6 +2,8 @@ using FusionMaterials: FusionMaterials
 import DataStructures
 
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :general
     casename::Entry{String} = Entry(String, "", "Mnemonic name of the case being run")
     init_from::Switch{Symbol} = Switch(Symbol, [
             :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
@@ -10,12 +12,16 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
 end
 
 Base.@kwdef mutable struct FUSEparameters__material{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :material
     wall::Switch{String} = Switch(String, FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default="Steel, Stainless 316")
     blanket::Switch{String} = Switch(String, FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
     shield::Switch{String} = Switch(String, FusionMaterials.available_materials("shield_materials"), "", "Material used for the shield")
 end
 
 Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :equilibrium
     B0::Entry{T} = Entry(T, IMAS.equilibrium__vacuum_toroidal_field, :b0)
     R0::Entry{T} = Entry(T, "m", "Geometric genter of the plasma. NOTE: This also scales the radial build layers.")
     Z0::Entry{T} = Entry(T, "m", "Z offset of the machine midplane"; default=0.0)
@@ -34,6 +40,8 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
 end
 
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :core_profiles
     greenwald_fraction::Entry{T} = Entry(T, "", "Greenwald fraction, ne_vol / ne_gw")
     ne_ped::Entry{T} = Entry(T, "m^-3", "Pedestal electron density")
     w_ped::Entry{T} = Entry(T, "", "Pedestal width expressed in fraction of ψₙ", default=0.05)
@@ -49,6 +57,8 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
 end
 
 Base.@kwdef mutable struct FUSEparameters__coil_tech{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :coil_tech
     material = Switch(String, FusionMaterials.available_materials("magnet_materials"), "", "Technology used for the coil.")
     temperature::Entry{T} = Entry(T, "K", "Coil temperature")
     thermal_strain::Entry{T} = Entry(T, "", "Fraction of thermal expansion strain over maximum total strain on coil")
@@ -59,6 +69,8 @@ Base.@kwdef mutable struct FUSEparameters__coil_tech{T} <: ParametersInit where 
 end
 
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :pf_active
     n_oh_coils::Entry{Int} = Entry(Int, "", "Number of OH coils")
     n_pf_coils_inside::Entry{Int} = Entry(Int, "", "Number of PF coils inside of the TF")
     n_pf_coils_outside::Entry{Int} = Entry(Int, "", "Number of PF coils outside of the TF")
@@ -66,6 +78,8 @@ Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where 
 end
 
 Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :tf
     n_coils::Entry{Int} = Entry(Int, "", "Number of TF coils")
     shape::Switch{Symbol} = Switch(Symbol, [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :triple_arc, :miller, :spline], "", "Shape of the TF coils"; default=:princeton_D_scaled)
     ripple::Entry{T} = Entry(T, "", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
@@ -73,16 +87,22 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
 end
 
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :oh
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :center_stack
     bucked::Entry{Bool} = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present)"; default=false)
     noslip::Entry{Bool} = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
     plug::Entry{Bool} = Entry(Bool, "", "flag for center plug"; default=false)
 end
 
 Base.@kwdef mutable struct FUSEparameters__nbi{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :nbi
     power_launched::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, "W", "Beam power")
     beam_energy::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, "eV", "Beam energy")
     beam_mass::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, "AU", "Beam mass"; default=2.0)
@@ -92,12 +112,16 @@ Base.@kwdef mutable struct FUSEparameters__nbi{T} <: ParametersInit where {T<:Re
 end
 
 Base.@kwdef mutable struct FUSEparameters__ec_launchers{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :ec_launchers
     power_launched::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, "W", "EC launched power")
     efficiency_conversion::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, IMAS.ec_launchers__beam___efficiency, :conversion)
     efficiency_transmission::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, IMAS.ec_launchers__beam___efficiency, :transmission)
 end
 
 Base.@kwdef mutable struct FUSEparameters__ic_antennas{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :ic_antennas
     power_launched::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, "W", "IC launched power")
     efficiency_conversion::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, IMAS.ic_antennas__antenna___efficiency, :conversion)
     efficiency_transmission::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, IMAS.ic_antennas__antenna___efficiency, :transmission)
@@ -105,6 +129,8 @@ Base.@kwdef mutable struct FUSEparameters__ic_antennas{T} <: ParametersInit wher
 end
 
 Base.@kwdef mutable struct FUSEparameters__lh_antennas{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :lh_antennas
     power_launched::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, "W", "LH launched power")
     efficiency_conversion::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, IMAS.lh_antennas__antenna___efficiency, :conversion)
     efficiency_transmission::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, IMAS.lh_antennas__antenna___efficiency, :transmission)
@@ -112,6 +138,8 @@ Base.@kwdef mutable struct FUSEparameters__lh_antennas{T} <: ParametersInit wher
 end
 
 Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :build
     layers::Entry{DataStructures.OrderedDict} = Entry(DataStructures.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
     blanket::Entry{Float64} = Entry(Float64, "", "Fraction of blanket in radial build")
     shield::Entry{Float64} = Entry(Float64, "", "Fraction of shield in radial build")
@@ -122,22 +150,30 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:
 end
 
 Base.@kwdef mutable struct FUSEparameters__gasc{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :gasc
     filename::Entry{String} = Entry(String, "", "Output GASC .json file from which data will be loaded")
     case::Entry{Int} = Entry(Int, "", "Number of the GASC run to load")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :ods
     filename::Entry{String} = Entry(String, "", "ODS.json file from which equilibrium is loaded")
 end
 
 Base.@kwdef mutable struct FUSEparameters__target{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :target
     power_electric_net::Entry{T} = Entry(T, "W", "Target net electric power generated by the fusion power plant")
     flattop_duration::Entry{T} = Entry(T, "s", "Target duration of the flattop (use Inf for steady-state)")
     tritium_breeding_ratio::Entry{T} = Entry(T, "", "Target tritium breeding ratio of the whole plant")
     cost::Entry{T} = Entry(T, "\$M", "Target total FPP cost")
 end
 
-struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
+mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
+    _parent::WeakRef
+    _name::Symbol
     general::FUSEparameters__general{T}
     gasc::FUSEparameters__gasc{T}
     ods::FUSEparameters__ods{T}
@@ -158,6 +194,8 @@ end
 
 function ParametersInits{T}() where {T<:Real}
     ini = ParametersInits{T}(
+        WeakRef(nothing),
+        :ini,
         FUSEparameters__general{T}(),
         FUSEparameters__gasc{T}(),
         FUSEparameters__ods{T}(),

@@ -10,7 +10,9 @@ mutable struct ActorTransportSolver <: PlasmaAbstractActor
     actor_ped::ActorPedestal
 end
 
-Base.@kwdef struct FUSEparameters__ActorTransportSolver{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorTransportSolver{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     evolve_Ti = Switch(Symbol, [:flux_match, :fixed], "", "Evolve ion temperature "; default=:flux_match)
     evolve_Te = Switch(Symbol, [:flux_match, :fixed], "", "Evolve electron temperature"; default=:flux_match)
     evolve_densities = Entry(Union{Dict,Symbol}, "", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)

@@ -11,7 +11,9 @@ mutable struct ActorStresses <: ReactorAbstractActor
     end
 end
 
-Base.@kwdef struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     do_plot = Entry(Bool, "", "plot"; default=false)
     n_points = Entry(Integer, "", "Number of grid points"; default=5)
 end

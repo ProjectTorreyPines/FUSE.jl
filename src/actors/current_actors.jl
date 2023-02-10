@@ -13,7 +13,9 @@ mutable struct ActorQEDcurrent <: PlasmaAbstractActor
     tmax
 end
 
-Base.@kwdef struct FUSEparameters__ActorQEDcurrent{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorQEDcurrent{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
 end
 
 """
@@ -123,7 +125,9 @@ mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     end
 end
 
-Base.@kwdef struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
 end
 
 """

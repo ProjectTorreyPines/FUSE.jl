@@ -10,7 +10,9 @@ mutable struct ActorTGLF <: PlasmaAbstractActor
     flux_solutions::AbstractVector{<:TGLFNN.flux_solution}
 end
 
-Base.@kwdef struct FUSEparameters__ActorTGLF{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     nn = Entry(Bool, "", "Use TGLF-NN"; default=true)
     sat_rule = Switch(Symbol, [:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "", "Saturation rule"; default=:sat0)
     electromagnetic = Entry(Bool, "", "Electromagnetic or electrostatic"; default=false)

@@ -10,7 +10,9 @@ mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     thermal_electric_conversion_efficiency::Real
 end
 
-Base.@kwdef struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(Nothing)
+    _name::Symbol = :not_set
     model = Switch(Symbol, [:gasc, :EU_DEMO], "", "Balance of plant model"; default=:EU_DEMO)
     blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
     efficiency_reclaim = Entry(Real, "", "Reclaim efficiency of thermal power hitting the blanket"; default=0.6)

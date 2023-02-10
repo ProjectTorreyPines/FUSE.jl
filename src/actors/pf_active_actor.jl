@@ -41,7 +41,9 @@ options_optimization_scheme = [
     :rail => "Find optimial coil positions"
 ]
 
-Base.@kwdef struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     green_model = Switch(Symbol, options_green_model, "", "Model used for the coils Green function calculations"; default=:simple)
     symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
     weight_currents = Entry(Float64, "", "Weight of current limit constraint"; default=2.0)

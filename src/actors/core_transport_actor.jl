@@ -8,7 +8,9 @@ mutable struct ActorCoreTransport <: PlasmaAbstractActor
     neoclassical_actor::PlasmaAbstractActor
 end
 
-Base.@kwdef struct FUSEparameters__ActorCoreTransport{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     rho_transport = Entry(AbstractVector, "", "rho core transport grid"; default=0.2:0.1:0.8)
     turbulence_actor = Switch(Symbol, [:TGLF, :None], "", "Turbulence Actor to run"; default=:TGLF)
     neoclassical_actor = Switch(Symbol, [:Neoclassical, :None], "", "Neocalssical actor to run"; default=:Neoclassical)

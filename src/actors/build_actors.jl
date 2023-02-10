@@ -134,7 +134,9 @@ mutable struct ActorFluxSwing <: ReactorAbstractActor
     j_tolerance::Real
 end
 
-Base.@kwdef struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     operate_at_j_crit = Entry(
         Bool,
         "",
@@ -308,7 +310,9 @@ mutable struct ActorLFSsizing <: ReactorAbstractActor
     end
 end
 
-Base.@kwdef struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     do_plot = Entry(Bool, "", "plot"; default=false)
     verbose = Entry(Bool, "", "verbose"; default=false)
 end
@@ -377,7 +381,9 @@ mutable struct ActorHFSsizing <: ReactorAbstractActor
     fluxswing_actor::ActorFluxSwing
 end
 
-Base.@kwdef struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
     stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
     fixed_aspect_ratio = Entry(Bool, "", "Raise an error if aspect_ratio changes more than 10%"; default=true)
@@ -657,7 +663,9 @@ mutable struct ActorCXbuild <: ReactorAbstractActor
     end
 end
 
-Base.@kwdef struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
     rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
     do_plot = Entry(Bool, "", "plot"; default=false)
 end

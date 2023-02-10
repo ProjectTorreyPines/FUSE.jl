@@ -1,4 +1,6 @@
-struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
+mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
+    _parent::WeakRef
+    _name::Symbol
     ActorCXbuild::FUSEparameters__ActorCXbuild{T}
     ActorFluxSwing::FUSEparameters__ActorFluxSwing{T}
     ActorLFSsizing::FUSEparameters__ActorLFSsizing{T}
@@ -32,6 +34,8 @@ end
 
 function ParametersActors{T}() where {T<:Real}
     act = ParametersActors{T}(
+        WeakRef(nothing),
+        :act,
         FUSEparameters__ActorCXbuild{T}(),
         FUSEparameters__ActorFluxSwing{T}(),
         FUSEparameters__ActorLFSsizing{T}(),
