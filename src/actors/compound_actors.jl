@@ -12,7 +12,8 @@ end
 
 Base.@kwdef struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
     do_plot = Entry(Bool, "", "plot"; default=false)
-    iterations = Entry(Int, "", "transport-equilibrium iterations"; default=1)
+    max_iter = Entry(Int, "", "max number of transport-equilibrium iterations"; default=5)
+    convergence_error = Entry(Float64, "", "Convergence error threshold"; default=1E-2)
 end
 
 """
@@ -57,9 +58,24 @@ function _step(actor::ActorEquilibriumTransport)
     # Set j_ohmic to steady state
     finalize(step(actor.actor_jt))
 
-    for iteration in 1:par.iterations
+    # set CHEASE switches specific to this workflow
+    act_chease = deepcopy(act.ActorCHEASE)
+    actor.actor_eq.par = act_chease
+    act_chease.free_boundary = false
+    act_chease.rescale_eq_to_ip = true
+
+    iter = 1
+    total_error = 0.0
+    while (iter == 1) || (total_error > par.convergence_error)
+        # get current and pressure profiles before updating them
+        j_tor_before = dd.core_profiles.profiles_1d[].j_tor
+        pressure_before = dd.core_profiles.profiles_1d[].pressure
+
         # run transport actor
         finalize(step(actor.actor_tr))
+
+        # Set j_ohmic to steady state
+        finalize(step(actor.actor_jt))
 
         # prepare equilibrium input based on transport core_profiles output
         prepare(dd, :ActorEquilibrium, act)
@@ -67,8 +83,28 @@ function _step(actor::ActorEquilibriumTransport)
         # run equilibrium actor with the updated beta
         finalize(step(actor.actor_eq))
 
-        # Set j_ohmic to steady state
-        finalize(step(actor.actor_jt))
+        # evaluate change in current and pressure profiles after the update
+        j_tor_after = dd.core_profiles.profiles_1d[].j_tor
+        pressure_after = dd.core_profiles.profiles_1d[].pressure
+        error_jtor = sum((j_tor_after .- j_tor_before) .^ 2) / sum(j_tor_before .^ 2)
+        error_pressure = sum((pressure_after .- pressure_before) .^ 2) / sum(pressure_before .^ 2)
+        total_error = sqrt(error_jtor + error_pressure) / 2.0
+
+        if act.ActorEquilibrium.model == :Solovev
+            total_error = 0 # temporary fix to force Solovev to run exactly once
+        end
+
+        if iter == par.max_iter
+            @warn "Max number of iterations ($max_iter) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $par.convergence_error"
+            break
+        end
+        iter += 1
+
+    end
+
+    if act.ActorCHEASE.free_boundary
+        act_chease.free_boundary = true
+        finalize(step(actor.actor_eq))
     end
 
     if par.do_plot

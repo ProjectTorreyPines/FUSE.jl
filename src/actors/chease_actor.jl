@@ -12,7 +12,7 @@ end
 Base.@kwdef struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
     free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
-    rescale_eq_to_ip = Entry(Bool, "", "Scale equilibrium to match Ip"; default=false)
+    rescale_eq_to_ip = Entry(Bool, "", "Scale equilibrium to match Ip"; default=true)
 end
 
 """

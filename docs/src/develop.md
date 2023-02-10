@@ -147,6 +147,10 @@ end
 
 ## Tips and more
 
+### Revise.jl
+Use [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
+We recommend adding `import Revise` to your `~/.julia/config/startup.jl`.
+
 ### Development in VSCode
 
 [VSCode](https://code.visualstudio.com) is an excellent development environment for Julia.

@@ -101,6 +101,7 @@ end
 Convert equilibrium information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+    ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.B0 = gasc.inputs["conductors"]["magneticFieldOnAxis"]
     ini.equilibrium.R0 = gasc.inputs["radial build"]["majorRadius"]
     ini.equilibrium.Z0 = 0.0
