@@ -10,22 +10,60 @@ import ProgressMeter
 import Dates
 using InteractiveUtils: subtypes
 
-function html_link_repr(par::FUSE.AbstractParameter)
-    return "©" * join(FUSE.path(par), ".") * "©©" * string(par._name) * "©"
+function pretty_units(unit)
+    unit = replace(unit, r"\^-3(?![0-9])" => "⁻³")
+    unit = replace(unit, r"\^-2(?![0-9])" => "⁻²")
+    unit = replace(unit, r"\^-1(?![0-9])" => "⁻¹")
+    unit = replace(unit, r"\^3(?![0-9])" => "³")
+    unit = replace(unit, r"\^2(?![0-9])" => "²")
+    return unit
 end
 
-function AbstractTrees.printnode(io::IO, par::FUSE.AbstractParameter)
-    return printstyled(io, html_link_repr(par))
+
+function html_link_repr(field::Symbol, location::AbstractString)
+    html_link_repr(string(field), location)
+end
+
+function html_link_repr(field::AbstractString, location::AbstractString)
+    return "©" * location * "©©" * field * "©"
+end
+
+function AbstractTrees.printnode(io::IO, node_value::SimulationParameters.ParsNodeRepr)
+    field = node_value.field
+    par = node_value.value
+    location = join(SimulationParameters.path(par), ".")
+    if typeof(par) <: SimulationParameters.AbstractParameters
+        printstyled(io, field; bold=true)
+    elseif typeof(par) <: SimulationParameters.AbstractParameter
+        if typeof(par.value) <: AbstractDict
+            printstyled(io, "$field[:]"; bold=true)
+        else
+            units = par.units
+            if units == "-"
+                units = ""
+            else
+                units = "  [$(pretty_units(units))]"
+            end
+            printstyled(io, "$(html_link_repr(field, location))$units")
+        end
+    end
 end
 
 function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASstructRepr; kwargs...)
-    printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
+    info = IMAS.info(leaf.location)
+    units = get(info, "units", "-")
+    if units == "-"
+        units = ""
+    else
+        units = "  [$(pretty_units(units))]"
+    end
+    printstyled(io, "$(html_link_repr(leaf.key, leaf.location))$units")
 end
 
-function parameters_details_md(io::IO, pars::FUSE.AbstractParameters)
+function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParameters)
     for leafRepr in AbstractTrees.Leaves(pars)
         leaf = leafRepr.value
-        if typeof(leaf) <: FUSE.AbstractParameters
+        if typeof(leaf) <: SimulationParameters.AbstractParameters
             continue
         end
         if ismissing(leaf.default)
@@ -115,6 +153,7 @@ makedocs(;
         "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md", "HPC" => "parallel.md"],
     ]
 )
+
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
 @info "Converting links"
 for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd", "dd")]
