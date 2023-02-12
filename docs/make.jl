@@ -4,6 +4,7 @@ using Documenter
 import FUSE
 import IMAS
 import IMASDD
+import SimulationParameters
 import AbstractTrees
 import ProgressMeter
 import Dates
@@ -17,12 +18,13 @@ function AbstractTrees.printnode(io::IO, par::FUSE.AbstractParameter)
     return printstyled(io, html_link_repr(par))
 end
 
-function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASleafRepr; kwargs...)
+function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASstructRepr; kwargs...)
     printstyled(io, "©$(leaf.location)©©$(leaf.key)©")
 end
 
 function parameters_details_md(io::IO, pars::FUSE.AbstractParameters)
-    for leaf in AbstractTrees.Leaves(pars)
+    for leafRepr in AbstractTrees.Leaves(pars)
+        leaf = leafRepr.value
         if typeof(leaf) <: FUSE.AbstractParameters
             continue
         end
@@ -43,9 +45,9 @@ function parameters_details_md(io::IO, pars::FUSE.AbstractParameters)
         ------------
 
         ```@raw html
-        <div id='$(join(FUSE.path(leaf),"."))'></div>
+        <div id='$(join(SimulationParameters.path(leaf),"."))'></div>
         ```
-        !!! $note "$(join(FUSE.path(leaf),"."))"
+        !!! $note "$(join(SimulationParameters.path(leaf),"."))"
             $(leaf.description)
             * **Units:** `$(isempty(leaf.units) ? "-" : leaf.units)`
             $(options)$(default)
