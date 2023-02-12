@@ -11,8 +11,9 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    thermal_power_extraction_efficiency = Entry(Real, "",
-        "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures."; default=1.0)
+    thermal_power_extraction_efficiency = Entry(Real, "-",
+        "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures.";
+        default=1.0)
 end
 
 """

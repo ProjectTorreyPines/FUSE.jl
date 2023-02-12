@@ -14,8 +14,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorNBIsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.3)
-    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    width = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Width of the deposition profile"; default=0.3)
+    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Radial location of the deposition profile"; default=0.0)
     current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.3)
 end
 
@@ -102,8 +102,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorECsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
-    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    width = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Width of the deposition profile"; default=0.1)
+    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Radial location of the deposition profile"; default=0.0)
     current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.2)
 end
 
@@ -182,8 +182,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
-    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
+    width = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Width of the deposition profile"; default=0.1)
+    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Radial location of the deposition profile"; default=0.0)
     current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.125)
 end
 
@@ -262,8 +262,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorLHsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.15)
-    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.6)
+    width = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Width of the deposition profile"; default=0.15)
+    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Radial location of the deposition profile"; default=0.6)
     current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.4)
 end
 

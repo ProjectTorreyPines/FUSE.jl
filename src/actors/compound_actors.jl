@@ -13,9 +13,9 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot = Entry(Bool, "", "plot"; default=false)
-    max_iter = Entry(Int, "", "max number of transport-equilibrium iterations"; default=5)
-    convergence_error = Entry(Float64, "", "Convergence error threshold"; default=1E-2)
+    do_plot = Entry(Bool, "-", "plot"; default=false)
+    max_iter = Entry(Int, "-", "max number of transport-equilibrium iterations"; default=5)
+    convergence_error = Entry(Float64, "-", "Convergence error threshold"; default=1E-2)
 end
 
 """

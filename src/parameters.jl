@@ -2,13 +2,13 @@ using SimulationParameters
 
 function SimulationParameters.Entry(T::Type, ids::Type, field::Symbol; default=missing)
     txt = IMAS.info(ids, field)
-    return Entry(T, get(txt, "units", ""), get(txt, "documentation", ""); default)
+    return Entry(T, get(txt, "units", "-"), get(txt, "documentation", ""); default)
 end
 
 function SimulationParameters.Switch(T::Type, options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing)
     location = "$(IMAS.fs2u(ids)).$(field)"
     txt = IMAS.info(location)
-    return Switch(T, options, get(txt, "units", ""), get(txt, "documentation", ""); default)
+    return Switch(T, options, get(txt, "units", "-"), get(txt, "documentation", ""); default)
 end
 
 abstract type ParametersActor <: AbstractParameters end # container for all parameters of an actor

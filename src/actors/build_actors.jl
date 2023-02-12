@@ -137,17 +137,14 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    operate_at_j_crit = Entry(
-        Bool,
-        "",
-        """
+    operate_at_j_crit = Entry(Bool, "-", """
 Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
 The flattop duration and maximum toroidal magnetic field follow from that.
 Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
 These currents may or may not exceed the OH and TF current limits.""";
         default=true
     )
-    j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
+    j_tolerance = Entry(Real, "-", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
 end
 
 """
@@ -313,8 +310,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot = Entry(Bool, "", "plot"; default=false)
-    verbose = Entry(Bool, "", "verbose"; default=false)
+    do_plot = Entry(Bool, "-", "plot"; default=false)
+    verbose = Entry(Bool, "-", "verbose"; default=false)
 end
 
 """
@@ -384,12 +381,12 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
-    stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
-    fixed_aspect_ratio = Entry(Bool, "", "Raise an error if aspect_ratio changes more than 10%"; default=true)
-    unconstrained_flattop_duration = Entry(Bool, "", "Maximize flux_duration without targeting a specific value"; default=true)
-    do_plot = Entry(Bool, "", "plot"; default=false)
-    verbose = Entry(Bool, "", "verbose"; default=false)
+    j_tolerance = Entry(Float64, "-", "Tolerance on the conductor current limits"; default=0.4)
+    stress_tolerance = Entry(Float64, "-", "Tolerance on the structural stresses limits"; default=0.2)
+    fixed_aspect_ratio = Entry(Bool, "-", "Raise an error if aspect_ratio changes more than 10%"; default=true)
+    unconstrained_flattop_duration = Entry(Bool, "-", "Maximize flux_duration without targeting a specific value"; default=true)
+    do_plot = Entry(Bool, "-", "plot"; default=false)
+    verbose = Entry(Bool, "-", "verbose"; default=false)
 end
 
 """
@@ -666,8 +663,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
-    do_plot = Entry(Bool, "", "plot"; default=false)
+    rebuild_wall = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=false)
+    do_plot = Entry(Bool, "-", "plot"; default=false)
 end
 
 """

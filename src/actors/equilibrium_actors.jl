@@ -10,7 +10,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model = Switch(Symbol, [:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
+    model = Switch(Symbol, [:Solovev, :CHEASE], "-", "Equilibrium actor to run"; default=:Solovev)
 end
 
 """

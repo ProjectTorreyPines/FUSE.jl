@@ -13,17 +13,17 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorTransportSolver{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    evolve_Ti = Switch(Symbol, [:flux_match, :fixed], "", "Evolve ion temperature "; default=:flux_match)
-    evolve_Te = Switch(Symbol, [:flux_match, :fixed], "", "Evolve electron temperature"; default=:flux_match)
-    evolve_densities = Entry(Union{Dict,Symbol}, "", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
-    evolve_rotation = Switch(Symbol, [:flux_match, :fixed], "", "Evolve the electron temperature"; default=:fixed)
-    rho_transport = Entry(AbstractVector{<:Real}, "", "Rho transport grid"; default=0.2:0.1:0.8)
-    evolve_pedestal = Entry(Bool, "", "Evolve the pedestal inside the transport solver"; default=false)
-    max_iterations = Entry(Int, "", "Maximum optimizer iterations"; default=50)
-    optimizer_algorithm = Switch(Symbol, [:anderson, :jacobian_based], "", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    step_size = Entry(Real, "", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.2)
-    do_plot = Entry(Bool, "", "Plots the flux matching"; default=false)
-    verbose = Entry(Bool, "", "Print trace and optimization result"; default=false)
+    evolve_Ti = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve ion temperature "; default=:flux_match)
+    evolve_Te = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve electron temperature"; default=:flux_match)
+    evolve_densities = Entry(Union{Dict,Symbol}, "-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
+    evolve_rotation = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve the electron temperature"; default=:fixed)
+    rho_transport = Entry(AbstractVector{<:Real}, "-", "Rho transport grid"; default=0.2:0.1:0.8)
+    evolve_pedestal = Entry(Bool, "-", "Evolve the pedestal inside the transport solver"; default=false)
+    max_iterations = Entry(Int, "-", "Maximum optimizer iterations"; default=50)
+    optimizer_algorithm = Switch(Symbol, [:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    step_size = Entry(Real, "-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.2)
+    do_plot = Entry(Bool, "-", "Plots the flux matching"; default=false)
+    verbose = Entry(Bool, "-", "Print trace and optimization result"; default=false)
 end
 
 """

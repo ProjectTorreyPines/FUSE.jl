@@ -4,19 +4,19 @@ import DataStructures
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
-    casename::Entry{String} = Entry(String, "", "Mnemonic name of the case being run")
+    casename::Entry{String} = Entry(String, "-", "Mnemonic name of the case being run")
     init_from::Switch{Symbol} = Switch(Symbol, [
             :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
             :scalars => "Initialize FUSE run from scalar parameters"
-        ], "", "Initialize run from")
+        ], "-", "Initialize run from")
 end
 
 Base.@kwdef mutable struct FUSEparameters__material{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :material
-    wall::Switch{String} = Switch(String, FusionMaterials.available_materials("wall_materials"), "", "Material used for the wall"; default="Steel, Stainless 316")
-    blanket::Switch{String} = Switch(String, FusionMaterials.available_materials("blanket_materials"), "", "Material used for blanket coils")
-    shield::Switch{String} = Switch(String, FusionMaterials.available_materials("shield_materials"), "", "Material used for the shield")
+    wall::Switch{String} = Switch(String, FusionMaterials.available_materials("wall_materials"), "-", "Material used for the wall"; default="Steel, Stainless 316")
+    blanket::Switch{String} = Switch(String, FusionMaterials.available_materials("blanket_materials"), "-", "Material used for blanket coils")
+    shield::Switch{String} = Switch(String, FusionMaterials.available_materials("shield_materials"), "-", "Material used for the shield")
 end
 
 Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit where {T<:Real}
@@ -25,64 +25,64 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     B0::Entry{T} = Entry(T, IMAS.equilibrium__vacuum_toroidal_field, :b0)
     R0::Entry{T} = Entry(T, "m", "Geometric genter of the plasma. NOTE: This also scales the radial build layers.")
     Z0::Entry{T} = Entry(T, "m", "Z offset of the machine midplane"; default=0.0)
-    ϵ::Entry{T} = Entry(T, "", "Plasma inverse aspect ratio. NOTE: This also scales the radial build layers.")
+    ϵ::Entry{T} = Entry(T, "-", "Plasma inverse aspect ratio. NOTE: This also scales the radial build layers.")
     κ::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___boundary, :elongation)
     δ::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___boundary, :triangularity)
     ζ::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
     pressure_core::Entry{T} = Entry(T, "Pa", "On axis pressure")
     ip::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___global_quantities, :ip)
-    xpoints_number::Entry{Integer} = Entry(Integer, "", "Number of x-points")
-    ngrid::Entry{Int} = Entry(Int, "", "Resolution of the equilibrium grid"; default=129)
-    field_null_surface::Entry{T} = Entry(T, "", "ψn value of the field_null_surface. Disable with 0.0"; default=0.5)
-    boundary_from::Switch{Symbol} = Switch(Symbol, [:scalars, :MXH_params, :rz_points, :ods], "", "The starting r, z boundary taken from")
-    MXH_params::Entry{Vector{<:T}} = Entry(Vector{<:T}, "", "Vector of MXH flats")
+    xpoints_number::Entry{Integer} = Entry(Integer, "-", "Number of x-points")
+    ngrid::Entry{Int} = Entry(Int, "-", "Resolution of the equilibrium grid"; default=129)
+    field_null_surface::Entry{T} = Entry(T, "-", "ψn value of the field_null_surface. Disable with 0.0"; default=0.5)
+    boundary_from::Switch{Symbol} = Switch(Symbol, [:scalars, :MXH_params, :rz_points, :ods], "-", "The starting r, z boundary taken from")
+    MXH_params::Entry{Vector{<:T}} = Entry(Vector{<:T}, "-", "Vector of MXH flats")
     rz_points::Entry{Vector{Vector{<:T}}} = Entry(Vector{Vector{<:T}}, "m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]")
 end
 
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
-    greenwald_fraction::Entry{T} = Entry(T, "", "Greenwald fraction, ne_vol / ne_gw")
+    greenwald_fraction::Entry{T} = Entry(T, "-", "Greenwald fraction, ne_vol / ne_gw")
     ne_ped::Entry{T} = Entry(T, "m^-3", "Pedestal electron density")
-    w_ped::Entry{T} = Entry(T, "", "Pedestal width expressed in fraction of ψₙ", default=0.05)
-    T_shaping::Entry{T} = Entry(T, "", "Temperature shaping factor")
-    zeff::Entry{T} = Entry(T, "", "Effective ion charge")
+    w_ped::Entry{T} = Entry(T, "-", "Pedestal width expressed in fraction of ψₙ", default=0.05)
+    T_shaping::Entry{T} = Entry(T, "-", "Temperature shaping factor")
+    zeff::Entry{T} = Entry(T, "-", "Effective ion charge")
     rot_core::Entry{T} = Entry(T, IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
-    ngrid::Entry{Int} = Entry(Int, "", "Resolution of the core_profiles grid"; default=101)
-    bulk::Entry{Symbol} = Entry(Symbol, "", "Bulk ion species")
-    impurity::Entry{Symbol} = Entry(Symbol, "", "Impurity ion species")
-    helium_fraction::Entry{T} = Entry(T, "", "Helium density / electron density fraction")
-    ejima::Entry{T} = Entry(T, "", "Ejima coefficient")
-    polarized_fuel_fraction::Entry{T} = Entry(T, "", "Spin polarized fuel fraction", default=0.0)
+    ngrid::Entry{Int} = Entry(Int, "-", "Resolution of the core_profiles grid"; default=101)
+    bulk::Entry{Symbol} = Entry(Symbol, "-", "Bulk ion species")
+    impurity::Entry{Symbol} = Entry(Symbol, "-", "Impurity ion species")
+    helium_fraction::Entry{T} = Entry(T, "-", "Helium density / electron density fraction")
+    ejima::Entry{T} = Entry(T, "-", "Ejima coefficient")
+    polarized_fuel_fraction::Entry{T} = Entry(T, "-", "Spin polarized fuel fraction", default=0.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__coil_tech{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :coil_tech
-    material = Switch(String, FusionMaterials.available_materials("magnet_materials"), "", "Technology used for the coil.")
+    material = Switch(String, FusionMaterials.available_materials("magnet_materials"), "-", "Technology used for the coil.")
     temperature::Entry{T} = Entry(T, "K", "Coil temperature")
-    thermal_strain::Entry{T} = Entry(T, "", "Fraction of thermal expansion strain over maximum total strain on coil")
-    JxB_strain::Entry{T} = Entry(T, "", "Fraction of maximum JxB strain over maximum total strain on coil")
-    fraction_stainless::Entry{T} = Entry(T, "", "Fraction of stainless steel in the coil cross-sectional areas")
-    fraction_void::Entry{T} = Entry(T, "", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor.")
-    ratio_SC_to_copper::Entry{T} = Entry(T, "", "Fraction of superconductor to copper cross-sectional areas")
+    thermal_strain::Entry{T} = Entry(T, "-", "Fraction of thermal expansion strain over maximum total strain on coil")
+    JxB_strain::Entry{T} = Entry(T, "-", "Fraction of maximum JxB strain over maximum total strain on coil")
+    fraction_stainless::Entry{T} = Entry(T, "-", "Fraction of stainless steel in the coil cross-sectional areas")
+    fraction_void::Entry{T} = Entry(T, "-", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor.")
+    ratio_SC_to_copper::Entry{T} = Entry(T, "-", "Fraction of superconductor to copper cross-sectional areas")
 end
 
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pf_active
-    n_oh_coils::Entry{Int} = Entry(Int, "", "Number of OH coils")
-    n_pf_coils_inside::Entry{Int} = Entry(Int, "", "Number of PF coils inside of the TF")
-    n_pf_coils_outside::Entry{Int} = Entry(Int, "", "Number of PF coils outside of the TF")
+    n_oh_coils::Entry{Int} = Entry(Int, "-", "Number of OH coils")
+    n_pf_coils_inside::Entry{Int} = Entry(Int, "-", "Number of PF coils inside of the TF")
+    n_pf_coils_outside::Entry{Int} = Entry(Int, "-", "Number of PF coils outside of the TF")
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
-    n_coils::Entry{Int} = Entry(Int, "", "Number of TF coils")
-    shape::Switch{Symbol} = Switch(Symbol, [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :triple_arc, :miller, :spline], "", "Shape of the TF coils"; default=:princeton_D_scaled)
-    ripple::Entry{T} = Entry(T, "", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
+    n_coils::Entry{Int} = Entry(Int, "-", "Number of TF coils")
+    shape::Switch{Symbol} = Switch(Symbol, [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :triple_arc, :miller, :spline], "-", "Shape of the TF coils"; default=:princeton_D_scaled)
+    ripple::Entry{T} = Entry(T, "-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
 
@@ -95,9 +95,9 @@ end
 Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :center_stack
-    bucked::Entry{Bool} = Entry(Bool, "", "flag for bucked boundary conditions between TF and OH (and center plug, if present)"; default=false)
-    noslip::Entry{Bool} = Entry(Bool, "", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
-    plug::Entry{Bool} = Entry(Bool, "", "flag for center plug"; default=false)
+    bucked::Entry{Bool} = Entry(Bool, "-", "flag for bucked boundary conditions between TF and OH (and center plug, if present)"; default=false)
+    noslip::Entry{Bool} = Entry(Bool, "-", "flag for no slip conditions between TF and OH (and center plug, if present)"; default=false)
+    plug::Entry{Bool} = Entry(Bool, "-", "flag for center plug"; default=false)
 end
 
 Base.@kwdef mutable struct FUSEparameters__nbi{T} <: ParametersInit where {T<:Real}
@@ -141,25 +141,25 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
     layers::Entry{DataStructures.OrderedDict} = Entry(DataStructures.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
-    blanket::Entry{Float64} = Entry(Float64, "", "Fraction of blanket in radial build")
-    shield::Entry{Float64} = Entry(Float64, "", "Fraction of shield in radial build")
-    vessel::Entry{Float64} = Entry(Float64, "", "Fraction of vessel in radial build")
-    plasma_gap::Entry{Float64} = Entry(Float64, "", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1)
-    symmetric::Entry{Bool} = Entry(Bool, "", "Is the build up-down symmetric")
-    n_first_wall_conformal_layers::Entry{Integer} = Entry(Integer, "", "Number of layers that are conformal to the first wall"; default=1)
+    blanket::Entry{Float64} = Entry(Float64, "-", "Fraction of blanket in radial build")
+    shield::Entry{Float64} = Entry(Float64, "-", "Fraction of shield in radial build")
+    vessel::Entry{Float64} = Entry(Float64, "-", "Fraction of vessel in radial build")
+    plasma_gap::Entry{Float64} = Entry(Float64, "-", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1)
+    symmetric::Entry{Bool} = Entry(Bool, "-", "Is the build up-down symmetric")
+    n_first_wall_conformal_layers::Entry{Integer} = Entry(Integer, "-", "Number of layers that are conformal to the first wall"; default=1)
 end
 
 Base.@kwdef mutable struct FUSEparameters__gasc{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :gasc
-    filename::Entry{String} = Entry(String, "", "Output GASC .json file from which data will be loaded")
-    case::Entry{Int} = Entry(Int, "", "Number of the GASC run to load")
+    filename::Entry{String} = Entry(String, "-", "Output GASC .json file from which data will be loaded")
+    case::Entry{Int} = Entry(Int, "-", "Number of the GASC run to load")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ods
-    filename::Entry{String} = Entry(String, "", "ODS.json file from which equilibrium is loaded")
+    filename::Entry{String} = Entry(String, "-", "ODS.json file from which equilibrium is loaded")
 end
 
 Base.@kwdef mutable struct FUSEparameters__target{T} <: ParametersInit where {T<:Real}
@@ -167,7 +167,7 @@ Base.@kwdef mutable struct FUSEparameters__target{T} <: ParametersInit where {T<
     _name::Symbol = :target
     power_electric_net::Entry{T} = Entry(T, "W", "Target net electric power generated by the fusion power plant")
     flattop_duration::Entry{T} = Entry(T, "s", "Target duration of the flattop (use Inf for steady-state)")
-    tritium_breeding_ratio::Entry{T} = Entry(T, "", "Target tritium breeding ratio of the whole plant")
+    tritium_breeding_ratio::Entry{T} = Entry(T, "-", "Target tritium breeding ratio of the whole plant")
     cost::Entry{T} = Entry(T, "\$M", "Target total FPP cost")
 end
 

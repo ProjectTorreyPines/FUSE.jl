@@ -20,14 +20,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor wh
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ActorBlanket
     minimum_first_wall_thickness = Entry(Float64, "m", "Minimum first wall thickness"; default=0.02)
-    blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
-    thermal_power_extraction_efficiency = Entry(
-        Real,
-        "",
+    blanket_multiplier = Entry(Real, "-", "Neutron thermal power multiplier in blanket"; default=1.2)
+    thermal_power_extraction_efficiency = Entry(Real, "-",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
-        default=1.0
-    )
-    verbose = Entry(Bool, "", "verbose"; default=false)
+        default=1.0)
+    verbose = Entry(Bool, "-", "verbose"; default=false)
 end
 
 """
