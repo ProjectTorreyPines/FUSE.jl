@@ -206,18 +206,25 @@ function _step(actor::ActorBlanket)
             x1 = d1 / dtot
             x2 = d2 / dtot
             x3 = d3 / dtot
-            for k in 1:length(modules_wall_loading_power[ibm])
-                ed1 = modules_effective_thickness[ibm][k, 1] * x1
-                ed2 = modules_effective_thickness[ibm][k, 2] * x2
-                ed3 = modules_effective_thickness[ibm][k, 3] * x3
+            wall_loading_short = collect(Iterators.partition(modules_wall_loading_power[ibm],25))
+            wall_loading_short = [sum(load) for load in wall_loading_short]
+            l1_thickness_short = collect(Iterators.partition(modules_effective_thickness[ibm][:,1],25))
+            l1_thickness_short = [sum(thickness)/length(thickness) for thickness in l1_thickness_short]
+            l2_thickness_short = collect(Iterators.partition(modules_effective_thickness[ibm][:,2],25))
+            l2_thickness_short = [sum(thickness)/length(thickness) for thickness in l2_thickness_short]
+            l3_thickness_short = collect(Iterators.partition(modules_effective_thickness[ibm][:,3],25))
+            l3_thickness_short = [sum(thickness)/length(thickness) for thickness in l3_thickness_short]
+            for k in 1:length(wall_loading_short)
+                ed1 = l1_thickness_short[k] * x1
+                ed2 = l2_thickness_short[k] * x2
+                ed3 = l3_thickness_short[k] * x3
                 layer_thicknesses = [ed1*100, ed2*100, ed3*100] # OpenMOC takes cm
                 layer_materials = [replace(bm.layer[l].material, " " => "-") for l in 1:length(bm.layer)]
-                print(layer_thicknesses, layer_materials)
                 # module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
                 local_tritium_breeding_ratio = py"get_tbr"(layer_thicknesses, layer_materials, data_path, data_filename)
-                module_tritium_breeding_ratio += (local_tritium_breeding_ratio * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
-                #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
-                module_neutron_shine_through += sum(NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)) * modules_wall_loading_power[ibm][k] / total_power_neutrons
+                module_tritium_breeding_ratio += (local_tritium_breeding_ratio * wall_loading_short[k] / module_wall_loading_power)
+                # #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
+                # module_neutron_shine_through += sum(NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)) * modules_wall_loading_power[ibm][k] / total_power_neutrons
             end
             push!(modules_neutron_shine_through, module_neutron_shine_through)
             total_tritium_breeding_ratio += module_tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
