@@ -134,18 +134,17 @@ mutable struct ActorFluxSwing <: ReactorAbstractActor
     j_tolerance::Real
 end
 
-Base.@kwdef struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
-    operate_at_j_crit = Entry(
-        Bool,
-        "",
-        """
+Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    operate_at_j_crit = Entry(Bool, "-", """
 Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
 The flattop duration and maximum toroidal magnetic field follow from that.
 Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
 These currents may or may not exceed the OH and TF current limits.""";
         default=true
     )
-    j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
+    j_tolerance = Entry(Real, "-", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
 end
 
 """
@@ -308,9 +307,11 @@ mutable struct ActorLFSsizing <: ReactorAbstractActor
     end
 end
 
-Base.@kwdef struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
-    do_plot = Entry(Bool, "", "plot"; default=false)
-    verbose = Entry(Bool, "", "verbose"; default=false)
+Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    do_plot = Entry(Bool, "-", "plot"; default=false)
+    verbose = Entry(Bool, "-", "verbose"; default=false)
 end
 
 """
@@ -377,13 +378,15 @@ mutable struct ActorHFSsizing <: ReactorAbstractActor
     fluxswing_actor::ActorFluxSwing
 end
 
-Base.@kwdef struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
-    j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
-    stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
-    fixed_aspect_ratio = Entry(Bool, "", "Raise an error if aspect_ratio changes more than 10%"; default=true)
-    unconstrained_flattop_duration = Entry(Bool, "", "Maximize flux_duration without targeting a specific value"; default=true)
-    do_plot = Entry(Bool, "", "plot"; default=false)
-    verbose = Entry(Bool, "", "verbose"; default=false)
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    j_tolerance = Entry(Float64, "-", "Tolerance on the conductor current limits"; default=0.4)
+    stress_tolerance = Entry(Float64, "-", "Tolerance on the structural stresses limits"; default=0.2)
+    fixed_aspect_ratio = Entry(Bool, "-", "Raise an error if aspect_ratio changes more than 10%"; default=true)
+    unconstrained_flattop_duration = Entry(Bool, "-", "Maximize flux_duration without targeting a specific value"; default=true)
+    do_plot = Entry(Bool, "-", "plot"; default=false)
+    verbose = Entry(Bool, "-", "verbose"; default=false)
 end
 
 """
@@ -657,9 +660,11 @@ mutable struct ActorCXbuild <: ReactorAbstractActor
     end
 end
 
-Base.@kwdef struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
-    rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
-    do_plot = Entry(Bool, "", "plot"; default=false)
+Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    rebuild_wall = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=false)
+    do_plot = Entry(Bool, "-", "plot"; default=false)
 end
 
 """
@@ -719,7 +724,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     t = LinRange(0, 2π, 31)
 
     # divertor lengths
-    linear_plasma_size = sqrt((maximum(zlcfs) - minimum(zlcfs)) * (maximum(rlcfs) - minimum(rlcfs)))
+    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
     max_divertor_length = linear_plasma_size * divertor_length_fraction
 
     # private flux regions
@@ -728,7 +733,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
             # open flux surface does not encicle the plasma
             continue
-        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > linear_plasma_size / 5
+        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > (linear_plasma_size / 20)
             # secondary Xpoint far away
             continue
         end
@@ -748,8 +753,9 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         pr = [rr for (rr, zz) in slot]
         pz = [zz for (rr, zz) in slot]
 
-        if isempty(pr)
-            error("Something is wrong with the geometry and equilibrium")
+        # too small of a private flux region to bother
+        if length(pr) < 10
+            continue
         end
 
         # remove private flux region from wall (necessary because of Z expansion)
@@ -785,7 +791,10 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
     plasma_poly = xy_polygon(bd.layer[ipl])
-
+    ψb = IMAS.find_psi_boundary(eqt)
+    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
+    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
+    
     wall_poly = xy_polygon(bd.layer[ipl-1])
     for ltype in [_blanket_, _shield_, _wall_,]
         iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
@@ -797,8 +806,13 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     divertors = IMAS.IDSvectorElement[]
     for x_point in eqt.boundary.x_point
-        Zx = x_point.z
         Rx = x_point.r
+        Zx = x_point.z
+        if IMAS.minimum_distance_two_shapes(rlcfs, zlcfs, [Rx], [Zx]) > (linear_plasma_size / 20)
+            # secondary Xpoint far away
+            continue
+        end
+
         m = (Zx - Z0) / (Rx - R0)
         xx = [0, R0 * 2.0]
         yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)

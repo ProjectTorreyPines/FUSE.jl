@@ -122,7 +122,7 @@ display(plot!(eq_plot, dd.equilibrium, coordinate=:psi, label="CHEASE equilibriu
 
 
 ```@julia
-import Equilibrium
+import MXHEquilibrium
 
 dd2 = IMAS.json2imas("/Users/slendebroek/.julia/dev/CHEASE/templates/omas_geq.json")
 display(plot(dd2.equilibrium))
@@ -134,12 +134,12 @@ plot!(dd2.equilibrium, coordinate=:rho_tor_norm)
 
 
 ```@julia
-import Equilibrium
+import MXHEquilibrium
 using Plots
 using FUSE
-gfile_pp = Equilibrium.readg("/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g150219.03200_fix") # pp
-gfile_np = Equilibrium.readg("/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g133221.01151_fix")
-gfile_nn = Equilibrium.readg("/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g153298.04400_fix")
+gfile_pp = MXHEquilibrium.readg("/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g150219.03200_fix") # pp
+gfile_np = MXHEquilibrium.readg("/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g133221.01151_fix")
+gfile_nn = MXHEquilibrium.readg("/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g153298.04400_fix")
 
 display(plot(gfile_nn.qpsi))
 display(plot(gfile_nn.psi))

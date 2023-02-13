@@ -30,6 +30,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbetap_fpp_325_ods.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         act.ActorHFSsizing.fixed_aspect_ratio = true
+        ini.equilibrium.boundary_from = :ods
     end
 
     ini.target.tritium_breeding_ratio = 1.1
@@ -73,8 +74,12 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     # ini.equilibrium.δ *= -1
 
     # squareness
-    # ini.equilibrium.ζ = 0.15
+    ini.equilibrium.ζ = 0.15
     # act.ActorEquilibrium.model = :CHEASE
+
+    # simple analytic AT confinement
+    act.ActorTauenn.transport_model = :ds03
+    act.ActorTauenn.confinement_factor = 1.4
 
     # add wall layer
     if true

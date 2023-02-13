@@ -9,6 +9,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.general.casename = "SPARC"
     ini.general.init_from = :scalars
 
+    ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 1.85
     ini.equilibrium.ϵ = 0.308 #a/R0
     ini.equilibrium.κ = 1.97 #kappa_a = 1.75 (kappa_lower-single-null = 1.65), kappa_sep = 1.97
@@ -17,8 +18,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 8.7e6
     ini.equilibrium.pressure_core = 2.22e6
-    ini.equilibrium.x_point = (1.55, 1.1)
-    ini.equilibrium.symmetric = true
+    ini.equilibrium.xpoints_number = 2
     act.ActorCXbuild.rebuild_wall = false
     act.ActorHFSsizing.fixed_aspect_ratio = true
 

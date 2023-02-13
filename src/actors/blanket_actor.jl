@@ -17,16 +17,15 @@ mutable struct ActorBlanket <: ReactorAbstractActor
     end
 end
 
-Base.@kwdef struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :ActorBlanket
     minimum_first_wall_thickness = Entry(Float64, "m", "Minimum first wall thickness"; default=0.02)
-    blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
-    thermal_power_extraction_efficiency = Entry(
-        Real,
-        "",
+    blanket_multiplier = Entry(Real, "-", "Neutron thermal power multiplier in blanket"; default=1.2)
+    thermal_power_extraction_efficiency = Entry(Real, "-",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
-        default=1.0
-    )
-    verbose = Entry(Bool, "", "verbose"; default=false)
+        default=1.0)
+    verbose = Entry(Bool, "-", "verbose"; default=false)
 end
 
 """
@@ -191,7 +190,7 @@ function _step(actor::ActorBlanket)
         
         energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
-        Li6 = min(max(Li6, 0.0), 100.0)
+        Li6 = min(max(abs(Li6), 0.0), 100.0)
         modules_neutron_shine_through = []
         extra_cost = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
@@ -241,9 +240,14 @@ function _step(actor::ActorBlanket)
         end
     end
 
+<<<<<<< HEAD
     # res = Optim.optimize(x -> target_TBR2D(blanket_model_1d, x[1:end-1], x[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness, dd.target.tritium_breeding_ratio), vcat(modules_relative_thickness13, 50.0), Optim.NelderMead())#; autodiff=:forward)#, rel_tol=1E-6)
     total_tritium_breeding_ratio = target_TBR2D(blanket_model_1d, modules_relative_thickness13, 90, dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness)
 
+=======
+    res = Optim.optimize(x -> target_TBR2D(blanket_model_1d, x[1:end-1], x[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness, dd.target.tritium_breeding_ratio), vcat(modules_relative_thickness13, 50.0), Optim.NelderMead())#; autodiff=:forward)#, rel_tol=1E-6)
+    total_tritium_breeding_ratio = target_TBR2D(blanket_model_1d, res.minimizer[1:end-1], abs(res.minimizer[end]), dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness)
+>>>>>>> master
     if par.verbose
         println(res)
     end

@@ -17,6 +17,14 @@ function init_missing_from_ods(dd::IMAS.dd, ini::ParametersAllInits, act::Parame
                 setproperty!(dd, ids, data)
             end
         end
+        if :core_profiles ∈ keys(dd1)
+            ne_ped, w_ped = IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)
+            ped_summ = dd.summary.local.pedestal
+            cp1d = dd.core_profiles.profiles_1d[]
+            @ddtime ped_summ.n_e.value = ne_ped
+            @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - w_ped)
+            @ddtime ped_summ.zeff.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].zeff).(1 - w_ped)
+        end
     end
 
     # target

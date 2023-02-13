@@ -31,10 +31,12 @@ end
 
 ActorNeutronics(dd::IMAS.dd{T}, par::ParametersActor; kw...) where {T} = ActorNeutronics{T}(dd, par; kw...)
 
-Base.@kwdef struct FUSEparameters__ActorNeutronics{T} <: ParametersActor where {T<:Real}
-    N = Entry(Integer, "", "Number of particles"; default=100000)
-    step = Entry(Float64, "", "Interator stepping"; default=0.05)
-    do_plot = Entry(Bool, "", "plot"; default=false)
+Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    N = Entry(Integer, "-", "Number of particles"; default=100000)
+    step = Entry(Float64, "-", "Interator stepping"; default=0.05)
+    do_plot = Entry(Bool, "-", "plot"; default=false)
 end
 
 """

@@ -46,25 +46,46 @@ registry:
 	if [ ! -d "$(JULIA_PKG_REGDIR)" ]; then mkdir -p $(JULIA_PKG_REGDIR); fi
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
+	julia -e 'using Pkg; Pkg.Registry.update("GAregistry")'
 
 register:
-	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)");using LocalRegistry; register("$(package)", registry="GAregistry")';)
+	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate("."); using LocalRegistry; register("$(package)", registry="GAregistry")';)
 
-develop:
+forward_compatibility:
 	julia -e '\
 using Pkg;\
+for package in ["Equilibrium", "Broker", "ZMQ"];\
+	try;\
+		Pkg.activate();\
+		Pkg.rm(package);\
+	catch;\
+	end;\
+	try;\
+		Pkg.activate(".");\
+		Pkg.rm(package);\
+	catch;\
+	end;\
+end;\
+'
+
+develop:
+	# install in global environment to easily develop and test changes made across multiple packages at once
+	julia -e '\
+fuse_packages = ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"];\
+using Pkg;\
 Pkg.activate(".");\
-Pkg.develop(["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
+Pkg.develop(fuse_packages);\
 Pkg.activate();\
-Pkg.develop(["FUSE", "IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]);\
+Pkg.develop(fuse_packages);\
+Pkg.add(["Revise", "JuliaFormatter", "Test"]);\
 '
 
 rm_manifests:
 	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
 
-install_no_registry: clone_update_all develop precompile
+install_no_registry: forward_compatibility clone_update_all develop
 
-install_via_registry: registry develop precompile
+install_via_registry: forward_compatibility registry develop
 
 install: install_no_registry
 
@@ -88,18 +109,18 @@ IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage
 IJulia:
 	julia -e '\
 using Pkg;\
-Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots", "IJulia", "WebIO", "Interact"]);\
+Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
 Pkg.build("IJulia");\
 '
 	python3 -m pip install --upgrade webio_jupyter_extension
 
 precompile:
-	julia -e 'using Pkg; Pkg.precompile()'
+	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.instantiate(); Pkg.update(); Pkg.precompile()'
 
 clone_update_all:
-	make $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields Equilibrium TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
+	make -i $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
 
-update: install clone_update_all precompile
+update: install_no_registry precompile
 
 FUSE:
 	$(call clone_update_repo,$@)
@@ -122,7 +143,10 @@ FusionMaterials:
 VacuumFields:
 	$(call clone_update_repo,$@)
 
-Equilibrium:
+MXHEquilibrium:
+	$(call clone_update_repo,$@)
+
+MeshTools:
 	$(call clone_update_repo,$@)
 
 TAUENN:
@@ -218,15 +242,15 @@ clean_examples:
 all_examples: clean_examples examples
 
 examples: .PHONY
-	cd docs; julia notebooks_to_html.jl --execute
+	cd docs; julia notebooks_to_md.jl --execute
 
 all_blank_examples: clean_examples blank_examples
 
 blank_examples:
-	cd docs; julia notebooks_to_html.jl
+	cd docs; julia notebooks_to_md.jl
 
 daily_example:
-	cd docs; julia notebooks_to_html.jl --daily --execute --canfail
+	cd docs; julia notebooks_to_md.jl --daily --execute --canfail
 
 daily_example_commit:
 	git checkout -b examples_$(TODAY)

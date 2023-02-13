@@ -12,13 +12,15 @@ mutable struct ActorPedestal <: PlasmaAbstractActor
     pped::Union{Missing,Real}
 end
 
-Base.@kwdef struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
-    update_core_profiles = Entry(Bool, "", "Update core_profiles"; default=true)
-    edge_bound = Entry(Real, "", "Defines rho at which edge starts"; default=0.8)
-    temp_pedestal_ratio = Entry(Real, "", "Ratio of ion to electron temperatures"; default=1.0)
-    ped_factor = Entry(Real, "", "Pedestal height multiplier"; default=1.0)
-    warn_nn_train_bounds = Entry(Bool, "", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
-    only_powerlaw = Entry(Bool, "", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
+Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    update_core_profiles = Entry(Bool, "-", "Update core_profiles"; default=true)
+    edge_bound = Entry(Real, "-", "Defines rho at which edge starts"; default=0.8)
+    temp_pedestal_ratio = Entry(Real, "-", "Ratio of ion to electron temperatures"; default=1.0)
+    ped_factor = Entry(Real, "-", "Pedestal height multiplier"; default=1.0)
+    warn_nn_train_bounds = Entry(Bool, "-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
+    only_powerlaw = Entry(Bool, "-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
 end
 
 """
@@ -75,7 +77,7 @@ function _step(actor::ActorPedestal;
         eqt.boundary.minor_radius,
         βn,
         Bt,
-        eqt.boundary.triangularity,
+        EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper),
         abs(eqt.global_quantities.ip / 1e6),
         eqt.boundary.elongation,
         m,
@@ -85,8 +87,14 @@ function _step(actor::ActorPedestal;
 
     sol = actor.epedmod(actor.inputs; only_powerlaw, warn_nn_train_bounds)
 
-    actor.wped = sol.width.GH.H
-    actor.pped = sol.pressure.GH.H
+    if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
+        actor.pped = 1.5 * sol.pressure.GH.H
+        actor.wped = maximum(sol.width.GH.H,0.01)
+        @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.5 = $(round(actor.pped*1e6)) [Pa] assumed "
+    else
+        actor.pped = sol.pressure.GH.H
+        actor.wped = sol.width.GH.H
+    end
 
     return actor
 end
@@ -119,7 +127,7 @@ function _finalize(actor::ActorPedestal;
     dd_ped = dd.summary.local.pedestal
     @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + temp_pedestal_ratio) * ped_factor
     @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * temp_pedestal_ratio
-    @ddtime dd_ped.position.rho_tor_norm = 1 - actor.wped * sqrt(ped_factor)
+    @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(ped_factor))
 
     if update_core_profiles
         IMAS.blend_core_edge_Hmode(cp1d, dd_ped, edge_bound)

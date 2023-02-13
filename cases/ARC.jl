@@ -9,6 +9,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.general.casename = "ARC"
     ini.general.init_from = :scalars
 
+    ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 3.45
     ini.equilibrium.ϵ = 0.27 #a/R0
     ini.equilibrium.κ = 1.80 #kappa_a = 1.60, kappa_sep = 1.80
@@ -17,8 +18,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 9.9e6
     ini.equilibrium.pressure_core = 1.45e6
-    ini.equilibrium.x_point = (3.1, 1.85)
-    ini.equilibrium.symmetric = true
+    ini.equilibrium.xpoints_number = 2
     act.ActorCXbuild.rebuild_wall = false
     act.ActorHFSsizing.fixed_aspect_ratio = true
 
