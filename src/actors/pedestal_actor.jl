@@ -3,15 +3,6 @@ import EPEDNN
 #= ============= =#
 #  ActorPedestal  #
 #= ============= =#
-mutable struct ActorPedestal <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    epedmod::EPEDNN.EPEDmodel
-    inputs::Union{Missing,EPEDNN.InputEPED}
-    wped::Union{Missing,Real}
-    pped::Union{Missing,Real}
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -21,6 +12,15 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     ped_factor = Entry(Real, "-", "Pedestal height multiplier"; default=1.0)
     warn_nn_train_bounds = Entry(Bool, "-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
     only_powerlaw = Entry(Bool, "-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
+end
+
+mutable struct ActorPedestal <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorPedestal
+    epedmod::EPEDNN.EPEDmodel
+    inputs::Union{Missing,EPEDNN.InputEPED}
+    wped::Union{Missing,Real}
+    pped::Union{Missing,Real}
 end
 
 """
@@ -36,7 +36,7 @@ function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorPedestal(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
 

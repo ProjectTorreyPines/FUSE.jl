@@ -1,21 +1,21 @@
 #= ========================= =#
 #  ActorEquilibriumTransport  #
 #= ========================= =#
-mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    act::ParametersAllActors
-    actor_jt::ActorSteadyStateCurrent
-    actor_eq::ActorEquilibrium
-    actor_tr::ActorTauenn
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     do_plot = Entry(Bool, "-", "plot"; default=false)
     max_iter = Entry(Int, "-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error = Entry(Float64, "-", "Convergence error threshold"; default=1E-2)
+end
+
+mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorEquilibriumTransport
+    act::ParametersAllActors
+    actor_jt::ActorSteadyStateCurrent
+    actor_eq::ActorEquilibrium
+    actor_tr::ActorTauenn
 end
 
 """
@@ -37,7 +37,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorEquilibriumTransport(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquilibriumTransport, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibriumTransport)
     par = par(kw...)
     actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent)
@@ -61,52 +61,56 @@ function _step(actor::ActorEquilibriumTransport)
     finalize(step(actor.actor_jt))
 
     # set CHEASE switches specific to this workflow
-    act_chease = deepcopy(act.ActorCHEASE)
-    actor.actor_eq.par = act_chease
-    act_chease.free_boundary = false
-    act_chease.rescale_eq_to_ip = true
-
-    iter = 1
-    total_error = 0.0
-    while (iter == 1) || (total_error > par.convergence_error)
-        # get current and pressure profiles before updating them
-        j_tor_before = dd.core_profiles.profiles_1d[].j_tor
-        pressure_before = dd.core_profiles.profiles_1d[].pressure
-
-        # run transport actor
-        finalize(step(actor.actor_tr))
-
-        # Set j_ohmic to steady state
-        finalize(step(actor.actor_jt))
-
-        # prepare equilibrium input based on transport core_profiles output
-        prepare(dd, :ActorEquilibrium, act)
-
-        # run equilibrium actor with the updated beta
-        finalize(step(actor.actor_eq))
-
-        # evaluate change in current and pressure profiles after the update
-        j_tor_after = dd.core_profiles.profiles_1d[].j_tor
-        pressure_after = dd.core_profiles.profiles_1d[].pressure
-        error_jtor = sum((j_tor_after .- j_tor_before) .^ 2) / sum(j_tor_before .^ 2)
-        error_pressure = sum((pressure_after .- pressure_before) .^ 2) / sum(pressure_before .^ 2)
-        total_error = sqrt(error_jtor + error_pressure) / 2.0
-
-        if act.ActorEquilibrium.model == :Solovev
-            total_error = 0 # temporary fix to force Solovev to run exactly once
-        end
-
-        if iter == par.max_iter
-            @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $(par.convergence_error)"
-            break
-        end
-        iter += 1
-
+    if actor.actor_eq.par.model == :CHEASE
+        chease_par = actor.actor_eq.eq_actor.par
+        orig_par_chease = deepcopy(chease_par)
+        chease_par.free_boundary = false
+        chease_par.rescale_eq_to_ip = true
     end
 
-    if act.ActorCHEASE.free_boundary
-        act_chease.free_boundary = true
-        finalize(step(actor.actor_eq))
+    try
+        iter = 1
+        total_error = 0.0
+        while (iter == 1) || (total_error > par.convergence_error)
+            # get current and pressure profiles before updating them
+            j_tor_before = dd.core_profiles.profiles_1d[].j_tor
+            pressure_before = dd.core_profiles.profiles_1d[].pressure
+
+            # run transport actor
+            finalize(step(actor.actor_tr))
+
+            # Set j_ohmic to steady state
+            finalize(step(actor.actor_jt))
+
+            # prepare equilibrium input based on transport core_profiles output
+            prepare(dd, :ActorEquilibrium, act)
+
+            # run equilibrium actor with the updated beta
+            finalize(step(actor.actor_eq))
+
+            # evaluate change in current and pressure profiles after the update
+            j_tor_after = dd.core_profiles.profiles_1d[].j_tor
+            pressure_after = dd.core_profiles.profiles_1d[].pressure
+            error_jtor = sum((j_tor_after .- j_tor_before) .^ 2) / sum(j_tor_before .^ 2)
+            error_pressure = sum((pressure_after .- pressure_before) .^ 2) / sum(pressure_before .^ 2)
+            total_error = sqrt(error_jtor + error_pressure) / 2.0
+
+            if act.ActorEquilibrium.model == :Solovev
+                total_error = 0 # temporary fix to force Solovev to run exactly once
+            end
+
+            if iter == par.max_iter
+                @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $(par.convergence_error)"
+                break
+            end
+            iter += 1
+        end
+
+    finally
+        actor.actor_eq.eq_actor.par = orig_par_chease
+        if actor.actor_eq.par.model == :CHEASE && orig_par_chease.free_boundary
+            finalize(step(actor.actor_eq))
+        end
     end
 
     if par.do_plot
@@ -122,9 +126,14 @@ end
 #= ================== =#
 #  ActorWholeFacility  #
 #= ================== =#
+Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+end
+
 mutable struct ActorWholeFacility <: FacilityAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorWholeFacility
     act::ParametersAllActors
     EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport}
     HFSsizing::Union{Nothing,ActorHFSsizing}
@@ -137,11 +146,6 @@ mutable struct ActorWholeFacility <: FacilityAbstractActor
     Divertors::Union{Nothing,ActorDivertors}
     BalanceOfPlant::Union{Nothing,ActorBalanceOfPlant}
     Costing::Union{Nothing,ActorCosting}
-end
-
-Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersActor where {T<:Real}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
 end
 
 """
@@ -171,7 +175,7 @@ function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorWholeFacility(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility, act::ParametersAllActors; kw...)
     logging_actor_init(ActorWholeFacility)
     par = par(kw...)
 

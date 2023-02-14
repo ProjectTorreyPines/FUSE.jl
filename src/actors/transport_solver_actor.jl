@@ -3,13 +3,6 @@ import NLsolve
 #= ========================== =#
 #     transport solver actor   #
 #= ========================== =#
-mutable struct ActorTransportSolver <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    actor_ct::ActorCoreTransport
-    actor_ped::ActorPedestal
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorTransportSolver{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -26,6 +19,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorTransportSolver{T} <: Parameters
     verbose = Entry(Bool, "-", "Print trace and optimization result"; default=false)
 end
 
+mutable struct ActorTransportSolver <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorTransportSolver
+    actor_ct::ActorCoreTransport
+    actor_ped::ActorPedestal
+end
+
 """
     ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
@@ -39,7 +39,7 @@ function ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTransportSolver(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+function ActorTransportSolver(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver, act::ParametersAllActors; kw...)
     logging_actor_init(ActorTransportSolver)
     par = par(kw...)
     actor_ct = ActorCoreTransport(dd, act.ActorCoreTransport, act; par.rho_transport)
@@ -130,12 +130,12 @@ function error_transformation!(target::T, output::T, norm::Float64) where T<:Abs
 end
 
 """
-    flux_match_errors(dd::IMAS.dd, par::ParametersActor)
+    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
 
 Evaluates the flux_matching errors for the :flux_match species and channels
 NOTE: flux matching is done in physical units
 """
-function flux_match_errors(dd::IMAS.dd, par::ParametersActor)
+function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
     if par.verbose
         flush(stdout)
     end
@@ -188,13 +188,13 @@ function flux_match_errors(dd::IMAS.dd, par::ParametersActor)
 end
 
 """
-    pack_z_profiles(dd::IMAS.dd, par::ParametersActor)
+    pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
 
 Packs the z_profiles based on evolution parameters
 
 NOTE: the order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
-function pack_z_profiles(dd::IMAS.dd, par::ParametersActor)
+function pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
     cp1d = dd.core_profiles.profiles_1d[]
     z_profiles = Float64[]
     cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
@@ -232,13 +232,13 @@ function pack_z_profiles(dd::IMAS.dd, par::ParametersActor)
 end
 
 """
-    unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::ParametersActor, z_profiles::AbstractVector{<:Real})
+    unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorTransportSolver, z_profiles::AbstractVector{<:Real})
 
 Unpacks z_profiles based on evolution parameters
 
 NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
-function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::ParametersActor, z_profiles::AbstractVector{<:Real})
+function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorTransportSolver, z_profiles::AbstractVector{<:Real})
     rho_transport = par.rho_transport
     counter = 0
     N = length(rho_transport)

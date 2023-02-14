@@ -1,21 +1,8 @@
+import NNeutronics
+
 #= ============ =#
 #  ActorBlanket  #
 #= ============ =#
-
-import NNeutronics
-
-mutable struct ActorBlanket <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    act::ParametersAllActors
-
-    function ActorBlanket(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
-        logging_actor_init(ActorBlanket)
-        par = par(kw...)
-        return new(dd, par, act)
-    end
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ActorBlanket
@@ -25,6 +12,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor wh
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
     verbose = Entry(Bool, "-", "verbose"; default=false)
+end
+
+mutable struct ActorBlanket <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorBlanket
+    act::ParametersAllActors
+
+    function ActorBlanket(dd::IMAS.dd, par::FUSEparameters__ActorBlanket, act::ParametersAllActors; kw...)
+        logging_actor_init(ActorBlanket)
+        par = par(kw...)
+        return new(dd, par, act)
+    end
 end
 
 """

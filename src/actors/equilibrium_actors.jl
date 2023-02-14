@@ -1,16 +1,26 @@
+#= ============ =#
+#  ActorSolovev  #
+#= ============ =#
+include("solovev_actor.jl")
+
+#= =========== =#
+#  ActorCHEASE  #
+#= =========== =#
+include("chease_actor.jl")
+
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
-mutable struct ActorEquilibrium <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    eq_actor::PlasmaAbstractActor
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     model = Switch(Symbol, [:Solovev, :CHEASE], "-", "Equilibrium actor to run"; default=:Solovev)
+end
+
+mutable struct ActorEquilibrium <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorEquilibrium
+    eq_actor::Union{ActorSolovev,ActorCHEASE}
 end
 
 """
@@ -26,7 +36,7 @@ function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :Solovev
@@ -73,13 +83,3 @@ Finalizes the selected equilibrium actor
 function _finalize(actor::ActorEquilibrium)
     finalize(actor.eq_actor)
 end
-
-#= ============ =#
-#  ActorSolovev  #
-#= ============ =#
-include("solovev_actor.jl")
-
-#= =========== =#
-#  ActorCHEASE  #
-#= =========== =#
-include("chease_actor.jl")

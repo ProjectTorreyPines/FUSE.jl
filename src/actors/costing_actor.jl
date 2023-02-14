@@ -301,17 +301,6 @@ end
 #= ============ =#
 #  ActorCosting  #
 #= ============ =#
-
-mutable struct ActorCosting <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    function ActorCosting(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging_actor_init(ActorCosting)
-        par = par(kw...)
-        return new(dd, par)
-    end
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -323,6 +312,16 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
     availability = Entry(Real, "-", "availability fraction of the plant"; default=0.803)
     escalation_fraction = Entry(Real, "-", "yearly escalation fraction based on risk assessment"; default=0.05)
     blanket_lifetime = Entry(Real, "years", "lifetime of the blanket"; default=6.8)
+end
+
+mutable struct ActorCosting <: FacilityAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorCosting
+    function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting; kw...)
+        logging_actor_init(ActorCosting)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 """

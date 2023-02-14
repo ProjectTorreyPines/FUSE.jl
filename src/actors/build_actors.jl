@@ -127,13 +127,6 @@ end
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-mutable struct ActorFluxSwing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    operate_at_j_crit::Bool
-    j_tolerance::Real
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -145,6 +138,13 @@ These currents may or may not exceed the OH and TF current limits.""";
         default=true
     )
     j_tolerance = Entry(Real, "-", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
+end
+
+mutable struct ActorFluxSwing <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorFluxSwing
+    operate_at_j_crit::Bool
+    j_tolerance::Real
 end
 
 """
@@ -171,7 +171,7 @@ function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorFluxSwing(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorFluxSwing(dd::IMAS.dd, par::FUSEparameters__ActorFluxSwing; kw...)
     logging_actor_init(ActorFluxSwing)
     par = par(kw...)
     return ActorFluxSwing(dd, par, par.operate_at_j_crit, par.j_tolerance)
@@ -297,21 +297,21 @@ end
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-mutable struct ActorLFSsizing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging_actor_init(ActorLFSsizing)
-        par = par(kw...)
-        return new(dd, par)
-    end
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     do_plot = Entry(Bool, "-", "plot"; default=false)
     verbose = Entry(Bool, "-", "verbose"; default=false)
+end
+
+mutable struct ActorLFSsizing <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorLFSsizing
+    function ActorLFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorLFSsizing; kw...)
+        logging_actor_init(ActorLFSsizing)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 """
@@ -371,13 +371,6 @@ end
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-mutable struct ActorHFSsizing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    stresses_actor::ActorStresses
-    fluxswing_actor::ActorFluxSwing
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -387,6 +380,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     unconstrained_flattop_duration = Entry(Bool, "-", "Maximize flux_duration without targeting a specific value"; default=true)
     do_plot = Entry(Bool, "-", "plot"; default=false)
     verbose = Entry(Bool, "-", "verbose"; default=false)
+end
+
+mutable struct ActorHFSsizing <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorHFSsizing
+    stresses_actor::ActorStresses
+    fluxswing_actor::ActorFluxSwing
 end
 
 """
@@ -413,7 +413,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw_ActorFluxSwing
     return actor
 end
 
-function ActorHFSsizing(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
+function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
     par = act.ActorHFSsizing(kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing; kw_ActorFluxSwing...)
     stresses_actor = ActorStresses(dd, act.ActorStresses; kw_ActorStresses...)
@@ -650,21 +650,21 @@ end
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-mutable struct ActorCXbuild <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging_actor_init(ActorCXbuild)
-        par = par(kw...)
-        return new(dd, par)
-    end
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     rebuild_wall = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=false)
     do_plot = Entry(Bool, "-", "plot"; default=false)
+end
+
+mutable struct ActorCXbuild <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorCXbuild
+    function ActorCXbuild(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild; kw...)
+        logging_actor_init(ActorCXbuild)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 """

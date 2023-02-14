@@ -4,17 +4,17 @@ import TAUENN
 #= ===================== =#
 #  ActorNeoclassical      #
 #= ===================== =#
-mutable struct ActorNeoclassical <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    flux_solutions::AbstractVector{<:TGLFNN.flux_solution}
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     neoclassical_model = Switch(Symbol, [:changhinton], "-", "Neoclassical model to run"; default=:changhinton)
     rho_transport = Entry(AbstractVector{<:Real}, "-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
+end
+
+mutable struct ActorNeoclassical <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorNeoclassical
+    flux_solutions::AbstractVector{<:TGLFNN.flux_solution}
 end
 
 """
@@ -30,7 +30,7 @@ function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorNeoclassical(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
     par = par(kw...)
     return ActorNeoclassical(dd, par, TGLFNN.flux_solution[])
 end

@@ -6,13 +6,6 @@ import Optim
 #= ============ =#
 #  ActorSolovev  #
 #= ============ =#
-mutable struct ActorSolovev <: PlasmaAbstractActor
-    eq::IMAS.equilibrium
-    par::ParametersActor
-    mxh::IMAS.MXH
-    S::MXHEquilibrium.SolovevEquilibrium
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -22,6 +15,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
     area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
     verbose = Entry(Bool, "-", "verbose"; default=false)
+end
+
+mutable struct ActorSolovev <: PlasmaAbstractActor
+    eq::IMAS.equilibrium
+    par::FUSEparameters__ActorSolovev
+    mxh::IMAS.MXH
+    S::MXHEquilibrium.SolovevEquilibrium
 end
 
 """
@@ -42,7 +42,7 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorSolovev(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; kw...)
     logging_actor_init(ActorSolovev)
     par = par(kw...)
 

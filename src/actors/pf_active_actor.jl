@@ -6,28 +6,6 @@ using LinearAlgebra
 #= =============== =#
 #  ActorPFcoilsOpt  #
 #= =============== =#
-Base.@kwdef mutable struct PFcoilsOptTrace
-    params::Vector{Vector{Float64}} = Vector{Float64}[]
-    cost_lcfs::Vector{Float64} = Float64[]
-    cost_currents::Vector{Float64} = Float64[]
-    cost_oh::Vector{Float64} = Float64[]
-    cost_1to1::Vector{Float64} = Float64[]
-    cost_spacing::Vector{Float64} = Float64[]
-    cost_total::Vector{Float64} = Float64[]
-end
-
-mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
-    par::ParametersActor
-    eq_in::IMAS.equilibrium
-    eq_out::IMAS.equilibrium
-    pf_active::IMAS.pf_active
-    bd::IMAS.build
-    symmetric::Bool
-    λ_regularize::Real
-    trace::PFcoilsOptTrace
-    green_model::Symbol
-end
-
 options_green_model = [
         :point => "one filament per coil",
         :simple => "like :point, but OH coils have three filaments",
@@ -55,6 +33,28 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor
     update_equilibrium = Entry(Bool, "-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     do_plot = Entry(Bool, "-", "plot"; default=false)
     verbose = Entry(Bool, "-", "verbose"; default=false)
+end
+
+Base.@kwdef mutable struct PFcoilsOptTrace
+    params::Vector{Vector{Float64}} = Vector{Float64}[]
+    cost_lcfs::Vector{Float64} = Float64[]
+    cost_currents::Vector{Float64} = Float64[]
+    cost_oh::Vector{Float64} = Float64[]
+    cost_1to1::Vector{Float64} = Float64[]
+    cost_spacing::Vector{Float64} = Float64[]
+    cost_total::Vector{Float64} = Float64[]
+end
+
+mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
+    par::FUSEparameters__ActorPFcoilsOpt
+    eq_in::IMAS.equilibrium
+    eq_out::IMAS.equilibrium
+    pf_active::IMAS.pf_active
+    bd::IMAS.build
+    symmetric::Bool
+    λ_regularize::Real
+    trace::PFcoilsOptTrace
+    green_model::Symbol
 end
 
 """
@@ -109,7 +109,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorPFcoilsOpt(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw...)
     logging_actor_init(ActorPFcoilsOpt)
     par = par(kw...)
 

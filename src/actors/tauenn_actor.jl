@@ -3,14 +3,6 @@ import TAUENN
 #= ================ =#
 #     TAUENN actor   #
 #= ================ =#
-
-mutable struct ActorTauenn <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    tauenn_parameters::TAUENN.TauennParameters
-    tauenn_outputs::TAUENN.TauennOutputs
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -25,6 +17,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor whe
     confinement_factor = Entry(Real, "-", "Confinement multiplier"; default=1.0)
     do_plot = Entry(Bool, "-", "plot"; default=false)
     verbose = Entry(Bool, "-", "verbose"; default=false)
+end
+
+mutable struct ActorTauenn <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorTauenn
+    tauenn_parameters::TAUENN.TauennParameters
+    tauenn_outputs::TAUENN.TauennOutputs
 end
 
 """
@@ -45,7 +44,7 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorTauenn(dd::IMAS.dd, par::FUSEparameters__ActorTauenn; kw...)
     logging_actor_init(ActorTauenn)
     par = par(kw...)
 

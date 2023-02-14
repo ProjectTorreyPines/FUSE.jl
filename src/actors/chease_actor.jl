@@ -3,18 +3,18 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-mutable struct ActorCHEASE <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    chease::Union{Nothing,CHEASE.Chease}
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     free_boundary = Entry(Bool, "-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     clear_workdir = Entry(Bool, "-", "Clean the temporary workdir for CHEASE"; default=true)
     rescale_eq_to_ip = Entry(Bool, "-", "Scale equilibrium to match Ip"; default=true)
+end
+
+mutable struct ActorCHEASE <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorCHEASE
+    chease::Union{Nothing,CHEASE.Chease}
 end
 
 """
@@ -30,7 +30,7 @@ function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; kw...)
     logging_actor_init(ActorCHEASE)
     par = par(kw...)
     ActorCHEASE(dd, par, nothing)
@@ -59,6 +59,7 @@ function _step(actor::ActorCHEASE)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
+    par = actor.par
 
     # remove points at high curvature points (ie. X-points)
     r_bound = eqt.boundary.outline.r
@@ -90,8 +91,8 @@ function _step(actor::ActorCHEASE)
             ϵ, z_geo, pressure_sep, Bt_geo,
             r_geo, Ip, r_bound, z_bound, 82,
             rho_pol, pressure, j_tor,
-            rescale_eq_to_ip=actor.par.rescale_eq_to_ip,
-            clear_workdir=actor.par.clear_workdir)
+            rescale_eq_to_ip=par.rescale_eq_to_ip,
+            clear_workdir=par.clear_workdir)
     catch
         display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
         display(plot(psin, pressure))
@@ -100,7 +101,7 @@ function _step(actor::ActorCHEASE)
     end
 
     # convert from fixed to free boundary equilibrium
-    if actor.par.free_boundary
+    if par.free_boundary
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psi_free_rz = VacuumFields.fixed2free(EQ, 128)
         actor.chease.gfile.psirz = psi_free_rz

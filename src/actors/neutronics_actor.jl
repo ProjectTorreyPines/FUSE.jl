@@ -1,6 +1,25 @@
 #= =============== =#
 #  ActorNeutronics  #
 #= =============== =#
+Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    N = Entry(Integer, "-", "Number of particles"; default=100000)
+    step = Entry(Float64, "-", "Interator stepping"; default=0.05)
+    do_plot = Entry(Bool, "-", "plot"; default=false)
+end
+
+mutable struct ActorNeutronics{T} <: PlasmaAbstractActor
+    dd::IMAS.dd{T}
+    par::FUSEparameters__ActorNeutronics
+    function ActorNeutronics{T}(dd::IMAS.dd{T}, par::FUSEparameters__ActorNeutronics; kw...) where {T}
+        logging_actor_init(ActorNeutronics{T})
+        par = par(kw...)
+        return new{T}(dd, par)
+    end
+end
+
+ActorNeutronics(dd::IMAS.dd{T}, par::FUSEparameters__ActorNeutronics; kw...) where {T} = ActorNeutronics{T}(dd, par; kw...)
 
 mutable struct neutron_particle{T<:Real}
     x::T
@@ -17,26 +36,6 @@ end
 
 function Zcoord(n::neutron_particle)
     n.z
-end
-
-mutable struct ActorNeutronics{T} <: PlasmaAbstractActor
-    dd::IMAS.dd{T}
-    par::ParametersActor
-    function ActorNeutronics{T}(dd::IMAS.dd{T}, par::ParametersActor; kw...) where {T}
-        logging_actor_init(ActorNeutronics{T})
-        par = par(kw...)
-        return new{T}(dd, par)
-    end
-end
-
-ActorNeutronics(dd::IMAS.dd{T}, par::ParametersActor; kw...) where {T} = ActorNeutronics{T}(dd, par; kw...)
-
-Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T} <: ParametersActor where {T<:Real}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    N = Entry(Integer, "-", "Number of particles"; default=100000)
-    step = Entry(Float64, "-", "Interator stepping"; default=0.05)
-    do_plot = Entry(Bool, "-", "plot"; default=false)
 end
 
 """
