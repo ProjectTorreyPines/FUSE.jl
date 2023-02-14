@@ -103,8 +103,9 @@ function _step(actor::ActorCHEASE)
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = VacuumFields.fixed2free(EQ, 128)
+        psi_free_rz = VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound)/2)))
         actor.chease.gfile.psirz = psi_free_rz
+        # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
         psi_a = EQ.psi_rz(EQ.axis...)
@@ -123,7 +124,7 @@ function _finalize(actor::ActorCHEASE)
         psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
         psi_a = EQ.psi_rz(EQ.axis...)
         delta = (psi_b - psi_a) / 10.0
-        levels = LinRange(psi_a - delta, psi_b + delta, 101)
+        levels = LinRange(psi_b - delta, psi_b + delta, 11)
         display(contour(EQ.r, EQ.z, transpose(actor.chease.gfile.psirz); levels, aspect_ratio=:equal, clim=(levels[1], levels[end])))
         rethrow(e)
     end
