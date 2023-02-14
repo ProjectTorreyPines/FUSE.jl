@@ -97,7 +97,7 @@ function _step(actor::ActorEquilibriumTransport)
         end
 
         if iter == par.max_iter
-            @warn "Max number of iterations ($max_iter) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $par.convergence_error"
+            @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $(par.convergence_error)"
             break
         end
         iter += 1
