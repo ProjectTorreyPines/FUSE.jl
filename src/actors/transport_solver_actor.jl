@@ -43,7 +43,7 @@ function ActorTransportSolver(dd::IMAS.dd, par::FUSEparameters__ActorTransportSo
     logging_actor_init(ActorTransportSolver)
     par = par(kw...)
     actor_ct = ActorCoreTransport(dd, act.ActorCoreTransport, act; par.rho_transport)
-    actor_ped = ActorPedestal(dd, act)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal)
     ActorTransportSolver(dd, par, actor_ct, actor_ped)
 end
 
