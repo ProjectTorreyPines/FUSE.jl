@@ -107,9 +107,11 @@ function _step(actor::ActorEquilibriumTransport)
         end
 
     finally
-        actor.actor_eq.eq_actor.par = orig_par_chease
-        if actor.actor_eq.par.model == :CHEASE && orig_par_chease.free_boundary
-            finalize(step(actor.actor_eq))
+        if actor.actor_eq.par.model == :CHEASE
+            actor.actor_eq.eq_actor.par = orig_par_chease
+            if orig_par_chease.free_boundary
+                finalize(step(actor.actor_eq))
+            end
         end
     end
 
