@@ -753,13 +753,15 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         pr = [rr for (rr, zz) in slot]
         pz = [zz for (rr, zz) in slot]
 
-        # too small of a private flux region to bother
-        if length(pr) < 10
-            continue
-        end
-
         # remove private flux region from wall (necessary because of Z expansion)
-        wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
+        # this may fail if the private region is small or weirdly shaped
+        try
+            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
+        catch e
+            if !(typeof(e) <: LibGEOS.GEOSError)
+                rethrow(e)
+            end
+        end
 
         # add the divertor slots
         α = 0.2
