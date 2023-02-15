@@ -76,7 +76,7 @@ using Pkg;\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
 Pkg.activate();\
-Pkg.develop(fuse_packages);\
+Pkg.develop(["FUSE"; fuse_packages]);\
 Pkg.add(["Revise", "JuliaFormatter", "Test"]);\
 '
 
