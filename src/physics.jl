@@ -358,7 +358,7 @@ end
 """
     triple_arc(
         r_start::T,
-        r_end::Task,
+        r_end::T,
         height::T,
         small_radius::T,
         mid_radius::T,
@@ -374,7 +374,7 @@ height, small_radius, mid_radius, small_coverage, mid_coverage are 10^exponent (
 """
 function triple_arc(
     r_start::T,
-    r_end::Task,
+    r_end::T,
     height::T,
     small_radius::T,
     mid_radius::T,
