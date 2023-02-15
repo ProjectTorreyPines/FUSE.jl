@@ -225,7 +225,6 @@ web_push:
 
 web:
 	if [ ! -d "$(PWD)/docs/pages" ]; then cd docs; git clone --single-branch -b gh-pages git@github.com:ProjectTorreyPines/FUSE.jl.git pages; fi
-	cd docs/pages; git pull
 	make web_push
 
 web_ci:
