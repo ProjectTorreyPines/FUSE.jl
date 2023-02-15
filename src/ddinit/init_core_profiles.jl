@@ -78,7 +78,7 @@ function init_core_profiles(
         error("Set at least the pedestal density or the greenwald fraction")
     elseif ismissing(ne_ped)
         # get ne_ped from fraction
-        ne_ped = greenwald_fraction * IMAS.greenwald_density(eqt) / 1.35 # 1.35 is fixed constant for initialization
+        ne_ped = greenwald_fraction * IMAS.greenwald_density(eqt) / 1.35 # Use a fixed constant for initialization
     elseif ismissing(greenwald_fraction)
         ne_profile = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_ped * 1.4, ngrid, n_shaping, n_shaping, w_ped)
         nel = IMAS.geometric_midplane_line_averaged_density(eqt, ne_profile, LinRange(0, 1, ngrid))
@@ -104,7 +104,7 @@ function init_core_profiles(
 
     # pedestal
     if ne_ped * greenwald_fraction > IMAS.greenwald_density(eqt)
-        @warn "pedestal density * greenwald_fraction is larger than greenwald density"
+        @warn "ne_ped * greenwald_fraction is larger than greenwald density"
     end
 
     @ddtime summary.local.pedestal.n_e.value = ne_ped
