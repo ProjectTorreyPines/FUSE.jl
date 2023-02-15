@@ -770,8 +770,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     end
 
     # vertical clip
-    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(0, R_hfs_plasma, 100)...))
-    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100)...))
+    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(0.0, R_hfs_plasma, 100.0)...))
+    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100.0)...))
 
     # round corners
     wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
@@ -1001,7 +1001,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         end
     else
         for k in iout
-            L = 0
+            L = 0.0
             R = bd.layer[k].end_radius
             D = minimum(bd.layer[k-1].outline.z) - bd.layer[k].thickness
             U = maximum(bd.layer[k-1].outline.z) + bd.layer[k].thickness
@@ -1023,9 +1023,9 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # display("Layer $layer_index = $(layer.name)")
     # display("Obstr $obstr_index = $(obstr.name)")
     if layer.fs == Int(_out_)
-        l_start = 0
+        l_start = 0.0
         l_end = layer.end_radius
-        o_start = 0
+        o_start = 0.0
         o_end = obstr.end_radius
     else
         if obstr.fs in [Int(_lhfs_), Int(_out_)]
