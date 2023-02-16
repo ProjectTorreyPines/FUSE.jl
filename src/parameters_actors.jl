@@ -30,6 +30,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorTransportSolver::FUSEparameters__ActorTransportSolver{T}
     ActorEquilibriumTransport::FUSEparameters__ActorEquilibriumTransport{T}
     ActorWholeFacility::FUSEparameters__ActorWholeFacility{T}
+    ActorPlasmaLimits::FUSEparameters__ActorPlasmaLimits{T}
 end
 
 function ParametersActors{T}() where {T<:Real}
@@ -64,7 +65,8 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorCoreTransport{T}(),
         FUSEparameters__ActorTransportSolver{T}(),
         FUSEparameters__ActorEquilibriumTransport{T}(),
-        FUSEparameters__ActorWholeFacility{T}()
+        FUSEparameters__ActorWholeFacility{T}(),
+        FUSEparameters__ActorPlasmaLimits{T}()
     )
     setup_parameters(act)
     return act
