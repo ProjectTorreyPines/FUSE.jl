@@ -243,6 +243,50 @@ end
     end
 end
 
+"""
+    DataFrames.DataFrame(results::FUSE.MultiobjectiveOptimizationResults, what::Symbol; filter_invalid::Bool=true)
+
+Convert MultiobjectiveOptimizationResults to DataFrame
+
+`what` must be either :inputs, :outputs, or :all
+"""
+function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol; filter_invalid::Bool=true)
+    @assert what in [:inputs, :outputs, :all] "what must be either :inputs, :outputs, or :all"
+
+    inputs = [pretty_label(item) for item in results.opt_ini]
+    outputs = [pretty_label(item) for item in results.objectives_functions]
+
+    data = Dict()
+    for key in [inputs; outputs]
+        data[key] = Float64[]
+    end
+    for epoch in 1:length(results.state.convergence)
+        sol = results.state.convergence[epoch].population
+        for case in sol
+            for (k, (key, v)) in enumerate(zip(inputs, case.x))
+                push!(data[key], v)
+            end
+            for (k, (key, v)) in enumerate(zip(outputs, case.f))
+                push!(data[key], results.objectives_functions[k](v))
+            end
+        end
+    end
+
+    df = DataFrames.DataFrame(data)
+
+    if filter_invalid
+        df = filter(row -> !any(isinf.(values(row))) && !any(isnan.(values(row))), df)
+    end
+
+    if what == :inputs
+        return df[:, inputs]
+    elseif what == :outputs
+        return df[:, outputs]
+    else
+        return df
+    end
+end
+
 # Everything below is necassary to allow BSON saving/loading of MultiobjectiveOptimizationResults
 import IMASDD
 import OrderedCollections
