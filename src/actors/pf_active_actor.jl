@@ -22,17 +22,17 @@ options_optimization_scheme = [
 Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    green_model = Switch(Symbol, options_green_model, "-", "Model used for the coils Green function calculations"; default=:simple)
-    symmetric = Entry(Bool, "-", "Force PF coils location to be up-down symmetric"; default=true)
-    weight_currents = Entry(Float64, "-", "Weight of current limit constraint"; default=2.0)
-    weight_strike = Entry(Float64, "-", "Weight given to matching the strike-points"; default=0.1)
-    weight_lcfs = Entry(Float64, "-", "Weight given to matching last closed flux surface"; default=1.0)
-    weight_null = Entry(Float64, "-", "Weight given to get field null for plasma breakdown"; default=1E-3)
-    maxiter = Entry(Integer, "-", "Maximum number of optimizer iterations"; default=1000)
-    optimization_scheme = Switch(Symbol, options_optimization_scheme, "-", "Type of PF coil optimization to carry out"; default=:rail)
-    update_equilibrium = Entry(Bool, "-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot = Entry(Bool, "-", "plot"; default=false)
-    verbose = Entry(Bool, "-", "verbose"; default=false)
+    green_model::Switch{Symbol} = Switch(Symbol, options_green_model, "-", "Model used for the coils Green function calculations"; default=:simple)
+    symmetric::Entry{Bool} = Entry(Bool, "-", "Force PF coils location to be up-down symmetric"; default=true)
+    weight_currents::Entry{T} = Entry(T, "-", "Weight of current limit constraint"; default=2.0)
+    weight_strike::Entry{T} = Entry(T, "-", "Weight given to matching the strike-points"; default=0.1)
+    weight_lcfs::Entry{T} = Entry(T, "-", "Weight given to matching last closed flux surface"; default=1.0)
+    weight_null::Entry{T} = Entry(T, "-", "Weight given to get field null for plasma breakdown"; default=1E-3)
+    maxiter::Entry{Int} = Entry(Int, "-", "Maximum number of optimizer iterations"; default=1000)
+    optimization_scheme::Switch{Symbol} = Switch(Symbol, options_optimization_scheme, "-", "Type of PF coil optimization to carry out"; default=:rail)
+    update_equilibrium::Entry{Bool} = Entry(Bool, "-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
 end
 
 Base.@kwdef mutable struct PFcoilsOptTrace

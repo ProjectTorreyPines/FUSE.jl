@@ -14,8 +14,8 @@ include("chease_actor.jl")
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model = Switch(Symbol, [:Solovev, :CHEASE], "-", "Equilibrium actor to run"; default=:Solovev)
-    symmetrize = Entry(Bool, "-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
+    model::Switch{Symbol} = Switch(Symbol, [:Solovev, :CHEASE], "-", "Equilibrium actor to run"; default=:Solovev)
+    symmetrize::Entry{Bool} = Entry(Bool, "-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
 end
 
 mutable struct ActorEquilibrium <: PlasmaAbstractActor

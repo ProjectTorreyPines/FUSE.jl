@@ -77,12 +77,12 @@ function ParametersActors()
 end
 
 """
-    act2json(act::ParametersAllActors, filename::String; kw...)
+    act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
 Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
-function act2json(act::ParametersAllActors, filename::String; kw...)
+function act2json(act::ParametersAllActors, filename::AbstractString; kw...)
     return par2json(act, filename; kw...)
 end
 

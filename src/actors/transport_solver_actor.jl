@@ -6,17 +6,17 @@ import NLsolve
 Base.@kwdef mutable struct FUSEparameters__ActorTransportSolver{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    evolve_Ti = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve ion temperature "; default=:flux_match)
-    evolve_Te = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve electron temperature"; default=:flux_match)
-    evolve_densities = Entry(Union{Dict,Symbol}, "-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
-    evolve_rotation = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve the electron temperature"; default=:fixed)
-    rho_transport = Entry(AbstractVector{<:Real}, "-", "Rho transport grid"; default=0.2:0.1:0.8)
-    evolve_pedestal = Entry(Bool, "-", "Evolve the pedestal inside the transport solver"; default=false)
-    max_iterations = Entry(Int, "-", "Maximum optimizer iterations"; default=50)
-    optimizer_algorithm = Switch(Symbol, [:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    step_size = Entry(Real, "-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.2)
-    do_plot = Entry(Bool, "-", "Plots the flux matching"; default=false)
-    verbose = Entry(Bool, "-", "Print trace and optimization result"; default=false)
+    evolve_Ti::Switch{Symbol} = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve ion temperature "; default=:flux_match)
+    evolve_Te::Switch{Symbol} = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve electron temperature"; default=:flux_match)
+    evolve_densities::Entry{Union{Dict,Symbol}} = Entry(Union{Dict,Symbol}, "-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
+    evolve_rotation::Switch{Symbol} = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve the electron temperature"; default=:fixed)
+    rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "Rho transport grid"; default=0.2:0.1:0.8)
+    evolve_pedestal::Entry{Bool} = Entry(Bool, "-", "Evolve the pedestal inside the transport solver"; default=false)
+    max_iterations::Entry{Int} = Entry(Int, "-", "Maximum optimizer iterations"; default=50)
+    optimizer_algorithm::Switch{Symbol} = Switch(Symbol, [:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    step_size::Entry{T} = Entry(T, "-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.2)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plots the flux matching"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Print trace and optimization result"; default=false)
 end
 
 mutable struct ActorTransportSolver <: PlasmaAbstractActor
@@ -98,11 +98,11 @@ function _step(actor::ActorTransportSolver)
 end
 
 """
-    flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVector{<:Float64})
+    flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVector{<:Real})
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
-function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVector{<:Float64})
+function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVector{<:Real})
     dd = actor.dd
     par = actor.par
 
@@ -124,7 +124,7 @@ function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVect
     return flux_match_errors(dd, par)
 end
 
-function error_transformation!(target::T, output::T, norm::Float64) where T<:AbstractVector{<:Real}
+function error_transformation!(target::T, output::T, norm::Real) where T<:AbstractVector{<:Real}
     error = (target .- output) ./ norm
     return asinh.(error)
 end
