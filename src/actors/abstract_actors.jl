@@ -7,8 +7,8 @@ abstract type PlasmaAbstractActor <: AbstractActor end
 function _finalize(actor::AbstractActor)
     actor
 end
-
-function (actor::AbstractActor)(;kwargs...)
+# constructor for actor
+function (actor::AbstractActor)()
     step(actor)
     finalize(actor)
 end
