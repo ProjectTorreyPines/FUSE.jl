@@ -10,7 +10,7 @@ using Printf
 #= ===== =#
 #  UTILS  #
 #= ===== =#
-include("utils.jl")
+include("utils_begin.jl")
 
 #= =================== =#
 #  ABSTRACT PARAMETERS  #
@@ -83,6 +83,11 @@ include(joinpath("workflows", "DB5_validation_workflow.jl"))
 #  LOGGING  #
 #= ======= =#
 include("logging.jl")
+
+#= ===== =#
+#  UTILS  #
+#= ===== =#
+include("utils_end.jl")
 
 #= ====== =#
 #= EXPORT =#
