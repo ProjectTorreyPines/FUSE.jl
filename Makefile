@@ -1,5 +1,6 @@
-JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
-JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
+JULIA_DIR ?= $(HOME)/.julia
+JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
+JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
 CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
 
@@ -40,6 +41,13 @@ all:
 	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
 	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
 	@echo ''
+
+# remove $HOME/.julia folder while keeping dev/ folder as is
+nuke_julia:
+	mv $(JULIA_PKG_DEVDIR) ~/asddsaasddsa
+	rm -rf $(JULIA_DIR)
+	mkdir -p $(JULIA_DIR)
+	mv ~/asddsaasddsa $(JULIA_PKG_DEVDIR)
 
 registry:
 	julia -e 'using Pkg;Pkg.add("Revise")' # call this first to make sure General registry gets installed
