@@ -60,7 +60,7 @@ end
 
 const ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
 ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
-ObjectiveFunction(:min_log10_levelized_CoE, "log₁₀(\$/kW)", dd -> log10(dd.costing.levelized_CoE, -Inf))
+ObjectiveFunction(:min_log10_levelized_CoE, "log₁₀(\$/kW)", dd -> log10(dd.costing.levelized_CoE), -Inf)
 ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
 ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
 ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)
@@ -70,7 +70,6 @@ function Base.show(io::IO, f::ObjectiveFunction)
     printstyled(io, f.name; bold=true, color=:blue)
     print(io, " [$(f.units)]")
 end
-
 
 # ==================== #
 # constraint functions #
@@ -84,13 +83,13 @@ mutable struct ConstraintFunction
     tolerance::Float64
     # inner constructor to register ConstraintFunction in ConstraintsFunctionsLibrary
     ConstraintFunction(name::Symbol, units::String, func::Function, operation::Function, limit::Float64, tolerance::Float64) = begin
-        @assert operation === == "tolerance specification only used for == constraint"
+        @assert ===(operation, ==) "tolerance specification only used for == constraint"
         cnst = new(name, units, func, operation, limit, tolerance)
         ConstraintFunctionsLibrary[cnst.name] = cnst
         return cnst
     end
     ConstraintFunction(name::Symbol, units::String, func::Function, operation::Function, limit::Float64) = begin
-        @assert operation !== == "Must specify tolerance of == constraint"
+        @assert !==(operation, ==) "Must specify tolerance of == constraint"
         cnst = new(name, units, func, operation, limit, 0.0)
         ConstraintFunctionsLibrary[cnst.name] = cnst
         return cnst
