@@ -3,6 +3,7 @@ JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
 CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
+export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
 PTP_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
 
@@ -42,7 +43,7 @@ all:
 	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
 	@echo ''
 
-# remove $HOME/.julia folder while keeping dev/ folder as is
+# remove everything under $HOME/.julia besides $HOME/.julia/dev
 nuke_julia:
 	mv $(JULIA_PKG_DEVDIR) ~/asddsaasddsa
 	rm -rf $(JULIA_DIR)
@@ -75,6 +76,9 @@ for package in ["Equilibrium", "Broker", "ZMQ"];\
 	end;\
 end;\
 '
+
+threads:
+	julia -e "println(Threads.nthreads())"
 
 develop:
 	# install in global environment to easily develop and test changes made across multiple packages at once
@@ -119,7 +123,11 @@ IJulia:
 using Pkg;\
 Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
 Pkg.build("IJulia");\
+import IJulia;\
+n=string(length(Sys.cpu_info()));\
+IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
 '
+	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
 
 precompile:
