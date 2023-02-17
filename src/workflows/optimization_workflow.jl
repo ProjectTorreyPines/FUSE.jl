@@ -8,17 +8,20 @@ mutable struct MultiobjectiveOptimizationResults
     state::Metaheuristics.State
     opt_ini::Vector{<:AbstractParameter}
     objectives_functions::Vector{<:ObjectiveFunction}
+    constraints_functions::Vector{<:ConstraintFunction}
 end
 
 """
     workflow_multiobjective_optimization(
         ini::ParametersAllInits,
         act::ParametersAllActors,
-        actor_or_workflow::Union{DataType, Function},
+        actor_or_workflow::Union{DataType,Function},
         objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
+        constraints_functions::Vector{<:ObjectiveFunction}=ConstraintFunction[];
         N::Int=10,
         iterations::Int=N,
-        continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing)
+        continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing
+    )
 
 Multi-objective optimization of either an `actor(dd, act)` or a `workflow(ini, act)`
 """
@@ -27,6 +30,7 @@ function workflow_multiobjective_optimization(
     act::ParametersAllActors,
     actor_or_workflow::Union{DataType,Function},
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
+    constraints_functions::Vector{<:ObjectiveFunction}=ConstraintFunction[];
     N::Int=10,
     iterations::Int=N,
     continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing
@@ -56,6 +60,10 @@ function workflow_multiobjective_optimization(
         println(objf)
     end
     println()
+    println("== Constraints ==")
+    for cnst in constraints_functions
+        println(cnst)
+    end
 
     # optimization boundaries
     bounds = [[optpar.lower for optpar in opt_ini] [optpar.upper for optpar in opt_ini]]'
@@ -76,10 +84,10 @@ function workflow_multiobjective_optimization(
         algorithm.status = continue_results.state
     end
     flush(stdout)
-    p = Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, p), bounds, algorithm)
+    p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, p), bounds, algorithm)
 
-    return MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions)
+    return MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
 end
 
 """
