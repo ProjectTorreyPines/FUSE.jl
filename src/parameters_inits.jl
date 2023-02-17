@@ -227,9 +227,9 @@ Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
 function ini2json(ini::ParametersAllInits, filename::AbstractString; kw...)
-    return par2json(ini, filename; kw...)
+    return SimulationParameters.par2json(ini, filename; kw...)
 end
 
 function json2ini(filename::AbstractString)
-    return json2par(filename, ParametersInits())
+    return SimulationParameters.json2par(filename, ParametersInits())
 end

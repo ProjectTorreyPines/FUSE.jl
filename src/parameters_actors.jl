@@ -83,11 +83,11 @@ Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
 function act2json(act::ParametersAllActors, filename::AbstractString; kw...)
-    return par2json(act, filename; kw...)
+    return SimulationParameters.par2json(act, filename; kw...)
 end
 
 function json2act(filename::AbstractString)
-    return json2par(filename, ParametersActors())
+    return SimulationParameters.json2par(filename, ParametersActors())
 end
 
 #= ======= =#
