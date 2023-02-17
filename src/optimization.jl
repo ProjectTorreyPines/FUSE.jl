@@ -1,6 +1,7 @@
 import Metaheuristics
 using ProgressMeter
 import Distributed
+import Dates
 ProgressMeter.ijulia_behavior(:clear)
 
 mutable struct ObjectiveFunction
@@ -73,6 +74,10 @@ function optimization_engine(ini::ParametersAllInits, act::ParametersAllActors, 
         else
             dd = actor_or_workflow(ini, act)
         end
+        # save simulation data to directory
+        topdirname = "optimization_runs"
+        mkpath(topdirname)
+        save(dd, ini, act, joinpath(topdirname, "$(Dates.now())"); freeze=true)
         # evaluate multiple objectives
         return collect(map(f -> f(dd), objectives_functions)), x * 0, x * 0
     catch
