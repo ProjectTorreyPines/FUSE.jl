@@ -61,23 +61,25 @@ mutable struct ConstraintFunction
     limit::Real
     tolerance::Real
     # inner constructor to register Constraint functions in ConstraintsFunctionsLibrary
-    ConstraintFunction(name, units, func,operation, limit ,tolerance) = begin
-        constraint = new(name, units, func,operation,limit,tolerance)
+    ConstraintFunction(name::Symbol, units::String, func::Function, operation::Function, limit::Real, tolerance::Real) = begin
+        @assert operation === == "tolerance specification only used for == constraint"
+        constraint = new(name, units, func, operation, limit, tolerance)
+        ConstraintFunctionsLibrary[constraint.name] = constraint
+        return constraint
+    end
+    ConstraintFunction(name::Symbol, units::String, func::Function, operation::Function, limit::Real) = begin
+        @assert operation !== == "Must specify tolerance of == constraint"
+        constraint = new(name, units, func, operation, limit, 0.0)
         ConstraintFunctionsLibrary[constraint.name] = constraint
         return constraint
     end
 end
 
 function (constraint::ConstraintFunction)(dd::IMAS.dd)
-    if constraint.operation == ==
-        return sqrt((constraint.func(dd) - constraint.limit)^2) / constraint.limit < constraint.tolerance
-    elseif constraint.operation == >
-        return constraint.limit < (1+constraint.tolerance) * constraint.func(dd) 
-    elseif constraint.operation == <
-        return  (1+constraint.tolerance) * constraint.limit >  constraint.func(dd)
+    if constraint.operation === ==
+        return abs(constraint.func(dd) - constraint.limit) / constraint.tolerance < 1.0
     else
-        error("operation unknown $(constraint.operation)")
-    end
+        return  constraint.operation(constraint.func(dd), constraint.limit)
 end
 
 
@@ -140,7 +142,7 @@ function optimization_engine(
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions), [X[k, :] for k in 1:size(X)[1]], [Y[k, :] for k in 1:size(Y)[1]])
+    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(objectives_functions))
     G = similar(X)
     H = zeros(size(Y)[1], length(constraints_functions))
