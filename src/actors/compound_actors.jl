@@ -4,9 +4,9 @@
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot = Entry(Bool, "-", "plot"; default=false)
-    max_iter = Entry(Int, "-", "max number of transport-equilibrium iterations"; default=5)
-    convergence_error = Entry(Float64, "-", "Convergence error threshold"; default=1E-2)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    max_iter::Entry{Int} = Entry(Int, "-", "max number of transport-equilibrium iterations"; default=5)
+    convergence_error::Entry{T} = Entry(T, "-", "Convergence error threshold"; default=1E-2)
 end
 
 mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
@@ -142,6 +142,7 @@ mutable struct ActorWholeFacility <: FacilityAbstractActor
     par::FUSEparameters__ActorWholeFacility
     act::ParametersAllActors
     EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport}
+    PlasmaLimits::Union{Nothing,ActorPlasmaLimits}
     HFSsizing::Union{Nothing,ActorHFSsizing}
     LFSsizing::Union{Nothing,ActorLFSsizing}
     CXbuild::Union{Nothing,ActorCXbuild}
@@ -159,6 +160,7 @@ end
 
 Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
 * ActorEquilibriumTransport
+* ActorPlasmaLimits
 * ActorHFSsizing
 * ActorLFSsizing
 * ActorCXbuild
@@ -196,6 +198,7 @@ function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility
         nothing,
         nothing,
         nothing,
+        nothing,
         nothing)
 end
 
@@ -203,6 +206,7 @@ function _step(actor::ActorWholeFacility)
     dd = actor.dd
     act = actor.act
     actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
+    actor.PlasmaLimits == ActorPlasmaLimits(dd, act)
     actor.HFSsizing = ActorHFSsizing(dd, act)
     actor.LFSsizing = ActorLFSsizing(dd, act)
     actor.CXbuild = ActorCXbuild(dd, act)

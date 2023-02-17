@@ -6,9 +6,9 @@ import NumericalIntegration: integrate
 Base.@kwdef mutable struct FUSEparameters__ActorNBIsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Width of the deposition profile"; default=0.3)
-    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Radial location of the deposition profile"; default=0.0)
-    current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.3)
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.3)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.3)
 end
 
 mutable struct ActorNBIsimple <: HCDAbstractActor
@@ -94,9 +94,9 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorECsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Width of the deposition profile"; default=0.1)
-    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Radial location of the deposition profile"; default=0.0)
-    current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.2)
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.1)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.2)
 end
 
 mutable struct ActorECsimple <: HCDAbstractActor
@@ -174,9 +174,9 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Width of the deposition profile"; default=0.1)
-    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Radial location of the deposition profile"; default=0.0)
-    current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.125)
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.1)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.125)
 end
 
 mutable struct ActorICsimple <: HCDAbstractActor
@@ -254,9 +254,9 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorLHsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Width of the deposition profile"; default=0.15)
-    rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "-", "Radial location of the deposition profile"; default=0.6)
-    current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.4)
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.15)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.6)
+    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.4)
 end
 
 mutable struct ActorLHsimple <: HCDAbstractActor

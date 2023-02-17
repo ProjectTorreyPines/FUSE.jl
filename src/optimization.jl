@@ -1,6 +1,7 @@
 import Metaheuristics
 using ProgressMeter
 import Distributed
+import Dates
 ProgressMeter.ijulia_behavior(:clear)
 
 mutable struct ObjectiveFunction
@@ -46,6 +47,7 @@ end
 
 const ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
 ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
+ObjectiveFunction(:min_log10_levelized_CoE, "log₁₀(\$/kW)", dd -> log10(dd.costing.levelized_CoE, -Inf))
 ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
 ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
 ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)
@@ -113,6 +115,10 @@ function optimization_engine(
         else
             dd = actor_or_workflow(ini, act)
         end
+        # save simulation data to directory
+        topdirname = "optimization_runs"
+        mkpath(topdirname)
+        save(dd, ini, act, joinpath(topdirname, "$(Dates.now())"); freeze=true)
         # evaluate multiple objectives
         return collect(map(f -> f(dd), objectives_functions)),collect(map(f -> f(dd), constraint_functions)), x * 0, x * 0
     catch

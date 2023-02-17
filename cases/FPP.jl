@@ -76,10 +76,10 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     # squareness
     ini.equilibrium.ζ = 0.15
     # act.ActorEquilibrium.model = :CHEASE
+    act.ActorEquilibrium.symmetrize = true
 
     # simple analytic AT confinement
     act.ActorTauenn.transport_model = :ds03
-    act.ActorTauenn.confinement_factor = 1.4
 
     # add wall layer
     if true
