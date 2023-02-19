@@ -100,14 +100,16 @@ end
 
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
     if cnst.operation === ==
-        return abs(cnst.func(dd) - cnst.limit) / cnst.tolerance < 1.0
-    else
-        return  cnst.operation(cnst.func(dd), cnst.limit)
+        return (cnst.func(dd) - cnst.limit)^2 - cnst.tolerance^2
+    elseif cnst.operation(1.0, 0.0) # > or >=
+        return  - (cnst.func(dd) - cnst.limit)
+    else # < or <=
+        return  cnst.func(dd) - cnst.limit
     end
 end
 
 const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
-ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-3)
+ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-2)
 ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
 ConstraintFunction(:steady_state, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, >, 10.0)
 
@@ -115,6 +117,9 @@ function Base.show(io::IO, f::ConstraintFunction)
     printstyled(io, f.name; bold=true, color=:blue)
     print(io, " $(f.operation)")
     print(io, " $(f.limit)")
+    if ===(f.operation, ==)
+        print(io, " ± $(f.tolerance * f.limit)")
+    end
     print(io, " [$(f.units)]")
 end
 
@@ -138,6 +143,8 @@ function optimization_engine(
             optpar.value = xx
         end
     end
+    topdirname = "optimization_runs"
+    mkpath(topdirname)
     # run the problem
     try
         if typeof(actor_or_workflow) <: DataType
@@ -147,14 +154,19 @@ function optimization_engine(
             dd = actor_or_workflow(ini, act)
         end
         # save simulation data to directory
-        topdirname = "optimization_runs"
-        mkpath(topdirname)
-        save(dd, ini, act, joinpath(topdirname, "$(Dates.now())"); freeze=true)
+        savedir = joinpath(topdirname, "$(Dates.now())")
+        save(dd, ini, act, savedir; freeze=true)
         # evaluate multiple objectives
         return collect(map(f -> f(dd), objectives_functions)), Float64[], collect(map(h -> h(dd), constraints_functions))
-    catch
-        # rethrow() 
-        return Float64[Inf for f in objectives_functions], Float64[], Float64[Inf for h in objectives_functions]
+    catch e
+        # save empty dd and error to directory
+        savedir = joinpath(topdirname, "$(Dates.now())")
+        save(IMAS.dd(), ini, act, savedir; freeze=true)
+        open(joinpath(savedir, "error.txt"), "w") do file
+            showerror(file, e, catch_backtrace())
+        end
+        # rethrow() # uncomment for debugging purposes
+        return Float64[Inf for f in objectives_functions], Float64[], Float64[Inf for h in constraints_functions]
     end
 end
 

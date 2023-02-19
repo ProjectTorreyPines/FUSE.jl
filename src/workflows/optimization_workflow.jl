@@ -77,8 +77,8 @@ function workflow_multiobjective_optimization(
     end
 
     # optimize
-    options = Metaheuristics.Options(seed=1, parallel_evaluation=true, store_convergence=true, iterations=iterations)
-    algorithm = Metaheuristics.NSGA2(; N, options)
+    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true)
+    algorithm = Metaheuristics.NSGA2(; N, options) # must do something here
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state
@@ -259,7 +259,7 @@ Convert MultiobjectiveOptimizationResults to DataFrame
 `what` must be either :inputs, :outputs, or :all
 """
 function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol; filter_invalid::Bool=true)
-    @assert what in [:inputs, :outputs, :all] "what must be either :inputs, :outputs, or :all"
+    @assert what in [:inputs, :outputs, :all] "`what` must be either :inputs, :outputs, or :all"
 
     inputs = [pretty_label(item) for item in results.opt_ini]
     outputs = [pretty_label(item) for item in results.objectives_functions]
