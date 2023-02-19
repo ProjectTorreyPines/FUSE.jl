@@ -17,7 +17,7 @@ end
         act::ParametersAllActors,
         actor_or_workflow::Union{DataType,Function},
         objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
-        constraints_functions::Vector{<:ObjectiveFunction}=ConstraintFunction[],
+        constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[],
         N::Int=10,
         iterations::Int=N,
         continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing
@@ -29,8 +29,8 @@ function workflow_multiobjective_optimization(
     ini::ParametersAllInits,
     act::ParametersAllActors,
     actor_or_workflow::Union{DataType,Function},
-    objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
-    constraints_functions::Vector{<:ObjectiveFunction}=ConstraintFunction[],
+    objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
+    constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
     N::Int=10,
     iterations::Int=N,
     continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing

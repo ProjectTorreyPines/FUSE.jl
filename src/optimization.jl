@@ -68,6 +68,8 @@ ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.o
 
 function Base.show(io::IO, f::ObjectiveFunction)
     printstyled(io, f.name; bold=true, color=:blue)
+    print(io, " →")
+    print(io, " $(f.target)")
     print(io, " [$(f.units)]")
 end
 
@@ -104,14 +106,14 @@ function (cnst::ConstraintFunction)(dd::IMAS.dd)
     end
 end
 
-const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}()
+const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
 ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-3)
 ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
-ConstraintFunction(:steady_state, "MW", dd -> dd.build.oh.flattop_duration / 3600.0, >, 10.0)
+ConstraintFunction(:steady_state, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, >, 10.0)
 
 function Base.show(io::IO, f::ConstraintFunction)
     printstyled(io, f.name; bold=true, color=:blue)
-    print(io, " $(f.func)")
+    print(io, " $(f.operation)")
     print(io, " $(f.limit)")
     print(io, " [$(f.units)]")
 end
