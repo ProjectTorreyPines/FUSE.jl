@@ -749,7 +749,7 @@ function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         κ in Interact.slider(LinRange(1, 3, n), value=mxh.κ, label="κ"),
         #tilt in Interact.slider(LinRange(-1,1,n);value=mxh.c0,label="tilt"),
         #ovality in Interact.slider(LinRange(-1,1,n);value=mxh.c[1],label="ovality"),
-        triangularity in Interact.slider(LinRange(-1, 1, n), value=mxh.s[1], label="δ"),
+        triangularity in Interact.slider(LinRange(-1, 1, n), value=sin(mxh.s[1]), label="δ"),
         #s_shape in Interact.slider(LinRange(-1,1,n);value=mxh.c[2],label="s1"),
         #squareness in Interact.slider(LinRange(-1, 1, n), value=-(mxh.s[2] + mxh.s[3]) / 2.0, label="ζ"),
         squareness in Interact.slider(LinRange(-1, 1, n), value=-mxh.s[2], label="ζ"),
@@ -760,7 +760,7 @@ function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mxh.κ = κ
         #mxh.c0=tilt
         #mxh.c[1]=ovality
-        mxh.s[1] = triangularity
+        mxh.s[1] = asin(triangularity)
         #mxh.c[2]=s_shape
         mxh.s[2] = -squareness
         #mxh.c[3]=c3
@@ -817,7 +817,7 @@ function square_miller(
     mxh = IMAS.MXH(R0, 2)
     mxh.ϵ = rmin_over_R0
     mxh.κ = elongation
-    mxh.s[1] = triangularity
+    mxh.s[1] = asin(triangularity)
     mxh.s[2] = -squareness
 
     if exact
