@@ -106,18 +106,23 @@ function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symb
     dfs = DataFrames.DataFrame[]
     for kdf in 1:length(extracts)
         df = DataFrames.DataFrame(load(dirs[1], extracts[kdf]))
-        for k in 1:length(dirs)-1
+        for k in 2:length(dirs)
             push!(df, df[1, :])
         end
         push!(dfs, df)
     end
     p = ProgressMeter.Progress(length(dirs); showspeed=true)
-    Threads.@threads for (k, dir) in collect(enumerate(dirs))
-        tmp = load(dirs[k], extracts)
-        for kdf in 1:length(extracts)
-            dfs[kdf][k, :] = tmp[kdf]
+    GC.enable(false) #https://github.com/JuliaIO/HDF5.jl/pull/1049
+    try
+        Threads.@threads for k in 1:length(dirs)
+            tmp = load(dirs[k], extracts)
+            for kdf in 1:length(extracts)
+                dfs[kdf][k, :] = tmp[kdf]
+            end
+            ProgressMeter.next!(p)
         end
-        ProgressMeter.next!(p)
+    finally
+        GC.enable(true)
     end
     dfs
 end
