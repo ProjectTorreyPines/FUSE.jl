@@ -190,7 +190,7 @@ function _finalize(
     # since Solovev will not satisfy the original boundary
     eqt.boundary.outline.r, eqt.boundary.outline.z = actor.mxh()
     eqt.boundary.elongation = actor.mxh.κ
-    eqt.boundary.triangularity = asin(actor.mxh.s[1])
+    eqt.boundary.triangularity = sin(actor.mxh.s[1])
     eqt.boundary.squareness = -actor.mxh.s[2]
     eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
     eqt.boundary.geometric_axis.r = actor.mxh.R0

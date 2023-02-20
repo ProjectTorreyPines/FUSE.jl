@@ -6,19 +6,28 @@
         dd::IMAS.dd,
         ini::ParametersAllInits,
         act::ParametersAllActors,
-        dirname::AbstractString)
+        dirname::AbstractString;
+        freeze::Bool=true,
+        format::Symbol=:hdf)
 
-Save FUSE dd, ini, act as JSON files in a folder
+Save FUSE dd, ini, act files in a folder
+`dd` can be saved in JSON or HDF format
 """
 function save(
     dd::IMAS.dd,
     ini::ParametersAllInits,
     act::ParametersAllActors,
     dirname::AbstractString;
-    freeze::Bool=true)
+    freeze::Bool=true,
+    format::Symbol=:hdf)
 
-    mkdir(dirname) # will purposly error if directory exists or path to directory does not exist
-    IMAS.imas2json(dd, joinpath(dirname, "dd.json"); freeze)
+    @assert format in [:hdf, :json] "format must be either `:hdf` or `:json`"
+    mkdir(dirname) # purposely error if directory exists or path does not exist
+    if format == :hdf
+        IMAS.imas2hdf(dd, joinpath(dirname, "dd.h5"); freeze)
+    elseif format == :json
+        IMAS.imas2json(dd, joinpath(dirname, "dd.json"); freeze)
+    end
     ini2json(ini, joinpath(dirname, "ini.json"))
     act2json(act, joinpath(dirname, "act.json"))
     return nothing
@@ -27,10 +36,14 @@ end
 """
     load(dirname::AbstractString)
 
-Read dd, ini, act from JSON files in a folder
+Read dd, ini, act from files in a folder
 """
 function load(dirname::AbstractString)
-    dd = IMAS.json2imas(joinpath(dirname, "dd.json"))
+    if isfile(joinpath(dirname, "dd.h5"))
+        dd = IMAS.hdf2imas(joinpath(dirname, "dd.h5"))
+    else
+        dd = IMAS.json2imas(joinpath(dirname, "dd.json"))
+    end
     ini = json2ini(joinpath(dirname, "ini.json"))
     act = json2act(joinpath(dirname, "act.json"))
     return dd, ini, act
@@ -54,7 +67,12 @@ function load(dir::AbstractString, extract::Dict{Symbol,Function})::Dict{Symbol,
     results = Dict{Symbol,Any}()
     dd, ini, act = FUSE.load(dir)
     for key in collect(keys(extract))
-        results[key] = extract[key](dd, ini, act)
+        value = try
+            extract[key](dd, ini, act)
+        catch e
+            NaN
+        end
+        results[key] = value
     end
     results
 end

@@ -8,17 +8,20 @@ mutable struct MultiobjectiveOptimizationResults
     state::Metaheuristics.State
     opt_ini::Vector{<:AbstractParameter}
     objectives_functions::Vector{<:ObjectiveFunction}
+    constraints_functions::Vector{<:ConstraintFunction}
 end
 
 """
     workflow_multiobjective_optimization(
         ini::ParametersAllInits,
         act::ParametersAllActors,
-        actor_or_workflow::Union{DataType, Function},
+        actor_or_workflow::Union{DataType,Function},
         objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
+        constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[],
         N::Int=10,
         iterations::Int=N,
-        continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing)
+        continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing
+    )
 
 Multi-objective optimization of either an `actor(dd, act)` or a `workflow(ini, act)`
 """
@@ -26,7 +29,8 @@ function workflow_multiobjective_optimization(
     ini::ParametersAllInits,
     act::ParametersAllActors,
     actor_or_workflow::Union{DataType,Function},
-    objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
+    objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
+    constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
     N::Int=10,
     iterations::Int=N,
     continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing
@@ -56,6 +60,10 @@ function workflow_multiobjective_optimization(
         println(objf)
     end
     println()
+    println("== Constraints ==")
+    for cnst in constraints_functions
+        println(cnst)
+    end
 
     # optimization boundaries
     bounds = [[optpar.lower for optpar in opt_ini] [optpar.upper for optpar in opt_ini]]'
@@ -69,17 +77,17 @@ function workflow_multiobjective_optimization(
     end
 
     # optimize
-    options = Metaheuristics.Options(seed=1, parallel_evaluation=true, store_convergence=true, iterations=iterations)
-    algorithm = Metaheuristics.NSGA2(; N, options)
+    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true)
+    algorithm = Metaheuristics.NSGA2(; N, options) # must do something here
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state
     end
     flush(stdout)
-    p = Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, p), bounds, algorithm)
+    p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, p), bounds, algorithm)
 
-    return MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions)
+    return MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
 end
 
 """
@@ -250,8 +258,8 @@ Convert MultiobjectiveOptimizationResults to DataFrame
 
 `what` must be either :inputs, :outputs, or :all
 """
-function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol; filter_invalid::Bool=true)
-    @assert what in [:inputs, :outputs, :all] "what must be either :inputs, :outputs, or :all"
+function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol=:all; filter_invalid::Bool=true)
+    @assert what in [:inputs, :outputs, :all] "`what` must be either :inputs, :outputs, or :all"
 
     inputs = [pretty_label(item) for item in results.opt_ini]
     outputs = [pretty_label(item) for item in results.objectives_functions]
