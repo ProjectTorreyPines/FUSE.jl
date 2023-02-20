@@ -64,17 +64,25 @@ Read dd, ini, act from JSON files in a folder and extract some data from them
 
 """
 function load(dir::AbstractString, extract::Dict{Symbol,Function})::Dict{Symbol,Any}
-    results = Dict{Symbol,Any}()
+    return load(dir, [extract])[1]
+end
+
+function load(dir::AbstractString, extracts::Vector{Dict{Symbol,Function}})::Vector{Dict{Symbol,Any}}
     dd, ini, act = FUSE.load(dir)
-    for key in collect(keys(extract))
-        value = try
-            extract[key](dd, ini, act)
-        catch e
-            NaN
+    out = Dict{Symbol,Any}[]
+    for extract in extracts
+        results = Dict{Symbol,Any}()
+        for key in collect(keys(extract))
+            value = try
+                extract[key](dd, ini, act)
+            catch e
+                NaN
+            end
+            results[key] = value
         end
-        results[key] = value
+        push!(out, results)
     end
-    results
+    return out
 end
 
 """
@@ -91,14 +99,25 @@ Read dd, ini, act from JSON files from multiple directores and extract some data
         )
 """
 function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function})::DataFrames.DataFrame
-    df = DataFrames.DataFrame(load(dirs[1], extract))
-    for k in 1:length(dirs)-1
-        push!(df, df[1, :])
+    return load(dirs, [extract])[1]
+end
+
+function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symbol,Function}})::Vector{DataFrames.DataFrame}
+    dfs = DataFrames.DataFrame[]
+    for kdf in 1:length(extracts)
+        df = DataFrames.DataFrame(load(dirs[1], extracts[kdf]))
+        for k in 1:length(dirs)-1
+            push!(df, df[1, :])
+        end
+        push!(dfs, df)
     end
     p = ProgressMeter.Progress(length(dirs); showspeed=true)
     Threads.@threads for (k, dir) in collect(enumerate(dirs))
-        df[k, :] = load(dirs[k], extract)
+        tmp = load(dirs[k], extracts)
+        for kdf in 1:length(extracts)
+            dfs[kdf][k, :] = tmp[kdf]
+        end
         ProgressMeter.next!(p)
     end
-    df
+    dfs
 end
