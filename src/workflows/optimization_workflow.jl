@@ -258,7 +258,7 @@ Convert MultiobjectiveOptimizationResults to DataFrame
 
 `what` must be either :inputs, :outputs, or :all
 """
-function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol; filter_invalid::Bool=true)
+function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol=:all; filter_invalid::Bool=true)
     @assert what in [:inputs, :outputs, :all] "`what` must be either :inputs, :outputs, or :all"
 
     inputs = [pretty_label(item) for item in results.opt_ini]
