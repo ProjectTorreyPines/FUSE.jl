@@ -99,8 +99,8 @@ mutable struct ConstraintFunction
 end
 
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
-    if cnst.operation === ==
-        return (cnst.func(dd) - cnst.limit)^2 - cnst.tolerance^2
+    if ===(cnst.operation, ==)
+        return (cnst.func(dd) - cnst.limit)^2 - (cnst.limit * cnst.tolerance)^2
     elseif cnst.operation(1.0, 0.0) # > or >=
         return  - (cnst.func(dd) - cnst.limit)
     else # < or <=
@@ -154,13 +154,13 @@ function optimization_engine(
             dd = actor_or_workflow(ini, act)
         end
         # save simulation data to directory
-        savedir = joinpath(topdirname, "$(Dates.now())")
+        savedir = joinpath(topdirname, "$(Dates.now())__$(getpid())")
         save(dd, ini, act, savedir; freeze=true)
         # evaluate multiple objectives
         return collect(map(f -> f(dd), objectives_functions)), Float64[], collect(map(h -> h(dd), constraints_functions))
     catch e
         # save empty dd and error to directory
-        savedir = joinpath(topdirname, "$(Dates.now())")
+        savedir = joinpath(topdirname, "$(Dates.now())__$(getpid())")
         save(IMAS.dd(), ini, act, savedir; freeze=true)
         open(joinpath(savedir, "error.txt"), "w") do file
             showerror(file, e, catch_backtrace())
