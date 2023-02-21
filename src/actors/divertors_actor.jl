@@ -1,46 +1,10 @@
 #= ============== =#
 #  ActorDivertors  #
 #= ============== =#
-Base.@kwdef mutable struct FUSEparameters__DivertorParameters <: ParametersActorSet 
+Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    inner = Entry(FUSEparameters__DivertorLegParameters, "-","inner divertor leg parameters")
-    outer = Entry(FUSEparameters__DivertorLegParameters, "-","outer  divertor leg parameters")
-    dome = Entry(FUSEparameters__DivertorDomeParameters, "-","divertor dome parameters")
-end
-
-Base.@kwdef mutable struct FUSEparameters__DivertorDomeParameters <: ParametersActorSet 
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-   
-end
-
-Base.@kwdef mutable struct FUSEparameters__DivertorLegParameters <: ParametersActorSet 
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_sett
-    target = Entry(FUSEparameters__DivertorTargetParameters, "-","targe divertor parameters")
-    baffle_cfr = Entry(FUSEparameters__DivertorBaffleParameters, "-","cfr divertor baffle parameters")
-    baffle_pfr = Entry(FUSEparameters__DivertorBaffleParameters, "-","pfr divertor baffle parameters")
-end
-
-Base.@kwdef mutable struct FUSEparameters__DivertorBaffleParameters <: ParametersActorSet 
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_sett
-end
-
-Base.@kwdef mutable struct FUSEparameters__DivertorTargetParameters <: ParametersActorSet 
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_sett
-end
-#alternative dict based approach
-DicDivertorParameters = Dict(:lower => Dict(:a=>1),:upper => Dict(:b=>2))
-
-Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor 
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    lower = Entry(FUSEparameters__DivertorParameters, "-","lower divertor parameters")
-    upper = Entry(FUSEparameters__DivertorParameters, "-","upper divertor parameters")
-    thermal_power_extraction_efficiency = Entry(Real, "-",
+    thermal_power_extraction_efficiency::Entry{T} = Entry(T, "-",
         "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures.";
         default=1.0)
 end
@@ -48,13 +12,12 @@ end
 mutable struct ActorDivertors <: ReactorAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorDivertors
+    thermal_power_extraction_efficiency::Real
 end
 
 """
     ActorSimpleDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
-
 Evaluates divertor loading and deposited power
-
 !!! note 
     Stores data in `dd.divertors`
 """
@@ -69,7 +32,7 @@ end
 function ActorDivertors(dd::IMAS.dd, par::FUSEparameters__ActorDivertors; kw...)
     logging_actor_init(ActorDivertors)
     par = par(kw...)
-    return ActorDivertors(dd, par)
+    return ActorDivertors(dd, par, par.thermal_power_extraction_efficiency)
 end
 
 function _step(actor::ActorDivertors)
@@ -109,7 +72,6 @@ end
 
 """
     divertor_radiated(dd::IMAS.dd)
-
 dummy divertor_radiated now assumed at zero"""
 function divertor_radiated(dd)
     return zeros(length(dd.divertors.time))
@@ -117,7 +79,6 @@ end
 
 """
     divertor_reflection(dd::IMAS.dd)
-
 dummy divertor_reflection now assumed at zero"""
 function divertor_reflection(dd)
     return zeros(length(dd.divertors.time))
@@ -125,7 +86,6 @@ end
 
 """
     divertor_recombination_neutrals(dd::IMAS.dd)
-
 dummy divertor_recombination_neutrals power calculation now assumed at zero"""
 function divertor_recombination_neutrals(dd)
     return zeros(length(dd.divertors.time))

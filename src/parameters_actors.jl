@@ -1,3 +1,4 @@
+# why not an parametric struct with auto-typing?
 mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     _parent::WeakRef
     _name::Symbol
@@ -16,6 +17,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorQEDcurrent::FUSEparameters__ActorQEDcurrent{T}
     ActorSteadyStateCurrent::FUSEparameters__ActorSteadyStateCurrent{T}
     ActorDivertors::FUSEparameters__ActorDivertors{T}
+    ActorPlasmaFacingSurfaces::FUSEparameters__ActorPlasmaFacingSurfaces
     ActorNBIsimple::FUSEparameters__ActorNBIsimple{T}
     ActorECsimple::FUSEparameters__ActorECsimple{T}
     ActorICsimple::FUSEparameters__ActorICsimple{T}
@@ -32,6 +34,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorWholeFacility::FUSEparameters__ActorWholeFacility{T}
 end
 
+#could make an autobuild for the constructor 
 function ParametersActors{T}() where {T<:Real}
     act = ParametersActors{T}(
         WeakRef(nothing),
@@ -51,6 +54,7 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorQEDcurrent{T}(),
         FUSEparameters__ActorSteadyStateCurrent{T}(),
         FUSEparameters__ActorDivertors{T}(),
+        FUSEparameters__ActorPlasmaFacingSurfaces(),
         FUSEparameters__ActorNBIsimple{T}(),
         FUSEparameters__ActorECsimple{T}(),
         FUSEparameters__ActorICsimple{T}(),
