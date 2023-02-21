@@ -155,7 +155,7 @@ function optimization_engine(
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(dd, ini, act, savedir; freeze=true)
+            save(savedir, dd, ini, act; freeze=true)
         end
         # evaluate multiple objectives
         return collect(map(f -> f(dd), objectives_functions)), collect(map(g -> g(dd), constraints_functions)), Float64[]
@@ -163,10 +163,7 @@ function optimization_engine(
         # save empty dd and error to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(IMAS.dd(), ini, act, savedir; freeze=true)
-            open(joinpath(savedir, "error.txt"), "w") do file
-                showerror(file, e, catch_backtrace())
-            end
+            save(savedir, IMAS.dd(), ini, act, e; freeze=true)
         end
         # rethrow() # uncomment for debugging purposes
         return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
