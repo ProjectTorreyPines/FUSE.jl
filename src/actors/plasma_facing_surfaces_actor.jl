@@ -1,7 +1,7 @@
 #= ============== =#
 #  ActorPlasmaFacingSurfaces #
 #= ============== =#
-
+]
 # should be the content below into a module to avoid unwanted redefinition of methods?
 # can add auto export of all FUSEParameters and Actor structs if needed.
 # Can inject directly struct def into module with "@newactor module ActorName"
@@ -97,7 +97,9 @@ Evaluates divertor loading and deposited power
 """
 @new_actor ActorPlasmaFacingSurfaces
 
-function _step(actor::ActorPlasmaFacingSurfaces)
+function _step(actor::ActorPlasmaFacingSurfaces; do_plot=true)
     dd = actor.dd
-    #empty!(dd.divertors)
+    pfs = PlasmaFacingSurfaces.PFSDesign(eqt)
+    pfs(actor.par.FUSEParameters_; do_plot=do_plot)
+    export2ddwall(dd,pfs)
 end
