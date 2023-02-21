@@ -11,6 +11,7 @@
         format::Symbol=:hdf)
 
 Save FUSE dd, ini, act files in a folder
+
 `dd` can be saved in JSON or HDF format
 """
 function save(
@@ -30,22 +31,36 @@ function save(
     end
     ini2json(ini, joinpath(dirname, "ini.json"))
     act2json(act, joinpath(dirname, "act.json"))
-    return nothing
+    return dirname
 end
 
 """
     load(dirname::AbstractString)
 
-Read dd, ini, act from files in a folder
+Returns (dd, ini, act) from files read in a folder
+
+`dd` can be in in JSON `dd.json` or HDF `dd.h5` format.
+
+Returns `missing` for files are not there
 """
 function load(dirname::AbstractString)
     if isfile(joinpath(dirname, "dd.h5"))
         dd = IMAS.hdf2imas(joinpath(dirname, "dd.h5"))
-    else
+    elseif isfile(joinpath(dirname, "dd.json"))
         dd = IMAS.json2imas(joinpath(dirname, "dd.json"))
+    else
+        dd = missing
     end
-    ini = json2ini(joinpath(dirname, "ini.json"))
-    act = json2act(joinpath(dirname, "act.json"))
+    if isfile(joinpath(dirname, "ini.json"))
+        ini = json2ini(joinpath(dirname, "ini.json"))
+    else
+        ini = missing
+    end
+    if isfile(joinpath(dirname, "act.json"))
+        act = json2act(joinpath(dirname, "act.json"))
+    else
+        act = missing
+    end
     return dd, ini, act
 end
 
