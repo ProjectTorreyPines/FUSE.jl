@@ -20,6 +20,14 @@ mutable struct ObjectiveFunction
     end
 end
 
+const ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
+ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
+ObjectiveFunction(:min_log10_levelized_CoE, "log₁₀(\$/kW)", dd -> log10(dd.costing.levelized_CoE), -Inf)
+ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
+ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
+ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)
+ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), Inf)
+
 """
     (objf::ObjectiveFunction)(x::Float64)
 
@@ -58,14 +66,6 @@ function (objf::ObjectiveFunction)(x::Float64)
     end
 end
 
-const ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
-ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
-ObjectiveFunction(:min_log10_levelized_CoE, "log₁₀(\$/kW)", dd -> log10(dd.costing.levelized_CoE), -Inf)
-ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
-ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
-ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)
-ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), Inf)
-
 function Base.show(io::IO, f::ObjectiveFunction)
     printstyled(io, f.name; bold=true, color=:blue)
     print(io, " →")
@@ -98,6 +98,11 @@ mutable struct ConstraintFunction
     end
 end
 
+const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
+ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-2)
+ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
+ConstraintFunction(:steady_state, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, >, 10.0)
+
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
     if ===(cnst.operation, ==)
         return (cnst.func(dd) - cnst.limit)^2 - (cnst.limit * cnst.tolerance)^2
@@ -107,11 +112,6 @@ function (cnst::ConstraintFunction)(dd::IMAS.dd)
         return  cnst.func(dd) - cnst.limit
     end
 end
-
-const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
-ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-2)
-ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
-ConstraintFunction(:steady_state, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, >, 10.0)
 
 function Base.show(io::IO, f::ConstraintFunction)
     printstyled(io, f.name; bold=true, color=:blue)
@@ -134,7 +134,7 @@ function optimization_engine(
     opt_ini::Vector{<:AbstractParameter},
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
-    savefolder::AbstractString
+    save_folder::AbstractString
     )
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
@@ -153,23 +153,23 @@ function optimization_engine(
             dd = actor_or_workflow(ini, act)
         end
         # save simulation data to directory
-        if !isempty(savefolder)
-            savedir = joinpath(savefolder, "$(Dates.now())__$(getpid())")
+        if !isempty(save_folder)
+            savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
             save(dd, ini, act, savedir; freeze=true)
         end
         # evaluate multiple objectives
-        return collect(map(f -> f(dd), objectives_functions)), Float64[], collect(map(h -> h(dd), constraints_functions))
+        return collect(map(f -> f(dd), objectives_functions)), collect(map(g -> g(dd), constraints_functions)), Float64[]
     catch e
         # save empty dd and error to directory
-        if !isempty(savefolder)
-            savedir = joinpath(savefolder, "$(Dates.now())__$(getpid())")
+        if !isempty(save_folder)
+            savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
             save(IMAS.dd(), ini, act, savedir; freeze=true)
             open(joinpath(savedir, "error.txt"), "w") do file
                 showerror(file, e, catch_backtrace())
             end
         end
         # rethrow() # uncomment for debugging purposes
-        return Float64[Inf for f in objectives_functions], Float64[], Float64[Inf for h in constraints_functions]
+        return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
     end
 end
 
@@ -181,19 +181,19 @@ function optimization_engine(
     opt_ini::Vector{<:AbstractParameter},
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
-    savefolder::AbstractString,
+    save_folder::AbstractString,
     p::ProgressMeter.Progress)
 
-    if !isempty(savefolder)
-        mkpath(savefolder)
+    if !isempty(save_folder)
+        mkpath(save_folder)
     end
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions, savefolder), [X[k, :] for k in 1:size(X)[1]])
+    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(objectives_functions))
-    G = zeros(size(X)[1], 0)
-    H = zeros(size(X)[1], length(constraints_functions))
+    G = zeros(size(X)[1], length(constraints_functions))
+    H = zeros(size(X)[1], 0)
     for k in 1:size(X)[1]
         F[k, :] .= tmp[k][1]
         G[k, :] .= tmp[k][2]

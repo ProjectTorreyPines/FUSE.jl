@@ -34,7 +34,7 @@ function workflow_multiobjective_optimization(
     N::Int=10,
     iterations::Int=N,
     continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing,
-    savefolder::AbstractString="optimization_runs"
+    save_folder::AbstractString="optimization_runs"
 )
 
     if mod(N, 2) > 0
@@ -86,9 +86,16 @@ function workflow_multiobjective_optimization(
     end
     flush(stdout)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, savefolder, p), bounds, algorithm)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
 
-    return MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
+    # fill MultiobjectiveOptimizationResults structure and save
+    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)    
+    if !isempty(save_folder)
+        filename = joinpath(save_folder, "optimization.bson")
+        save_optimization(filename, results)
+    end
+
+    return results
 end
 
 """
