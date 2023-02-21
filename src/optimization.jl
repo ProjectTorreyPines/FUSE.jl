@@ -133,7 +133,8 @@ function optimization_engine(
     x::AbstractVector,
     opt_ini::Vector{<:AbstractParameter},
     objectives_functions::AbstractVector{<:ObjectiveFunction},
-    constraints_functions::AbstractVector{<:ConstraintFunction}
+    constraints_functions::AbstractVector{<:ConstraintFunction},
+    savefolder::AbstractString
     )
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
@@ -143,8 +144,6 @@ function optimization_engine(
             optpar.value = xx
         end
     end
-    topdirname = "optimization_runs"
-    mkpath(topdirname)
     # run the problem
     try
         if typeof(actor_or_workflow) <: DataType
@@ -154,16 +153,20 @@ function optimization_engine(
             dd = actor_or_workflow(ini, act)
         end
         # save simulation data to directory
-        savedir = joinpath(topdirname, "$(Dates.now())__$(getpid())")
-        save(dd, ini, act, savedir; freeze=true)
+        if !isempty(savefolder)
+            savedir = joinpath(savefolder, "$(Dates.now())__$(getpid())")
+            save(dd, ini, act, savedir; freeze=true)
+        end
         # evaluate multiple objectives
         return collect(map(f -> f(dd), objectives_functions)), Float64[], collect(map(h -> h(dd), constraints_functions))
     catch e
         # save empty dd and error to directory
-        savedir = joinpath(topdirname, "$(Dates.now())__$(getpid())")
-        save(IMAS.dd(), ini, act, savedir; freeze=true)
-        open(joinpath(savedir, "error.txt"), "w") do file
-            showerror(file, e, catch_backtrace())
+        if !isempty(savefolder)
+            savedir = joinpath(savefolder, "$(Dates.now())__$(getpid())")
+            save(IMAS.dd(), ini, act, savedir; freeze=true)
+            open(joinpath(savedir, "error.txt"), "w") do file
+                showerror(file, e, catch_backtrace())
+            end
         end
         # rethrow() # uncomment for debugging purposes
         return Float64[Inf for f in objectives_functions], Float64[], Float64[Inf for h in constraints_functions]
@@ -178,11 +181,16 @@ function optimization_engine(
     opt_ini::Vector{<:AbstractParameter},
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
+    savefolder::AbstractString,
     p::ProgressMeter.Progress)
+
+    if !isempty(savefolder)
+        mkpath(savefolder)
+    end
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions), [X[k, :] for k in 1:size(X)[1]])
+    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions, savefolder), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(objectives_functions))
     G = zeros(size(X)[1], 0)
     H = zeros(size(X)[1], length(constraints_functions))

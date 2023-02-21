@@ -33,7 +33,8 @@ function workflow_multiobjective_optimization(
     constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
     N::Int=10,
     iterations::Int=N,
-    continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing
+    continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing,
+    savefolder::AbstractString="optimization_runs"
 )
 
     if mod(N, 2) > 0
@@ -85,7 +86,7 @@ function workflow_multiobjective_optimization(
     end
     flush(stdout)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, p), bounds, algorithm)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, savefolder, p), bounds, algorithm)
 
     return MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
 end
