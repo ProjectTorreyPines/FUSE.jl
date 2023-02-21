@@ -117,27 +117,42 @@ function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Funct
     return load(dirs, [extract])[1]
 end
 
-function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symbol,Function}})::Vector{DataFrames.DataFrame}
-    dfs = DataFrames.DataFrame[]
-    for kdf in 1:length(extracts)
-        df = DataFrames.DataFrame(load(dirs[1], extracts[kdf]))
-        for k in 2:length(dirs)
-            push!(df, df[1, :])
-        end
-        push!(dfs, df)
+function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symbol,Function}}; filter_invalid::Bool=true)::Vector{DataFrames.DataFrame}
+    # at first we load the data all in the same dataframe (for filtering)
+    all_extracts = Dict{Symbol,Function}()
+    for extract in extracts
+        merge!(all_extracts, extract)
     end
+
+    # allocate memory
+    df = DataFrames.DataFrame(load(dirs[1], all_extracts))
+    for k in 2:length(dirs)
+        push!(df, df[1, :])
+    end
+    
+    # load the data
     p = ProgressMeter.Progress(length(dirs); showspeed=true)
     GC.enable(false) #https://github.com/JuliaIO/HDF5.jl/pull/1049
     try
         Threads.@threads for k in 1:length(dirs)
-            tmp = load(dirs[k], extracts)
-            for kdf in 1:length(extracts)
-                dfs[kdf][k, :] = tmp[kdf]
-            end
+            tmp = load(dirs[k], all_extracts)
+            df[k, :] = tmp
             ProgressMeter.next!(p)
         end
     finally
         GC.enable(true)
     end
-    dfs
+
+    # filter
+    if filter_invalid
+        df = filter(row -> all(x -> !(x isa Number && isnan(x)), row), df)
+    end
+
+    # split into separate dataframes
+    dfs = DataFrames.DataFrame[]
+    for extract in extracts
+        push!(dfs, df[:,collect(keys(extract))])
+    end
+
+    return dfs
 end
