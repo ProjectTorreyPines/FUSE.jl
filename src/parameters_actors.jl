@@ -55,7 +55,7 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorQEDcurrent{T}(),
         FUSEparameters__ActorSteadyStateCurrent{T}(),
         FUSEparameters__ActorDivertors{T}(),
-        FUSEparameters__ActorPlasmaFacingSurfaces(),
+        FUSEparameters__ActorPlasmaFacingSurfaces{T}(),
         FUSEparameters__ActorNBIsimple{T}(),
         FUSEparameters__ActorECsimple{T}(),
         FUSEparameters__ActorICsimple{T}(),
