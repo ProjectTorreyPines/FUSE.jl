@@ -32,6 +32,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorTransportSolver::FUSEparameters__ActorTransportSolver{T}
     ActorEquilibriumTransport::FUSEparameters__ActorEquilibriumTransport{T}
     ActorWholeFacility::FUSEparameters__ActorWholeFacility{T}
+    ActorPlasmaLimits::FUSEparameters__ActorPlasmaLimits{T}
 end
 
 #could make an autobuild for the constructor 
@@ -68,7 +69,8 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorCoreTransport{T}(),
         FUSEparameters__ActorTransportSolver{T}(),
         FUSEparameters__ActorEquilibriumTransport{T}(),
-        FUSEparameters__ActorWholeFacility{T}()
+        FUSEparameters__ActorWholeFacility{T}(),
+        FUSEparameters__ActorPlasmaLimits{T}()
     )
     setup_parameters(act)
     return act
@@ -79,17 +81,17 @@ function ParametersActors()
 end
 
 """
-    act2json(act::ParametersAllActors, filename::String; kw...)
+    act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
 Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
-function act2json(act::ParametersAllActors, filename::String; kw...)
-    return par2json(act, filename; kw...)
+function act2json(act::ParametersAllActors, filename::AbstractString; kw...)
+    return SimulationParameters.par2json(act, filename; kw...)
 end
 
 function json2act(filename::AbstractString)
-    return json2par(filename, ParametersActors())
+    return SimulationParameters.json2par(filename, ParametersActors())
 end
 
 #= ======= =#

@@ -31,7 +31,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     ζ::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
     pressure_core::Entry{T} = Entry(T, "Pa", "On axis pressure")
     ip::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___global_quantities, :ip)
-    xpoints_number::Entry{Integer} = Entry(Integer, "-", "Number of x-points")
+    xpoints_number::Entry{Int} = Entry(Int, "-", "Number of x-points")
     ngrid::Entry{Int} = Entry(Int, "-", "Resolution of the equilibrium grid"; default=129)
     field_null_surface::Entry{T} = Entry(T, "-", "ψn value of the field_null_surface. Disable with 0.0"; default=0.5)
     boundary_from::Switch{Symbol} = Switch(Symbol, [:scalars, :MXH_params, :rz_points, :ods], "-", "The starting r, z boundary taken from")
@@ -141,12 +141,12 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
     layers::Entry{DataStructures.OrderedDict} = Entry(DataStructures.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
-    blanket::Entry{Float64} = Entry(Float64, "-", "Fraction of blanket in radial build")
-    shield::Entry{Float64} = Entry(Float64, "-", "Fraction of shield in radial build")
-    vessel::Entry{Float64} = Entry(Float64, "-", "Fraction of vessel in radial build")
-    plasma_gap::Entry{Float64} = Entry(Float64, "-", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1)
+    blanket::Entry{T} = Entry(T, "-", "Fraction of blanket in radial build")
+    shield::Entry{T} = Entry(T, "-", "Fraction of shield in radial build")
+    vessel::Entry{T} = Entry(T, "-", "Fraction of vessel in radial build")
+    plasma_gap::Entry{T} = Entry(T, "-", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1)
     symmetric::Entry{Bool} = Entry(Bool, "-", "Is the build up-down symmetric")
-    n_first_wall_conformal_layers::Entry{Integer} = Entry(Integer, "-", "Number of layers that are conformal to the first wall"; default=1)
+    n_first_wall_conformal_layers::Entry{Int} = Entry(Int, "-", "Number of layers that are conformal to the first wall"; default=1)
 end
 
 Base.@kwdef mutable struct FUSEparameters__gasc{T} <: ParametersInit where {T<:Real}
@@ -221,15 +221,15 @@ function ParametersInits()
 end
 
 """
-    ini2json(ini::ParametersAllInits, filename::String; kw...)
+    ini2json(ini::ParametersAllInits, filename::AbstractString; kw...)
 
 Save the FUSE parameters to a JSON file with give `filename`
 `kw` arguments are passed to the JSON.print function
 """
-function ini2json(ini::ParametersAllInits, filename::String; kw...)
-    return par2json(ini, filename; kw...)
+function ini2json(ini::ParametersAllInits, filename::AbstractString; kw...)
+    return SimulationParameters.par2json(ini, filename; kw...)
 end
 
 function json2ini(filename::AbstractString)
-    return json2par(filename, ParametersInits())
+    return SimulationParameters.json2par(filename, ParametersInits())
 end

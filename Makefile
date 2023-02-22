@@ -1,7 +1,9 @@
-JULIA_PKG_REGDIR ?= $(HOME)/.julia/registries
-JULIA_PKG_DEVDIR ?= $(HOME)/.julia/dev
+JULIA_DIR ?= $(HOME)/.julia
+JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
+JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
 CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
+export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
 PTP_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
 
@@ -41,6 +43,13 @@ all:
 	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
 	@echo ''
 
+# remove everything under $HOME/.julia besides $HOME/.julia/dev
+nuke_julia:
+	mv $(JULIA_PKG_DEVDIR) ~/asddsaasddsa
+	rm -rf $(JULIA_DIR)
+	mkdir -p $(JULIA_DIR)
+	mv ~/asddsaasddsa $(JULIA_PKG_DEVDIR)
+
 registry:
 	julia -e 'using Pkg;Pkg.add("Revise")' # call this first to make sure General registry gets installed
 	if [ ! -d "$(JULIA_PKG_REGDIR)" ]; then mkdir -p $(JULIA_PKG_REGDIR); fi
@@ -68,6 +77,9 @@ for package in ["Equilibrium", "Broker", "ZMQ"];\
 end;\
 '
 
+threads:
+	julia -e "println(Threads.nthreads())"
+
 develop:
 	# install in global environment to easily develop and test changes made across multiple packages at once
 	julia -e '\
@@ -76,7 +88,7 @@ using Pkg;\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
 Pkg.activate();\
-Pkg.develop(fuse_packages);\
+Pkg.develop(["FUSE"; fuse_packages]);\
 Pkg.add(["Revise", "JuliaFormatter", "Test"]);\
 '
 
@@ -111,7 +123,11 @@ IJulia:
 using Pkg;\
 Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
 Pkg.build("IJulia");\
+import IJulia;\
+n=string(length(Sys.cpu_info()));\
+IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
 '
+	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
 
 precompile:

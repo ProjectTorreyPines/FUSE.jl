@@ -9,12 +9,12 @@ import Optim
 Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    ngrid = Entry(Integer, "-", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
-    qstar = Entry(Real, "-", "Initial guess of kink safety factor"; default=1.5)
-    alpha = Entry(Real, "-", "Initial guess of constant relating to pressure"; default=0.0)
-    volume = Entry(Real, "m³", "Scalar volume to match (optional)"; default=missing)
-    area = Entry(Real, "m²", "Scalar area to match (optional)"; default=missing)
-    verbose = Entry(Bool, "-", "verbose"; default=false)
+    ngrid::Entry{Int} = Entry(Int, "-", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
+    qstar::Entry{T} = Entry(T, "-", "Initial guess of kink safety factor"; default=1.5)
+    alpha::Entry{T} = Entry(T, "-", "Initial guess of constant relating to pressure"; default=0.0)
+    volume::Entry{T} = Entry(T, "m³", "Scalar volume to match (optional)"; default=missing)
+    area::Entry{T} = Entry(T, "m²", "Scalar area to match (optional)"; default=missing)
+    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
 end
 
 mutable struct ActorSolovev <: PlasmaAbstractActor
@@ -190,7 +190,7 @@ function _finalize(
     # since Solovev will not satisfy the original boundary
     eqt.boundary.outline.r, eqt.boundary.outline.z = actor.mxh()
     eqt.boundary.elongation = actor.mxh.κ
-    eqt.boundary.triangularity = asin(actor.mxh.s[1])
+    eqt.boundary.triangularity = sin(actor.mxh.s[1])
     eqt.boundary.squareness = -actor.mxh.s[2]
     eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
     eqt.boundary.geometric_axis.r = actor.mxh.R0

@@ -14,7 +14,8 @@ include("chease_actor.jl")
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model = Switch(Symbol, [:Solovev, :CHEASE], "-", "Equilibrium actor to run"; default=:Solovev)
+    model::Switch{Symbol} = Switch(Symbol, [:Solovev, :CHEASE], "-", "Equilibrium actor to run"; default=:Solovev)
+    symmetrize::Entry{Bool} = Entry(Bool, "-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
 end
 
 mutable struct ActorEquilibrium <: PlasmaAbstractActor
@@ -82,4 +83,8 @@ Finalizes the selected equilibrium actor
 """
 function _finalize(actor::ActorEquilibrium)
     finalize(actor.eq_actor)
+    if actor.par.symmetrize
+        IMAS.symmetrize_equilibrium!(actor.dd.equilibrium.time_slice[])
+        IMAS.flux_surfaces(actor.dd.equilibrium.time_slice[])
+    end
 end
