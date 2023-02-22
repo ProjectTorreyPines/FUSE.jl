@@ -1,92 +1,116 @@
-#= ======================== =#
+#= ========================= =#
 #  ActorPlasmaFacingSurfaces #
-#= ======================== =#
+#= ========================= =#
 
 import PlasmaFacingSurfaces
 
-# should be the content below into a module to avoid unwanted redefinition of methods?
-# can add auto export of all FUSEParameters and Actor structs if needed.
-# Can inject directly struct def into module with "@newactor module ActorName"
-# will permit addition of methods/parameters into local scope without constraints on naming
-
 const pfc_materials = [:tungsten, :SiC, :graphite]
 
-@actor_params struct DivertorParameters
-    inner = DivertorLegParameters()
-    outer = DivertorLegParameters()
-    dome = DivertorDomeParameters()
+Base.@kwdef mutable struct FUSEparameters__TargetBoundary{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    λ_plasma::Entry{T} = Entry(T, "m", "Plasma width"; default=0.003)
+    β_plasma::Entry{T} = Entry(T, "-", "Plasma width decay factor"; default=5.0)
+    Λ_buffer::Entry{T} = Entry(T, "m", "Buffer between plasma and wall"; default=0.05)
 end
 
-@actor_params struct DivertorLegParameters
-    target = DivertorTarget()
-    baffle_cfr = CFRDivertorBaffle() # common flux region
-    baffle_pfr = PFRDivertorBaffle() # private flux region
-    l_leg = Entry(1.0, "length of the divertor leg"; units="m")
-    d_heat_shield = Entry(0.25, "length of the divertor leg"; units="m")
-    method = Entry(:manual, "method to define the divertor leg length"; options=[:manual, :d_heat_shield])
+Base.@kwdef mutable struct FUSEparameters__DivertorTarget{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    material::Switch{:Symbol} = Switch(Symbol, pfc_materials, "-", "Target surface material"; default=:tungsten)
+    cfr::FUSEparameters__TargetBoundary = FUSEparameters__TargetBoundary() # cfr target boundary point 
+    pfr::FUSEparameters__TargetBoundary = FUSEparameters__TargetBoundary() # pfr target boundary point
+    Λ_peak::Entry{T} = Entry(T, "m", "Position of the plasma peak with respect to separatrix "; default=0.0) # 
+    type::Switch{Symbol} = Switch(Symbol, [:flat], "-", "Type of target"; default=:flat)
+    θ_target::Entry{T} = Entry(T, "-", "Inclination of the target with respect to the separatrix normal"; default=60.0)
 end
 
-@actor_params struct DivertorDomeParameters
-    #material::Switch{:Symbol} = Switch(Symbol, pfc_materials, "-", "Dome surface material"; default=:tungsten)
-    material = Entry(:tungsten, "dome surface material"; options=pfc_materials)
-    𝓁_xpt = Entry(0.0, "distance between top of the dome and xpt")
-    α_xpt = Entry(0.0, "fraction of distance between top of the dome and xpt")
+Base.@kwdef mutable struct FUSEparameters__CFRDivertorBaffle{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    material::Switch{:Symbol} = Switch(Symbol, pfc_materials, "-", "Baffle surface material"; default=:tungsten)
+    method::Switch{Symbol} = Switch(Symbol, [:xpt_equator, :manual], "-", "Method to define the baffle design point"; default=:xpt_equator)
+    𝓁_baffle::Entry{T} = Entry(T, "m", "Poloidal distance from target boundary point to baffle design point"; default=0.0)
+    r_baffle::Entry{T} = Entry(T, "m", "Radial distance from separatrix to baffle design point"; default=0.0)
 end
 
-@actor_params struct DivertorTarget
-    material = Entry(:tungsten, "target surface material"; options=pfc_materials)
-    cfr = TargetBoundary() # cfr target boundary point 
-    pfr = TargetBoundary() # pfr target boundary point
-    Λ_peak = Entry(0.0, "position of the plasma peak with respect to separatrix "; units="m") # 
-    type = Entry(:flat, "type of target"; options=[:flat])
-    θ_target = Entry(60.0, "inclination of the target with respect to the separatrix normal")
+Base.@kwdef mutable struct FUSEparameters__PFRDivertorBaffle{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    material::Switch{:Symbol} = Switch(Symbol, pfc_materials, "-", "Baffle surface material"; default=:tungsten)
+    method::Switch{Symbol} = Switch(Symbol, [:none, :manual], "-", "Method to define the baffle design point"; default=:none)
+    𝓁_baffle::Entry{T} = Entry(T, "m", "Poloidal distance from target boundary point to baffle design point"; default=0.0)
+    r_baffle::Entry{T} = Entry(T, "m", "Radial distance from separatrix to baffle design point"; default=0.0)
 end
 
-@actor_params struct CFRDivertorBaffle
-    material = Entry(:tungsten, "baffle surface material"; options=pfc_materials)
-    method = Entry(:xpt_equator, "method to define the baffle design point"; options=[:xpt_equator, :manual])
-    𝓁_baffle = Entry(0.0, "poloidal distance from target boundary point to baffle design point"; units="m")
-    r_baffle = Entry(0.0, "radial distance from separatrix to baffle design point"; units="m")
+Base.@kwdef mutable struct FUSEparameters__DivertorLegParameters{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    target::FUSEparameters__DivertorTarget = FUSEparameters__DivertorTarget()
+    baffle_cfr::FUSEparameters__CFRDivertorBaffle = CFRDivertorBaffle() # common flux region
+    baffle_pfr::FUSEparameters__PFRDivertorBaffle = PFRDivertorBaffle() # private flux region
+    l_leg::Entry{T} = Entry(T, "m", "Length of the divertor leg"; default=1.0)
+    d_heat_shield::Entry{T} = Entry(T, "m", "Length of the divertor leg"; default=0.25)
+    method::Switch{:Symbol} = Switch(Symbol, [:manual, :d_heat_shield], "-", "Method to define the divertor leg length"; default=:manual)    
 end
 
-@actor_params struct PFRDivertorBaffle
-    material = Entry(:tungsten, "baffle surface material"; options=pfc_materials)
-    method = Entry(:none, "method to define the baffle design point"; options=[:none, :manual])
-    𝓁_baffle = Entry(0.0, "poloidal distance from target boundary point to baffle design point"; units="m")
-    r_baffle = Entry(0.0, "radial distance from separatrix to baffle design point"; units="m")
+Base.@kwdef mutable struct FUSEparameters__DivertorDomeParameters{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    material::Switch{:Symbol} = Switch(Symbol, pfc_materials, "-", "Dome surface material"; default=:tungsten)
+    𝓁_xpt::Entry{T} = Entry(T, "-", "Distance between top of the dome and xpt"; default=0.0)
+    α_xpt::Entry{T} = Entry(T, "-", "Fraction of distance between top of the dome and xpt"; default=0.0)
 end
 
-@actor_params mutable struct TargetBoundary
-    λ_plasma = Entry(0.003, "plasma width"; units="m")
-    β_plasma = Entry(5.0, "plasma width decay factor")
-    Λ_buffer = Entry(0.05, "buffer between plasma and wall"; units="m")
+Base.@kwdef mutable struct FUSEparameters__DivertorParameters{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    inner::FUSEparameters__DivertorLegParameters = FUSEparameters__DivertorLegParameters()
+    outer::FUSEparameters__DivertorLegParameters = FUSEparameters__DivertorLegParameters()
+    dome::FUSEparameters__DivertorDomeParameters = FUSEparameters__DivertorDomeParameters()
 end
 
-@actor_params struct MainChamberWallBoundary
-    λ_plasma = Entry(0.003, "plasma width"; units="m")
-    β_plasma = Entry(5.0, "plasma width decay factor")
-    Λ_buffer = Entry(0.05, "buffer between plasma and wall"; units="m")
+Base.@kwdef mutable struct FUSEparameters__MainChamberWallBoundary{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    λ_plasma::Entry{T} = Entry(T, "m", "Plasma width"; default=0.003)
+    β_plasma::Entry{T} = Entry(T, "-", "Plasma width decay factor"; default=5.0)
+    Λ_buffer::Entry{T} = Entry(T, "m", "Buffer between plasma and wall"; default=0.05)
 end
 
-@actor_params struct MainChamberWallDesign
-    material = Entry(:tungsten, "baffle surface material"; options=pfc_materials)
-    mid_plane = MainChamberWallBoundary()
-    method = Entry(:plasma_width, "method to draw main chamber wall"; options=[:plasma_width, :conformal])
+Base.@kwdef mutable struct FUSEparameters__MainChamberWallDesign{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    material::Switch{:Symbol} = Switch(Symbol, pfc_materials, "-", "First wall surface material"; default=:tungsten)
+    mid_plane::FUSEparameters__MainChamberWallBoundary = FUSEparameters__MainChamberWallBoundary()
+    method::Switch{Symbol} = Switch(Symbol, [:plasma_width, :conformal], "-", "Method to draw main chamber wall"; default=:plasma_width)
 end
 
-@actor_params struct DivertorsDesign
-    lower = DivertorParameters() #lower divertor parameters
-    upper = DivertorParameters() #upper divertor parameters
+Base.@kwdef mutable struct FUSEparameters__DivertorsDesign{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    lower::FUSEparameters__DivertorParameters = FUSEparameters__DivertorParameters() #lower divertor parameters
+    upper::FUSEparameters__DivertorParameters = FUSEparameters__DivertorParameters() #upper divertor parameters
 end
 
-@actor_params struct MainChamberWallsDesign
-    outer = MainChamberWallDesign()
-    inner = MainChamberWallDesign()
+Base.@kwdef mutable struct FUSEparameters__MainChamberWallsDesign{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    outer::FUSEparameters__MainChamberWallDesign = FUSEparameters__MainChamberWallDesign()
+    inner::FUSEparameters__MainChamberWallDesign = FUSEparameters__MainChamberWallDesign()
 end
 
-@actor_params struct ActorPlasmaFacingSurfaces
-    divertors = DivertorsDesign()
-    main_chamber_walls = MainChamberWallsDesign()
+Base.@kwdef mutable struct FUSEparameters__ActorPlasmaFacingSurfaces{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    divertors::FUSEparameters__DivertorsDesign = FUSEparameters__DivertorsDesign()
+    main_chamber_walls::FUSEparameters__MainChamberWallsDesign = FUSEparameters__MainChamberWallsDesign()
+end
+
+mutable struct ActorPlasmaFacingSurfaces <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorPlasmaFacingSurfaces
+    pfs::Union{Nothing,PlasmaFacingSurfaces.PFSDesign}
 end
 
 """
@@ -96,17 +120,6 @@ Takes equilibrium and builds a first wall (ie. all plasma facing surfaces, inclu
 
 Creates `upper_divertor`, `lower_divertor`, and `main_chamber_wall` 2D descriptions to the `wall` IDS
 
-"""
-mutable struct ActorPlasmaFacingSurfaces <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPlasmaFacingSurfaces
-    pfs::Union{Nothing,PlasmaFacingSurfaces.PFSDesign}
-end
-
-"""
-    ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
-
-Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorPlasmaFacingSurfaces(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorPlasmaFacingSurfaces(kw...)
