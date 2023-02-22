@@ -694,8 +694,9 @@ function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
 
     if wall === missing || rebuild_wall
         #pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
-
         ActorPlasmaFacingSurfaces(dd, actor.act)
+        display(plot!(actor.pfs))
+
         wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall) 
 
     end
@@ -704,7 +705,7 @@ function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
 
     build_cx!(dd.build, pr, pz)
 
-    divertor_regions!(dd.build, dd.equilibrium.time_slice[])
+    #divertor_regions!(dd.build, dd.equilibrium.time_slice[])
 
     blanket_regions!(dd.build, dd.equilibrium.time_slice[])
 
