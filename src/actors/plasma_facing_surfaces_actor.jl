@@ -70,19 +70,19 @@ Base.@kwdef mutable struct FUSEparameters__DivertorParameters{T} <: ParametersAc
     dome::FUSEparameters__DivertorDomeParameters{T} = FUSEparameters__DivertorDomeParameters{T}()
 end
 
-# Base.@kwdef mutable struct FUSEparameters__MainChamberWallBoundary{T} <: ParametersActor where {T<:Real}
-#     _parent::WeakRef = WeakRef(nothing)
-#     _name::Symbol = :not_set
-#     λ_plasma::Entry{T} = Entry(T, "m", "Plasma width"; default=0.003)
-#     β_plasma::Entry{T} = Entry(T, "-", "Plasma width decay factor"; default=5.0)
-#     Λ_buffer::Entry{T} = Entry(T, "m", "Buffer between plasma and wall"; default=0.05)
-# end
+Base.@kwdef mutable struct FUSEparameters__MainChamberWallBoundary{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    λ_plasma::Entry{T} = Entry(T, "m", "Plasma width"; default=0.003)
+    β_plasma::Entry{T} = Entry(T, "-", "Plasma width decay factor"; default=5.0)
+    Λ_buffer::Entry{T} = Entry(T, "m", "Buffer between plasma and wall"; default=0.05)
+end
 
 Base.@kwdef mutable struct FUSEparameters__MainChamberWallDesign{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     #material::Switch{Symbol} = Switch(Symbol, pfc_materials, "-", "First wall surface material"; default=:tungsten)
-    #mid_plane::FUSEparameters__MainChamberWallBoundary{T} = FUSEparameters__MainChamberWallBoundary{T}()
+    mid_plane::FUSEparameters__MainChamberWallBoundary{T} = FUSEparameters__MainChamberWallBoundary{T}()
     method::Switch{Symbol} = Switch(Symbol, [:plasma_width, :conformal], "-", "Method to draw main chamber wall"; default=:plasma_width)
 end
 
@@ -140,7 +140,7 @@ end
 function _step(actor::ActorPlasmaFacingSurfaces)
     dd = actor.dd
     actor.pfs = PlasmaFacingSurfaces.PFSDesign(dd.equilibrium.time_slice[])
-    actor.pfs(actor.par; do_plot=do_plot)
+    actor.pfs(actor.par)
     return actor
 end
 

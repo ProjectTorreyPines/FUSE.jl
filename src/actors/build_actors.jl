@@ -661,7 +661,7 @@ mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorCXbuild
     act::ParametersAllActors
-    function ActorBlanket(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild, act::ParametersAllActors; kw...)
+    function ActorCXbuild(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild, act::ParametersAllActors; kw...)
         logging_actor_init(ActorCXbuild)
         par = par(kw...)
         return new(dd, par, act)
@@ -689,6 +689,7 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
+    dd = actor.dd
     wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall) # this function updated to collect all first walls into single outline
 
     if wall === missing || rebuild_wall
