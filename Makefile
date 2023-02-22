@@ -83,7 +83,7 @@ threads:
 develop:
 	# install in global environment to easily develop and test changes made across multiple packages at once
 	julia -e '\
-fuse_packages = ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"];\
+fuse_packages = ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters", "PlasmaFacingSurfaces"];\
 using Pkg;\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
@@ -134,7 +134,7 @@ precompile:
 	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.instantiate(); Pkg.update(); Pkg.precompile()'
 
 clone_update_all:
-	make -i $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
+	make -i $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters PlasmaFacingSurfaces
 
 update: install_no_registry precompile
 
@@ -190,6 +190,9 @@ NNeutronics:
 	$(call clone_update_repo,$@)
 
 SimulationParameters:
+	$(call clone_update_repo,$@)
+
+PlasmaFacingSurfaces:
 	$(call clone_update_repo,$@)
 
 docker_clean:
