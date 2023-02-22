@@ -4,6 +4,9 @@
 
 import PlasmaFacingSurfaces
 
+
+import PlasmaFacingSurfaces
+
 const pfc_materials = [:tungsten, :SiC, :graphite]
 
 Base.@kwdef mutable struct FUSEparameters__TargetBoundary{T} <: ParametersActor where {T<:Real}
