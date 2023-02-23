@@ -5,7 +5,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersA
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     needs_model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Power plant electrical needs model"; default=:EU_DEMO)
-    cycle_model::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :combined_series, :combined_parallel], "-", "Power cycle configuration"; default=:brayton_only)
     thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
@@ -13,6 +12,7 @@ end
 mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorBalanceOfPlant
+    act::ParametersAllActors
     thermal_cycle_actor::ActorThermalCycle
     IHTS_actor::ActorHeatTxSystem
 end
@@ -36,24 +36,21 @@ function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPlant; kw...)
+function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPlant, act::ParametersAllActors; kw...)
     logging_actor_init(ActorBalanceOfPlant)
     par = par(kw...)
 
-    bop = dd.balance_of_plant
-    bop.power_cycle_type = string(par.cycle_model)
-
-    breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(bop)
+    breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(act.ActorThermalCycle.power_cycle_type)
 
     IHTS_actor = ActorHeatTxSystem(dd, act; breeder_hi_temp, breeder_low_temp)
     thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=3.0)
-    return ActorBalanceOfPlant(dd, par, thermal_cycle_actor, IHTS_actor)
+    return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor)
 end
 
-function ihts_specs(bop::IMAS.balance_of_plant)
+function ihts_specs(power_cycle_type::Symbol)
     breeder_tmax = 1100.0 + 273.15
     breeder_tmin = 550.0 + 273.15
-    if bop.power_cycle_type == "rankine_only"
+    if power_cycle_type == :rankine_only
         breeder_tmax = 650.0 + 273.15
         breeder_tmin = 185.0 + 273.15
     end

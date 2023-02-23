@@ -9,11 +9,18 @@
 mutable struct ActorThermalCycle <: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    act::ParametersAllActors
+    function ActorThermalCycle(dd::IMAS.dd, par::ParametersActor, act; kw...)
+        logging_actor_init(ActorThermalCycle)
+        par = par(kw...)
+        return new(dd, par, act)
+    end
 end
 
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
+    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :combined_series, :combined_parallel], "-", "Power cycle configuration"; default=:brayton_only)
     rp::Entry{T} = Entry(T, "-", "Overall Compression Ratio"; default=3.0)
     Pmax::Entry{T} = Entry(T, "-", "Max System Pressure (MPa)"; default=8e6)
     Tmax::Entry{T} = Entry(T, "-", "Max Cycle Temperature K"; default=950.0 + 273.15)
@@ -33,32 +40,29 @@ Evaluates the thermal cycle based on the heat loads of the divertor and the blan
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
-function ActorThermalCycle(dd::IMAS.dd, act::ParametersAllActors; kw...)    #constructor 2
-    par = act.ActorThermalCycle(kw...)                                      #CALLING ParametersActor
-    actor = ActorThermalCycle(dd, par)                                      #Calling constructor 3, returns actor with all parameters
-    step(actor, act)
+function ActorThermalCycle(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorThermalCycle(kw...)
+    actor = ActorThermalCycle(dd, par, act)
+    step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorThermalCycle(dd::IMAS.dd, par::ParametersActor; kw...)            #constructor 3
-    logging_actor_init(ActorThermalCycle)
-    par = par(kw...)
-    return ActorThermalCycle(dd, par, dd.balance_of_plant.power_cycle_type)                                          #CALLING CONTRUCTOR ON LINE 9
-end
-
-
-function _step(actor::ActorThermalCycle, all_act)
+function _step(actor::ActorThermalCycle)
     dd = actor.dd
     par = actor.par
+    act = actor.act
     bop = dd.balance_of_plant
     ihts = bop.heat_tx_system
     blanket = ihts.blanket
     divertor = ihts.divertor
     breeder = ihts.breeder
 
+    bop = dd.balance_of_plant
+    bop.power_cycle_type = string(par.power_cycle_type)
+
     bop_thermal = bop.thermal_cycle
-    ihts_par = all_act.ActorHeatTxSystem
+    ihts_par = act.ActorHeatTxSystem
 
     blanket_power = @ddtime(bop.heat_tx_system.blanket.heat_load)
     breeder_power = @ddtime(bop.heat_tx_system.breeder.heat_load)
@@ -213,11 +217,8 @@ function _step(actor::ActorThermalCycle, all_act)
         # @show pt.T_in
         # @show par.Tmax
         return actor
-    else
-        if bop.power_cycle_type != "brayton_only"
-            @show "power cycle type not recognized - defaulting to brayton_only"
-            bop.power_cycle_type = "brayton_only"
-        end
+
+    elseif bop.power_cycle_type == "brayton_only"
         braytonT = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr=0.9)
         newTo = evalBrayton(braytonT, ihts_par, dd)
         cp_cycle = 5.1926e3
@@ -232,6 +233,8 @@ function _step(actor::ActorThermalCycle, all_act)
         # @show par.Tmax
         # @show par.Tmin
         return actor
+    else
+        error("power cycle type not recognized")
     end
 end
 

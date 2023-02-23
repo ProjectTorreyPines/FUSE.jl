@@ -1,6 +1,6 @@
-#= =================== =#
-#  ActorHeatTxSystem (INTERMEDIATE HEAT TRANSFER SYSTEM) #
-#= =================== =#
+#= ================= =#
+#  ActorHeatTxSystem
+#= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
 
 mutable struct ActorHeatTxSystem<: FacilityAbstractActor
