@@ -3,9 +3,14 @@ import QED
 #= =============== =#
 #  ActorQEDcurrent  #
 #= =============== =#
+Base.@kwdef mutable struct FUSEparameters__ActorQEDcurrent{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+end
+
 mutable struct ActorQEDcurrent <: PlasmaAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorQEDcurrent
     QI::QED.QED_state
     η#::Base.Callable
     QO::Union{QED.QED_state,Missing}
@@ -13,15 +18,10 @@ mutable struct ActorQEDcurrent <: PlasmaAbstractActor
     tmax
 end
 
-function ParametersActor(::Type{Val{:ActorQEDcurrent}})
-    par = ParametersActor(nothing)
-    return par
-end
-
 """
     ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor evolves the current using QED.
+Evolves the plasma current using the QED current diffusion solver
 
 !!! note 
     Stores data in `dd.equilibrium`
@@ -34,7 +34,7 @@ function ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorQEDcurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorQEDcurrent(dd::IMAS.dd, par::FUSEparameters__ActorQEDcurrent; kw...)
     logging_actor_init(ActorQEDcurrent)
     par = par(kw...)
     return ActorQEDcurrent(dd, par, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), dd.global_time)
@@ -115,25 +115,25 @@ end
 #= ======================= =#
 #  ActorSteadyStateCurrent  #
 #= ======================= =#
+Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+end
+
 mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
-    function ActorSteadyStateCurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+    par::FUSEparameters__ActorSteadyStateCurrent
+    function ActorSteadyStateCurrent(dd::IMAS.dd, par::FUSEparameters__ActorSteadyStateCurrent; kw...)
         logging_actor_init(ActorSteadyStateCurrent)
         par = par(kw...)
         return new(dd, par)
     end
 end
 
-function ParametersActor(::Type{Val{:ActorSteadyStateCurrent}})
-    par = ParametersActor(nothing)
-    return par
-end
-
 """
     ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor evolves the current to steady state using the conductivity from `dd.core_profiles` and current profile form `dd.equilibrium`.
+Evolves the current to steady state using the conductivity from `dd.core_profiles` and current profile form `dd.equilibrium`.
 
 Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_profiles`
 

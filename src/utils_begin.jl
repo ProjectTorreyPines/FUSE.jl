@@ -87,7 +87,7 @@ import VacuumFields: convex_hull
 # ******************************************
 # TraceCAD
 # ******************************************
-import Images
+import FileIO, JpegTurbo
 
 """
     dd_build_layers_to_ini(dd::IMAS.dd)
@@ -113,7 +113,7 @@ function TraceCAD(device::Symbol)
 end
 
 @recipe function plot_trace_cad(cad::TraceCAD)
-    img = Images.load(joinpath(dirname(@__DIR__), "cases", "$(cad.name).jpg"))
+    img = FileIO.load(joinpath(dirname(@__DIR__), "cases", "$(cad.name).jpg"))
     img .= img[end:-1:1, 1:end]
     x = LinRange(0, cad.x_length, size(img)[1]) .+ cad.x_offset
     y = LinRange(-0.5, 0.5, size(img)[2]) .* (size(img)[1] / size(img)[2]) * (x[end] - x[1]) .- cad.y_offset
@@ -122,7 +122,6 @@ end
         x, y, img
     end
 end
-
 
 # ******************************************
 # types
@@ -157,6 +156,9 @@ function concretetypes!(out, type::Type)
     out
 end
 
+# ******************************************
+# FUSE
+# ******************************************
 function fuse()
     return """
 ███████╗██╗   ██╗███████╗███████╗

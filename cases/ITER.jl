@@ -7,8 +7,8 @@ Arguments:
 * `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
 function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersAllInits()
-    act = ParametersAllActors()
+    ini = ParametersInits()
+    act = ParametersActors()
     ini.general.casename = "ITER_$(init_from)"
     ini.general.init_from = init_from
 
@@ -21,23 +21,37 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
         act.ActorHFSsizing.fixed_aspect_ratio = true
+
+        ini.equilibrium.boundary_from = :MXH_params
+        ini.equilibrium.xpoints_number = 1
     else
-        ini.equilibrium.R0 = 6.2
-        ini.equilibrium.ϵ = 0.32
-        ini.equilibrium.κ = 1.85
-        ini.equilibrium.δ = 0.485
         ini.equilibrium.B0 = -5.3
-        ini.equilibrium.Z0 = 0.4
         ini.equilibrium.ip = 15e6
         ini.equilibrium.pressure_core = 0.643e6
-        ini.equilibrium.x_point = true
-        ini.equilibrium.symmetric = false
-        ini.equilibrium.MXH_params = [
-            6.19245, 0.39528, 0.32331, 1.82302, 0.00337,
-            0.15912, -0.05842, -0.04573, 0.00694, 0.00614,
-            0.00183, 0.43714, 0.09583, -0.05597, -0.01655,
-            0.00204, 0.00306]
+
         ini.equilibrium.boundary_from = :MXH_params
+        ini.equilibrium.xpoints_number = 1
+
+        R0 = 6.2
+        Z0 = 0.0
+        ϵ = 0.32
+        κ = 1.85
+        δ = 0.485
+        ζ = -0.09583
+        if ini.equilibrium.boundary_from == :scalars
+            ini.equilibrium.R0 = R0
+            ini.equilibrium.Z0 = Z0
+            ini.equilibrium.ϵ = ϵ
+            ini.equilibrium.κ = κ
+            ini.equilibrium.δ = δ
+            ini.equilibrium.ζ = ζ
+        else
+            ini.equilibrium.MXH_params = [
+                R0, Z0, ϵ, κ, 0.00337,
+                0.15912, -0.05842, -0.04573, 0.00694, 0.00614, 0.00183,
+                asin(δ), -ζ, -0.05597, -0.01655, 0.00204, 0.00306]
+        end
+
         act.ActorCXbuild.rebuild_wall = true
         act.ActorHFSsizing.fixed_aspect_ratio = true
         # act.ActorEquilibrium.model = :CHEASE

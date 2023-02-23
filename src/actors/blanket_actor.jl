@@ -1,39 +1,35 @@
+import NNeutronics
+
 #= ============ =#
 #  ActorBlanket  #
 #= ============ =#
-
-import NNeutronics
+Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :ActorBlanket
+    minimum_first_wall_thickness::Entry{T} = Entry(T, "m", "Minimum first wall thickness"; default=0.02)
+    blanket_multiplier::Entry{T} = Entry(T, "-", "Neutron thermal power multiplier in blanket"; default=1.2)
+    thermal_power_extraction_efficiency::Entry{T} = Entry(T, "-",
+        "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
+        default=1.0)
+    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+end
 
 mutable struct ActorBlanket <: ReactorAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorBlanket
     act::ParametersAllActors
 
-    function ActorBlanket(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+    function ActorBlanket(dd::IMAS.dd, par::FUSEparameters__ActorBlanket, act::ParametersAllActors; kw...)
         logging_actor_init(ActorBlanket)
         par = par(kw...)
         return new(dd, par, act)
     end
 end
 
-function ParametersActor(::Type{Val{:ActorBlanket}})
-    par = ParametersActor(nothing)
-    par.minimum_first_wall_thickness = Entry(Float64, "m", "Minimum first wall thickness"; default=0.02)
-    par.blanket_multiplier = Entry(Real, "", "Neutron thermal power multiplier in blanket"; default=1.2)
-    par.thermal_power_extraction_efficiency = Entry(
-        Real,
-        "",
-        "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
-        default=1.0
-    )
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
-end
-
 """
     ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Blanket actor
+Evaluates blankets tritium breeding ratio (TBR), heat deposition, and neutron leakage
 
 !!! note 
     Stores data in `dd.blanket`
@@ -184,7 +180,7 @@ function _step(actor::ActorBlanket)
     function target_TBR2D(blanket_model::NNeutronics.Blanket, modules_relative_thickness13::Vector{<:Real}, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{<:Any}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real, min_d1::Float64=0.02, target::Float64=0.0)
         energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
-        Li6 = min(max(Li6, 0.0), 100.0)
+        Li6 = min(max(abs(Li6), 0.0), 100.0)
         modules_neutron_shine_through = []
         extra_cost = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
@@ -230,8 +226,7 @@ function _step(actor::ActorBlanket)
     end
 
     res = Optim.optimize(x -> target_TBR2D(blanket_model_1d, x[1:end-1], x[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness, dd.target.tritium_breeding_ratio), vcat(modules_relative_thickness13, 50.0), Optim.NelderMead())#; autodiff=:forward)#, rel_tol=1E-6)
-    total_tritium_breeding_ratio = target_TBR2D(blanket_model_1d, res.minimizer[1:end-1], res.minimizer[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness)
-
+    total_tritium_breeding_ratio = target_TBR2D(blanket_model_1d, res.minimizer[1:end-1], abs(res.minimizer[end]), dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness)
     if par.verbose
         println(res)
     end

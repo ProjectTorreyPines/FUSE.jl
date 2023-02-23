@@ -3,24 +3,24 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-mutable struct ActorCHEASE <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    chease::Union{Nothing,CHEASE.Chease}
+Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    free_boundary::Entry{Bool} = Entry(Bool, "-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
+    clear_workdir::Entry{Bool} = Entry(Bool, "-", "Clean the temporary workdir for CHEASE"; default=true)
+    rescale_eq_to_ip::Entry{Bool} = Entry(Bool, "-", "Scale equilibrium to match Ip"; default=true)
 end
 
-function ParametersActor(::Type{Val{:ActorCHEASE}})
-    par = ParametersActor(nothing)
-    par.free_boundary = Entry(Bool, "", "Convert fixed boundary equilibrium to free boundary one"; default=true)
-    par.clear_workdir = Entry(Bool, "", "Clean the temporary workdir for CHEASE"; default=true)
-    par.rescale_eq_to_ip = Entry(Bool, "", "Scale equilibrium to match Ip"; default=false)
-    return par
+mutable struct ActorCHEASE <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorCHEASE
+    chease::Union{Nothing,CHEASE.Chease}
 end
 
 """
     ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor runs the Fixed boundary equilibrium solver CHEASE
+Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCHEASE(kw...)
@@ -30,7 +30,7 @@ function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; kw...)
     logging_actor_init(ActorCHEASE)
     par = par(kw...)
     ActorCHEASE(dd, par, nothing)
@@ -59,6 +59,7 @@ function _step(actor::ActorCHEASE)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
+    par = actor.par
 
     # remove points at high curvature points (ie. X-points)
     r_bound = eqt.boundary.outline.r
@@ -90,8 +91,8 @@ function _step(actor::ActorCHEASE)
             ϵ, z_geo, pressure_sep, Bt_geo,
             r_geo, Ip, r_bound, z_bound, 82,
             rho_pol, pressure, j_tor,
-            rescale_eq_to_ip=actor.par.rescale_eq_to_ip,
-            clear_workdir=actor.par.clear_workdir)
+            rescale_eq_to_ip=par.rescale_eq_to_ip,
+            clear_workdir=par.clear_workdir)
     catch
         display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
         display(plot(psin, pressure))
@@ -100,12 +101,13 @@ function _step(actor::ActorCHEASE)
     end
 
     # convert from fixed to free boundary equilibrium
-    if actor.par.free_boundary
-        EQ = Equilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = VacuumFields.fixed2free(EQ, actor.chease.gfile.nbbbs)
+    if par.free_boundary
+        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
+        psi_free_rz = VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound)/2)))
         actor.chease.gfile.psirz = psi_free_rz
-        EQ = Equilibrium.efit(actor.chease.gfile, 1)
-        psi_b = Equilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
+        # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
+        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
+        psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
         psi_a = EQ.psi_rz(EQ.axis...)
         actor.chease.gfile.psirz = (psi_free_rz .- psi_a) * ((actor.chease.gfile.psi[end] - actor.chease.gfile.psi[1]) / (psi_b - psi_a)) .+ actor.chease.gfile.psi[1]
     end
@@ -113,20 +115,29 @@ function _step(actor::ActorCHEASE)
     return actor
 end
 
-# define `finalize` function for this actor
+# finalize by converting gEQDSK data to IMAS
 function _finalize(actor::ActorCHEASE)
-    gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
+    try
+        gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
+    catch e
+        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
+        psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
+        psi_a = EQ.psi_rz(EQ.axis...)
+        delta = (psi_b - psi_a) / 10.0
+        levels = LinRange(psi_b - delta, psi_b + delta, 11)
+        display(contour(EQ.r, EQ.z, transpose(actor.chease.gfile.psirz); levels, aspect_ratio=:equal, clim=(levels[1], levels[end])))
+        rethrow(e)
+    end
     return actor
 end
 
 """
     gEQDSK2IMAS(GEQDSKFile::GEQDSKFile,eq::IMAS.equilibrium)
 
-Convert IMAS.equilibrium__time_slice to Equilibrium.jl EFIT structure
+Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
 function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
-
-    tc = transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
+    tc = MXHEquilibrium.transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
 
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d

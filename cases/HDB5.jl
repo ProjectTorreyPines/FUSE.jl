@@ -18,12 +18,13 @@ function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any,
 end
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
-    ini = ParametersAllInits()
-    act = ParametersAllActors()
+    ini = ParametersInits()
+    act = ParametersActors()
     ini.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     ini.general.init_from = :scalars
 
     # Equilibrium parameters
+    ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.B0 = data_row[:BT]
     ini.equilibrium.R0 = data_row[:RGEO]
     ini.equilibrium.Z0 = 0.0
@@ -35,29 +36,20 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     act.ActorSolovev.area = data_row[:AREA]
     act.ActorSolovev.volume = data_row[:VOL]
 
-    x_point = (data_row[:RGEO] * (1 - 1.1 * data_row[:DELTA] * data_row[:AMIN] / data_row[:RGEO]), data_row[:RGEO] * 1.1 * data_row[:KAPPA] * data_row[:AMIN] / data_row[:RGEO])
-
     # Determine x-points
     if data_row[:CONFIG] == "SN"
         # upper single null
-        x_point = (x_point[1], x_point[2])
-        symmetric = false
+        ini.equilibrium.xpoints_number = 1
     elseif data_row[:CONFIG] == "SN(L)"
         # lower single null
-        x_point = (x_point[1], -x_point[2])
-        symmetric = false
+        ini.equilibrium.xpoints_number = 1
     elseif data_row[:CONFIG] == "DN"
         # double null
-        x_point = (x_point[1], x_point[2])
-        symmetric = true
+        ini.equilibrium.xpoints_number = 2
     else
         # no x-points
-        x_point = false
-        symmetric = true
+        ini.equilibrium.xpoints_number = 0
     end
-
-    ini.equilibrium.x_point = x_point
-    ini.equilibrium.symmetric = symmetric
 
     # Core_profiles parameters
     ini.core_profiles.ne_ped = data_row[:NEL] / 1.3

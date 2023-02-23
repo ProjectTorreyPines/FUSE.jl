@@ -301,34 +301,33 @@ end
 #= ============ =#
 #  ActorCosting  #
 #= ============ =#
+Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    land_space::Entry{T} = Entry(T, "acres", "Plant site space required in acres"; default=1000.0)
+    building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default=140.0e3)
+    interest_rate::Entry{T} = Entry(T, "-", "Anual interest rate fraction of direct capital cost"; default=0.05)
+    indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, energineering construction management and owners cost"; default=0.4)
+    lifetime::Entry{Int} = Entry(Int, "years", "lifetime of the plant"; default=40)
+    availability::Entry{T} = Entry(T, "-", "availability fraction of the plant"; default=0.803)
+    escalation_fraction::Entry{T} = Entry(T, "-", "yearly escalation fraction based on risk assessment"; default=0.05)
+    blanket_lifetime::Entry{T} = Entry(T, "years", "lifetime of the blanket"; default=6.8)
+end
 
 mutable struct ActorCosting <: FacilityAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
-    function ActorCosting(dd::IMAS.dd, par::ParametersActor; kw...)
+    par::FUSEparameters__ActorCosting
+    function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting; kw...)
         logging_actor_init(ActorCosting)
         par = par(kw...)
         return new(dd, par)
     end
 end
 
-function ParametersActor(::Type{Val{:ActorCosting}})
-    par = ParametersActor(nothing)
-    par.land_space = Entry(Real, "acres", "Plant site space required in acres"; default=1000.0)
-    par.building_volume = Entry(Real, "m^3", "Volume of the tokmak building"; default=140.0e3)
-    par.interest_rate = Entry(Real, "", "Anual interest rate fraction of direct capital cost"; default=0.05)
-    par.indirect_cost_rate = Entry(Real, "", "Indirect cost associated with construction, equipment, services, energineering construction management and owners cost"; default=0.4)
-    par.lifetime = Entry(Integer, "years", "lifetime of the plant"; default=40)
-    par.availability = Entry(Real, "", "availability fraction of the plant"; default=0.803)
-    par.escalation_fraction = Entry(Real, "", "yearly escalation fraction based on risk assessment"; default=0.05)
-    par.blanket_lifetime = Entry(Real, "years", "lifetime of the blanket"; default=6.8)
-    return par
-end
-
 """
     ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the cost of the fusion power plant.
+Estimates the cost of building, operating, and recommission the fusion power plant.
 
 !!! note 
     Stores data in `dd.costing`

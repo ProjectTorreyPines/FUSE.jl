@@ -1,25 +1,25 @@
 #= =================== =#
 #  ActorCoreTransport  #
 #= =================== =#
-mutable struct ActorCoreTransport <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    turb_actor::PlasmaAbstractActor
-    neoclassical_actor::PlasmaAbstractActor
+Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "rho core transport grid"; default=0.2:0.1:0.8)
+    turbulence_actor::Switch{Symbol} = Switch(Symbol, [:TGLF, :None], "-", "Turbulence Actor to run"; default=:TGLF)
+    neoclassical_actor::Switch{Symbol} = Switch(Symbol, [:Neoclassical, :None], "-", "Neocalssical actor to run"; default=:Neoclassical)
 end
 
-function ParametersActor(::Type{Val{:ActorCoreTransport}})
-    par = ParametersActor(nothing)
-    par.rho_transport = Entry(AbstractVector, "", "rho core transport grid"; default=0.2:0.1:0.8)
-    par.turbulence_actor = Switch(Symbol, [:TGLF, :None], "", "Turbulence Actor to run"; default=:TGLF)
-    par.neoclassical_actor = Switch(Symbol, [:Neoclassical, :None], "", "Neocalssical actor to run"; default=:Neoclassical)
-    return par
+mutable struct ActorCoreTransport <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorCoreTransport
+    turb_actor::PlasmaAbstractActor
+    neoclassical_actor::PlasmaAbstractActor
 end
 
 """
     ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorCoreTransport provides a common interface to run multiple equilibrium actors
+Provides a common interface to run multiple equilibrium actors
 """
 function ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCoreTransport(kw...)
@@ -29,7 +29,7 @@ function ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorCoreTransport(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
     par = par(kw...)
 
     if par.turbulence_actor == :TGLF

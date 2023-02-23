@@ -3,7 +3,7 @@ import DataFrames
 import CSV
 import Dates
 using Distributed
-using ProgressMeter
+import ProgressMeter
 ProgressMeter.ijulia_behavior(:clear)
 
 """
@@ -85,7 +85,7 @@ function workflow_HDB5_validation(;
 
     # Run workflow_simple_equilibrium_transport on each of the selected case
     if show_progress
-        data_rows = @showprogress pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
+        data_rows = ProgressMeter.@showprogress pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
     else
         data_rows = pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
     end

@@ -1,22 +1,33 @@
+#= ============ =#
+#  ActorSolovev  #
+#= ============ =#
+include("solovev_actor.jl")
+
+#= =========== =#
+#  ActorCHEASE  #
+#= =========== =#
+include("chease_actor.jl")
+
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
-mutable struct ActorEquilibrium <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    eq_actor::PlasmaAbstractActor
+Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    model::Switch{Symbol} = Switch(Symbol, [:Solovev, :CHEASE], "-", "Equilibrium actor to run"; default=:Solovev)
+    symmetrize::Entry{Bool} = Entry(Bool, "-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
 end
 
-function ParametersActor(::Type{Val{:ActorEquilibrium}})
-    par = ParametersActor(nothing)
-    par.model = Switch(Symbol, [:Solovev, :CHEASE], "", "Equilibrium actor to run"; default=:Solovev)
-    return par
+mutable struct ActorEquilibrium <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorEquilibrium
+    eq_actor::Union{ActorSolovev,ActorCHEASE}
 end
 
 """
     ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-The ActorEquilibrium provides a common interface to run multiple equilibrium actors
+Provides a common interface to run multiple equilibrium actors
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorEquilibrium(kw...)
@@ -26,7 +37,7 @@ function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :Solovev
@@ -72,14 +83,8 @@ Finalizes the selected equilibrium actor
 """
 function _finalize(actor::ActorEquilibrium)
     finalize(actor.eq_actor)
+    if actor.par.symmetrize
+        IMAS.symmetrize_equilibrium!(actor.dd.equilibrium.time_slice[])
+        IMAS.flux_surfaces(actor.dd.equilibrium.time_slice[])
+    end
 end
-
-#= ============ =#
-#  ActorSolovev  #
-#= ============ =#
-include("solovev_actor.jl")
-
-#= =========== =#
-#  ActorCHEASE  #
-#= =========== =#
-include("chease_actor.jl")

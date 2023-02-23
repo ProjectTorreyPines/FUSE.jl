@@ -7,7 +7,7 @@ CurrentModule = FUSE
 
 ```@example
 import FUSE # hide
-ini = FUSE.ParametersAllInits()
+ini = FUSE.ParametersInits()
 ```
 
 """]
@@ -16,5 +16,5 @@ open("$(@__DIR__)/ini.md", "w") do io
 end
 
 open("$(@__DIR__)/ini_details.md", "w") do io
-    parameters_details_md(io, FUSE.ParametersAllInits())
+    parameters_details_md(io, FUSE.ParametersInits())
 end

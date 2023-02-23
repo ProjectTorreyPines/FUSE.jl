@@ -3,26 +3,26 @@ import NumericalIntegration: integrate
 #= === =#
 #  NBI  #
 #= === =#
+Base.@kwdef mutable struct FUSEparameters__ActorNBIsimple{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.3)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.3)
+end
+
 mutable struct ActorNBIsimple <: HCDAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorNBIsimple
     width::AbstractVector{<:Real}
     rho_0::AbstractVector{<:Real}
     current_efficiency::AbstractVector{<:Real}
 end
 
-function ParametersActor(::Type{Val{:ActorNBIsimple}})
-    par = ParametersActor(nothing)
-    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.3)
-    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.3)
-    return par
-end
-
 """
     ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
+Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
 !!! note 
     Stores data in `dd.nbi, dd.core_sources`
@@ -35,7 +35,7 @@ function ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorNBIsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorNBIsimple(dd::IMAS.dd, par::FUSEparameters__ActorNBIsimple; kw...)
     logging_actor_init(ActorNBIsimple)
     par = par(kw...)
     n_beams = length(dd.nbi.unit)
@@ -91,26 +91,26 @@ end
 #= == =#
 #  EC  #
 #= == =#
+Base.@kwdef mutable struct FUSEparameters__ActorECsimple{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.1)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.2)
+end
+
 mutable struct ActorECsimple <: HCDAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorECsimple
     width::AbstractVector{<:Real}
     rho_0::AbstractVector{<:Real}
     current_efficiency::AbstractVector{<:Real}
 end
 
-function ParametersActor(::Type{Val{:ActorECsimple}})
-    par = ParametersActor(nothing)
-    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
-    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.2)
-    return par
-end
-
 """
     ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the EC electron energy deposition and current drive as a gaussian.
+Estimates the EC electron energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.ec_launchers, dd.core_sources`
@@ -123,7 +123,7 @@ function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorECsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorECsimple(dd::IMAS.dd, par::FUSEparameters__ActorECsimple; kw...)
     logging_actor_init(ActorECsimple)
     par = par(kw...)
     n_launchers = length(dd.ec_launchers.beam)
@@ -171,26 +171,26 @@ end
 #= == =#
 #  IC  #
 #= == =#
+Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.1)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
+    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.125)
+end
+
 mutable struct ActorICsimple <: HCDAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorICsimple
     width::AbstractVector{<:Real}
     rho_0::AbstractVector{<:Real}
     current_efficiency::AbstractVector{<:Real}
 end
 
-function ParametersActor(::Type{Val{:ActorICsimple}})
-    par = ParametersActor(nothing)
-    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.1)
-    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.0)
-    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.125)
-    return par
-end
-
 """
     ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
+Estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.ic_antennas, dd.core_sources`
@@ -203,7 +203,7 @@ function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorICsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorICsimple(dd::IMAS.dd, par::FUSEparameters__ActorICsimple; kw...)
     logging_actor_init(ActorICsimple)
     par = par(kw...)
     n_antennas = length(dd.ic_antennas.antenna)
@@ -251,26 +251,26 @@ end
 #= == =#
 #  LH  #
 #= == =#
+Base.@kwdef mutable struct FUSEparameters__ActorLHsimple{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.15)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.6)
+    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.4)
+end
+
 mutable struct ActorLHsimple <: HCDAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorLHsimple
     width::AbstractVector{<:Real}
     rho_0::AbstractVector{<:Real}
     current_efficiency::AbstractVector{<:Real}
 end
 
-function ParametersActor(::Type{Val{:ActorLHsimple}})
-    par = ParametersActor(nothing)
-    par.width = Entry(Union{Real,AbstractVector{<:Real}}, "", "Width of the deposition profile"; default=0.15)
-    par.rho_0 = Entry(Union{Real,AbstractVector{<:Real}}, "", "Radial location of the deposition profile"; default=0.6)
-    par.current_efficiency = Entry(Union{Real,AbstractVector{<:Real}}, "A/W", "Current drive efficiency"; default=0.4)
-    return par
-end
-
 """
     ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
+Estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
 
 !!! note 
     Stores data in `dd.lh_antennas, dd.core_sources`
@@ -283,7 +283,7 @@ function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorLHsimple(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorLHsimple(dd::IMAS.dd, par::FUSEparameters__ActorLHsimple; kw...)
     logging_actor_init(ActorLHsimple)
     par = par(kw...)
     n_antennas = length(dd.lh_antennas.antenna)

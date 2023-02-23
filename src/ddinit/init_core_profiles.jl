@@ -14,6 +14,9 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         else
             init_from = :scalars
         end
+        if ismissing(dd.core_profiles.global_quantities, :ejima) && ~ismissing(ini.core_profiles, :ejima)
+            IMAS.set_time_array(dd.core_profiles.global_quantities, :ejima, ini.core_profiles.ejima)
+        end
     end
 
     if init_from == :scalars
@@ -32,7 +35,8 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             ngrid=ini.core_profiles.ngrid,
             bulk=ini.core_profiles.bulk,
             impurity=ini.core_profiles.impurity,
-            ejima=ini.core_profiles.ejima)
+            ejima=getproperty(ini.core_profiles, :ejima, missing),
+            polarized_fuel_fraction=ini.core_profiles.polarized_fuel_fraction)
     end
 
     if ismissing(dd.core_profiles.profiles_1d[], :j_ohmic)
@@ -55,7 +59,8 @@ function init_core_profiles(
     bulk::Symbol,
     impurity::Symbol,
     rot_core::Real,
-    ejima::Real,
+    ejima::Union{Real,Missing},
+    polarized_fuel_fraction::Real,
     T_ratio::Real=1.0,
     T_shaping::Real=1.8,
     n_shaping::Real=0.9,
@@ -69,17 +74,16 @@ function init_core_profiles(
     cp1d.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cp1d.grid.rho_tor_norm)
 
     # Density handling
-
     if ismissing(ne_ped) && ismissing(greenwald_fraction)
         error("Set at least the pedestal density or the greenwald fraction")
     elseif ismissing(ne_ped)
-        # get ne_ped from fraction
-        ne_ped = greenwald_fraction * IMAS.greenwald_density(eqt) / 1.35 # 1.35 is fixed constant for initialization
+        # guess ne_ped from greewald fraction
+        ne_ped = greenwald_fraction * IMAS.greenwald_density(eqt) / 1.35 # Use a fixed constant for initialization
     elseif ismissing(greenwald_fraction)
-        ne_profile = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_ped * 1.4, ngrid, n_shaping, n_shaping, w_ped)
-        nel = IMAS.geometric_midplane_line_averaged_density(eqt, ne_profile, LinRange(0, 1, ngrid))
-        ngw = IMAS.greenwald_density(eqt)
-        greenwald_fraction = nel / ngw
+        # guess greewald fraction from ne_ped
+        ne0_guess = ne_ped * 1.4
+        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0_guess, ngrid, n_shaping, n_shaping, w_ped)
+        greenwald_fraction = IMAS.greenwald_fraction(eqt, cp1d)
     else
         # use ne_ped and greenwald_fraction as given
     end
@@ -100,7 +104,7 @@ function init_core_profiles(
 
     # pedestal
     if ne_ped * greenwald_fraction > IMAS.greenwald_density(eqt)
-        @warn "pedestal density * greenwald_fraction is larger than greenwald density"
+        @warn "ne_ped * greenwald_fraction is larger than greenwald density"
     end
 
     @ddtime summary.local.pedestal.n_e.value = ne_ped
@@ -111,9 +115,7 @@ function init_core_profiles(
     function cost_greenwald_fraction(ne0)
         ne0 = ne0[1]
         cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
-        nel = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-        ngw = IMAS.greenwald_density(eqt)
-        return (nel / ngw - greenwald_fraction)^2
+        return (IMAS.greenwald_fraction(eqt, cp1d) - greenwald_fraction)^2
     end
     ne0_guess = ne_ped * 1.4
     res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
@@ -154,6 +156,11 @@ function init_core_profiles(
     end
 
     # ejima
-    IMAS.set_time_array(cp.global_quantities, :ejima, ejima)
+    if ejima !== missing
+        IMAS.set_time_array(cp.global_quantities, :ejima, ejima)
+    end
+
+    # set spin polarization
+    cp.global_quantities.polarized_fuel_fraction = polarized_fuel_fraction
     return cp
 end

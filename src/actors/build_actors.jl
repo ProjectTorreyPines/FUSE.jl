@@ -127,34 +127,31 @@ end
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-mutable struct ActorFluxSwing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    operate_at_j_crit::Bool
-    j_tolerance::Real
-end
-
-function ParametersActor(::Type{Val{:ActorFluxSwing}})
-    par = ParametersActor(nothing)
-    par.operate_at_j_crit = Entry(
-        Bool,
-        "",
-        """
+Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    operate_at_j_crit::Entry{Bool} = Entry(Bool, "-", """
 Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
 The flattop duration and maximum toroidal magnetic field follow from that.
 Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
 These currents may or may not exceed the OH and TF current limits.""";
         default=true
     )
-    par.j_tolerance = Entry(Real, "", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
-    return par
+    j_tolerance::Entry{T} = Entry(T, "-", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
+end
+
+mutable struct ActorFluxSwing <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorFluxSwing
+    operate_at_j_crit::Bool
+    j_tolerance::Real
 end
 
 """
     ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor operate in two ways, depending on `operate_at_j_crit`
-* true => Figure out what is the OH and TF current limit, and evaluate flattop duration and maximum toroidal magnetic field follow from that
+Depending on `operate_at_j_crit`
+* true => Evaluate the OH and TF current limits, and evaluate flattop duration and maximum toroidal magnetic field from that.
 * false => Evaluate what are the currents needed for a given flattop duration and toroidal magnetic field, which may or may not exceed the OH and TF current limits.
 
 OH flux consumption based on:
@@ -174,7 +171,7 @@ function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorFluxSwing(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorFluxSwing(dd::IMAS.dd, par::FUSEparameters__ActorFluxSwing; kw...)
     logging_actor_init(ActorFluxSwing)
     par = par(kw...)
     return ActorFluxSwing(dd, par, par.operate_at_j_crit, par.j_tolerance)
@@ -300,27 +297,27 @@ end
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
+Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+end
+
 mutable struct ActorLFSsizing <: ReactorAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
-    function ActorLFSsizing(dd::IMAS.dd, par::ParametersActor; kw...)
+    par::FUSEparameters__ActorLFSsizing
+    function ActorLFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorLFSsizing; kw...)
         logging_actor_init(ActorLFSsizing)
         par = par(kw...)
         return new(dd, par)
     end
 end
 
-function ParametersActor(::Type{Val{:ActorLFSsizing}})
-    par = ParametersActor(nothing)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
-end
-
 """
     ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that resizes the Low Field Side of the build.
+Actor that resizes the Low Field Side of the tokamak radial build
 * Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
 * Other low-field side layers are scaled proportionally
 
@@ -374,28 +371,28 @@ end
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-mutable struct ActorHFSsizing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    stresses_actor::ActorStresses
-    fluxswing_actor::ActorFluxSwing
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the conductor current limits"; default=0.4)
+    stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the structural stresses limits"; default=0.2)
+    fixed_aspect_ratio::Entry{Bool} = Entry(Bool, "-", "Raise an error if aspect_ratio changes more than 10%"; default=true)
+    unconstrained_flattop_duration::Entry{Bool} = Entry(Bool, "-", "Maximize flux_duration without targeting a specific value"; default=true)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
 end
 
-function ParametersActor(::Type{Val{:ActorHFSsizing}})
-    par = ParametersActor(nothing)
-    par.j_tolerance = Entry(Float64, "", "Tolerance on the conductor current limits"; default=0.4)
-    par.stress_tolerance = Entry(Float64, "", "Tolerance on the structural stresses limits"; default=0.2)
-    par.fixed_aspect_ratio = Entry(Bool, "", "Raise an error if aspect_ratio changes more than 10%"; default=true)
-    par.unconstrained_flattop_duration = Entry(Bool, "", "Maximize flux_duration without targeting a specific value"; default=true)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
+mutable struct ActorHFSsizing <: ReactorAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorHFSsizing
+    stresses_actor::ActorStresses
+    fluxswing_actor::ActorFluxSwing
 end
 
 """
     ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that resizes the High Field Side of the build.
+Actor that resizes the High Field Side of the tokamak radial build
 * takes into account the OH maximum allowed superconductor current/Field
 * takes into account the stresses on the center stack
     
@@ -416,7 +413,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw_ActorFluxSwing
     return actor
 end
 
-function ActorHFSsizing(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
+function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
     par = act.ActorHFSsizing(kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing; kw_ActorFluxSwing...)
     stresses_actor = ActorStresses(dd, act.ActorStresses; kw_ActorStresses...)
@@ -653,27 +650,27 @@ end
 #= ============= =#
 #  cross-section  #
 #= ============= =#
+Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    rebuild_wall::Entry{Bool} = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+end
+
 mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
-    function ActorCXbuild(dd::IMAS.dd, par::ParametersActor; kw...)
+    par::FUSEparameters__ActorCXbuild
+    function ActorCXbuild(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild; kw...)
         logging_actor_init(ActorCXbuild)
         par = par(kw...)
         return new(dd, par)
     end
 end
 
-function ParametersActor(::Type{Val{:ActorCXbuild}})
-    par = ParametersActor(nothing)
-    par.rebuild_wall = Entry(Bool, "", "Rebuild wall based on equilibrium"; default=false)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    return par
-end
-
 """
     ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that builds the 2D cross section of the build.
+Generates the 2D cross section of the tokamak build
 
 !!! note 
     Manipulates data in `dd.build`
@@ -727,7 +724,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     t = LinRange(0, 2π, 31)
 
     # divertor lengths
-    linear_plasma_size = sqrt((maximum(zlcfs) - minimum(zlcfs)) * (maximum(rlcfs) - minimum(rlcfs)))
+    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
     max_divertor_length = linear_plasma_size * divertor_length_fraction
 
     # private flux regions
@@ -736,7 +733,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
             # open flux surface does not encicle the plasma
             continue
-        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > linear_plasma_size / 5
+        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > (linear_plasma_size / 20)
             # secondary Xpoint far away
             continue
         end
@@ -756,12 +753,15 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         pr = [rr for (rr, zz) in slot]
         pz = [zz for (rr, zz) in slot]
 
-        if isempty(pr)
-            error("Something is wrong with the geometry and equilibrium")
-        end
-
         # remove private flux region from wall (necessary because of Z expansion)
-        wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
+        # this may fail if the private region is small or weirdly shaped
+        try
+            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
+        catch e
+            if !(typeof(e) <: LibGEOS.GEOSError)
+                rethrow(e)
+            end
+        end
 
         # add the divertor slots
         α = 0.2
@@ -772,8 +772,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     end
 
     # vertical clip
-    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(0, R_hfs_plasma, 100)...))
-    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100)...))
+    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(0.0, R_hfs_plasma, 100.0)...))
+    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100.0)...))
 
     # round corners
     wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
@@ -793,7 +793,10 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
     plasma_poly = xy_polygon(bd.layer[ipl])
-
+    ψb = IMAS.find_psi_boundary(eqt)
+    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
+    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
+    
     wall_poly = xy_polygon(bd.layer[ipl-1])
     for ltype in [_blanket_, _shield_, _wall_,]
         iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
@@ -805,8 +808,13 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 
     divertors = IMAS.IDSvectorElement[]
     for x_point in eqt.boundary.x_point
-        Zx = x_point.z
         Rx = x_point.r
+        Zx = x_point.z
+        if IMAS.minimum_distance_two_shapes(rlcfs, zlcfs, [Rx], [Zx]) > (linear_plasma_size / 20)
+            # secondary Xpoint far away
+            continue
+        end
+
         m = (Zx - Z0) / (Rx - R0)
         xx = [0, R0 * 2.0]
         yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)
@@ -995,7 +1003,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         end
     else
         for k in iout
-            L = 0
+            L = 0.0
             R = bd.layer[k].end_radius
             D = minimum(bd.layer[k-1].outline.z) - bd.layer[k].thickness
             U = maximum(bd.layer[k-1].outline.z) + bd.layer[k].thickness
@@ -1017,9 +1025,9 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # display("Layer $layer_index = $(layer.name)")
     # display("Obstr $obstr_index = $(obstr.name)")
     if layer.fs == Int(_out_)
-        l_start = 0
+        l_start = 0.0
         l_end = layer.end_radius
-        o_start = 0
+        o_start = 0.0
         o_end = obstr.end_radius
     else
         if obstr.fs in [Int(_lhfs_), Int(_out_)]

@@ -1,19 +1,23 @@
 #= =================== =#
 #  ActorBalanceOfPlant  #
 #= =================== =#
-using IMASDD
-using Plots
-using Base
-using IMAS
-using LinearAlgebra
+Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(Nothing)
+    _name::Symbol = :not_set
+    model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Balance of plant model"; default=:EU_DEMO)
+    blanket_multiplier::Entry{T} = Entry(T, "-", "Neutron thermal power multiplier in blanket"; default=1.2)
+    efficiency_reclaim::Entry{T} = Entry(T, "-", "Reclaim efficiency of thermal power hitting the blanket"; default=0.6)
+    thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.4)
+end
 
 mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorBalanceOfPlant
     thermal_electric_conversion_efficiency::Real
     thermal_cycle_actor::ActorThermalCycle
     IHTS_actor::ActorHeatTxSystem
 end
+
 # POWER CYCLE MODEL TYPES
 #   
 # ["brayton_only","rankine_only","combined_series","combined_parallel"]
@@ -51,7 +55,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorBalanceOfPlant(dd::IMAS.dd, par::ParametersActor, act::ParametersAllActors; kw...)
+function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPlant; kw...)
     logging_actor_init(ActorBalanceOfPlant)
     par = par(kw...)
     act.ActorBalanceOfPlant = par       #setting main actor data
