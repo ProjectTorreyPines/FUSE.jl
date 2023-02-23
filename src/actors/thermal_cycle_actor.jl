@@ -16,18 +16,17 @@ mutable struct ActorThermalCycle <: FacilityAbstractActor
     cyc_name::String
 end
 
-function ParametersActor(::Type{Val{:ActorThermalCycle}})
-    par         = ParametersActor(nothing)
-    # par.model   = Entry(String,"","Power Cycle Configuration";default="brayton_only")
-    par.rp      = Entry(Real, "",   "Overall Compression Ratio"; default=3.0)
-    par.Pmax    = Entry(Real, "",   "Max System Pressure (MPa)"; default=8e6)
-    par.Tmax    = Entry(Real,"",    "Max Cycle Temperature K";default = 950.0+273.15)
-    par.Tmin    = Entry(Real,"",    "Min Cycle Temperature K";default = 35.0+273.15)
-    par.Nt      = Entry(Int, "",    "Number of Turbine Stages"; default=1)
-    par.Nc      = Entry(Int, "",    "Number of Compression Stages"; default=3)
-    par.regen   = Entry(Bool,"",    "Regeneration ";default = true)
-    par.do_plot = Entry(Bool, "", "plot"; default=false)
-    return par
+Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(Nothing)
+    _name::Symbol = :not_set
+    rp::Entry{T} = Entry(T, "-", "Overall Compression Ratio"; default=3.0)
+    Pmax::Entry{T} = Entry(T, "-", "Max System Pressure (MPa)"; default=8e6)
+    Tmax::Entry{T} = Entry(T,"-", "Max Cycle Temperature K";default = 950.0+273.15)
+    Tmin::Entry{T} = Entry(T,"-", "Min Cycle Temperature K";default = 35.0+273.15)
+    Nt::Entry{Int} = Entry(Int, "-", "Number of Turbine Stages"; default=1)
+    Nc::Entry{Int} = Entry(Int, "-", "Number of Compression Stages"; default=3)
+    regen::Entry{T} = Entry(T,"-", "Regeneration fraction")
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
 
 
