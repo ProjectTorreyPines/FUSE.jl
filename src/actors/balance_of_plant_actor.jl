@@ -4,9 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    blanket_multiplier::Entry{T} = Entry(T, "-", "Neutron thermal power multiplier in blanket"; default=1.2)
-    efficiency_reclaim::Entry{T} = Entry(T, "-", "Reclaim efficiency of thermal power hitting the blanket"; default=0.6)
-    model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Balance of plant model"; default=:EU_DEMO)
+    needs_model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Power plant electrical needs model"; default=:EU_DEMO)
     cycle_model::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :combined_series, :combined_parallel], "", "Power Cycle Configuration"; default=:brayton_only)
     thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
     do_plot::Entry{Bool} = Entry(Bool, "", "plot"; default=false)
@@ -24,8 +22,8 @@ end
 
 Balance of plant actor that estimates the net electrical power output by comparing the balance of plant electrical needs with the electricity generated from the thermal cycle.
 
-* `model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
-* `model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
+* `needs_model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
+* `needs_model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
 
 !!! note 
     Stores data in `dd.balance_of_plant`
@@ -43,44 +41,44 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     par = par(kw...)
 
     bop = dd.balance_of_plant
-    bop.power_cycle_type = par.cycle_model
+    bop.power_cycle_type = string(par.cycle_model)
 
-    regen = determineRegen(par)
-    breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(par)
+    regen = determineRegen(bop)
+    breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(bop)
 
     IHTS_actor = ActorHeatTxSystem(dd, act; breeder_hi_temp, breeder_low_temp)
     thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=3.0, regen)
     return ActorBalanceOfPlant(dd, par, thermal_cycle_actor, IHTS_actor)
 end
 
-function determineRegen(par::ParametersActor)
+function determineRegen(bop::IMAS.balance_of_plant)
     regen = false
-    if par.cycle_model == "brayton_only" || par.cycle_model == "combined_parallel"
+    if bop.power_cycle_type ∈ ["brayton_only", "combined_parallel"]
         regen = true
     end
     return regen
 end
 
-function ihts_specs(par::ParametersActor)
-    breeder_tmax = 1100 + 273.15
-    breeder_tmin = 550 + 273.15
-    if par.cycle_model == "rankine_only"
-        breeder_tmax = 650 + 273.15
-        breeder_tmin = 185 + 273.15
+function ihts_specs(bop::IMAS.balance_of_plant)
+    breeder_tmax = 1100.0 + 273.15
+    breeder_tmin = 550.0 + 273.15
+    if bop.power_cycle_type == "rankine_only"
+        breeder_tmax = 650.0 + 273.15
+        breeder_tmin = 185.0 + 273.15
     end
-    cycle_tmax = breeder_tmax - 50
+    cycle_tmax = breeder_tmax - 50.0
     return breeder_tmax, breeder_tmin, cycle_tmax
 end
 
 function _step(actor::ActorBalanceOfPlant)
     dd = actor.dd
+    par = actor.par
     bop = dd.balance_of_plant
-    model = actor.par.model
     bop.time = dd.core_profiles.time
 
     bop_thermal = bop.thermal_cycle
-    bop_thermal.thermal_electric_conversion_efficiency = actor.par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
-    bop_thermal.power_electric_generated = bop_thermal.net_work .* actor.par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
+    bop_thermal.thermal_electric_conversion_efficiency = par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
+    bop_thermal.power_electric_generated = bop_thermal.net_work .* par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
 
     @ddtime(bop_thermal.total_heat_power = @ddtime(bop.heat_tx_system.blanket.heat_delivered) + @ddtime(bop.heat_tx_system.divertor.heat_delivered) + @ddtime(bop.heat_tx_system.breeder.heat_delivered))
     bop_electric = bop.power_electric_plant_operation
@@ -95,11 +93,11 @@ function _step(actor::ActorBalanceOfPlant)
     end
 
     ## balance of plant systems
-    if model == :gasc
+    if par.needs_model == :gasc
         sys = resize!(bop_electric.system, "name" => "BOP_gasc", "index" => 2)
         sys.power = 0.07 .* bop_thermal.power_electric_generated
 
-    elseif model == :EU_DEMO
+    elseif par.needs_model == :EU_DEMO
         # More realistic DEMO numbers
         bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active] # index 2 : 5
         for (idx, system) in enumerate(bop_systems)
@@ -107,15 +105,14 @@ function _step(actor::ActorBalanceOfPlant)
             sys.power = electricity(system, bop.time)
         end
     else
-        error("ActorBalanceOfPlant: model = $(model) not recognized")
+        error("ActorBalanceOfPlant: par.needs_model = $(par.needs_model) not recognized")
     end
 
     bop.power_electric_net = (bop_thermal.power_electric_generated - sys.power) .* ones(length(bop.time))
     bop.Q_plant = (bop.power_electric_net ./ bop_electric.total_power)   #.*ones(length(bop.time))
 
-    if actor.par.do_plot == true
+    if par.do_plot
         core = sys_coords(dd)
-        corevec = sys2vec(core)
         pl = plot(core)
         regen_xpt = 13.5
         blk_hx_xpoint = 18.5
@@ -187,6 +184,7 @@ function _step(actor::ActorBalanceOfPlant)
         plot!(ic2)
         display(pl)
     end
+
     return actor
 end
 
@@ -197,14 +195,6 @@ function heating_and_current_drive_calc(system_unit, time_array::Vector{<:Real})
         power_electric_total .+= IMAS.get_time_array(item_unit.power_launched, :data, time_array, :constant) ./ efficiency
     end
     return power_electric_total
-end
-
-function parse_core_sources_sum_heating(cs::IMAS.core_sources, identifier_index::Int64, time_array::Vector{<:Real})
-    return IMAS.interp1d(cs.time, [findall(cs.source, "identifier.index" => identifier_index)[1].profiles_1d[t].total_ion_power_inside[end] .+ findall(cs.source, "identifier.index" => 6)[1].profiles_1d[t].electrons.power_inside[end] for t in cs.time], :constant).(time_array)
-end
-
-function electricity(symbol::Symbol, time_array::Vector{<:Real})
-    return electricity(Val{symbol}, time_array)
 end
 
 function electricity(nbi::IMAS.nbi, time_array::Vector{<:Real})
@@ -221,6 +211,10 @@ end
 
 function electricity(lh_antennas::IMAS.lh_antennas, time_array::Vector{<:Real})
     return heating_and_current_drive_calc(lh_antennas.antenna, time_array)
+end
+
+function electricity(symbol::Symbol, time_array::Vector{<:Real})
+    return electricity(Val{symbol}, time_array)
 end
 
 # Dummy functions values taken from DEMO 2017  https://iopscience.iop.org/article/10.1088/0029-5515/57/1/016011
@@ -240,19 +234,9 @@ function electricity(::Type{Val{:pf_active}}, time_array::Vector{<:Real})
     return 0e6 .* ones(length(time_array)) # MWe    (Note this should not be a constant!)
 end
 
-function thermal_power(symbol::Symbol, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
-    return thermal_power(Val{symbol}, dd, actor, time_array)
-end
-
-function thermal_power(::Type{Val{:blanket}}, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
-    power_fusion, time_array_fusion = IMAS.total_power_time(dd.core_sources, [6])
-    return actor.blanket_multiplier .* IMAS.interp1d(time_array_fusion, 4 .* power_fusion, :constant).(time_array) # blanket_multiplier * P_neutron
-end
-
-function thermal_power(::Type{Val{:diverters}}, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
-    return actor.efficiency_reclaim .* IMAS.total_power_source(IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[])) .* ones(length(time_array))
-end
-
+#= ======== =#
+#  Plotting  #
+#= ======== =#
 abstract type component end
 
 mutable struct coords
@@ -299,7 +283,7 @@ function sys_coords(layer_coords::Vector{coords}, structure_coords::Vector{coord
     return sys_coords(outer_wall[1], blanket_wall[1], inner_wall[1], upper_divertor[1], lower_divertor[1], inner_blanket[1], outer_blanket[1])
 end
 
-function sys_coords(dd::IMASDD.dd)
+function sys_coords(dd::IMAS.dd)
     # to_find = ["hfs blanket" ,"lfs gap vacuum vessel low temp shield","lfs first wall"]
     to_find = ["hfs blanket", "hfs TF", "lfs first wall"]
     re_name = Dict("hfs blanket" => "blanket_wall",
