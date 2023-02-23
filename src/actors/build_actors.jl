@@ -690,15 +690,11 @@ end
 
 function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
     dd = actor.dd
+
     wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall) # this function updated to collect all first walls into single outline
-
     if wall === missing || rebuild_wall
-        #pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
-        ActorPlasmaFacingSurfaces(dd, actor.act)
-        display(plot!(actor.pfs))
-
-        wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall) 
-
+        actor = ActorPlasmaFacingSurfaces(dd, actor.act)        
+        wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
     end
     pr = wall.r
     pz = wall.z

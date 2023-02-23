@@ -120,8 +120,12 @@ end
 
 Takes equilibrium and builds a first wall (ie. all plasma facing surfaces, including divertor)
 
-Creates `upper_divertor`, `lower_divertor`, and `main_chamber_wall` 2D descriptions to the `wall` IDS
+Creates `main_chamber_wall` and `upper_divertor` and/or `lower_divertor`  2D descriptions to the `wall` IDS
 
+A divertor is composed of three sub-systems:
+- targets that are intersected by a strike point and that will receive the highest possible heat flux
+- baffles that are mostly receiving heat fluxes from radiations and are largely parallel to the plasma parallel flow
+- a dome that is exposed to the private flux region and that is connecting the inner and outer components
 """
 function ActorPlasmaFacingSurfaces(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorPlasmaFacingSurfaces(kw...)
@@ -144,5 +148,5 @@ function _step(actor::ActorPlasmaFacingSurfaces)
 end
 
 function _finalize(actor::ActorPlasmaFacingSurfaces)
-    PlasmaFacingSurfaces.export2ddwall(actor.dd, actor.pfs)
+    PlasmaFacingSurfaces.export2ddwall(actor.dd.wall.description_2d, actor.pfs)
 end
