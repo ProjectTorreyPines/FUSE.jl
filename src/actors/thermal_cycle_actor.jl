@@ -6,14 +6,9 @@
 #       SIMPLE rankine
 #       COMBINED BRAYTON RANKINE
 #= =================== =#
-using LinearAlgebra
-using Plots
-#["brayton_only","rankine_only","combined_series","combined_parallel"]
-# CONSTRUCTOR - SHOULD Hold 
 mutable struct ActorThermalCycle <: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
-    cyc_name::String
 end
 
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
@@ -29,13 +24,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersAct
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
 
-
 """
     ActorThermalCycle(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Evaluates the thermal cycle based on the heat loads of the divertor and the blanket
 * `model = :brayton` evaluates the brayton cycle
-* `model = :rankine evaluates the rankine cycle **THIS IS NOT ADDED YET, WILL UPDATE SOON
+* `model = :rankine evaluates the rankine cycle
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
@@ -66,14 +60,19 @@ function _step(actor::ActorThermalCycle, all_act)
     bop_thermal = bop.thermal_cycle
     ihts_par = all_act.ActorHeatTxSystem;
 
-    blanket_power   = @ddtime(bop.heat_tx_system.blanket.heat_load)
-    breeder_power   = @ddtime(bop.heat_tx_system.breeder.heat_load)
-    divertor_power  = @ddtime(bop.heat_tx_system.divertor.heat_load)
+    blanket_power  = @ddtime(bop.heat_tx_system.blanket.heat_load)
+    breeder_power  = @ddtime(bop.heat_tx_system.breeder.heat_load)
+    divertor_power = @ddtime(bop.heat_tx_system.divertor.heat_load)
 
-    ϵr = 0.9;
-    if actor.par.regen==false
-        ϵr=0;
+    if ismissing(par, :regen)
+        ϵr = 0.0
+        if bop.power_cycle_type ∈ ["brayton_only", "combined_parallel"]
+            ϵr = 0.9
+        end
+    else
+        ϵr = par.regen
     end
+    @assert (ϵr==0 || (ϵr>=0.0 && ϵr<=1.0 && bop.power_cycle_type ∈ ["brayton_only", "combined_parallel"])) "Regeneration between 0.0 and 1.0 is only possible for `brayton_only` or `combined_parallel` cycles"
 
     mflow_cycle     = @ddtime(bop.thermal_cycle.flow_rate)
 

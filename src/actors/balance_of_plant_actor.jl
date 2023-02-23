@@ -5,9 +5,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersA
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     needs_model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Power plant electrical needs model"; default=:EU_DEMO)
-    cycle_model::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :combined_series, :combined_parallel], "", "Power Cycle Configuration"; default=:brayton_only)
+    cycle_model::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :combined_series, :combined_parallel], "-", "Power cycle configuration"; default=:brayton_only)
     thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
-    do_plot::Entry{Bool} = Entry(Bool, "", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
 
 mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
@@ -43,20 +43,11 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     bop = dd.balance_of_plant
     bop.power_cycle_type = string(par.cycle_model)
 
-    regen = determineRegen(bop)
     breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(bop)
 
     IHTS_actor = ActorHeatTxSystem(dd, act; breeder_hi_temp, breeder_low_temp)
-    thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=3.0, regen)
+    thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=3.0)
     return ActorBalanceOfPlant(dd, par, thermal_cycle_actor, IHTS_actor)
-end
-
-function determineRegen(bop::IMAS.balance_of_plant)
-    regen = false
-    if bop.power_cycle_type ∈ ["brayton_only", "combined_parallel"]
-        regen = true
-    end
-    return regen
 end
 
 function ihts_specs(bop::IMAS.balance_of_plant)
