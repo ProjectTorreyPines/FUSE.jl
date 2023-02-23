@@ -15,7 +15,6 @@ end
 mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorBalanceOfPlant
-    thermal_electric_conversion_efficiency::Real
     thermal_cycle_actor::ActorThermalCycle
     IHTS_actor::ActorHeatTxSystem
 end
@@ -46,16 +45,12 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     bop = dd.balance_of_plant
     bop.power_cycle_type = par.cycle_model
 
-    act.ActorBalanceOfPlant = par       #setting main actor data
+    regen = determineRegen(par)
+    breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(par)
 
-    regenBool = determineRegen(par)
-    breeder_tmax, breeder_tmin, cycle_tmax = ihts_specs(par)
-
-    rp_default = 3.0
-
-    IHTS_actor = ActorHeatTxSystem(dd, act; breeder_hi_temp=breeder_tmax, breeder_low_temp=breeder_tmin)
-    thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=rp_default, regen=regenBool)
-    return ActorBalanceOfPlant(dd, par, par.thermal_electric_conversion_efficiency, thermal_cycle_actor, IHTS_actor)
+    IHTS_actor = ActorHeatTxSystem(dd, act; breeder_hi_temp, breeder_low_temp)
+    thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=3.0, regen)
+    return ActorBalanceOfPlant(dd, par, thermal_cycle_actor, IHTS_actor)
 end
 
 function determineRegen(par::ParametersActor)
@@ -84,12 +79,13 @@ function _step(actor::ActorBalanceOfPlant)
     bop.time = dd.core_profiles.time
 
     bop_thermal = bop.thermal_cycle
-    bop_thermal.thermal_electric_conversion_efficiency = actor.thermal_electric_conversion_efficiency .* ones(length(bop.time))
-    bop_thermal.power_electric_generated = bop_thermal.net_work .* actor.thermal_electric_conversion_efficiency .* ones(length(bop.time))
+    bop_thermal.thermal_electric_conversion_efficiency = actor.par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
+    bop_thermal.power_electric_generated = bop_thermal.net_work .* actor.par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
 
     @ddtime(bop_thermal.total_heat_power = @ddtime(bop.heat_tx_system.blanket.heat_delivered) + @ddtime(bop.heat_tx_system.divertor.heat_delivered) + @ddtime(bop.heat_tx_system.breeder.heat_delivered))
     bop_electric = bop.power_electric_plant_operation
 
+    ## heating and current drive systems
     sys = resize!(bop_electric.system, "name" => "H&CD", "index" => 1)
     sys.power = zeros(length(bop.time))
     for (idx, hcd_system) in enumerate(intersect([:nbi, :ec_launchers, :ic_antennas, :lh_antennas], keys(dd)))
@@ -193,6 +189,7 @@ function _step(actor::ActorBalanceOfPlant)
     end
     return actor
 end
+
 function heating_and_current_drive_calc(system_unit, time_array::Vector{<:Real})
     power_electric_total = zeros(length(time_array))
     for item_unit in system_unit
@@ -201,66 +198,85 @@ function heating_and_current_drive_calc(system_unit, time_array::Vector{<:Real})
     end
     return power_electric_total
 end
+
 function parse_core_sources_sum_heating(cs::IMAS.core_sources, identifier_index::Int64, time_array::Vector{<:Real})
     return IMAS.interp1d(cs.time, [findall(cs.source, "identifier.index" => identifier_index)[1].profiles_1d[t].total_ion_power_inside[end] .+ findall(cs.source, "identifier.index" => 6)[1].profiles_1d[t].electrons.power_inside[end] for t in cs.time], :constant).(time_array)
 end
+
 function electricity(symbol::Symbol, time_array::Vector{<:Real})
     return electricity(Val{symbol}, time_array)
 end
+
 function electricity(nbi::IMAS.nbi, time_array::Vector{<:Real})
     return heating_and_current_drive_calc(nbi.unit, time_array)
 end
+
 function electricity(ec_launchers::IMAS.ec_launchers, time_array::Vector{<:Real})
     return heating_and_current_drive_calc(ec_launchers.beam, time_array)
 end
+
 function electricity(ic_antennas::IMAS.ic_antennas, time_array::Vector{<:Real})
     return heating_and_current_drive_calc(ic_antennas.antenna, time_array)
 end
+
 function electricity(lh_antennas::IMAS.lh_antennas, time_array::Vector{<:Real})
     return heating_and_current_drive_calc(lh_antennas.antenna, time_array)
 end
+
 # Dummy functions values taken from DEMO 2017  https://iopscience.iop.org/article/10.1088/0029-5515/57/1/016011
 function electricity(::Type{Val{:cryostat}}, time_array::Vector{<:Real})
     return 30e6 .* ones(length(time_array)) # MWe
 end
+
 function electricity(::Type{Val{:tritium_handling}}, time_array::Vector{<:Real})
     return 15e6 .* ones(length(time_array)) # MWe
 end
+
 function electricity(::Type{Val{:pumping}}, time_array::Vector{<:Real})
     return 80e6 .* ones(length(time_array)) # MWe    (Note this should not be a constant!)
 end
+
 function electricity(::Type{Val{:pf_active}}, time_array::Vector{<:Real})
     return 0e6 .* ones(length(time_array)) # MWe    (Note this should not be a constant!)
 end
+
 function thermal_power(symbol::Symbol, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
     return thermal_power(Val{symbol}, dd, actor, time_array)
 end
+
 function thermal_power(::Type{Val{:blanket}}, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
     power_fusion, time_array_fusion = IMAS.total_power_time(dd.core_sources, [6])
     return actor.blanket_multiplier .* IMAS.interp1d(time_array_fusion, 4 .* power_fusion, :constant).(time_array) # blanket_multiplier * P_neutron
 end
+
 function thermal_power(::Type{Val{:diverters}}, dd::IMAS.dd, actor::ActorBalanceOfPlant, time_array::Vector{<:Real})
     return actor.efficiency_reclaim .* IMAS.total_power_source(IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[])) .* ones(length(time_array))
 end
 
 abstract type component end
+
 mutable struct coords
     name::String
     x
     y
 end
+
 function coords(xp::Vector{Real}, yp::Vector{Real})
     return coords(xp, ypm, "noname")
 end
+
 function coords(nm::String)
     return coords(name=nm, x=0, y=0)
 end
+
 function endpoints(c::coords)
     start_pt = [c.x[1], c.y[1]]
     end_pt = [c.x[end], c.y[end]]
     return start_pt, end_pt
 end
+
 Base.:+(c1::coords, c2::coords) = coords(c1.name, vcat(c1.x, c2.x), vcat(c1.y, c2.y))
+
 # port
 mutable struct sys_coords
     outer_wall::coords
@@ -271,6 +287,7 @@ mutable struct sys_coords
     inner_blanket::coords
     outer_blanket::coords
 end
+
 function sys_coords(layer_coords::Vector{coords}, structure_coords::Vector{coords})
     outer_wall = [c for c in layer_coords if c.name == "outer_wall"]
     blanket_wall = [c for c in layer_coords if c.name == "blanket_wall"]
@@ -281,6 +298,7 @@ function sys_coords(layer_coords::Vector{coords}, structure_coords::Vector{coord
     outer_blanket = [c for c in structure_coords if c.name == "outer_blanket"]
     return sys_coords(outer_wall[1], blanket_wall[1], inner_wall[1], upper_divertor[1], lower_divertor[1], inner_blanket[1], outer_blanket[1])
 end
+
 function sys_coords(dd::IMASDD.dd)
     # to_find = ["hfs blanket" ,"lfs gap vacuum vessel low temp shield","lfs first wall"]
     to_find = ["hfs blanket", "hfs TF", "lfs first wall"]
@@ -296,9 +314,11 @@ function sys_coords(dd::IMASDD.dd)
     struct_coords = [coords(re_name[lay.name], lay.outline.r, lay.outline.z) for lay in dd.build.structure]
     sys_coords(lay_coords, struct_coords)
 end
+
 function sys2vec(core::sys_coords)
     return [core.outer_wall, core.blanket_wall, core.inner_wall, core.upper_divertor, core.lower_divertor, core.inner_blanket, core.outer_blanket]
 end
+
 @recipe function plot_sys(core::sys_coords)
     cvec = sys2vec(core)
     fill_col = [:gray :gray :white :mediumpurple1 :mediumpurple1 :orange :orange]
@@ -331,6 +351,7 @@ end
     end
 
 end
+
 function offset_entities(c::coords; dir=1.0, scale=0.1)
     ref_vec = [0.0, 0.0, dir]
 
@@ -383,6 +404,7 @@ function offset_entities(c::coords; dir=1.0, scale=0.1)
     end
     return off_x, off_y
 end
+
 function reorder_c(c::coords; fromPt="top")
     xpts = c.x
     ypts = c.y
@@ -401,6 +423,7 @@ function reorder_c(c::coords; fromPt="top")
         c.y = vcat(c.y[idx:end], c.y[1:idx])
     end
 end
+
 function breeder_cooling_route(sc::sys_coords)
     reorder_c(sc.outer_wall; fromPt="bot")
     ow = sc.outer_wall
@@ -447,6 +470,7 @@ function breeder_cooling_route(sc::sys_coords)
 
     return cout
 end
+
 function blanket_cooling_route(core::sys_coords)
     reorder_c(core.blanket_wall; fromPt="bot")
     x_start = core.blanket_wall.x[1]
@@ -514,6 +538,7 @@ function blanket_cooling_route(core::sys_coords)
     return cnew
     # return cout
 end
+
 function divertor_flow_path(core::sys_coords)
     xmin = minimum(core.lower_divertor.x)
     xmax = maximum(core.lower_divertor.x)
@@ -557,18 +582,21 @@ function divertor_flow_path(core::sys_coords)
     cout = cout + c_after
     return cout
 end
+
 mutable struct turb <: component
     name::String
     coords::coords
     h::Real
     w::Real
 end
+
 mutable struct comp <: component
     name::String
     coords::coords
     h::Real
     w::Real
 end
+
 mutable struct heat_exchanger <: component
     name::String
     coords::coords
@@ -578,18 +606,21 @@ mutable struct heat_exchanger <: component
     hot_path::coords
     cold_path::coords
 end
+
 mutable struct intercooler <: component
     name::String
     coords::coords
     h::Real
     w::Real
 end
+
 function circle_coords(xcenter::Float64, ycenter::Float64, r::Float64)
     ang = LinRange(0, 2 * π, 500)
     x = xcenter .+ r .* cos.(ang)
     y = ycenter .+ r .* sin.(ang)
     return x, y
 end
+
 function turbPts(t::turb)
     half_height = t.h / 2
     half_width = t.w / 2
@@ -608,6 +639,7 @@ function turbPts(t::turb)
     yy = [y1, y2, y3, y4, y1]
     return xx, yy
 end
+
 function init_hx_from_port(w::Real, h::Real, xport, yport)
     half_height = h / 2
     half_width = w / 2
@@ -616,6 +648,7 @@ function init_hx_from_port(w::Real, h::Real, xport, yport)
     y_center = yport - half_height * 1.2
     return heat_exchanger(x_center, y_center, h, w)
 end
+
 function compPts(t::comp)
     half_height = t.h / 2
     half_width = t.w / 2
@@ -634,6 +667,7 @@ function compPts(t::comp)
     yy = [y1, y2, y3, y4, y1]
     return xx, yy
 end
+
 function init_hx(name::String, x, y, h, w)
     half_height = h / 2
     half_width = w / 2
@@ -687,8 +721,8 @@ function init_hx(name::String, x, y, h, w)
 
     cold_path = coords("cold_path", x_bot, y_bot)
     return heat_exchanger(name, coords("center_pos", x, y), h, w, outline_path, hot_path, cold_path)
-
 end
+
 @recipe function plot_turbine(t::turb)
     xpts, ypts = turbPts(t)
     @series begin
@@ -704,6 +738,7 @@ end
     end
 
 end
+
 @recipe function plot_compressor(c::comp)
     xpts, ypts = compPts(c)
 
@@ -719,6 +754,7 @@ end
         Shape(xpts, ypts)
     end
 end
+
 @recipe function plot_hx(hxx::heat_exchanger)
     tp_col = :red
     bp_col = :blue
@@ -757,6 +793,7 @@ end
         hxx.cold_path.x, hxx.cold_path.y
     end
 end
+
 @recipe function plot_intercooler(ic::intercooler)
     xcenter = ic.coords.x
     ycenter = ic.coords.y
@@ -777,8 +814,8 @@ end
         annotations --> (ic.coords.x, ic.coords.y, ("cool", :center, 7))
         Shape(cornerX, cornerY)
     end
-
 end
+
 function attach2hx(mainc::coords, hx::heat_exchanger)
     to_connect = hx.hot_path
     mainst, mainend = endpoints(mainc)
@@ -789,6 +826,7 @@ function attach2hx(mainc::coords, hx::heat_exchanger)
     mainc = mainc + mpointA + to_connect + mpointB
     return mainc
 end
+
 function cyclePath(part_vec::Vector{<:component})
     ca = part_vec[1]
     cp = coords("cycle_path", [ca.coords.x], [ca.coords.y - 3])
