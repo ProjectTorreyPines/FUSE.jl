@@ -4,10 +4,12 @@
 Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Balance of plant model"; default=:EU_DEMO)
     blanket_multiplier::Entry{T} = Entry(T, "-", "Neutron thermal power multiplier in blanket"; default=1.2)
     efficiency_reclaim::Entry{T} = Entry(T, "-", "Reclaim efficiency of thermal power hitting the blanket"; default=0.6)
-    thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.4)
+    model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Balance of plant model"; default=:EU_DEMO)
+    cycle_model::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :combined_series, :combined_parallel], "", "Power Cycle Configuration"; default = :brayton_only)
+    thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
+    do_plot::Entry{Bool} = Entry(Bool, "", "plot"; default=false)
 end
 
 mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
@@ -18,24 +20,10 @@ mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     IHTS_actor::ActorHeatTxSystem
 end
 
-# POWER CYCLE MODEL TYPES
-#   
-# ["brayton_only","rankine_only","combined_series","combined_parallel"]
-# Breeder fluid options [pbli]
-# coolant options [helium]
-function ParametersActor(::Type{Val{:ActorBalanceOfPlant}})
-    par                                         = ParametersActor(nothing)
-    par.model                                   = Switch(Symbol, [:gasc, :EU_DEMO], "", "Balance of plant model"; default=:EU_DEMO)
-    par.cycle_model                             = Entry(String,"","Power Cycle Configuration";default = "brayton_only")
-    par.thermal_electric_conversion_efficiency  = Entry(Real, "", "Efficiency of the generator"; default=0.9)
-    par.do_plot                                 = Entry(Bool, "", "plot"; default=false)
-    return par
-end
-
 """
     ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Balance of plant actor that estimates the Net electrical power output by estimating the balance of plant electrical needs and compares it to the electricity generated from the thermal cycle.
+Balance of plant actor that estimates the net electrical power output by comparing the balance of plant electrical needs with the electricity generated from the thermal cycle.
 
 * `model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
 * `model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
@@ -45,10 +33,6 @@ Balance of plant actor that estimates the Net electrical power output by estimat
 """
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorBalanceOfPlant(kw...)
-
-    bop = dd.balance_of_plant;
-    bop.power_cycle_type = par.cycle_model
-
     actor = ActorBalanceOfPlant(dd, par, act)
     step(actor)
     finalize(actor)
@@ -58,6 +42,10 @@ end
 function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPlant; kw...)
     logging_actor_init(ActorBalanceOfPlant)
     par = par(kw...)
+
+    bop = dd.balance_of_plant
+    bop.power_cycle_type = par.cycle_model
+
     act.ActorBalanceOfPlant = par       #setting main actor data
 
     regenBool = determineRegen(par)
@@ -65,7 +53,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
 
     rp_default = 3.0
 
-    IHTS_actor              = ActorHeatTxSystem(dd,act;breeder_hi_temp = breeder_tmax, breeder_low_temp = breeder_tmin)
+    IHTS_actor              = ActorHeatTxSystem(dd,act; breeder_hi_temp = breeder_tmax, breeder_low_temp = breeder_tmin)
     thermal_cycle_actor     = ActorThermalCycle(dd,act;Tmax = cycle_tmax,rp = rp_default,regen = regenBool)
     return ActorBalanceOfPlant(dd, par, par.thermal_electric_conversion_efficiency,thermal_cycle_actor,IHTS_actor)
 end
