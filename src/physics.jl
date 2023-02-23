@@ -16,11 +16,12 @@ function layer_shape_message(shape_function_index)
              2: Priceton D approx (shape_parameters = [])
              3: Priceton D scaled (shape_parameters = [height])
              4: rectangle         (shape_parameters = [height])
-             5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-             6: miller            (shape_parameters = [elongation, triangularity])
-             7: square_miller     (shape_parameters = [elongation, triangularity, squareness])
-             8: spline            (shape_parameters = [hfact, rz...)
-             9: silo              (shape_parameters = [h_start, h_end)
+             5: double_ellipse    (shape_parameters = [r_center, centerpost_height, height])
+             6: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
+             7: miller            (shape_parameters = [elongation, triangularity])
+             8: square_miller     (shape_parameters = [elongation, triangularity, squareness])
+             9: spline            (shape_parameters = [hfact, rz...)
+            10: silo              (shape_parameters = [h_start, h_end)
            10x: shape + z_offset  (shape_parameters = [..., z_offset])
           100x: negative shape    (shape_parameters = [...])"
 end
@@ -49,6 +50,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             shape_parameters = Real[]
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
+        elseif shape_index_mod == Int(_double_ellipse_)
+            shape_parameters = [(r_start+r_end)/2.0, height*0.75, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
@@ -284,7 +287,31 @@ function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100) where {
 end
 
 """
-    princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=100) where {T<:Real}
+    double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+
+...
+"""
+function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    r_e2 = r_center
+    z_e2 = 0.0
+    ra_e2 = r_end - r_center
+    zb_e2 = height / 2.0
+
+    r_e1 = r_center
+    z_e1 = centerpost_height / 2.0
+    ra_e1 = r_center - r_start
+    zb_e1 = (height - centerpost_height) / 2.0
+
+    r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points)
+    r2, z2 = ellipse(ra_e2, zb_e2, float(π / 2), float(0), r_e2, z_e2; n_points)
+
+    r = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:2]; r1[1]]
+    z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:2]; z1[1]]
+    return r, z
+end
+
+"""
+    function princeton_D_scaled(r_start, r_end, height; n_points=100)
 
 This routine calculates a "shortened" TF coil shape that foregoes the equal-tension "Princeton-Dee" for 
 a squater, more space-efficient shape. It replicates the inboard curve of the equal-tension arc, but

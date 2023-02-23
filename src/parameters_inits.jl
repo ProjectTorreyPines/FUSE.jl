@@ -86,6 +86,7 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
 
+
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :oh
