@@ -6,38 +6,34 @@
 mutable struct ActorHeatTxSystem<: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
-    radiation_factor::Float64
 end
 
+const coolant_fluid = [:He, :PbLi]
 
-function ParametersActor(::Type{Val{:ActorHeatTxSystem}})
-    par = ParametersActor(nothing)
+Base.@kwdef mutable struct FUSEparameters__ActorHeatTxSystem{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(Nothing)
+    _name::Symbol = :not_set
     #  BREEDER INFO
-    par.breeder_pressure     = Entry(Real, "", "Pressure across pump in breeder fluid circuit"; default = 1e6)
-    par.breeder_ΔP          = Entry(Real,"",    "Pressure drop during cooling and heat exchanger"; default = 0.25*10^6)
-    par.breeder_low_temp    = Entry(Real, "", "Minimum breeder fluid temperature after primary heat exchange"; default=700+273.15)
-    par.breeder_hi_temp     = Entry(Real, "", "Maximum breeder fluid temperature at Blanket Outlet"; default=1100+273.15)
-    par.breeder_η_pump      = Entry(Real, "", "Breeder pump effeciency"; default=0.7)
+    breeder_pressure::Entry{T} = Entry(T, "Pa", "Pressure across pump in breeder fluid circuit"; default = 1e6)
+    breeder_ΔP::Entry{T} = Entry(T,"Pa", "Pressure drop during cooling and heat exchanger"; default = 0.25*10^6)
+    breeder_low_temp::Entry{T} = Entry(T, "K", "Minimum breeder fluid temperature after primary heat exchange"; default=700+273.15)
+    breeder_hi_temp::Entry{T} = Entry(T, "K", "Maximum breeder fluid temperature at Blanket Outlet"; default=1100+273.15)
+    breeder_η_pump::Entry{T} = Entry(T, "-", "Breeder pump effeciency"; default=0.7)
     #  BLANKET COOLING INFO
-    par.coolant_pressure        = Entry(Real, "",   "Pressure across pump in coolant fluid ciruit"; default = 10e6)
-    par.coolant_ΔP              = Entry(Real,"",    "Pressure drop during cooling and heat exchanger"; default = 0.3*10^6)
-    
-    par.divertor_η_pump         = Entry(Real, "",  "Divertor pump effeciency"; default=0.89)
-    par.divertor_max_temp       = Entry(Real, "",   "Maximum Coolant Outlet Temperature"; default=650+273.15)
-    
-    par.blanket_η_pump          = Entry(Real, "",   "Blanket pump effeciency"; default=0.89)
-    par.blanket_max_temp        = Entry(Real, "",   "Maximum Coolant Outlet Temperature"; default=450+273.15)
-
-
+    coolant_pressure::Entry{T} = Entry(T, "Pa", "Pressure across pump in coolant fluid ciruit"; default = 10e6)
+    coolant_ΔP::Entry{T} = Entry(T,"Pa", "Pressure drop during cooling and heat exchanger"; default = 0.3*10^6)    
+    divertor_η_pump::Entry{T} = Entry(T, "-", "Divertor pump effeciency"; default=0.89)
+    divertor_max_temp::Entry{T} = Entry(T, "K", "Maximum Coolant Outlet Temperature"; default=650+273.15)
+    blanket_η_pump::Entry{T} = Entry(T, "-", "Blanket pump effeciency"; default=0.89)
+    blanket_max_temp::Entry{T} = Entry(T, "K",  "Maximum Coolant Outlet Temperature"; default=450+273.15)
     # ASSUMED 
-    par.radiation_factor    = Entry(Real, "",   "Assumed factor of multiplication for the power absorbed by the blanket";default=2.5)
-    par.breeder_HX_ϵ        = Entry(Real, "",   "effectiveness of the breeder - cycle heat exchanger";default=0.9)
-    par.divertor_HX_ϵ       = Entry(Real, "",   "effectiveness of the divertor - cycle heat exchanger";default=0.9)
-    par.blanket_HX_ϵ        = Entry(Real, "",   "effectiveness of the blanket - cycle heat exchanger";default=0.9)
-    par.breeder_fluid       = Entry(String,"",  "Divertor coolant fluid";default = "pbli")
-    par.blanket_coolant     = Entry(String,"",  "Divertor coolant fluid";default = "helium")
-    par.divertor_coolant    = Entry(String,"",  "Divertor coolant fluid";default = "helium")
-    return par
+    radiation_factor::Entry{T} = Entry(T, "-", "Assumed factor of multiplication for the power absorbed by the blanket";default=2.5)
+    breeder_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the breeder - cycle heat exchanger";default=0.9)
+    divertor_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the divertor - cycle heat exchanger";default=0.9)
+    blanket_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the blanket - cycle heat exchanger";default=0.9)
+    breeder_fluid::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-",  "Breeder coolant fluid"; default = :Pbli)
+    blanket_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-",  "Breeder coolant fluid"; default = :He)
+    divertor_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-",  "Breeder coolant fluid"; default = :He)
 end
 
 """
@@ -49,10 +45,6 @@ end
 
 function ActorHeatTxSystem(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorHeatTxSystem(kw...)
-    bop = dd.balance_of_plant;
-    bop.heat_tx_system.divertor.working_fluid  = par.divertor_coolant
-    bop.heat_tx_system.blanket.working_fluid   = par.blanket_coolant
-    bop.heat_tx_system.breeder.working_fluid   = par.breeder_fluid
     actor = ActorHeatTxSystem(dd, par)
     step(actor)
     finalize(actor)
@@ -62,7 +54,7 @@ end
 function ActorHeatTxSystem(dd::IMAS.dd, par::ParametersActor; kw...)
     logging_actor_init(ActorHeatTxSystem)
     par = par(kw...)
-    return ActorHeatTxSystem(dd, par, par.radiation_factor)
+    return ActorHeatTxSystem(dd, par)
 end
 
 
@@ -70,7 +62,13 @@ function _step(actor::ActorHeatTxSystem)
     dd = actor.dd
     par = actor.par
     bop = dd.balance_of_plant
+
+    bop.heat_tx_system.divertor.working_fluid  = string(par.divertor_coolant)
+    bop.heat_tx_system.blanket.working_fluid   = string(par.blanket_coolant)
+    bop.heat_tx_system.breeder.working_fluid   = string(par.breeder_fluid)
+
     bop.time = dd.core_profiles.time
+
     # ======= #
     # THERMAL #
     # ======= #
@@ -79,7 +77,7 @@ function _step(actor::ActorHeatTxSystem)
     # breeder_heat_load   = (sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time)
     breeder_heat_load   = abs.(sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module]))
     divertor_heat_load  = abs.(sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor]))
-    blanket_heat_load   = abs.(IMAS.radiation_losses(dd.core_sources)*actor.radiation_factor);
+    blanket_heat_load   = abs.(IMAS.radiation_losses(dd.core_sources)*par.radiation_factor);
     
     # @show divertor_heat_load
     # @show blanket_heat_load
