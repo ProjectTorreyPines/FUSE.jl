@@ -40,6 +40,9 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     logging_actor_init(ActorBalanceOfPlant)
     par = par(kw...)
 
+    # set the time
+    @ddtime(dd.balance_of_plant.time = dd.global_time)
+
     breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(act.ActorThermalCycle.power_cycle_type)
 
     IHTS_actor = ActorHeatTxSystem(dd, act; breeder_hi_temp, breeder_low_temp)
@@ -62,7 +65,6 @@ function _step(actor::ActorBalanceOfPlant)
     dd = actor.dd
     par = actor.par
     bop = dd.balance_of_plant
-    bop.time = dd.core_profiles.time
 
     bop_thermal = bop.thermal_cycle
     bop_thermal.thermal_electric_conversion_efficiency = par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
