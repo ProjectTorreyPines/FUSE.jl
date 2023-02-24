@@ -248,6 +248,7 @@ struct BraytonOutput{T<:Real}
     q_L::T
     T_HX::T
 end
+
 function braytonCycle(rp::Real, Pmax::Real, Tmin::Real, Tmax::Real, Nt::Int, Nc::Int; ηt::Real=0.93, ηc::Real=0.89, ϵr::Real=0)
     #Brayton evaluates the thermal performance for a specified brayton cycle
     #   
@@ -301,6 +302,7 @@ function braytonCycle(rp::Real, Pmax::Real, Tmin::Real, Tmax::Real, Nt::Int, Nc:
     Primary_inlet_temp = θ_1[1]                       #INLET HELIUM TEMPERATURE AT REACTOR HEAT EXCHANGERS
     return BraytonOutput(η_thermal, abs(wnet), abs(wc), abs(wt), abs(wc / wt), abs(q_in), abs(q_out), Primary_inlet_temp)
 end
+
 struct circuitOutput{T<:Real}
     T_in::T
     T_out::T
@@ -309,6 +311,7 @@ struct circuitOutput{T<:Real}
     work::T
     heat::T
 end
+
 function compressor_stages(par::ParametersActor)
     nstages = par.Nc
     rp = par.rp
@@ -332,6 +335,7 @@ function compressor_stages(par::ParametersActor)
     heat_out = -(nstages - 1) * edot
     return circuitOutput(Tin, T_out, Pin, P_out, work_in, heat_out)
 end
+
 function turbine_stages(par::ParametersActor)
     nstages = par.Nt
     rp = par.rp
@@ -355,6 +359,7 @@ function turbine_stages(par::ParametersActor)
     heat_in = -(nstages - 1) * edot
     return circuitOutput(Tin, T_out, Pin, P_out, abs(work_out), abs(heat_in))
 end
+
 struct ihts_output{T<:Real}
     Tmin::T
     Tin::T
@@ -364,9 +369,7 @@ struct ihts_output{T<:Real}
     HX_q::T
     err::T
 end
-function C2K(temp_c::Real)
-    return temp_c + 273.15
-end
+
 function ihts_heat_exchanger(pump_η::Real, ϵ_hx::Real, Niter::Int64, Tin_cycle::Real, mflow_cycle::Real, cp_cycle::Real, mratio::Real, P_sys::Real, rp_pump::Real, cp_sys::Real, kcoeff_sys::Real)
     mcp_cyc = mflow_cycle * cp_cycle
     mflow_sys = mflow_cycle * mratio
@@ -377,10 +380,7 @@ function ihts_heat_exchanger(pump_η::Real, ϵ_hx::Real, Niter::Int64, Tin_cycle
     for i in 1:Niter
         oldTmin = Tmin_sys
 
-        # Tin_sys_K = C2K(Tmin_sys)+(C2K(Tmin_sys).*(rp_pump^kcoeff_sys)-C2K(Tmin_sys))/pump_η;
-        # Tin_sys = Tin_sys_K-273.15;             #blanket inlet temp
-
-        Tin_sys = (Tmin_sys) + ((Tmin_sys) .* (rp_pump^kcoeff_sys) - (Tmin_sys)) / pump_η
+        Tin_sys = (Tmin_sys) + (Tmin_sys .* rp_pump^kcoeff_sys - Tmin_sys) / pump_η #blanket inlet temp
 
         Tout_sys = Tin_sys + P_sys ./ mcp_sys    #blanket outlet temperature
 
@@ -397,12 +397,14 @@ function ihts_heat_exchanger(pump_η::Real, ϵ_hx::Real, Niter::Int64, Tin_cycle
         end
     end
 end
+
 function regenHX(Tci::Real, Thi::Real, eff)
     dT = (Thi - Tci) * eff
     Tco = Tci + dT
     Tho = Thi - dT
     return Tco, Tho
 end
+
 function hxeff(Thi::Real, Ch::Real, Tci::Real, Cc::Real, eff::Real)
     Cmin = min(Ch, Cc)
     dt_mx = Thi - Tci
@@ -413,6 +415,7 @@ function hxeff(Thi::Real, Ch::Real, Tci::Real, Cc::Real, eff::Real)
     Tco = Tci + dtC
     return Q_act, Tho, Tco
 end
+
 function getMCP(dd::IMAS.dd)
     cp_he = 5.1926e3
 
@@ -434,12 +437,14 @@ function getMCP(dd::IMAS.dd)
     mcp_cycle = mflow_cycle * cp_he
     return mcp_blanket, mcp_divertor, mcp_breeder, mcp_cycle
 end
+
 function pbLi_props(Temperature::Real)
     #temperature input in celcius
     specific_heat = (0.195 - 9.116 * 10^(-6) .* (Temperature)) .* 1000   #J/kgK
     density = 10520.35 - 1.19051 .* (Temperature)
     return [specific_heat, density]
 end
+
 function waste(dd::IMAS.dd, nm::String, sys_power)
     if nm == "blanket" || nm == "blk"
         @ddtime(dd.balance_of_plant.heat_tx_system.blanket.heat_delivered = 0.0)
@@ -452,6 +457,7 @@ function waste(dd::IMAS.dd, nm::String, sys_power)
         @ddtime(dd.balance_of_plant.heat_tx_system.breeder.heat_waste = sys_power)
     end
 end
+
 function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd)
     cycle_minTemp = bout.T_HX
     Tmax_blk = ihts_par.blanket_max_temp
