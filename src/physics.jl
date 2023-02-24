@@ -305,8 +305,8 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
     r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points)
     r2, z2 = ellipse(ra_e2, zb_e2, float(π / 2), float(0), r_e2, z_e2; n_points)
 
-    r = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:2]; r1[1]]
-    z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:2]; z1[1]]
+    r = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
+    z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
     return r, z
 end
 
