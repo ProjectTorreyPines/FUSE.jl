@@ -50,8 +50,8 @@ Base.@kwdef mutable struct FUSEparameters__DivertorLegParameters{T} <: Parameter
     baffle_cfr::FUSEparameters__CFRDivertorBaffle{T} = FUSEparameters__CFRDivertorBaffle{T}() # common flux region
     baffle_pfr::FUSEparameters__PFRDivertorBaffle{T} = FUSEparameters__PFRDivertorBaffle{T}() # private flux region
     l_leg::Entry{T} = Entry(T, "m", "Length of the divertor leg"; default=1.0)
-    #d_heat_shield::Entry{T} = Entry(T, "m", "Length of the divertor leg"; default=0.25)
-    method::Switch{Symbol} = Switch(Symbol, [:manual, :d_heat_shield], "-", "Method to define the divertor leg length"; default=:manual)
+    l_buffer::Entry{T} = Entry(T, "m", "Distance between the strike point and the closest vessel structure (e.g. HT shield)"; default=0.25)
+    method::Switch{Symbol} = Switch(Symbol, [:manual, :buffer], "-", "Method to define the divertor leg length"; default=:manual)
 end
 
 Base.@kwdef mutable struct FUSEparameters__DivertorDomeParameters{T} <: ParametersActor where {T<:Real}
