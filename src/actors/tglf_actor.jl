@@ -7,8 +7,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     nn::Entry{Bool} = Entry(Bool, "-", "Use TGLF-NN"; default=true)
-    sat_rule::Switch{Symbol} = Switch(Symbol, [:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "-", "Saturation rule"; default=:sat0)
-    electromagnetic::Entry{Bool} = Entry(Bool, "-", "Electromagnetic or electrostatic"; default=false)
+    sat_rule::Switch{Symbol} = Switch(Symbol, [:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "-", "Saturation rule"; default=:sat1)
+    electromagnetic::Entry{Bool} = Entry(Bool, "-", "Electromagnetic or electrostatic"; default=true)
     rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
     warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
 end
