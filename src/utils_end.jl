@@ -154,18 +154,21 @@ function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symb
     for k in 2:length(dirs)
         push!(df, df[1, :])
     end
-    
+
     # load the data
     p = ProgressMeter.Progress(length(dirs); showspeed=true)
-    GC.enable(false) #https://github.com/JuliaIO/HDF5.jl/pull/1049
-    try
-        Threads.@threads for k in 1:length(dirs)
-            tmp = load(dirs[k], all_extracts)
-            df[k, :] = tmp
-            ProgressMeter.next!(p)
+    for chunk in Iterators.partition(1:length(dirs), Threads.nthreads() * 10)
+        GC.enable(false) #https://github.com/JuliaIO/HDF5.jl/pull/1049
+        try
+            Threads.@threads for k in chunk
+                tmp = load(dirs[k], all_extracts)
+                df[k, :] = tmp
+                ProgressMeter.next!(p)
+            end
+        finally
+            GC.enable(true)
+            GC.gc()
         end
-    finally
-        GC.enable(true)
     end
 
     # filter
@@ -176,7 +179,7 @@ function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symb
     # split into separate dataframes
     dfs = DataFrames.DataFrame[]
     for extract in extracts
-        push!(dfs, df[:,collect(keys(extract))])
+        push!(dfs, df[:, collect(keys(extract))])
     end
 
     return dfs

@@ -782,7 +782,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
-    pr, pz = IMAS.resample_2d_line(pr, pz; step=0.1)
+    pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1)
 
     return pr, pz
 end
@@ -1072,7 +1072,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
             # resample disabled because this can lead to outlines of different layers to be crossing
-            # R, Z = IMAS.resample_2d_line(R, Z)
+            # R, Z = IMAS.resample_2d_path(R, Z)
         end
         layer.outline.r, layer.outline.z = R, Z
 

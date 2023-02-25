@@ -160,7 +160,7 @@ function shape_function(shape_function_index)
     # uniform resampling
     function resampled_zfunc(args...; resample=true)
         if resample
-            return IMAS.resample_2d_line(dfunc(args...)...; method=:linear)
+            return IMAS.resample_2d_path(dfunc(args...)...; method=:linear)
         else
             return dfunc(args...)
         end
@@ -720,7 +720,7 @@ function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
 
-    R, Z = IMAS.resample_2d_line(R, Z; n_points)
+    R, Z = IMAS.resample_2d_path(R, Z; n_points)
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
 
     return MXHboundary(mxh, RX, ZX, R, Z)
