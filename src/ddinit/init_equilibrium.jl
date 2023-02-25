@@ -37,7 +37,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
 
             pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-            pr, pz = IMAS.resample_2d_line(pr, pz; n_points=101)
+            pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
             pr, pz = IMAS.reorder_flux_surface!(pr, pz)
             if ini.equilibrium.boundary_from == :scalars
                 mxh = IMAS.MXH(pr, pz, 2)
@@ -56,7 +56,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                     error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
                 end
                 pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
-                pr, pz = IMAS.resample_2d_line(pr, pz; n_points=101)
+                pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
                 pr, pz = IMAS.reorder_flux_surface!(pr, pz)
                 mxh = IMAS.MXH(pr, pz, 4)
 
@@ -184,7 +184,7 @@ function field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real=0.5, 
     eqb = IMAS.equilibrium__time_slice()
 
     pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-    pr, pz = IMAS.resample_2d_line(pr, pz; n_points=101)
+    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
     pr, pz = IMAS.reorder_flux_surface!(pr, pz)
     mxh = IMAS.MXH(pr, pz, 4)
     mxh.ϵ *= scale
