@@ -166,9 +166,9 @@ function init_pf_active(
             end
         end
         if length(valid_k) == 0
-            bd.pf_active.rail[krail].outline.r = Real[]
-            bd.pf_active.rail[krail].outline.z = Real[]
-            bd.pf_active.rail[krail].outline.distance = Real[]
+            bd.pf_active.rail[krail].outline.r = Float64[]
+            bd.pf_active.rail[krail].outline.z = Float64[]
+            bd.pf_active.rail[krail].outline.distance = Float64[]
             error("Coils on PF rail #$(krail-1) are too big to fit.")
             continue
         end

@@ -81,10 +81,11 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
     n_coils::Entry{Int} = Entry(Int, "-", "Number of TF coils")
-    shape::Switch{Symbol} = Switch(Symbol, [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :triple_arc, :miller, :spline], "-", "Shape of the TF coils"; default=:princeton_D_scaled)
+    shape::Switch{Symbol} = Switch(Symbol, [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :double_ellipse, :triple_arc, :miller, :spline], "-", "Shape of the TF coils"; default=:princeton_D_scaled)
     ripple::Entry{T} = Entry(T, "-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
+
 
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
