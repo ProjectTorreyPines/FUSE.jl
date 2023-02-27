@@ -108,5 +108,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         :He        => :match_ne_scale,
         :electrons => :flux_match)
 
-    return set_new_base!(ini), set_new_base!(act)
+        set_new_base!(ini)
+        set_new_base!(act)
+    
+        setup_parameters!(ini)
+        setup_parameters!(act)
+        
+        return ini, act
 end

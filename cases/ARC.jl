@@ -68,7 +68,13 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
     # act.ActorEquilibrium.model = :CHEASE
 
-    return set_new_base!(ini), set_new_base!(act)
+    set_new_base!(ini)
+    set_new_base!(act)
+
+    setup_parameters!(ini)
+    setup_parameters!(act)
+    
+    return ini, act
 end
 
 function TraceCAD(::Type{Val{:ARC}})

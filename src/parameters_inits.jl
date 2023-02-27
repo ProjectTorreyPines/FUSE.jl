@@ -213,7 +213,7 @@ function ParametersInits{T}() where {T<:Real}
         FUSEparameters__ic_antennas{T}(),
         FUSEparameters__lh_antennas{T}(),
         FUSEparameters__target{T}())
-    setup_parameters(ini)
+    setup_parameters!(ini)
     return ini
 end
 
