@@ -16,7 +16,7 @@ function layer_shape_message(shape_function_index)
              2: Priceton D approx (shape_parameters = [])
              3: Priceton D scaled (shape_parameters = [height])
              4: rectangle         (shape_parameters = [height])
-             5: double_ellipse    (shape_parameters = [r_center, centerpost_height, height])
+             5: double_ellipse    (shape_parameters = [centerpost_height, height])
              6: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
              7: miller            (shape_parameters = [elongation, triangularity])
              8: square_miller     (shape_parameters = [elongation, triangularity, squareness])
@@ -45,13 +45,13 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             is_z_offset = true
         end
         if shape_index_mod == Int(_princeton_D_exact_)
-            shape_parameters = Real[]
+            shape_parameters = Float64[]
         elseif shape_index_mod == Int(_princeton_D_)
-            shape_parameters = Real[]
+            shape_parameters = Float64[]
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            shape_parameters = [(r_start+r_end)/2.0, height*0.75, height]
+            shape_parameters = [height * 0.75, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
@@ -119,6 +119,8 @@ function shape_function(shape_function_index)
             func = princeton_D_approx
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             func = princeton_D_scaled
+        elseif shape_index_mod == Int(_double_ellipse_)
+            func = circle_ellipse
         elseif shape_index_mod == Int(_rectangle_)
             func = (r_start, r_end, height) -> rectangle_shape(r_start, r_end, height; n_points=100)
         elseif shape_index_mod == Int(_triple_arc_)
@@ -260,7 +262,7 @@ end
 """
     princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100) where {T<:Real}
 
-This retuns the an approximate version of the "Princeton-D" constant tension shape for a TF coil that is built with ellipses
+An pproximate version of the "Princeton-D" constant tension shape for a TF coil that is built with ellipses
 References: Gralnick, S. L.; Tenney, F. H. Analytic Solutions for Constant‐tension Coil Shapes. J. Appl. Phys. 1976, 47, 7
 """
 function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100) where {T<:Real}
@@ -274,22 +276,18 @@ function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100) where {
     coil_maxz = pi * r0 * k * (SpecialFunctions.besseli(1, k) + struveL(1, k) + 2 / pi) / 2  # Gralnick Eq. 34
 
     # make ellipses to approximate equal-tension arc
-    x1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(pi), pi / 2, r0, centerpost_maxz; n_points)
-    x2, z2 = ellipse(r2 - r0, coil_maxz, pi / 2, 0.0, r0, 0.0; n_points)
+    r1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(π), float(π / 2), r0, centerpost_maxz; n_points)
+    r2, z2 = ellipse(r2 - r0, coil_maxz, float(π / 2), float(0.0), r0, 0.0; n_points)
 
-    x = vcat(x1[1:end-1], x2)
-    z = vcat(z1[1:end-1], z2)
-
-    x = vcat(x, x[end-1:-1:1], x[1])
-    z = vcat(z, -z[end-1:-1:1], z[1])
-
-    return x, z
+    R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
+    Z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
+    return R, Z
 end
 
 """
     double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
 
-...
+double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
     r_e2 = r_center
@@ -303,11 +301,12 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
     zb_e1 = (height - centerpost_height) / 2.0
 
     r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points)
-    r2, z2 = ellipse(ra_e2, zb_e2, float(π / 2), float(0), r_e2, z_e2; n_points)
+    r2, z2 = ellipse(ra_e2, zb_e2, float(π / 2), float(0.0), r_e2, z_e2; n_points)
 
-    r = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
-    z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
-    return r, z
+    R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
+    Z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
+    return R, Z
+end
 
 """
     circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
@@ -343,24 +342,19 @@ function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=1
     centerpost_maxz = centerpost_height / 2
     coil_maxz = centerpost_maxz + inboard_curve_dz
 
-    # make ellipses to connect points
-    x1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(pi), pi / 2, r0, centerpost_maxz; n_points)
-    x2, z2 = ellipse(r2 - r0, coil_maxz, pi / 2, 0.0, r0, 0.0; n_points)
+    # make ellipses to approximate equal-tension arc
+    r1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(π), float(π / 2), r0, centerpost_maxz; n_points)
+    r2, z2 = ellipse(r2 - r0, coil_maxz, float(π / 2), float(0.0), r0, 0.0; n_points)
 
-    x = vcat(x1[1:end-1], x2)
-    z = vcat(z1[1:end-1], z2)
-
-    x = vcat(x, x[end-1:-1:1], x[1])
-    z = vcat(z, -z[end-1:-1:1], z[1])
-
-    return x, z
+    R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
+    Z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
+    return R, Z
 end
 
 """
     rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5) where {T<:Real}
 
-Asymmetric rectangular contour
-layer[:].shape = 2
+Asymmetric rectangular shape
 """
 function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5) where {T<:Real}
     if n_points == 5
@@ -386,7 +380,7 @@ end
 """
     rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5) where {T<:Real}
 
-Symmetric rectangular contour
+Symmetric rectangular shape
 """
 function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5) where {T<:Real}
     Δ = height / 2.0
@@ -406,7 +400,7 @@ end
         min_mid_radius_fraction::T=min_small_radius_fraction * 2.0,
         n_points::Integer=400) where {T<:Real}
 
-TrippleArc contour. Angles are in degrees.
+TrippleArc shape. Angles are in degrees.
 
 height, small_radius, mid_radius, small_coverage, mid_coverage are 10^exponent (to ensure positiveness)
 """
@@ -467,7 +461,7 @@ end
 """
     miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=401) where {T<:Real}
 
-Miller contour
+Miller shape
 """
 function miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=401) where {T<:Real}
     θ = range(0, 2 * pi; length=n_points)
@@ -483,17 +477,12 @@ end
 """
     miller_Rstart_Rend(r_start::T, r_end::T, elongation::T, triangularity::T; n_points::Int=401) where {T<:Real}
 
-Miller contour
+Miller shape
 """
 function miller_Rstart_Rend(r_start::T, r_end::T, elongation::T, triangularity::T; n_points::Int=401) where {T<:Real}
     return miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity; n_points)
 end
 
-"""
-    spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where {T<:Real}
-
-Spline contour
-"""
 function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where {T<:Real}
     r = vcat(r[1], r[1], r, r[end], r[end])
     z = vcat(0, z[1] / 2, z, z[end] / 2, 0)
@@ -509,6 +498,11 @@ function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where {T<:R
     return R, Z
 end
 
+"""
+    spline_shape(r_start::T, r_end::T, hfact::T, rz...; n_points::Integer=101) where {T<:Real}
+
+Spline shape
+"""
 function spline_shape(r_start::T, r_end::T, hfact::T, rz...; n_points::Integer=101) where {T<:Real}
     rz = collect(rz)
     R = rz[1:2:end]
@@ -521,7 +515,12 @@ function spline_shape(r_start::T, r_end::T, hfact::T, rz...; n_points::Integer=1
     return spline_shape(r, z; n_points=n_points)
 end
 
-function xy_polygon(x::Vector{<:T}, y::Vector{<:T}) where {T<:Real}
+"""
+    xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
+
+Returns LibGEOS.Polygon stucture from x and y arrays
+"""
+function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
     x = deepcopy(x)
     y = deepcopy(y)
     if (x[1] != x[end]) && (x[1] ≈ x[end])

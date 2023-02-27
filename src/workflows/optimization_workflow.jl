@@ -89,7 +89,8 @@ function workflow_multiobjective_optimization(
     @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
 
     # fill MultiobjectiveOptimizationResults structure and save
-    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)    
+    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
+    display(state)
     if !isempty(save_folder)
         filename = joinpath(save_folder, "optimization.bson")
         save_optimization(filename, results)
