@@ -102,13 +102,13 @@ end
 const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
 ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-2)
 ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
-ConstraintFunction(:steady_state, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, >, 10.0)
+ConstraintFunction(:steady_state, "hours", dd -> log10(dd.build.oh.flattop_duration / 3600.0), >, log10(10.0))
 
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
     if ===(cnst.operation, ==)
-        return (cnst.func(dd) - cnst.limit)^2 - (cnst.limit * cnst.tolerance)^2
+        return abs(cnst.func(dd) - cnst.limit) / cnst.limit - cnst.tolerance
     elseif cnst.operation(1.0, 0.0) # > or >=
-        return  - (cnst.func(dd) - cnst.limit)
+        return  cnst.limit - cnst.func(dd)
     else # < or <=
         return  cnst.func(dd) - cnst.limit
     end
@@ -136,7 +136,7 @@ function optimization_engine(
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString
-    )
+)
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
         if typeof(optpar.value) <: Integer
@@ -189,13 +189,18 @@ function optimization_engine(
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
-    F = zeros(size(X)[1], length(objectives_functions))
-    G = zeros(size(X)[1], length(constraints_functions))
-    H = zeros(size(X)[1], 0)
+    F = zeros(size(X)[1], length(tmp[1][1]))
+    G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
+    H = zeros(size(X)[1], max(length(tmp[1][3]), 1))
     for k in 1:size(X)[1]
-        F[k, :] .= tmp[k][1]
-        G[k, :] .= tmp[k][2]
-        H[k, :] .= tmp[k][3]
+        f, g, h = tmp[k]
+        F[k, :] .= f
+        if !isempty(g)
+            G[k, :] .= g
+        end
+        if !isempty(h)
+            H[k, :] .= h
+        end
     end
     return F, G, H
 end

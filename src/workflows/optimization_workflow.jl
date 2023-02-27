@@ -69,16 +69,16 @@ function workflow_multiobjective_optimization(
     # optimization boundaries
     bounds = [[optpar.lower for optpar in opt_ini] [optpar.upper for optpar in opt_ini]]'
 
-    # test running function once with nominal parameters useful to catch bugs quickly.
-    # Use @everywhere to trigger compilation on all worker nodes.
-    if typeof(actor_or_workflow) <: DataType
-        actor_or_workflow(init(ini, act), act)
-    else
-        actor_or_workflow(ini, act)
-    end
+    # # test running function once with nominal parameters useful to catch bugs quickly.
+    # # Use @everywhere to trigger compilation on all worker nodes.
+    # if typeof(actor_or_workflow) <: DataType
+    #     actor_or_workflow(init(ini, act), act)
+    # else
+    #     actor_or_workflow(ini, act)
+    # end
 
     # optimize
-    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true)
+    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)
     algorithm = Metaheuristics.NSGA2(; N, options) # must do something here
     if continue_results !== missing
         println("Restarting simulation")
