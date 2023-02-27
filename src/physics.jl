@@ -308,6 +308,17 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
     r = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
     z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
     return r, z
+
+"""
+    circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+
+circle ellipse shape (parametrization of TF coils used in GATM)
+
+Special case of the double ellipse shape
+"""
+function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    r_center = r_start + (height - centerpost_height) / 2.0
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points)
 end
 
 """
