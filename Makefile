@@ -131,7 +131,7 @@ IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));
 	python3 -m pip install --upgrade webio_jupyter_extension
 
 precompile:
-	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.instantiate(); Pkg.update(); Pkg.precompile()'
+	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
 clone_update_all:
 	make -i $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
