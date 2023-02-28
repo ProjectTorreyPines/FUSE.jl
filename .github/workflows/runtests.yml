@@ -48,6 +48,7 @@ jobs:
               push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
             end
             Pkg.add(dependencies)
+            Pkg.add("https://github.com/IanButterworth/Flux.jl#ib/cudaext")
             Pkg.instantiate()
             '
       - uses: julia-actions/julia-buildpkg@v1
