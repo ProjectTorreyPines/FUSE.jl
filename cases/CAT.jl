@@ -49,9 +49,6 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     set_new_base!(ini)
     set_new_base!(act)
-
-    setup_parameters!(ini)
-    setup_parameters!(act)
     
     return ini, act
 end

@@ -85,9 +85,6 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     set_new_base!(ini)
     set_new_base!(act)
 
-    setup_parameters!(ini)
-    setup_parameters!(act)
-    
     return ini, act
 end
 

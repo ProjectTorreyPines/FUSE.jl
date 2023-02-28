@@ -98,8 +98,5 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     set_new_base!(ini)
     set_new_base!(act)
 
-    setup_parameters!(ini)
-    setup_parameters!(act)
-    
     return ini, act
 end

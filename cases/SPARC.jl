@@ -65,9 +65,6 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     set_new_base!(ini)
     set_new_base!(act)
 
-    setup_parameters!(ini)
-    setup_parameters!(act)
-    
     return ini, act
 end
 
