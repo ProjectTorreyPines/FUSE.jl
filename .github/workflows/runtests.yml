@@ -43,12 +43,12 @@ jobs:
           julia -e '
             using Pkg
             Pkg.activate(".")
+            Pkg.add(url="https://github.com/IanButterworth/Flux.jl", rev="ib/cudaext")
             dependencies = PackageSpec[]
             for package in ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]
               push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
             end
             Pkg.add(dependencies)
-            Pkg.add(url="https://github.com/IanButterworth/Flux.jl", rev="ib/cudaext")
             Pkg.instantiate()
             '
       - uses: julia-actions/julia-buildpkg@v1
