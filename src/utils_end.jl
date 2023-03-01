@@ -169,18 +169,9 @@ function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symb
 
     # load the data
     p = ProgressMeter.Progress(length(dirs); showspeed=true)
-    for chunk in Iterators.partition(1:length(dirs), Threads.nthreads() * 10)
-        GC.enable(false) #https://github.com/JuliaIO/HDF5.jl/pull/1049
-        try
-            Threads.@threads for k in chunk
-                tmp = load(dirs[k], all_extracts)
-                df[k, :] = tmp
-                ProgressMeter.next!(p)
-            end
-        finally
-            GC.enable(true)
-            GC.gc()
-        end
+    Threads.@threads for k in 1:length(dirs)
+        df[k, :] = load(dirs[k], all_extracts)
+        ProgressMeter.next!(p)
     end
 
     # filter
