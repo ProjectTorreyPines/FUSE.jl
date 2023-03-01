@@ -16,11 +16,12 @@ function layer_shape_message(shape_function_index)
              2: Priceton D approx (shape_parameters = [])
              3: Priceton D scaled (shape_parameters = [height])
              4: rectangle         (shape_parameters = [height])
-             5: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-             6: miller            (shape_parameters = [elongation, triangularity])
-             7: square_miller     (shape_parameters = [elongation, triangularity, squareness])
-             8: spline            (shape_parameters = [hfact, rz...)
-             9: silo              (shape_parameters = [h_start, h_end)
+             5: double_ellipse    (shape_parameters = [centerpost_height, height])
+             6: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
+             7: miller            (shape_parameters = [elongation, triangularity])
+             8: square_miller     (shape_parameters = [elongation, triangularity, squareness])
+             9: spline            (shape_parameters = [hfact, rz...)
+            10: silo              (shape_parameters = [h_start, h_end)
            10x: shape + z_offset  (shape_parameters = [..., z_offset])
           100x: negative shape    (shape_parameters = [...])"
 end
@@ -44,11 +45,13 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             is_z_offset = true
         end
         if shape_index_mod == Int(_princeton_D_exact_)
-            shape_parameters = Real[]
+            shape_parameters = Float64[]
         elseif shape_index_mod == Int(_princeton_D_)
-            shape_parameters = Real[]
+            shape_parameters = Float64[]
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
+        elseif shape_index_mod == Int(_double_ellipse_)
+            shape_parameters = [height * 0.75, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
@@ -116,6 +119,8 @@ function shape_function(shape_function_index)
             func = princeton_D_approx
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             func = princeton_D_scaled
+        elseif shape_index_mod == Int(_double_ellipse_)
+            func = circle_ellipse
         elseif shape_index_mod == Int(_rectangle_)
             func = (r_start, r_end, height) -> rectangle_shape(r_start, r_end, height; n_points=100)
         elseif shape_index_mod == Int(_triple_arc_)
@@ -157,7 +162,7 @@ function shape_function(shape_function_index)
     # uniform resampling
     function resampled_zfunc(args...; resample=true)
         if resample
-            return IMAS.resample_2d_line(dfunc(args...)...)
+            return IMAS.resample_2d_path(dfunc(args...)...; method=:linear)
         else
             return dfunc(args...)
         end
@@ -243,11 +248,11 @@ function struveL(ν, z)
 end
 
 """
-    ellipse(a, b, t0, t1, x0, z0; n_points=100)
+    ellipse(a::T, b::T, t0::T, t1::T, x0::T, z0::T; n_points::Integer=100) where {T<:Real}
 
 Simple ellipse shape function
 """
-function ellipse(a, b, t0, t1, x0, z0; n_points=100)
+function ellipse(a::T, b::T, t0::T, t1::T, x0::T, z0::T; n_points::Integer=100) where {T<:Real}
     t = LinRange(t0, t1, n_points)
     x = a .* cos.(t) .+ x0
     z = b .* sin.(t) .+ z0
@@ -255,12 +260,12 @@ function ellipse(a, b, t0, t1, x0, z0; n_points=100)
 end
 
 """
-    princeton_D_approx(r_start, r_end; n_points=100)
+    princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100) where {T<:Real}
 
-This retuns the an approximate version of the "Princeton-D" constant tension shape for a TF coil that is built with ellipses
+An pproximate version of the "Princeton-D" constant tension shape for a TF coil that is built with ellipses
 References: Gralnick, S. L.; Tenney, F. H. Analytic Solutions for Constant‐tension Coil Shapes. J. Appl. Phys. 1976, 47, 7
 """
-function princeton_D_approx(r_start, r_end; n_points=100)
+function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100) where {T<:Real}
     r1 = r_start
     r2 = r_end
     k = 0.5 * log(r2 / r1)
@@ -271,16 +276,48 @@ function princeton_D_approx(r_start, r_end; n_points=100)
     coil_maxz = pi * r0 * k * (SpecialFunctions.besseli(1, k) + struveL(1, k) + 2 / pi) / 2  # Gralnick Eq. 34
 
     # make ellipses to approximate equal-tension arc
-    x1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, pi, pi / 2, r0, centerpost_maxz; n_points)
-    x2, z2 = ellipse(r2 - r0, coil_maxz, pi / 2, 0, r0, 0; n_points)
+    r1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(π), float(π / 2), r0, centerpost_maxz; n_points)
+    r2, z2 = ellipse(r2 - r0, coil_maxz, float(π / 2), float(0.0), r0, 0.0; n_points)
 
-    x = vcat(x1[1:end-1], x2)
-    z = vcat(z1[1:end-1], z2)
+    R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
+    Z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
+    return R, Z
+end
 
-    x = vcat(x, x[end-1:-1:1], x[1])
-    z = vcat(z, -z[end-1:-1:1], z[1])
+"""
+    double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
 
-    return x, z
+double ellipse shape
+"""
+function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    r_e2 = r_center
+    z_e2 = 0.0
+    ra_e2 = r_end - r_center
+    zb_e2 = height / 2.0
+
+    r_e1 = r_center
+    z_e1 = centerpost_height / 2.0
+    ra_e1 = r_center - r_start
+    zb_e1 = (height - centerpost_height) / 2.0
+
+    r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points)
+    r2, z2 = ellipse(ra_e2, zb_e2, float(π / 2), float(0.0), r_e2, z_e2; n_points)
+
+    R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
+    Z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
+    return R, Z
+end
+
+"""
+    circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+
+circle ellipse shape (parametrization of TF coils used in GATM)
+
+Special case of the double ellipse shape
+"""
+function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    r_center = r_start + (height - centerpost_height) / 2.0
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points)
 end
 
 """
@@ -290,7 +327,7 @@ This routine calculates a "shortened" TF coil shape that foregoes the equal-tens
 a squater, more space-efficient shape. It replicates the inboard curve of the equal-tension arc, but
 decreases the height of the coil to match a given value.
 """
-function princeton_D_scaled(r_start, r_end, height; n_points=100)
+function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=100) where {T<:Real}
     r1 = r_start
     r2 = r_end
     k = 0.5 * log(r2 / r1)
@@ -305,26 +342,21 @@ function princeton_D_scaled(r_start, r_end, height; n_points=100)
     centerpost_maxz = centerpost_height / 2
     coil_maxz = centerpost_maxz + inboard_curve_dz
 
-    # make ellipses to connect points
-    x1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, pi, pi / 2, r0, centerpost_maxz; n_points)
-    x2, z2 = ellipse(r2 - r0, coil_maxz, pi / 2, 0, r0, 0; n_points)
+    # make ellipses to approximate equal-tension arc
+    r1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(π), float(π / 2), r0, centerpost_maxz; n_points)
+    r2, z2 = ellipse(r2 - r0, coil_maxz, float(π / 2), float(0.0), r0, 0.0; n_points)
 
-    x = vcat(x1[1:end-1], x2)
-    z = vcat(z1[1:end-1], z2)
-
-    x = vcat(x, x[end-1:-1:1], x[1])
-    z = vcat(z, -z[end-1:-1:1], z[1])
-
-    return x, z
+    R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
+    Z = [z1[1:end-1]; z2[1:end-1]; -z2[end:-1:2]; -z1[end:-1:1]; z1[1]]
+    return R, Z
 end
 
 """
-    rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; n_points = 5)
+    rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5) where {T<:Real}
 
-Asymmetric rectangular contour
-layer[:].shape = 2
+Asymmetric rectangular shape
 """
-function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; n_points::Int=5)
+function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5) where {T<:Real}
     if n_points == 5
         R = [r_start, r_end, r_end, r_start, r_start]
         Z = [z_low, z_low, z_high, z_high, z_low]
@@ -346,42 +378,43 @@ function rectangle_shape(r_start::Real, r_end::Real, z_low::Real, z_high::Real; 
 end
 
 """
-    rectangle_shape(r_start::Real, r_end::Real, height::Real; n_points = 5)
+    rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5) where {T<:Real}
 
-Symmetric rectangular contour
+Symmetric rectangular shape
 """
-function rectangle_shape(r_start::Real, r_end::Real, height::Real; n_points::Int=5)
+function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5) where {T<:Real}
     Δ = height / 2.0
     return rectangle_shape(r_start, r_end, -Δ, Δ; n_points)
 end
 
 """
-    function triple_arc(r_start::Real,
-        r_end::Real,
-        height::Real,
-        small_radius::Real,
-        mid_radius::Real,
-        small_coverage::Real,
-        mid_coverage::Real;
-        min_small_radius_fraction::Real=0.5,
-        min_mid_radius_fraction::Real=min_small_radius_fraction*2.0,
-        n_points::Int=400)
+    triple_arc(
+        r_start::T,
+        r_end::T,
+        height::T,
+        small_radius::T,
+        mid_radius::T,
+        small_coverage::T,
+        mid_coverage::T;
+        min_small_radius_fraction::T=0.2,
+        min_mid_radius_fraction::T=min_small_radius_fraction * 2.0,
+        n_points::Integer=400) where {T<:Real}
 
-TrippleArc contour
-Angles are in degrees
+TrippleArc shape. Angles are in degrees.
+
 height, small_radius, mid_radius, small_coverage, mid_coverage are 10^exponent (to ensure positiveness)
 """
 function triple_arc(
-    r_start::Real,
-    r_end::Real,
-    height::Real,
-    small_radius::Real,
-    mid_radius::Real,
-    small_coverage::Real,
-    mid_coverage::Real;
-    min_small_radius_fraction::Real=0.2,
-    min_mid_radius_fraction::Real=min_small_radius_fraction * 2.0,
-    n_points::Int=400)
+    r_start::T,
+    r_end::T,
+    height::T,
+    small_radius::T,
+    mid_radius::T,
+    small_coverage::T,
+    mid_coverage::T;
+    min_small_radius_fraction::T=0.2,
+    min_mid_radius_fraction::T=min_small_radius_fraction * 2.0,
+    n_points::Integer=400) where {T<:Real}
 
     height = 10^height / 2.0
     small_radius = 10^small_radius + height * min_small_radius_fraction
@@ -426,11 +459,11 @@ function triple_arc(
 end
 
 """
-    miller(R0, inverse_aspect_ratio, elongation, triangularity, n_points)
+    miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=401) where {T<:Real}
 
-Miller contour
+Miller shape
 """
-function miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::Real; n_points::Int=401)
+function miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=401) where {T<:Real}
     θ = range(0, 2 * pi; length=n_points)
     triangularity = mirror_bound(triangularity, -1.0, 1.0)
     δ₀ = asin(triangularity)
@@ -442,19 +475,14 @@ function miller(R0::Real, rmin_over_R0::Real, elongation::Real, triangularity::R
 end
 
 """
-    miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real; n_points::Int=401)
+    miller_Rstart_Rend(r_start::T, r_end::T, elongation::T, triangularity::T; n_points::Int=401) where {T<:Real}
 
-Miller contour
+Miller shape
 """
-function miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real; n_points::Int=401)
+function miller_Rstart_Rend(r_start::T, r_end::T, elongation::T, triangularity::T; n_points::Int=401) where {T<:Real}
     return miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity; n_points)
 end
 
-"""
-    spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where {T<:Real}
-
-Spline contour
-"""
 function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where {T<:Real}
     r = vcat(r[1], r[1], r, r[end], r[end])
     z = vcat(0, z[1] / 2, z, z[end] / 2, 0)
@@ -470,7 +498,12 @@ function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101) where {T<:R
     return R, Z
 end
 
-function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points::Int=101)
+"""
+    spline_shape(r_start::T, r_end::T, hfact::T, rz...; n_points::Integer=101) where {T<:Real}
+
+Spline shape
+"""
+function spline_shape(r_start::T, r_end::T, hfact::T, rz...; n_points::Integer=101) where {T<:Real}
     rz = collect(rz)
     R = rz[1:2:end]
     Z = rz[2:2:end]
@@ -482,7 +515,12 @@ function spline_shape(r_start::Real, r_end::Real, hfact::Real, rz...; n_points::
     return spline_shape(r, z; n_points=n_points)
 end
 
-function xy_polygon(x::Vector{<:Real}, y::Vector{<:Real})
+"""
+    xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
+
+Returns LibGEOS.Polygon stucture from x and y arrays
+"""
+function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
     x = deepcopy(x)
     y = deepcopy(y)
     if (x[1] != x[end]) && (x[1] ≈ x[end])
@@ -580,7 +618,7 @@ function silo(r_start, r_end, height_start, height_end)
     height_start = abs(height_start)
     height_end = abs(height_end)
     height_end = min(max(height_end, height_start * 0.0), height_start * 0.9)
-    x, y = ellipse(r_end - r_start, height_start - height_end, 0, pi / 2, r_start, height_end)
+    x, y = ellipse(r_end - r_start, height_start - height_end, 0.0, pi / 2, r_start, height_end)
     return vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end
 
@@ -660,8 +698,18 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     return RX, ZX, R, Z
 end
 
-function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Union{Nothing,Integer}=nothing)
+"""
+    MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+
+Return MXHboundary structure of boundary with x-points based on input MXH boundary parametrization
+"""
+function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
     mr, mz = mxh()
+
+    if ~upper_x_point && ~lower_x_point && n_points === 0
+        return MXHboundary(deepcopy(mxh), Float64[], Float64[], mr, mz)
+    end
+
     R0 = mxh.R0
     Z0 = mxh.Z0
 
@@ -682,18 +730,54 @@ function MXH_boundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
 
-    R, Z = IMAS.resample_2d_line(R, Z; n_points=n_points)
+    R, Z = IMAS.resample_2d_path(R, Z; n_points)
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
 
     return MXHboundary(mxh, RX, ZX, R, Z)
 end
 
 """
+    fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+
+Find boundary such that the output MXH parametrization (with x-points) matches the input MXH parametrization (without x-points)
+"""
+function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+
+    if ~upper_x_point && ~lower_x_point
+        return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
+    end
+
+    # change mxh parameters so that the boundary with x-points has the desired elongation, triangularity, squareness
+    mxh1 = deepcopy(mxh)
+
+    function mxhb_from_params(params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
+        mxh1.κ = params[1]
+        mxh1.c0 = params[2]
+        mxh1.s = params[3:2+Integer((end - 2) / 2)]
+        mxh1.c = params[2+Integer((end - 2) / 2)+1:end]
+        return MXHboundary(mxh1; upper_x_point, lower_x_point, n_points)
+    end
+
+    function cost(params::AbstractVector{<:Real}; mxh, upper_x_point, lower_x_point, n_points)
+        mxhb1 = mxhb_from_params(params; upper_x_point, lower_x_point, n_points)
+        mxh0 = IMAS.MXH(mxhb1.r_boundary, mxhb1.z_boundary, length(mxh.c))
+        c = norm(vcat(mxh0.κ - mxh.κ, mxh0.c0 - mxh.c0, mxh0.s .- mxh.s, mxh0.c .- mxh.c))
+        return c
+    end
+
+    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead())
+    mxhb = mxhb_from_params(res.minimizer; upper_x_point, lower_x_point, n_points)
+
+    return mxhb
+end
+
+"""
     boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot})
 
-Plot and manipulate Miller Extended Harmonic (MXH) boundary
+Plot and interactively manipulate Miller Extended Harmonic (MXH) boundary
 """
-function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot}=nothing)
+function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p=nothing)
+    @assert typeof(p) <: Union{Nothing,Plots.Plot}
     n = 101
     if length(mxh.c) != 3
         mxh = IMAS.MXH(mxh()..., 3)
@@ -702,7 +786,7 @@ function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         κ in Interact.slider(LinRange(1, 3, n), value=mxh.κ, label="κ"),
         #tilt in Interact.slider(LinRange(-1,1,n);value=mxh.c0,label="tilt"),
         #ovality in Interact.slider(LinRange(-1,1,n);value=mxh.c[1],label="ovality"),
-        triangularity in Interact.slider(LinRange(-1, 1, n), value=mxh.s[1], label="δ"),
+        triangularity in Interact.slider(LinRange(-1, 1, n), value=sin(mxh.s[1]), label="δ"),
         #s_shape in Interact.slider(LinRange(-1,1,n);value=mxh.c[2],label="s1"),
         #squareness in Interact.slider(LinRange(-1, 1, n), value=-(mxh.s[2] + mxh.s[3]) / 2.0, label="ζ"),
         squareness in Interact.slider(LinRange(-1, 1, n), value=-mxh.s[2], label="ζ"),
@@ -713,7 +797,7 @@ function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mxh.κ = κ
         #mxh.c0=tilt
         #mxh.c[1]=ovality
-        mxh.s[1] = triangularity
+        mxh.s[1] = asin(triangularity)
         #mxh.c[2]=s_shape
         mxh.s[2] = -squareness
         #mxh.c[3]=c3
@@ -727,7 +811,7 @@ function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         end
 
         if upper_x_point || lower_x_point
-            mxhb = MXH_boundary(mxh; upper_x_point, lower_x_point)
+            mxhb = MXHboundary(mxh; upper_x_point, lower_x_point)
             plot!(q, mxh, color=:gray, linewidth=1.5)
             plot!(q, mxhb.r_boundary, mxhb.z_boundary, color=:black, linewidth=2, label="")
         else
@@ -742,14 +826,14 @@ end
 
 """
     square_miller(
-        R0::Real,
-        rmin_over_R0::Real,
-        elongation::Real,
-        triangularity::Real,
-        squareness::Real;
+        R0::T,
+        rmin_over_R0::T,
+        elongation::T,
+        triangularity::T,
+        squareness::T;
         x_points::Bool,
         exact::Bool=false,
-        n_points::Int=401)
+        n_points::Integer=401) where {T<:Real}
 
 Miller contour with squareness (via MXH parametrization)
 
@@ -758,51 +842,28 @@ since MXH and Miller deviate at high triangularities, and addition of X-points w
 also alter measured elongation and triangularity.
 """
 function square_miller(
-    R0::Real,
-    rmin_over_R0::Real,
-    elongation::Real,
-    triangularity::Real,
-    squareness::Real;
+    R0::T,
+    rmin_over_R0::T,
+    elongation::T,
+    triangularity::T,
+    squareness::T;
     x_points::Bool,
     exact::Bool=false,
-    n_points::Integer=401)
+    n_points::Integer=401) where {T<:Real}
 
     mxh = IMAS.MXH(R0, 2)
     mxh.ϵ = rmin_over_R0
     mxh.κ = elongation
-    mxh.s[1] = triangularity
+    mxh.s[1] = asin(triangularity)
     mxh.s[2] = -squareness
 
     if exact
-        function cost(mxh::IMAS.MXH, x_points::Bool, elongation::Real, triangularity::Real, x::Vector{<:Real})
-            mxh.κ = x[1]
-            mxh.s[1] = x[2]
-            mxhb = MXH_boundary(mxh; upper_x_point=x_points, lower_x_point=x_points)
-            pr = mxhb.r_boundary
-            pz = mxhb.z_boundary
-            _, imaxr = findmax(pr)
-            _, iminr = findmin(pr)
-            _, imaxz = findmax(pz)
-            _, iminz = findmin(pz)
-            r_at_max_z, max_z = pr[imaxz], pz[imaxz]
-            r_at_min_z, min_z = pr[iminz], pz[iminz]
-            z_at_max_r, max_r = pz[imaxr], pr[imaxr]
-            z_at_min_r, min_r = pz[iminr], pr[iminr]
-            Rm = 0.5 * (max_r + min_r)
-            a = 0.5 * (max_r - min_r)
-            b = 0.5 * (max_z - min_z)
-            κ = b / a
-            δu = (Rm - r_at_max_z) / a
-            δl = (Rm - r_at_min_z) / a
-            δ = (δu + δl) / 2.0
-            return sqrt((κ - elongation)^2 + (δ - triangularity)^2)
-        end
-        res = Optim.optimize(x -> cost(mxh, x_points, elongation, triangularity, x), [mxh.κ, mxh.s[1]], Optim.NelderMead())
-        mxh.κ = res.minimizer[1]
-        mxh.s[1] = res.minimizer[2]
+        func = fitMXHboundary
+    else
+        func = MXHboundary
     end
+    mxhb = func(mxh; upper_x_point=x_points, lower_x_point=x_points, n_points)
 
-    mxhb = MXH_boundary(mxh; upper_x_point=x_points, lower_x_point=x_points, n_points=n_points)
     return mxhb.r_boundary, mxhb.z_boundary
 end
 
@@ -849,4 +910,32 @@ function private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{
     zz_l = vcat(zz_l_hfs[1:end-1], zz_l_lfs[2:end])
 
     return rr_u, zz_u, rr_l, zz_l
+end
+
+"""
+    check_ped_finder(profile::AbstractVector{<:Real},psi_norm::AbstractVector{<:Real})
+
+Plots the profile and fitted profile for pedestal finding (region outside pedestal not important for fit)
+"""
+function check_ped_finder(profile::AbstractVector{<:Real}, psi_norm::AbstractVector{<:Real})
+    ped_height, ped_width = IMAS.pedestal_finder(profile, psi_norm)
+    plot(psi_norm, profile, label="original profile")
+    plot!(psi_norm, IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width), label="fitted profile (pedestal region is important only)")
+end
+
+
+"""
+    ip_from_q_star(a::Real, B0::Real, q_star::Real, R0::Real, κ::Real)
+Calculate ip from the cylindrical equivalent safety factor
+"""
+function ip_from_q_cyl(a::Real, B0::Real, q_cyl::Real, R0::Real, κ::Real)
+    return 1e6 * abs((5 * a^2 * B0) / (R0 * (q_cyl)) * (1 + κ^2) / 2)
+end
+
+"""
+    B0_from_Bmax(Bmax::Real, distance_tf_to_plasma::Real, a::Real, R0::Real)
+Calculate the on axis magnetic field from the maximum magnetic field at the tf coils
+"""
+function B0_from_b_max(b_max::Real, distance_tf_to_plasma::Real, a::Real, R0::Real)
+    return b_max * (1 - (a + distance_tf_to_plasma) / R0)
 end

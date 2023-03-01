@@ -1,16 +1,18 @@
 #= ============== =#
 #  ActorDivertors  #
 #= ============== =#
+Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    thermal_power_extraction_efficiency::Entry{T} = Entry(T, "-",
+        "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures.";
+        default=1.0)
+end
 
 mutable struct ActorDivertors <: ReactorAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorDivertors
     thermal_power_extraction_efficiency::Real
-end
-
-Base.@kwdef struct FUSEparameters__ActorDivertors{T} <: ParametersActor where {T<:Real}
-    thermal_power_extraction_efficiency = Entry(Real, "",
-        "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures."; default=1.0)
 end
 
 """
@@ -29,7 +31,7 @@ function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorDivertors(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorDivertors(dd::IMAS.dd, par::FUSEparameters__ActorDivertors; kw...)
     logging_actor_init(ActorDivertors)
     par = par(kw...)
     return ActorDivertors(dd, par, par.thermal_power_extraction_efficiency)

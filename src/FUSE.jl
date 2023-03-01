@@ -10,7 +10,7 @@ using Printf
 #= ===== =#
 #  UTILS  #
 #= ===== =#
-include("utils.jl")
+include("utils_begin.jl")
 
 #= =================== =#
 #  ABSTRACT PARAMETERS  #
@@ -58,6 +58,7 @@ include(joinpath("actors", "pedestal_actor.jl"))
 include(joinpath("actors", "tglf_actor.jl"))
 include(joinpath("actors", "core_transport_actor.jl"))
 include(joinpath("actors", "transport_solver_actor.jl"))
+include(joinpath("actors", "limits_actor.jl"))
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound_actors.jl"))
 
@@ -82,6 +83,11 @@ include(joinpath("workflows", "DB5_validation_workflow.jl"))
 #  LOGGING  #
 #= ======= =#
 include("logging.jl")
+
+#= ===== =#
+#  UTILS  #
+#= ===== =#
+include("utils_end.jl")
 
 #= ====== =#
 #= EXPORT =#

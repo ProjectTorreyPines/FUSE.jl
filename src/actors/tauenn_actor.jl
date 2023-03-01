@@ -3,25 +3,27 @@ import TAUENN
 #= ================ =#
 #     TAUENN actor   #
 #= ================ =#
+Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    error::Entry{T} = Entry(T, "-", "Target convergence error"; default=1E-2)
+    eped_factor::Entry{T} = Entry(T, "-", "Scaling parameter for EPED-NN prediction"; default=1.0)
+    rho_fluxmatch::Entry{T} = Entry(T, "-", "Radial location where flux-macthing is done"; default=0.6)
+    T_shaping::Entry{T} = Entry(T, "-", "Shaping coefficient for the temperature profile"; default=1.8)
+    temp_pedestal_ratio::Entry{T} = Entry(T, "-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
+    transport_model::Switch{Symbol} = Switch(Symbol, [:tglfnn, :tglf, :h98y2, :ds03], "-", "Transport model"; default=:tglfnn)
+    warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "Warn if EPED-NN / TGLF-NN training bounds are exceeded"; default=false)
+    update_pedestal::Entry{Bool} = Entry(Bool, "-","update pedestal with eped_nn inside TAUENN" ;default=true)
+    confinement_factor::Entry{T} = Entry(T, "-", "Confinement multiplier"; default=1.0)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+end
 
 mutable struct ActorTauenn <: PlasmaAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorTauenn
     tauenn_parameters::TAUENN.TauennParameters
     tauenn_outputs::TAUENN.TauennOutputs
-end
-
-Base.@kwdef struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
-    error = Entry(Real, "", "Target convergence error"; default=1E-2)
-    eped_factor = Entry(Real, "", "Scaling parameter for EPED-NN prediction"; default=1.0)
-    rho_fluxmatch = Entry(Real, "", "Radial location where flux-macthing is done"; default=0.6)
-    T_shaping = Entry(Real, "", "Shaping coefficient for the temperature profile"; default=1.8)
-    temp_pedestal_ratio = Entry(Real, "", "Ion to electron temperature ratio in the pedestal"; default=1.0)
-    transport_model = Switch(Symbol, [:tglfnn, :tglf, :h98y2, :ds03], "", "Transport model"; default=:tglfnn)
-    warn_nn_train_bounds = Entry(Bool, "", "Warn if EPED-NN / TGLF-NN training bounds are exceeded"; default=false)
-    confinement_factor = Entry(Real, "", "Confinement multiplier"; default=1.0)
-    do_plot = Entry(Bool, "", "plot"; default=false)
-    verbose = Entry(Bool, "", "verbose"; default=false)
 end
 
 """
@@ -42,7 +44,7 @@ function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorTauenn(dd::IMAS.dd, par::FUSEparameters__ActorTauenn; kw...)
     logging_actor_init(ActorTauenn)
     par = par(kw...)
 
@@ -54,7 +56,8 @@ function ActorTauenn(dd::IMAS.dd, par::ParametersActor; kw...)
         par.temp_pedestal_ratio,
         par.transport_model,
         par.confinement_factor,
-        par.warn_nn_train_bounds)
+        par.warn_nn_train_bounds,
+        par.update_pedestal)
 
     return ActorTauenn(dd, par, tauenn_parameters, TAUENN.TauennOutputs())
 end

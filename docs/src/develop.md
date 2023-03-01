@@ -10,38 +10,9 @@ We use a GitHub to [track progress with FUSE developments](https://github.com/or
 
 ### Packages organization
 
-The FUSE project is built upon different Julia packages. Several of these are managed by GA-MFE, and they all reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) repository. Of all the packages that are there, three are at the fundation of the FUSE framework itself: `FUSE.jl`, `IMAS.jl`, `CoordinateConventions.jl`, `IMASDD.jl`. All other packages in the ProjectTorreyPines organization fundamentally add physics and technology capabilities in FUSE (typically as actors).
+The FUSE project is built upon different Julia packages. Several of these are managed by GA-MFE, and they all reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) repository.
 
-```
-FUSE
-    CHEASE
-        Equilibrium
-        CoordinateConventions
-        EFIT
-        Fortran90Namelists
-    FusionMaterials
-    IMAS
-        CoordinateConventions
-        IMASDD
-        MillerExtendedHarmonic
-    QED
-        FiniteElementHermite
-    TAUENN
-        EPEDNN
-        IMAS
-            CoordinateConventions
-            IMASDD
-            MillerExtendedHarmonic
-        TGLFNN
-    VacuumFields
-        CoordinateConventions
-        EFIT
-        Equilibrium
-```
-
-## Editing stuff
-
-### Add/modify entries in `dd`
+## How to add/modify entries in `dd`
 
 1. add/edit Json files in the `IMASDD/data_structures_extra` folder
 2. run `IMASDD/src/generate_dd.jl`
@@ -49,19 +20,14 @@ FUSE
 !!! note
     The `dd` data structure is defined as a Julia `struct`. Like all `struct` re-definitions, changes to the `dd` data structure will requires your Julia interpreters to be restarted to pick-up the updates.
 
-### Add/modify entries in `ini`
+## How to add/modify entries in `ini` and `act`
 
-`ini` parameters are of type `ParametersInit`.
+The functinoality of the `ini` and `act` parameters is implemented in the [SimulationParameters.jl](https://github.com/ProjectTorreyPines/SimulationParameters.jl) package.
 
-*  The `ParametersInit` are defined all `FUSE/src/parameters_init.jl` file. Add/edit entries there.
+* The `ini` parameters are all defined in the `FUSE/src/parameters_init.jl` file. Add/edit entries there.
+* The `act` parameters of each actor are defined where that actor is defined. Add/edit entries there.
 
-### Add/modify entries in `act`
-
-`act` parameters are of type `ParametersActor`.
-
-* The `ParametersActor` of each actor are defined where that actor is defined. Add/edit entries there.
-
-### What constitutes an Actor
+## How to write a new actor
 
 Actors are grouped in four main abstract types:
 
@@ -79,59 +45,62 @@ The definition of each FUSE actor follows a well defined pattern.
 # Defintion of the actor structure
 mutable struct ActorNAME <: ???AbstractActor
     dd::IMAS.dd
-    par::ParametersActor    # Actors carry with them the parameters they are run with
-    ngrid::Integer
-    ...
+    par::ParametersActor  # Actors must carry with them the parameters they are run with
+    something_else::??? # Some actors may want to carry something else with them
+    # Inner constructor for the actor starting from `dd` and `par` (we generally refer to `par` as `act.ActorNAME`)
+    function ActorNAME(dd::IMAS.dd, par::FUSEparameters__ActorNAME; kw...)
+        logging_actor_init(ActorNAME)
+        par = par(kw...)
+        return new(dd, par, something_else)
+    end
 end
 
 # Definition of the `act` parameters relevant to the actor
-function ParametersActor(::Type{Val{:ActorNAME}})
-    par = ParametersActor(nothing)
-    par.ngrid = Entry(Integer, "", "Grid ..."; default=129)
-    ...
-    par.verbose = Entry(Bool, "", "verbose"; default=false)
-    return par
+# NOTE: To create a `ActorNAME` in `act` you'll have to add these to the FUSE/src/parameters_actors.jl file
+Base.@kwdef mutable struct FUSEparameters__ActorNAME{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    length::Entry{T} = Entry(T, "m", "Some decription") # it's ok not to have a default, it forces users to think about what a parameter should be
+    verbose::Entry{Bool} = Entry(Bool, "", "Some other decription"; default=true)
+    switch::Switch{Symbol} = Switch(Symbol, [:option_a, :option_b], "", "user can only select one of these"; default=:option_a)
 end
 
-# run actor with `dd` and `act` as arguments
+# Constructor with with `dd` and `act` as arguments will actually run the actor!
+# That's how users will mostly run this actor.
+# This does not change, and it's always the same for all actors
 """
     ActorNAME(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 What does this actor do...
 """
 function ActorNAME(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorNAME(kw...)
-    actor = ActorNAME(dd, par)
-    step(actor)
-    finalize(actor)
+    par = act.ActorNAME(kw...) # this makes a local copy of `act.ActorNAME` and overrides it with keywords that the user may have passed
+    actor = ActorNAME(dd, par) # instantiate the actor (see function below)
+    step(actor)                # run the actor
+    finalize(actor)            # finalize
     return actor
 end
 
-# define `init` function for this actor as constructor with `par`
-function ActorNAME(dd::IMAS.dd, par::ParametersActor; kw...)
-    par = par(kw...)
-    return ActorNAME(dd, par, par.ngrid)
+# define `_step` function for this actor (this is where most of the action occurs)
+# note the leading underscore (use the `_step()` and not `step()` for the FUSE logging system to work with your actor)
+# `_step()` should not take any argument besides the actor itself
+function _step(actor::ActorNAME)
+    ...
+    return actor # _step() should always return the actor
 end
 
-# define `step` function for this actor
-function step(actor::ActorNAME; ...)
+# define `_finalize` function for this actor (this is where typically data gets written in `dd` if that does happen already at the `step`)
+# note the leading underscore (use the `_finalize()` and not `finalize()` for the FUSE logging system to work with your actor)
+# `_finalize()` should not take any argument besides the actor itself
+function _finalize(actor::ActorNAME)
     ...
-end
-
-# define `finalize` function for this actor
-function finalize(actor::ActorNAME; ...)
-    ...
+    return actor # _finalize() should always return the actor
 end
 ```
 
-## Build documentation
+## How to build the documentation
 
-1. To build missing example notebooks pages:
-   ```bash
-   make examples
-   ```
-
-1. To build the documentation, in the `FUSE/docs` folder:
+1. To build the documentation, in the `FUSE/docs` folder, start Julia then:
    ```julia
    include("make.jl")
    ```
@@ -140,12 +109,16 @@ end
 
 1. Check page by opening `FUSE/docs/build/index.html` page in web-browser.
 
-1. To publish online
+1. To publish online in the `FUSE` folder:
    ```bash
    make web
    ```
 
 ## Tips and more
+
+### Revise.jl
+Use [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
+We recommend adding `import Revise` to your `~/.julia/config/startup.jl`.
 
 ### Development in VSCode
 

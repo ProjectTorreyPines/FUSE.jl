@@ -3,19 +3,21 @@ import TGLFNN
 #= ============= =#
 #  ActorTGLF      #
 #= ============= =#
-mutable struct ActorTGLF <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    input_tglfs::AbstractVector{<:TGLFNN.InputTGLF}
-    flux_solutions::AbstractVector{<:TGLFNN.flux_solution}
+Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    nn::Entry{Bool} = Entry(Bool, "-", "Use TGLF-NN"; default=true)
+    sat_rule::Switch{Symbol} = Switch(Symbol, [:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "-", "Saturation rule"; default=:sat1)
+    electromagnetic::Entry{Bool} = Entry(Bool, "-", "Electromagnetic or electrostatic"; default=true)
+    rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
+    warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
 end
 
-Base.@kwdef struct FUSEparameters__ActorTGLF{T} <: ParametersActor where {T<:Real}
-    nn = Entry(Bool, "", "Use TGLF-NN"; default=true)
-    sat_rule = Switch(Symbol, [:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "", "Saturation rule"; default=:sat0)
-    electromagnetic = Entry(Bool, "", "Electromagnetic or electrostatic"; default=false)
-    rho_transport = Entry(AbstractVector{<:Real}, "", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
-    warn_nn_train_bounds = Entry(Bool, "", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
+mutable struct ActorTGLF <: PlasmaAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorTGLF
+    input_tglfs::AbstractVector{<:TGLFNN.InputTGLF}
+    flux_solutions::AbstractVector{<:TGLFNN.flux_solution}
 end
 
 """
@@ -31,7 +33,7 @@ function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTGLF(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
     par = par(kw...)
     input_tglfs = Vector{TGLFNN.InputTGLF}(undef, length(par.rho_transport))
     return ActorTGLF(dd, par, input_tglfs, TGLFNN.flux_solution[])

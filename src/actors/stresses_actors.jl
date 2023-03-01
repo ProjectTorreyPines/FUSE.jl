@@ -1,19 +1,21 @@
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
+Base.@kwdef mutable struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    n_points::Entry{Int} = Entry(Int, "-", "Number of grid points"; default=5)
+end
+
 mutable struct ActorStresses <: ReactorAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
-    function ActorStresses(dd::IMAS.dd, par::ParametersActor; kw...)
+    par::FUSEparameters__ActorStresses
+    function ActorStresses(dd::IMAS.dd, par::FUSEparameters__ActorStresses; kw...)
         logging_actor_init(ActorStresses)
         par = par(kw...)
         return new(dd, par)
     end
-end
-
-Base.@kwdef struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
-    do_plot = Entry(Bool, "", "plot"; default=false)
-    n_points = Entry(Integer, "", "Number of grid points"; default=5)
 end
 
 """

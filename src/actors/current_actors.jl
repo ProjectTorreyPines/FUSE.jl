@@ -3,17 +3,19 @@ import QED
 #= =============== =#
 #  ActorQEDcurrent  #
 #= =============== =#
+Base.@kwdef mutable struct FUSEparameters__ActorQEDcurrent{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+end
+
 mutable struct ActorQEDcurrent <: PlasmaAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
+    par::FUSEparameters__ActorQEDcurrent
     QI::QED.QED_state
     η#::Base.Callable
     QO::Union{QED.QED_state,Missing}
     initial_time
     tmax
-end
-
-Base.@kwdef struct FUSEparameters__ActorQEDcurrent{T} <: ParametersActor where {T<:Real}
 end
 
 """
@@ -32,7 +34,7 @@ function ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorQEDcurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorQEDcurrent(dd::IMAS.dd, par::FUSEparameters__ActorQEDcurrent; kw...)
     logging_actor_init(ActorQEDcurrent)
     par = par(kw...)
     return ActorQEDcurrent(dd, par, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), dd.global_time)
@@ -113,17 +115,19 @@ end
 #= ======================= =#
 #  ActorSteadyStateCurrent  #
 #= ======================= =#
+Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+end
+
 mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
-    function ActorSteadyStateCurrent(dd::IMAS.dd, par::ParametersActor; kw...)
+    par::FUSEparameters__ActorSteadyStateCurrent
+    function ActorSteadyStateCurrent(dd::IMAS.dd, par::FUSEparameters__ActorSteadyStateCurrent; kw...)
         logging_actor_init(ActorSteadyStateCurrent)
         par = par(kw...)
         return new(dd, par)
     end
-end
-
-Base.@kwdef struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
 end
 
 """

@@ -1,19 +1,20 @@
 #= ========== =#
 #  PF passive  #
 #= ========== =#
+Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+end
 
 mutable struct ActorPassiveStructures <: ReactorAbstractActor
     dd::IMAS.dd
-    par::ParametersActor
-    function ActorPassiveStructures(dd::IMAS.dd, par::ParametersActor; kw...)
+    par::FUSEparameters__ActorPassiveStructures
+    function ActorPassiveStructures(dd::IMAS.dd, par::FUSEparameters__ActorPassiveStructures; kw...)
         logging_actor_init(ActorPassiveStructures)
         par = par(kw...)
         return new(dd, par)
     end
-end
-
-Base.@kwdef struct FUSEparameters__ActorPassiveStructures{T} <: ParametersActor where {T<:Real}
-    do_plot = Entry(Bool, "", "plot"; default=false)
 end
 
 """

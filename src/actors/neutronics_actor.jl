@@ -1,6 +1,25 @@
 #= =============== =#
 #  ActorNeutronics  #
 #= =============== =#
+Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    N::Entry{Int} = Entry(Int, "-", "Number of particles"; default=100000)
+    step::Entry{T} = Entry(T, "-", "Interator stepping"; default=0.05)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+end
+
+mutable struct ActorNeutronics{T} <: PlasmaAbstractActor
+    dd::IMAS.dd{T}
+    par::FUSEparameters__ActorNeutronics
+    function ActorNeutronics{T}(dd::IMAS.dd{T}, par::FUSEparameters__ActorNeutronics; kw...) where {T}
+        logging_actor_init(ActorNeutronics{T})
+        par = par(kw...)
+        return new{T}(dd, par)
+    end
+end
+
+ActorNeutronics(dd::IMAS.dd{T}, par::FUSEparameters__ActorNeutronics; kw...) where {T} = ActorNeutronics{T}(dd, par; kw...)
 
 mutable struct neutron_particle{T<:Real}
     x::T
@@ -17,24 +36,6 @@ end
 
 function Zcoord(n::neutron_particle)
     n.z
-end
-
-mutable struct ActorNeutronics{T} <: PlasmaAbstractActor
-    dd::IMAS.dd{T}
-    par::ParametersActor
-    function ActorNeutronics{T}(dd::IMAS.dd{T}, par::ParametersActor; kw...) where {T}
-        logging_actor_init(ActorNeutronics{T})
-        par = par(kw...)
-        return new{T}(dd, par)
-    end
-end
-
-ActorNeutronics(dd::IMAS.dd{T}, par::ParametersActor; kw...) where {T} = ActorNeutronics{T}(dd, par; kw...)
-
-Base.@kwdef struct FUSEparameters__ActorNeutronics{T} <: ParametersActor where {T<:Real}
-    N = Entry(Integer, "", "Number of particles"; default=100000)
-    step = Entry(Float64, "", "Interator stepping"; default=0.05)
-    do_plot = Entry(Bool, "", "plot"; default=false)
 end
 
 """
@@ -117,7 +118,7 @@ function define_wall(actor::ActorNeutronics)
     # resample wall and make sure it's clockwise (for COCOS = 11)
     eqt = actor.dd.equilibrium.time_slice[]
     wall = IMAS.first_wall(actor.dd.wall)
-    rwall, zwall = IMAS.resample_2d_line(wall.r, wall.z; step=0.1)
+    rwall, zwall = IMAS.resample_2d_path(wall.r, wall.z; step=0.1)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
     IMAS.reorder_flux_surface!(rwall, zwall, R0, Z0)

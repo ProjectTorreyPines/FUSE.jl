@@ -151,7 +151,7 @@ function init_pf_active(
         poly = LibGEOS.buffer(xy_polygon(inner_layer.outline.r, inner_layer.outline.z), dcoil)
         rail_r = [v[1] for v in GeoInterface.coordinates(poly)[1]]
         rail_z = [v[2] for v in GeoInterface.coordinates(poly)[1]]
-        rail_r, rail_z = IMAS.resample_2d_line(rail_r, rail_z, step=dr / 3)
+        rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3)
 
         # mark what regions on that rail do not intersect solid structures and can hold coils
         valid_k = []
@@ -166,9 +166,9 @@ function init_pf_active(
             end
         end
         if length(valid_k) == 0
-            bd.pf_active.rail[krail].outline.r = Real[]
-            bd.pf_active.rail[krail].outline.z = Real[]
-            bd.pf_active.rail[krail].outline.distance = Real[]
+            bd.pf_active.rail[krail].outline.r = Float64[]
+            bd.pf_active.rail[krail].outline.z = Float64[]
+            bd.pf_active.rail[krail].outline.distance = Float64[]
             error("Coils on PF rail #$(krail-1) are too big to fit.")
             continue
         end

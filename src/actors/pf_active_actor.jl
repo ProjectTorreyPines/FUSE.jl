@@ -1,4 +1,4 @@
-using Equilibrium
+import MXHEquilibrium
 import Optim
 import VacuumFields
 using LinearAlgebra
@@ -6,28 +6,6 @@ using LinearAlgebra
 #= =============== =#
 #  ActorPFcoilsOpt  #
 #= =============== =#
-Base.@kwdef mutable struct PFcoilsOptTrace
-    params::Vector{Vector{Float64}} = Vector{Float64}[]
-    cost_lcfs::Vector{Float64} = Float64[]
-    cost_currents::Vector{Float64} = Float64[]
-    cost_oh::Vector{Float64} = Float64[]
-    cost_1to1::Vector{Float64} = Float64[]
-    cost_spacing::Vector{Float64} = Float64[]
-    cost_total::Vector{Float64} = Float64[]
-end
-
-mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
-    par::ParametersActor
-    eq_in::IMAS.equilibrium
-    eq_out::IMAS.equilibrium
-    pf_active::IMAS.pf_active
-    bd::IMAS.build
-    symmetric::Bool
-    λ_regularize::Real
-    trace::PFcoilsOptTrace
-    green_model::Symbol
-end
-
 options_green_model = [
         :point => "one filament per coil",
         :simple => "like :point, but OH coils have three filaments",
@@ -41,18 +19,42 @@ options_optimization_scheme = [
     :rail => "Find optimial coil positions"
 ]
 
-Base.@kwdef struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor where {T<:Real}
-    green_model = Switch(Symbol, options_green_model, "", "Model used for the coils Green function calculations"; default=:simple)
-    symmetric = Entry(Bool, "", "Force PF coils location to be up-down symmetric"; default=true)
-    weight_currents = Entry(Float64, "", "Weight of current limit constraint"; default=2.0)
-    weight_strike = Entry(Float64, "", "Weight given to matching the strike-points"; default=0.1)
-    weight_lcfs = Entry(Float64, "", "Weight given to matching last closed flux surface"; default=1.0)
-    weight_null = Entry(Float64, "", "Weight given to get field null for plasma breakdown"; default=1E-3)
-    maxiter = Entry(Integer, "", "Maximum number of optimizer iterations"; default=1000)
-    optimization_scheme = Switch(Symbol, options_optimization_scheme, "", "Type of PF coil optimization to carry out"; default=:rail)
-    update_equilibrium = Entry(Bool, "", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot = Entry(Bool, "", "plot"; default=false)
-    verbose = Entry(Bool, "", "verbose"; default=false)
+Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    green_model::Switch{Symbol} = Switch(Symbol, options_green_model, "-", "Model used for the coils Green function calculations"; default=:simple)
+    symmetric::Entry{Bool} = Entry(Bool, "-", "Force PF coils location to be up-down symmetric"; default=true)
+    weight_currents::Entry{T} = Entry(T, "-", "Weight of current limit constraint"; default=2.0)
+    weight_strike::Entry{T} = Entry(T, "-", "Weight given to matching the strike-points"; default=0.1)
+    weight_lcfs::Entry{T} = Entry(T, "-", "Weight given to matching last closed flux surface"; default=1.0)
+    weight_null::Entry{T} = Entry(T, "-", "Weight given to get field null for plasma breakdown"; default=1E-3)
+    maxiter::Entry{Int} = Entry(Int, "-", "Maximum number of optimizer iterations"; default=1000)
+    optimization_scheme::Switch{Symbol} = Switch(Symbol, options_optimization_scheme, "-", "Type of PF coil optimization to carry out"; default=:rail)
+    update_equilibrium::Entry{Bool} = Entry(Bool, "-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+end
+
+Base.@kwdef mutable struct PFcoilsOptTrace
+    params::Vector{Vector{Float64}} = Vector{Float64}[]
+    cost_lcfs::Vector{Float64} = Float64[]
+    cost_currents::Vector{Float64} = Float64[]
+    cost_oh::Vector{Float64} = Float64[]
+    cost_1to1::Vector{Float64} = Float64[]
+    cost_spacing::Vector{Float64} = Float64[]
+    cost_total::Vector{Float64} = Float64[]
+end
+
+mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
+    par::FUSEparameters__ActorPFcoilsOpt
+    eq_in::IMAS.equilibrium
+    eq_out::IMAS.equilibrium
+    pf_active::IMAS.pf_active
+    bd::IMAS.build
+    symmetric::Bool
+    λ_regularize::Real
+    trace::PFcoilsOptTrace
+    green_model::Symbol
 end
 
 """
@@ -107,7 +109,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorPFcoilsOpt(dd::IMAS.dd, par::ParametersActor; kw...)
+function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw...)
     logging_actor_init(ActorPFcoilsOpt)
     par = par(kw...)
 
@@ -209,7 +211,7 @@ function _finalize(
             coil.time_index = time_index
         end
 
-        # convert equilibrium to Equilibrium.jl format, since this is what VacuumFields uses
+        # convert equilibrium to MXHEquilibrium.jl format, since this is what VacuumFields uses
         EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
         # # update ψ map
@@ -844,7 +846,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                actor.eq_out.time_slice[time_index]
+                actor.eq_out.time_slice[time_index].boundary
             end
         else
             @series begin

@@ -9,6 +9,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     ini.general.casename = "CAT"
     ini.general.init_from = :ods
+    ini.equilibrium.boundary_from = :ods
 
     ini.ods.filename = joinpath(@__DIR__, "..", "sample", "CAT_eq_ods.json")
 
@@ -46,5 +47,8 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorPFcoilsOpt.symmetric = true
 
-    return set_new_base!(ini), set_new_base!(act)
+    set_new_base!(ini)
+    set_new_base!(act)
+    
+    return ini, act
 end
