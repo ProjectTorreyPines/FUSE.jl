@@ -37,16 +37,11 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - run: |
-          julia -e '
-            using Pkg
-            Pkg.activate(".")
-            dependencies = PackageSpec[]
-            for package in ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "Equilibrium", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "EFIT", "NNeutronics", "Broker", "ZMQ"]
-              push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
-            end
-            Pkg.add(dependencies)
-            '
+      - uses: julia-actions/cache@v1
+      - uses: julia-actions/add-julia-registry@v1
+        with:
+          key: ${{ secrets.PTP_SSH_KEY }}
+          registry: ProjectTorreyPines/GAregistry
       - uses: julia-actions/julia-buildpkg@v1
       #============
       - run: make blank_examples
