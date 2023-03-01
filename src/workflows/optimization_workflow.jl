@@ -79,7 +79,8 @@ function workflow_multiobjective_optimization(
 
     # optimize
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)
-    algorithm = Metaheuristics.NSGA2(; N, options) # must do something here
+#    algorithm = Metaheuristics.NSGA2(; N, options) # must do something here
+    algorithm = Metaheuristics.SMS_EMOA(; N, options) # must do something here
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state
