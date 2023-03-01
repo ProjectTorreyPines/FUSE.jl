@@ -159,7 +159,7 @@ function optimization_engine(
             save(savedir, dd, ini, act; freeze=true)
         end
         # evaluate multiple objectives
-        return collect(map(f -> f(dd), objectives_functions)), collect(map(g -> g(dd), constraints_functions)), Float64[]
+        return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
     catch e
         # save empty dd and error to directory
         if !isempty(save_folder)
@@ -172,6 +172,19 @@ function optimization_engine(
         end
         # rethrow() # uncomment for debugging purposes
         return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
+    end
+end
+
+"""
+    nan2inf(x::Float64)::Float64
+
+Turn NaNs into Inf
+"""
+function nan2inf(x::Float64)::Float64
+    if isnan(x)
+      	return Inf
+    else
+      	return x
     end
 end
 
