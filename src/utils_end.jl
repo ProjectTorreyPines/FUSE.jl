@@ -8,7 +8,7 @@
         act::ParametersAllActors,
         savedir::AbstractString;
         freeze::Bool=true,
-        format::Symbol=:hdf)
+        format::Symbol=:json)
 
 Save FUSE dd, ini, act files in a folder
 
@@ -20,7 +20,7 @@ function save(
     ini::ParametersAllInits,
     act::ParametersAllActors;
     freeze::Bool=true,
-    format::Symbol=:hdf)
+    format::Symbol=:json)
 
     @assert format in [:hdf, :json] "format must be either `:hdf` or `:json`"
     mkdir(savedir) # purposely error if directory exists or path does not exist
