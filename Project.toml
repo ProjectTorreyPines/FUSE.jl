@@ -59,4 +59,3 @@ VacuumFields = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 
 [compat]
 BSON = ">= 0.3.6"
-HDF5 = ">= 0.16.14"
