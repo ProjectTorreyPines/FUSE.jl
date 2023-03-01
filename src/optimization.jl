@@ -106,7 +106,7 @@ ConstraintFunction(:steady_state, "log₁₀(hours)", dd -> log10(dd.build.oh.fl
 
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
     if ===(cnst.operation, ==)
-        return abs(cnst.func(dd) - cnst.limit) / cnst.limit - cnst.tolerance
+        return abs((cnst.func(dd) - cnst.limit) / cnst.limit) - cnst.tolerance
     elseif cnst.operation(1.0, 0.0) # > or >=
         return cnst.limit - cnst.func(dd)
     else # < or <=
