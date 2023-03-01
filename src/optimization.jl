@@ -186,10 +186,6 @@ function optimization_engine(
     save_folder::AbstractString,
     p::ProgressMeter.Progress)
 
-    if !isempty(save_folder)
-        mkpath(save_folder)
-    end
-
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])

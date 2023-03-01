@@ -34,8 +34,7 @@ function workflow_multiobjective_optimization(
     N::Int=10,
     iterations::Int=N,
     continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing,
-    save_folder::AbstractString="optimization_runs"
-)
+    save_folder::AbstractString="optimization_runs")
 
     if mod(N, 2) > 0
         error("workflow_multiobjective_optimization population size `N` must be an even number")
@@ -76,6 +75,10 @@ function workflow_multiobjective_optimization(
     # else
     #     actor_or_workflow(ini, act)
     # end
+
+    if !isempty(save_folder)
+        mkpath(save_folder)
+    end
 
     # optimize
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)

@@ -34,6 +34,18 @@ function save(
     return savedir
 end
 
+"""
+    save(
+        savedir::AbstractString,
+        dd::IMAS.dd,
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        e::Exception;
+        freeze::Bool=true,
+        format::Symbol=:json)
+
+Save FUSE dd, ini, act files and exception stacktrace
+"""
 function save(
     savedir::AbstractString,
     dd::IMAS.dd,
@@ -41,7 +53,7 @@ function save(
     act::ParametersAllActors,
     e::Exception;
     freeze::Bool=true,
-    format::Symbol=:hdf)
+    format::Symbol=:json)
 
     save(savedir, dd, ini, act; freeze, format)
 
