@@ -77,7 +77,7 @@ function _step(actor::ActorNBIsimple)
             ion_electron_fraction,
             actor.rho_0[idx],
             actor.width[idx],
-            2;
+            2.0;
             electrons_particles=beam_particles,
             momentum_tor=momentum_source,
             j_parallel=j_parallel

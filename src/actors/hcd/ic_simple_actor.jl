@@ -71,7 +71,7 @@ function _step(actor::ActorICsimple)
             ion_electron_fraction,
             actor.rho_0[idx],
             actor.width[idx],
-            1;
+            1.0;
             j_parallel=j_parallel
         )
     end
