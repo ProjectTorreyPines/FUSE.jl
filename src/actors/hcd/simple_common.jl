@@ -45,6 +45,6 @@ function gaussian_source(
     return IMAS.new_source(isource, index, name, rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
 end
 
-function sgaussian(rho::AbstractVector{<:T}, rho_0::Real, width::Real, order::Float64=1.0)
+function sgaussian(rho::AbstractVector{<:Real}, rho_0::Real, width::Real, order::Float64=1.0)
     return exp.(-((rho .- rho_0) .^ 2 / 2width^2) .^ order)
 end
