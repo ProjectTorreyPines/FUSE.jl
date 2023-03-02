@@ -1,13 +1,3 @@
-#= ============ =#
-#  ActorSolovev  #
-#= ============ =#
-include("solovev_actor.jl")
-
-#= =========== =#
-#  ActorCHEASE  #
-#= =========== =#
-include("chease_actor.jl")
-
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
