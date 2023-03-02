@@ -4,7 +4,7 @@ import NumericalIntegration: integrate
 #  functions  #
 #= ========= =#
 function gaussian_source(
-    isource::Integer,
+    source::IMAS.core_sources__source,
     name::AbstractString,
     index::Integer,
     rho_cp::Real,
@@ -42,7 +42,7 @@ function gaussian_source(
     if j_parallel !== missing
         j_parallel = gaussian_area .* j_parallel
     end
-    return IMAS.new_source(isource, index, name, rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
+    return IMAS.new_source(source, index, name, rho_cp, volume_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
 end
 
 function sgaussian(rho::AbstractVector{<:Real}, rho_0::Real, width::Real, order::Float64=1.0)
