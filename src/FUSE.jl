@@ -47,6 +47,7 @@ include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
 include(joinpath("actors", "pf_active_actor.jl"))
 include(joinpath("actors", "pf_passive_actor.jl"))
+
 include(joinpath("actors", "stresses_actor.jl"))
 
 include(joinpath("actors", "build", "fluxswing_actor.jl"))
@@ -55,7 +56,6 @@ include(joinpath("actors", "build", "hfs_actor.jl"))
 include(joinpath("actors", "build", "cx_actor.jl"))
 
 include(joinpath("actors", "blanket_actor.jl"))
-include(joinpath("actors", "balance_of_plant_actor.jl"))
 
 include(joinpath("actors", "current","qed_actor.jl"))
 include(joinpath("actors", "current","steadycurrent_actor.jl"))
@@ -68,15 +68,21 @@ include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi_simple_actor.jl"))
 
-include(joinpath("actors", "tauenn_actor.jl"))
-include(joinpath("actors", "costing_actor.jl"))
 include(joinpath("actors", "neutronics_actor.jl"))
-include(joinpath("actors", "neoclassical_actor.jl"))
+
 include(joinpath("actors", "pedestal_actor.jl"))
-include(joinpath("actors", "tglf_actor.jl"))
-include(joinpath("actors", "core_transport_actor.jl"))
-include(joinpath("actors", "transport_solver_actor.jl"))
+
+include(joinpath("actors", "transport", "tauenn_actor.jl"))
+include(joinpath("actors", "transport", "neoclassical_actor.jl"))
+include(joinpath("actors", "transport", "tglf_actor.jl"))
+include(joinpath("actors", "transport", "core_transport_actor.jl"))
+include(joinpath("actors", "transport", "transport_solver_actor.jl"))
+
 include(joinpath("actors", "limits_actor.jl"))
+
+include(joinpath("actors", "balance_of_plant_actor.jl"))
+
+include(joinpath("actors", "costing_actor.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "equilibrium_transport_actor.jl"))
