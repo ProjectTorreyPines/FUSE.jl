@@ -45,22 +45,20 @@ include(joinpath("actors", "equilibrium", "solovev_actor.jl"))
 include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
-include(joinpath("actors", "pf_active_actor.jl"))
-include(joinpath("actors", "pf_passive_actor.jl"))
+include(joinpath("actors", "pf", "pf_active_actor.jl"))
+include(joinpath("actors", "pf", "pf_passive_actor.jl"))
 
-include(joinpath("actors", "stresses_actor.jl"))
-
+include(joinpath("actors", "build", "stresses_actor.jl"))
 include(joinpath("actors", "build", "fluxswing_actor.jl"))
 include(joinpath("actors", "build", "lfs_actor.jl"))
 include(joinpath("actors", "build", "hfs_actor.jl"))
 include(joinpath("actors", "build", "cx_actor.jl"))
 
-include(joinpath("actors", "blanket_actor.jl"))
+include(joinpath("actors", "nuclear", "blanket_actor.jl"))
+include(joinpath("actors", "nuclear", "neutronics_actor.jl"))
 
-include(joinpath("actors", "current","qed_actor.jl"))
-include(joinpath("actors", "current","steadycurrent_actor.jl"))
-
-include(joinpath("actors", "divertors_actor.jl"))
+include(joinpath("actors", "current", "qed_actor.jl"))
+include(joinpath("actors", "current", "steadycurrent_actor.jl"))
 
 include(joinpath("actors", "hcd", "simple_common.jl"))
 include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
@@ -68,9 +66,9 @@ include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi_simple_actor.jl"))
 
-include(joinpath("actors", "neutronics_actor.jl"))
-
 include(joinpath("actors", "pedestal_actor.jl"))
+
+include(joinpath("actors", "divertors_actor.jl"))
 
 include(joinpath("actors", "transport", "tauenn_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
