@@ -99,7 +99,7 @@ function load(savedir::AbstractString)
 end
 
 """
-    load(dir::AbstractString, extract::Dict{Symbol,Function})::Dict{Symbol,Any}
+    load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
 
 Read dd, ini, act from JSON files in a folder and extract some data from them
 
@@ -112,16 +112,16 @@ Read dd, ini, act from JSON files in a folder and extract some data from them
         )
 
 """
-function load(dir::AbstractString, extract::Dict{Symbol,Function})::Dict{Symbol,Any}
+function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
     return load(dir, [extract])[1]
 end
 
-function load(dir::AbstractString, extracts::Vector{Dict{Symbol,Function}})::Vector{Dict{Symbol,Any}}
+function load(dir::AbstractString, extracts::AbstractVector{<:AbstractDict{Symbol,Function}})::Vector{Dict{Symbol,Any}}
     dd, ini, act = FUSE.load(dir)
     out = Dict{Symbol,Any}[]
     for extract in extracts
         results = Dict{Symbol,Any}()
-        for key in collect(keys(extract))
+        for key in keys(extract)
             if typeof(dd) === typeof(ini) === typeof(act) === Missing
                 results[key] = NaN
                 continue
@@ -150,11 +150,11 @@ Read dd, ini, act from JSON files from multiple directores and extract some data
             :R0 => (dd,ini,act) -> ini.equilibrium.R0
         )
 """
-function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function})::DataFrames.DataFrame
-    return load(dirs, [extract])[1]
+function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function}; filter_invalid::Bool=true)::DataFrames.DataFrame
+    return load(dirs, [extract]; filter_invalid)[1]
 end
 
-function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symbol,Function}}; filter_invalid::Bool=true)::Vector{DataFrames.DataFrame}
+function load(dirs::AbstractVector{<:AbstractString}, extracts::AbstractVector{<:AbstractDict{Symbol,Function}}; filter_invalid::Bool=true)::Vector{DataFrames.DataFrame}
     # at first we load the data all in the same dataframe (for filtering)
     all_extracts = Dict{Symbol,Function}()
     for extract in extracts
@@ -169,7 +169,7 @@ function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symb
 
     # load the data
     p = ProgressMeter.Progress(length(dirs); showspeed=true)
-    Threads.@threads for k in 1:length(dirs)
+    Threads.@threads for k in eachindex(dirs)
         df[k, :] = load(dirs[k], all_extracts)
         ProgressMeter.next!(p)
     end
