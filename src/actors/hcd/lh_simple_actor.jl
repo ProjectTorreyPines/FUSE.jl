@@ -59,11 +59,12 @@ function _step(actor::ActorLHsimple)
         j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        isource = resize!(cs.source, "identifier.name" => lha.name)
+        source_index = IMAS.name_2_index(cs.source)[:lh]
+        source = resize!(cs.source, "identifier.index" => source_index)
         gaussian_source(
-            isource,
+            source,
             lha.name,
-            4,
+            source_index,
             rho_cp,
             volume_cp,
             area_cp,
