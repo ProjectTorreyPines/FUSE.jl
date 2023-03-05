@@ -82,7 +82,10 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         ini.ic_antennas.power_launched = data_row[:PICRH]
     end
 
-    return set_new_base!(ini), set_new_base!(act)
+    set_new_base!(ini)
+    set_new_base!(act)
+
+    return ini, act
 end
 
 function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Union{Int,Missing}=missing, extra_signal_names=Union{String,Symbol}[])

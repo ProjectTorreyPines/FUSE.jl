@@ -72,7 +72,7 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorWholeFacility{T}(),
         FUSEparameters__ActorPlasmaLimits{T}()
     )
-    setup_parameters(act)
+    setup_parameters!(act)
     return act
 end
 

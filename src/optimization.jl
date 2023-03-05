@@ -27,6 +27,7 @@ ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.pr
 ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
 ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)
 ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), Inf)
+ObjectiveFunction(:min_βn, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, -Inf)
 
 """
     (objf::ObjectiveFunction)(x::Float64)
@@ -101,15 +102,15 @@ end
 const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
 ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-2)
 ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
-ConstraintFunction(:steady_state, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, >, 10.0)
+ConstraintFunction(:steady_state, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), >, log10(10.0))
 
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
     if ===(cnst.operation, ==)
-        return (cnst.func(dd) - cnst.limit)^2 - (cnst.limit * cnst.tolerance)^2
+        return abs((cnst.func(dd) - cnst.limit) / cnst.limit) - cnst.tolerance
     elseif cnst.operation(1.0, 0.0) # > or >=
-        return  - (cnst.func(dd) - cnst.limit)
+        return cnst.limit - cnst.func(dd)
     else # < or <=
-        return  cnst.func(dd) - cnst.limit
+        return cnst.func(dd) - cnst.limit
     end
 end
 
@@ -135,7 +136,7 @@ function optimization_engine(
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString
-    )
+)
     # update ini based on input optimization vector `x`
     for (optpar, xx) in zip(opt_ini, x)
         if typeof(optpar.value) <: Integer
@@ -158,15 +159,32 @@ function optimization_engine(
             save(savedir, dd, ini, act; freeze=true)
         end
         # evaluate multiple objectives
-        return collect(map(f -> f(dd), objectives_functions)), collect(map(g -> g(dd), constraints_functions)), Float64[]
+        return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
     catch e
         # save empty dd and error to directory
         if !isempty(save_folder)
-            savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(savedir, IMAS.dd(), ini, act, e; freeze=true)
+            if typeof(e) <: Exception # somehow sometimes `e` is of type String?
+                savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
+                save(savedir, IMAS.dd(), ini, act, e; freeze=true)
+            else
+                @warn "typeof(e) in optimization_engine is String: $e"
+            end
         end
         # rethrow() # uncomment for debugging purposes
         return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
+    end
+end
+
+"""
+    nan2inf(x::Float64)::Float64
+
+Turn NaNs into Inf
+"""
+function nan2inf(x::Float64)::Float64
+    if isnan(x)
+      	return Inf
+    else
+      	return x
     end
 end
 
@@ -181,20 +199,21 @@ function optimization_engine(
     save_folder::AbstractString,
     p::ProgressMeter.Progress)
 
-    if !isempty(save_folder)
-        mkpath(save_folder)
-    end
-
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
-    F = zeros(size(X)[1], length(objectives_functions))
-    G = zeros(size(X)[1], length(constraints_functions))
-    H = zeros(size(X)[1], 0)
+    F = zeros(size(X)[1], length(tmp[1][1]))
+    G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
+    H = zeros(size(X)[1], max(length(tmp[1][3]), 1))
     for k in 1:size(X)[1]
-        F[k, :] .= tmp[k][1]
-        G[k, :] .= tmp[k][2]
-        H[k, :] .= tmp[k][3]
+        f, g, h = tmp[k]
+        F[k, :] .= f
+        if !isempty(g)
+            G[k, :] .= g
+        end
+        if !isempty(h)
+            H[k, :] .= h
+        end
     end
     return F, G, H
 end

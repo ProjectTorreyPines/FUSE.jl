@@ -8,7 +8,7 @@
         act::ParametersAllActors,
         savedir::AbstractString;
         freeze::Bool=true,
-        format::Symbol=:hdf)
+        format::Symbol=:json)
 
 Save FUSE dd, ini, act files in a folder
 
@@ -20,7 +20,7 @@ function save(
     ini::ParametersAllInits,
     act::ParametersAllActors;
     freeze::Bool=true,
-    format::Symbol=:hdf)
+    format::Symbol=:json)
 
     @assert format in [:hdf, :json] "format must be either `:hdf` or `:json`"
     mkdir(savedir) # purposely error if directory exists or path does not exist
@@ -34,6 +34,18 @@ function save(
     return savedir
 end
 
+"""
+    save(
+        savedir::AbstractString,
+        dd::IMAS.dd,
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        e::Exception;
+        freeze::Bool=true,
+        format::Symbol=:json)
+
+Save FUSE dd, ini, act files and exception stacktrace
+"""
 function save(
     savedir::AbstractString,
     dd::IMAS.dd,
@@ -41,7 +53,7 @@ function save(
     act::ParametersAllActors,
     e::Exception;
     freeze::Bool=true,
-    format::Symbol=:hdf)
+    format::Symbol=:json)
 
     save(savedir, dd, ini, act; freeze, format)
 
@@ -87,11 +99,11 @@ function load(savedir::AbstractString)
 end
 
 """
-    load(dir::AbstractString, extract::Dict{Symbol,Function})::Dict{Symbol,Any}
+    load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
 
-Read dd, ini, act from JSON files in a folder and extract some data from them
+Read dd, ini, act from JSON/HDF files in a folder and extract some data from them
 
-`extract` functions should accept `dd, ini, act` as inputs, like this:
+Each of the `extract` functions should accept `dd, ini, act` as inputs, like this:
 
     extract = Dict(
             :beta_normal => (dd,ini,act) -> dd.equilibrium.time_slice[].global_quantities.beta_normal,
@@ -100,37 +112,39 @@ Read dd, ini, act from JSON files in a folder and extract some data from them
         )
 
 """
-function load(dir::AbstractString, extract::Dict{Symbol,Function})::Dict{Symbol,Any}
-    return load(dir, [extract])[1]
-end
-
-function load(dir::AbstractString, extracts::Vector{Dict{Symbol,Function}})::Vector{Dict{Symbol,Any}}
+function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
     dd, ini, act = FUSE.load(dir)
-    out = Dict{Symbol,Any}[]
-    for extract in extracts
-        results = Dict{Symbol,Any}()
-        for key in collect(keys(extract))
-            if typeof(dd) === typeof(ini) === typeof(act) === Missing
-                results[key] = NaN
-                continue
-            end
-            try
-                results[key] = extract[key](dd, ini, act)
-            catch e
-                results[key] = NaN
-            end
+    results = Dict{Symbol,Any}()
+    for key in keys(extract)
+        if typeof(dd) === typeof(ini) === typeof(act) === Missing
+            results[key] = NaN
+            continue
         end
-        push!(out, results)
+        try
+            tmp = extract[key](dd, ini, act)
+            if typeof(tmp) <: AbstractDict
+                for (k, v) in tmp
+                    if typeof(v) <: IMAS.DDigestField
+                        v = v.value
+                    end
+                    results[k] = v
+                end
+            else
+                results[key] = tmp
+            end
+        catch e
+            results[key] = NaN
+        end
     end
-    return out
+    return results
 end
 
 """
     load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function})::DataFrames.DataFrame
 
-Read dd, ini, act from JSON files from multiple directores and extract some data from them
+Read dd, ini, act from JSON/HDF files in multiple directores and extract some data from them returning results in DataFrame format
 
-`extract` functions should accept `dd, ini, act` as inputs, like this:
+Each of the `extract` functions should accept `dd, ini, act` as inputs, like this:
 
     extract = Dict(
             :beta_normal => (dd,ini,act) -> dd.equilibrium.time_slice[].global_quantities.beta_normal,
@@ -138,34 +152,18 @@ Read dd, ini, act from JSON files from multiple directores and extract some data
             :R0 => (dd,ini,act) -> ini.equilibrium.R0
         )
 """
-function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function})::DataFrames.DataFrame
-    return load(dirs, [extract])[1]
-end
-
-function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symbol,Function}}; filter_invalid::Bool=true)::Vector{DataFrames.DataFrame}
-    # at first we load the data all in the same dataframe (for filtering)
-    all_extracts = Dict{Symbol,Function}()
-    for extract in extracts
-        merge!(all_extracts, extract)
-    end
-
+function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function}; filter_invalid::Bool=true)::DataFrames.DataFrame
     # allocate memory
-    df = DataFrames.DataFrame(load(dirs[1], all_extracts))
+    df = DataFrames.DataFrame(load(dirs[1], extract))
     for k in 2:length(dirs)
         push!(df, df[1, :])
     end
-    
+
     # load the data
     p = ProgressMeter.Progress(length(dirs); showspeed=true)
-    GC.enable(false) #https://github.com/JuliaIO/HDF5.jl/pull/1049
-    try
-        Threads.@threads for k in 1:length(dirs)
-            tmp = load(dirs[k], all_extracts)
-            df[k, :] = tmp
-            ProgressMeter.next!(p)
-        end
-    finally
-        GC.enable(true)
+    Threads.@threads for k in eachindex(dirs)
+        df[k, :] = load(dirs[k], extract)
+        ProgressMeter.next!(p)
     end
 
     # filter
@@ -173,11 +171,18 @@ function load(dirs::AbstractVector{<:AbstractString}, extracts::Vector{Dict{Symb
         df = filter(row -> all(x -> !(x isa Number && (isnan(x) || isinf(x))), row), df)
     end
 
-    # split into separate dataframes
-    dfs = DataFrames.DataFrame[]
-    for extract in extracts
-        push!(dfs, df[:,collect(keys(extract))])
-    end
+    return df
+end
 
-    return dfs
+"""
+    IMAS.digest(dirs::AbstractVector{<:AbstractString}; extract::Dict{Symbol,Function}, filter_invalid::Bool=true)::DataFrames.DataFrame
+
+Digest dd from JSON/HDF files in multiple directores and return results in DataFrame format
+"""
+function IMAS.digest(dirs::AbstractVector{<:AbstractString}; extract::Dict{Symbol,Function}=Dict{Symbol,Function}(), filter_invalid::Bool=true)::DataFrames.DataFrame
+    all_extract = Dict{Symbol,Function}(
+        :digest => (dd, ini, act) -> IMAS.digest(dd.summary),
+    )
+    merge!(all_extract, extract)
+    return load(dirs, all_extract; filter_invalid)
 end

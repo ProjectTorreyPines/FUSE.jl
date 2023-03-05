@@ -50,5 +50,8 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
         :electrons => :flux_match,
         :C         => :match_ne_scale)
 
-    return set_new_base!(ini), set_new_base!(act)
+    set_new_base!(ini)
+    set_new_base!(act)
+
+    return ini, act
 end

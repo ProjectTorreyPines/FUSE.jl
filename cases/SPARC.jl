@@ -62,7 +62,10 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     act.ActorPFcoilsOpt.symmetric = true
     # act.ActorEquilibrium.model = :CHEASE
 
-    return set_new_base!(ini), set_new_base!(act)
+    set_new_base!(ini)
+    set_new_base!(act)
+
+    return ini, act
 end
 
 function TraceCAD(::Type{Val{:SPARC}})
