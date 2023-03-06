@@ -238,7 +238,7 @@ function _step(
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
 
         @show dd.build.oh.flattop_duration
-        @show dd.target.flattop_duration
+        @show dd.requirements.flattop_duration
 
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
@@ -268,7 +268,7 @@ function _step(
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
     if !unconstrained_flattop_duration
-        @assert rel_error(dd.build.oh.flattop_duration, dd.target.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_duration) --> $(dd.target.flattop_duration))"
+        @assert rel_error(dd.build.oh.flattop_duration, dd.requirements.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_duration) --> $(dd.requirements.flattop_duration))"
     end
     if fixed_aspect_ratio
         @assert rel_error(ϵ, old_ϵ) < 0.1 "ActorHFSsizing: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"

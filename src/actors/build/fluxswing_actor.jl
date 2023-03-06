@@ -64,7 +64,7 @@ The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
 
     bd = actor.dd.build
-    target = actor.dd.target
+    requirements = actor.dd.requirements
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
     cp = actor.dd.core_profiles
@@ -78,7 +78,7 @@ function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j
             oh_maximum_J_B!(bd; j_tolerance)
             bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
         else
-            bd.flux_swing.flattop = flattop_flux_estimates(target, cp1d) # flattop flux based on target duration
+            bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
             oh_required_J_B!(bd)
         end
 
@@ -127,8 +127,8 @@ end
 
 Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
 """
-function flattop_flux_estimates(target::IMAS.target, cp1d::IMAS.core_profiles__profiles_1d)
-    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * target.flattop_duration # V*s
+function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
+    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * requirements.flattop_duration # V*s
 end
 
 """

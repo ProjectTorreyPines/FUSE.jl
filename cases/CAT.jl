@@ -38,7 +38,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    ini.target.flattop_duration = 1000.0
+    ini.requirements.flattop_duration = 1000.0
 
     ini.nbi.power_launched = 20E6
     ini.nbi.beam_energy = 200e3

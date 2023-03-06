@@ -33,8 +33,8 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         ini.equilibrium.boundary_from = :ods
     end
 
-    ini.target.tritium_breeding_ratio = 1.1
-    ini.target.cost = 5000. # M$
+    ini.requirements.tritium_breeding_ratio = 1.1
+    ini.requirements.cost = 5000. # M$
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
