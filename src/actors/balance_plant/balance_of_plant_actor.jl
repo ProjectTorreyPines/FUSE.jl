@@ -99,7 +99,7 @@ function _step(actor::ActorBalanceOfPlant)
     end
 
     bop.power_electric_net = (bop_thermal.power_electric_generated - sys.power) .* ones(length(bop.time))
-    bop.Q_plant = (bop.power_electric_net ./ bop_electric.total_power)   #.*ones(length(bop.time))
+    bop.Q_plant = (bop.power_electric_net ./ bop_electric.total_power)
 
     if par.do_plot
         core = sys_coords(dd)
@@ -108,25 +108,25 @@ function _step(actor::ActorBalanceOfPlant)
         blk_hx_xpoint = 18.5
         div_hx_xpoint = 23.5
         breeder_hx_xpoint = 28.5
-        turb_xpt = 33
+        turb_xpt = 33.0
 
         if dd.balance_of_plant.power_cycle_type == "complex_brayton"
             breeder_hx_xpoint = 26.5
             blk_hx_xpoint = 13.5
             div_hx_xpoint = 18.5
             regen_xpt = 22.5
-            turb_xpt = 30
+            turb_xpt = 30.0
         end
 
         wall_path = wall_cooling_route(core)
-        hx1 = init_hx("wall hx", blk_hx_xpoint, -8, 2, 4)
+        hx1 = init_hx("wall hx", blk_hx_xpoint, -8.0, 2.0, 4.0)
         plot!(hx1)
         wall_path = attach2hx(wall_path, hx1)
         plot!(wall_path.x, wall_path.y, color=:black, linewidth=5, label=nothing)
         plot!(wall_path.x, wall_path.y, color=:steelblue, linewidth=2.5, label=wall_path.name)
 
         divertor_path = divertor_flow_path(core)
-        hx2 = init_hx("divertor hx", div_hx_xpoint, -8, 2, 4)
+        hx2 = init_hx("divertor hx", div_hx_xpoint, -8.0, 2.0, 4.0)
         plot!(hx2)
         divertor_path = attach2hx(divertor_path, hx2)
         plot!(divertor_path.x, divertor_path.y, color=:black, linewidth=5, label=nothing)
@@ -134,30 +134,30 @@ function _step(actor::ActorBalanceOfPlant)
 
         # breeder_hx_xpoint = 23.5
         # regen_xpt = 28.5
-        # turb_xpt = 33
+        # turb_xpt = 33.0
         # if dd.balance_of_plant.power_cycle_type=="complex_brayton"
         #     breeder_hx_xpoint = 26.5
         #     regen_xpt = 22.5
         #     turb_xpt = 30
         # end
         breeder_path = breeder_cooling_route(core)
-        hx3 = init_hx("breeder hx", breeder_hx_xpoint, -8, 2, 4)
+        hx3 = init_hx("breeder hx", breeder_hx_xpoint, -8.0, 2.0, 4.0)
         plot!(hx3)
         breeder_path = attach2hx(breeder_path, hx3)
         plot!(breeder_path.x, breeder_path.y, color=:black, linewidth=5, label=nothing)
         plot!(breeder_path.x, breeder_path.y, color=:red, linewidth=3, label=breeder_path.name, legend=:topleft)
         ylims!(-17, 13)
 
-        regen = init_hx("regen", regen_xpt, -12, 2, 4)
+        regen = init_hx("regen", regen_xpt, -12.0, 2.0, 4.0)
         plot!(regen)
 
-        T = turb("turbine", coords("turbine", turb_xpt, -12), 3, 4)
-        C1 = comp("comp", coords("c", 0, -12), 2, 2.5)
-        C2 = comp("comp", coords("c", 5, -12), 2, 2.5)
-        C3 = comp("comp", coords("c", 10, -12), 2, 2.5)
+        T = turb("turbine", coords("turbine", [turb_xpt], [-12.0]), 3.0, 4.0)
+        C1 = comp("comp", coords("c", [0.0], [-12.0]), 2.0, 2.5)
+        C2 = comp("comp", coords("c", [5.0], [-12.0]), 2.0, 2.5)
+        C3 = comp("comp", coords("c", [10.0], [-12.0]), 2.0, 2.5)
 
-        ic1 = intercooler("ic", coords("ic", 2.5, -10), 1.5, 3.5)
-        ic2 = intercooler("ic", coords("ic", 7.5, -10), 1.5, 3.5)
+        ic1 = intercooler("ic", coords("ic", [2.5], [-10.0]), 1.5, 3.5)
+        ic2 = intercooler("ic", coords("ic", [7.5], [-10.0]), 1.5, 3.5)
         v1 = [C1, ic1, C2, ic2, C3, hx1, hx2, regen, hx3, T]
         v2 = [C1, ic1, C2, ic2, C3, regen, hx1, hx2, hx3, T]
         cp = v2

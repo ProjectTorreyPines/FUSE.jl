@@ -5,8 +5,8 @@ abstract type component end
 
 mutable struct coords
     name::String
-    x#::Vector{Float64}
-    y#::Vector{Float64}
+    x::Vector{Float64}
+    y::Vector{Float64}
 end
 
 function endpoints(c::coords)
@@ -315,22 +315,22 @@ end
 mutable struct turb <: component
     name::String
     coords::coords
-    h::Real
-    w::Real
+    h::Float64
+    w::Float64
 end
 
 mutable struct comp <: component
     name::String
     coords::coords
-    h::Real
-    w::Real
+    h::Float64
+    w::Float64
 end
 
 mutable struct heat_exchanger <: component
     name::String
     coords::coords
-    h::Real
-    w::Real
+    h::Float64
+    w::Float64
     outline_path::coords
     hot_path::coords
     cold_path::coords
@@ -339,8 +339,8 @@ end
 mutable struct intercooler <: component
     name::String
     coords::coords
-    h::Real
-    w::Real
+    h::Float64
+    w::Float64
 end
 
 function circle_coords(xcenter::Float64, ycenter::Float64, r::Float64)
@@ -353,8 +353,8 @@ end
 function turbPts(t::turb)
     half_height = t.h / 2
     half_width = t.w / 2
-    y = t.coords.y
-    x = t.coords.x
+    y = t.coords.y[1]
+    x = t.coords.x[1]
 
     y1 = y + half_height / 2
     y2 = y - half_height / 2
@@ -369,7 +369,7 @@ function turbPts(t::turb)
     return xx, yy
 end
 
-function init_hx_from_port(w::Real, h::Real, xport::Float64, yport::Float64)
+function init_hx_from_port(w::Float64, h::Float64, xport::Float64, yport::Float64)
     half_height = h / 2
     half_width = w / 2
     w_offset = half_width * 0.9
@@ -381,8 +381,8 @@ end
 function compPts(t::comp)
     half_height = t.h / 2
     half_width = t.w / 2
-    y = t.coords.y
-    x = t.coords.x
+    y = t.coords.y[1]
+    x = t.coords.x[1]
 
     y1 = y + half_height
     y2 = y - half_height
@@ -397,7 +397,7 @@ function compPts(t::comp)
     return xx, yy
 end
 
-function init_hx(name::String, x, y, h, w)
+function init_hx(name::String, x::Float64, y::Float64, h::Float64, w::Float64)
     half_height = h / 2
     half_width = w / 2
 
@@ -448,7 +448,7 @@ function init_hx(name::String, x, y, h, w)
     end
 
     cold_path = coords("cold_path", x_bot, y_bot)
-    return heat_exchanger(name, coords("center_pos", x, y), h, w, outline_path, hot_path, cold_path)
+    return heat_exchanger(name, coords("center_pos", [x], [y]), h, w, outline_path, hot_path, cold_path)
 end
 
 @recipe function plot_turbine(t::turb)
@@ -549,7 +549,7 @@ function attach2hx(mainc::coords, hx::heat_exchanger)
     mainst, mainend = endpoints(mainc)
     hxst, hxend = endpoints(to_connect)
 
-    mpointA = coords(mainc.name, hxst[1], mainend[2])
+    mpointA = coords(mainc.name, [hxst[1]], [mainend[2]])
     mpointB = coords(mainc.name, [hxend[1], mainst[1]], [mainst[2], mainst[2]])
     mainc = mainc + mpointA + to_connect + mpointB
     return mainc
@@ -557,29 +557,29 @@ end
 
 function cyclePath(part_vec::Vector{<:component})
     ca = part_vec[1]
-    cp = coords("cycle_path", [ca.coords.x], [ca.coords.y - 3])
+    cp = coords("cycle_path", ca.coords.x, ca.coords.y .- 3.0)
     regen_found = false
     regen_device = 0
     for c in part_vec
         if c == ca
             cp = cp + c.coords
         elseif typeof(c) != heat_exchanger
-            mpoint = coords(cp.name, cp.x[end], c.coords.y)
+            mpoint = coords(cp.name, [cp.x[end]], c.coords.y)
             if typeof(c) == turb
-                mpoint = coords(cp.name, c.coords.x, cp.y[end])
+                mpoint = coords(cp.name, c.coords.x, [cp.y[end]])
             end
             cp = cp + mpoint + c.coords
         elseif typeof(c) == heat_exchanger
             if c.name == "regen"
-                mpoint = coords(cp.name, c.hot_path.x[1], cp.y[end])
-                cp = cp + mpoint + c.hot_path + coords(cp.name, c.hot_path.x[end], c.hot_path.y[end] + 0.5)
+                mpoint = coords(cp.name, [c.hot_path.x[1]], [cp.y[end]])
+                cp = cp + mpoint + c.hot_path + coords(cp.name, [c.hot_path.x[end]], [c.hot_path.y[end] + 0.5])
                 regen_found = true
                 regen_device = c
             else
-                mpoint = coords(cp.name, c.cold_path.x[1], cp.y[end])
+                mpoint = coords(cp.name, [c.cold_path.x[1]], [cp.y[end]])
                 cp = cp + mpoint + c.cold_path
             end
-            annotate!(c.coords.x, c.coords.y - c.h, (c.name, :center, 6))
+            annotate!(c.coords.x, c.coords.y .- c.h, (c.name, :center, 6))
         end
     end
     if regen_found
