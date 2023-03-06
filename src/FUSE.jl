@@ -78,7 +78,10 @@ include(joinpath("actors", "transport", "transport_solver_actor.jl"))
 
 include(joinpath("actors", "limits_actor.jl"))
 
-include(joinpath("actors", "balance_of_plant_actor.jl"))
+include(joinpath("actors", "balance_plant", "heat_transfer_actor.jl"))
+include(joinpath("actors", "balance_plant", "thermal_cycle_actor.jl"))
+include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
+include(joinpath("actors", "balance_plant", "balance_of_plant_plot.jl"))
 
 include(joinpath("actors", "costing_actor.jl"))
 
