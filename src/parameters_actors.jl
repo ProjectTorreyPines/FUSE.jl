@@ -14,7 +14,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorBlanket::FUSEparameters__ActorBlanket{T}
     ActorBalanceOfPlant::FUSEparameters__ActorBalanceOfPlant{T}
     ActorThermalCycle::FUSEparameters__ActorThermalCycle{T}
-    ActorHeatTxSystem::FUSEparameters__ActorHeatTxSystem{T}
+    ActorHeatTransfer::FUSEparameters__ActorHeatTransfer{T}
     ActorQEDcurrent::FUSEparameters__ActorQEDcurrent{T}
     ActorSteadyStateCurrent::FUSEparameters__ActorSteadyStateCurrent{T}
     ActorDivertors::FUSEparameters__ActorDivertors{T}
@@ -52,7 +52,7 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorBlanket{T}(),
         FUSEparameters__ActorBalanceOfPlant{T}(),
         FUSEparameters__ActorThermalCycle{T}(),
-        FUSEparameters__ActorHeatTxSystem{T}(),
+        FUSEparameters__ActorHeatTransfer{T}(),
         FUSEparameters__ActorQEDcurrent{T}(),
         FUSEparameters__ActorSteadyStateCurrent{T}(),
         FUSEparameters__ActorDivertors{T}(),

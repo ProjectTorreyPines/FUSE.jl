@@ -53,7 +53,7 @@ function _step(actor::ActorThermalCycle)
     par = actor.par
     act = actor.act
     bop = dd.balance_of_plant
-    ihts = bop.heat_tx_system
+    ihts = bop.heat_transfer
     blanket = ihts.blanket
     divertor = ihts.divertor
     breeder = ihts.breeder
@@ -62,11 +62,11 @@ function _step(actor::ActorThermalCycle)
     bop.power_cycle_type = string(par.power_cycle_type)
 
     bop_thermal = bop.thermal_cycle
-    ihts_par = act.ActorHeatTxSystem
+    ihts_par = act.ActorHeatTransfer
 
-    blanket_power = @ddtime(bop.heat_tx_system.blanket.heat_load)
-    breeder_power = @ddtime(bop.heat_tx_system.breeder.heat_load)
-    divertor_power = @ddtime(bop.heat_tx_system.divertor.heat_load)
+    blanket_power = @ddtime(bop.heat_transfer.blanket.heat_load)
+    breeder_power = @ddtime(bop.heat_transfer.breeder.heat_load)
+    divertor_power = @ddtime(bop.heat_transfer.divertor.heat_load)
 
     if ismissing(par, :regen)
         ϵr = 0.0
@@ -122,9 +122,9 @@ function _step(actor::ActorThermalCycle)
         @ddtime(divertor.heat_delivered = hxB.HX_q)
         @ddtime(divertor.heat_waste = divertor_power + hxB.pump_work - hxB.HX_q)
 
-        Tb_max = @ddtime(bop.heat_tx_system.breeder.outlet_temperature)
-        Tb_min = @ddtime(bop.heat_tx_system.breeder.HX_outlet_temperature)
-        Tb_blanket_in = @ddtime(bop.heat_tx_system.breeder.inlet_temperature)
+        Tb_max = @ddtime(bop.heat_transfer.breeder.outlet_temperature)
+        Tb_min = @ddtime(bop.heat_transfer.breeder.HX_outlet_temperature)
+        Tb_blanket_in = @ddtime(bop.heat_transfer.breeder.inlet_temperature)
         Tbreeder_ave = (Tb_max + Tb_min) / 2
         cp_pbli, rho_pbli = pbLi_props(Tbreeder_ave)
         breeder_pump_ΔT = Tb_blanket_in - Tb_min
@@ -135,8 +135,8 @@ function _step(actor::ActorThermalCycle)
             par = actor.par
         end
 
-        mflow_breeder = @ddtime(bop.heat_tx_system.breeder.flow_rate)
-        bpump = @ddtime(bop.heat_tx_system.breeder.circulator_power)
+        mflow_breeder = @ddtime(bop.heat_transfer.breeder.flow_rate)
+        bpump = @ddtime(bop.heat_transfer.breeder.circulator_power)
 
         mcp_breeder = cp_pbli * mflow_breeder
         mcp_cyc = mflow_cycle * cp_he
@@ -209,12 +209,12 @@ function _step(actor::ActorThermalCycle)
         # @show par.Tmax-273.15
         pt = turbine_stages(par)
         @ddtime(bop.thermal_cycle.turbine_work = mflow_cycle * pt.work)
-        @ddtime(bop.heat_tx_system.breeder.HX_outlet_temperature = Tb_after_hx)
-        @ddtime(bop.heat_tx_system.breeder.excess_temperature = Tb_after_hx - Tb_min)
-        @ddtime(bop.heat_tx_system.breeder.inlet_temperature = Tb_blanket_in)
-        @ddtime(bop.heat_tx_system.breeder.outlet_temperature = Tb_max)
-        @ddtime(bop.heat_tx_system.breeder.heat_delivered = qq)
-        @ddtime(bop.heat_tx_system.breeder.heat_waste = breeder_power + bpump - qq)
+        @ddtime(bop.heat_transfer.breeder.HX_outlet_temperature = Tb_after_hx)
+        @ddtime(bop.heat_transfer.breeder.excess_temperature = Tb_after_hx - Tb_min)
+        @ddtime(bop.heat_transfer.breeder.inlet_temperature = Tb_blanket_in)
+        @ddtime(bop.heat_transfer.breeder.outlet_temperature = Tb_max)
+        @ddtime(bop.heat_transfer.breeder.heat_delivered = qq)
+        @ddtime(bop.heat_transfer.breeder.heat_waste = breeder_power + bpump - qq)
         @ddtime(bop.thermal_cycle.net_work = mflow_cycle * (pt.work - pc.work))
         @ddtime(bop_thermal.thermal_effeciency = mflow_cycle * (pt.work - pc.work) / (hxB.HX_q + hxA.HX_q + qq))
         # @show pt.T_in
@@ -225,7 +225,7 @@ function _step(actor::ActorThermalCycle)
         braytonT = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr=0.9)
         newTo = evalBrayton(braytonT, ihts_par, dd)
         cp_cycle = 5.1926e3
-        totPower = @ddtime(bop.heat_tx_system.blanket.heat_delivered) + @ddtime(bop.heat_tx_system.divertor.heat_delivered) + @ddtime(bop.heat_tx_system.breeder.heat_delivered)
+        totPower = @ddtime(bop.heat_transfer.blanket.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered)
         par.Tmax = totPower / (mflow_cycle * cp_cycle) + par.Tmin
         # @show par.Tmax
         braytonOut = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr=0.9)
@@ -426,15 +426,15 @@ function getMCP(dd::IMAS.dd)
     cp_he = 5.1926e3
 
     bop = dd.balance_of_plant
-    Tb_max = @ddtime(bop.heat_tx_system.breeder.outlet_temperature)
-    Tb_min = @ddtime(bop.heat_tx_system.breeder.HX_outlet_temperature)
+    Tb_max = @ddtime(bop.heat_transfer.breeder.outlet_temperature)
+    Tb_min = @ddtime(bop.heat_transfer.breeder.HX_outlet_temperature)
 
     Tbreeder_ave = (Tb_max + Tb_min) / 2
     cp_pbli, rho_pbli = pbLi_props(Tbreeder_ave)
 
-    mflow_breeder = @ddtime(bop.heat_tx_system.breeder.flow_rate)
-    mflow_blanket = @ddtime(bop.heat_tx_system.blanket.flow_rate)
-    mflow_divertor = @ddtime(bop.heat_tx_system.divertor.flow_rate)
+    mflow_breeder = @ddtime(bop.heat_transfer.breeder.flow_rate)
+    mflow_blanket = @ddtime(bop.heat_transfer.blanket.flow_rate)
+    mflow_divertor = @ddtime(bop.heat_transfer.divertor.flow_rate)
     mflow_cycle = @ddtime(bop.thermal_cycle.flow_rate)
 
     mcp_breeder = mflow_breeder * cp_pbli
@@ -453,14 +453,14 @@ end
 
 function waste(dd::IMAS.dd, nm::String, sys_power)
     if nm == "blanket" || nm == "blk"
-        @ddtime(dd.balance_of_plant.heat_tx_system.blanket.heat_delivered = 0.0)
-        @ddtime(dd.balance_of_plant.heat_tx_system.blanket.heat_waste = sys_power)
+        @ddtime(dd.balance_of_plant.heat_transfer.blanket.heat_delivered = 0.0)
+        @ddtime(dd.balance_of_plant.heat_transfer.blanket.heat_waste = sys_power)
     elseif nm == "divertor" || nm == "div"
-        @ddtime(dd.balance_of_plant.heat_tx_system.divertor.heat_delivered = 0.0)
-        @ddtime(dd.balance_of_plant.heat_tx_system.divertor.heat_waste = sys_power)
+        @ddtime(dd.balance_of_plant.heat_transfer.divertor.heat_delivered = 0.0)
+        @ddtime(dd.balance_of_plant.heat_transfer.divertor.heat_waste = sys_power)
     elseif nm == "breeder"
-        @ddtime(dd.balance_of_plant.heat_tx_system.breeder.heat_delivered = 0.0)
-        @ddtime(dd.balance_of_plant.heat_tx_system.breeder.heat_waste = sys_power)
+        @ddtime(dd.balance_of_plant.heat_transfer.breeder.heat_delivered = 0.0)
+        @ddtime(dd.balance_of_plant.heat_transfer.breeder.heat_waste = sys_power)
     end
 end
 
@@ -472,17 +472,17 @@ function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd
     cp = 5.1926e3
     bop = dd.balance_of_plant
 
-    blanket_power = @ddtime(bop.heat_tx_system.blanket.heat_load) + @ddtime(bop.heat_tx_system.blanket.circulator_power)
-    breeder_power = @ddtime(bop.heat_tx_system.breeder.heat_load) + @ddtime(bop.heat_tx_system.breeder.circulator_power)
-    divertor_power = @ddtime(bop.heat_tx_system.divertor.heat_load) + @ddtime(bop.heat_tx_system.divertor.circulator_power)
+    blanket_power = @ddtime(bop.heat_transfer.blanket.heat_load) + @ddtime(bop.heat_transfer.blanket.circulator_power)
+    breeder_power = @ddtime(bop.heat_transfer.breeder.heat_load) + @ddtime(bop.heat_transfer.breeder.circulator_power)
+    divertor_power = @ddtime(bop.heat_transfer.divertor.heat_load) + @ddtime(bop.heat_transfer.divertor.circulator_power)
 
     mcp_blanket, mcp_divertor, mcp_breeder, mcp_cycle = getMCP(dd)
 
     if cycle_minTemp < Tmax_blk
         Q_act, Tho, Tco = hxeff(Tmax_blk, mcp_blanket, cycle_minTemp, mcp_cycle, ihts_par.blanket_HX_ϵ)
 
-        @ddtime(dd.balance_of_plant.heat_tx_system.blanket.heat_delivered = Q_act)
-        @ddtime(dd.balance_of_plant.heat_tx_system.blanket.heat_waste = blanket_power - Q_act)
+        @ddtime(dd.balance_of_plant.heat_transfer.blanket.heat_delivered = Q_act)
+        @ddtime(dd.balance_of_plant.heat_transfer.blanket.heat_waste = blanket_power - Q_act)
 
         cycle_minTemp = Tco
     else
@@ -492,8 +492,8 @@ function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd
     if cycle_minTemp < Tmax_div
         Q_div, Tho, Tco = hxeff(Tmax_div, mcp_divertor, cycle_minTemp, mcp_cycle, ihts_par.divertor_HX_ϵ)
 
-        @ddtime(dd.balance_of_plant.heat_tx_system.divertor.heat_delivered = Q_div)
-        @ddtime(dd.balance_of_plant.heat_tx_system.divertor.heat_waste = divertor_power - Q_div)
+        @ddtime(dd.balance_of_plant.heat_transfer.divertor.heat_delivered = Q_div)
+        @ddtime(dd.balance_of_plant.heat_transfer.divertor.heat_waste = divertor_power - Q_div)
 
         cycle_minTemp = Tco
     else
@@ -503,8 +503,8 @@ function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd
     if cycle_minTemp < Tmax_breeder
         Q_breed, Tho, Tco = hxeff(Tmax_breeder, mcp_breeder, cycle_minTemp, mcp_cycle, ihts_par.breeder_HX_ϵ)
 
-        @ddtime(dd.balance_of_plant.heat_tx_system.breeder.heat_delivered = Q_breed)
-        @ddtime(dd.balance_of_plant.heat_tx_system.breeder.heat_waste = breeder_power - Q_breed)
+        @ddtime(dd.balance_of_plant.heat_transfer.breeder.heat_delivered = Q_breed)
+        @ddtime(dd.balance_of_plant.heat_transfer.breeder.heat_waste = breeder_power - Q_breed)
         cycle_minTemp = Tco
     else
         waste(dd, "breeder", breeder_power)

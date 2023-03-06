@@ -1,13 +1,13 @@
 #= ================= =#
-#  ActorHeatTxSystem
+#  ActorHeatTransfer
 #= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
 
-mutable struct ActorHeatTxSystem <: FacilityAbstractActor
+mutable struct ActorHeatTransfer <: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
-    function ActorHeatTxSystem(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging_actor_init(ActorHeatTxSystem)
+    function ActorHeatTransfer(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging_actor_init(ActorHeatTransfer)
         par = par(kw...)
         return new(dd, par)
     end
@@ -15,7 +15,7 @@ end
 
 const coolant_fluid = [:He, :PbLi]
 
-Base.@kwdef mutable struct FUSEparameters__ActorHeatTxSystem{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     #  BREEDER INFO
@@ -42,34 +42,34 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTxSystem{T} <: ParametersAct
 end
 
 """
-    ActorHeatTxSystem(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorHeatTransfer(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
-function ActorHeatTxSystem(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorHeatTxSystem(kw...)
-    actor = ActorHeatTxSystem(dd, par)
+function ActorHeatTransfer(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorHeatTransfer(kw...)
+    actor = ActorHeatTransfer(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorHeatTxSystem)
+function _step(actor::ActorHeatTransfer)
     dd = actor.dd
     par = actor.par
     bop = dd.balance_of_plant
 
-    bop.heat_tx_system.divertor.working_fluid = string(par.divertor_coolant)
-    bop.heat_tx_system.blanket.working_fluid = string(par.blanket_coolant)
-    bop.heat_tx_system.breeder.working_fluid = string(par.breeder_fluid)
+    bop.heat_transfer.divertor.working_fluid = string(par.divertor_coolant)
+    bop.heat_transfer.blanket.working_fluid = string(par.blanket_coolant)
+    bop.heat_transfer.breeder.working_fluid = string(par.breeder_fluid)
 
     bop.time = dd.core_profiles.time
 
     # ======= #
     # THERMAL #
     # ======= #
-    bop_IHTS = bop.heat_tx_system
+    bop_IHTS = bop.heat_transfer
 
     # breeder_heat_load   = (sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time)
     breeder_heat_load = abs.(sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module]))

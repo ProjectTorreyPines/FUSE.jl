@@ -14,7 +14,7 @@ mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     par::FUSEparameters__ActorBalanceOfPlant
     act::ParametersAllActors
     thermal_cycle_actor::ActorThermalCycle
-    IHTS_actor::ActorHeatTxSystem
+    IHTS_actor::ActorHeatTransfer
 end
 
 """
@@ -45,7 +45,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
 
     breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(act.ActorThermalCycle.power_cycle_type)
 
-    IHTS_actor = ActorHeatTxSystem(dd, act; breeder_hi_temp, breeder_low_temp)
+    IHTS_actor = ActorHeatTransfer(dd, act; breeder_hi_temp, breeder_low_temp)
     thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=3.0)
     return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor)
 end
@@ -70,7 +70,7 @@ function _step(actor::ActorBalanceOfPlant)
     bop_thermal.thermal_electric_conversion_efficiency = par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
     bop_thermal.power_electric_generated = bop_thermal.net_work .* par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
 
-    @ddtime(bop_thermal.total_heat_power = @ddtime(bop.heat_tx_system.blanket.heat_delivered) + @ddtime(bop.heat_tx_system.divertor.heat_delivered) + @ddtime(bop.heat_tx_system.breeder.heat_delivered))
+    @ddtime(bop_thermal.total_heat_power = @ddtime(bop.heat_transfer.blanket.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered))
     bop_electric = bop.power_electric_plant_operation
 
     ## heating and current drive systems
