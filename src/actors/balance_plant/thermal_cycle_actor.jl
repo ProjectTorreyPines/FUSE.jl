@@ -34,7 +34,7 @@ end
 """
     ActorThermalCycle(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the thermal cycle based on the heat loads of the divertor and the blanket
+Evaluates the thermal cycle based on the heat loads of the divertor and the wall
 * `model = :brayton` evaluates the brayton cycle
 * `model = :rankine evaluates the rankine cycle
 !!! note 
@@ -54,7 +54,7 @@ function _step(actor::ActorThermalCycle)
     act = actor.act
     bop = dd.balance_of_plant
     ihts = bop.heat_transfer
-    blanket = ihts.blanket
+    wall = ihts.wall
     divertor = ihts.divertor
     breeder = ihts.breeder
 
@@ -64,7 +64,7 @@ function _step(actor::ActorThermalCycle)
     bop_thermal = bop.thermal_cycle
     ihts_par = act.ActorHeatTransfer
 
-    blanket_power = @ddtime(bop.heat_transfer.blanket.heat_load)
+    blanket_power = @ddtime(bop.heat_transfer.wall.heat_load)
     breeder_power = @ddtime(bop.heat_transfer.breeder.heat_load)
     divertor_power = @ddtime(bop.heat_transfer.divertor.heat_load)
 
@@ -106,12 +106,12 @@ function _step(actor::ActorThermalCycle)
 
         hxA = ihts_heat_exchanger(ihts_par.blanket_η_pump, ihts_par.blanket_HX_ϵ, Niter, pc.T_out, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, blanket_power, rp_blanket, cp_blk, kcoeff_blk)
 
-        @ddtime(blanket.HX_outlet_temperature = hxA.Tmin)
-        @ddtime(blanket.inlet_temperature = hxA.Tin)
-        @ddtime(blanket.outlet_temperature = hxA.Tmax)
-        @ddtime(blanket.circulator_power = hxA.pump_work)
-        @ddtime(blanket.heat_delivered = hxA.HX_q)
-        @ddtime(blanket.heat_waste = abs(blanket_power + hxA.pump_work - hxA.HX_q))
+        @ddtime(wall.HX_outlet_temperature = hxA.Tmin)
+        @ddtime(wall.inlet_temperature = hxA.Tin)
+        @ddtime(wall.outlet_temperature = hxA.Tmax)
+        @ddtime(wall.circulator_power = hxA.pump_work)
+        @ddtime(wall.heat_delivered = hxA.HX_q)
+        @ddtime(wall.heat_waste = abs(blanket_power + hxA.pump_work - hxA.HX_q))
         # @show(hxA.Tout_cycle-273.15)
         hxB = ihts_heat_exchanger(ihts_par.divertor_η_pump, ihts_par.divertor_HX_ϵ, Niter, hxA.Tout_cycle, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, divertor_power, rp_divertor, cp_div, kcoeff_div)
 
@@ -225,7 +225,7 @@ function _step(actor::ActorThermalCycle)
         braytonT = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr=0.9)
         newTo = evalBrayton(braytonT, ihts_par, dd)
         cp_cycle = 5.1926e3
-        totPower = @ddtime(bop.heat_transfer.blanket.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered)
+        totPower = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered)
         par.Tmax = totPower / (mflow_cycle * cp_cycle) + par.Tmin
         # @show par.Tmax
         braytonOut = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr=0.9)
@@ -386,9 +386,9 @@ function ihts_heat_exchanger(pump_η::Real, ϵ_hx::Real, Niter::Int64, Tin_cycle
     for i in 1:Niter
         oldTmin = Tmin_sys
 
-        Tin_sys = (Tmin_sys) + (Tmin_sys .* rp_pump^kcoeff_sys - Tmin_sys) / pump_η #blanket inlet temp
+        Tin_sys = (Tmin_sys) + (Tmin_sys .* rp_pump^kcoeff_sys - Tmin_sys) / pump_η #wall inlet temp
 
-        Tout_sys = Tin_sys + P_sys ./ mcp_sys    #blanket outlet temperature
+        Tout_sys = Tin_sys + P_sys ./ mcp_sys    #wall outlet temperature
 
         dT_max = (Tout_sys - Tin_cycle)      #heat exchanger max temperature rise
 
@@ -433,7 +433,7 @@ function getMCP(dd::IMAS.dd)
     cp_pbli, rho_pbli = pbLi_props(Tbreeder_ave)
 
     mflow_breeder = @ddtime(bop.heat_transfer.breeder.flow_rate)
-    mflow_blanket = @ddtime(bop.heat_transfer.blanket.flow_rate)
+    mflow_blanket = @ddtime(bop.heat_transfer.wall.flow_rate)
     mflow_divertor = @ddtime(bop.heat_transfer.divertor.flow_rate)
     mflow_cycle = @ddtime(bop.thermal_cycle.flow_rate)
 
@@ -452,9 +452,9 @@ function pbLi_props(Temperature::Real)
 end
 
 function waste(dd::IMAS.dd, nm::String, sys_power)
-    if nm == "blanket" || nm == "blk"
-        @ddtime(dd.balance_of_plant.heat_transfer.blanket.heat_delivered = 0.0)
-        @ddtime(dd.balance_of_plant.heat_transfer.blanket.heat_waste = sys_power)
+    if nm == "wall" || nm == "blk"
+        @ddtime(dd.balance_of_plant.heat_transfer.wall.heat_delivered = 0.0)
+        @ddtime(dd.balance_of_plant.heat_transfer.wall.heat_waste = sys_power)
     elseif nm == "divertor" || nm == "div"
         @ddtime(dd.balance_of_plant.heat_transfer.divertor.heat_delivered = 0.0)
         @ddtime(dd.balance_of_plant.heat_transfer.divertor.heat_waste = sys_power)
@@ -472,7 +472,7 @@ function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd
     cp = 5.1926e3
     bop = dd.balance_of_plant
 
-    blanket_power = @ddtime(bop.heat_transfer.blanket.heat_load) + @ddtime(bop.heat_transfer.blanket.circulator_power)
+    blanket_power = @ddtime(bop.heat_transfer.wall.heat_load) + @ddtime(bop.heat_transfer.wall.circulator_power)
     breeder_power = @ddtime(bop.heat_transfer.breeder.heat_load) + @ddtime(bop.heat_transfer.breeder.circulator_power)
     divertor_power = @ddtime(bop.heat_transfer.divertor.heat_load) + @ddtime(bop.heat_transfer.divertor.circulator_power)
 
@@ -481,12 +481,12 @@ function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd
     if cycle_minTemp < Tmax_blk
         Q_act, Tho, Tco = hxeff(Tmax_blk, mcp_blanket, cycle_minTemp, mcp_cycle, ihts_par.blanket_HX_ϵ)
 
-        @ddtime(dd.balance_of_plant.heat_transfer.blanket.heat_delivered = Q_act)
-        @ddtime(dd.balance_of_plant.heat_transfer.blanket.heat_waste = blanket_power - Q_act)
+        @ddtime(dd.balance_of_plant.heat_transfer.wall.heat_delivered = Q_act)
+        @ddtime(dd.balance_of_plant.heat_transfer.wall.heat_waste = blanket_power - Q_act)
 
         cycle_minTemp = Tco
     else
-        waste(dd, "blanket", blanket_power)
+        waste(dd, "wall", blanket_power)
     end
 
     if cycle_minTemp < Tmax_div
@@ -497,7 +497,7 @@ function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd
 
         cycle_minTemp = Tco
     else
-        waste(dd, "blanket", breeder_power)
+        waste(dd, "wall", breeder_power)
     end
 
     if cycle_minTemp < Tmax_breeder
