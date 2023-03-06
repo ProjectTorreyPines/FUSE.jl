@@ -6,6 +6,11 @@
 mutable struct ActorHeatTxSystem <: FacilityAbstractActor
     dd::IMAS.dd
     par::ParametersActor
+    function ActorHeatTxSystem(dd::IMAS.dd, par::ParametersActor; kw...)
+        logging_actor_init(ActorHeatTxSystem)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 const coolant_fluid = [:He, :PbLi]
@@ -23,9 +28,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTxSystem{T} <: ParametersAct
     coolant_pressure::Entry{T} = Entry(T, "Pa", "Pressure across pump in coolant fluid ciruit"; default=10e6)
     coolant_ΔP::Entry{T} = Entry(T, "Pa", "Pressure drop during cooling and heat exchanger"; default=0.3 * 10^6)
     divertor_η_pump::Entry{T} = Entry(T, "-", "Divertor pump effeciency"; default=0.89)
-    divertor_max_temp::Entry{T} = Entry(T, "K", "Maximum Coolant Outlet Temperature"; default=650 + 273.15)
+    divertor_max_temp::Entry{T} = Entry(T, "K", "Divertor maximum coolant outlet temperature"; default=650 + 273.15)
     blanket_η_pump::Entry{T} = Entry(T, "-", "Blanket pump effeciency"; default=0.89)
-    blanket_max_temp::Entry{T} = Entry(T, "K", "Maximum Coolant Outlet Temperature"; default=450 + 273.15)
+    blanket_max_temp::Entry{T} = Entry(T, "K", "Blanket maximum coolant outlet temperature"; default=450 + 273.15)
     # ASSUMED 
     radiation_factor::Entry{T} = Entry(T, "-", "Assumed factor of multiplication for the power absorbed by the blanket"; default=2.5)
     breeder_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the breeder - cycle heat exchanger"; default=0.9)
@@ -42,7 +47,6 @@ end
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
-
 function ActorHeatTxSystem(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorHeatTxSystem(kw...)
     actor = ActorHeatTxSystem(dd, par)
@@ -50,13 +54,6 @@ function ActorHeatTxSystem(dd::IMAS.dd, act::ParametersAllActors; kw...)
     finalize(actor)
     return actor
 end
-
-function ActorHeatTxSystem(dd::IMAS.dd, par::ParametersActor; kw...)
-    logging_actor_init(ActorHeatTxSystem)
-    par = par(kw...)
-    return ActorHeatTxSystem(dd, par)
-end
-
 
 function _step(actor::ActorHeatTxSystem)
     dd = actor.dd
@@ -85,15 +82,15 @@ function _step(actor::ActorHeatTxSystem)
 
     cp_low, rho_low = pbLi_props(par.breeder_low_temp)
     cp_hi, rho_hi = pbLi_props(par.breeder_hi_temp)
-    cp_ave = (cp_hi + cp_low) / 2
-    rho_ave = (rho_hi + rho_low) / 2
-    v_ave = 1 / rho_ave
+    cp_ave = (cp_hi + cp_low) / 2.0
+    rho_ave = (rho_hi + rho_low) / 2.0
+    v_ave = 1.0 / rho_ave
 
     cp_he = 5.1926e3
 
     cv_cycle = 3.1156e3
     k_cycle = cp_he / cv_cycle
-    kcoeff = (k_cycle - 1) / k_cycle
+    kcoeff = (k_cycle - 1.0) / k_cycle
 
     # inital values as guess
     ΔT_cycle_breeder = par.breeder_hi_temp - par.divertor_max_temp
@@ -126,14 +123,14 @@ function _step(actor::ActorHeatTxSystem)
     @ddtime(bop_IHTS.blanket.inlet_temperature = blk_after_comp)
     @ddtime(bop_IHTS.divertor.inlet_temperature = div_after_comp)
 
-    blk_pre_comp = blk_after_comp / (1 + (rp_blk^kcoeff - 1) / par.blanket_η_pump)
-    div_pre_comp = div_after_comp / (1 + (rp_div^kcoeff - 1) / par.divertor_η_pump)
+    blk_pre_comp = blk_after_comp / (1.0 + (rp_blk^kcoeff - 1.0) / par.blanket_η_pump)
+    div_pre_comp = div_after_comp / (1.0 + (rp_div^kcoeff - 1.0) / par.divertor_η_pump)
 
     @ddtime(bop_IHTS.blanket.HX_outlet_temperature = blk_pre_comp)
     @ddtime(bop_IHTS.divertor.HX_outlet_temperature = div_pre_comp)
 
-    @ddtime(bop_IHTS.blanket.circulator_power = gasCirculator(rp_blk, blk_pre_comp, par.blanket_η_pump, cycle_flow))
-    @ddtime(bop_IHTS.divertor.circulator_power = gasCirculator(rp_div, div_pre_comp, par.divertor_η_pump, cycle_flow))
+    @ddtime(bop_IHTS.blanket.circulator_power = gas_circulator(rp_blk, blk_pre_comp, par.blanket_η_pump, cycle_flow))
+    @ddtime(bop_IHTS.divertor.circulator_power = gas_circulator(rp_div, div_pre_comp, par.divertor_η_pump, cycle_flow))
 
     w_isentropic = v_ave * par.breeder_ΔP
     w_actual = w_isentropic / par.breeder_η_pump
@@ -154,18 +151,15 @@ end
 
 function pbLi_props(Temperature)
     #temperature input in celcius
-    specific_heat = (0.195 - 9.116 * 10^(-6) .* (Temperature)) .* 1000   #J/kgK
-    density = 10520.35 - 1.19051 .* (Temperature)
+    specific_heat = (0.195 - 9.116 * 1e-6 .* (temperature)) .* 1000   #J/kgK
+    density = 10520.35 - 1.19051 .* (temperature)
     return [specific_heat, density]
 end
 
-function gasCirculator(rp, Tin, effC, mflow)
-    nstages = 1
-
+function gas_circulator(rp, Tin, effC, mflow, nstages = 1)
     cp = 5.1926e3
     cv = 3.1156e3
-    a1c = (effC * (rp^(1 / nstages))^(cv / cp) - (rp^(1 / nstages))^(cv / cp) + rp^(1 / nstages)) / (effC * (rp^(1 / nstages))^(cv / cp))
-
-    work_in = cp * (a1c - 1) * Tin * mflow
+    a1c = (effC * (rp^(1.0 / nstages))^(cv / cp) - (rp^(1.0 / nstages))^(cv / cp) + rp^(1.0 / nstages)) / (effC * (rp^(1.0 / nstages))^(cv / cp))
+    work_in = cp * (a1c - 1.0) * Tin * mflow
     return work_in
 end

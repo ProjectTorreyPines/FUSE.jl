@@ -20,13 +20,13 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :combined_series, :combined_parallel], "-", "Power cycle configuration"; default=:brayton_only)
-    rp::Entry{T} = Entry(T, "-", "Overall Compression Ratio"; default=3.0)
-    Pmax::Entry{T} = Entry(T, "-", "Max System Pressure (MPa)"; default=8e6)
-    Tmax::Entry{T} = Entry(T, "-", "Max Cycle Temperature K"; default=950.0 + 273.15)
-    Tmin::Entry{T} = Entry(T, "-", "Min Cycle Temperature K"; default=35.0 + 273.15)
-    Nt::Entry{Int} = Entry(Int, "-", "Number of Turbine Stages"; default=1)
-    Nc::Entry{Int} = Entry(Int, "-", "Number of Compression Stages"; default=3)
+    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only) #:combined_series, :combined_parallel
+    rp::Entry{T} = Entry(T, "-", "Overall compression ratio"; default=3.0)
+    Pmax::Entry{T} = Entry(T, "-", "Max system pressure (MPa)"; default=8e6)
+    Tmax::Entry{T} = Entry(T, "-", "Max cycle temperature K"; default=950.0 + 273.15)
+    Tmin::Entry{T} = Entry(T, "-", "Min cycle temperature K"; default=35.0 + 273.15)
+    Nt::Entry{Int} = Entry(Int, "-", "Number of turbine stages"; default=1)
+    Nc::Entry{Int} = Entry(Int, "-", "Number of compression stages"; default=3)
     regen::Entry{T} = Entry(T, "-", "Regeneration fraction")
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
@@ -76,7 +76,7 @@ function _step(actor::ActorThermalCycle)
     else
         ϵr = par.regen
     end
-    @assert (ϵr == 0 || (ϵr >= 0.0 && ϵr <= 1.0 && bop.power_cycle_type ∈ ["brayton_only", "combined_parallel"])) "Regeneration between 0.0 and 1.0 is only possible for `brayton_only` or `combined_parallel` cycles"
+    @assert (ϵr == 0 || (ϵr >= 0.0 && ϵr <= 1.0 && bop.power_cycle_type ∈ ["brayton_only", "combined_parallel"])) "Regeneration between 0.0 and 1.0 is only possible for `:brayton_only` or `:combined_parallel` cycles"
 
     mflow_cycle = @ddtime(bop.thermal_cycle.flow_rate)
 
@@ -129,9 +129,9 @@ function _step(actor::ActorThermalCycle)
         cp_pbli, rho_pbli = pbLi_props(Tbreeder_ave)
         breeder_pump_ΔT = Tb_blanket_in - Tb_min
 
-        if abs(par.Tmax - Tb_max) > 35
-            display("Adjusting preset max cycle temperature")
-            actor.par.Tmax = Tb_max - 50
+        if abs(par.Tmax - Tb_max) > 35.0
+            @debug "ActorThermalCycle: adjusting preset max cycle temperature"
+            actor.par.Tmax = Tb_max - 50.0
             par = actor.par
         end
 
@@ -144,9 +144,9 @@ function _step(actor::ActorThermalCycle)
         Tb_after_hx = Tb_min
         post_turbine_guess = turbine_stages(par)
 
-        qq = 0
-        Tco = 0
-        Tcyc_out = 0
+        qq = 0.0
+        Tco = 0.0
+        Tcyc_out = 0.0
         #iterating
         # @show Tb_min-273.15
 
@@ -158,8 +158,8 @@ function _step(actor::ActorThermalCycle)
         Cmin = minimum([mcp_breeder, mcp_cyc])
         C_coeff = ϵ_breeder * (Cmin / mcp_cyc)
 
-        A = [1 0 -ϵ_regen; C_coeff 1 0; 0 -turb_coeff 1]
-        b = [(Tci_regen_cycle * (1 - ϵ_regen)); C_coeff * Tb_max; 0]
+        A = [1.0 0.0 -ϵ_regen; C_coeff 1.0 0.0; 0.0 -turb_coeff 1.0]
+        b = [(Tci_regen_cycle * (1.0 - ϵ_regen)); C_coeff * Tb_max; 0.0]
 
         x = A \ b
         par.Tmax = x[2]
@@ -181,11 +181,10 @@ function _step(actor::ActorThermalCycle)
             par.Tmax = Tcyc_out
             Tb_after_hx = Tbreed_out
 
-            if Tb_after_hx >= (OG_tbmin - 5)
-                str = "convergance met"
-                @show str
+            if Tb_after_hx >= (OG_tbmin - 5.0)
                 break
             end
+
             # display("Required changes to breeder temperature")
             # @show Tbreed_out
             Tb_min = Tb_after_hx + 5.0
@@ -201,6 +200,10 @@ function _step(actor::ActorThermalCycle)
             # ΔT_breeder_blanket  = breeder_power/(mflow_breeder*cp_pbli)
             Tb_max = Tb_blanket_in + breeder_power / (mflow_breeder * cp_pbli)
         end
+        if Tb_after_hx < (OG_tbmin - 5.0)
+            @warn "ActorThermalCycle has not converged"
+        end
+
         # @show Tcyc_out
         # @show Tb_max-273.15
         # @show par.Tmax-273.15
@@ -234,7 +237,7 @@ function _step(actor::ActorThermalCycle)
         # @show par.Tmin
         return actor
     else
-        error("power cycle type not recognized")
+        error("Power cycle type `$(bop.power_cycle_type)` not recognized")
     end
 end
 
@@ -249,26 +252,29 @@ struct BraytonOutput{T<:Real}
     T_HX::T
 end
 
-function braytonCycle(rp::Real, Pmax::Real, Tmin::Real, Tmax::Real, Nt::Int, Nc::Int; ηt::Real=0.93, ηc::Real=0.89, ϵr::Real=0)
-    #Brayton evaluates the thermal performance for a specified brayton cycle
-    #   
-    # ===================================================================
-    # INPUTS        UNIT        DESCRIPTION
-    #   rp          Scalar,     Total Compression Ratio
-    #   Pmax        [kPa],      Specified pressure, maximum
-    #   Tmin        [K]         Lowest Cycle Temp
-    #   Tmax        [K]         Highest Cycle Temp
-    #   Nc,Nt       Scalars     Number of compression (Nc) and Turbine (Nt) stages
-    #   ηc          Frac        Fractional compressor isentropic effeciency
-    #   ηt          Frac        Fractional Turbine isentropic effeciency
-    #   ϵr          Frac        Fractional Regenerator effectiveness
+"""
+    braytonCycle(rp::T, Pmax::T, Tmin::T, Tmax::T, Nt::Int, Nc::Int; ηt::T=0.93, ηc::T=0.89, ϵr::T=0) where {T<:Real}
 
+Brayton evaluates the thermal performance for a specified brayton cycle
+      
+    ===================================================================
+    INPUTS        UNIT        DESCRIPTION
+      rp          Scalar,     Total Compression Ratio
+      Pmax        [kPa],      Specified pressure, maximum
+      Tmin        [K]         Lowest Cycle Temp
+      Tmax        [K]         Highest Cycle Temp
+      Nc,Nt       Scalars     Number of compression (Nc) and Turbine (Nt) stages
+      ηc          Frac        Fractional compressor isentropic effeciency
+      ηt          Frac        Fractional Turbine isentropic effeciency
+      ϵr          Frac        Fractional Regenerator effectiveness
+"""
+function braytonCycle(rp::T, Pmax::T, Tmin::T, Tmax::T, Nt::Int, Nc::Int; ηt::T=0.93, ηc::T=0.89, ϵr::T=0) where {T<:Real}
     cp = 5.1926e3
     cv = 3.1156e3
 
     #SUMMARIZED COEFFECICENTS
-    a1t = (ηt * (rp^(1 / Nt))^(cv / cp) - ηt * rp^(1 / Nt) + rp^(1 / Nt)) / rp^(1 / Nt)
-    a1c = (ηc * (rp^(1 / Nc))^(cv / cp) - (rp^(1 / Nc))^(cv / cp) + rp^(1 / Nc)) / (ηc * (rp^(1 / Nc))^(cv / cp))
+    a1t = (ηt * (rp^(1.0 / Nt))^(cv / cp) - ηt * rp^(1.0 / Nt) + rp^(1.0 / Nt)) / rp^(1.0 / Nt)
+    a1c = (ηc * (rp^(1.0 / Nc))^(cv / cp) - (rp^(1.0 / Nc))^(cv / cp) + rp^(1.0 / Nc)) / (ηc * (rp^(1.0 / Nc))^(cv / cp))
     Pmin = Pmax / rp
 
     #STATE VARIABLES
@@ -277,20 +283,20 @@ function braytonCycle(rp::Real, Pmax::Real, Tmin::Real, Tmax::Real, Nt::Int, Nc:
     θ_H = [Tmax; Pmax]
 
     #MATRICES, DEFINED IN WRITE UP
-    A_t = Diagonal([a1t, rp^(-1 / Nt)])
-    B_t = Diagonal([1 / a1t, 1])           #turbine
-    A_c = Diagonal([a1c, rp^(1 / Nc)])
-    B_c = Diagonal([1 / a1c, 1])#Comp
-    C = Diagonal([cp * (a1c - 1), cp * (a1t - 1)])
+    A_t = Diagonal([a1t, rp^(-1.0 / Nt)])
+    B_t = Diagonal([1 / a1t, 1.0])           #turbine
+    A_c = Diagonal([a1c, rp^(1.0 / Nc)])
+    B_c = Diagonal([1 / a1c, 1.0])#Comp
+    C = Diagonal([cp * (a1c - 1.0), cp * (a1t - 1.0)])
     N = [Nc 0; (1-Nc) 0; 0 Nt; 0 (1-Nt)]
-    E = [(1-ϵr) ϵr; ϵr (1-ϵr)]
+    E = [(1.0-ϵr) ϵr; ϵr (1.0-ϵr)]
 
     #OUTPUTS OF THE COMPRESSOR AND TURBINE CIRCUITS
     θ_ci = (A_c * B_c)^(Nc - 1) * A_c * θ_L    #AFTER COMP
     θ_ti = (A_t * B_t)^(Nt - 1) * A_t * θ_H    #AFTER TURB
 
     θ_1 = E * [θ_ci[1]; θ_ti[1]]  #OUTLET TEMPERATURES OF REGENERATOR
-    θ_2 = [Tmax; Tmin]          #FOR USE IN THE FOLLOWING
+    θ_2 = [Tmax; Tmin]            #FOR USE IN THE FOLLOWING
 
     #RESULTS
     wc, q_intercool, wt, q_reheat = N * C * phi                      #[COMP WORK, INTERCOOL HEAT LOSS, TURBINE WORK, REHEAT HEAD ADDITION]
