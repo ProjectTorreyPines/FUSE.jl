@@ -53,7 +53,8 @@ function _step(actor::ActorICsimple)
         volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
         area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-        ion_electron_fraction = 0.8 # for FPP cases 80% to ions is reasonable (especially using minority heating)
+        # for FPP cases 80% to ions is reasonable (especially using minority heating)
+        ion_electron_fraction_cp = fill(0.8, length(rho_cp))
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
         j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
@@ -69,7 +70,7 @@ function _step(actor::ActorICsimple)
             volume_cp,
             area_cp,
             power_launched,
-            ion_electron_fraction,
+            ion_electron_fraction_cp,
             actor.rho_0[idx],
             actor.width[idx],
             1.0;

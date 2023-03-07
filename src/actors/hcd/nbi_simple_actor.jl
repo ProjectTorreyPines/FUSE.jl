@@ -55,7 +55,7 @@ function _step(actor::ActorNBIsimple)
         volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
         area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-        ion_electron_fraction = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
+        ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
         beam_particles = power_launched / (beam_energy * constants.e)
         momentum_source =
@@ -75,7 +75,7 @@ function _step(actor::ActorNBIsimple)
             volume_cp,
             area_cp,
             power_launched,
-            ion_electron_fraction,
+            ion_electron_fraction_cp,
             actor.rho_0[idx],
             actor.width[idx],
             2.0;
