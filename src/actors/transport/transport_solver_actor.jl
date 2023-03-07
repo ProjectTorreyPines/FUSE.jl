@@ -1,5 +1,4 @@
 import NLsolve
-
 #= ========================== =#
 #     transport solver actor   #
 #= ========================== =#
@@ -65,9 +64,9 @@ function _step(actor::ActorTransportSolver)
     res = try
         log_topics[:actors] = Logging.Warn
         if par.optimizer_algorithm == :anderson
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, method=:anderson, m=5, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=5, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-4, xtol=1E-3)
         elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         end
         res
     finally
@@ -76,6 +75,7 @@ function _step(actor::ActorTransportSolver)
 
     if par.verbose
         display(res)
+        parse_and_plot_error(string(res.trace.states))
     end
 
     flux_match_errors(actor::ActorTransportSolver, res.zero) # res.zero == z_profiles for the smallest error iteration
@@ -124,7 +124,7 @@ function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVect
     return flux_match_errors(dd, par)
 end
 
-function error_transformation!(target::T, output::T, norm::Real) where T<:AbstractVector{<:Real}
+function error_transformation!(target::T, output::T, norm::Real) where {T<:AbstractVector{<:Real}}
     error = (target .- output) ./ norm
     return asinh.(error)
 end
@@ -333,4 +333,13 @@ function evolve_densities_dict_creation(flux_match_species::Vector, fixed_specie
         parse_list = vcat(parse_list, [[quasi_neutality_specie, :quasi_neutality]])
     end
     return Dict(sym => evolve for (sym, evolve) in parse_list)
+end
+
+function parse_and_plot_error(data::String)
+    data = split(data, "\n")[2:end-1]
+    array = zeros(length(data))
+    for (idx, line) in enumerate(data)
+        array[idx] = parse(Float64, (split(line, "     ")[3]))
+    end
+    display(plot(array, yscale=:log10, ylabel="log of convergence errror", xlabel="iterations", label="", ylim=[1e-4, 10]))
 end

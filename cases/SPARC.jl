@@ -47,7 +47,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.tf.technology = coil_technology(:HTS)
     ini.oh.technology = coil_technology(:HTS)
 
-    ini.target.flattop_duration = 10.0
+    ini.requirements.flattop_duration = 10.0
 
     ini.core_profiles.greenwald_fraction = 0.37
     ini.core_profiles.helium_fraction = 0.1 #estimate
@@ -62,7 +62,10 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     act.ActorPFcoilsOpt.symmetric = true
     # act.ActorEquilibrium.model = :CHEASE
 
-    return set_new_base!(ini), set_new_base!(act)
+    set_new_base!(ini)
+    set_new_base!(act)
+
+    return ini, act
 end
 
 function TraceCAD(::Type{Val{:SPARC}})

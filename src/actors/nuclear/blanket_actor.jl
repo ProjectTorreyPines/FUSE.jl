@@ -225,7 +225,7 @@ function _step(actor::ActorBlanket)
         end
     end
 
-    res = Optim.optimize(x -> target_TBR2D(blanket_model_1d, x[1:end-1], x[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness, dd.target.tritium_breeding_ratio), vcat(modules_relative_thickness13, 50.0), Optim.NelderMead())#; autodiff=:forward)#, rel_tol=1E-6)
+    res = Optim.optimize(x -> target_TBR2D(blanket_model_1d, x[1:end-1], x[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness, dd.requirements.tritium_breeding_ratio), vcat(modules_relative_thickness13, 50.0), Optim.NelderMead())#; autodiff=:forward)#, rel_tol=1E-6)
     total_tritium_breeding_ratio = target_TBR2D(blanket_model_1d, res.minimizer[1:end-1], abs(res.minimizer[end]), dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness)
     if par.verbose
         println(res)

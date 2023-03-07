@@ -87,7 +87,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.oh.technology = coil_technology(:ITER, :OH)
     act.ActorFluxSwing.operate_at_j_crit = false
 
-    ini.target.flattop_duration = 1800.0
+    ini.requirements.flattop_duration = 1800.0
 
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.helium_fraction = 0.01
@@ -108,5 +108,8 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         :He        => :match_ne_scale,
         :electrons => :flux_match)
 
-    return set_new_base!(ini), set_new_base!(act)
+    set_new_base!(ini)
+    set_new_base!(act)
+
+    return ini, act
 end
