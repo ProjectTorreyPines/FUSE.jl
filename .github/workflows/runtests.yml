@@ -31,6 +31,8 @@ jobs:
           - x64
 
     steps:
+      - uses: actions/checkout@v2
+      #============
       - name: Check if fuse bot commit
         run: |
           author=$(git log -1 --pretty=format:'%an')
@@ -38,8 +40,6 @@ jobs:
             echo "Skipping action due to commit made by 'fuse bot'."
             exit 78
           fi
-      #============
-      - uses: actions/checkout@v2
       #============
       - uses: julia-actions/setup-julia@v1
         with:
