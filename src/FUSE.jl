@@ -84,7 +84,7 @@ include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_plot.jl"))
 
 include(joinpath("actors", "costing_actor.jl"))
-
+include(joinpath("actors", "plasma_facing_surfaces_actor.jl"))
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "equilibrium_transport_actor.jl"))
 include(joinpath("actors", "compound", "whole_facility_actor.jl"))
