@@ -12,6 +12,9 @@ on:
       - master
   pull_request:
 
+env:
+  PTP_READ_TOKEN: ${{ secrets.PTP_READ_TOKEN }}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -33,22 +36,21 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       #============
+      - name: Check if fuse bot commit
+        run: |
+          author=$(git log -1 --pretty=format:'%an')
+          if [ "$author" = "fuse bot" ]; then
+            echo "Skipping action due to commit made by 'fuse bot'."
+            exit 78
+          fi
+      #============
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
       - uses: julia-actions/cache@v1
-      - run: |
-          julia -e '
-            using Pkg
-            Pkg.activate(".")
-            dependencies = PackageSpec[]
-            for package in ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]
-              push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
-            end
-            Pkg.add(dependencies)
-            '
+      - run: make install_ci
       - uses: julia-actions/julia-buildpkg@v1
       #============
       - uses: julia-actions/julia-runtest@v1
