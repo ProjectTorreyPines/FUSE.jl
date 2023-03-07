@@ -113,14 +113,14 @@ install: install_no_registry
 
 # install FUSE for non-development purposes (mainly used for CI)
 install_ci:
-	julia -e ';\
+	@julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 dependencies = PackageSpec[];\
 for package in fuse_packages;\
-	push!(dependencies, PackageSpec(url="git@github.com:ProjectTorreyPines/"*package*".jl.git"));\
+	push!(dependencies, PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
 Pkg.add(dependencies);\
 '
