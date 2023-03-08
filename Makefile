@@ -310,6 +310,7 @@ daily_example:
 	cd docs; julia notebooks_to_md.jl --daily --execute --canfail
 
 # commit daily example md (this should only be run by the CI)
+ifdef GITHUB_ACTION
 daily_example_ci_commit:
 	git checkout -b examples_$(TODAY)
 	git add -A
@@ -318,17 +319,19 @@ daily_example_ci_commit:
 	git config push.autoSetupRemote true
 	git commit --allow-empty -m "example of the day"
 	git push --set-upstream origin examples_$(TODAY)
+endif
 
 # commit manifest (this should only be run by the CI)
+ifdef GITHUB_ACTION
 manifest_ci_commit:
 	cp Manifest.toml Manifest_CI.toml
-	git checkout -b manifest_$(TODAY)
-	git add -f Manifest_CI.toml
+	git add Manifest_CI.toml
 	git config user.email "fuse-bot@fusion.gat.com"
 	git config user.name "fuse bot"
 	git config push.autoSetupRemote true
-	git commit --allow-empty -m "Manifest"
-	git push --set-upstream origin manifest_$(TODAY)
+	git commit --allow-empty -m "Manifest $(TODAY)"
+	git push --set-upstream origin master
+endif
 
 # update dd from the json files
 dd:
