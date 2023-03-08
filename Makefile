@@ -321,8 +321,9 @@ daily_example_ci_commit:
 
 # commit manifest (this should only be run by the CI)
 manifest_ci_commit:
+	cp Manifest.toml Manifest_CI.toml
 	git checkout -b manifest_$(TODAY)
-	git add -f Manifest.toml
+	git add -f Manifest_CI.toml
 	git config user.email "fuse-bot@fusion.gat.com"
 	git config user.name "fuse bot"
 	git config push.autoSetupRemote true
