@@ -42,7 +42,7 @@ end
 """
     cost_direct_capital_ARIES(ecl::IMAS.ec_launchers__beam)
 
-Capital cost for each EC launcer is proportional to its power
+Capital cost for each EC launcher is proportional to its power
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
@@ -163,14 +163,15 @@ end
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
-function cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real, costing::IMAS.costing)
+function cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real) #, costing::IMAS.costing)
     power_thermal = power_thermal / 1E6
     cost = 50.0 * (power_thermal / 2000.0)^0.55 # water
     cost += 125.0 * (power_thermal / 2000.0)^0.55 # LiPb
     cost += 110.0 * (power_thermal / 2000.0)^0.55 # He
     cost += 0.01 * power_thermal # NbIHX
     cost += 50.0 * (power_thermal / 2000.0)^0.55 # Na
-    return rate_translator(cost, 2009, 10thofkind, costing)
+    # return rate_translator(cost, 2009, 10thofkind, costing)
+    return cost
 end
 
 """
@@ -198,7 +199,7 @@ function cost_direct_capital_ARIES(::Type{Val{:fuel_cycle_rad_handling}}, power_
     power_electric_net = power_electric_net / 1E6
     cost = 15.0 * (power_thermal / 1758.0)^0.85 # radioactive material treatment and management
     cost += 70.0 * (power_thermal / 1758.0)^0.8 # Fuel handling and storage
-    cost += 100.0 * (power_electric_net / 2000.0)^0.55 # Hot cell maintanance
+    cost += 100.0 * (power_electric_net / 2000.0)^0.55 # Hot cell maintenance
     cost += 60.0 # Instrumentation and Control
     cost += 8.0 * (power_thermal / 1000.0)^0.8 # Misc power core equipment
     return cost
@@ -208,12 +209,12 @@ end
 #  yearly operations cost  #
 #= ====================== =#
 """
-    cost_operations_ARIES(::Type{Val{:operation_maintanance}}, power_electric_generated::Real)
+    cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electric_generated::Real)
 
 Yearly cost for maintenance [\$M/year]
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_operations_ARIES(::Type{Val{:operation_maintanance}}, power_electric_generated::Real)
+function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electric_generated::Real)
     power_electric_generated = power_electric_generated / 1E6
     return 80.0 * (power_electric_generated / 1200.0)^0.5
 end
@@ -254,8 +255,8 @@ end
 
 function costing_ARIES(dd, par)
     cst = dd.costing
-    cost_direct = cst.cost_direct_capital_ARIES
-    cost_ops = cst.cost_operations_ARIES
+    cost_direct = cst.cost_direct_capital
+    cost_ops = cst.cost_operations
     cost_decom = cst.cost_decommissioning
 
     ###### Direct Capital ######
@@ -270,7 +271,7 @@ function costing_ARIES(dd, par)
         elseif layer.type == Int(_oh_)
             continue # avoid double counting of oh
         end
-        c = cost_direct_capital_ARIES(layer, dd.costing)
+        c = cost_direct_capital_ARIES(layer)
         if c > 0
             sub = resize!(sys.subsystem, "name" => replace(layer.name, r"^hfs " => ""))
             sub.cost = c
@@ -295,7 +296,7 @@ function costing_ARIES(dd, par)
     ### Facility
 
     sys = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
-
+    
     if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
         @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
         power_electric_net = 0.0
@@ -326,14 +327,13 @@ function costing_ARIES(dd, par)
                 sub.cost = cost_direct_capital_ARIES(item)
             end
         end
-    end
 
     ###### Operations ######
     sys = resize!(cost_ops.system, "name" => "tritium handling")
     sys.yearly_cost = cost_operations_ARIES(:tritium_handling)
 
-    sys = resize!(cost_ops.system, "name" => "maintanance and operators")
-    sys.yearly_cost = cost_operations_ARIES(:operation_maintanance, power_electric_generated)
+    sys = resize!(cost_ops.system, "name" => "maintenance and operators")
+    sys.yearly_cost = cost_operations_ARIES(:operation_maintenance, power_electric_generated)
 
     sys = resize!(cost_ops.system, "name" => "replacements")
     for item in [:blanket_replacement]
@@ -346,9 +346,20 @@ function costing_ARIES(dd, par)
             sub.yearly_cost = cost_operations_ARIES(item)
         end
     end
+end
 
     ###### Decomissioning ######
     sys = resize!(cost_decom.system, "name" => "decommissioning")
     sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, par.lifetime)
+
+     ###### Levelized Cost Of Electricity  ###### #ARIES and Sheffield have different formulas for caluclating this so each should live in its respective actor 
+    # capital_cost_rate = par.interest_rate / (1 - (1 + par.interest_rate)^(-1.0 * par.lifetime))
+    # lifetime_cost = 0.0
+    # for year in 1:par.lifetime
+    #     yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / par.lifetime)
+    #     lifetime_cost += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
+    # end
+    # dd.costing.cost_lifetime = lifetime_cost
+    # dd.costing.levelized_CoE = (dd.costing.cost_lifetime * 1E6) / (par.lifetime * 24 * 365 * power_electric_net / 1e3 * par.availability)
 
 end
