@@ -9,6 +9,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorEquilibrium::FUSEparameters__ActorEquilibrium{T}
     ActorSolovev::FUSEparameters__ActorSolovev{T}
     ActorCHEASE::FUSEparameters__ActorCHEASE{T}
+    ActorTEQUILA::FUSEparameters__ActorTEQUILA{T}
     ActorPFcoilsOpt::FUSEparameters__ActorPFcoilsOpt{T}
     ActorPassiveStructures::FUSEparameters__ActorPassiveStructures{T}
     ActorBlanket::FUSEparameters__ActorBlanket{T}
@@ -47,6 +48,7 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorEquilibrium{T}(),
         FUSEparameters__ActorSolovev{T}(),
         FUSEparameters__ActorCHEASE{T}(),
+        FUSEparameters__ActorTEQUILA{T}(),
         FUSEparameters__ActorPFcoilsOpt{T}(),
         FUSEparameters__ActorPassiveStructures{T}(),
         FUSEparameters__ActorBlanket{T}(),
