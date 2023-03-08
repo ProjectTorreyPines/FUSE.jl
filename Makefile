@@ -5,7 +5,8 @@ CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES := ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]
+FUSE_PACKAGES_MAKEFILE := IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
+FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
 
 # use command line interface for git to work nicely with private repos
@@ -23,9 +24,9 @@ DOCKER_PLATFORM := amd64
 #DOCKER_PLATFORM := arm64
 
 define clone_update_repo
-    if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	cd $(JULIA_PKG_DEVDIR);\
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+    @ echo " - $(1)"
+	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 endef
 
 all:
@@ -68,16 +69,8 @@ forward_compatibility:
 	julia -e '\
 using Pkg;\
 for package in ["Equilibrium", "Broker", "ZMQ"];\
-	try;\
-		Pkg.activate();\
-		Pkg.rm(package);\
-	catch;\
-	end;\
-	try;\
-		Pkg.activate(".");\
-		Pkg.rm(package);\
-	catch;\
-	end;\
+	try; Pkg.activate();    Pkg.rm(package); catch; end;\
+	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
 end;\
 '
 
@@ -163,7 +156,8 @@ precompile:
 
 # clone and update all FUSE packages
 clone_update_all:
-	make -i $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
+	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	make -i $(PARALLELISM) FUSE $(FUSE_PACKAGES_MAKEFILE)
 
 # update, a shorthand for install and precompile
 update: install_no_registry precompile
