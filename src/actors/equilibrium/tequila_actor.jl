@@ -108,9 +108,13 @@ function _step(actor::ActorTEQUILA)
     end
 
     if par.do_plot
-        p=plot(dd.equilibrium;cx=true)
-        for s in eachcol(actor.shot.surfaces[:,2:end])
-            plot!(p,IMAS.MXH(s), color=:red)
+        p=plot(dd.equilibrium;cx=true, label="before")
+        for (idx,s) in enumerate(eachcol(actor.shot.surfaces[:,2:end]))
+            if idx == length(actor.shot.surfaces[1,2:end])
+                plot!(p,IMAS.MXH(s), color=:red,label="after TEQUILA")
+            else
+                plot!(p,IMAS.MXH(s), color=:red)
+            end
         end
         display(p)
     end
@@ -121,7 +125,7 @@ end
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
     try
-        tequila2imas(actor.shot, dd.equilibrium)
+        tequila2imas(actor.shot, actor.dd.equilibrium)
     catch e
         display(TEQUILA.plot_shot(actor.shot))
         rethrow(e)
