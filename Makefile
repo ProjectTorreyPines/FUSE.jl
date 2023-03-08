@@ -1,32 +1,3 @@
-JULIA_DIR ?= $(HOME)/.julia
-JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
-JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
-CURRENTDIR := $(shell pwd)
-TODAY := $(shell date +'%Y-%m-%d')
-export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
-
-PTP_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
-
-# use command line interface for git to work nicely with private repos
-export JULIA_PKG_USE_CLI_GIT := true
-
-# define SERIAL environmental variable to run update serially
-ifdef SERIAL
-	PARALLELISM := -j 1
-else
-	PARALLELISM := -j 100
-endif
-
-DOCKER_PLATFORM := $(shell uname -m)
-DOCKER_PLATFORM := amd64
-#DOCKER_PLATFORM := arm64
-
-define clone_update_repo
-    if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	cd $(JULIA_PKG_DEVDIR);\
-	if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
-endef
-
 all:
 	@echo ''
 	@echo '  ███████╗██╗   ██╗███████╗███████╗'
@@ -43,6 +14,45 @@ all:
 	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
 	@echo ''
 
+# =========================
+
+JULIA_DIR ?= $(HOME)/.julia
+JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
+JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
+CURRENTDIR := $(shell pwd)
+TODAY := $(shell date +'%Y-%m-%d')
+export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
+
+FUSE_PACKAGES_MAKEFILE := IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE TEQUILA NNeutronics SimulationParameters
+FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
+DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
+
+# use command line interface for git to work nicely with private repos
+export JULIA_PKG_USE_CLI_GIT := true
+
+# define SERIAL environmental variable to run update serially
+ifdef SERIAL
+	PARALLELISM := -j 1
+else
+	PARALLELISM := -j 100
+endif
+
+DOCKER_PLATFORM := $(shell uname -m)
+DOCKER_PLATFORM := amd64
+#DOCKER_PLATFORM := arm64
+
+define clone_update_repo
+    @ echo " - $(1)"
+	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+endef
+
+# =========================
+
+# simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
+threads:
+	julia -e "println(Threads.nthreads())"
+
 # remove everything under $HOME/.julia besides $HOME/.julia/dev
 nuke_julia:
 	mv $(JULIA_PKG_DEVDIR) ~/asddsaasddsa
@@ -50,93 +60,86 @@ nuke_julia:
 	mkdir -p $(JULIA_DIR)
 	mv ~/asddsaasddsa $(JULIA_PKG_DEVDIR)
 
+# install the GAregistry to the list of Julia registries
 registry:
 	julia -e 'using Pkg;Pkg.add("Revise")' # call this first to make sure General registry gets installed
 	if [ ! -d "$(JULIA_PKG_REGDIR)" ]; then mkdir -p $(JULIA_PKG_REGDIR); fi
 	cd $(JULIA_PKG_REGDIR);\
 	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
-	julia -e 'using Pkg; Pkg.Registry.update("GAregistry")'
+	julia -e 'using Pkg; Pkg.Registry.update("GAregistry"); Pkg.add("LocalRegistry")'
 
+# register all packages that are under development
 register:
-	$(foreach package,$(PTP_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate("."); using LocalRegistry; register("$(package)", registry="GAregistry")';)
+	$(foreach package,$(DEV_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate(""); using LocalRegistry; LocalRegistry.is_dirty(path, gitconfig)= false; register("$(package)", registry="GAregistry")';)
 
-forward_compatibility:
-	julia -e '\
-using Pkg;\
-for package in ["Equilibrium", "Broker", "ZMQ"];\
-	try;\
-		Pkg.activate();\
-		Pkg.rm(package);\
-	catch;\
-	end;\
-	try;\
-		Pkg.activate(".");\
-		Pkg.rm(package);\
-	catch;\
-	end;\
-end;\
-'
-
-threads:
-	julia -e "println(Threads.nthreads())"
-
+# install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
 develop:
-	# install in global environment to easily develop and test changes made across multiple packages at once
 	julia -e '\
-fuse_packages = ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"];\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
 Pkg.activate();\
 Pkg.develop(["FUSE"; fuse_packages]);\
-Pkg.add(["Revise", "JuliaFormatter", "Test"]);\
+Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots"]);\
 '
 
-rm_manifests:
-	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
+# install FUSE for non-development purposes
+install_add:
+	@julia -e ';\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate(".");\
+dependencies = Pkg.PackageSpec[];\
+for package in fuse_packages;\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+end;\
+Pkg.add(dependencies);\
+'
 
-install_no_registry: forward_compatibility clone_update_all develop
+# install FUSE without using the registry
+install_no_registry: forward_compatibility clone_update_all develop special_dependencies
 
-install_via_registry: forward_compatibility registry develop
+# install FUSE using the registry (requires registry to be up-to-date, which most likely are not!)
+install_via_registry: forward_compatibility registry develop special_dependencies
 
+# install used by CI (add packages, do not dev them)
+install_ci: install_add special_dependencies
+
+# set default install method
 install: install_no_registry
 
-sysimage:
-	julia -e '\
+# dependencies that are not in the global registry
+special_dependencies:
+	@julia -e ';\
 using Pkg;\
-Pkg.add("PackageCompiler");\
-Pkg.add("IJulia");\
-import PackageCompiler;\
-Pkg.activate(".");\
-using FUSE;\
-PackageCompiler.create_sysimage(["FUSE"], sysimage_path="FUSEsysimage.so");\
+dependencies = Pkg.PackageSpec[PackageSpec(url="https://github.com/IanButterworth/Flux.jl", rev="ib/cudaext")];\
+Pkg.add(dependencies);\
 '
 
-sysimage_ijulia:
-	julia -e '\
-import IJulia;\
-IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
-'
-
-IJulia:
-	julia -e '\
-using Pkg;\
-Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
-Pkg.build("IJulia");\
-import IJulia;\
-n=string(length(Sys.cpu_info()));\
-IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
-'
-	jupyter kernelspec list
-	python3 -m pip install --upgrade webio_jupyter_extension
-
+# precompile all FUSE packages (NOTE: it also updates all packages!)
 precompile:
-	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.instantiate(); Pkg.update(); Pkg.precompile()'
+	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
-clone_update_all:
-	make -i $(PARALLELISM) FUSE IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE NNeutronics SimulationParameters
-
+# update, a shorthand for install and precompile
 update: install_no_registry precompile
+
+# delete local packages that have become obsolete
+forward_compatibility:
+	julia -e '\
+using Pkg;\
+for package in ["Equilibrium", "Broker", "ZMQ"];\
+	try; Pkg.activate();    Pkg.rm(package); catch; end;\
+	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
+end;\
+'
+
+# clone and update all FUSE packages
+clone_update_all:
+	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	make -i $(PARALLELISM) FUSE $(FUSE_PACKAGES_MAKEFILE)
 
 FUSE:
 	$(call clone_update_repo,$@)
@@ -186,12 +189,48 @@ Fortran90Namelists:
 CHEASE:
 	$(call clone_update_repo,$@)
 
+TEQUILA:
+	$(call clone_update_repo,$@)
+
 NNeutronics:
 	$(call clone_update_repo,$@)
 
 SimulationParameters:
 	$(call clone_update_repo,$@)
 
+# create a FUSE Julia sysimage
+sysimage:
+	julia -e '\
+using Pkg;\
+Pkg.add("PackageCompiler");\
+Pkg.add("IJulia");\
+import PackageCompiler;\
+Pkg.activate(".");\
+using FUSE;\
+PackageCompiler.create_sysimage(["FUSE"], sysimage_path="FUSEsysimage.so");\
+'
+
+# install the sysimage in IJulia
+sysimage_ijulia:
+	julia -e '\
+import IJulia;\
+IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
+'
+
+# Install IJulia
+IJulia:
+	julia -e '\
+using Pkg;\
+Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
+Pkg.build("IJulia");\
+import IJulia;\
+n=string(length(Sys.cpu_info()));\
+IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
+'
+	jupyter kernelspec list
+	python3 -m pip install --upgrade webio_jupyter_extension
+
+# create a docker image with just FUSE
 docker_clean:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile_clean ../Dockerfile
@@ -201,7 +240,7 @@ docker_clean:
 	cp .gitignore ../.dockerignore
 	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_clean_$(DOCKER_PLATFORM) .
 
-# build a new FUSE docker base image
+# build a new FUSE docker base image with all packages
 docker_image:
 	rm -rf ../Dockerfile
 	cp docker/Dockerfile_base ../Dockerfile
@@ -226,12 +265,15 @@ docker_upload:
 	docker tag julia_fuse_amd64_updated gcr.io/sdsc-20220719-60951/fuse
 	docker push gcr.io/sdsc-20220719-60951/fuse
 
+# remove old packages
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
 
+# generate documentation
 html:
 	cd docs; julia make.jl
 
+# push documentation to the web
 web_push:
 	cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
 	cd docs; cp -rf build/* pages/
@@ -239,10 +281,12 @@ web_push:
 	cd docs/pages; touch .nojekyll
 	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
 
+# push documentation to the web (user entry point)
 web:
 	if [ ! -d "$(PWD)/docs/pages" ]; then cd docs; git clone --single-branch -b gh-pages git@github.com:ProjectTorreyPines/FUSE.jl.git pages; fi
 	make web_push
 
+# push documentation to the web (CI entry point)
 web_ci:
 	git clone $(PWD) docs/pages
 	cp .git/config docs/pages/.git/config
@@ -251,23 +295,31 @@ web_ci:
 	cd docs/pages; git config user.name "FUSE-BOT"
 	make web_push
 
+# clean all examples
 clean_examples:
 	cd docs/src; rm -rf example_*.md
 
+# clean and run all examples
 all_examples: clean_examples examples
 
+# run all examples
 examples: .PHONY
 	cd docs; julia notebooks_to_md.jl --execute
 
+# clean and convert examples to md without executing
 all_blank_examples: clean_examples blank_examples
 
+# convert examples to md without executing
 blank_examples:
 	cd docs; julia notebooks_to_md.jl
 
+# run daily example to md
 daily_example:
 	cd docs; julia notebooks_to_md.jl --daily --execute --canfail
 
-daily_example_commit:
+# commit daily example md (this should only be run by the CI)
+ifdef GITHUB_ACTION
+daily_example_ci_commit:
 	git checkout -b examples_$(TODAY)
 	git add -A
 	git config user.email "fuse-bot@fusion.gat.com"
@@ -275,13 +327,33 @@ daily_example_commit:
 	git config push.autoSetupRemote true
 	git commit --allow-empty -m "example of the day"
 	git push --set-upstream origin examples_$(TODAY)
+endif
 
+# commit manifest (this should only be run by the CI)
+ifdef GITHUB_ACTION
+manifest_ci_commit:
+	cp Manifest.toml Manifest_CI.toml
+	git checkout -b manifest
+	git add Manifest_CI.toml
+	git config user.email "fuse-bot@fusion.gat.com"
+	git config user.name "fuse bot"
+	git config push.autoSetupRemote true
+	git commit --allow-empty -m "Manifest $(TODAY)"
+	git push --set-upstream origin manifest
+endif
+
+# remove all Manifest.toml files
+rm_manifests:
+	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
+
+# update dd from the json files
 dd:
 	julia ../IMASDD/src/generate_dd.jl
 
+# generate milestones for all the FUSE packages
 milestones:
     # NOTE, to get this running: `gh auth login` then `gh extension install valeriobelli/gh-milestone`
-	$(foreach package,$(PTP_PACKAGES),cd  ../$(package);\
+	$(foreach package,$(DEV_PACKAGES),cd  ../$(package);\
 	gh milestone create --due-date 2023-05-01 --title "Stability: Scaling Laws" --description "BOE 2.02.01.01.04.01: STATIONARY MODEL DEVELOPMENT -> Plasma Core -> Stability -> Scaling laws";\
 	gh milestone create --due-date 2025-06-01 --title "Stability: Low-n Ideal MHD" --description "BOE 2.02.01.01.04.02: STATIONARY MODEL DEVELOPMENT -> Plasma Core -> Stability -> Low-n ideal MHD";\
 	gh milestone create --due-date 2023-03-01 --title "Fast-Ions: Slowing-Down" --description "BOE 2.02.01.01.05.01: STATIONARY MODEL DEVELOPMENT -> Plasma Core -> Fast-Ions -> Slowing-down";\

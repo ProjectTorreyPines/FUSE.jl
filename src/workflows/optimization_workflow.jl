@@ -34,8 +34,7 @@ function workflow_multiobjective_optimization(
     N::Int=10,
     iterations::Int=N,
     continue_results::Union{Missing,MultiobjectiveOptimizationResults}=missing,
-    save_folder::AbstractString="optimization_runs"
-)
+    save_folder::AbstractString="optimization_runs")
 
     if mod(N, 2) > 0
         error("workflow_multiobjective_optimization population size `N` must be an even number")
@@ -69,17 +68,21 @@ function workflow_multiobjective_optimization(
     # optimization boundaries
     bounds = [[optpar.lower for optpar in opt_ini] [optpar.upper for optpar in opt_ini]]'
 
-    # test running function once with nominal parameters useful to catch bugs quickly.
-    # Use @everywhere to trigger compilation on all worker nodes.
-    if typeof(actor_or_workflow) <: DataType
-        actor_or_workflow(init(ini, act), act)
-    else
-        actor_or_workflow(ini, act)
+    # # test running function once with nominal parameters useful to catch bugs quickly.
+    # # Use @everywhere to trigger compilation on all worker nodes.
+    # if typeof(actor_or_workflow) <: DataType
+    #     actor_or_workflow(init(ini, act), act)
+    # else
+    #     actor_or_workflow(ini, act)
+    # end
+
+    if !isempty(save_folder)
+        mkpath(save_folder)
     end
 
     # optimize
-    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true)
-    algorithm = Metaheuristics.NSGA2(; N, options) # must do something here
+    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)
+    algorithm = Metaheuristics.NSGA2(; N, options)
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state
@@ -89,7 +92,8 @@ function workflow_multiobjective_optimization(
     @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
 
     # fill MultiobjectiveOptimizationResults structure and save
-    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)    
+    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
+    display(state)
     if !isempty(save_folder)
         filename = joinpath(save_folder, "optimization.bson")
         save_optimization(filename, results)

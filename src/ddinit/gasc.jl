@@ -220,8 +220,8 @@ end
 Convert nominal target design information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    ini.target.flattop_duration = float(gasc.inputs["plasma parameters"]["flattopDuration"])
-    ini.target.power_electric_net = gasc.constraints["lowerOutputConstraints"]["powerNet"] * 1E6
+    ini.requirements.flattop_duration = float(gasc.inputs["plasma parameters"]["flattopDuration"])
+    ini.requirements.power_electric_net = gasc.constraints["lowerOutputConstraints"]["powerNet"] * 1E6
     return ini
 end
 

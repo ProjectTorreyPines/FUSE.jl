@@ -304,7 +304,7 @@ function costing_ARIES(dd, par)
         power_electric_generated = 0.0
     else
         power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) # should be pulse average
-        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.power_thermal_convertable_total)
+        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
 
         for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)

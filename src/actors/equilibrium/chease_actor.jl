@@ -64,7 +64,7 @@ function _step(actor::ActorCHEASE)
     # remove points at high curvature points (ie. X-points)
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
-    r_bound, z_bound = IMAS.resample_2d_line(r_bound, z_bound; n_points=201)
+    r_bound, z_bound = IMAS.resample_2d_path(r_bound, z_bound; n_points=201)
     index = abs.(IMAS.curvature(r_bound, z_bound)) .< 0.9
     r_bound = r_bound[index]
     z_bound = z_bound[index]

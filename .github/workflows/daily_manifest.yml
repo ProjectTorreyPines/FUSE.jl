@@ -1,4 +1,4 @@
-name: documentation
+name: daily_manifest
 
 on:
   schedule:
@@ -9,6 +9,11 @@ on:
         type: boolean
         required: false
         default: false
+
+env:
+  PTP_READ_TOKEN: ${{ secrets.PTP_READ_TOKEN }}
+
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -29,29 +34,26 @@ jobs:
           - x64
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v4
-      - run: pip install nbconvert
+      #============
+      - name: Check if fuse bot commit
+        run: |
+          author=$(git log -1 --pretty=format:'%an')
+          if [ "$author" = "fuse bot" ]; then
+            echo "Skipping action due to commit made by 'fuse bot'."
+            exit 78
+          fi
       #============
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - run: |
-          julia -e '
-            using Pkg
-            Pkg.activate(".")
-            dependencies = PackageSpec[]
-            for package in ["IMAS", "IMASDD", "CoordinateConventions", "MillerExtendedHarmonic", "FusionMaterials", "VacuumFields", "MXHEquilibrium", "MeshTools", "TAUENN", "EPEDNN", "TGLFNN", "QED", "FiniteElementHermite", "Fortran90Namelists", "CHEASE", "NNeutronics", "SimulationParameters"]
-              push!(dependencies, PackageSpec(url="https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/ProjectTorreyPines/$package.jl.git"))
-            end
-            Pkg.add(dependencies)
-            '
+      - uses: julia-actions/cache@v1
+      - run: make install_ci
       - uses: julia-actions/julia-buildpkg@v1
       #============
-      - run: make blank_examples
-      - run: make html
-      - run: make web_ci
+      - uses: julia-actions/julia-runtest@v1
+      - run: make manifest_ci_commit
       #============
       - name: Debug with tmate if failure + manual triggrer + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
