@@ -1,3 +1,21 @@
+all:
+	@echo ''
+	@echo '  ███████╗██╗   ██╗███████╗███████╗'
+	@echo '  ██╔════╝██║   ██║██╔════╝██╔════╝'
+	@echo '  █████╗  ██║   ██║███████╗█████╗  '
+	@echo '  ██╔══╝  ██║   ██║╚════██║██╔══╝  '
+	@echo '  ██║     ╚██████╔╝███████║███████╗'
+	@echo '  ╚═╝      ╚═════╝ ╚══════╝╚══════╝'
+	@echo ''
+	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
+	@echo ' - make update       : git pull FUSE and its dependencies'
+	@echo ' - make IJulia       : Install IJulia'
+	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
+	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
+	@echo ''
+
+# =========================
+
 JULIA_DIR ?= $(HOME)/.julia
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -29,21 +47,11 @@ define clone_update_repo
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 endef
 
-all:
-	@echo ''
-	@echo '  ███████╗██╗   ██╗███████╗███████╗'
-	@echo '  ██╔════╝██║   ██║██╔════╝██╔════╝'
-	@echo '  █████╗  ██║   ██║███████╗█████╗  '
-	@echo '  ██╔══╝  ██║   ██║╚════██║██╔══╝  '
-	@echo '  ██║     ╚██████╔╝███████║███████╗'
-	@echo '  ╚═╝      ╚═════╝ ╚══════╝╚══════╝'
-	@echo ''
-	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update       : git pull FUSE and its dependencies'
-	@echo ' - make IJulia       : Install IJulia'
-	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
-	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
-	@echo ''
+# =========================
+
+# simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
+threads:
+	julia -e "println(Threads.nthreads())"
 
 # remove everything under $HOME/.julia besides $HOME/.julia/dev
 nuke_julia:
@@ -64,20 +72,6 @@ registry:
 register:
 	$(foreach package,$(DEV_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate(""); using LocalRegistry; LocalRegistry.is_dirty(path, gitconfig)= false; register("$(package)", registry="GAregistry")';)
 
-# delete local packages that have become obsolete
-forward_compatibility:
-	julia -e '\
-using Pkg;\
-for package in ["Equilibrium", "Broker", "ZMQ"];\
-	try; Pkg.activate();    Pkg.rm(package); catch; end;\
-	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
-end;\
-'
-
-# simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
-threads:
-	julia -e "println(Threads.nthreads())"
-
 # install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
 develop:
 	julia -e '\
@@ -91,76 +85,61 @@ Pkg.develop(["FUSE"; fuse_packages]);\
 Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots"]);\
 '
 
-# remove all Manifest.toml files
-rm_manifests:
-	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
-
-# install FUSE without using the registry
-install_no_registry: forward_compatibility clone_update_all develop
-
-# install FUSE using the registry (requires registry to be up-to-date!)
-install_via_registry: forward_compatibility registry develop
-
-# set default install method
-install: install_no_registry
-
-# install FUSE for non-development purposes (mainly used for CI)
-install_ci:
+# install FUSE for non-development purposes
+install_add:
 	@julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
-dependencies = PackageSpec[];\
+dependencies = Pkg.PackageSpec[];\
 for package in fuse_packages;\
-	push!(dependencies, PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
 Pkg.add(dependencies);\
 '
 
-# create a FUSE Julia sysimage
-sysimage:
-	julia -e '\
-using Pkg;\
-Pkg.add("PackageCompiler");\
-Pkg.add("IJulia");\
-import PackageCompiler;\
-Pkg.activate(".");\
-using FUSE;\
-PackageCompiler.create_sysimage(["FUSE"], sysimage_path="FUSEsysimage.so");\
-'
+# install FUSE without using the registry
+install_no_registry: forward_compatibility clone_update_all develop special_dependencies
 
-# install the sysimage in IJulia
-sysimage_ijulia:
-	julia -e '\
-import IJulia;\
-IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
-'
+# install FUSE using the registry (requires registry to be up-to-date, which most likely are not!)
+install_via_registry: forward_compatibility registry develop special_dependencies
 
-# Install IJulia
-IJulia:
-	julia -e '\
+# install used by CI (add packages, do not dev them)
+install_ci: install_add special_dependencies
+
+# set default install method
+install: install_no_registry
+
+# dependencies that are not in the global registry
+special_dependencies:
+	@julia -e ';\
 using Pkg;\
-Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
-Pkg.build("IJulia");\
-import IJulia;\
-n=string(length(Sys.cpu_info()));\
-IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
+dependencies = Pkg.PackageSpec[PackageSpec(url="https://github.com/IanButterworth/Flux.jl", rev="ib/cudaext")];\
+Pkg.add(dependencies);\
 '
-	jupyter kernelspec list
-	python3 -m pip install --upgrade webio_jupyter_extension
 
 # precompile all FUSE packages (NOTE: it also updates all packages!)
 precompile:
 	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
+# update, a shorthand for install and precompile
+update: install_no_registry precompile
+
+# delete local packages that have become obsolete
+forward_compatibility:
+	julia -e '\
+using Pkg;\
+for package in ["Equilibrium", "Broker", "ZMQ"];\
+	try; Pkg.activate();    Pkg.rm(package); catch; end;\
+	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
+end;\
+'
+
 # clone and update all FUSE packages
 clone_update_all:
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) FUSE $(FUSE_PACKAGES_MAKEFILE)
-
-# update, a shorthand for install and precompile
-update: install_no_registry precompile
 
 FUSE:
 	$(call clone_update_repo,$@)
@@ -215,6 +194,38 @@ NNeutronics:
 
 SimulationParameters:
 	$(call clone_update_repo,$@)
+
+# create a FUSE Julia sysimage
+sysimage:
+	julia -e '\
+using Pkg;\
+Pkg.add("PackageCompiler");\
+Pkg.add("IJulia");\
+import PackageCompiler;\
+Pkg.activate(".");\
+using FUSE;\
+PackageCompiler.create_sysimage(["FUSE"], sysimage_path="FUSEsysimage.so");\
+'
+
+# install the sysimage in IJulia
+sysimage_ijulia:
+	julia -e '\
+import IJulia;\
+IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
+'
+
+# Install IJulia
+IJulia:
+	julia -e '\
+using Pkg;\
+Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
+Pkg.build("IJulia");\
+import IJulia;\
+n=string(length(Sys.cpu_info()));\
+IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
+'
+	jupyter kernelspec list
+	python3 -m pip install --upgrade webio_jupyter_extension
 
 # create a docker image with just FUSE
 docker_clean:
@@ -319,13 +330,18 @@ endif
 ifdef GITHUB_ACTION
 manifest_ci_commit:
 	cp Manifest.toml Manifest_CI.toml
+	git checkout -b manifest
 	git add Manifest_CI.toml
 	git config user.email "fuse-bot@fusion.gat.com"
 	git config user.name "fuse bot"
 	git config push.autoSetupRemote true
 	git commit --allow-empty -m "Manifest $(TODAY)"
-	git push --set-upstream origin master
+	git push --set-upstream origin manifest
 endif
+
+# remove all Manifest.toml files
+rm_manifests:
+	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
 
 # update dd from the json files
 dd:
