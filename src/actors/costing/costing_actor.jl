@@ -3,12 +3,6 @@ function today_dollars(dollars::Real, year::Integer, generation::Symbol, costing
     return dollars
 end 
 
-include("costing_ARIES.jl")
-
-include("costing_Sheffield.jl")
-
-include("costing.jl")
-
 #= ============ =#
 #  ActorCosting  #
 #= ============ =#
@@ -65,9 +59,6 @@ function _step(actor::ActorCosting)
     par = actor.par
     dd = actor.dd
     cst = dd.costing
-    cost_direct = cst.cost_direct_capital
-    cost_ops = cst.cost_operations
-    cost_decom = cst.cost_decommissioning
 
     empty!(cst)
 
