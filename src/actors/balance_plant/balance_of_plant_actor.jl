@@ -70,7 +70,8 @@ function _step(actor::ActorBalanceOfPlant)
     bop_thermal.thermal_electric_conversion_efficiency = par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
     bop_thermal.power_electric_generated = bop_thermal.net_work .* par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
 
-    @ddtime(bop_thermal.total_heat_power = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered))
+    @ddtime(bop_thermal.total_useful_heat_power = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered))
+
     bop_electric = bop.power_electric_plant_operation
 
     ## heating and current drive systems
