@@ -254,7 +254,9 @@ If wall information is missing, then the first wall information is generated sta
 function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
     wall = IMAS.first_wall(dd.wall)
     if wall === missing || rebuild_wall
-        pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
+                #pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
+        actor = ActorPlasmaFacingSurfaces(dd, actor.act)        
+        wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
     else
         pr = wall.r
         pz = wall.z
@@ -265,14 +267,14 @@ function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
     divertor_regions!(dd.build, dd.equilibrium.time_slice[])
 
     blanket_regions!(dd.build, dd.equilibrium.time_slice[])
-
-    if wall === missing || rebuild_wall
-        plasma = IMAS.get_build(dd.build, type=_plasma_)
-        resize!(dd.wall.description_2d, 1)
-        resize!(dd.wall.description_2d[1].limiter.unit, 1)
-        dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
-        dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
-    end
+    # JG: This is taking care of by ActorPlasmaFacingSurfaces
+    # if wall === missing || rebuild_wall
+    #     plasma = IMAS.get_build(dd.build, type=_plasma_)
+    #     resize!(dd.wall.description_2d, 1)
+    #     resize!(dd.wall.description_2d[1].limiter.unit, 1)
+    #     dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
+    #     dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
+    # end
 
     return dd.build
 end

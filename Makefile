@@ -198,6 +198,9 @@ NNeutronics:
 SimulationParameters:
 	$(call clone_update_repo,$@)
 
+PlasmaFacingSurfaces:
+	$(call clone_update_repo,$@)
+
 # create a FUSE Julia sysimage
 sysimage:
 	julia -e '\
