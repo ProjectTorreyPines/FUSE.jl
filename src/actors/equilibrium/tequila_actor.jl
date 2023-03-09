@@ -9,7 +9,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     free_boundary::Entry{Bool} = Entry(Bool, "-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     number_of_radial_grid_points::Entry{Int} = Entry(Int, "-", "Number of TEQUILA radial grid points"; default=20)
     number_of_fourier_modes::Entry{Int} = Entry(Int, "-", "Number of modes for Fourier decomposition"; default=20)
+    number_of_MXH_harmonics::Entry{Int} = Entry(Int, "-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=10)
     number_of_iterations::Entry{Int} = Entry(Int, "-", "Number of TEQUILA iterations"; default=5)
+    psi_norm_boundary_cutoff::Entry{Float64} = Entry(Float64, "-", "Cutoff psi_norm for determining boundary"; default=0.999)
     do_plot::Entry{Bool} = Entry(Bool, "-", "Plot before and after actor"; default=false)
 end
 
@@ -64,32 +66,30 @@ function _step(actor::ActorTEQUILA)
     eq2d = eqt.profiles_2d
     par = actor.par
 
-    # remove points at high curvature points (ie. X-points)
-    r_bound = eqt.boundary.outline.r
-    z_bound = eqt.boundary.outline.z
-    r_bound, z_bound = IMAS.resample_2d_path(r_bound, z_bound; n_points=201)
-    index = abs.(IMAS.curvature(r_bound, z_bound)) .< 0.9
-    r_bound = r_bound[index]
-    z_bound = z_bound[index]
+    psin = eq1d.psi_norm
+    psib = IMAS.interp1d(psin, eq1d.psi)(par.psi_norm_boundary_cutoff)
+    r_bound, z_bound, _ = IMAS.flux_surface(eqt, psib, true)
 
     # To be used in next update:
-    psin = eq1d.psi_norm
+
     j_tor = eq1d.j_tor
     pressure = eq1d.pressure
     rho_pol = sqrt.(psin)
     pressure_sep = pressure[end]
 
-    mxh = IMAS.MXH(r_bound, z_bound, 5;optimize_fit=false)
+    mxh = IMAS.MXH(r_bound, z_bound, par.number_of_MXH_harmonics; optimize_fit=true)
 
     # TEQUILA shot
     shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh)
 
 
-    # will have to be done correctly (probalby by just passing j_tor and pressure array on rho_pol grid)
+    # Will have to be done correctly
+    # Could either passing j_tor and pressure array on rho_pol grid and TEQUILA interpolates
+    # or make interpolation here and pass to TEQUILA
     dp_dψ = eq1d.dpressure_dpsi # should be changed to pressure and j_tor passing 
     f_df_dψ = eq1d.f_df_dpsi
-    dp(x) = eq1d.dpressure_dpsi[20] #eq1d.dpressure_dpsi 
-    fdf(x) = eq1d.f_df_dpsi[20]
+    dp(x) = sum(eq1d.dpressure_dpsi) / length(eq1d.dpressure_dpsi) #eq1d.dpressure_dpsi
+    fdf(x) = sum(eq1d.f_df_dpsi) / length(eq1d.f_df_dpsi)
 
     actor.shot = TEQUILA.solve(shot, dp, fdf, par.number_of_iterations)
 
