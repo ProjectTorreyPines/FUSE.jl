@@ -11,10 +11,11 @@ end
 mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorCXbuild
-    function ActorCXbuild(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild; kw...)
+    act::ParametersAllActors
+    function ActorCXbuild(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild, act::ParametersAllActors; kw...)
         logging_actor_init(ActorCXbuild)
         par = par(kw...)
-        return new(dd, par)
+        return new(dd, par, act)
     end
 end
 
@@ -28,7 +29,7 @@ Generates the 2D cross section of the tokamak build
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCXbuild(kw...)
-    actor = ActorCXbuild(dd, par)
+    actor = ActorCXbuild(dd, par, act)
     step(actor)
     finalize(actor)
     if par.do_plot
@@ -37,9 +38,36 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     end
     return actor
 end
+"""
+_step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
 
+Translates 1D build to 2D cross-sections starting either wall information
+If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
+"""
 function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
-    build_cx!(actor.dd; rebuild_wall)
+wall = IMAS.first_wall(actor.dd.wall)
+if wall === missing || rebuild_wall
+            #pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
+    ActorPlasmaFacingSurfaces(actor.dd, actor.act)        
+    wall = PlasmaFacingSurfaces.get_merged_wall_outline(actor.dd.wall)
+end
+pr = wall.r
+    pz = wall.z
+build_cx!(actor.dd.build, pr, pz)
+
+divertor_regions!(actor.dd.build, actor.dd.equilibrium.time_slice[])
+
+blanket_regions!(actor.dd.build, actor.dd.equilibrium.time_slice[])
+# JG: This is taking care of by ActorPlasmaFacingSurfaces
+# if wall === missing || rebuild_wall
+#     plasma = IMAS.get_build(dd.build, type=_plasma_)
+#     resize!(dd.wall.description_2d, 1)
+#     resize!(dd.wall.description_2d[1].limiter.unit, 1)
+#     dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
+#     dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
+# end
+
+return actor.dd.build
 end
 
 """
@@ -245,39 +273,6 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     return blankets
 end
 
-"""
-    build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
-
-Translates 1D build to 2D cross-sections starting either wall information
-If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
-"""
-function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
-    wall = IMAS.first_wall(dd.wall)
-    if wall === missing || rebuild_wall
-                #pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
-        actor = ActorPlasmaFacingSurfaces(dd, actor.act)        
-        wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
-    else
-        pr = wall.r
-        pz = wall.z
-    end
-
-    build_cx!(dd.build, pr, pz)
-
-    divertor_regions!(dd.build, dd.equilibrium.time_slice[])
-
-    blanket_regions!(dd.build, dd.equilibrium.time_slice[])
-    # JG: This is taking care of by ActorPlasmaFacingSurfaces
-    # if wall === missing || rebuild_wall
-    #     plasma = IMAS.get_build(dd.build, type=_plasma_)
-    #     resize!(dd.wall.description_2d, 1)
-    #     resize!(dd.wall.description_2d[1].limiter.unit, 1)
-    #     dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
-    #     dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
-    # end
-
-    return dd.build
-end
 
 """
     build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})

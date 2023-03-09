@@ -18,7 +18,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorQEDcurrent::FUSEparameters__ActorQEDcurrent{T}
     ActorSteadyStateCurrent::FUSEparameters__ActorSteadyStateCurrent{T}
     ActorDivertors::FUSEparameters__ActorDivertors{T}
-    ActorPlasmaFacingSurfaces::FUSEparameters__ActorPlasmaFacingSurfaces{T},
+    ActorPlasmaFacingSurfaces::FUSEparameters__ActorPlasmaFacingSurfaces{T}
     ActorNBIsimple::FUSEparameters__ActorNBIsimple{T}
     ActorECsimple::FUSEparameters__ActorECsimple{T}
     ActorICsimple::FUSEparameters__ActorICsimple{T}
