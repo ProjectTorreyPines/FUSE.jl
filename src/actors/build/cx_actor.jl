@@ -54,8 +54,8 @@ end
 pr = wall.r
     pz = wall.z
 build_cx!(actor.dd.build, pr, pz)
-
-divertor_regions!(actor.dd.build, actor.dd.equilibrium.time_slice[])
+#JG: out for the moment. will revisit later if needed. 
+#divertor_regions!(actor.dd.build, actor.dd.equilibrium.time_slice[])
 
 blanket_regions!(actor.dd.build, actor.dd.equilibrium.time_slice[])
 # JG: This is taking care of by ActorPlasmaFacingSurfaces
