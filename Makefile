@@ -23,7 +23,7 @@ CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES_MAKEFILE := IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE TEQUILA NNeutronics SimulationParameters
+FUSE_PACKAGES_MAKEFILE := IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE TEQUILA NNeutronics SimulationParameters PlasmaFacingSurfaces
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
 
