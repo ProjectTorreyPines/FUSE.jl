@@ -13,22 +13,25 @@ mutable struct ExtractFunction
 end
 
 const ExtractFunctionsLibrary = DataStructures.OrderedDict{Symbol,ExtractFunction}()
-
-ExtractFunction(:equilibrium, :κ, "-", (dd, ini, act) -> ini.equilibrium.κ)
-ExtractFunction(:equilibrium, :δ, "-", (dd, ini, act) -> ini.equilibrium.δ)
-ExtractFunction(:equilibrium, :ζ, "-", (dd, ini, act) -> ini.equilibrium.ζ)
-ExtractFunction(:equilibrium, :B0, "T", (dd, ini, act) -> ini.equilibrium.B0)
-ExtractFunction(:equilibrium, :ip, "MA", (dd, ini, act) -> ini.equilibrium.ip / 1E6)
-ExtractFunction(:equilibrium, :R0, "m", (dd, ini, act) -> ini.equilibrium.R0)
-ExtractFunction(:equilibrium, :βn, "-", (dd, ini, act) -> dd.equilibrium.time_slice[].global_quantities.beta_normal)
-ExtractFunction(:profiles, :zeff, "-", (dd, ini, act) -> ini.core_profiles.zeff)
-ExtractFunction(:profiles, :Te0, "keV", (dd, ini, act) -> dd.core_profiles.profiles_1d[].electrons.temperature[1] / 1E3)
-ExtractFunction(:profiles, :Pfusion, "\$M", (dd, ini, act) -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
-ExtractFunction(:profiles, :Pelectric, "\$M", (dd, ini, act) -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
-ExtractFunction(:sources, :Pec, "W", (dd, ini, act) -> @ddtime(summary.heating_current_drive.power_launched_ec))
-ExtractFunction(:costing, :levelized_CoE, "\$/kWh", (dd, ini, act) -> dd.costing.levelized_CoE)
-ExtractFunction(:costing, :capital_cost, "\$M", (dd, ini, act) -> d.costing.cost_direct_capital.cost)
-ExtractFunction(:build, :flattop, "\$M", (dd, ini, act) -> dd.build.oh.flattop_duration / 3600.0)
+function update_ExtractFunctionsLibrary!()
+    empty!(ExtractFunctionsLibrary)
+    ExtractFunction(:equilibrium, :κ, "-", dd -> ini.equilibrium.κ)
+    ExtractFunction(:equilibrium, :δ, "-", dd -> ini.equilibrium.δ)
+    ExtractFunction(:equilibrium, :ζ, "-", dd -> ini.equilibrium.ζ)
+    ExtractFunction(:equilibrium, :B0, "T", dd -> ini.equilibrium.B0)
+    ExtractFunction(:equilibrium, :ip, "MA", dd -> ini.equilibrium.ip / 1E6)
+    ExtractFunction(:equilibrium, :R0, "m", dd -> ini.equilibrium.R0)
+    ExtractFunction(:equilibrium, :βn, "-", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal)
+    ExtractFunction(:profiles, :zeff, "-", dd -> ini.core_profiles.zeff)
+    ExtractFunction(:profiles, :Te0, "keV", dd -> dd.core_profiles.profiles_1d[].electrons.temperature[1] / 1E3)
+    ExtractFunction(:profiles, :Pfusion, "\$M", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
+    ExtractFunction(:profiles, :Pelectric, "\$M", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
+    ExtractFunction(:sources, :Pec, "W", dd -> @ddtime(summary.heating_current_drive.power_launched_ec))
+    ExtractFunction(:costing, :levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE)
+    ExtractFunction(:costing, :capital_cost, "\$M", dd -> dd.costing.cost_direct_capital.cost)
+    ExtractFunction(:build, :flattop, "\$M", dd -> dd.build.oh.flattop_duration / 3600.0)
+end
+update_ExtractFunctionsLibrary!()
 
 """
     (ef::ExtractFunction)(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
@@ -36,7 +39,16 @@ ExtractFunction(:build, :flattop, "\$M", (dd, ini, act) -> dd.build.oh.flattop_d
 run the extract function
 """
 function (ef::ExtractFunction)(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    return ef.func(dd, ini, act)
+    return ef.func(dd)
+end
+
+"""
+    (ef::ExtractFunction)(dd::IMAS.dd)
+
+run the extract function
+"""
+function (ef::ExtractFunction)(dd::IMAS.dd)
+    return ef.func(dd)
 end
 
 function Base.show(io::IO, f::ExtractFunction)
@@ -169,11 +181,12 @@ function load(dir::AbstractString, extract::AbstractDict{Symbol,T})::Dict{Symbol
             results[key] = NaN
             continue
         end
-        try
+        # try
             results[key] = extract[key](dd, ini, act)
-        catch e
-            results[key] = NaN
-        end
+        # catch e
+        #     rethrow(e)
+        #     results[key] = NaN
+        # end
     end
     return results
 end
