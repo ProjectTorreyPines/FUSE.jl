@@ -1,3 +1,52 @@
+
+mutable struct ExtractFunction
+    group::Symbol
+    name::Symbol
+    units::String
+    func::Function
+    # inner constructor to register ExtractFunction in ExtractFunctionsLibrary
+    ExtractFunction(group::Symbol, name::Symbol, units::String, func::Function) = begin
+        objf = new(group, name, units, func)
+        ExtractFunctionsLibrary[objf.name] = objf
+        return objf
+    end
+end
+
+const ExtractFunctionsLibrary = DataStructures.OrderedDict{Symbol,ExtractFunction}()
+
+ExtractFunction(:equilibrium, :κ, "-", (dd, ini, act) -> ini.equilibrium.κ)
+ExtractFunction(:equilibrium, :δ, "-", (dd, ini, act) -> ini.equilibrium.δ)
+ExtractFunction(:equilibrium, :ζ, "-", (dd, ini, act) -> ini.equilibrium.ζ)
+ExtractFunction(:equilibrium, :B0, "T", (dd, ini, act) -> ini.equilibrium.B0)
+ExtractFunction(:equilibrium, :ip, "MA", (dd, ini, act) -> ini.equilibrium.ip / 1E6)
+ExtractFunction(:equilibrium, :R0, "m", (dd, ini, act) -> ini.equilibrium.R0)
+ExtractFunction(:equilibrium, :βn, "-", (dd, ini, act) -> dd.equilibrium.time_slice[].global_quantities.beta_normal)
+ExtractFunction(:profiles, :zeff, "-", (dd, ini, act) -> ini.core_profiles.zeff)
+ExtractFunction(:profiles, :Te0, "keV", (dd, ini, act) -> dd.core_profiles.profiles_1d[].electrons.temperature[1] / 1E3)
+ExtractFunction(:profiles, :Pfusion, "\$M", (dd, ini, act) -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
+ExtractFunction(:profiles, :Pelectric, "\$M", (dd, ini, act) -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
+ExtractFunction(:sources, :Pec, "W", (dd, ini, act) -> @ddtime(summary.heating_current_drive.power_launched_ec))
+ExtractFunction(:costing, :levelized_CoE, "\$/kWh", (dd, ini, act) -> dd.costing.levelized_CoE)
+ExtractFunction(:costing, :capital_cost, "\$M", (dd, ini, act) -> d.costing.cost_direct_capital.cost)
+ExtractFunction(:build, :flattop, "\$M", (dd, ini, act) -> dd.build.oh.flattop_duration / 3600.0)
+
+"""
+    (ef::ExtractFunction)(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+
+run the extract function
+"""
+function (ef::ExtractFunction)(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    return ef.func(dd, ini, act)
+end
+
+function Base.show(io::IO, f::ExtractFunction)
+    printstyled(io, f.group; bold=true)
+    printstyled(io, "."; bold=true)
+    printstyled(io, f.name; bold=true, color=:blue)
+    print(io, " →")
+    print(io, " [$(f.units)]")
+end
+
 # ******************************************
 # save/load simulation
 # ******************************************
@@ -99,7 +148,7 @@ function load(savedir::AbstractString)
 end
 
 """
-    load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
+    load(dir::AbstractString, extract::AbstractDict{Symbol,T})::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
 
 Read dd, ini, act from JSON/HDF files in a folder and extract some data from them
 
@@ -112,7 +161,7 @@ Each of the `extract` functions should accept `dd, ini, act` as inputs, like thi
         )
 
 """
-function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
+function load(dir::AbstractString, extract::AbstractDict{Symbol,T})::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
     dd, ini, act = FUSE.load(dir)
     results = Dict{Symbol,Any}()
     for key in keys(extract)
@@ -121,17 +170,7 @@ function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict
             continue
         end
         try
-            tmp = extract[key](dd, ini, act)
-            if typeof(tmp) <: AbstractDict
-                for (k, v) in tmp
-                    if typeof(v) <: IMAS.DDigestField
-                        v = v.value
-                    end
-                    results[k] = v
-                end
-            else
-                results[key] = tmp
-            end
+            results[key] = extract[key](dd, ini, act)
         catch e
             results[key] = NaN
         end
@@ -140,7 +179,7 @@ function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict
 end
 
 """
-    load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function})::DataFrames.DataFrame
+    load(dirs::AbstractVector{<:AbstractString}, extract::AbstractDict{Symbol,T}; filter_invalid::Bool=true)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
 
 Read dd, ini, act from JSON/HDF files in multiple directores and extract some data from them returning results in DataFrame format
 
@@ -152,7 +191,7 @@ Each of the `extract` functions should accept `dd, ini, act` as inputs, like thi
             :R0 => (dd,ini,act) -> ini.equilibrium.R0
         )
 """
-function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function}; filter_invalid::Bool=true)::DataFrames.DataFrame
+function load(dirs::AbstractVector{<:AbstractString}, extract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary; filter_invalid::Bool=true)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
     # allocate memory
     df = DataFrames.DataFrame(load(dirs[1], extract))
     for k in 2:length(dirs)
@@ -172,17 +211,4 @@ function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Funct
     end
 
     return df
-end
-
-"""
-    IMAS.digest(dirs::AbstractVector{<:AbstractString}; extract::Dict{Symbol,Function}, filter_invalid::Bool=true)::DataFrames.DataFrame
-
-Digest dd from JSON/HDF files in multiple directores and return results in DataFrame format
-"""
-function IMAS.digest(dirs::AbstractVector{<:AbstractString}; extract::Dict{Symbol,Function}=Dict{Symbol,Function}(), filter_invalid::Bool=true)::DataFrames.DataFrame
-    all_extract = Dict{Symbol,Function}(
-        :digest => (dd, ini, act) -> IMAS.digest(dd.summary),
-    )
-    merge!(all_extract, extract)
-    return load(dirs, all_extract; filter_invalid)
 end

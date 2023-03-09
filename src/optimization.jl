@@ -30,7 +30,7 @@ ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.o
 ObjectiveFunction(:min_βn, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, -Inf)
 
 """
-    (objf::ObjectiveFunction)(x::Float64)
+    (objf::ObjectiveFunction)(dd::IMAS.dd)
 
 From real domain to objective domain (Metaheuristics will always minimize)
 """
