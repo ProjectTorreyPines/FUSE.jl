@@ -46,11 +46,7 @@ update_ExtractFunctionsLibrary!()
 run the extract function
 """
 function (ef::ExtractFunction)(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    try
-        return ef.func(dd)
-    catch e
-        return missing
-    end
+    return ef.func(dd)
 end
 
 """
