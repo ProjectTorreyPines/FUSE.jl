@@ -2,11 +2,6 @@ name: interactive
 
 on:
   workflow_dispatch:
-    inputs:
-      debug:
-        type: boolean
-        required: false
-        default: false
 
 env:
   PTP_READ_TOKEN: ${{ secrets.PTP_READ_TOKEN }}
