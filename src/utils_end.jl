@@ -27,14 +27,14 @@ function update_ExtractFunctionsLibrary!()
     ExtractFunction(:profiles, :Ti0, "keV", dd -> dd.core_profiles.profiles_1d[].ion[1].temperature[1] / 1E3)
     ExtractFunction(:profiles, :Pfusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
     ExtractFunction(:balance_of_plant, :Pelectric_net, "MWe", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6)
-    ExtractFunction(:heating_current_drive, :Pelectron_cyclotron, "W", dd -> @ddtime(summary.heating_current_drive.power_launched_ec))
-    ExtractFunction(:heating_current_drive, :Pneutral_beam, "W", dd -> @ddtime(summary.heating_current_drive.power_launched_nbi))
-    ExtractFunction(:heating_current_drive, :Pion_cyclotron, "W", dd -> @ddtime(summary.heating_current_drive.power_launched_ic))
-    ExtractFunction(:heating_current_drive, :Plower_hybrid, "W", dd -> @ddtime(summary.heating_current_drive.power_launched_lh))
-    ExtractFunction(:heating_current_drive, :Paux_total, "W", dd -> @ddtime(summary.heating_current_drive.power_launched_total))
+    ExtractFunction(:heating_current_drive, :Pelectron_cyclotron, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_ec.value))
+    ExtractFunction(:heating_current_drive, :Pneutral_beam, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_nbi.value))
+    ExtractFunction(:heating_current_drive, :Pion_cyclotron, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_ic.value))
+    ExtractFunction(:heating_current_drive, :Plower_hybrid, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_lh.value))
+    ExtractFunction(:heating_current_drive, :Paux_total, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_total.value))
     ExtractFunction(:costing, :levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE)
     ExtractFunction(:costing, :capital_cost, "\$M", dd -> dd.costing.cost_direct_capital.cost)
-    ExtractFunction(:build, :flattop, "\$M", dd -> dd.build.oh.flattop_duration / 3600.0)
+    ExtractFunction(:build, :flattop, "Hours", dd -> dd.build.oh.flattop_duration / 3600.0)
 end
 update_ExtractFunctionsLibrary!()
 
@@ -44,7 +44,11 @@ update_ExtractFunctionsLibrary!()
 run the extract function
 """
 function (ef::ExtractFunction)(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    return ef.func(dd)
+    try
+        return ef.func(dd)
+    catch e
+        return missing
+    end
 end
 
 """
@@ -53,7 +57,11 @@ end
 run the extract function
 """
 function (ef::ExtractFunction)(dd::IMAS.dd)
-    return ef.func(dd)
+    try
+        return ef.func(dd)
+    catch e
+        return missing
+    end
 end
 
 function Base.show(io::IO, f::ExtractFunction)
