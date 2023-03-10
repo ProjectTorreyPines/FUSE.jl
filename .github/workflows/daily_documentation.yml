@@ -30,6 +30,8 @@ jobs:
           - "1.x"
         os:
           - macos-11
+        arch:
+          - x64
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v4
