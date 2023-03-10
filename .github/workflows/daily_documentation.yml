@@ -29,7 +29,7 @@ jobs:
         version:
           - "1.x"
         os:
-          - macos-11
+          - ubuntu-latest
         arch:
           - x64
     steps:
