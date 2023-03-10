@@ -29,9 +29,7 @@ jobs:
         version:
           - "1.x"
         os:
-          - ubuntu-latest
-        arch:
-          - x64
+          - macos-11
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v4
