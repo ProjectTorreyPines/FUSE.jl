@@ -12,7 +12,7 @@ mutable struct ExtractFunction
     end
 end
 
-const ExtractFunctionsLibrary = DataStructures.OrderedDict{Symbol,ExtractFunction}()
+const ExtractFunctionsLibrary = OrderedCollections.OrderedDict{Symbol,ExtractFunction}()
 
 ExtractFunction(:equilibrium, :κ, "-", (dd, ini, act) -> ini.equilibrium.κ)
 ExtractFunction(:equilibrium, :δ, "-", (dd, ini, act) -> ini.equilibrium.δ)

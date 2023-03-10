@@ -92,7 +92,7 @@ import FileIO, JpegTurbo
 """
     dd_build_layers_to_ini(dd::IMAS.dd)
 
-Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = DataStructures.OrderedDict()`
+Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = OrderedCollections.OrderedDict()`
 """
 function dd_build_layers_to_ini(dd::IMAS.dd)
     for layer in dd.build.layer
