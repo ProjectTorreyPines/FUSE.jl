@@ -1,8 +1,6 @@
-name: daily_manifest
+name: interactive
 
 on:
-  schedule:
-    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       debug:
@@ -12,12 +10,6 @@ on:
 
 env:
   PTP_READ_TOKEN: ${{ secrets.PTP_READ_TOKEN }}
-
-
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 jobs:
   test:
@@ -34,20 +26,17 @@ jobs:
           - x64
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-python@v4
+      - run: pip install nbconvert
       #============
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - uses: julia-actions/cache@v1
       - run: make install_ci
       - uses: julia-actions/julia-buildpkg@v1
       #============
-      - uses: julia-actions/julia-runtest@v1
-      - run: make manifest_ci_commit
-      #============
-      - name: Debug with tmate if failure + manual triggrer + debug mode
-        if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
+      - name: Interactive with tmate
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
