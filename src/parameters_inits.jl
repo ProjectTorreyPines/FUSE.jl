@@ -1,5 +1,5 @@
 using FusionMaterials: FusionMaterials
-import DataStructures
+import OrderedCollections
 
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
@@ -141,7 +141,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
-    layers::Entry{DataStructures.OrderedDict} = Entry(DataStructures.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
+    layers::Entry{OrderedCollections.OrderedDict} = Entry(OrderedCollections.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
     blanket::Entry{T} = Entry(T, "-", "Fraction of blanket in radial build")
     shield::Entry{T} = Entry(T, "-", "Fraction of shield in radial build")
     vessel::Entry{T} = Entry(T, "-", "Fraction of vessel in radial build")

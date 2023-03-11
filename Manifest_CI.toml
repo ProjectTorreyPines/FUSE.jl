@@ -141,7 +141,7 @@ version = "0.4.2"
 deps = ["CoordinateConventions", "Dates", "EFIT", "Fortran90Namelists", "MXHEquilibrium", "Pkg"]
 git-tree-sha1 = "e589c30594fe263faf45adaf300a0ba99226d98b"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/CHEASE.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/CHEASE.jl.git"
 uuid = "40781a8e-f1bb-11ec-24ef-0f6bc40c1567"
 version = "0.1.0"
 
@@ -310,7 +310,7 @@ version = "0.6.2"
 [[deps.CoordinateConventions]]
 git-tree-sha1 = "ac2891377c84fdf242cdf6374e700a499f2af39a"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/CoordinateConventions.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/CoordinateConventions.jl.git"
 uuid = "7204ce3a-f536-43d2-be4a-fbed74e90d86"
 version = "0.1.0"
 
@@ -444,7 +444,7 @@ version = "0.2.0"
 deps = ["BSON", "DataStructures", "Dates", "Flux", "Memoize", "Pickle", "ProgressMeter"]
 git-tree-sha1 = "23e8f48d27d5116d648122890ffb174f11ab0655"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/EPEDNN.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/EPEDNN.jl.git"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503991"
 version = "0.1.0"
 
@@ -542,7 +542,7 @@ version = "2.18.0"
 deps = ["BandedMatrices", "FastGaussQuadrature", "QuadGK", "StaticArrays", "Test"]
 git-tree-sha1 = "44ca3962442e6a27741ab246cd323d95fb8089e3"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/FiniteElementHermite.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/FiniteElementHermite.jl.git"
 uuid = "6ce10167-d368-4c0e-af34-9787cdd175e5"
 version = "0.2.0"
 
@@ -580,7 +580,7 @@ version = "0.4.2"
 deps = ["Compat", "IterTools", "OrderedCollections", "Parameters"]
 git-tree-sha1 = "f3b092acd490264f8cb9ad46ec61fcc3ffb2d245"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/Fortran90Namelists.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/Fortran90Namelists.jl.git"
 uuid = "8fb689aa-71ff-4044-8071-0cffc910b57d"
 version = "0.1.0"
 
@@ -629,7 +629,7 @@ version = "0.4.3"
 deps = ["JSON"]
 git-tree-sha1 = "2ff817e35e8fce716fa9c5de9e8e480c38124be9"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/FusionMaterials.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/FusionMaterials.jl.git"
 uuid = "4c86da02-02c8-4634-8460-96566129f8e0"
 version = "0.1.0"
 
@@ -795,7 +795,7 @@ version = "0.3.11"
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JLD2", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "ProgressMeter", "Ratios", "RecipesBase", "StaticArrays", "Test"]
 git-tree-sha1 = "ed637ac2004aada1c869d7d6df6938bc14260a49"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/IMAS.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
 version = "0.1.0"
 
@@ -803,7 +803,7 @@ version = "0.1.0"
 deps = ["AbstractTrees", "DataInterpolations", "DataStructures", "HDF5", "JSON", "Memoize", "Printf", "ProgressMeter", "Test"]
 git-tree-sha1 = "b90069dbe4819df4d7c0af3a96e0ddc360663a4a"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/IMASDD.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
 version = "0.1.0"
 
@@ -1184,7 +1184,7 @@ version = "5.6.0+0"
 deps = ["Contour", "CoordinateConventions", "EFIT", "FileIO", "ForwardDiff", "Gmsh", "HCubature", "Interpolations", "LRUCache", "LinearAlgebra", "Memoize", "MeshIO", "MeshTools", "Meshes", "NetCDF", "Optim", "PolygonOps", "StaticArrays", "Test", "Trapz", "Zygote"]
 git-tree-sha1 = "f3dac9e9d6cf47601eec46a6ee5ee394450f87e5"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/MXHEquilibrium.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/MXHEquilibrium.jl.git"
 uuid = "8efa4e5a-7b9a-4eec-876e-01d13d5b5d75"
 version = "0.2.7"
 
@@ -1241,7 +1241,7 @@ version = "0.4.10"
 deps = ["FileIO", "Gmsh", "LRUCache", "LinearAlgebra", "Memoize", "MeshIO", "Meshes"]
 git-tree-sha1 = "f9da0574f0493a51c7465f0784388daf754f0dd5"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/MeshTools.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/MeshTools.jl.git"
 uuid = "804828d9-b4e9-4eca-b847-748d6c7bafa9"
 version = "0.2.0"
 
@@ -1267,7 +1267,7 @@ version = "0.1.3"
 deps = ["LinearAlgebra", "Optim", "RecipesBase"]
 git-tree-sha1 = "2e2ba1508f2e3eafd3cab16debe71e5bfc7c4d16"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"
 uuid = "c82744c2-dc08-461a-8c37-87ab04d0f9b8"
 version = "0.1.0"
 
@@ -1318,7 +1318,7 @@ version = "4.5.1"
 deps = ["CSV", "DataFrames", "Distributed", "Interact", "Interpolations", "Plots", "Printf", "ProgressMeter"]
 git-tree-sha1 = "648e22ef530057d4457ba505e14775d5a108775a"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/NNeutronics.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/NNeutronics.jl.git"
 uuid = "a9424c20-d414-11ec-167b-9106c24d956c"
 version = "0.1.0"
 
@@ -1613,7 +1613,7 @@ version = "1.7.2"
 deps = ["ArgParse", "BandedMatrices", "FiniteElementHermite", "ForwardDiff", "JSON", "LinearAlgebra", "PackageCompiler", "Requires"]
 git-tree-sha1 = "57b7b9a3433884c80c3d5b5af3cb14f89df9b01e"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/QED.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/QED.jl.git"
 uuid = "8bcbec86-48c7-11ec-16a6-c1bc83299373"
 version = "1.3.0"
 
@@ -1811,7 +1811,7 @@ version = "0.9.4"
 deps = ["AbstractTrees", "DataStructures", "JSON"]
 git-tree-sha1 = "5640420762c618191ee7584290a87de09acd6c11"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
 version = "0.1.0"
 
@@ -1929,7 +1929,7 @@ version = "5.1.0"
 deps = ["CoordinateConventions", "EPEDNN", "IMAS", "IMASDD", "Measurements", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "Pkg", "Plots", "Printf", "TGLFNN", "Test"]
 git-tree-sha1 = "a05492376ddb37a92e598bf2f7e212955e3ac260"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/TAUENN.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/TAUENN.jl.git"
 uuid = "4f5ffc88-c87f-11eb-142e-4d2ba0394a67"
 version = "0.1.0"
 
@@ -1937,7 +1937,7 @@ version = "0.1.0"
 deps = ["BSON", "CSV", "DataFrames", "DataStructures", "Dates", "DelimitedFiles", "Distributions", "Flux", "ForwardDiff", "JSON", "Measurements", "Memoize", "Pickle", "Plots", "ProgressMeter", "Random", "Statistics", "StatsBase", "Zygote"]
 git-tree-sha1 = "f118b1770c1c75285a07914aa01defdd4c4a1693"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/TGLFNN.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
 version = "0.1.0"
 
@@ -2078,7 +2078,7 @@ version = "0.2.0"
 deps = ["Contour", "CoordinateConventions", "DelimitedFiles", "EFIT", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "Plots", "SpecialFunctions", "Test", "Trapz", "Unzip"]
 git-tree-sha1 = "c8f6c99c9050f5d669b22d96276801c67113044b"
 repo-rev = "master"
-repo-url = "https://project-torrey-pines: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@github.com/ProjectTorreyPines/VacuumFields.jl.git"
+repo-url = "https://project-torrey-pines:PTP_READ_TOKEN@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 version = "0.1.0"
 
