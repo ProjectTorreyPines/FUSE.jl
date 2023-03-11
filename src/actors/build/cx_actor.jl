@@ -45,20 +45,21 @@ Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
 function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
-wall = IMAS.first_wall(actor.dd.wall)
+wall = IMAS.first_wall(actor.dd.wall) #TODO: move first_wall to FUSE because PFS package calls IMAS (circular dep) then first_wall(wall) = PlasmaFacingSurfaces.get_wall_contours(actor.dd.wall) 
 if wall === missing || rebuild_wall
-            #pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
-    ActorPlasmaFacingSurfaces(actor.dd, actor.act)        
-    wall = PlasmaFacingSurfaces.get_merged_wall_outline(actor.dd.wall)
-end
-pr = wall.r
-    pz = wall.z
-build_cx!(actor.dd.build, pr, pz)
-#JG: out for the moment. will revisit later if needed. 
+    #TODO: old_builder is a compatibility flag. Will be removed as validation moves on. 
+    ActorPlasmaFacingSurfaces(actor.dd, actor.act; old_builder=true) # push wall r,z into wall.description_2d 
+    wall = PlasmaFacingSurfaces.get_wall_contours(actor.dd.wall) 
+    @assert wall !== missing "wall is missing... check ActorPlasmaFacingSurfaces for more details..."   
+end        
+
+build_cx!(actor.dd.build, wall.r, wall.z)
+
+#TODO [JG]: out for the moment. will revisit later if needed. 
 #divertor_regions!(actor.dd.build, actor.dd.equilibrium.time_slice[])
 
 blanket_regions!(actor.dd.build, actor.dd.equilibrium.time_slice[])
-# JG: This is taking care of by ActorPlasmaFacingSurfaces
+# TODO [JG]: That should be taking care of by ActorPlasmaFacingSurfaces. Not sure why there is a pipe through get_build. 
 # if wall === missing || rebuild_wall
 #     plasma = IMAS.get_build(dd.build, type=_plasma_)
 #     resize!(dd.wall.description_2d, 1)
@@ -70,101 +71,7 @@ blanket_regions!(actor.dd.build, actor.dd.equilibrium.time_slice[])
 return actor.dd.build
 end
 
-"""
-    wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_fraction::Real=0.2)
 
-Generate first wall outline starting from an equilibrium
-"""
-function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_fraction::Real=0.2)
-    R0 = eqt.global_quantities.magnetic_axis.r
-    Z0 = eqt.global_quantities.magnetic_axis.z
-
-    # lcfs
-    ψb = IMAS.find_psi_boundary(eqt)
-    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
-
-    # Set the radial build thickness of the plasma
-    plasma = IMAS.get_build(bd, type=_plasma_)
-    a = (minimum(rlcfs) - plasma.start_radius)
-    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2 * a
-    R_hfs_plasma = plasma.start_radius
-    R_lfs_plasma = plasma.end_radius
-
-    # main chamber (clip elements that go beyond plasma radial build thickness)
-    plasma_poly = xy_polygon(rlcfs, zlcfs)
-    wall_poly = LibGEOS.buffer(plasma_poly, a)
-    R = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
-    Z = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
-    R[R.<R_hfs_plasma] .= R_hfs_plasma
-    R[R.>R_lfs_plasma] .= R_lfs_plasma
-    Z = (Z .- Z0) .* 1.05 .+ Z0
-    wall_poly = xy_polygon(R, Z)
-
-    t = LinRange(0, 2π, 31)
-
-    # divertor lengths
-    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
-    max_divertor_length = linear_plasma_size * divertor_length_fraction
-
-    # private flux regions
-    private = IMAS.flux_surface(eqt, ψb, false)
-    for (pr, pz) in private
-        if sign(pz[1] - Z0) != sign(pz[end] - Z0)
-            # open flux surface does not encicle the plasma
-            continue
-        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > (linear_plasma_size / 20)
-            # secondary Xpoint far away
-            continue
-        end
-
-        # xpoint at location of maximum curvature
-        index = argmax(abs.(IMAS.curvature(pr,pz)))
-        Rx = pr[index]
-        Zx = pz[index]
-
-        max_d = maximum(sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0))
-        divertor_length = min(max_d * 0.8, max_divertor_length)
-
-        # limit extent of private flux regions
-        circle = collect(zip(divertor_length .* cos.(t) .+ Rx, sign(Zx) .* divertor_length .* sin.(t) .+ Zx))
-        circle[1] = circle[end]
-        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && rr >= R_hfs_plasma && rr <= R_lfs_plasma]
-        pr = [rr for (rr, zz) in slot]
-        pz = [zz for (rr, zz) in slot]
-
-        # remove private flux region from wall (necessary because of Z expansion)
-        # this may fail if the private region is small or weirdly shaped
-        try
-            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
-        catch e
-            if !(typeof(e) <: LibGEOS.GEOSError)
-                rethrow(e)
-            end
-        end
-
-        # add the divertor slots
-        α = 0.2
-        pr = vcat(pr, R0 * α + Rx * (1 - α))
-        pz = vcat(pz, Z0 * α + Zx * (1 - α))
-        slot = LibGEOS.buffer(xy_polygon(pr, pz), a)
-        wall_poly = LibGEOS.union(wall_poly, slot)
-    end
-
-    # vertical clip
-    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(0.0, R_hfs_plasma, 100.0)...))
-    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100.0)...))
-
-    # round corners
-    wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
-    wall_poly = LibGEOS.buffer(wall_poly, a / 4)
-
-    pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
-    pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
-
-    pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1)
-
-    return pr, pz
-end
 
 function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     R0 = eqt.global_quantities.magnetic_axis.r

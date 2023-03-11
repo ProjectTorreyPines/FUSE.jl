@@ -76,6 +76,7 @@ Base.@kwdef mutable struct FUSEparameters__MainChamberWallBoundary{T} <: Paramet
     λ_plasma::Entry{T} = Entry(T, "m", "Plasma width"; default=0.003)
     β_plasma::Entry{T} = Entry(T, "-", "Plasma width decay factor"; default=5.0)
     Λ_buffer::Entry{T} = Entry(T, "m", "Buffer between plasma and wall"; default=0.05)
+    Λ_conformal::Entry{T} = Entry(T, "m", "Conformal buffer between top/bottom plasma for single divertor configuration (useful if secondary-xpoint)"; default=0.20)
 end
 
 Base.@kwdef mutable struct FUSEparameters__MainChamberWallDesign{T} <: ParametersActor where {T<:Real}
@@ -124,11 +125,11 @@ A divertor is composed of three sub-systems:
 - baffles that are mostly receiving heat fluxes from radiations and are largely parallel to the plasma parallel flow
 - a dome that is exposed to the private flux region and that is connecting the inner and outer components
 """
-function ActorPlasmaFacingSurfaces(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorPlasmaFacingSurfaces(dd::IMAS.dd, act::ParametersAllActors; old_builder =false, kw...)
     par = act.ActorPlasmaFacingSurfaces(kw...)
     actor = ActorPlasmaFacingSurfaces(dd, par)
     step(actor)
-    finalize(actor)
+    finalize(actor; old_builder)
     return actor
 end
 
@@ -144,6 +145,6 @@ function _step(actor::ActorPlasmaFacingSurfaces)
     return actor
 end
 
-function _finalize(actor::ActorPlasmaFacingSurfaces)
-    PlasmaFacingSurfaces.export2ddwall(actor.dd.wall.description_2d, actor.pfs)
+function _finalize(actor::ActorPlasmaFacingSurfaces; kw...)
+    PlasmaFacingSurfaces.export2ddwall(actor.dd, actor.pfs; kw...)
 end
