@@ -1,3 +1,74 @@
+
+mutable struct ExtractFunction
+    group::Symbol
+    name::Symbol
+    units::String
+    func::Function
+    # inner constructor to register ExtractFunction in ExtractFunctionsLibrary
+    ExtractFunction(group::Symbol, name::Symbol, units::String, func::Function) = begin
+        objf = new(group, name, units, func)
+        ExtractFunctionsLibrary[objf.name] = objf
+        return objf
+    end
+end
+
+const ExtractFunctionsLibrary = OrderedCollections.OrderedDict{Symbol,ExtractFunction}()
+function update_ExtractFunctionsLibrary!()
+    empty!(ExtractFunctionsLibrary)
+    ExtractFunction(:equilibrium, :κ, "-", dd -> dd.equilibrium.time_slice[].boundary.elongation)
+    ExtractFunction(:equilibrium, :δ, "-", dd -> dd.equilibrium.time_slice[].boundary.triangularity)
+    ExtractFunction(:equilibrium, :ζ, "-", dd -> dd.equilibrium.time_slice[].boundary.squareness)
+    ExtractFunction(:equilibrium, :B0, "T", dd -> @ddtime(dd.summary.global_quantities.b0.value))
+    ExtractFunction(:equilibrium, :ip, "MA", dd -> @ddtime(dd.summary.global_quantities.ip.value)/1e6)
+    ExtractFunction(:equilibrium, :R0, "m", dd -> dd.summary.global_quantities.r0.value)
+    ExtractFunction(:equilibrium, :βn, "-", dd -> @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+    ExtractFunction(:profiles, :Qfusion, "-", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / @ddtime(dd.summary.heating_current_drive.power_launched_total.value))
+    ExtractFunction(:profiles, :Pfusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
+    ExtractFunction(:profiles, :zeff, "-", dd -> @ddtime(dd.summary.volume_average.zeff.value))
+    ExtractFunction(:profiles, :Te0, "keV", dd -> dd.core_profiles.profiles_1d[].electrons.temperature[1] / 1E3)
+    ExtractFunction(:profiles, :Ti0, "keV", dd -> dd.core_profiles.profiles_1d[].ion[1].temperature[1] / 1E3)
+    ExtractFunction(:balance_of_plant, :Pelectric_net, "MWe", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6)
+    ExtractFunction(:balance_of_plant, :Qplant, "-", dd -> @ddtime(dd.balance_of_plant.Q_plant))
+    ExtractFunction(:heating_current_drive, :Pelectron_cyclotron, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_ec.value))
+    ExtractFunction(:heating_current_drive, :Pneutral_beam, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_nbi.value))
+    ExtractFunction(:heating_current_drive, :Pion_cyclotron, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_ic.value))
+    ExtractFunction(:heating_current_drive, :Plower_hybrid, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_lh.value))
+    ExtractFunction(:heating_current_drive, :Paux_total, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_total.value))
+    ExtractFunction(:costing, :levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE)
+    ExtractFunction(:costing, :capital_cost, "\$M", dd -> dd.costing.cost_direct_capital.cost)
+    ExtractFunction(:build, :flattop, "Hours", dd -> dd.build.oh.flattop_duration / 3600.0)
+end
+update_ExtractFunctionsLibrary!()
+
+"""
+    (ef::ExtractFunction)(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+
+run the extract function
+"""
+function (ef::ExtractFunction)(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    return ef.func(dd)
+end
+
+"""
+    (ef::ExtractFunction)(dd::IMAS.dd)
+
+run the extract function
+"""
+function (ef::ExtractFunction)(dd::IMAS.dd)
+    try
+        return ef.func(dd)
+    catch e
+        return missing
+    end
+end
+
+function Base.show(io::IO, f::ExtractFunction)
+    printstyled(io, f.group; bold=true)
+    printstyled(io, "."; bold=true)
+    printstyled(io, f.name; bold=true, color=:blue)
+    print(io, " →")
+end
+
 # ******************************************
 # save/load simulation
 # ******************************************
@@ -99,9 +170,10 @@ function load(savedir::AbstractString)
 end
 
 """
-    load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
+    load(dir::AbstractString, extract::AbstractDict{Symbol,T})::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
 
-Read dd, ini, act from JSON/HDF files in a folder and extract some data from them
+Read dd, ini, act from JSON/HDF files in a folder and extract some data from them.
+By default, the FUSE.ExtractFunctionsLibrary is used.
 
 Each of the `extract` functions should accept `dd, ini, act` as inputs, like this:
 
@@ -110,9 +182,8 @@ Each of the `extract` functions should accept `dd, ini, act` as inputs, like thi
             :time => (dd,ini,act) -> @ddtime(dd.equilibrium.time),
             :R0 => (dd,ini,act) -> ini.equilibrium.R0
         )
-
 """
-function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
+function load(dir::AbstractString, extract::AbstractDict{Symbol,T})::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
     dd, ini, act = FUSE.load(dir)
     results = Dict{Symbol,Any}()
     for key in keys(extract)
@@ -121,18 +192,9 @@ function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict
             continue
         end
         try
-            tmp = extract[key](dd, ini, act)
-            if typeof(tmp) <: AbstractDict
-                for (k, v) in tmp
-                    if typeof(v) <: IMAS.DDigestField
-                        v = v.value
-                    end
-                    results[k] = v
-                end
-            else
-                results[key] = tmp
-            end
+            results[key] = extract[key](dd, ini, act)
         catch e
+#            rethrow(e)
             results[key] = NaN
         end
     end
@@ -140,9 +202,10 @@ function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict
 end
 
 """
-    load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function})::DataFrames.DataFrame
+    load(dirs::AbstractVector{<:AbstractString}, extract::AbstractDict{Symbol,T}; filter_invalid::Bool=true)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
 
-Read dd, ini, act from JSON/HDF files in multiple directores and extract some data from them returning results in DataFrame format
+Read dd, ini, act from JSON/HDF files in multiple directores and extract some data from them returning results in DataFrame format.
+By default, the FUSE.ExtractFunctionsLibrary is used.
 
 Each of the `extract` functions should accept `dd, ini, act` as inputs, like this:
 
@@ -152,7 +215,7 @@ Each of the `extract` functions should accept `dd, ini, act` as inputs, like thi
             :R0 => (dd,ini,act) -> ini.equilibrium.R0
         )
 """
-function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function}; filter_invalid::Bool=true)::DataFrames.DataFrame
+function load(dirs::AbstractVector{<:AbstractString}, extract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary; filter_invalid::Bool=true)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
     # allocate memory
     df = DataFrames.DataFrame(load(dirs[1], extract))
     for k in 2:length(dirs)
@@ -172,17 +235,4 @@ function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Funct
     end
 
     return df
-end
-
-"""
-    IMAS.digest(dirs::AbstractVector{<:AbstractString}; extract::Dict{Symbol,Function}, filter_invalid::Bool=true)::DataFrames.DataFrame
-
-Digest dd from JSON/HDF files in multiple directores and return results in DataFrame format
-"""
-function IMAS.digest(dirs::AbstractVector{<:AbstractString}; extract::Dict{Symbol,Function}=Dict{Symbol,Function}(), filter_invalid::Bool=true)::DataFrames.DataFrame
-    all_extract = Dict{Symbol,Function}(
-        :digest => (dd, ini, act) -> IMAS.digest(dd.summary),
-    )
-    merge!(all_extract, extract)
-    return load(dirs, all_extract; filter_invalid)
 end

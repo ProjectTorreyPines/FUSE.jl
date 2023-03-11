@@ -335,7 +335,7 @@ endif
 # commit manifest (this should only be run by the CI)
 ifdef GITHUB_ACTION
 manifest_ci_commit:
-	cp Manifest.toml Manifest_CI.toml
+	@sed 's/$(PTP_READ_TOKEN)/PTP_READ_TOKEN/g' Manifest.toml > Manifest_CI.toml
 	git checkout -b manifest
 	git add Manifest_CI.toml
 	git config user.email "fuse-bot@fusion.gat.com"

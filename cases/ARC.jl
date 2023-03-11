@@ -24,7 +24,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
 
     # explicitly set thickness of radial build layers
     ini.build.n_first_wall_conformal_layers = 2
-    ini.build.layers = layers = DataStructures.OrderedDict()
+    ini.build.layers = layers = OrderedCollections.OrderedDict()
     layers[:gap_OH] = 0.82
     layers[:OH] = 0.3
     layers[:hfs_TF] = 0.55

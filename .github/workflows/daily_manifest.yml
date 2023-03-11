@@ -33,15 +33,13 @@ jobs:
         arch:
           - x64
     steps:
-      - uses: actions/checkout@v2
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v1
+        id: cpu-cores
+      - name: Set JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}
+        run: echo "JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}" >> $GITHUB_ENV
       #============
-      - name: Check if fuse bot commit
-        run: |
-          author=$(git log -1 --pretty=format:'%an')
-          if [ "$author" = "fuse bot" ]; then
-            echo "Skipping action due to commit made by 'fuse bot'."
-            exit 78
-          fi
+      - uses: actions/checkout@v2
       #============
       - uses: julia-actions/setup-julia@v1
         with:
