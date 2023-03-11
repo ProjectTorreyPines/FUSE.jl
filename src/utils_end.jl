@@ -12,7 +12,7 @@ mutable struct ExtractFunction
     end
 end
 
-const ExtractFunctionsLibrary = DataStructures.OrderedDict{Symbol,ExtractFunction}()
+const ExtractFunctionsLibrary = OrderedCollections.OrderedDict{Symbol,ExtractFunction}()
 function update_ExtractFunctionsLibrary!()
     empty!(ExtractFunctionsLibrary)
     ExtractFunction(:equilibrium, :κ, "-", dd -> dd.equilibrium.time_slice[].boundary.elongation)
