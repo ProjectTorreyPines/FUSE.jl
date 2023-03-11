@@ -105,6 +105,7 @@ end
 
 const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
 function update_ConstraintFunctionsLibrary!()
+    empty!(ConstraintFunctionsLibrary)
     ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-2)
     ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
     ConstraintFunction(:steady_state, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), >, log10(10.0))

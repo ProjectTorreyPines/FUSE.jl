@@ -172,7 +172,8 @@ end
 """
     load(dir::AbstractString, extract::AbstractDict{Symbol,T})::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
 
-Read dd, ini, act from JSON/HDF files in a folder and extract some data from them
+Read dd, ini, act from JSON/HDF files in a folder and extract some data from them.
+By default, the FUSE.ExtractFunctionsLibrary is used.
 
 Each of the `extract` functions should accept `dd, ini, act` as inputs, like this:
 
@@ -181,7 +182,6 @@ Each of the `extract` functions should accept `dd, ini, act` as inputs, like thi
             :time => (dd,ini,act) -> @ddtime(dd.equilibrium.time),
             :R0 => (dd,ini,act) -> ini.equilibrium.R0
         )
-
 """
 function load(dir::AbstractString, extract::AbstractDict{Symbol,T})::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
     dd, ini, act = FUSE.load(dir)
@@ -191,12 +191,12 @@ function load(dir::AbstractString, extract::AbstractDict{Symbol,T})::Dict{Symbol
             results[key] = NaN
             continue
         end
-        # try
+        try
             results[key] = extract[key](dd, ini, act)
-        # catch e
-        #     rethrow(e)
-        #     results[key] = NaN
-        # end
+        catch e
+#            rethrow(e)
+            results[key] = NaN
+        end
     end
     return results
 end
@@ -204,7 +204,8 @@ end
 """
     load(dirs::AbstractVector{<:AbstractString}, extract::AbstractDict{Symbol,T}; filter_invalid::Bool=true)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
 
-Read dd, ini, act from JSON/HDF files in multiple directores and extract some data from them returning results in DataFrame format
+Read dd, ini, act from JSON/HDF files in multiple directores and extract some data from them returning results in DataFrame format.
+By default, the FUSE.ExtractFunctionsLibrary is used.
 
 Each of the `extract` functions should accept `dd, ini, act` as inputs, like this:
 
