@@ -49,6 +49,7 @@ jobs:
           arch: ${{ matrix.arch }}
           show-versioninfo: true
       - run: make install_ci
+      - run: julia -e 'import Pkg; Pkg.add("Revise")'
       - uses: julia-actions/julia-buildpkg@v1
       #============
       - run: make IJulia
