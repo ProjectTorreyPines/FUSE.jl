@@ -118,6 +118,11 @@ function extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDi
 
     # filter
     if filter_invalid
+        # drop columns that have all NaNs
+        visnan(x::Vector) = isnan.(x)
+        df = df[:, .!all.(visnan.(eachcol(df)))]
+
+        # drop rows that have any NaNs
         df = filter(row -> all(x -> !(x isa Number && (isnan(x) || isinf(x))), row), df)
     end
 
