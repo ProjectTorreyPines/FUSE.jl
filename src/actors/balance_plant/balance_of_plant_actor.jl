@@ -4,7 +4,6 @@
 Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    needs_model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Power plant electrical needs model"; default=:EU_DEMO)
     thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
@@ -22,10 +21,6 @@ end
     ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Balance of plant actor that estimates the net electrical power output by comparing the balance of plant electrical needs with the electricity generated from the thermal cycle.
-
-* `needs_model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
-* `needs_model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
-
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
@@ -74,11 +69,8 @@ function _step(actor::ActorBalanceOfPlant)
 
     @ddtime(bop_thermal.total_useful_heat_power = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered))
 
-
-
     ## balance of plant needs
-
-    finalize(step_(actor.power_needs_actor))
+    finalize(step(actor.power_needs_actor))
 
     if par.do_plot
         core = sys_coords(dd)
@@ -155,13 +147,4 @@ function _step(actor::ActorBalanceOfPlant)
     end
 
     return actor
-end
-
-function heating_and_current_drive_calc(system_unit, time_array::Vector{<:Real})
-    power_electric_total = zeros(length(time_array))
-    for item_unit in system_unit
-        efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
-        power_electric_total .+= IMAS.get_time_array(item_unit.power_launched, :data, time_array, :constant) ./ efficiency
-    end
-    return power_electric_total
 end

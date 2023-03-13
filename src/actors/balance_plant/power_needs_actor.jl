@@ -145,6 +145,6 @@ end
 #  FUSE electricity     #
 #= =================== =#
 
-function electricity(::Type{Val{:pumping}},bop::IMAS.balance_of_plant, time_array::Vector{<:Real})
+function electricity(::Type{Val{:pumping}}, bop::IMAS.balance_of_plant, time_array::Vector{<:Real})
     return bop.heat_transfer.breeder.circulator_power .+ bop.divertor.breeder.circulator_power .+ bop.heat_transfer.wall.circulator_power
 end
