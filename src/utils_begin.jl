@@ -1,6 +1,11 @@
 using InteractiveUtils: subtypes
 import ForwardDiff
+import Distributed
+import ClusterManagers
 
+# ==== #
+# Math #
+# ==== #
 function unwrap(v, inplace=false)
     unwrapped = inplace ? v : copy(v)
     for i = 2:length(v)
@@ -79,20 +84,20 @@ function mirror_bound_w_cost(x, l, u)
     return y, abs.((x .- l) .* (x .< l) .+ (x .- u) .* (x .> u))
 end
 
-# ******************************************
-# Convex Hull
-# ******************************************
+# =========== #
+# Convex Hull #
+# =========== #
 import VacuumFields: convex_hull
 
-# ******************************************
-# TraceCAD
-# ******************************************
+# ======== #
+# TraceCAD #
+# ======== #
 import FileIO, JpegTurbo
 
 """
     dd_build_layers_to_ini(dd::IMAS.dd)
 
-Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = DataStructures.OrderedDict()`
+Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = OrderedCollections.OrderedDict()`
 """
 function dd_build_layers_to_ini(dd::IMAS.dd)
     for layer in dd.build.layer
@@ -123,9 +128,9 @@ end
     end
 end
 
-# ******************************************
-# types
-# ******************************************
+# ===== #
+# types #
+# ===== #
 """
     returns enum from symbol
 """
@@ -156,9 +161,9 @@ function concretetypes!(out, type::Type)
     out
 end
 
-# ******************************************
-# FUSE
-# ******************************************
+# ==== #
+# fuse #
+# ==== #
 function fuse()
     return """
 ███████╗██╗   ██╗███████╗███████╗
@@ -185,4 +190,39 @@ function warmup(dd::IMAS.dd)
     init(dd, ini, act)
     ActorWholeFacility(dd, act)
     IMAS.freeze(dd)
+end
+
+# ======== #
+# parallel #
+# ======== #
+function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0)
+    if cluster == "saga"
+        if gethostname() == "saga.cluster"
+            nodes = 4
+            np = 30 * nodes
+            if nprocs_max > 0
+                np = min(np, nprocs_max)
+            end
+            ENV["JULIA_WORKER_TIMEOUT"] = "180"
+            if nprocs() < np
+                addprocs(ClusterManagers.SlurmManager(np - nprocs()), exclusive="", topology=:master_worker, nodelist="saga02,saga03,saga04,saga05,saga06,saga07")
+            end
+            println("Working with $(nprocs()) distributed processes on $(gethostname())")
+        else
+            error("Not running on saga cluster")
+        end
+
+    elseif cluster == "localhost"
+        np = length(Sys.cpu_info())
+        if nprocs_max > 0
+            np = min(np, nprocs_max)
+        end
+        if nprocs() < np + 1
+            addprocs(np - nprocs() + 1, topology=:master_worker)
+        end
+        println("Working with $(nprocs()-1) processes on $(gethostname())")
+
+    else
+        error("Cluster $server is unknown. Add it to the FUSE.parallel_environment")
+    end
 end

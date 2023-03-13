@@ -233,7 +233,7 @@ Convert GASC ["OUTPUTS"]["radial build"] to FUSE build layers dictionary
 function gasc_2_layers(gasc::GASC)
     gascrb = gasc.outputs["radial build"]
 
-    layers = DataStructures.OrderedDict()
+    layers = OrderedCollections.OrderedDict()
     mapper = Dict(
         "OH" => "OH",
         "TF" => "TF",
@@ -310,11 +310,11 @@ function gasc_2_layers(gasc::GASC)
 end
 
 """
-    gasc_buck_OH_TF!(layers::DataStructures.OrderedDict)
+    gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
 
 Remove gap between OH and TF to allow bucking (gap gets added to OH thickness)
 """
-function gasc_buck_OH_TF!(layers::DataStructures.OrderedDict)
+function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
     for k in collect(keys(layers))
         if k == "gap_TF_OH"
             layers["OH"] += layers["gap_TF_OH"]
@@ -325,12 +325,12 @@ function gasc_buck_OH_TF!(layers::DataStructures.OrderedDict)
 end
 
 """
-    gasc_add_wall_layers!(layers::DataStructures.OrderedDict, thickness::Float64)
+    gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict, thickness::Float64)
 
 Add wall layer of given thickness expressed [meters] (gets subtracted from blanket layer)
 """
-function gasc_add_wall_layers!(layers::DataStructures.OrderedDict; thickness::Float64)
-    tmp = DataStructures.OrderedDict()
+function gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict; thickness::Float64)
+    tmp = OrderedCollections.OrderedDict()
     for layer in keys(layers)
         if layer == "hfs_blanket"
             tmp[layer] = layers[layer] - thickness

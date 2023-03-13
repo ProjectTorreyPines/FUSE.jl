@@ -1,7 +1,7 @@
 import LibGEOS
 import GeoInterface
 import Interpolations
-import DataStructures
+import OrderedCollections
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
@@ -268,7 +268,7 @@ function layers_meters_from_fractions(
     end
 
     # express layer thicknesses as fractions
-    layers = DataStructures.OrderedDict()
+    layers = OrderedCollections.OrderedDict()
     layers[:gap_OH] = 2.0
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0

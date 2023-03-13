@@ -58,7 +58,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     end
 
     # explicitly set thickness of radial build layers
-    ini.build.layers = layers = DataStructures.OrderedDict()
+    ini.build.layers = layers = OrderedCollections.OrderedDict()
     layers[:gap_OH] = 0.80
     layers[:OH] = 1.30
     layers[:hfs_TF] = 1.10
