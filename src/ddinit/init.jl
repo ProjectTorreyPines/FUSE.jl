@@ -19,7 +19,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         init_equilibrium(dd, ini, act)
         if do_plot
             display(plot(dd.equilibrium.time_slice[end]))
-            plot(dd.equilibrium.time_slice[end]; cx=true, x_points=true)
+            plot(dd.equilibrium.time_slice[end]; cx=true, show_x_points=true)
             display(plot!(dd.equilibrium.time_slice[1].boundary, label="Field null"))
         end
     end

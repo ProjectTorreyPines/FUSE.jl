@@ -1,6 +1,137 @@
-# ******************************************
-# save/load simulation
-# ******************************************
+
+# ==================== #
+# extract data from dd #
+# ==================== #
+mutable struct ExtractFunction
+    group::Symbol
+    name::Symbol
+    units::String
+    func::Function
+    # inner constructor to register ExtractFunction in ExtractFunctionsLibrary
+    ExtractFunction(group::Symbol, name::Symbol, units::String, func::Function) = begin
+        objf = new(group, name, units, func)
+        ExtractFunctionsLibrary[objf.name] = objf
+        return objf
+    end
+end
+
+const ExtractFunctionsLibrary = OrderedCollections.OrderedDict{Symbol,ExtractFunction}()
+function update_ExtractFunctionsLibrary!()
+    empty!(ExtractFunctionsLibrary)
+    ExtractFunction(:equilibrium, :κ, "-", dd -> dd.equilibrium.time_slice[].boundary.elongation)
+    ExtractFunction(:equilibrium, :δ, "-", dd -> dd.equilibrium.time_slice[].boundary.triangularity)
+    ExtractFunction(:equilibrium, :ζ, "-", dd -> dd.equilibrium.time_slice[].boundary.squareness)
+    ExtractFunction(:equilibrium, :B0, "T", dd -> @ddtime(dd.summary.global_quantities.b0.value))
+    ExtractFunction(:equilibrium, :ip, "MA", dd -> @ddtime(dd.summary.global_quantities.ip.value) / 1e6)
+    ExtractFunction(:equilibrium, :R0, "m", dd -> dd.summary.global_quantities.r0.value)
+    ExtractFunction(:equilibrium, :βn, "-", dd -> @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+    ExtractFunction(:profiles, :Qfusion, "-", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / @ddtime(dd.summary.heating_current_drive.power_launched_total.value))
+    ExtractFunction(:profiles, :Pfusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
+    ExtractFunction(:profiles, :zeff, "-", dd -> @ddtime(dd.summary.volume_average.zeff.value))
+    ExtractFunction(:profiles, :Te0, "keV", dd -> dd.core_profiles.profiles_1d[].electrons.temperature[1] / 1E3)
+    ExtractFunction(:profiles, :Ti0, "keV", dd -> dd.core_profiles.profiles_1d[].ion[1].temperature[1] / 1E3)
+    ExtractFunction(:balance_of_plant, :Pelectric_net, "MWe", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6)
+    ExtractFunction(:balance_of_plant, :Qplant, "-", dd -> @ddtime(dd.balance_of_plant.Q_plant))
+    ExtractFunction(:heating_current_drive, :Pelectron_cyclotron, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_ec.value))
+    ExtractFunction(:heating_current_drive, :Pneutral_beam, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_nbi.value))
+    ExtractFunction(:heating_current_drive, :Pion_cyclotron, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_ic.value))
+    ExtractFunction(:heating_current_drive, :Plower_hybrid, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_lh.value))
+    ExtractFunction(:heating_current_drive, :Paux_total, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_total.value))
+    ExtractFunction(:costing, :levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE)
+    ExtractFunction(:costing, :capital_cost, "\$M", dd -> dd.costing.cost_direct_capital.cost)
+    ExtractFunction(:build, :flattop, "Hours", dd -> dd.build.oh.flattop_duration / 3600.0)
+end
+update_ExtractFunctionsLibrary!()
+
+"""
+    (ef::ExtractFunction)(dd::IMAS.dd)
+
+Run the extract function
+"""
+function (ef::ExtractFunction)(dd::IMAS.dd)
+    return ef.func(dd)
+end
+
+function Base.show(io::IO, f::ExtractFunction)
+    printstyled(io, f.group; bold=true)
+    printstyled(io, "."; bold=true)
+    printstyled(io, f.name; bold=true, color=:blue)
+    print(io, " →")
+end
+
+"""
+    extract(dd::IMAS.dd, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
+
+Extract data from `dd``.
+By default, the `FUSE.ExtractFunctionsLibrary`` is used.
+Each of the `xtract` functions should accept `dd` as input, like this:
+
+    xtract = Dict(
+            :beta_normal => dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal,
+            :time => dd -> @ddtime(dd.equilibrium.time)
+        )
+"""
+function extract(dd::IMAS.dd, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
+    results = Dict{Symbol,Any}()
+    for key in keys(xtract)
+        if dd === missing
+            results[key] = NaN
+            continue
+        end
+        try
+            results[key] = xtract[key](dd)
+        catch e
+            results[key] = NaN
+        end
+    end
+    return results
+end
+
+"""
+    extract(dir::AbstractString, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
+
+Read dd.json/h5 in a folder and extract data from it.
+"""
+function extract(dir::AbstractString, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
+    dd, ini, act = load(dir; load_ini=false, load_act=false)
+    return extract(dd, xtract)
+end
+
+"""
+    extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary; filter_invalid::Bool=false)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
+
+Extract data from multiple folders or `dd`s and returns results in DataFrame format
+"""
+function extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary; filter_invalid::Bool=false)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
+    # allocate memory
+    df = DataFrames.DataFrame(extract(DD[1], xtract))
+    for k in 2:length(DD)
+        push!(df, df[1, :])
+    end
+
+    # load the data
+    p = ProgressMeter.Progress(length(DD); showspeed=true)
+    Threads.@threads for k in eachindex(DD)
+        df[k, :] = extract(DD[k], xtract)
+        ProgressMeter.next!(p)
+    end
+
+    # filter
+    if filter_invalid
+        # drop columns that have all NaNs
+        visnan(x::Vector) = isnan.(x)
+        df = df[:, .!all.(visnan.(eachcol(df)))]
+
+        # drop rows that have any NaNs
+        df = filter(row -> all(x -> !(x isa Number && (isnan(x) || isinf(x))), row), df)
+    end
+
+    return df
+end
+
+# ==================== #
+# save/load simulation #
+# ==================== #
 """
     save(
         dd::IMAS.dd,
@@ -10,9 +141,7 @@
         freeze::Bool=true,
         format::Symbol=:json)
 
-Save FUSE dd, ini, act files in a folder
-
-`dd` can be saved in JSON or HDF format
+Save FUSE (dd, ini, act) to dd.json/h5, ini.json, and act.json files
 """
 function save(
     savedir::AbstractString,
@@ -44,7 +173,7 @@ end
         freeze::Bool=true,
         format::Symbol=:json)
 
-Save FUSE dd, ini, act files and exception stacktrace
+Save FUSE (dd, ini, act) to dd.json/h5, ini.json, and act.json files and exception stacktrace to "error.txt"
 """
 function save(
     savedir::AbstractString,
@@ -65,124 +194,32 @@ function save(
 end
 
 """
-    load(savedir::AbstractString)
+    load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true)
 
-Returns (dd, ini, act) from files read in a folder
+Read (dd, ini, act) to dd.json/h5, ini.json, and act.json files.
 
-`dd` can be in in JSON `dd.json` or HDF `dd.h5` format.
-
-Returns `missing` for files are not there or if `error.txt` file exists in the folder
+Returns `missing` for files are not there or if `error.txt` file exists in the folder.
 """
-function load(savedir::AbstractString)
+function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true)
     if isfile(joinpath(savedir, "error.txt"))
-        println(savedir)
+        @warn "$savedir simulation errored"
         return missing, missing, missing
     end
-    if isfile(joinpath(savedir, "dd.h5"))
-        dd = IMAS.hdf2imas(joinpath(savedir, "dd.h5"))
-    elseif isfile(joinpath(savedir, "dd.json"))
-        dd = IMAS.json2imas(joinpath(savedir, "dd.json"))
-    else
-        dd = missing
+    dd = missing
+    if load_dd
+        if isfile(joinpath(savedir, "dd.h5"))
+            dd = IMAS.hdf2imas(joinpath(savedir, "dd.h5"))
+        elseif isfile(joinpath(savedir, "dd.json"))
+            dd = IMAS.json2imas(joinpath(savedir, "dd.json"))
+        end
     end
-    if isfile(joinpath(savedir, "ini.json"))
+    ini = missing
+    if load_ini && isfile(joinpath(savedir, "ini.json"))
         ini = json2ini(joinpath(savedir, "ini.json"))
-    else
-        ini = missing
     end
-    if isfile(joinpath(savedir, "act.json"))
+    act = missing
+    if load_act && isfile(joinpath(savedir, "act.json"))
         act = json2act(joinpath(savedir, "act.json"))
-    else
-        act = missing
     end
     return dd, ini, act
-end
-
-"""
-    load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
-
-Read dd, ini, act from JSON/HDF files in a folder and extract some data from them
-
-Each of the `extract` functions should accept `dd, ini, act` as inputs, like this:
-
-    extract = Dict(
-            :beta_normal => (dd,ini,act) -> dd.equilibrium.time_slice[].global_quantities.beta_normal,
-            :time => (dd,ini,act) -> @ddtime(dd.equilibrium.time),
-            :R0 => (dd,ini,act) -> ini.equilibrium.R0
-        )
-
-"""
-function load(dir::AbstractString, extract::AbstractDict{Symbol,Function})::Dict{Symbol,Any}
-    dd, ini, act = FUSE.load(dir)
-    results = Dict{Symbol,Any}()
-    for key in keys(extract)
-        if typeof(dd) === typeof(ini) === typeof(act) === Missing
-            results[key] = NaN
-            continue
-        end
-        try
-            tmp = extract[key](dd, ini, act)
-            if typeof(tmp) <: AbstractDict
-                for (k, v) in tmp
-                    if typeof(v) <: IMAS.DDigestField
-                        v = v.value
-                    end
-                    results[k] = v
-                end
-            else
-                results[key] = tmp
-            end
-        catch e
-            results[key] = NaN
-        end
-    end
-    return results
-end
-
-"""
-    load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function})::DataFrames.DataFrame
-
-Read dd, ini, act from JSON/HDF files in multiple directores and extract some data from them returning results in DataFrame format
-
-Each of the `extract` functions should accept `dd, ini, act` as inputs, like this:
-
-    extract = Dict(
-            :beta_normal => (dd,ini,act) -> dd.equilibrium.time_slice[].global_quantities.beta_normal,
-            :time => (dd,ini,act) -> @ddtime(dd.equilibrium.time),
-            :R0 => (dd,ini,act) -> ini.equilibrium.R0
-        )
-"""
-function load(dirs::AbstractVector{<:AbstractString}, extract::Dict{Symbol,Function}; filter_invalid::Bool=true)::DataFrames.DataFrame
-    # allocate memory
-    df = DataFrames.DataFrame(load(dirs[1], extract))
-    for k in 2:length(dirs)
-        push!(df, df[1, :])
-    end
-
-    # load the data
-    p = ProgressMeter.Progress(length(dirs); showspeed=true)
-    Threads.@threads for k in eachindex(dirs)
-        df[k, :] = load(dirs[k], extract)
-        ProgressMeter.next!(p)
-    end
-
-    # filter
-    if filter_invalid
-        df = filter(row -> all(x -> !(x isa Number && (isnan(x) || isinf(x))), row), df)
-    end
-
-    return df
-end
-
-"""
-    IMAS.digest(dirs::AbstractVector{<:AbstractString}; extract::Dict{Symbol,Function}, filter_invalid::Bool=true)::DataFrames.DataFrame
-
-Digest dd from JSON/HDF files in multiple directores and return results in DataFrame format
-"""
-function IMAS.digest(dirs::AbstractVector{<:AbstractString}; extract::Dict{Symbol,Function}=Dict{Symbol,Function}(), filter_invalid::Bool=true)::DataFrames.DataFrame
-    all_extract = Dict{Symbol,Function}(
-        :digest => (dd, ini, act) -> IMAS.digest(dd.summary),
-    )
-    merge!(all_extract, extract)
-    return load(dirs, all_extract; filter_invalid)
 end
