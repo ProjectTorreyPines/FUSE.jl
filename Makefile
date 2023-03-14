@@ -350,6 +350,9 @@ manifest_ci_commit:
 	git push -f --set-upstream origin manifest
 endif
 
+manifest:
+	git merge origin/manifest
+
 # remove all Manifest.toml files
 rm_manifests:
 	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
