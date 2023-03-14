@@ -290,7 +290,6 @@ function costing_Sheffield(dd, par)
     sys = resize!(cost_fuel.system, "name" => "blanket")
     sys.yearly_cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, lifetime, neutron_flux, blanket_fluence_lifetime)
     total_fuel_cost += sys.yearly_cost
-    @show par.initial_cost_blanket
 
     sys = resize!(cost_fuel.system, "name" => "divertor")
     sys.yearly_cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, lifetime, thermal_flux, divertor_fluence_lifetime)
