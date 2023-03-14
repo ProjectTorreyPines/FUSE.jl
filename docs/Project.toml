@@ -1,0 +1,10 @@
+[deps]
+AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+FUSE = "e64856f0-3bb8-4376-b4b7-c03396503992"
+IMAS = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
+IMASDD = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
+InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+SimulationParameters = "32ab26d3-25d6-405d-a295-367385e16093"
