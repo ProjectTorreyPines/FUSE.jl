@@ -3,7 +3,7 @@
 
 ----------
 
-## Watch the [video recording of this tutorial](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/FUSE_tutorial_1_6Jul22.mp4)
+## Watch the [video recording of this tutorial](https://github.com/ProjectTorreyPines/FUSE_large_files/raw/master/FUSE_tutorial_1_6Jul22.mp4)
 
 ----------
 
