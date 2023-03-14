@@ -95,13 +95,15 @@ branch: .PHONY
 
 # Install FUSE via HTTPS and $PTP_READ_TOKEN
 https_add: PKG_ADD_DEVELOP = add
+https_add: PKG_ACTIVATE = "."
 https_dev: PKG_ADD_DEVELOP = develop
+https_dev: PKG_ACTIVATE = ""
 https_add https_dev:
 	julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
-Pkg.activate(".");\
+Pkg.activate($(PKG_ACTIVATE));\
 dependencies = Pkg.PackageSpec[];\
 for package in fuse_packages;\
 	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
