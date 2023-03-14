@@ -50,7 +50,7 @@ function _step(actor::ActorPowerNeeds)
     sys.power = zeros(length(bop.time))
     for (idx, hcd_system) in enumerate(intersect([:nbi, :ec_launchers, :ic_antennas, :lh_antennas], keys(dd)))
         sub_sys = resize!(sys.subsystem, "name" => string(hcd_system), "index" => idx)
-        sub_sys.power = electricity(getproperty(dd, hcd_system), bop.time)
+        sub_sys.power = electricity(getproperty(dd, hcd_system))
         sys.power .+= sub_sys.power
     end
 
@@ -68,7 +68,7 @@ function _step(actor::ActorPowerNeeds)
                 idx += 1
             end
             sys = resize!(bop_electric.system, "name" => string(system), "index" => (idx + 1))
-            sys.power = electricity(system, bop.time)
+            sys.power = electricity(system)
         end
 
         sys = resize!(bop_electric.system, "name" => "pumping", "index" => 5)
@@ -79,45 +79,40 @@ function _step(actor::ActorPowerNeeds)
         bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active] # index 2 : 5
         for (idx, system) in enumerate(bop_systems)
             sys = resize!(bop_electric.system, "name" => string(system), "index" => (idx + 1))
-            sys.power = electricity(system, bop.time)
+            sys.power = electricity(system)
         end
-    else
-        error("ActorPowerNeeds: par.model = $(par.model) not recognized")
     end
-
-    bop.power_electric_net = (bop_thermal.power_electric_generated - sys.power) .* ones(length(bop.time))
-    bop.Q_plant = (bop.power_electric_net ./ bop_electric.total_power)
-
     return actor
 end
 
-function heating_and_current_drive_calc(system_unit, time_array::Vector{<:Real})
-    power_electric_total = zeros(length(time_array))
+function heating_and_current_drive_calc(system_unit)
+    power_electric_total = 0.0
     for item_unit in system_unit
         efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
-        power_electric_total .+= IMAS.get_time_array(item_unit.power_launched, :data, time_array, :constant) ./ efficiency
+        @show item_unit.power_launched
+        power_electric_total += item_unit.power_launched / efficiency
     end
     return power_electric_total
 end
 
-function electricity(nbi::IMAS.nbi, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(nbi.unit, time_array)
+function electricity(nbi::IMAS.nbi)
+    return heating_and_current_drive_calc(nbi.unit)
 end
 
-function electricity(ec_launchers::IMAS.ec_launchers, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(ec_launchers.beam, time_array)
+function electricity(ec_launchers::IMAS.ec_launchers)
+    return heating_and_current_drive_calc(ec_launchers.beam)
 end
 
-function electricity(ic_antennas::IMAS.ic_antennas, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(ic_antennas.antenna, time_array)
+function electricity(ic_antennas::IMAS.ic_antennas)
+    return heating_and_current_drive_calc(ic_antennas.antenna)
 end
 
-function electricity(lh_antennas::IMAS.lh_antennas, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(lh_antennas.antenna, time_array)
+function electricity(lh_antennas::IMAS.lh_antennas)
+    return heating_and_current_drive_calc(lh_antennas.antenna)
 end
 
-function electricity(symbol::Symbol, time_array::Vector{<:Real})
-    return electricity(Val{symbol}, time_array)
+function electricity(symbol::Symbol)
+    return electricity(Val{symbol})
 end
 
 #= =================== =#
@@ -125,26 +120,26 @@ end
 #= =================== =#
 
 # Dummy functions values taken from DEMO 2017  https://iopscience.iop.org/article/10.1088/0029-5515/57/1/016011
-function electricity(::Type{Val{:cryostat}}, time_array::Vector{<:Real})
-    return 30e6 .* ones(length(time_array)) # MWe
+function electricity(::Type{Val{:cryostat}})
+    return 30e6 # We
 end
 
-function electricity(::Type{Val{:tritium_handling}}, time_array::Vector{<:Real})
-    return 15e6 .* ones(length(time_array)) # MWe
+function electricity(::Type{Val{:tritium_handling}})
+    return 15e6# We
 end
 
-function electricity(::Type{Val{:pumping}}, time_array::Vector{<:Real})
-    return 80e6 .* ones(length(time_array)) # MWe    (Note this should not be a constant!)
+function electricity(::Type{Val{:pumping}})
+    return 80e6 # We    (Note this should not be a constant!)
 end
 
-function electricity(::Type{Val{:pf_active}}, time_array::Vector{<:Real})
-    return 0e6 .* ones(length(time_array)) # MWe    (Note this should not be a constant!)
+function electricity(::Type{Val{:pf_active}})
+    return 0.0 # We    (Note this should not be a constant!)
 end
 
 #= =================== =#
 #  FUSE electricity     #
 #= =================== =#
 
-function electricity(::Type{Val{:pumping}}, bop::IMAS.balance_of_plant, time_array::Vector{<:Real})
-    return bop.heat_transfer.breeder.circulator_power .+ bop.divertor.breeder.circulator_power .+ bop.heat_transfer.wall.circulator_power
+function electricity(::Type{Val{:pumping}}, bop::IMAS.balance_of_plant)
+    return @ddtime(bop.heat_transfer.breeder.circulator_power) + @ddtime(bop.divertor.breeder.circulator_power) + @ddtime(bop.heat_transfer.wall.circulator_power)
 end
