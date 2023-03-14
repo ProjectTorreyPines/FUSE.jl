@@ -1,4 +1,3 @@
-using InteractiveUtils: subtypes
 import ForwardDiff
 import Distributed
 import ClusterManagers
@@ -141,24 +140,6 @@ end
 
 function to_enum(smbl::T where {T<:Enum})
     return smbl
-end
-
-"""
-    concretetypes(type::Type)
-
-List concrete subtypes of a given datatype
-"""
-function concretetypes(type::Type)
-    concretetypes!(Any[], type)
-end
-
-function concretetypes!(out, type::Type)
-    if !isabstracttype(type)
-        push!(out, type)
-    else
-        foreach(T -> concretetypes!(out, T), subtypes(type))
-    end
-    out
 end
 
 # ==== #

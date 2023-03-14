@@ -47,7 +47,7 @@ jobs:
           arch: ${{ matrix.arch }}
           show-versioninfo: true
       - uses: julia-actions/cache@v1
-      - run: make install_ci
+      - run: make install_ci_add
       - uses: julia-actions/julia-buildpkg@v1
       #============
       - uses: julia-actions/julia-runtest@v1

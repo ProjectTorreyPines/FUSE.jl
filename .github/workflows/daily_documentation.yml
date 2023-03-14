@@ -48,7 +48,7 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - run: make install_ci
+      - run: make install_ci_dev
       - uses: julia-actions/julia-buildpkg@v1
       #============
       - run: make blank_examples

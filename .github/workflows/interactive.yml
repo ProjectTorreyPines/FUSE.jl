@@ -35,7 +35,7 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - run: make install_ci
+      - run: make install_ci_add
       - uses: julia-actions/julia-buildpkg@v1
       #============
       - name: Interactive with tmate
