@@ -9,9 +9,9 @@ end
 Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:FUSE)
-    #construction_start_date::
-    #construction_lead_time::
+    model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
+    construction_start_year::Entry{T} = Entry(T, "-", "Year that plant construction begins"; default=2030)
+    construction_lead_time::Entry{T} = Entry(T, "years", "Duration of construction"; default=8)
     #dd.costing.generation::Switch(Symbol, [:prototype, :1stofkind, :nthofkind])
     #future_inflation_rate::
     land_space::Entry{T} = Entry(T, "acres", "Plant site space required in acres"; default=1000.0)

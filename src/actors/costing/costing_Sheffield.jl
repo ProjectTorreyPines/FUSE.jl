@@ -5,6 +5,10 @@ function cost_direct_capital_Sheffield(item::Symbol, args...; kw...)
     return cost_direct_capital_Sheffield(Val{item}, args...; kw...)
 end
 
+function cost_fuel_Sheffield(item::Symbol, args...; kw...)
+    return cost_fuel_Sheffield(Val{item}, args...; kw...)
+end
+
 function cost_operations_Sheffield(item::Symbol, args...; kw...)
     return cost_operations_Sheffield(Val{item}, args...; kw...)
 end
@@ -125,19 +129,19 @@ end
 
 
 #= ====================== =#
-#  yearly operations cost  #
+#      yearly fuel cost    #
 #= ====================== =#
 
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
-function cost_operations_Sheffield(::Type{Val{:blanket}}, fixed_charge_rate::Real, initial_cost_blanket::Real, availability::Real, lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real)
+function cost_fuel_Sheffield(::Type{Val{:blanket}}, fixed_charge_rate::Real, initial_cost_blanket::Real, availability::Real, lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real)
     blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
-    blanket_replacement_cost = (availability * lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket / lifetime #blanket fluence lifetime in MW*yr/m^2
+    blanket_replacement_cost = ((availability * lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / lifetime #blanket fluence lifetime in MW*yr/m^2
     return 1.1 * (blanket_capital_cost + blanket_replacement_cost)
     # return today_dollars(cost)
 end
 
 #Equation 24
-function cost_operations_Sheffield(::Type{Val{:divertor}}, fixed_charge_rate::Real, initial_cost_divertor::Real, availability::Real, lifetime::Real, thermal_flux::Real, divertor_fluence_lifetime::Real)
+function cost_fuel_Sheffield(::Type{Val{:divertor}}, fixed_charge_rate::Real, initial_cost_divertor::Real, availability::Real, lifetime::Real, thermal_flux::Real, divertor_fluence_lifetime::Real)
     divertor_capital_cost = 1.1 * initial_cost_divertor * fixed_charge_rate
     divertor_replacement_cost = (availability * lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / lifetime #divertor_lifetime is fluence lifetime so in MW*yr/m^2
     cost = 1.1 * (divertor_capital_cost + divertor_replacement_cost)
@@ -146,15 +150,24 @@ function cost_operations_Sheffield(::Type{Val{:divertor}}, fixed_charge_rate::Re
 end
 
 #Table III
-function cost_operations_Sheffield(::Type{Val{:aux_power}}, ec_power::Real, ic_power::Real, lh_power::Real, nbi_power::Real)
+function cost_fuel_Sheffield(::Type{Val{:aux_power}}, ec_power::Real, ic_power::Real, lh_power::Real, nbi_power::Real)
     return 0.1 * cost_direct_capital_Sheffield(Val{:aux_power}, ec_power, ic_power, lh_power, nbi_power)
     #return today_dollars(cost)
 end
 
-function cost_operations_Sheffield(::Type{Val{:fuel}}, fixed_charge_rate::Real)
+function cost_fuel_Sheffield(::Type{Val{:misc_fuel}}, fixed_charge_rate::Real)
     cost = 24 * fixed_charge_rate + 0.4 # $M/yr # 24*FCR for misc. replacements plus 0.4 M$ for fuel costs (in 1983 dollars)
     return cost
     #return today_dollars(cost)
+end
+
+#= ====================== =#
+#  yearly operations cost  #
+#= ====================== =#
+
+function cost_operations_maintenance_Sheffield(power_electric_net)
+    power_electric_net = power_electric_net / 1e6 
+    return 7.7 * (1200/power_electric_net)^0.5
 end
 
 #= =================== =#
@@ -169,6 +182,7 @@ end
 function costing_Sheffield(dd, par)
     cst = dd.costing
     cost_direct = cst.cost_direct_capital
+    cost_fuel = cst.cost_fuel
     cost_ops = cst.cost_operations
     cost_decom = cst.cost_decommissioning
 
@@ -181,6 +195,7 @@ function costing_Sheffield(dd, par)
     initial_cost_blanket = par.initial_cost_blanket
     divertor_fluence_lifetime = par.divertor_fluence_lifetime
     blanket_fluence_lifetime = par.blanket_fluence_lifetime
+    construction_lead_time = par.construction_lead_time
 
     thermal_flux = 1 # placeholder value for thermal flux on the divertor 
 
@@ -212,7 +227,10 @@ function costing_Sheffield(dd, par)
         end
     end
 
-    neutron_flux = sqrt((@ddtime(dd.neutronics.time_slice[].wall_loading.flux_r))^2 + (@ddtime(dd.neutronics.time_slice[].wall_loading.flux_z))^2) / 1e6  
+    flux_r = dd.neutronics.time_slice[].wall_loading.flux_r
+    flux_z = dd.neutronics.time_slice[].wall_loading.flux_z
+    neutron_flux = sum(sqrt.(flux_r.^2 .+ flux_z.^2) / 1e6)/length(flux_r)  
+
 
     if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
         @warn("The plant doesn't generate net electricity therefore costing excludes heat transfer and balance of plant estimates")
@@ -221,62 +239,91 @@ function costing_Sheffield(dd, par)
         power_electric_generated = 0.0
     else
         power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) 
-        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.power_thermal_convertable_total)
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
+        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.net_work)
+
     end
 
     ###### Direct Capital ######
-
+    total_direct_capital_cost = 0
     ##### fusion island
     sys = resize!(cost_direct.system, "name" => "fusion island")
 
     #main heat transfer system 
     sub = resize!(sys.subsystem, "name" => "main heat transfer system")
     sub.cost = cost_direct_capital_Sheffield(:main_heat_transfer_system, power_thermal) 
+    total_direct_capital_cost += sub.cost
 
     #primary coils 
     sub = resize!(sys.subsystem, "name" => "primary coils")
     sub.cost = cost_direct_capital_Sheffield(:primary_coils, bd)
+    total_direct_capital_cost += sub.cost
 
     #shielding gaps 
     sub = resize!(sys.subsystem, "name" => "shielding gaps")
     sub.cost = cost_direct_capital_Sheffield(:shielding_gaps, bd)
+    total_direct_capital_cost += sub.cost
 
     #structure 
     sub = resize!(sys.subsystem, "name" => "structure")
     sub.cost = cost_direct_capital_Sheffield(:structure, bd)
+    total_direct_capital_cost += sub.cost
 
     #aux power 
     sub = resize!(sys.subsystem, "name" => "aux power")
     sub.cost = cost_direct_capital_Sheffield(:aux_power, ec_power, ic_power, lh_power, nbi_power)
-
+    total_direct_capital_cost += sub.cost
 
     ##### balance of plant
     sys = resize!(cost_direct.system, "name" => "balance of plant")
     sys.cost = cost_direct_capital_Sheffield(:balance_of_plant, power_electric_net, power_thermal)
+    total_direct_capital_cost += sub.cost
 
     ##### buildings 
     sys = resize!(cost_direct.system, "name" => "buildings")
     sys.cost = cost_direct_capital_Sheffield(:buildings, bd)
+    total_direct_capital_cost += sub.cost
 
+    ###### Fuel ######
+    total_fuel_cost = 0
 
-    ###### Operations ######
+    sys = resize!(cost_fuel.system, "name" => "blanket")
+    sys.yearly_cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, lifetime, neutron_flux, blanket_fluence_lifetime)
+    total_fuel_cost += sys.yearly_cost
+    @show par.initial_cost_blanket
 
-    sys = resize!(cost_ops.system, "name" => "blanket")
-    sys.yearly_cost = cost_operations_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, lifetime, neutron_flux, blanket_fluence_lifetime)
+    sys = resize!(cost_fuel.system, "name" => "divertor")
+    sys.yearly_cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, lifetime, thermal_flux, divertor_fluence_lifetime)
+    total_fuel_cost += sys.yearly_cost
 
-    sys = resize!(cost_ops.system, "name" => "divertor")
-    sys.yearly_cost = cost_operations_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, lifetime, thermal_flux, divertor_fluence_lifetime)
+    sys = resize!(cost_fuel.system, "name" => "aux power")
+    sys.yearly_cost = cost_fuel_Sheffield(:aux_power, ec_power, ic_power, lh_power, nbi_power)
+    total_fuel_cost += sys.yearly_cost 
 
-    sys = resize!(cost_ops.system, "name" => "aux power")
-    sys.yearly_cost = cost_operations_Sheffield(:aux_power, ec_power, ic_power, lh_power, nbi_power)
+    sys = resize!(cost_fuel.system, "name" => "misc. fuel")
+    sys.yearly_cost = cost_fuel_Sheffield(:misc_fuel, fixed_charge_rate)
+    total_fuel_cost += sys.yearly_cost
 
-    sys = resize!(cost_ops.system, "name" => "fuel")
-    sys.yearly_cost = cost_operations_Sheffield(:fuel, fixed_charge_rate)
-
+    ###### Operations & Maintenance #####
+    sys = resize!(cost_ops.system, "name" => "operations and maintenance")
+    sys.yearly_cost = cost_operations_maintenance_Sheffield(power_electric_net)
+    
     ###### Decomissioning ######
-
     sys = resize!(cost_decom.system, "name" => "decommissioning")
     sys.cost = cost_decomissioning_Sheffield(power_electric_net)
+
+    ###### Levelized Cost Of Electricity  ######
+    function indirect_charges(construction_lead_time)
+      return 1 + (0.5*construction_lead_time/8)
+    end
+
+    function capitalization_factor(construction_lead_time)
+      return 1.011^(construction_lead_time + 0.61)
+    end     
+
+    total_capital_cost = total_direct_capital_cost * capitalization_factor(construction_lead_time) * indirect_charges(construction_lead_time)
+
+    levelized_CoE = 1e3*(total_capital_cost * fixed_charge_rate + total_fuel_cost + cost_operations_maintenance_Sheffield(power_electric_net)) / (power_electric_net*1e-6 * 8760 * availability) + 0.5e-3
+    dd.costing.levelized_CoE = levelized_CoE
 
 end
