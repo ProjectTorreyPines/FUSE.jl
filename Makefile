@@ -93,9 +93,11 @@ Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots"]);\
 branch: .PHONY
 	@ $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo "\t `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
-# install FUSE for non-development purposes
-install_add:
-	@julia -e ';\
+# Install FUSE via HTTPS and $PTP_READ_TOKEN
+https_add: PKG_ADD_DEVELOP = add
+https_dev: PKG_ADD_DEVELOP = develop
+https_add https_dev:
+	julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
@@ -104,7 +106,7 @@ dependencies = Pkg.PackageSpec[];\
 for package in fuse_packages;\
 	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
-Pkg.add(dependencies);\
+Pkg.$(PKG_ADD_DEVELOP)(dependencies);\
 '
 
 # install FUSE without using the registry
@@ -114,7 +116,8 @@ install_no_registry: forward_compatibility clone_update_all develop special_depe
 install_via_registry: forward_compatibility registry develop special_dependencies
 
 # install used by CI (add packages, do not dev them)
-install_ci: install_add special_dependencies
+install_ci_add: https_add special_dependencies
+install_ci_dev: https_dev special_dependencies
 
 # set default install method
 install: install_no_registry
