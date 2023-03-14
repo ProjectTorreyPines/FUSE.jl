@@ -279,7 +279,7 @@ cleanup:
 
 # generate documentation
 html:
-	cd docs; julia make.jl
+	cd docs; julia -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'; julia make.jl
 
 # push documentation to the web
 web_push:
