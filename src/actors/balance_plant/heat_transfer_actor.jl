@@ -156,7 +156,7 @@ function pbLi_props(Temperature)
     return [specific_heat, density]
 end
 
-function gas_circulator(rp, Tin, effC, mflow, nstages = 1)
+function gas_circulator(rp, Tin, effC, mflow, nstages=1)
     cp = 5.1926e3
     cv = 3.1156e3
     a1c = (effC * (rp^(1.0 / nstages))^(cv / cp) - (rp^(1.0 / nstages))^(cv / cp) + rp^(1.0 / nstages)) / (effC * (rp^(1.0 / nstages))^(cv / cp))

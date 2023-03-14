@@ -47,7 +47,7 @@ end
 function ActorThermalCycle(dd::IMAS.dd, par::FUSEparameters__ActorThermalCycle, act::ParametersAllActors; kw...)
     logging_actor_init(ActorThermalCycle)
     par = par(kw...)
-    return ActorThermalCycle(dd, par,act.ActorHeatTransfer)
+    return ActorThermalCycle(dd, par, act.ActorHeatTransfer)
 end
 
 function _step(actor::ActorThermalCycle)
