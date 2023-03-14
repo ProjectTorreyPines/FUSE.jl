@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
+    generator_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
 
@@ -41,9 +41,9 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
 
     breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(act.ActorThermalCycle.power_cycle_type)
 
-    IHTS_actor = ActorHeatTransfer(dd, act; breeder_hi_temp, breeder_low_temp)
-    thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=3.0)
-    power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
+    IHTS_actor = ActorHeatTransfer(dd, act.ActorHeatTransfer, act; breeder_hi_temp, breeder_low_temp)
+    thermal_cycle_actor = ActorThermalCycle(dd, act.ActorThermalCycle, act; Tmax=cycle_tmax, rp=3.0)
+    power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act)
     return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor, power_needs_actor)
 end
 
@@ -64,10 +64,14 @@ function _step(actor::ActorBalanceOfPlant)
     bop = dd.balance_of_plant
 
     bop_thermal = bop.thermal_cycle
-    bop_thermal.thermal_electric_conversion_efficiency = par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
-    bop_thermal.power_electric_generated = bop_thermal.net_work .* par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
-
+    @ddtime(bop_thermal.generator_conversion_efficiency = par.generator_conversion_efficiency)
     @ddtime(bop_thermal.total_useful_heat_power = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered))
+
+    #
+    asdf 
+    finalize(step(acttor.IHTS_actor))
+    #
+    finalize(step(acttor.thermal_cycle_actor))
 
     ## balance of plant needs
     finalize(step(actor.power_needs_actor))

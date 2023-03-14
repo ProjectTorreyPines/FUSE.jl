@@ -3,16 +3,6 @@
 #= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
 
-mutable struct ActorHeatTransfer <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    function ActorHeatTransfer(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging_actor_init(ActorHeatTransfer)
-        par = par(kw...)
-        return new(dd, par)
-    end
-end
-
 const coolant_fluid = [:He, :PbLi]
 
 Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersActor where {T<:Real}
@@ -40,6 +30,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersAct
     divertor_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
 end
 
+mutable struct ActorHeatTransfer <: FacilityAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorHeatTransfer
+end
+
 """
     ActorHeatTransfer(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
@@ -52,6 +47,12 @@ function ActorHeatTransfer(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorHeatTransfer(dd::IMAS.dd, par::FUSEparameters__ActorHeatTransfer, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorHeatTransfer)
+    par = par(kw...)
+    return ActorHeatTransfer(dd, par)
 end
 
 function _step(actor::ActorHeatTransfer)

@@ -6,16 +6,6 @@
 #       SIMPLE rankine
 #       COMBINED BRAYTON RANKINE
 #= =================== =#
-mutable struct ActorThermalCycle <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    act::ParametersAllActors
-    function ActorThermalCycle(dd::IMAS.dd, par::ParametersActor, act; kw...)
-        logging_actor_init(ActorThermalCycle)
-        par = par(kw...)
-        return new(dd, par, act)
-    end
-end
 
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
@@ -29,6 +19,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersAct
     Nc::Entry{Int} = Entry(Int, "-", "Number of compression stages"; default=3)
     regen::Entry{T} = Entry(T, "-", "Regeneration fraction")
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+end
+
+mutable struct ActorThermalCycle <: FacilityAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorThermalCycle
 end
 
 """
@@ -46,6 +41,12 @@ function ActorThermalCycle(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorThermalCycle(dd::IMAS.dd, par::FUSEparameters__ActorThermalCycle, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorThermalCycle)
+    par = par(kw...)
+    return ActorThermalCycle(dd, par)
 end
 
 function _step(actor::ActorThermalCycle)
