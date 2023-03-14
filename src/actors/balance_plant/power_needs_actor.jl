@@ -50,7 +50,7 @@ function _step(actor::ActorPowerNeeds)
     sys.power = zeros(length(bop.time))
     for (idx, hcd_system) in enumerate(intersect([:nbi, :ec_launchers, :ic_antennas, :lh_antennas], keys(dd)))
         sub_sys = resize!(sys.subsystem, "name" => string(hcd_system), "index" => idx)
-        sub_sys.power = electricity(getproperty(dd, hcd_system))
+        @ddtime(sub_sys.power = electricity(getproperty(dd, hcd_system)))
         sys.power .+= sub_sys.power
     end
 
@@ -68,11 +68,11 @@ function _step(actor::ActorPowerNeeds)
                 idx += 1
             end
             sys = resize!(bop_electric.system, "name" => string(system), "index" => (idx + 1))
-            sys.power = electricity(system)
+            @ddtime(sys.power = electricity(system))
         end
 
         sys = resize!(bop_electric.system, "name" => "pumping", "index" => 5)
-        sys.power = electricity(:electricity, dd.balance_of_plant)
+        @ddtime(sys.power = electricity(:pumping, dd.balance_of_plant))
 
     elseif par.model == :EU_DEMO
         # More realistic DEMO numbers
@@ -89,8 +89,7 @@ function heating_and_current_drive_calc(system_unit)
     power_electric_total = 0.0
     for item_unit in system_unit
         efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
-        @show item_unit.power_launched
-        power_electric_total += item_unit.power_launched / efficiency
+        power_electric_total += @ddtime(item_unit.power_launched.data) / efficiency
     end
     return power_electric_total
 end
@@ -141,5 +140,9 @@ end
 #= =================== =#
 
 function electricity(::Type{Val{:pumping}}, bop::IMAS.balance_of_plant)
-    return @ddtime(bop.heat_transfer.breeder.circulator_power) + @ddtime(bop.divertor.breeder.circulator_power) + @ddtime(bop.heat_transfer.wall.circulator_power)
+    return @ddtime(bop.heat_transfer.breeder.circulator_power) + @ddtime(bop.heat_transfer.divertor.circulator_power) + @ddtime(bop.heat_transfer.wall.circulator_power)
+end
+
+function electricity(symbol::Symbol, bop::IMAS.balance_of_plant)
+    return electricity(Val{symbol}, bop)
 end

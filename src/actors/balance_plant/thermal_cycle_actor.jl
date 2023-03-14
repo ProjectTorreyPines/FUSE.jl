@@ -24,6 +24,7 @@ end
 mutable struct ActorThermalCycle <: FacilityAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorThermalCycle
+    par_ActorHeatTransfer::FUSEparameters__ActorHeatTransfer
 end
 
 """
@@ -46,13 +47,12 @@ end
 function ActorThermalCycle(dd::IMAS.dd, par::FUSEparameters__ActorThermalCycle, act::ParametersAllActors; kw...)
     logging_actor_init(ActorThermalCycle)
     par = par(kw...)
-    return ActorThermalCycle(dd, par)
+    return ActorThermalCycle(dd, par,act.ActorHeatTransfer)
 end
 
 function _step(actor::ActorThermalCycle)
     dd = actor.dd
     par = actor.par
-    act = actor.act
     bop = dd.balance_of_plant
     ihts = bop.heat_transfer
     wall = ihts.wall
@@ -62,7 +62,7 @@ function _step(actor::ActorThermalCycle)
     bop.power_cycle_type = string(par.power_cycle_type)
 
     bop_thermal = bop.thermal_cycle
-    ihts_par = act.ActorHeatTransfer
+    ihts_par = actor.par_ActorHeatTransfer
 
     blanket_power = @ddtime(bop.heat_transfer.wall.heat_load)
     breeder_power = @ddtime(bop.heat_transfer.breeder.heat_load)

@@ -65,15 +65,9 @@ function _step(actor::ActorBalanceOfPlant)
 
     bop_thermal = bop.thermal_cycle
     @ddtime(bop_thermal.generator_conversion_efficiency = par.generator_conversion_efficiency)
-    @ddtime(bop_thermal.total_useful_heat_power = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered))
 
-    #
-    asdf 
-    finalize(step(acttor.IHTS_actor))
-    #
-    finalize(step(acttor.thermal_cycle_actor))
-
-    ## balance of plant needs
+    finalize(step(actor.IHTS_actor))
+    finalize(step(actor.thermal_cycle_actor))
     finalize(step(actor.power_needs_actor))
 
     if par.do_plot
