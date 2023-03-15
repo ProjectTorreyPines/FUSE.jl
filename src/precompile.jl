@@ -9,10 +9,13 @@ function warmup()
 end
 
 function warmup(dd::IMAS.dd)
-    ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
-    init(dd, ini, act)
-    ActorWholeFacility(dd, act)
-    IMAS.freeze(dd)
+    TimerOutputs.reset_timer!(to, "warmup")
+    return TimerOutputs.@timeit to "warmup" begin
+        ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
+        init(dd, ini, act)
+        ActorWholeFacility(dd, act)
+        return IMAS.freeze(dd)
+    end
 end
 
 if VERSION > v"1.8"

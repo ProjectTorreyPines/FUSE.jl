@@ -6,7 +6,7 @@ using IMAS
 import Plots
 using Plots
 using Printf
-using SnoopPrecompile
+import SnoopPrecompile
 
 #= ===== =#
 #  UTILS  #

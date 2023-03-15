@@ -8,16 +8,22 @@ function logging_actor_init(typeof_actor::DataType, args...; kw...)
     logging(Logging.Debug, :actors, "$typeof_actor @ init")
 end
 
-function step(actor::AbstractActor, args...; kw...)
+function step(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Info, :actors, "$(typeof(actor)) @ step")
-    return _step(actor, args...; kw...)
+    TimerOutputs.@timeit to string(typeof(actor).name.name) begin
+        _step(actor, args...; kw...)::T
+    end
+    return actor
 end
 
 function _finalize(actor::AbstractActor)
-    actor
+    return actor
 end
 
-function finalize(actor::AbstractActor, args...; kw...)
+function finalize(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Debug, :actors, "$(typeof(actor)) @finalize")
-    return _finalize(actor, args...; kw...)
+    TimerOutputs.@timeit to string(typeof(actor).name.name) begin
+        _finalize(actor, args...; kw...)::T
+    end
+    return actor
 end

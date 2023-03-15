@@ -77,6 +77,7 @@ function _step(actor::ActorPassiveStructures)
         add_pf_passive_loop(dd.pf_passive, dd.build.layer[end].name, r, z)
     end
 
+    return actor
 end
 
 function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, r::AbstractVector{T}, z::AbstractVector{T}) where {T<:Real}

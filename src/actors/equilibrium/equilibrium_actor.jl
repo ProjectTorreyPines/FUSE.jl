@@ -64,6 +64,7 @@ Runs through the selected equilibrium actor's step
 """
 function _step(actor::ActorEquilibrium)
     step(actor.eq_actor)
+    return actor
 end
 
 """
@@ -77,4 +78,5 @@ function _finalize(actor::ActorEquilibrium)
         IMAS.symmetrize_equilibrium!(actor.dd.equilibrium.time_slice[])
         IMAS.flux_surfaces(actor.dd.equilibrium.time_slice[])
     end
+    return actor
 end

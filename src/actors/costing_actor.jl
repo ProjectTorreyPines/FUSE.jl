@@ -465,4 +465,5 @@ function _finalize(actor::ActorCosting)
     for sys in actor.dd.costing.cost_direct_capital.system
         sort!(sys.subsystem, by=x -> x.cost, rev=true)
     end
+    return actor
 end
