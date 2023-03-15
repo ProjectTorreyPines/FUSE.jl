@@ -1,6 +1,5 @@
 import MXHEquilibrium
 import EFIT
-import ForwardDiff
 import Optim
 
 #= ============ =#
