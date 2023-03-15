@@ -6,6 +6,7 @@ using IMAS
 import Plots
 using Plots
 using Printf
+using SnoopPrecompile
 
 #= ===== =#
 #  UTILS  #
@@ -115,6 +116,11 @@ include("logging.jl")
 #  UTILS  #
 #= ===== =#
 include("utils_end.jl")
+
+#= ========== =#
+#  PRECOMPILE  #
+#= ========== =#
+include("precompile.jl")
 
 #= ====== =#
 #= EXPORT =#
