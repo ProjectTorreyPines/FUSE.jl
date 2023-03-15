@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersA
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     needs_model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Power plant electrical needs model"; default=:EU_DEMO)
-    thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
+    generator_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
 
@@ -67,8 +67,8 @@ function _step(actor::ActorBalanceOfPlant)
     bop = dd.balance_of_plant
 
     bop_thermal = bop.thermal_cycle
-    bop_thermal.thermal_electric_conversion_efficiency = par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
-    bop_thermal.power_electric_generated = bop_thermal.net_work .* par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
+    bop_thermal.generator_conversion_efficiency = par.generator_conversion_efficiency .* ones(length(bop.time))
+    bop_thermal.power_electric_generated = bop_thermal.net_work .* par.generator_conversion_efficiency .* ones(length(bop.time))
 
     @ddtime(bop_thermal.total_useful_heat_power = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered))
 
