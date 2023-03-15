@@ -156,23 +156,6 @@ function fuse()
 """
 end
 
-"""
-    warmup()
-
-Function used to precompile the majority of FUSE
-"""
-function warmup()
-    dd = IMAS.dd()
-    return warmup(dd)
-end
-
-function warmup(dd::IMAS.dd)
-    ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
-    init(dd, ini, act)
-    ActorWholeFacility(dd, act)
-    IMAS.freeze(dd)
-end
-
 # ======== #
 # parallel #
 # ======== #

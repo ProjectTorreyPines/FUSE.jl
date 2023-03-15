@@ -1,9 +1,24 @@
-if VERSION > v"1.8"
+"""
+    warmup()
 
-    @precompile_setup begin
-        @precompile_all_calls begin
+Function used to precompile the majority of FUSE
+"""
+function warmup()
+    dd = IMAS.dd()
+    return warmup(dd)
+end
+
+function warmup(dd::IMAS.dd)
+    ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
+    init(dd, ini, act)
+    ActorWholeFacility(dd, act)
+    IMAS.freeze(dd)
+end
+
+if VERSION > v"1.8"
+    SnoopPrecompile.@precompile_setup begin
+        SnoopPrecompile.@precompile_all_calls begin
             FUSE.warmup()
         end
     end
-
 end
