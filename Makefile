@@ -93,22 +93,37 @@ Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots"]);\
 branch: .PHONY
 	@ $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo "\t `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
-# Install FUSE via HTTPS and $PTP_READ_TOKEN
-https_add: PKG_ADD_DEVELOP = add
-https_add: PKG_ACTIVATE = "."
-https_dev: PKG_ADD_DEVELOP = develop
-https_dev: PKG_ACTIVATE = ""
-https_add https_dev:
+# Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
+https_add:
 	julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
-Pkg.activate($(PKG_ACTIVATE));\
+Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
 for package in fuse_packages;\
 	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
-Pkg.$(PKG_ADD_DEVELOP)(dependencies);\
+Pkg.add(dependencies);\
+'
+
+# Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
+https_dev:
+	mkdir -p ~/.julia/dev
+	ln -sf $(PWD) ~/.julia/dev/FUSE
+	julia -e ';\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate(".");\
+dependencies = Pkg.PackageSpec[];\
+for package in fuse_packages;\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+end;\
+Pkg.develop(dependencies);\
+Pkg.develop(fuse_packages);\
+Pkg.activate("./docs");\
+Pkg.develop(["FUSE"; fuse_packages]);\
 '
 
 # install FUSE without using the registry

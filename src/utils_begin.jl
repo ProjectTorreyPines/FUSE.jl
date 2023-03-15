@@ -176,7 +176,14 @@ end
 # ======== #
 # parallel #
 # ======== #
-function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0)
+"""
+    parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...) 
+
+Start multiprocessing environment
+
+kw arguments are passed to the Distributed.addprocs
+"""
+function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...)
     if cluster == "saga"
         if gethostname() == "saga.cluster"
             nodes = 4
@@ -186,7 +193,7 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
             end
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if nprocs() < np
-                addprocs(ClusterManagers.SlurmManager(np - nprocs()), exclusive="", topology=:master_worker, nodelist="saga02,saga03,saga04,saga05,saga06,saga07")
+                Distributed.addprocs(ClusterManagers.SlurmManager(np - nprocs()), exclusive="", topology=:master_worker, kw...)
             end
             println("Working with $(nprocs()) distributed processes on $(gethostname())")
         else
@@ -199,7 +206,7 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
             np = min(np, nprocs_max)
         end
         if nprocs() < np + 1
-            addprocs(np - nprocs() + 1, topology=:master_worker)
+            Distributed.addprocs(np - nprocs() + 1, topology=:master_worker)
         end
         println("Working with $(nprocs()-1) processes on $(gethostname())")
 
