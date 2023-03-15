@@ -110,18 +110,18 @@ Pkg.add(dependencies);\
 # Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
 https_dev:
 	julia -e ';\
-fuse_packages = ["FUSE"; $(FUSE_PACKAGES)];\
+fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
-Pkg.activate();\
+Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
-for package in fuse_packages;\
+for package in ["FUSE"; fuse_packages];\
 	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
 Pkg.develop(dependencies);\
 Pkg.develop(fuse_packages);\
 Pkg.activate("./docs");\
-Pkg.develop(fuse_packages);\
+Pkg.develop(["FUSE"; fuse_packages]);\
 '
 
 # install FUSE without using the registry
