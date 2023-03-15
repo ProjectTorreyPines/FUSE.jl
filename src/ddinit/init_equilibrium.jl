@@ -186,7 +186,7 @@ function field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real=0.5, 
     pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
     pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
     pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-    mxh = IMAS.MXH(pr, pz, 4)
+    mxh = IMAS.MXH(pr, pz, 3)
     mxh.ϵ *= scale
     eqb.boundary.outline.r, eqb.boundary.outline.z = mxh()
 

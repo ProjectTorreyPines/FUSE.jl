@@ -99,8 +99,6 @@ function _step(actor::ActorBalanceOfPlant)
         error("ActorBalanceOfPlant: par.needs_model = $(par.needs_model) not recognized")
     end
 
-    bop.power_electric_net = (bop_thermal.power_electric_generated - sys.power) .* ones(length(bop.time))
-    bop.Q_plant = (bop.power_electric_net ./ bop_electric.total_power)
 
     if par.do_plot
         core = sys_coords(dd)

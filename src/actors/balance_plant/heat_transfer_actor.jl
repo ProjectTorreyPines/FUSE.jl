@@ -32,7 +32,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersAct
     blanket_η_pump::Entry{T} = Entry(T, "-", "Wall pump effeciency"; default=0.89)
     blanket_max_temp::Entry{T} = Entry(T, "K", "Wall maximum coolant outlet temperature"; default=450 + 273.15)
     # ASSUMED 
-    radiation_factor::Entry{T} = Entry(T, "-", "Assumed factor of multiplication for the power absorbed by the wall"; default=2.5)
     breeder_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the breeder - cycle heat exchanger"; default=0.9)
     divertor_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the divertor - cycle heat exchanger"; default=0.9)
     blanket_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the wall - cycle heat exchanger"; default=0.9)
@@ -74,7 +73,7 @@ function _step(actor::ActorHeatTransfer)
     # breeder_heat_load   = (sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time)
     breeder_heat_load = abs.(sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module]))
     divertor_heat_load = abs.(sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor]))
-    blanket_heat_load = abs.(IMAS.radiation_losses(dd.core_sources) * par.radiation_factor)
+    blanket_heat_load = abs.(IMAS.radiation_losses(dd.core_sources))
 
     # @show divertor_heat_load
     # @show blanket_heat_load

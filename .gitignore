@@ -33,8 +33,8 @@ docs/src/act_details.md
 docs/src/dd_details.md
 docs/src/examples.md
 # Example pages
-docs/src/example_*.md
-docs/src/assets/*_files/*.svg
+#docs/src/example_*.md
+#docs/src/assets/*_files/*.svg
 
 # Ignore all juptyer notebooks (you can still force them in with git add -f)
 *.ipynb

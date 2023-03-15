@@ -1,4 +1,14 @@
-all:
+all: header branch
+
+help: header
+	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
+	@echo ' - make update       : git pull FUSE and its dependencies'
+	@echo ' - make IJulia       : Install IJulia'
+	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
+	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
+	@echo ''
+
+header:
 	@echo ''
 	@echo '  ███████╗██╗   ██╗███████╗███████╗'
 	@echo '  ██╔════╝██║   ██║██╔════╝██╔════╝'
@@ -6,12 +16,6 @@ all:
 	@echo '  ██╔══╝  ██║   ██║╚════██║██╔══╝  '
 	@echo '  ██║     ╚██████╔╝███████║███████╗'
 	@echo '  ╚═╝      ╚═════╝ ╚══════╝╚══════╝'
-	@echo ''
-	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update       : git pull FUSE and its dependencies'
-	@echo ' - make IJulia       : Install IJulia'
-	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
-	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
 	@echo ''
 
 # =========================
@@ -24,6 +28,7 @@ TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
 FUSE_PACKAGES_MAKEFILE := IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE TEQUILA NNeutronics SimulationParameters
+FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
 
@@ -42,7 +47,6 @@ DOCKER_PLATFORM := amd64
 #DOCKER_PLATFORM := arm64
 
 define clone_update_repo
-    @ echo " - $(1)"
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 endef
@@ -85,9 +89,13 @@ Pkg.develop(["FUSE"; fuse_packages]);\
 Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots"]);\
 '
 
-# install FUSE for non-development purposes
-install_add:
-	@julia -e ';\
+# list branches of all the ProjectTorreyPines packages used by FUSE
+branch: .PHONY
+	@ $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo "\t `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+
+# Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
+https_add:
+	julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
@@ -99,6 +107,25 @@ end;\
 Pkg.add(dependencies);\
 '
 
+# Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
+https_dev:
+	mkdir -p ~/.julia/dev
+	ln -sf $(PWD) ~/.julia/dev/FUSE
+	julia -e ';\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate(".");\
+dependencies = Pkg.PackageSpec[];\
+for package in fuse_packages;\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+end;\
+Pkg.develop(dependencies);\
+Pkg.develop(fuse_packages);\
+Pkg.activate("./docs");\
+Pkg.develop(["FUSE"; fuse_packages]);\
+'
+
 # install FUSE without using the registry
 install_no_registry: forward_compatibility clone_update_all develop special_dependencies
 
@@ -106,7 +133,8 @@ install_no_registry: forward_compatibility clone_update_all develop special_depe
 install_via_registry: forward_compatibility registry develop special_dependencies
 
 # install used by CI (add packages, do not dev them)
-install_ci: install_add special_dependencies
+install_ci_add: https_add special_dependencies
+install_ci_dev: https_dev special_dependencies
 
 # set default install method
 install: install_no_registry
@@ -137,7 +165,7 @@ end;\
 '
 
 # clone and update all FUSE packages
-clone_update_all:
+clone_update_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) FUSE $(FUSE_PACKAGES_MAKEFILE)
 
@@ -332,15 +360,18 @@ endif
 # commit manifest (this should only be run by the CI)
 ifdef GITHUB_ACTION
 manifest_ci_commit:
-	cp Manifest.toml Manifest_CI.toml
+	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)/git/g' Manifest.toml > Manifest_CI.toml
 	git checkout -b manifest
 	git add Manifest_CI.toml
 	git config user.email "fuse-bot@fusion.gat.com"
 	git config user.name "fuse bot"
 	git config push.autoSetupRemote true
 	git commit --allow-empty -m "Manifest $(TODAY)"
-	git push --set-upstream origin manifest
+	git push -f --set-upstream origin manifest
 endif
+
+manifest:
+	git merge origin/manifest
 
 # remove all Manifest.toml files
 rm_manifests:

@@ -56,7 +56,6 @@ function _step(actor::ActorThermalCycle)
     ihts = bop.heat_transfer
     wall = ihts.wall
     divertor = ihts.divertor
-    breeder = ihts.breeder
 
     bop = dd.balance_of_plant
     bop.power_cycle_type = string(par.power_cycle_type)
@@ -112,7 +111,6 @@ function _step(actor::ActorThermalCycle)
         @ddtime(wall.circulator_power = hxA.pump_work)
         @ddtime(wall.heat_delivered = hxA.HX_q)
         @ddtime(wall.heat_waste = abs(blanket_power + hxA.pump_work - hxA.HX_q))
-        # @show(hxA.Tout_cycle-273.15)
         hxB = ihts_heat_exchanger(ihts_par.divertor_η_pump, ihts_par.divertor_HX_ϵ, Niter, hxA.Tout_cycle, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, divertor_power, rp_divertor, cp_div, kcoeff_div)
 
         @ddtime(divertor.HX_outlet_temperature = hxB.Tmin)
@@ -148,7 +146,6 @@ function _step(actor::ActorThermalCycle)
         Tco = 0.0
         Tcyc_out = 0.0
         #iterating
-        # @show Tb_min-273.15
 
         Tci_regen_cycle = hxB.Tout_cycle
         ηt = 0.93
@@ -167,16 +164,8 @@ function _step(actor::ActorThermalCycle)
         for iter in 1:50
             post_turbine_guess = turbine_stages(par)
             Tco, Tho = regenHX(hxB.Tout_cycle, post_turbine_guess.T_out, 0.95)
-            # @show Tco-273.15
-            # @show post_turbine_guess.T_out-273.15
 
             qq, Tbreed_out, Tcyc_out = hxeff(Tb_max, mcp_breeder, Tco, mcp_cyc, ihts_par.breeder_HX_ϵ)
-
-            # if qq>(bpump+breeder_power)
-            #     @show qq
-            #     @show (bpump+breeder_power)
-            #     # display("THIS MESSAGE SHOULD NEVER SHOW UP")
-            # end
 
             par.Tmax = Tcyc_out
             Tb_after_hx = Tbreed_out
@@ -185,8 +174,6 @@ function _step(actor::ActorThermalCycle)
                 break
             end
 
-            # display("Required changes to breeder temperature")
-            # @show Tbreed_out
             Tb_min = Tb_after_hx + 5.0
             Tb_blanket_in = Tb_min + breeder_pump_ΔT
             ΔT_breeder_blanket = Tb_max - Tb_min
@@ -204,9 +191,6 @@ function _step(actor::ActorThermalCycle)
             @warn "ActorThermalCycle has not converged"
         end
 
-        # @show Tcyc_out
-        # @show Tb_max-273.15
-        # @show par.Tmax-273.15
         pt = turbine_stages(par)
         @ddtime(bop.thermal_cycle.turbine_work = mflow_cycle * pt.work)
         @ddtime(bop.heat_transfer.breeder.HX_outlet_temperature = Tb_after_hx)
@@ -217,8 +201,6 @@ function _step(actor::ActorThermalCycle)
         @ddtime(bop.heat_transfer.breeder.heat_waste = breeder_power + bpump - qq)
         @ddtime(bop.thermal_cycle.net_work = mflow_cycle * (pt.work - pc.work))
         @ddtime(bop_thermal.thermal_effeciency = mflow_cycle * (pt.work - pc.work) / (hxB.HX_q + hxA.HX_q + qq))
-        # @show pt.T_in
-        # @show par.Tmax
         return actor
 
     elseif bop.power_cycle_type == "brayton_only"
@@ -227,14 +209,11 @@ function _step(actor::ActorThermalCycle)
         cp_cycle = 5.1926e3
         totPower = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered)
         par.Tmax = totPower / (mflow_cycle * cp_cycle) + par.Tmin
-        # @show par.Tmax
         braytonOut = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr=0.9)
         @ddtime(bop_thermal.turbine_work = mflow_cycle .* braytonOut.w_out)
         @ddtime(bop_thermal.input_work = mflow_cycle .* braytonOut.w_in)
         @ddtime(bop_thermal.net_work = mflow_cycle .* (braytonOut.w_out - braytonOut.w_in))
         @ddtime(bop_thermal.thermal_effeciency = braytonOut.η_th)
-        # @show par.Tmax
-        # @show par.Tmin
         return actor
     else
         error("Power cycle type `$(bop.power_cycle_type)` not recognized")
