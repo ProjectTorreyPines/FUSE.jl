@@ -30,7 +30,8 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         act.ActorHFSsizing.fixed_aspect_ratio = true
-        ini.equilibrium.boundary_from = :ods
+        ini.equilibrium.boundary_from = :scalars
+        act.ActorEquilibrium.model = :CHEASE
     end
 
     ini.requirements.tritium_breeding_ratio = 1.1
