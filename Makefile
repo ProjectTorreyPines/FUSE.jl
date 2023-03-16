@@ -27,8 +27,11 @@ CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES_MAKEFILE := IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE TEQUILA NNeutronics SimulationParameters
+FUSE_PACKAGES_MAKEFILE_DIRECT := IMAS IMASDD FusionMaterials VacuumFields MXHEquilibrium TAUENN EPEDNN TGLFNN QED CHEASE TEQUILA NNeutronics SimulationParameters
+FUSE_PACKAGES_MAKEFILE_INDIRECT := CoordinateConventions FiniteElementHermite Fortran90Namelists MeshTools MillerExtendedHarmonic
+FUSE_PACKAGES_MAKEFILE := $(FUSE_PACKAGES_MAKEFILE_DIRECT) $(FUSE_PACKAGES_MAKEFILE_INDIRECT)
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
+FUSE_PACKAGES_DIRECT := $(shell echo '$(FUSE_PACKAGES_MAKEFILE_DIRECT)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
 
@@ -80,12 +83,13 @@ register:
 develop:
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
+fuse_packages_direct = $(FUSE_PACKAGES_DIRECT);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
-Pkg.develop(fuse_packages);\
+Pkg.develop(fuse_packages_direct);\
 Pkg.activate();\
-Pkg.develop(["FUSE"; fuse_packages]);\
+Pkg.develop([["WarmupFUSE", "FUSE"] ; fuse_packages]);\
 Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots"]);\
 '
 
@@ -113,6 +117,7 @@ https_dev:
 	ln -sf $(PWD) ~/.julia/dev/FUSE
 	julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
+fuse_packages_direct = $(FUSE_PACKAGES_DIRECT);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
@@ -121,9 +126,9 @@ for package in fuse_packages;\
 	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
 Pkg.develop(dependencies);\
-Pkg.develop(fuse_packages);\
+Pkg.develop(fuse_packages_direct);\
 Pkg.activate("./docs");\
-Pkg.develop(["FUSE"; fuse_packages]);\
+Pkg.develop(["FUSE"; fuse_packages_direct]);\
 '
 
 # install FUSE without using the registry
@@ -167,7 +172,10 @@ end;\
 # clone and update all FUSE packages
 clone_update_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) FUSE $(FUSE_PACKAGES_MAKEFILE)
+	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
+
+WarmupFUSE:
+	$(call clone_update_repo,$@)
 
 FUSE:
 	$(call clone_update_repo,$@)
@@ -225,25 +233,6 @@ NNeutronics:
 
 SimulationParameters:
 	$(call clone_update_repo,$@)
-
-# create a FUSE Julia sysimage
-sysimage:
-	julia -e '\
-using Pkg;\
-Pkg.add("PackageCompiler");\
-Pkg.add("IJulia");\
-import PackageCompiler;\
-Pkg.activate(".");\
-using FUSE;\
-PackageCompiler.create_sysimage(["FUSE"], sysimage_path="FUSEsysimage.so");\
-'
-
-# install the sysimage in IJulia
-sysimage_ijulia:
-	julia -e '\
-import IJulia;\
-IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
-'
 
 # Install IJulia
 IJulia:
