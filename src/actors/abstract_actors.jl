@@ -10,7 +10,9 @@ end
 
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Info, :actors, "$(typeof(actor)) @ step")
-    TimerOutputs.@timeit to string(typeof(actor).name.name) begin
+    timer_name = replace(string(typeof(actor).name.name),r"^Actor" => "")
+    TimerOutputs.reset_timer!(to, timer_name)
+    TimerOutputs.@timeit to timer_name begin
         _step(actor, args...; kw...)::T
     end
     return actor
@@ -22,8 +24,6 @@ end
 
 function finalize(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Debug, :actors, "$(typeof(actor)) @finalize")
-    TimerOutputs.@timeit to string(typeof(actor).name.name) begin
-        _finalize(actor, args...; kw...)::T
-    end
+    _finalize(actor, args...; kw...)::T
     return actor
 end

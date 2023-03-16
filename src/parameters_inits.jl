@@ -1,5 +1,6 @@
 using FusionMaterials: FusionMaterials
 import OrderedCollections
+import SimulationParameters: SwitchOption
 
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
@@ -77,15 +78,24 @@ Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where 
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
 
+tf_shape_options = OrderedCollections.OrderedDict{Symbol,SwitchOption}(
+    :princeton_D_exact => SwitchOption(_princeton_D_exact_, "princeton_D_exact"),
+    :princeton_D => SwitchOption(_princeton_D_, "princeton_D_"),
+    :princeton_D_scaled => SwitchOption(_princeton_D_scaled_, "princeton_D_scaled"),
+    :rectangle => SwitchOption(_rectangle_, "rectangle"),
+    :double_ellipse => SwitchOption(_double_ellipse_, "double_ellipse"),
+    :triple_arc => SwitchOption(_triple_arc_, "triple_arc"),
+    :miller => SwitchOption(_miller_, "miller"),
+    :spline => SwitchOption(_spline_, "spline"))
+
 Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
     n_coils::Entry{Int} = Entry(Int, "-", "Number of TF coils")
-    shape::Switch{Symbol} = Switch(Symbol, [:princeton_D_exact, :princeton_D, :princeton_D_scaled, :rectangle, :double_ellipse, :triple_arc, :miller, :spline], "-", "Shape of the TF coils"; default=:princeton_D_scaled)
+    shape::Switch{BuildLayerShape} = Switch(BuildLayerShape, tf_shape_options, "-", "Shape of the TF coils"; default=:princeton_D_scaled)
     ripple::Entry{T} = Entry(T, "-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
-
 
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
