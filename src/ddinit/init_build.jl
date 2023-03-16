@@ -117,7 +117,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
     # set the TF shape
     tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
     dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
-    dd.build.layer[tf_to_plasma[2]].shape = Int(to_enum(ini.tf.shape))
+    dd.build.layer[tf_to_plasma[2]].shape = Int(ini.tf.shape)
     # set all other shapes
     for k in tf_to_plasma[2:end]
         dd.build.layer[k+1].shape = Int(_convex_hull_)

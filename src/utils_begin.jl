@@ -139,21 +139,6 @@ end
     end
 end
 
-# ===== #
-# types #
-# ===== #
-"""
-    returns enum from symbol
-"""
-function to_enum(smbl::Symbol)::Enum
-    smbl = Symbol("_$(smbl)_")
-    return @eval($smbl)
-end
-
-function to_enum(smbl::T where {T<:Enum})
-    return smbl
-end
-
 # ==== #
 # fuse #
 # ==== #
