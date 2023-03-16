@@ -136,14 +136,14 @@ end
         actor::ActorSolovev;
         rlims::NTuple{2,<:Real}=(maximum([actor.S.S.R0 * (1 - actor.S.S.ϵ * 2), 0.0]), actor.S.S.R0 * (1 + actor.S.S.ϵ * 2)),
         zlims::NTuple{2,<:Real}=(-actor.S.S.R0 * actor.S.S.ϵ * actor.S.S.κ 1.7, actor.S.S.R0 * actor.S.S.ϵ * actor.S.S.κ * 1.7)
-    )::IMAS.equilibrium__time_slice
+    )
 
 Store ActorSolovev data in IMAS.equilibrium format
 """
 function _finalize(
     actor::ActorSolovev;
     rlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0.3)[1],
-    zlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0.3)[2])::IMAS.equilibrium__time_slice
+    zlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0.3)[2])
 
     ngrid = actor.par.ngrid
     tc = MXHEquilibrium.transform_cocos(3, 11)
@@ -205,7 +205,7 @@ function _finalize(
         eqt.profiles_1d.area .*= actor.par.area / eqt.profiles_1d.area[end]
     end
 
-    return eqt
+    return actor
 end
 
 """

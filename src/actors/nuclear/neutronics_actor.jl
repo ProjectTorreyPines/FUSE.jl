@@ -300,5 +300,5 @@ function _step(actor::ActorNeutronics)
         display(p)
     end
 
-    return
+    return actor
 end

@@ -70,6 +70,8 @@ function _step(actor::ActorDivertors)
             div.power_radiated.data .+
             div.power_recombination_neutrals.data)
     end
+
+    return actor
 end
 
 """

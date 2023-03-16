@@ -27,7 +27,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     end
 
     if init_from == :ods
-        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbetap_fpp_325_ods.json")
+        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         act.ActorHFSsizing.fixed_aspect_ratio = true
         ini.equilibrium.boundary_from = :ods

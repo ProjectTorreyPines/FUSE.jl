@@ -2,21 +2,23 @@
 # extract data from FUSE save folder(s) #
 # ===================================== #
 """
-    extract(dir::AbstractString, xtract::AbstractDict{Symbol,T}=IMAS.ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,IMAS.ExtractFunction}}
+    IMAS.extract(dir::AbstractString, xtract::Vector{IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
 
 Read dd.json/h5 in a folder and extract data from it.
 """
-function IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,T}=IMAS.ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,IMAS.ExtractFunction}}
+function IMAS.extract(dir::AbstractString, xtract::Vector{IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
     dd, ini, act = load(dir; load_ini=false, load_act=false)
     return extract(dd, xtract)
 end
 
 """
-    extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,T}=IMAS.ExtractFunctionsLibrary; filter_invalid::Bool=false)::DataFrames.DataFrame where {T<:Union{Function,IMAS.ExtractFunction}}
+    IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Vector{IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
 
-Extract data from multiple folders or `dd`s and returns results in DataFrame format
+Extract data from multiple folders or `dd`s and return results in DataFrame format.
+
+Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, or both with `:all`
 """
-function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,T}=IMAS.ExtractFunctionsLibrary; filter_invalid::Bool=false)::DataFrames.DataFrame where {T<:Union{Function,IMAS.ExtractFunction}}
+function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Vector{IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
     # allocate memory
     df = DataFrames.DataFrame(extract(DD[1], xtract))
     for k in 2:length(DD)
@@ -26,21 +28,44 @@ function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Abstr
     # load the data
     p = ProgressMeter.Progress(length(DD); showspeed=true)
     Threads.@threads for k in eachindex(DD)
-        df[k, :] = extract(DD[k], xtract)
+        df[k, :] = Dict(extract(DD[k], xtract))
         ProgressMeter.next!(p)
     end
 
     # filter
-    if filter_invalid
+    if filter_invalid ∈ [:cols, :all]
         # drop columns that have all NaNs
         visnan(x::Vector) = isnan.(x)
         df = df[:, .!all.(visnan.(eachcol(df)))]
-
+    end
+    if filter_invalid ∈ [:rows, :all]
         # drop rows that have any NaNs
         df = filter(row -> all(x -> !(x isa Number && (isnan(x) || isinf(x))), row), df)
     end
 
     return df
+end
+
+"""
+    DataFrames.DataFrame(xtract::Vector{IMAS.ExtractFunction})
+
+Construct a DataFrame from a vector of IMAS.ExtractFunction
+"""
+function DataFrames.DataFrame(xtract::Vector{IMAS.ExtractFunction})
+    return DataFrames.DataFrame(Dict(xtract))
+end
+
+"""
+    Dict(xtract::Vector{IMAS.ExtractFunction})
+
+Construct a Dictionary from a vector of IMAS.ExtractFunction
+"""
+function Dict(xtract::Vector{IMAS.ExtractFunction})
+    tmp = Dict()
+    for xfun in xtract
+        tmp[xfun.name] = xfun.value
+    end
+    return tmp
 end
 
 # ==================== #
