@@ -52,6 +52,9 @@ optimization_runs*/
 # environment.
 Manifest.toml
 
+# Allow users to override preferences with their own settings
+LocalPreferences.toml
+
 # editors
 /.vscode/*
 .ipynb_checkpoints
