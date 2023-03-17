@@ -162,3 +162,24 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
     end
     return dd, ini, act
 end
+
+"""
+    digest(dd::IMAS.dd)
+
+Provides concise and informative summary of `dd`, including several plots.
+"""
+function digest(dd::IMAS.dd)
+    #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
+
+    IMAS.print_tiled(extract(dd))
+
+    p = plot(dd.equilibrium, legend=false)
+    plot!(p[1], dd.build, legend=false)
+    display(plot!(p[1], dd.pf_active, legend=false, colorbar=false))
+
+    display(plot(dd.core_profiles))
+
+    display(plot(dd.core_sources))
+
+    return nothing
+end
