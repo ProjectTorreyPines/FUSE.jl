@@ -646,25 +646,16 @@ end
     end
 end
 
-function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
-    RX = mr[i] .* α .+ R0 .* (1.0 .- α)
-    ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
-    R = T[r for (r, z) in RZ]
-    Z = T[z for (r, z) in RZ]
-    return RX, ZX, R, Z
-end
-
 """
     add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::Union{Nothing,T}, Z0::T; upper::Bool) where {T<:Real}
 
-Add a X-point to a boundary that does not have one
+Add a X-point to a boundary that does not have one.
 
 The X-point is added at the point where there is the largest curvature in the boundary,
 and is built in such a way to form 90° angle (which is what it should be for zero current at the LCFS).
 The X-point is placed on a line that goes from (R0,Z0) through the point of maximum curvature.
 
-Control of the X-point location can be achieved by modifying R0, Z0
+Control of the X-point location can be achieved by modifying R0, Z0.
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
@@ -694,6 +685,15 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
     RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, res.minimizer[1])
 
+    return RX, ZX, R, Z
+end
+
+function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
+    RX = mr[i] .* α .+ R0 .* (1.0 .- α)
+    ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
+    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
+    R = T[r for (r, z) in RZ]
+    Z = T[z for (r, z) in RZ]
     return RX, ZX, R, Z
 end
 
