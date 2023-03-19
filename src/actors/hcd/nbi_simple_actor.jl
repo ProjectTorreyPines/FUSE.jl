@@ -66,7 +66,7 @@ function _step(actor::ActorNBIsimple)
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source_index = IMAS.name_2_index(cs.source)[:nbi]
-        source = resize!(cs.source, "identifier.index" => source_index)
+        source = resize!(cs.source, "identifier.index" => source_index; allow_multiple_matches=true)
         gaussian_source(
             source,
             nbu.name,
