@@ -39,14 +39,22 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
             pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
             pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-            if ini.equilibrium.boundary_from == :scalars
+            if ini.equilibrium.boundary_from == :MXH_params
                 mxh = IMAS.MXH(pr, pz, 2)
-                mxh.c0 = 0.0
-                mxh.c[1:2] .= 0.0
-            else
-                mxh = IMAS.MXH(pr, pz, 4)
+            elseif boundary_from == :scalars
+                mxh = IMAS.MXH(
+                    ini.equilibrium.R0,
+                    ini.equilibrium.Z0,
+                    ini.equilibrium.ϵ,
+                    ini.equilibrium.κ,
+                    0.0,
+                    [0.0, 0.0],
+                    [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
             end
-            ini.equilibrium.xpoints_number = 0 # to use the x-points from ODS
+            if ismissing(ini.equilibrium, :xpoints_number)
+                # if number of x-points is not set explicitly, get it from the ODS
+                ini.equilibrium.xpoints_number = length(eqt.boundary.x_point)
+            end
 
         else
             eqt = resize!(dd.equilibrium.time_slice)
@@ -96,10 +104,19 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
         @ddtime dd.equilibrium.vacuum_toroidal_field.b0 = ini.equilibrium.B0
 
-        # initial guesses for pressure and j_tor
-        psin = eqt.profiles_1d.psi = LinRange(0, 1, 129)
-        eqt.profiles_1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
-        eqt.profiles_1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
+        # pressure and j_tor to be used by equilibrium solver
+        if init_from == :ods
+            # take p and j from ods
+            eqt1 = dd1.equilibrium.time_slice[]
+            eqt.profiles_1d.psi = eqt1.profiles_1d.psi
+            eqt.profiles_1d.j_tor = eqt1.profiles_1d.j_tor
+            eqt.profiles_1d.pressure = eqt1.profiles_1d.pressure
+        else
+            # guesses for pressure and j_tor
+            psin = eqt.profiles_1d.psi = LinRange(0, 1, 129)
+            eqt.profiles_1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
+            eqt.profiles_1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
+        end
 
         # solve equilibrium
         act_copy = deepcopy(act)

@@ -2,23 +2,23 @@
 # extract data from FUSE save folder(s) #
 # ===================================== #
 """
-    IMAS.extract(dir::AbstractString, xtract::Vector{IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
+    IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
 
 Read dd.json/h5 in a folder and extract data from it.
 """
-function IMAS.extract(dir::AbstractString, xtract::Vector{IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
+function IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
     dd, ini, act = load(dir; load_ini=false, load_act=false)
     return extract(dd, xtract)
 end
 
 """
-    IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Vector{IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+    IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
 
 Extract data from multiple folders or `dd`s and return results in DataFrame format.
 
 Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, or both with `:all`
 """
-function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Vector{IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
     # allocate memory
     df = DataFrames.DataFrame(extract(DD[1], xtract))
     for k in 2:length(DD)
@@ -47,22 +47,22 @@ function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Vecto
 end
 
 """
-    DataFrames.DataFrame(xtract::Vector{IMAS.ExtractFunction})
+    DataFrames.DataFrame(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
 
-Construct a DataFrame from a vector of IMAS.ExtractFunction
+Construct a DataFrame from a dictionary of IMAS.ExtractFunction
 """
-function DataFrames.DataFrame(xtract::Vector{IMAS.ExtractFunction})
+function DataFrames.DataFrame(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
     return DataFrames.DataFrame(Dict(xtract))
 end
 
 """
-    Dict(xtract::Vector{IMAS.ExtractFunction})
+    Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
 
-Construct a Dictionary from a vector of IMAS.ExtractFunction
+Construct a Dictionary with the evaluated values of a dictionary of IMAS.ExtractFunction
 """
-function Dict(xtract::Vector{IMAS.ExtractFunction})
+function Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
     tmp = Dict()
-    for xfun in xtract
+    for xfun in values(xtract)
         tmp[xfun.name] = xfun.value
     end
     return tmp
@@ -161,4 +161,30 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
         act = json2act(joinpath(savedir, "act.json"))
     end
     return dd, ini, act
+end
+
+"""
+    digest(dd::IMAS.dd)
+
+Provides concise and informative summary of `dd`, including several plots.
+"""
+function digest(dd::IMAS.dd)
+    #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
+
+    IMAS.print_tiled(extract(dd))
+
+    p = plot(dd.equilibrium, legend=false)
+    if !isempty(dd.build.layer)
+        plot!(p[1], dd.build, legend=false)
+    end
+    if !isempty(dd.pf_active.coil)
+        plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+    end
+    display(p)
+
+    display(plot(dd.core_profiles))
+
+    display(plot(dd.core_sources))
+
+    return nothing
 end

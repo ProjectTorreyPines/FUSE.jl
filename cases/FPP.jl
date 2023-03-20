@@ -31,6 +31,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         act.ActorHFSsizing.fixed_aspect_ratio = true
         ini.equilibrium.boundary_from = :scalars
+        ini.equilibrium.xpoints_number = 2
         act.ActorEquilibrium.model = :CHEASE
     end
 
@@ -44,11 +45,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
 
     ini.pf_active.n_oh_coils = 6
     ini.pf_active.n_pf_coils_inside = 0
-    if init_from == :ods
-        ini.pf_active.n_pf_coils_outside = 8
-    else
-        ini.pf_active.n_pf_coils_outside = 5
-    end
+    ini.pf_active.n_pf_coils_outside = 5
 
     ini.material.shield = "Tungsten"
     ini.material.blanket = "lithium-lead"

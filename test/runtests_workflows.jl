@@ -1,55 +1,38 @@
 using FUSE
 using Test
 
-@testset "init" begin
-
-    @testset "ITER_ods" begin
-        dd, ini, act = FUSE.init(:ITER; init_from=:ods)
-    end
-
-    @testset "ITER_scalars" begin
-        dd, ini, act = FUSE.init(:ITER; init_from=:scalars)
-    end
-
-    @testset "D3D" begin
-        dd, ini, act = FUSE.init(:D3D)
-    end
-
-    @testset "FPP_v1_demount_scalars" begin
-        dd, ini, act = FUSE.init(:FPP; version=:v1_demount, init_from=:scalars)
-    end
-
-    @testset "FPP_v1_demount_ods" begin
-        dd, ini, act = FUSE.init(:FPP; version=:v1_demount, init_from=:ods)
-    end
-
-    @testset "FPP_v1_ods" begin
-        dd, ini, act = FUSE.init(:FPP; version=:v1, init_from=:ods)
-    end
-
-    @testset "FPP_v1_scalars" begin
-        dd, ini, act = FUSE.init(:FPP; version=:v1, init_from=:scalars)
-    end
-
-    @testset "CAT" begin
-        dd, ini, act = FUSE.init(:CAT)
-    end
-
-    @testset "HDB5" begin
-        dd, ini, act = FUSE.init(:HDB5; tokamak=:JET, case=500)
-    end
-
-    @testset "ARC" begin
-        dd, ini, act = FUSE.init(:ARC)
-    end
-
-    @testset "SPARC" begin
-        dd, ini, act = FUSE.init(:SPARC)
+@testset "warmup" begin
+    for round in [1, 2]
+        FUSE.warmup()
     end
 end
 
-@testset "warmup" begin
-    FUSE.warmup()
+@testset "init" begin
+    tests = Dict()
+    tests["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
+    tests["ITER_scalars"] = ([:ITER], Dict(:init_from => :scalars))
+    tests["D3D"] = ([:D3D], Dict())
+    tests["FPP_v1_demount_scalars"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :scalars))
+    tests["FPP_v1_demount_ods"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :ods))
+    tests["FPP_v1_ods"] = ([:FPP], Dict(:version => :v1, :init_from => :ods))
+    tests["FPP_v1_scalars"] = ([:FPP], Dict(:version => :v1, :init_from => :scalars))
+    tests["CAT"] = ([:CAT], Dict())
+    tests["HDB5"] = ([:HDB5], Dict(:tokamak => :JET, :case => 500))
+    tests["ARG"] = ([:ARC], Dict())
+    tests["SPARC"] = ([:SPARC], Dict())
+
+    for (testname, (args, kw)) in tests
+        @testset "$testname" begin
+            FUSE.TimerOutputs.reset_timer!(FUSE.to, testname)
+            FUSE.TimerOutputs.@timeit FUSE.to "$testname" begin
+                ini, act = FUSE.case_parameters(args...; kw...)
+                if occursin("ods", testname)
+                    act.ActorEquilibrium.model = :Solovev
+                end
+                FUSE.init(ini, act)
+            end
+        end
+    end
 end
 
 @testset "optimization" begin
