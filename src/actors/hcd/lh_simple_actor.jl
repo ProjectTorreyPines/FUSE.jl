@@ -12,9 +12,12 @@ end
 mutable struct ActorLHsimple <: HCDAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorLHsimple
-    width::AbstractVector{<:Real}
-    rho_0::AbstractVector{<:Real}
-    current_efficiency::AbstractVector{<:Real}
+
+    function ActorLHsimple(dd::IMAS.dd, par::FUSEparameters__ActorLHsimple; kw...)
+        logging_actor_init(ActorLHsimple)
+        par = par(kw...)
+        return ActorLHsimple(dd, par)
+    end
 end
 
 """
@@ -22,8 +25,8 @@ end
 
 Estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
 
-!!! note 
-    Stores data in `dd.lh_antennas, dd.core_sources`
+!!! note
+    Reads data in `dd.lh_antennas` and stores data in `dd.core_sources`
 """
 function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorLHsimple(kw...)
@@ -33,19 +36,17 @@ function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorLHsimple(dd::IMAS.dd, par::FUSEparameters__ActorLHsimple; kw...)
-    logging_actor_init(ActorLHsimple)
-    par = par(kw...)
+function _step(actor::ActorLHsimple)
+    dd = actor.dd
+    par = actor.par
+
     n_antennas = length(dd.lh_antennas.antenna)
     _, width, rho_0, current_efficiency = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.current_efficiency)
-    return ActorLHsimple(dd, par, width, rho_0, current_efficiency)
-end
 
-function _step(actor::ActorLHsimple)
-    for (idx, lha) in enumerate(actor.dd.lh_antennas.antenna)
-        eqt = actor.dd.equilibrium.time_slice[]
-        cp1d = actor.dd.core_profiles.profiles_1d[]
-        cs = actor.dd.core_sources
+    for (idx, lha) in enumerate(dd.lh_antennas.antenna)
+        eqt = dd.equilibrium.time_slice[]
+        cp1d = dd.core_profiles.profiles_1d[]
+        cs = dd.core_sources
 
         power_launched = @ddtime(lha.power_launched.data)
 
@@ -56,7 +57,7 @@ function _step(actor::ActorLHsimple)
         ion_electron_fraction_cp = zeros(length(rho_cp))
 
         ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
-        j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        j_parallel = current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source_index = IMAS.name_2_index(cs.source)[:lh]
@@ -70,8 +71,8 @@ function _step(actor::ActorLHsimple)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            actor.rho_0[idx],
-            actor.width[idx],
+            rho_0[idx],
+            width[idx],
             1.0;
             j_parallel=j_parallel
         )
