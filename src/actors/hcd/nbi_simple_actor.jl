@@ -16,7 +16,7 @@ mutable struct ActorNBIsimple <: HCDAbstractActor
     function ActorNBIsimple(dd::IMAS.dd, par::FUSEparameters__ActorNBIsimple; kw...)
         logging_actor_init(ActorNBIsimple)
         par = par(kw...)
-        return ActorNBIsimple(dd, par)
+        return new(dd, par)
     end    
 end
 

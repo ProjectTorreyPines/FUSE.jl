@@ -16,7 +16,7 @@ mutable struct ActorECsimple <: HCDAbstractActor
     function ActorECsimple(dd::IMAS.dd, par::FUSEparameters__ActorECsimple; kw...)
         logging_actor_init(ActorECsimple)
         par = par(kw...)
-        return ActorECsimple(dd, par)
+        return new(dd, par)
     end
 end
 

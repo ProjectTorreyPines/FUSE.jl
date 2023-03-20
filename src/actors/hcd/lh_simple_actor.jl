@@ -16,7 +16,7 @@ mutable struct ActorLHsimple <: HCDAbstractActor
     function ActorLHsimple(dd::IMAS.dd, par::FUSEparameters__ActorLHsimple; kw...)
         logging_actor_init(ActorLHsimple)
         par = par(kw...)
-        return ActorLHsimple(dd, par)
+        return new(dd, par)
     end
 end
 
