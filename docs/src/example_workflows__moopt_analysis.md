@@ -22,7 +22,7 @@ extract = Dict(
     :beta_n => (dd, ini, act) -> dd.equilibrium.time_slice[].global_quantities.beta_normal,
     :Te0 => (dd, ini, act) -> dd.core_profiles.profiles_1d[].electrons.temperature[1],
     :levelized_CoE => (dd, ini, act) -> dd.costing.levelized_CoE,
-    :Pfusion => (dd, ini, act) -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6,
+    :Pfusion => (dd, ini, act) -> IMAS.fusion_power(dd.core_profiles) / 1E6,
     :Pelectric => (dd, ini, act) -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6,
     :log10_flattop => (dd, ini, act) -> log10(dd.build.oh.flattop_duration / 3600.0)
 )

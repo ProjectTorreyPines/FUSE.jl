@@ -288,7 +288,7 @@ function _step(actor::ActorNeutronics)
     ntt.wall_loading.power = sqrt.(nflux_r .^ 2.0 .+ nflux_z .^ 2.0) .* wall_s
 
     # renormalize to ensure perfect power match
-    norm = (IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4 ./ 5) / sum(ntt.wall_loading.power)
+    norm = (IMAS.fusion_power(dd.core_profiles) .* 4 ./ 5) / sum(ntt.wall_loading.power)
     ntt.wall_loading.flux_r .*= norm
     ntt.wall_loading.flux_z .*= norm
     ntt.wall_loading.power .*= norm

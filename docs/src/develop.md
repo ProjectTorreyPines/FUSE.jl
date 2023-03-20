@@ -20,6 +20,55 @@ The FUSE project is built upon different Julia packages. Several of these are ma
 !!! note
     The `dd` data structure is defined as a Julia `struct`. Like all `struct` re-definitions, changes to the `dd` data structure will requires your Julia interpreters to be restarted to pick-up the updates.
 
+## How to write IMAS physics functions
+
+IMAS physics functions are structured in IMAS.jl under IMAS/src/physics
+All of these functions use and or modify the datastructure (dd) in some way and are used to calculate certain quantities or fill the data structure.
+
+Let's say we want to create a function that calculates the DT fusion and then fill in the core_sources dd with the alpha heating from that source. 
+
+Here is an example of writing it in a good way:
+
+```julia
+function DT_fusion_source!(dd::IMAS.dd)
+    return DT_fusion_source!(dd.core_sources, dd.core_profiles)
+end
+
+"""
+    DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
+
+Calculates DT fusion heating with an estimation of the alpha slowing down to the ions and electrons, modifies dd.core_sources
+"""
+function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
+    cp1d = cp.profiles_1d[]
+
+    polarized_fuel_fraction = getproperty(cp.global_quantities, :polarized_fuel_fraction, 0.0)
+    α = alpha_heating(cp1d; polarized_fuel_fraction)
+    if sum(α) == 0
+        deleteat!(cs.source, "identifier.index" => 6)
+        return cs
+    end
+    ion_to_electron_fraction = sivukhin_fraction(cp1d, 3.5e6, 4.0)
+
+    index = name_2_index(cs.source)[:fusion]
+    source = resize!(cs.source, "identifier.index" => index; allow_multiple_matches=true)
+    new_source(
+        source,
+        index,
+        "α",
+        cp1d.grid.rho_tor_norm,
+        cp1d.grid.volume;
+        electrons_energy=α .* (1.0 .- ion_to_electron_fraction),
+        total_ion_energy=α .* ion_to_electron_fraction
+    )
+    return source
+end
+```
+
+!!! note
+    The documentation string is added to the specialized function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles) and the dispatch function DT_fusion_source!(dd::IMAS.dd) is added on top of the function
+
+
 ## How to add/modify entries in `ini` and `act`
 
 The functinoality of the `ini` and `act` parameters is implemented in the [SimulationParameters.jl](https://github.com/ProjectTorreyPines/SimulationParameters.jl) package.
