@@ -6,7 +6,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor w
     _name::Symbol = :not_set
     width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.1)
     rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
-    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.125)
 end
 
 mutable struct ActorICsimple <: HCDAbstractActor
@@ -25,6 +24,8 @@ end
 
 Estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
 
+NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
+
 !!! note
     Reads data in `dd.ic_antennas` and stores data in `dd.core_sources`
 """
@@ -41,7 +42,7 @@ function _step(actor::ActorICsimple)
     par = actor.par
 
     n_antennas = length(dd.ic_antennas.antenna)
-    _, width, rho_0, current_efficiency = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.current_efficiency)
+    _, width, rho_0 = same_length_vectors(1:n_antennas, par.width, par.rho_0)
 
     for (idx, ica) in enumerate(dd.ic_antennas.antenna)
         eqt = dd.equilibrium.time_slice[]
@@ -57,8 +58,14 @@ function _step(actor::ActorICsimple)
         # for FPP cases 80% to ions is reasonable (especially using minority heating)
         ion_electron_fraction_cp = fill(0.8, length(rho_cp))
 
-        ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
-        j_parallel = current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        R0 = eqt.boundary.geometric_axis.r
+        ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
+        TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
+        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx]) / 1E3
+        beta_tor = eqt.global_quantities.beta_tor
+
+        eta = TekeV * 0.063 / (2.0 + zeff) / (1.0 + 0.5 * beta_tor)
+        j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source_index = IMAS.name_2_index(cs.source)[:ic]
