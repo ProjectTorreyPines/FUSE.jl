@@ -62,9 +62,6 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
     # Changing Zeff from 1.1 to 2.0 will improve confinement significantly due to the pedestal increase!
     ini.core_profiles.zeff = 2.0
 
-    # Lowering EC power reduces recirculating power
-    ini.ec_launchers.power_launched = 20e6
-
     # greenwald_fraction is a powerful knob
     ini.core_profiles.greenwald_fraction = 0.9
 
