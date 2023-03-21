@@ -153,12 +153,12 @@ end
    ```julia
    include("make.jl")
    ```
-   !!! note Interactive documentation build
+   !!! tip Interactive documentation build
        One can call `include("make.jl")` over and over within the same Julia session to avoid dealing with startup time.
 
 1. Check page by opening `FUSE/docs/build/index.html` page in web-browser.
 
-1. To publish online in the `FUSE` folder:
+1. To publish online, run in the `FUSE` folder:
    ```bash
    make web
    ```
@@ -166,8 +166,12 @@ end
 ## Tips and more
 
 ### Revise.jl
-Use [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
-We recommend adding `import Revise` to your `~/.julia/config/startup.jl`.
+Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
+We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions.
+All this can be done by running in the `FUSE` folder:
+   ```bash
+   make revise
+   ```
 
 ### Development in VSCode
 
@@ -206,4 +210,4 @@ To format Julia you will need to install `Julia Language Support` under the exte
     Then select the `Julia tracecompile` in jupyter-lab
 
 !!! note
-    When pushing a jupyter notebook make sure that the output is cleared 
+    When pushing changes in a jupyter notebook, make sure that all the output cells are cleared 
