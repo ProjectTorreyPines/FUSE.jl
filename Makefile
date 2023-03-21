@@ -85,6 +85,8 @@ println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
+Pkg.activate("./docs");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
 Pkg.activate();\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
 Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
