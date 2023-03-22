@@ -1,7 +1,38 @@
-function today_dollars(dollars::Real, year::Integer, generation::Symbol, costing::IMAS.costing)
-    # table of inflation from dawn of time till doday + dd.costing.future_inflation_rate for extrapolation
-    return dollars
+using CSV
+using DataFrames
+
+function today_dollars(dollars::Real, year::Integer) #, generation::Symbol, costing::IMAS.costing)
+    csv_loc = abspath(joinpath(@__DIR__, "../../../../IMAS/data/CPI.csv"))
+    CPI = DataFrame(CSV.File(csv_loc))
+    if 1913 <= year <= 2022
+        index = CPI.Year .== year 
+        CPI_past_year = CPI[index, "Year Avg"][1]
+        print(CPI_past_year)
+
+        val_today = 299.71 ./ CPI_past_year .* dollars
+    else 
+        @warn "Inflation data not available for $year"
+        val_today = dollars
+    end 
+    
+    return val_today
 end 
+
+function future_dollars(inflate_to_start_year::Bool, construction_start_year::Real, future_inflation_rate::Real, dollars::Real)
+    if inflate_to_start_year == true
+        year = construction_start_year
+        if construction_start_year < 2023
+            @warn "inflate_to_start_year = true requires that construction_start_year is in the future. Costs will be returned in 2023 dollars."
+            year = 2023
+        end
+    else 
+        year = 2023
+    end
+
+    n_years = year - 2023
+    future_val = dollars * ((1 + future_inflation_rate)^n_years)
+    return future_val
+end
 
 #= ============ =#
 #  ActorCosting  #
@@ -12,8 +43,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
     model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{T} = Entry(T, "-", "Year that plant construction begins"; default=2030)
     construction_lead_time::Entry{T} = Entry(T, "years", "Duration of construction"; default=8)
+    inflate_to_start_year::Entry{Bool} = Entry(Bool, "-", "Return costs in dollars inflated to year that construction begins"; default = false)
+
     #dd.costing.generation::Switch(Symbol, [:prototype, :1stofkind, :nthofkind])
-    #future_inflation_rate::
+    future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
     land_space::Entry{T} = Entry(T, "acres", "Plant site space required in acres"; default=1000.0)
     building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default=140.0e3)
     interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default=0.05)
