@@ -164,14 +164,14 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
 end
 
 """
-    digest(dd::IMAS.dd)
+    digest(dd::IMAS.dd; terminal_width::Int=140)
 
 Provides concise and informative summary of `dd`, including several plots.
 """
-function digest(dd::IMAS.dd)
+function digest(dd::IMAS.dd; terminal_width::Int=140)
     #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
 
-    IMAS.print_tiled(extract(dd))
+    IMAS.print_tiled(extract(dd); terminal_width)
 
     p = plot(dd.equilibrium, legend=false)
     if !isempty(dd.build.layer)
