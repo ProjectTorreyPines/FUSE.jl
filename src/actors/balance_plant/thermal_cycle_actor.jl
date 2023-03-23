@@ -10,7 +10,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only) #:combined_series, :combined_parallel
+    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :complex_brayton], "-", "Power cycle configuration"; default=:complex_brayton)
     rp::Entry{T} = Entry(T, "-", "Overall compression ratio"; default=3.0)
     Pmax::Entry{T} = Entry(T, "-", "Max system pressure (MPa)"; default=8e6)
     Tmax::Entry{T} = Entry(T, "-", "Max cycle temperature K"; default=950.0 + 273.15)
@@ -69,13 +69,13 @@ function _step(actor::ActorThermalCycle)
 
     if ismissing(par, :regen)
         ϵr = 0.0
-        if bop.power_cycle_type ∈ ["brayton_only", "combined_parallel"]
+        if bop.power_cycle_type ∈ ["brayton_only"]
             ϵr = 0.9
         end
     else
         ϵr = par.regen
     end
-    @assert (ϵr == 0 || (ϵr >= 0.0 && ϵr <= 1.0 && bop.power_cycle_type ∈ ["brayton_only", "combined_parallel"])) "Regeneration between 0.0 and 1.0 is only possible for `:brayton_only` or `:combined_parallel` cycles"
+    @assert (ϵr == 0 || (ϵr >= 0.0 && ϵr <= 1.0 && bop.power_cycle_type ∈ ["brayton_only"])) "Regeneration between 0.0 and 1.0 is only possible for `:brayton_only` cycles"
 
     mflow_cycle = @ddtime(bop.thermal_cycle.flow_rate)
 
@@ -204,12 +204,12 @@ function _step(actor::ActorThermalCycle)
         return actor
 
     elseif bop.power_cycle_type == "brayton_only"
-        braytonT = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr=0.9)
-        newTo = evalBrayton(braytonT, ihts_par, dd)
+        braytonT = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr)
+        evalBrayton(braytonT, ihts_par, dd)
         cp_cycle = 5.1926e3
         totPower = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered)
         par.Tmax = totPower / (mflow_cycle * cp_cycle) + par.Tmin
-        braytonOut = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr=0.9)
+        braytonOut = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr)
         @ddtime(bop_thermal.turbine_work = mflow_cycle .* braytonOut.w_out)
         @ddtime(bop_thermal.input_work = mflow_cycle .* braytonOut.w_in)
         @ddtime(bop_thermal.net_work = mflow_cycle .* (braytonOut.w_out - braytonOut.w_in))
