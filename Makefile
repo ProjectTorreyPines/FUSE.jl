@@ -244,6 +244,10 @@ SimulationParameters:
 
 PlasmaFacingSurfaces:
 	$(call clone_update_repo,$@)
+
+FusionGeometryTools:
+	$(call clone_update_repo,$@)
+
 # Install IJulia
 IJulia:
 	julia -e '\
