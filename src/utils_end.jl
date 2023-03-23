@@ -189,14 +189,24 @@ function digest(dd::IMAS.dd; terminal_width::Int=136)
     # core sources
     display(plot(dd.core_sources))
 
+    # neutron wall loading
+    if !isempty(dd.neutronics.time_slice)
+        display(plot(dd.neutronics.time_slice[].wall_loading))
+    end
+
     # center stack stresses
     if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh)
         display(plot(dd.solid_mechanics.center_stack.stress))
     end
 
-    # neutron wall loading
-    if !isempty(dd.neutronics.time_slice)
-        display(plot(dd.neutronics.time_slice[].wall_loading, x_lim=[0,Inf]))
+    # # balance of plant
+    # if !missing(dd.balance_of_plant, :Q_plant)
+    #     display(plot(dd.balance_of_plant))
+    # end
+
+    # costing
+    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0)
+        display(plot(dd.costing.cost_direct_capital))
     end
 
     return nothing
