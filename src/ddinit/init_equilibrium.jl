@@ -7,115 +7,135 @@
 Initialize `dd.equilibrium` starting from `ini` and `act` parameters
 """
 function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    init_from = ini.general.init_from
-
-    if init_from == :ods
-        dd1 = IMAS.json2imas(ini.ods.filename)
-        if !ismissing(dd1.equilibrium, :time) && length(keys(dd1.equilibrium.time)) > 0
-            dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))
-            dd.equilibrium = dd1.equilibrium
-            eqt = dd.equilibrium.time_slice[]
-            IMAS.flux_surfaces(eqt)
-        else
-            init_from = :scalars
-        end
-    end
-
-    boundary_from = ini.equilibrium.boundary_from
-
-    if init_from == :scalars || (init_from == :ods && ini.equilibrium.boundary_from != :ods)
-
-        # we make a copy because we overwrite some parameters
-        # locally to this functions so that things work from
-        # different entry points
-        ini = deepcopy(ini)
+    TimerOutputs.reset_timer!("init_equilibrium")
+    TimerOutputs.@timeit timer "init_equilibrium" begin
+        init_from = ini.general.init_from
 
         if init_from == :ods
-            ini.equilibrium.ip = eqt.global_quantities.ip
-            ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
-            ini.equilibrium.B0 = @ddtime dd.equilibrium.vacuum_toroidal_field.b0
-            ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
-
-            pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-            pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
-            pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-            if ini.equilibrium.boundary_from == :scalars
-                mxh = IMAS.MXH(pr, pz, 2)
-                mxh.c0 = 0.0
-                mxh.c[1:2] .= 0.0
+            dd1 = IMAS.json2imas(ini.ods.filename)
+            if !ismissing(dd1.equilibrium, :time) && length(keys(dd1.equilibrium.time)) > 0
+                dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))
+                dd.equilibrium = dd1.equilibrium
+                eqt = dd.equilibrium.time_slice[]
+                IMAS.flux_surfaces(eqt)
             else
-                mxh = IMAS.MXH(pr, pz, 4)
+                init_from = :scalars
             end
-            ini.equilibrium.xpoints_number = 0 # to use the x-points from ODS
-
-        else
-            eqt = resize!(dd.equilibrium.time_slice)
-            if boundary_from == :rz_points
-                # R,Z boundary from points
-                if ismissing(ini.equilibrium, :rz_points)
-                    error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
-                end
-                pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
-                pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
-                pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-                mxh = IMAS.MXH(pr, pz, 4)
-
-            elseif boundary_from == :MXH_params
-                # R,Z boundary from MXH
-                if ismissing(ini.equilibrium, :MXH_params)
-                    error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
-                end
-                mxh = IMAS.MXH(ini.equilibrium.MXH_params)
-
-            elseif boundary_from == :scalars
-                # R,Z boundary from scalars
-                mxh = IMAS.MXH(
-                    ini.equilibrium.R0,
-                    ini.equilibrium.Z0,
-                    ini.equilibrium.ϵ,
-                    ini.equilibrium.κ,
-                    0.0,
-                    [0.0, 0.0],
-                    [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
-            end
-
-            # scalars consistent with MXH parametrization
-            ini.equilibrium.ϵ = mxh.ϵ
-            ini.equilibrium.R0 = mxh.R0
-            ini.equilibrium.Z0 = mxh.Z0
-            ini.equilibrium.κ = mxh.κ
-            ini.equilibrium.δ = sin(mxh.s[1])
-            ini.equilibrium.ζ = -mxh.s[2]
         end
 
-        # ultimately always initialize from mxh
-        init_equilibrium_boundary(eqt, mxh, ini.equilibrium.xpoints_number)
+        boundary_from = ini.equilibrium.boundary_from
 
-        # scalar quantities
-        eqt.global_quantities.ip = ini.equilibrium.ip
-        dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
-        @ddtime dd.equilibrium.vacuum_toroidal_field.b0 = ini.equilibrium.B0
+        if init_from == :scalars || (init_from == :ods && ini.equilibrium.boundary_from != :ods)
 
-        # initial guesses for pressure and j_tor
-        psin = eqt.profiles_1d.psi = LinRange(0, 1, 129)
-        eqt.profiles_1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
-        eqt.profiles_1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
+            # we make a copy because we overwrite some parameters
+            # locally to this functions so that things work from
+            # different entry points
+            ini = deepcopy(ini)
 
-        # solve equilibrium
-        act_copy = deepcopy(act)
-        act_copy.ActorCHEASE.rescale_eq_to_ip = true
-        ActorEquilibrium(dd, act_copy)
+            if init_from == :ods
+                ini.equilibrium.ip = eqt.global_quantities.ip
+                ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
+                ini.equilibrium.B0 = @ddtime dd.equilibrium.vacuum_toroidal_field.b0
+                ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
+
+                pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
+                pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
+                pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+                if ini.equilibrium.boundary_from == :MXH_params
+                    mxh = IMAS.MXH(pr, pz, 2)
+                elseif boundary_from == :scalars
+                    mxh = IMAS.MXH(
+                        ini.equilibrium.R0,
+                        ini.equilibrium.Z0,
+                        ini.equilibrium.ϵ,
+                        ini.equilibrium.κ,
+                        0.0,
+                        [0.0, 0.0],
+                        [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
+                end
+                if ismissing(ini.equilibrium, :xpoints_number)
+                    # if number of x-points is not set explicitly, get it from the ODS
+                    ini.equilibrium.xpoints_number = length(eqt.boundary.x_point)
+                end
+
+            else
+                eqt = resize!(dd.equilibrium.time_slice)
+                if boundary_from == :rz_points
+                    # R,Z boundary from points
+                    if ismissing(ini.equilibrium, :rz_points)
+                        error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
+                    end
+                    pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
+                    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
+                    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+                    mxh = IMAS.MXH(pr, pz, 4)
+
+                elseif boundary_from == :MXH_params
+                    # R,Z boundary from MXH
+                    if ismissing(ini.equilibrium, :MXH_params)
+                        error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
+                    end
+                    mxh = IMAS.MXH(ini.equilibrium.MXH_params)
+
+                elseif boundary_from == :scalars
+                    # R,Z boundary from scalars
+                    mxh = IMAS.MXH(
+                        ini.equilibrium.R0,
+                        ini.equilibrium.Z0,
+                        ini.equilibrium.ϵ,
+                        ini.equilibrium.κ,
+                        0.0,
+                        [0.0, 0.0],
+                        [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
+                end
+
+                # scalars consistent with MXH parametrization
+                ini.equilibrium.ϵ = mxh.ϵ
+                ini.equilibrium.R0 = mxh.R0
+                ini.equilibrium.Z0 = mxh.Z0
+                ini.equilibrium.κ = mxh.κ
+                ini.equilibrium.δ = sin(mxh.s[1])
+                ini.equilibrium.ζ = -mxh.s[2]
+            end
+
+            # ultimately always initialize from mxh
+            init_equilibrium_boundary(eqt, mxh, ini.equilibrium.xpoints_number)
+
+            # scalar quantities
+            eqt.global_quantities.ip = ini.equilibrium.ip
+            dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
+            @ddtime dd.equilibrium.vacuum_toroidal_field.b0 = ini.equilibrium.B0
+
+            # pressure and j_tor to be used by equilibrium solver
+            if init_from == :ods
+                # take p and j from ods
+                eqt1 = dd1.equilibrium.time_slice[]
+                eqt.profiles_1d.psi = eqt1.profiles_1d.psi
+                eqt.profiles_1d.j_tor = eqt1.profiles_1d.j_tor
+                eqt.profiles_1d.pressure = eqt1.profiles_1d.pressure
+            else
+                # guesses for pressure and j_tor
+                psin = eqt.profiles_1d.psi = LinRange(0, 1, 129)
+                eqt.profiles_1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
+                eqt.profiles_1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
+            end
+
+            # solve equilibrium
+            act_copy = deepcopy(act)
+            act_copy.ActorCHEASE.rescale_eq_to_ip = true
+            ActorEquilibrium(dd, act_copy)
+        end
+
+        # field null surface
+        if ini.equilibrium.field_null_surface > 0.0
+            pushfirst!(dd.equilibrium.time_slice, field_null_surface(dd.equilibrium.time_slice[], ini.equilibrium.field_null_surface))
+            pushfirst!(dd.equilibrium.vacuum_toroidal_field.b0, @ddtime(dd.equilibrium.vacuum_toroidal_field.b0))
+            pushfirst!(dd.equilibrium.time, -Inf)
+            dd.equilibrium.time_slice[1].time = -Inf
+        end
+
+        return dd
     end
-
-    # field null surface
-    if ini.equilibrium.field_null_surface > 0.0
-        pushfirst!(dd.equilibrium.time_slice, field_null_surface(dd.equilibrium.time_slice[], ini.equilibrium.field_null_surface))
-        pushfirst!(dd.equilibrium.vacuum_toroidal_field.b0, @ddtime(dd.equilibrium.vacuum_toroidal_field.b0))
-        pushfirst!(dd.equilibrium.time, -Inf)
-        dd.equilibrium.time_slice[1].time = -Inf
-    end
-
-    return dd
 end
 
 """

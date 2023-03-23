@@ -69,9 +69,8 @@ function _step(actor::ActorEquilibriumTransport)
     end
 
     try
-        iter = 1
-        total_error = 0.0
-        while (iter == 1) || (total_error > par.convergence_error)
+        total_error = Float64[]
+        while isempty(total_error) || (total_error[end] > par.convergence_error)
             # get current and pressure profiles before updating them
             j_tor_before = dd.core_profiles.profiles_1d[].j_tor
             pressure_before = dd.core_profiles.profiles_1d[].pressure
@@ -93,21 +92,21 @@ function _step(actor::ActorEquilibriumTransport)
             pressure_after = dd.core_profiles.profiles_1d[].pressure
             error_jtor = sum((j_tor_after .- j_tor_before) .^ 2) / sum(j_tor_before .^ 2)
             error_pressure = sum((pressure_after .- pressure_before) .^ 2) / sum(pressure_before .^ 2)
-            total_error = sqrt(error_jtor + error_pressure) / 2.0
+            push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if act.ActorEquilibrium.model == :Solovev
-                total_error = 0 # temporary fix to force Solovev to run exactly once
+                # Solovev's j_tor will never match the current profile
+                push!(total_error, 0.0)
             end
 
-            if iter == par.max_iter
-                @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(round(total_error,digits = 3)) compared to threshold of $(par.convergence_error)"
+            if length(total_error) == par.max_iter
+                @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(round(total_error[end],digits = 3)) compared to threshold of $(par.convergence_error)"
                 break
             end
 
             if par.do_plot
-                println("Iteration = $iter , convergence error = $(round(total_error,digits = 3)), threshold = $(par.convergence_error)")
+                @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 3)), threshold = $(par.convergence_error)")
             end
-            iter += 1
         end
 
     finally

@@ -2,7 +2,6 @@ import SpecialFunctions
 import QuadGK
 import Interpolations
 import PolygonOps
-import Interact
 
 #= =============== =#
 #  Shape functions  #
@@ -647,25 +646,16 @@ end
     end
 end
 
-function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
-    RX = mr[i] .* α .+ R0 .* (1.0 .- α)
-    ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
-    R = T[r for (r, z) in RZ]
-    Z = T[z for (r, z) in RZ]
-    return RX, ZX, R, Z
-end
-
 """
     add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::Union{Nothing,T}, Z0::T; upper::Bool) where {T<:Real}
 
-Add a X-point to a boundary that does not have one
+Add a X-point to a boundary that does not have one.
 
 The X-point is added at the point where there is the largest curvature in the boundary,
 and is built in such a way to form 90° angle (which is what it should be for zero current at the LCFS).
 The X-point is placed on a line that goes from (R0,Z0) through the point of maximum curvature.
 
-Control of the X-point location can be achieved by modifying R0, Z0
+Control of the X-point location can be achieved by modifying R0, Z0.
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
@@ -695,6 +685,15 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
     RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, res.minimizer[1])
 
+    return RX, ZX, R, Z
+end
+
+function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
+    RX = mr[i] .* α .+ R0 .* (1.0 .- α)
+    ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
+    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
+    R = T[r for (r, z) in RZ]
+    Z = T[z for (r, z) in RZ]
     return RX, ZX, R, Z
 end
 
@@ -769,55 +768,6 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     mxhb = mxhb_from_params(res.minimizer; upper_x_point, lower_x_point, n_points)
 
     return mxhb
-end
-
-"""
-    boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p::Union{Nothing,Plots.Plot})
-
-Plot and interactively manipulate Miller Extended Harmonic (MXH) boundary
-"""
-function boundary_shape(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, p=nothing)
-    @assert typeof(p) <: Union{Nothing,Plots.Plot}
-    n = 101
-    if length(mxh.c) != 3
-        mxh = IMAS.MXH(mxh()..., 3)
-    end
-    Interact.@manipulate for ϵ in Interact.slider(LinRange(0.0, 1.0, n), value=mxh.ϵ, label="ϵ"),
-        κ in Interact.slider(LinRange(1, 3, n), value=mxh.κ, label="κ"),
-        #tilt in Interact.slider(LinRange(-1,1,n);value=mxh.c0,label="tilt"),
-        #ovality in Interact.slider(LinRange(-1,1,n);value=mxh.c[1],label="ovality"),
-        triangularity in Interact.slider(LinRange(-1, 1, n), value=sin(mxh.s[1]), label="δ"),
-        #s_shape in Interact.slider(LinRange(-1,1,n);value=mxh.c[2],label="s1"),
-        #squareness in Interact.slider(LinRange(-1, 1, n), value=-(mxh.s[2] + mxh.s[3]) / 2.0, label="ζ"),
-        squareness in Interact.slider(LinRange(-1, 1, n), value=-mxh.s[2], label="ζ"),
-        #c3 in Interact.slider(LinRange(-1,1,n);value=mxh.c[3],label="s2"),
-        pentagonnes in Interact.slider(LinRange(-1, 1, n); value=mxh.s[3], label="⬠")
-
-        mxh.ϵ = ϵ
-        mxh.κ = κ
-        #mxh.c0=tilt
-        #mxh.c[1]=ovality
-        mxh.s[1] = asin(triangularity)
-        #mxh.c[2]=s_shape
-        mxh.s[2] = -squareness
-        #mxh.c[3]=c3
-        mxh.s[3] = -pentagonnes
-
-        if p === nothing
-            q = plot()
-        else
-            q = deepcopy(p)
-            plot(q)
-        end
-
-        if upper_x_point || lower_x_point
-            mxhb = MXHboundary(mxh; upper_x_point, lower_x_point)
-            plot!(q, mxh, color=:gray, linewidth=1.5)
-            plot!(q, mxhb.r_boundary, mxhb.z_boundary, color=:black, linewidth=2, label="")
-        else
-            plot!(q, mxh, color=:black, linewidth=2, label="")
-        end
-    end
 end
 
 function boundary_shape(R0::Real; p=nothing)

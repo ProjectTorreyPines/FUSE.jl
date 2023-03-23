@@ -21,13 +21,14 @@ header:
 # =========================
 
 JULIA_DIR ?= $(HOME)/.julia
+JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
 CURRENTDIR := $(shell pwd)
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES_MAKEFILE := IMAS IMASDD CoordinateConventions MillerExtendedHarmonic FusionMaterials VacuumFields MXHEquilibrium MeshTools TAUENN EPEDNN TGLFNN QED FiniteElementHermite Fortran90Namelists CHEASE TEQUILA NNeutronics SimulationParameters
+FUSE_PACKAGES_MAKEFILE := CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -77,38 +78,65 @@ register:
 	$(foreach package,$(DEV_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate(""); using LocalRegistry; LocalRegistry.is_dirty(path, gitconfig)= false; register("$(package)", registry="GAregistry")';)
 
 # install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
-develop:
+develop: revise
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
+Pkg.activate("./docs");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
 Pkg.activate();\
-Pkg.develop(["FUSE"; fuse_packages]);\
-Pkg.add(["Revise", "JuliaFormatter", "Test", "Plots"]);\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 '
+
+# install revise and load it when Julia starts up
+revise:
+	julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0"))'
+	mkdir -p $(JULIA_DIR)/config
+	touch $(JULIA_CONF)
+	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
+	echo "using Revise" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
+	rm -f "$(JULIA_CONF).tmp"
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
 	@ $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo "\t `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
-# Install FUSE via HTTPS and $PTP_READ_TOKEN
-https_add: PKG_ADD_DEVELOP = add
-https_add: PKG_ACTIVATE = "."
-https_dev: PKG_ADD_DEVELOP = develop
-https_dev: PKG_ACTIVATE = ""
-https_add https_dev:
+# Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
+https_add:
 	julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
-Pkg.activate($(PKG_ACTIVATE));\
+Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
 for package in fuse_packages;\
 	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
-Pkg.$(PKG_ADD_DEVELOP)(dependencies);\
+Pkg.add(dependencies);\
+'
+
+# Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
+https_dev:
+	mkdir -p ~/.julia/dev
+	ln -sf $(PWD) ~/.julia/dev/FUSE
+	julia -e ';\
+fuse_packages = $(FUSE_PACKAGES);\
+fuse_packages_direct = $(FUSE_PACKAGES_DIRECT);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate(".");\
+dependencies = Pkg.PackageSpec[];\
+for package in fuse_packages;\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+end;\
+Pkg.develop(dependencies);\
+Pkg.develop(fuse_packages_direct);\
+Pkg.activate("./docs");\
+Pkg.develop(["FUSE"; fuse_packages_direct]);\
 '
 
 # install FUSE without using the registry
@@ -125,8 +153,8 @@ install_ci_dev: https_dev special_dependencies
 install: install_no_registry
 
 # dependencies that are not in the global registry
-special_dependencies:
-	@julia -e ';\
+special_dependencies: #DISABLED
+#	@julia -e ';\
 using Pkg;\
 dependencies = Pkg.PackageSpec[PackageSpec(url="https://github.com/IanButterworth/Flux.jl", rev="ib/cudaext")];\
 Pkg.add(dependencies);\
@@ -152,7 +180,10 @@ end;\
 # clone and update all FUSE packages
 clone_update_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) FUSE $(FUSE_PACKAGES_MAKEFILE)
+	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
+
+WarmupFUSE:
+	$(call clone_update_repo,$@)
 
 FUSE:
 	$(call clone_update_repo,$@)
@@ -210,25 +241,6 @@ NNeutronics:
 
 SimulationParameters:
 	$(call clone_update_repo,$@)
-
-# create a FUSE Julia sysimage
-sysimage:
-	julia -e '\
-using Pkg;\
-Pkg.add("PackageCompiler");\
-Pkg.add("IJulia");\
-import PackageCompiler;\
-Pkg.activate(".");\
-using FUSE;\
-PackageCompiler.create_sysimage(["FUSE"], sysimage_path="FUSEsysimage.so");\
-'
-
-# install the sysimage in IJulia
-sysimage_ijulia:
-	julia -e '\
-import IJulia;\
-IJulia.installkernel("Julia FUSEsysimage", "--sysimage=$(shell pwd)/FUSEsysimage.so", "--trace-compile=stderr");\
-'
 
 # Install IJulia
 IJulia:

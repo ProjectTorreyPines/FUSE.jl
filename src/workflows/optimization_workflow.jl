@@ -69,7 +69,7 @@ function workflow_multiobjective_optimization(
     bounds = [[optpar.lower for optpar in opt_ini] [optpar.upper for optpar in opt_ini]]'
 
     # # test running function once with nominal parameters useful to catch bugs quickly.
-    # # Use @everywhere to trigger compilation on all worker nodes.
+    # # Use Distributed.@everywhere to trigger compilation on all worker nodes.
     # if typeof(actor_or_workflow) <: DataType
     #     actor_or_workflow(init(ini, act), act)
     # else
