@@ -80,7 +80,7 @@ function _step(actor::ActorThermalCycle)
     mflow_cycle = @ddtime(bop.thermal_cycle.flow_rate)
 
     if bop.power_cycle_type == "rankine_only"
-        return
+        return actor
 
     elseif bop.power_cycle_type == "complex_brayton"
         cp_cycle = 5.1926e3
@@ -423,10 +423,14 @@ function getMCP(dd::IMAS.dd)
     return mcp_blanket, mcp_divertor, mcp_breeder, mcp_cycle
 end
 
-function pbLi_props(Temperature::Real)
-    #temperature input in celcius
-    specific_heat = (0.195 - 9.116 * 10^(-6) .* (Temperature)) .* 1000   #J/kgK
-    density = 10520.35 - 1.19051 .* (Temperature)
+"""
+    pbLi_props(temperature::Real)
+
+temperature input in Kelvin
+"""
+function pbLi_props(temperature::Real)
+    specific_heat = (0.195 - 9.116 * 1e-6 .* temperature) .* 1000   #J/kgK
+    density = 10520.35 - 1.19051 .* temperature
     return [specific_heat, density]
 end
 

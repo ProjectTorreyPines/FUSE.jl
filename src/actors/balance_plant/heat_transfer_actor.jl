@@ -71,14 +71,13 @@ function _step(actor::ActorHeatTransfer)
     # ======= #
     bop_IHTS = bop.heat_transfer
 
-    # breeder_heat_load   = (sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time)
-    breeder_heat_load = abs.(sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module]))
-    divertor_heat_load = abs.(sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor]))
+    breeder_heat_load = sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module])
+    divertor_heat_load = sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor])
     blanket_heat_load = abs.(IMAS.radiation_losses(dd.core_sources))
 
+    # @show breeder_heat_load
     # @show divertor_heat_load
     # @show blanket_heat_load
-    # @show breeder_heat_load
 
     cp_low, rho_low = pbLi_props(par.breeder_low_temp)
     cp_hi, rho_hi = pbLi_props(par.breeder_hi_temp)
@@ -94,11 +93,8 @@ function _step(actor::ActorHeatTransfer)
 
     # inital values as guess
     ΔT_cycle_breeder = par.breeder_hi_temp - par.divertor_max_temp
-
-    @ddtime(bop.thermal_cycle.flow_rate = breeder_heat_load / (ΔT_cycle_breeder * cp_he))
-
-    cycle_flow = @ddtime(bop.thermal_cycle.flow_rate)
-
+    cycle_flow = breeder_heat_load / (ΔT_cycle_breeder * cp_he)
+    @ddtime(bop.thermal_cycle.flow_rate = cycle_flow)
     @ddtime(bop_IHTS.wall.flow_rate = cycle_flow)
     @ddtime(bop_IHTS.divertor.flow_rate = cycle_flow)
 
@@ -147,13 +143,6 @@ function _step(actor::ActorHeatTransfer)
     @ddtime(bop_IHTS.breeder.circulator_power = breeder_mflow * v_ave * par.breeder_ΔP / par.breeder_η_pump)
 
     return actor
-end
-
-function pbLi_props(Temperature)
-    #temperature input in celcius
-    specific_heat = (0.195 - 9.116 * 1e-6 .* (temperature)) .* 1000   #J/kgK
-    density = 10520.35 - 1.19051 .* (temperature)
-    return [specific_heat, density]
 end
 
 function gas_circulator(rp, Tin, effC, mflow, nstages=1)
