@@ -2,23 +2,23 @@
 # extract data from FUSE save folder(s) #
 # ===================================== #
 """
-    IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
+    IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,<:IMAS.ExtractFunction}}
 
 Read dd.json/h5 in a folder and extract data from it.
 """
-function IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
+function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,<:IMAS.ExtractFunction}}
     dd, ini, act = load(dir; load_ini=false, load_act=false)
     return extract(dd, xtract)
 end
 
 """
-    IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+    IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,<:IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFramea
 
 Extract data from multiple folders or `dd`s and return results in DataFrame format.
 
 Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, or both with `:all`
 """
-function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,<:IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
     # allocate memory
     df = DataFrames.DataFrame(extract(DD[1], xtract))
     for k in 2:length(DD)
@@ -47,20 +47,20 @@ function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Abstr
 end
 
 """
-    DataFrames.DataFrame(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+    DataFrames.DataFrame(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})::DataFrames.DataFrame
 
 Construct a DataFrame from a dictionary of IMAS.ExtractFunction
 """
-function DataFrames.DataFrame(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+function DataFrames.DataFrame(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})::DataFrames.DataFrame
     return DataFrames.DataFrame(Dict(xtract))
 end
 
 """
-    Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+    Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})::Dict{Symbol,Any}
 
 Construct a Dictionary with the evaluated values of a dictionary of IMAS.ExtractFunction
 """
-function Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+function Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})::Dict{Symbol,Any}
     tmp = Dict()
     for xfun in values(xtract)
         tmp[xfun.name] = xfun.value
