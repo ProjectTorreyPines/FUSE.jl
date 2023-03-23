@@ -6,12 +6,18 @@ import TimerOutputs
 # ====== #
 # Timing #
 # ====== #
-const to = TimerOutputs.TimerOutput()
+const timer = TimerOutputs.TimerOutput()
 
 function TimerOutputs.reset_timer!(to::TimerOutputs.TimerOutput, section::String)
     pop!(to.inner_timers, section, nothing)
     to.prev_timer_label = ""
     to.prev_timer = nothing
+end
+
+function TimerOutputs.reset_timer!(section::String)
+    pop!(timer.inner_timers, section, nothing)
+    timer.prev_timer_label = ""
+    timer.prev_timer = nothing
 end
 
 # ==== #
