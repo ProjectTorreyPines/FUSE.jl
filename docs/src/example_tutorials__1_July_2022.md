@@ -286,7 +286,7 @@ IMAS.diff(dd, dd1);
 
 
 ```@julia
-new_ini = FUSE.ParametersInits()
+new_ini = FUSE.ParametersAllInits()
 ```
 
 
@@ -301,19 +301,13 @@ new_ini.equilibrium
 new_ini.equilibrium.Z0
 ```
 
-#### Access detailed descriptions either [online](https://fuse.help/ini_details.html#ini.tf.shape) or by accessing leaves with `[:...]`
+#### Access detailed descriptions [online](https://fuse.help/ini_details.html#ini.equilibrium.Z0)
 * Notice **units**, **descriptons**
 * Some fields only allow a limited set of **options**
 * Each field stores three things:
     * **default**: default value when `ini = ParametersInit()` is first called
     * **base**: value when `FUSE.set_new_base!(ini)` is called
     * **value**: current value
-
-
-```@julia
-# take a look at the info for a leaf in the `ini`
-new_ini.tf[:shape]
-```
 
 
 ```@julia

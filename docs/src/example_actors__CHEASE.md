@@ -44,7 +44,7 @@ FUSE.init(dd, ini, act; do_plot=true);
 ```@julia
 sample_dir = abspath(joinpath(@__DIR__, "../../sample"))
 files = [joinpath(sample_dir, file) for file in readdir(sample_dir) if startswith(file, "g") && endswith(file, ".json")]
-act = FUSE.ParametersActors()
+act = FUSE.ParametersAllActors()
 
 for file in files
     dd = IMAS.json2imas(file)
