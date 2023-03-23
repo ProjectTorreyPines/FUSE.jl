@@ -253,7 +253,8 @@ Translates 1D build to 2D cross-sections starting either wall information
 If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
 """
 function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
-    wall = IMAS.first_wall(dd.wall)
+    #wall = IMAS.first_wall(dd.wall)
+    wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
     if wall === missing || rebuild_wall
         pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
     else
@@ -263,7 +264,7 @@ function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
 
     build_cx!(dd.build, pr, pz)
 
-    divertor_regions!(dd.build, dd.equilibrium.time_slice[])
+    #divertor_regions!(dd.build, dd.equilibrium.time_slice[])
 
     blanket_regions!(dd.build, dd.equilibrium.time_slice[])
 

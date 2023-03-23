@@ -71,6 +71,8 @@ include(joinpath("actors", "pedestal_actor.jl"))
 
 include(joinpath("actors", "divertors_actor.jl"))
 
+include(joinpath("actors", "pfs_actor.jl"))
+
 include(joinpath("actors", "transport", "tauenn_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
