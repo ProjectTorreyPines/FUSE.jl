@@ -1,13 +1,14 @@
 """
-    case_parameters(:FPP; version::Symbol, init_from::Symbol)
+    case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, STEP::Bool=true)::Tuple{ParametersAllInits,ParametersAllActors}
 
 GA 2022 FPP design
 
 Arguments:
 * `version`: `:v1` or `:v1_demount`
-* `init_from`: `:scalars` or `:ods` (ODS contains equilibrium information)
+* `init_from`: `:scalars` or `:ods`
+* `STEP`: plasma parameters to match STEP modeling
 """
-function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, STEP::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
@@ -70,11 +71,27 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
 
     # squareness
     ini.equilibrium.ζ = 0.15
-    # act.ActorEquilibrium.model = :CHEASE
     act.ActorEquilibrium.symmetrize = true
 
     # simple analytic AT confinement
     act.ActorTauenn.transport_model = :ds03
+
+    # Based on STEP
+    if STEP
+        # zeff
+        ini.core_profiles.zeff = 2.0
+        # ech aiming
+        act.ActorECsimple.rho_0 = 0.6
+        # lower ip
+        ini.equilibrium.ip = 8.0E6
+        # higher density
+        ini.core_profiles.ne_ped = 9.4E19
+        ini.core_profiles.greenwald_fraction = 1.26
+        # CHEASE solver
+        act.ActorEquilibrium.model = :CHEASE
+        # scale confinement to roughly match STEP prediction
+        act.ActorTauenn.confinement_factor=0.9
+    end
 
     # add wall layer
     if true
