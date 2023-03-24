@@ -46,7 +46,9 @@ function _step(actor::ActorPowerNeeds)
     bop_electric = bop.power_electric_plant_operation
 
     ## heating and current drive systems
-    sys = resize!(bop_electric.system, "name" => "H&CD", "index" => 1)
+    system = :HCD
+    idx = IMAS.name_2_index(bop_electric.system)[system]
+    sys = resize!(bop_electric.system, "name" => string(system), "index" => idx)
     sys.power = zeros(length(bop.time))
     for (idx, hcd_system) in enumerate(intersect([:nbi, :ec_launchers, :ic_antennas, :lh_antennas], keys(dd)))
         sub_sys = resize!(sys.subsystem, "name" => string(hcd_system), "index" => idx)
@@ -62,23 +64,24 @@ function _step(actor::ActorPowerNeeds)
     elseif par.model == :FUSE
 
         # For now electrical needs same as DEMO but pumping self-consistent
-        bop_systems = [:cryostat, :tritium_handling, :pf_active]
-        for (idx, system) in enumerate(bop_systems)
-            if system == :pf_active
-                idx += 1
-            end
-            sys = resize!(bop_electric.system, "name" => string(system), "index" => (idx + 1))
-            @ddtime(sys.power = electricity(system))
-        end
+        bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active]
+        for system in bop_systems
+            idx = IMAS.name_2_index(bop_electric.system)[system]
+            sys = resize!(bop_electric.system, "name" => string(system), "index" => idx)
+            if system == :pumping
+                @ddtime(sys.power = electricity(:pumping, dd.balance_of_plant))
+            else
 
-        sys = resize!(bop_electric.system, "name" => "pumping", "index" => 5)
-        @ddtime(sys.power = electricity(:pumping, dd.balance_of_plant))
+                @ddtime(sys.power = electricity(system))
+            end
+        end
 
     elseif par.model == :EU_DEMO
         # More realistic DEMO numbers
-        bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active] # index 2 : 5
-        for (idx, system) in enumerate(bop_systems)
-            sys = resize!(bop_electric.system, "name" => string(system), "index" => (idx + 1))
+        bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active]
+        for system in bop_systems
+            idx = IMAS.name_2_index(bop_electric.system)[system]
+            sys = resize!(bop_electric.system, "name" => string(system), "index" => idx)
             sys.power = electricity(system)
         end
     end

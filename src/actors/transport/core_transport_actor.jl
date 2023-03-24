@@ -13,7 +13,7 @@ mutable struct ActorCoreTransport <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorCoreTransport
     turb_actor::PlasmaAbstractActor
-    neoclassical_actor::PlasmaAbstractActor
+    neoc_actor::PlasmaAbstractActor
 end
 
 """
@@ -41,12 +41,12 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
 
     if par.neoclassical_actor == :Neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport
-        neoclassical_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
+        neoc_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
     else
         error("neoclassical_actor $(par.neoclassical_actor) is not supported yet")
     end
 
-    return ActorCoreTransport(dd, par, turb_actor, neoclassical_actor)
+    return ActorCoreTransport(dd, par, turb_actor, neoc_actor)
 end
 
 """
@@ -56,7 +56,7 @@ Runs through the selected equilibrium actor's step
 """
 function _step(actor::ActorCoreTransport)
     step(actor.turb_actor)
-    step(actor.neoclassical_actor)
+    step(actor.neoc_actor)
     return actor
 end
 
@@ -67,6 +67,6 @@ Finalizes the selected equilibrium actor
 """
 function finalize(actor::ActorCoreTransport)
     finalize(actor.turb_actor)
-    finalize(actor.neoclassical_actor)
+    finalize(actor.neoc_actor)
     return actor
 end

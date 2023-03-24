@@ -5,23 +5,21 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T} <: ParametersActor
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     N::Entry{Int} = Entry(Int, "-", "Number of particles"; default=100000)
-    step::Entry{T} = Entry(T, "-", "Interator stepping"; default=0.05)
+    step::Entry{Float64} = Entry(Float64, "-", "Interator stepping"; default=0.05)
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
 
-mutable struct ActorNeutronics{T} <: PlasmaAbstractActor
-    dd::IMAS.dd{T}
+mutable struct ActorNeutronics <: PlasmaAbstractActor
+    dd::IMAS.dd
     par::FUSEparameters__ActorNeutronics
-    function ActorNeutronics{T}(dd::IMAS.dd{T}, par::FUSEparameters__ActorNeutronics; kw...) where {T}
-        logging_actor_init(ActorNeutronics{T})
+    function ActorNeutronics(dd::IMAS.dd, par::FUSEparameters__ActorNeutronics; kw...)
+        logging_actor_init(ActorNeutronics)
         par = par(kw...)
-        return new{T}(dd, par)
+        return new(dd, par)
     end
 end
 
-ActorNeutronics(dd::IMAS.dd{T}, par::FUSEparameters__ActorNeutronics; kw...) where {T} = ActorNeutronics{T}(dd, par; kw...)
-
-mutable struct neutron_particle{T<:Real}
+mutable struct neutron_particle{T<:Float64}
     x::T
     y::T
     z::T
@@ -288,7 +286,7 @@ function _step(actor::ActorNeutronics)
     ntt.wall_loading.power = sqrt.(nflux_r .^ 2.0 .+ nflux_z .^ 2.0) .* wall_s
 
     # renormalize to ensure perfect power match
-    norm = (IMAS.fusion_power(dd.core_profiles.profiles_1d[]) .* 4 ./ 5) / sum(ntt.wall_loading.power)
+    norm = (IMAS.fusion_power(dd.core_profiles) .* 4 ./ 5) / sum(ntt.wall_loading.power)
     ntt.wall_loading.flux_r .*= norm
     ntt.wall_loading.flux_z .*= norm
     ntt.wall_loading.power .*= norm
@@ -300,5 +298,5 @@ function _step(actor::ActorNeutronics)
         display(p)
     end
 
-    return
+    return actor
 end

@@ -166,35 +166,44 @@ end
 Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from `ini` and `act` parameters
 """
 function init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    init_from = ini.general.init_from
+    TimerOutputs.reset_timer!("init_core_sources")
+    TimerOutputs.@timeit timer "init_core_sources" begin
+        init_from = ini.general.init_from
 
-    if init_from == :ods
-        dd1 = IMAS.json2imas(ini.ods.filename)
-        if !ismissing(dd1.core_sources, :time) && length(keys(dd1.core_sources.time)) > 0
-            dd.global_time = max(dd.global_time, maximum(dd1.core_sources.time))
-            dd.core_sources = dd1.core_sources
-        else
-            init_from = :scalars
+        if init_from == :ods
+            dd1 = IMAS.json2imas(ini.ods.filename)
+            if !ismissing(dd1.core_sources, :time) && length(keys(dd1.core_sources.time)) > 0
+                dd.global_time = max(dd.global_time, maximum(dd1.core_sources.time))
+                dd.core_sources = dd1.core_sources
+            else
+                init_from = :scalars
+            end
         end
+
+        if init_from == :scalars || (init_from == :ods && isempty(dd1.nbi))
+            if !ismissing(ini.nbi, :power_launched) && any(ini.nbi.power_launched .> 0)
+                init_nbi(dd, ini, act)
+            end
+        end
+        if init_from == :scalars || (init_from == :ods && isempty(dd1.ec_launchers))
+            if !ismissing(ini.ec_launchers, :power_launched) && any(ini.ec_launchers.power_launched .> 0)
+                init_ec_launchers(dd, ini, act)
+            end
+        end
+        if init_from == :scalars || (init_from == :ods && isempty(dd1.ic_antennas))
+            if !ismissing(ini.ic_antennas, :power_launched) && any(ini.ic_antennas.power_launched .> 0)
+                init_ic_antennas(dd, ini, act)
+            end
+        end
+        if init_from == :scalars || (init_from == :ods && isempty(dd1.lh_antennas))
+            if !ismissing(ini.lh_antennas, :power_launched) && any(ini.lh_antennas.power_launched .> 0)
+                init_lh_antennas(dd, ini, act)
+            end
+        end
+
+        IMAS.sources!(dd)
+
+        return dd
     end
-
-    if init_from == :scalars
-        if !ismissing(ini.nbi, :power_launched) && any(ini.nbi.power_launched .> 0)
-            init_nbi(dd, ini, act)
-        end
-        if !ismissing(ini.ec_launchers, :power_launched) && any(ini.ec_launchers.power_launched .> 0)
-            init_ec_launchers(dd, ini, act)
-        end
-        if !ismissing(ini.ic_antennas, :power_launched) && any(ini.ic_antennas.power_launched .> 0)
-            init_ic_antennas(dd, ini, act)
-        end
-        if !ismissing(ini.lh_antennas, :power_launched) && any(ini.lh_antennas.power_launched .> 0)
-            init_lh_antennas(dd, ini, act)
-        end
-    end
-
-    IMAS.sources!(dd)
-
-    return dd
 end
 

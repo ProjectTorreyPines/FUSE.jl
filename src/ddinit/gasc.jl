@@ -404,7 +404,7 @@ function compare(dd::IMAS.dd, gasc::GASC)
     df.Cbs = [FUSE, GASC]
 
     # fusion power [MW]
-    FUSE = IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6
+    FUSE = IMAS.fusion_power(dd.core_profiles) / 1E6
     GASC = gasc.outputs["power balance"]["powerFusion"]
     df.Pfusion = [FUSE, GASC]
 

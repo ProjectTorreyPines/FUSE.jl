@@ -78,6 +78,7 @@ function _step(actor::ActorStresses; n_points::Integer=5)
         )
     end
 
+    return actor
 end
 
 @recipe function plot_ActorStresses(actor::ActorStresses)

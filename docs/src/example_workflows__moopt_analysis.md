@@ -34,7 +34,7 @@ dirs = filter(isdir,sort(readdir(path; join=true)))
 println(length(dirs))
 dirs = filter(x->!isfile(joinpath(x,"error.txt")) && isfile(joinpath(x,"dd.json")),dirs)
 println(length(dirs))
-outputs=FUSE.load(dirs, [extract], filter_invalid=true)[1];
+outputs=FUSE.extract(dirs, [extract], filter_invalid=true)[1];
 ```
 
 

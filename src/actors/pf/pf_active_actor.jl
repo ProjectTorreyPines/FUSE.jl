@@ -237,6 +237,8 @@ function _finalize(
             end
         end
     end
+
+    return actor
 end
 
 #= ==================================== =#
