@@ -29,7 +29,7 @@ end
 
 function case_parameters(case::Symbol; kw...)
     if length(methods(case_parameters, (Type{Val{case}},))) == 0
-        throw(InexistentParameterException(Parameters, [case]))
+        throw(InexistentParameterException([case]))
     end
     return case_parameters(Val{case}; kw...)
 end

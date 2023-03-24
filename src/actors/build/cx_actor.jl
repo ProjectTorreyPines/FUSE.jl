@@ -40,6 +40,7 @@ end
 
 function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
     build_cx!(actor.dd; rebuild_wall)
+    return actor
 end
 
 """

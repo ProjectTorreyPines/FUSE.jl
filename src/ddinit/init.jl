@@ -8,65 +8,68 @@ This function essentially calls all other `FUSE.init...` functions in FUSE.
 For most applications, calling this high level function is sufficient.
 """
 function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
-    ods_items = []
-    # Check what is in the ods to load
-    if ini.general.init_from == :ods
-        ods_items = keys(IMAS.json2imas(ini.ods.filename))
-    end
-
-    # initialize equilibrium
-    if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
-        init_equilibrium(dd, ini, act)
-        if do_plot
-            display(plot(dd.equilibrium.time_slice[end]))
-            plot(dd.equilibrium.time_slice[end]; cx=true, show_x_points=true)
-            display(plot!(dd.equilibrium.time_slice[1].boundary, label="Field null"))
+    TimerOutputs.reset_timer!("init")
+    TimerOutputs.@timeit timer "init" begin
+        ods_items = []
+        # Check what is in the ods to load
+        if ini.general.init_from == :ods
+            ods_items = keys(IMAS.json2imas(ini.ods.filename))
         end
-    end
 
-    # initialize build
-    if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || :build ∈ ods_items
-        init_build(dd, ini, act)
-        if do_plot
-            plot(dd.equilibrium; cx=true, color=:gray)
-            plot!(dd.build)
-            display(plot!(dd.build; cx=false))
-            display(dd.build.layer)
+        # initialize equilibrium
+        if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
+            init_equilibrium(dd, ini, act)
+            if do_plot
+                display(plot(dd.equilibrium.time_slice[end]))
+                plot(dd.equilibrium.time_slice[end]; cx=true, show_x_points=true)
+                display(plot!(dd.equilibrium.time_slice[1].boundary, label="Field null"))
+            end
         end
-    end
 
-    # initialize oh and pf coils
-    if !ismissing(ini.pf_active, :n_oh_coils) || :pf_active ∈ ods_items
-        init_pf_active(dd, ini, act)
-        if do_plot
-            plot(dd.equilibrium; cx=true, color=:gray)
-            plot!(dd.build)
-            plot!(dd.build.pf_active.rail)
-            display(plot!(dd.pf_active))
+        # initialize build
+        if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || :build ∈ ods_items
+            init_build(dd, ini, act)
+            if do_plot
+                plot(dd.equilibrium; cx=true, color=:gray)
+                plot!(dd.build)
+                display(plot!(dd.build; cx=false))
+                display(dd.build.layer)
+            end
         end
-    end
 
-    # initialize core profiles
-    if !ismissing(ini.core_profiles, :bulk) || :core_profiles ∈ ods_items
-        init_core_profiles(dd, ini, act)
-        if do_plot
-            display(plot(dd.core_profiles, legend=:bottomleft))
+        # initialize oh and pf coils
+        if !ismissing(ini.pf_active, :n_oh_coils) || :pf_active ∈ ods_items
+            init_pf_active(dd, ini, act)
+            if do_plot
+                plot(dd.equilibrium; cx=true, color=:gray)
+                plot!(dd.build)
+                plot!(dd.build.pf_active.rail)
+                display(plot!(dd.pf_active))
+            end
         end
-    end
 
-    # initialize core sources
-    if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || :core_sources ∈ ods_items
-        init_core_sources(dd, ini, act)
-        if do_plot
-            display(plot(dd.core_sources, legend=:topright))
-            display(plot(dd.core_sources, legend=:bottomright; integrated=true))
+        # initialize core profiles
+        if !ismissing(ini.core_profiles, :bulk) || :core_profiles ∈ ods_items
+            init_core_profiles(dd, ini, act)
+            if do_plot
+                display(plot(dd.core_profiles, legend=:bottomleft))
+            end
         end
+
+        # initialize core sources
+        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || :core_sources ∈ ods_items
+            init_core_sources(dd, ini, act)
+            if do_plot
+                display(plot(dd.core_sources, legend=:topright))
+                display(plot(dd.core_sources, legend=:bottomright; integrated=true))
+            end
+        end
+
+        # initialize missing IDSs from ODS (if loading from ODS)
+        init_missing_from_ods(dd, ini, act)
+
+        return dd
     end
-
-    # initialize missing IDSs from ODS (if loading from ODS)
-    init_missing_from_ods(dd, ini, act)
-
-    return dd
 end
 
 function init(ini::ParametersAllInits, act::ParametersAllActors; do_plot=false)
