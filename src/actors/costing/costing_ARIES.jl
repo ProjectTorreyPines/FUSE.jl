@@ -13,6 +13,21 @@ function cost_decomissioning_ARIES(item::Symbol, args...; kw...)
     return cost_decomissioning_ARIES(Val{item}, args...; kw...)
 end
 
+#= ============== =#
+#  materials cost  #
+#= ============== =#
+
+function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
+    if coil_tech.material == "Copper"
+        return unit_cost("Copper")
+    else
+        fraction_cable = 1 - coil_tech.fraction_stainless - coil_tech.fraction_void
+        fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper
+        fraction_copper = fraction_cable - fraction_SC
+        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316") + fraction_copper * unit_cost("Copper") + fraction_SC * unit_cost(coil_tech.material))
+    end
+end
+
 #= =================== =#
 #  direct capital cost  #
 #= =================== =#
@@ -353,13 +368,13 @@ end
     sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, par.lifetime)
 
      ###### Levelized Cost Of Electricity  ###### #ARIES and Sheffield have different formulas for caluclating this so each should live in its respective actor 
-    # capital_cost_rate = par.interest_rate / (1 - (1 + par.interest_rate)^(-1.0 * par.lifetime))
-    # lifetime_cost = 0.0
-    # for year in 1:par.lifetime
-    #     yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / par.lifetime)
-    #     lifetime_cost += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
-    # end
-    # dd.costing.cost_lifetime = lifetime_cost
-    # dd.costing.levelized_CoE = (dd.costing.cost_lifetime * 1E6) / (par.lifetime * 24 * 365 * power_electric_net / 1e3 * par.availability)
+    capital_cost_rate = par.interest_rate / (1 - (1 + par.interest_rate)^(-1.0 * par.lifetime))
+    lifetime_cost = 0.0
+    for year in 1:par.lifetime
+        yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / par.lifetime)
+        lifetime_cost += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
+    end
+    dd.costing.cost_lifetime = lifetime_cost
+    dd.costing.levelized_CoE = (dd.costing.cost_lifetime * 1E6) / (par.lifetime * 24 * 365 * power_electric_net / 1e3 * par.availability)
 
 end
