@@ -9,9 +9,9 @@ function warmup()
 end
 
 function warmup(dd::IMAS.dd)
-    TimerOutputs.reset_timer!(to, "warmup")
-    return TimerOutputs.@timeit to "warmup" begin
-        TimerOutputs.@timeit to "init" begin
+    TimerOutputs.reset_timer!("warmup")
+    return TimerOutputs.@timeit timer "warmup" begin
+        TimerOutputs.@timeit timer "init" begin
             ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
             init(dd, ini, act)
         end

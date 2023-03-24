@@ -103,7 +103,7 @@ function _step(actor::ActorCHEASE)
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound)/2)))
+        psi_free_rz = Float64.(VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound)/2))))
         actor.chease.gfile.psirz = psi_free_rz
         # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)

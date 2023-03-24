@@ -10,9 +10,6 @@ using Plots; gr();
 FUSE.logging(Logging.Info; actors=Logging.Error);
 ```
 
-    [ Info: Precompiling FUSE [e64856f0-3bb8-4376-b4b7-c03396503992]
-
-
 ### Setup distributed computing environment
 
 See more details here: https://fuse.help/parallel.html
@@ -25,6 +22,8 @@ using Distributed
 ```
 
 ### Define workflow and extent of the scan
+
+In this workflow we scan the magnetic field (and current, keeping q roughly constant) and the spin polarized fusion fraction
 
 
 ```@julia
@@ -45,8 +44,8 @@ using Distributed
 end
 
 ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars);
-B0_ = LinRange(5,6.5,8)
-spf_ = LinRange(0,1,10)
+B0_ = LinRange(5,6.5,2) # change B0 range as neede
+spf_ = LinRange(0,1,3) # change spf range as neede
 cases = [[B0,spf] for B0 in B0_, spf in spf_]
 ```
 
@@ -76,15 +75,6 @@ hline!(B0_,color=:gray,alpha=0.2,label="")
 ```
 
 
-
-
-    
-![svg](assets/parametric_scan_files/parametric_scan_12_0.svg)
-    
-
-
-
-
 ```@julia
 p=plot(DD[1].equilibrium)
 for k in 6:10
@@ -92,15 +82,6 @@ for k in 6:10
 end
 p
 ```
-
-
-
-
-    
-![svg](assets/parametric_scan_files/parametric_scan_13_0.svg)
-    
-
-
 
 
 ```@julia

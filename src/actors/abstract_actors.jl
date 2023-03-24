@@ -19,8 +19,8 @@ Run a actor
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Info, :actors, "$(typeof(actor)) @ step")
     timer_name = replace(string(typeof(actor).name.name),r"^Actor" => "")
-    TimerOutputs.reset_timer!(to, timer_name)
-    TimerOutputs.@timeit to timer_name begin
+    TimerOutputs.reset_timer!(timer_name)
+    TimerOutputs.@timeit timer timer_name begin
         _step(actor, args...; kw...)::T
     end
     return actor

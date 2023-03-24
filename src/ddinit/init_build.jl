@@ -60,97 +60,100 @@ end
 Initialize `dd.build` starting from `ini` and `act` parameters
 """
 function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    init_from = ini.general.init_from
+    TimerOutputs.reset_timer!("init_build")
+    TimerOutputs.@timeit timer "init_build" begin
+        init_from = ini.general.init_from
 
-    if init_from == :ods
-        dd1 = IMAS.json2imas(ini.ods.filename)
-        if length(keys(dd1.wall)) > 0
-            dd.wall = dd1.wall
+        if init_from == :ods
+            dd1 = IMAS.json2imas(ini.ods.filename)
+            if length(keys(dd1.wall)) > 0
+                dd.wall = dd1.wall
+            end
+            if length(dd1.build.layer) > 0
+                dd.build = dd1.build
+            else
+                init_from = :scalars
+            end
         end
-        if length(dd1.build.layer) > 0
-            dd.build = dd1.build
+
+        # if layers are not filled explicitly, then generate them from fractions in ini.build.
+        if ismissing(ini.build, :layers)
+            layers = layers_meters_from_fractions(
+                dd.equilibrium.time_slice[],
+                IMAS.first_wall(dd.wall);
+                shield=ini.build.shield,
+                blanket=ini.build.blanket,
+                vessel=ini.build.vessel,
+                plasma_gap=ini.build.plasma_gap,
+                pf_inside_tf=(ini.pf_active.n_pf_coils_inside > 0),
+                pf_outside_tf=(ini.pf_active.n_pf_coils_outside > 0))
         else
-            init_from = :scalars
+            layers = deepcopy(ini.build.layers)
         end
-    end
 
-    # if layers are not filled explicitly, then generate them from fractions in ini.build.
-    if ismissing(ini.build, :layers)
-        layers = layers_meters_from_fractions(
-            dd.equilibrium.time_slice[],
-            IMAS.first_wall(dd.wall);
-            shield=ini.build.shield,
-            blanket=ini.build.blanket,
-            vessel=ini.build.vessel,
-            plasma_gap=ini.build.plasma_gap,
-            pf_inside_tf=(ini.pf_active.n_pf_coils_inside > 0),
-            pf_outside_tf=(ini.pf_active.n_pf_coils_outside > 0))
-    else
-        layers = deepcopy(ini.build.layers)
-    end
-
-    # scale radial build layers based on equilibrium R0 and ϵ
-    iplasma = findfirst(key -> key in ["plasma", :plasma], collect(keys(layers)))
-    R_hfs_build = sum([d for (k, d) in enumerate(values(layers)) if k < iplasma])
-    if ismissing(ini.equilibrium, :R0)
-        R0 = R_hfs_build + collect(values(layers))[iplasma] / 2.0
-    else
-        R0 = ini.equilibrium.R0
-    end
-    if ismissing(ini.equilibrium, :ϵ)
-        a_gap = collect(values(layers))[iplasma] / 2.0
-    else
-        a_gap = ini.equilibrium.ϵ * R0 * (1.0 + ini.build.plasma_gap)
-    end
-    R_hfs = R0 - a_gap
-    for key in keys(layers)
-        if key in ["plasma", :plasma]
-            layers[key] = a_gap * 2.0
+        # scale radial build layers based on equilibrium R0 and ϵ
+        iplasma = findfirst(key -> key in ["plasma", :plasma], collect(keys(layers)))
+        R_hfs_build = sum([d for (k, d) in enumerate(values(layers)) if k < iplasma])
+        if ismissing(ini.equilibrium, :R0)
+            R0 = R_hfs_build + collect(values(layers))[iplasma] / 2.0
         else
-            layers[key] = layers[key] * R_hfs / R_hfs_build
+            R0 = ini.equilibrium.R0
         end
-    end
-
-    # populate dd.build with radial build layers
-    init_build(dd.build, layers)
-
-    # set the TF shape
-    tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
-    dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
-    dd.build.layer[tf_to_plasma[2]].shape = Int(ini.tf.shape)
-    # set all other shapes
-    for k in tf_to_plasma[2:end]
-        dd.build.layer[k+1].shape = Int(_convex_hull_)
-    end
-    k = tf_to_plasma[end]
-    if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k-1].type == Int(_blanket_)) || (dd.build.layer[k-1].type == Int(_shield_)))
-        dd.build.layer[k].shape = Int(_offset_)
-    end
-    if ini.build.n_first_wall_conformal_layers >= 0
-        for k in tf_to_plasma[2:end-ini.build.n_first_wall_conformal_layers]
-            dd.build.layer[k+1].shape = Int(_negative_offset_)
+        if ismissing(ini.equilibrium, :ϵ)
+            a_gap = collect(values(layers))[iplasma] / 2.0
+        else
+            a_gap = ini.equilibrium.ϵ * R0 * (1.0 + ini.build.plasma_gap)
         end
+        R_hfs = R0 - a_gap
+        for key in keys(layers)
+            if key in ["plasma", :plasma]
+                layers[key] = a_gap * 2.0
+            else
+                layers[key] = layers[key] * R_hfs / R_hfs_build
+            end
+        end
+
+        # populate dd.build with radial build layers
+        init_build(dd.build, layers)
+
+        # set the TF shape
+        tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
+        dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
+        dd.build.layer[tf_to_plasma[2]].shape = Int(ini.tf.shape)
+        # set all other shapes
+        for k in tf_to_plasma[2:end]
+            dd.build.layer[k+1].shape = Int(_convex_hull_)
+        end
+        k = tf_to_plasma[end]
+        if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k-1].type == Int(_blanket_)) || (dd.build.layer[k-1].type == Int(_shield_)))
+            dd.build.layer[k].shape = Int(_offset_)
+        end
+        if ini.build.n_first_wall_conformal_layers >= 0
+            for k in tf_to_plasma[2:end-ini.build.n_first_wall_conformal_layers]
+                dd.build.layer[k+1].shape = Int(_negative_offset_)
+            end
+        end
+
+        # 2D build cross-section
+        ActorCXbuild(dd, act)
+
+        # TF coils
+        dd.build.tf.coils_n = ini.tf.n_coils
+        # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
+        dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type=_tf_, fs=_hfs_).start_radius / dd.build.tf.coils_n
+        # ripple
+        dd.build.tf.ripple = ini.tf.ripple
+
+        # center stack solid mechanics
+        dd.solid_mechanics.center_stack.bucked = Int(ini.center_stack.bucked)
+        dd.solid_mechanics.center_stack.noslip = Int(ini.center_stack.noslip)
+        dd.solid_mechanics.center_stack.plug = Int(ini.center_stack.plug)
+
+        # assign materials
+        assign_build_layers_materials(dd, ini)
+
+        return dd
     end
-
-    # 2D build cross-section
-    ActorCXbuild(dd, act)
-
-    # TF coils
-    dd.build.tf.coils_n = ini.tf.n_coils
-    # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-    dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type=_tf_, fs=_hfs_).start_radius / dd.build.tf.coils_n
-    # ripple
-    dd.build.tf.ripple = ini.tf.ripple
-
-    # center stack solid mechanics
-    dd.solid_mechanics.center_stack.bucked = Int(ini.center_stack.bucked)
-    dd.solid_mechanics.center_stack.noslip = Int(ini.center_stack.noslip)
-    dd.solid_mechanics.center_stack.plug = Int(ini.center_stack.plug)
-
-    # assign materials
-    assign_build_layers_materials(dd, ini)
-
-    return dd
 end
 
 """

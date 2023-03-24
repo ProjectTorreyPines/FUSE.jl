@@ -164,15 +164,16 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
 end
 
 """
-    digest(dd::IMAS.dd)
+    digest(dd::IMAS.dd; terminal_width::Int=136)
 
 Provides concise and informative summary of `dd`, including several plots.
 """
-function digest(dd::IMAS.dd)
+function digest(dd::IMAS.dd; terminal_width::Int=136)
     #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
 
-    IMAS.print_tiled(extract(dd))
+    IMAS.print_tiled(extract(dd); terminal_width)
 
+    # equilibrium with build and PFs
     p = plot(dd.equilibrium, legend=false)
     if !isempty(dd.build.layer)
         plot!(p[1], dd.build, legend=false)
@@ -182,9 +183,31 @@ function digest(dd::IMAS.dd)
     end
     display(p)
 
+    # core profiles
     display(plot(dd.core_profiles))
 
+    # core sources
     display(plot(dd.core_sources))
+
+    # neutron wall loading
+    if !isempty(dd.neutronics.time_slice)
+        display(plot(dd.neutronics.time_slice[].wall_loading))
+    end
+
+    # center stack stresses
+    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh)
+        display(plot(dd.solid_mechanics.center_stack.stress))
+    end
+
+    # # balance of plant
+    # if !missing(dd.balance_of_plant, :Q_plant)
+    #     display(plot(dd.balance_of_plant))
+    # end
+
+    # costing
+    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0)
+        display(plot(dd.costing.cost_direct_capital))
+    end
 
     return nothing
 end

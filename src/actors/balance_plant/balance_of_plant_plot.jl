@@ -42,7 +42,8 @@ end
 function sys_coords(dd::IMAS.dd)
     # to_find = ["hfs blanket" ,"lfs gap vacuum vessel low temp shield","lfs first wall"]
     to_find = ["hfs blanket", "hfs TF", "lfs first wall"]
-    re_name = Dict("hfs blanket" => "blanket_wall",
+    re_name = Dict(
+        "hfs blanket" => "blanket_wall",
         "hfs TF" => "outer_wall",
         "lfs first wall" => "inner_wall",
         "Upper divertor" => "upper_divertor",
