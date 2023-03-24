@@ -125,7 +125,6 @@ https_dev:
 	ln -sf $(PWD) ~/.julia/dev/FUSE
 	julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
-fuse_packages_direct = $(FUSE_PACKAGES_DIRECT);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
@@ -134,9 +133,9 @@ for package in fuse_packages;\
 	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
 Pkg.develop(dependencies);\
-Pkg.develop(fuse_packages_direct);\
+Pkg.develop(fuse_packages);\
 Pkg.activate("./docs");\
-Pkg.develop(["FUSE"; fuse_packages_direct]);\
+Pkg.develop(["FUSE"; fuse_packages]);\
 '
 
 # install FUSE without using the registry
