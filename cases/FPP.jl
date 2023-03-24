@@ -33,7 +33,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         act.ActorHFSsizing.fixed_aspect_ratio = true
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints_number = 2
-        act.ActorEquilibrium.model = :CHEASE
+        STEP = true
     end
 
     ini.requirements.tritium_breeding_ratio = 1.1
