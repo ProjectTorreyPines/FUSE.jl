@@ -1,3 +1,5 @@
+import Weave
+
 # ===================================== #
 # extract data from FUSE save folder(s) #
 # ===================================== #
@@ -168,10 +170,14 @@ end
 
 Provides concise and informative summary of `dd`, including several plots.
 """
-function digest(dd::IMAS.dd; terminal_width::Int=136)
+function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
     #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
 
-    IMAS.print_tiled(extract(dd); terminal_width)
+    IMAS.print_tiled(extract(dd); terminal_width, line_char)
+
+    if !isempty(dd.build.layer)
+        display(dd.build.layer)
+    end
 
     # equilibrium with build and PFs
     p = plot(dd.equilibrium, legend=false)
@@ -184,14 +190,21 @@ function digest(dd::IMAS.dd; terminal_width::Int=136)
     display(p)
 
     # core profiles
-    display(plot(dd.core_profiles))
+    display(plot(dd.core_profiles, only=1))
+    display(plot(dd.core_profiles, only=2))
+    display(plot(dd.core_profiles, only=3))
 
     # core sources
-    display(plot(dd.core_sources))
+    display(plot(dd.core_sources, only=1))
+    display(plot(dd.core_sources, only=2))
+    display(plot(dd.core_sources, only=3))
+    display(plot(dd.core_sources, only=4))
 
     # neutron wall loading
     if !isempty(dd.neutronics.time_slice)
-        display(plot(dd.neutronics.time_slice[].wall_loading))
+        xlim = extrema(dd.neutronics.first_wall.r)
+        xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
+        display(plot(dd.neutronics.time_slice[].wall_loading; xlim))
     end
 
     # center stack stresses
@@ -210,4 +223,38 @@ function digest(dd::IMAS.dd; terminal_width::Int=136)
     end
 
     return nothing
+end
+
+"""
+    digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+
+Write digest to PDF in current working directory.
+
+PDF filename is based on title (with `" "` replaced by `"_"`)
+"""
+function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+    outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
+    tmpdir = mktempdir()
+    logger = SimpleLogger(stderr, Logging.Warn)
+    try
+        filename = redirect_stdout(Base.DevNull()) do
+            with_logger(logger) do
+                Weave.weave(joinpath(@__DIR__, "digest.jmd");
+                    mod=@__MODULE__,
+                    doctype="md2pdf",
+                    template=joinpath(@__DIR__, "digest.tpl"),
+                    out_path=tmpdir,
+                    args=Dict(
+                        :dd => dd,
+                        :title => title,
+                        :description => description))
+            end
+        end
+        cp(filename, outfilename, force=true)
+        return outfilename
+    catch e
+        println(tmpdir)
+    else
+        rm(tmpdir, recursive=true, force=true)
+    end
 end
