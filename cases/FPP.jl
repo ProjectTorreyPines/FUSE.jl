@@ -33,11 +33,13 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         act.ActorHFSsizing.fixed_aspect_ratio = true
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints_number = 2
+        act.ActorEquilibrium.model = :CHEASE
+        act.ActorWholeFacility.update_plasma = false
         STEP = true
     end
 
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.cost = 5000. # M$
+    ini.requirements.cost = 5000.0 # M$
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
@@ -87,10 +89,8 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         # higher density
         ini.core_profiles.ne_ped = 9.4E19
         ini.core_profiles.greenwald_fraction = 1.26
-        # CHEASE solver
-        act.ActorEquilibrium.model = :CHEASE
         # scale confinement to roughly match STEP prediction
-        act.ActorTauenn.confinement_factor=0.9
+        act.ActorTauenn.confinement_factor = 0.9
     end
 
     # add wall layer
