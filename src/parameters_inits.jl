@@ -92,7 +92,7 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
     n_coils::Entry{Int} = Entry(Int, "-", "Number of TF coils")
-    shape::Switch{BuildLayerShape} = Switch(BuildLayerShape, tf_shape_options, "-", "Shape of the TF coils"; default=:princeton_D_scaled)
+    shape::Switch{BuildLayerShape} = Switch(BuildLayerShape, tf_shape_options, "-", "Shape of the TF coils"; default=:double_ellipse)
     ripple::Entry{T} = Entry(T, "-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
