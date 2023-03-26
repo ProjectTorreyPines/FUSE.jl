@@ -169,67 +169,80 @@ function shape_function(shape_function_index)
 
     return resampled_zfunc
 end
+
 """
     optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
 function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
-    if length(shape_parameters) in [0, 1]
-        func(r_start, r_end, shape_parameters...)
-        return shape_parameters
-    end
-
-    function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
-        R, Z = func(r_start, r_end, shape_parameters...)
-
-        # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-        index = abs.((R .- r_start) .* (R .- r_end)) .> (target_clearance / 1000)
-        R = R[index]
-        Z = Z[index]
-
-        # no polygon crossings  O(N)
-        inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
-        cost_inside = sum(inpoly)
-
-        # target clearance  O(1)
-        minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
-        cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
-        mean_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance)
-        cost_mean_distance = mean_distance_error / target_clearance
-
-        # favor up/down symmetric solutions
-        cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
-
-        if verbose
-            @show minimum_distance
-            @show mean_distance_error
-            @show target_clearance
-            @show cost_min_clearance^2
-            @show cost_mean_distance^2
-            @show cost_inside^2
-            @show cost_up_down_symmetry^2
-        end
-
-        # return cost
-        return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2
-    end
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
-    initial_guess = copy(shape_parameters)
-    # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-    #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
-    res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-        initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit))
-    if verbose
-        println(res)
+
+    if length(shape_parameters) in [0, 1]
+        func(r_start, r_end, shape_parameters...)
+
+    else
+        function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
+            R, Z = func(r_start, r_end, shape_parameters...)
+
+            # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
+            index = abs.((R .- r_start) .* (R .- r_end)) .> (target_clearance / 1000)
+            R = R[index]
+            Z = Z[index]
+
+            # no polygon crossings  O(N)
+            inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
+            cost_inside = sum(inpoly)
+
+            # target clearance  O(1)
+            minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
+            cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
+            mean_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance)
+            cost_mean_distance = mean_distance_error / target_clearance
+
+            # favor up/down symmetric solutions
+            cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
+
+            if verbose
+                @show minimum_distance
+                @show mean_distance_error
+                @show target_clearance
+                @show cost_min_clearance^2
+                @show cost_mean_distance^2
+                @show cost_inside^2
+                @show cost_up_down_symmetry^2
+            end
+
+            # return cost
+            return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2
+        end
+
+        initial_guess = copy(shape_parameters)
+        # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
+        #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
+        res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
+            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit))
+        if verbose
+            println(res)
+        end
+        shape_parameters = Optim.minimizer(res)
     end
-    shape_parameters = Optim.minimizer(res)
+
+    # check no polygon crossings
+    R, Z = func(r_start, r_end, shape_parameters...)
+    inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
+    cost_inside = sum(inpoly)
+    if cost_inside > 0
+        @warn "optimize_hape function could not avoid polygon crossings! Perhaps try changing shape?"
+    end
+
     # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
-    # plot(func(r_start, r_end, initial_guess...); markershape=:x)
-    # plot!(r_obstruction, z_obstruction, ; markershape=:x)
-    # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal))
-    # cost_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
+    # plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
+    # plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
+    # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
+    # cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
+
     return shape_parameters
 end
 
