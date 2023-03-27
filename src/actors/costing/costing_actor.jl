@@ -1,36 +1,42 @@
 using CSV
 using DataFrames
 
-function today_dollars(dollars::Real, year::Integer) #, generation::Symbol, costing::IMAS.costing)
+Base.@kwdef mutable struct DollarAdjust
+    year::Union{Missing,Int} = missing
+    future_inflation_rate::Union{Missing,Real} = missing 
+    construction_start_year::Union{Missing,Int} = missing 
+    inflate_to_start_year::Union{Missing,Bool} = missing 
+    year_assessed::Union{Missing,Int} = missing 
+end
+
+# function future_dollars(inflate_to_start_year::Bool, construction_start_year::Real, future_inflation_rate::Real, dollars::Real)
+function future_dollars(dollars::Real, da::DollarAdjust)
     csv_loc = abspath(joinpath(@__DIR__, "../../../../IMAS/data/CPI.csv"))
     CPI = DataFrame(CSV.File(csv_loc))
-    if 1913 <= year <= 2022
-        index = CPI.Year .== year 
+    if 1913 <= da.year_assessed <= 2022 
+        index = CPI.Year .== da.year_assessed 
         CPI_past_year = CPI[index, "Year Avg"][1]
-        print(CPI_past_year)
-
-        val_today = 299.71 ./ CPI_past_year .* dollars
+        val_today = 299.17 ./ CPI_past_year .* dollars  
+    elseif da.year_assessed == 2023
+        val_today = dollars 
     else 
-        @warn "Inflation data not available for $year"
-        val_today = dollars
-    end 
-    
-    return val_today
-end 
+        @warn "Inflation data not available for $(da.year_assessed)"
+        val_today = dollars 
+    end
 
-function future_dollars(inflate_to_start_year::Bool, construction_start_year::Real, future_inflation_rate::Real, dollars::Real)
-    if inflate_to_start_year == true
-        year = construction_start_year
-        if construction_start_year < 2023
+    if da.inflate_to_start_year
+        if da.construction_start_year < 2023
             @warn "inflate_to_start_year = true requires that construction_start_year is in the future. Costs will be returned in 2023 dollars."
             year = 2023
+        else
+            year = da.construction_start_year 
         end
     else 
         year = 2023
     end
 
     n_years = year - 2023
-    future_val = dollars * ((1 + future_inflation_rate)^n_years)
+    future_val = val_today * ((1 + da.future_inflation_rate)^n_years)
     return future_val
 end
 
@@ -51,7 +57,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
     building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default=140.0e3)
     interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default=0.05)
     fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default=0.078)
-    indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, energineering construction management and owners cost"; default=0.4)
+    indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4) 
     lifetime::Entry{Int} = Entry(Int, "years", "lifetime of the plant"; default=40)
     availability::Entry{T} = Entry(T, "-", "availability fraction of the plant"; default=0.803)
     escalation_fraction::Entry{T} = Entry(T, "-", "yearly escalation fraction based on risk assessment"; default=0.05)
@@ -112,4 +118,5 @@ function _finalize(actor::ActorCosting)
     for sys in actor.dd.costing.cost_direct_capital.system
         sort!(sys.subsystem, by=x -> x.cost, rev=true)
     end
+    return actor
 end
