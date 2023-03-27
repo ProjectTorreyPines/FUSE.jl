@@ -4,11 +4,11 @@ import Weave
 # extract data from FUSE save folder(s) #
 # ===================================== #
 """
-    IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
+    IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
 
 Read dd.json/h5 in a folder and extract data from it.
 """
-function IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
+function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
     dd, ini, act = load(dir; load_ini=false, load_act=false)
     return extract(dd, xtract)
 end
