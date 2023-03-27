@@ -5,4 +5,4 @@ include("runtests_workflows.jl")
 
 include("runtests_basics.jl")
 
-println(FUSE.to)
+println(FUSE.timer)

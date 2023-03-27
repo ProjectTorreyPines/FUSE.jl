@@ -37,12 +37,22 @@ dd.build.oh
 # Estimated flattop durration at maximum oh current operation suggests that ITER can run for 3500 seconds! 
 ```
 
+### Take a look at the PF coils optimization parameters
+
+
+```@julia
+display(act.ActorPFcoilsOpt)
+display(act.ActorPFcoilsOpt[:optimization_scheme])
+```
+
 ### Run PF coils optimization and plot
 
 
 ```@julia
 FUSE.init_pf_active(dd, ini, act)
-#plot(dd.pf_active)
-#act.ActorPFcoilsOpt[:optimization_scheme]
-FUSE.ActorPFcoilsOpt(dd, act; optimization_scheme=:currents, do_plot=true);
+act.ActorPFcoilsOpt.weight_currents=1.0
+act.ActorPFcoilsOpt.weight_lcfs=1.0
+act.ActorPFcoilsOpt.weight_null=1.0
+act.ActorPFcoilsOpt.weight_strike=1.0
+FUSE.ActorPFcoilsOpt(dd, act; optimization_scheme=:rail, do_plot=true);
 ```

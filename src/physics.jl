@@ -659,12 +659,13 @@ Control of the X-point location can be achieved by modifying R0, Z0.
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
-    function cost(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::Float64)
-        RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, α)
+    function cost(mri::AbstractVector{T}, mzi::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::Float64)
         if upper
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .> Z0))))^2.0
+            RX, ZX, R, Z = add_xpoint(mri, mzi, i, R0, Z0, α)
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .> (Z0 + ZX) / 2.0))))^2.0
         else
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .< Z0))))^2.0
+            RX, ZX, R, Z = add_xpoint(mri, mzi, i, R0, Z0, α)
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .< (Z0 + ZX) / 2.0))))^2.0
         end
     end
 
@@ -673,17 +674,25 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     end
 
     if upper
-        i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .> Z0))
+        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .> Z0))
+        index = mz .> Z0
+        mri = mr[index]
+        mzi = mz[index]
+        i = findfirst(i -> (mri[i] == mr[k] && mzi[i] == mz[k]), 1:length(mri))
     else
-        i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
+        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
+        index = mz .< Z0
+        mri = mr[index]
+        mzi = mz[index]
+        i = findfirst(i -> (mri[i] == mr[k] && mzi[i] == mz[k]), 1:length(mri))
     end
 
     if R0 === nothing
-        R0 = mr[i]
+        R0 = mri[i]
     end
 
-    res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
-    RX, ZX, R, Z = add_xpoint(mr, mz, i, R0, Z0, res.minimizer[1])
+    res = Optim.optimize(α -> cost(mri, mzi, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
+    RX, ZX, R, Z = add_xpoint(mr, mz, k, R0, Z0, res.minimizer[1])
 
     return RX, ZX, R, Z
 end
@@ -704,13 +713,23 @@ Return MXHboundary structure of boundary with x-points based on input MXH bounda
 """
 function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
     mr, mz = mxh()
+    mxhb = MXHboundary(deepcopy(mxh), Float64[], Float64[], mr, mz)
+    return MXHboundary!(mxhb; upper_x_point, lower_x_point, n_points)
+end
+
+function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+    mr, mz = mxhb.mxh()
 
     if ~upper_x_point && ~lower_x_point && n_points === 0
-        return MXHboundary(deepcopy(mxh), Float64[], Float64[], mr, mz)
+        empty!(mxhb.RX)
+        empty!(mxhb.ZX)
+        mxhb.r_boundary = mr
+        mxhb.z_boundary = mz
+        return mxh
     end
 
-    R0 = mxh.R0
-    Z0 = mxh.Z0
+    R0 = mxhb.mxh.R0
+    Z0 = mxhb.mxh.Z0
 
     RX = Float64[]
     ZX = Float64[]
@@ -732,7 +751,12 @@ function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_
     R, Z = IMAS.resample_2d_path(R, Z; n_points)
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
 
-    return MXHboundary(mxh, RX, ZX, R, Z)
+    mxhb.RX = RX
+    mxhb.ZX = ZX
+    mxhb.r_boundary = R
+    mxhb.z_boundary = Z
+
+    return mxhb
 end
 
 """
@@ -747,25 +771,24 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     end
 
     # change mxh parameters so that the boundary with x-points has the desired elongation, triangularity, squareness
-    mxh1 = deepcopy(mxh)
-
-    function mxhb_from_params(params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
-        mxh1.κ = params[1]
-        mxh1.c0 = params[2]
-        mxh1.s = params[3:2+Integer((end - 2) / 2)]
-        mxh1.c = params[2+Integer((end - 2) / 2)+1:end]
-        return MXHboundary(mxh1; upper_x_point, lower_x_point, n_points)
+    mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
+    mxh0 = deepcopy(mxh)
+    function mxhb_from_params!(params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
+        mxhb0.mxh.κ = params[1]
+        mxhb0.mxh.c0 = params[2]
+        mxhb0.mxh.s = params[3:2+Integer((end - 2) / 2)]
+        mxhb0.mxh.c = params[2+Integer((end - 2) / 2)+1:end]
+        return MXHboundary!(mxhb0; upper_x_point, lower_x_point, n_points)
     end
 
     function cost(params::AbstractVector{<:Real}; mxh, upper_x_point, lower_x_point, n_points)
-        mxhb1 = mxhb_from_params(params; upper_x_point, lower_x_point, n_points)
-        mxh0 = IMAS.MXH(mxhb1.r_boundary, mxhb1.z_boundary, length(mxh.c))
-        c = norm(vcat(mxh0.κ - mxh.κ, mxh0.c0 - mxh.c0, mxh0.s .- mxh.s, mxh0.c .- mxh.c))
-        return c
+        mxhb1 = mxhb_from_params!(params; upper_x_point, lower_x_point, n_points)
+        IMAS.MXH!(mxh0, mxhb1.r_boundary, mxhb1.z_boundary)
+        return norm(vcat(mxh0.κ - mxh.κ, mxh0.c0 - mxh.c0, mxh0.s .- mxh.s, mxh0.c .- mxh.c))
     end
 
-    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead())
-    mxhb = mxhb_from_params(res.minimizer; upper_x_point, lower_x_point, n_points)
+    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(g_tol=1E-3))
+    mxhb = mxhb_from_params!(res.minimizer; upper_x_point, lower_x_point, n_points)
 
     return mxhb
 end
