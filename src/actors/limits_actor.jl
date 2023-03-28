@@ -8,6 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPlasmaLimits{T} <: ParametersAct
     min_q95::Entry{T} = Entry(T, "-", "Minimum q95 (0.0 disables it)"; default=2.0)
     vertical_stability::Entry{Bool} = Entry(Bool, "-", "Vertical stability"; default=true)
     greenwald_fraction::Entry{T} = Entry(T, "-", "Greenwald fraction (0.0 disables it)"; default=0.0)
+    beta_critical::Entry{T} = Entry(T, "-", "Critical normalized beta (0.0 disables it)"; default=0.0)
 end
 
 mutable struct ActorPlasmaLimits <: PlasmaAbstractActor
@@ -39,6 +40,14 @@ function add_limit_check!(exceeded_limits, what, value, f, limit)
     end
 end
 
+function check_limit_beta!(exceeded_limits, dd, par)
+    value = dd.equilibrium.time_slice[].global_quantities.beta_normal
+    limit = par.beta_critical
+    if limit != 0.0
+        add_limit_check!(exceeded_limits, "beta_normal", value, >, limit)
+    end
+end
+
 """
     step(actor::ActorPlasmaLimits)
 
@@ -51,6 +60,16 @@ function _step(actor::ActorPlasmaLimits)
     cp1d = dd.core_profiles.profiles_1d[]
 
     exceeded_limits = String[]
+
+    # Option 1: All in step
+    if par.beta_critical != 0.0
+        value = abs(dd.equilibrium.time_slice[].global_quantities.beta_normal)
+        limit = par.beta_critical
+        add_limit_check!(exceeded_limits, "beta_normal", value, >, limit)
+    end
+
+    # Option 2: All in function
+    check_limit_beta!(exceeded_limits, dd, par)
 
     if par.min_q95 > 0.0
         value = abs(dd.equilibrium.time_slice[].global_quantities.q_95)
