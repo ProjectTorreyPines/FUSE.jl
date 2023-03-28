@@ -43,7 +43,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
-    greenwald_fraction::Entry{T} = Entry(T, "-", "Greenwald fraction, ne_vol / ne_gw")
+    greenwald_fraction::Entry{T} = Entry(T, "-", "Line average electron density expressed as fraction of Greenwald density")
+    greenwald_fraction_ped::Entry{T} = Entry(T, "-", "Pedestal electron density expressed as fraction of Greenwald density")
     ne_ped::Entry{T} = Entry(T, "m^-3", "Pedestal electron density")
     w_ped::Entry{T} = Entry(T, "-", "Pedestal width expressed in fraction of ψₙ", default=0.05)
     T_shaping::Entry{T} = Entry(T, "-", "Temperature shaping factor")
