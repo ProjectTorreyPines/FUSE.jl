@@ -50,6 +50,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.requirements.flattop_duration = 10.0
 
     ini.core_profiles.greenwald_fraction = 0.37
+    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.1 #estimate
     ini.core_profiles.T_shaping = 1.8 #estimate (from ITER)
     ini.core_profiles.zeff = 1.5

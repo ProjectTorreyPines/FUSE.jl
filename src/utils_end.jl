@@ -18,9 +18,12 @@ end
 
 Extract data from multiple folders or `dd`s and return results in DataFrame format.
 
-Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, or both with `:all`
+Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
 """
 function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+    # test filter_invalid
+    @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
+
     # allocate memory
     df = DataFrames.DataFrame(extract(DD[1], xtract))
     for k in 2:length(DD)

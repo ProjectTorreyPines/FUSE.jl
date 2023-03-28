@@ -1,6 +1,6 @@
-module FUSE
-
 __precompile__(true)
+
+module FUSE
 
 using IMAS
 import Plots

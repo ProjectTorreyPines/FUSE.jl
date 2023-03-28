@@ -50,7 +50,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            shape_parameters = [height * 0.75, height]
+            centerpost_height = height * 0.75
+            shape_parameters = [centerpost_height, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
@@ -302,17 +303,26 @@ end
 double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
-    r_e2 = r_center
-    z_e2 = 0.0
-    ra_e2 = r_end - r_center
-    zb_e2 = height / 2.0
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points)
+end
 
+function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    centerpost_height = abs(centerpost_height)
+    outerpost_height = abs(outerpost_height)
+    height = abs(height)
+
+    # inner
     r_e1 = r_center
     z_e1 = centerpost_height / 2.0
     ra_e1 = r_center - r_start
     zb_e1 = (height - centerpost_height) / 2.0
-
     r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points)
+
+    # outer
+    r_e2 = r_center
+    z_e2 = outerpost_height / 2.0
+    ra_e2 = r_end - r_center
+    zb_e2 = (height - outerpost_height) / 2.0
     r2, z2 = ellipse(ra_e2, zb_e2, float(π / 2), float(0.0), r_e2, z_e2; n_points)
 
     R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
@@ -325,11 +335,16 @@ end
 
 circle ellipse shape (parametrization of TF coils used in GATM)
 
-Special case of the double ellipse shape
+Special case of the double ellipse shape, where the inner ellipse is actually a circle
 """
 function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
     r_center = r_start + (height - centerpost_height) / 2.0
     return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points)
+end
+
+function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    r_center = r_start + (height - centerpost_height) / 2.0
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, outerpost_height, height; n_points)
 end
 
 """
