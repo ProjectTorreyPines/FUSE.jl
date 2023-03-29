@@ -1,13 +1,14 @@
 """
-    case_parameters(:FPP; version::Symbol, init_from::Symbol)
+    case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, STEP::Bool=true)::Tuple{ParametersAllInits,ParametersAllActors}
 
 GA 2022 FPP design
 
 Arguments:
 * `version`: `:v1` or `:v1_demount`
-* `init_from`: `:scalars` or `:ods` (ODS contains equilibrium information)
+* `init_from`: `:scalars` or `:ods`
+* `STEP`: plasma parameters to match STEP modeling
 """
-function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, STEP::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
@@ -33,10 +34,12 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints_number = 2
         act.ActorEquilibrium.model = :CHEASE
+        act.ActorWholeFacility.update_plasma = false
+        STEP = true
     end
 
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.cost = 5000. # M$
+    ini.requirements.cost = 5000.0 # M$
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
@@ -64,22 +67,39 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
 
     # greenwald_fraction is a powerful knob
     ini.core_profiles.greenwald_fraction = 0.9
+    ini.core_profiles.greenwald_fraction_ped = 0.75
 
     # negative triangularity
     # ini.equilibrium.δ *= -1
 
     # squareness
     ini.equilibrium.ζ = 0.15
-    # act.ActorEquilibrium.model = :CHEASE
     act.ActorEquilibrium.symmetrize = true
 
     # simple analytic AT confinement
     act.ActorTauenn.transport_model = :ds03
-    act.ActorTransportSolver.evolve_densities = Dict(
+
+    # Based on STEP
+    if STEP
+        # zeff
+        ini.core_profiles.zeff = 2.0
+        # ech aiming
+        act.ActorECsimple.rho_0 = 0.6
+        # lower ip
+        ini.equilibrium.ip = 8.0E6
+        # higher density
+        ini.core_profiles.greenwald_fraction = 1.26
+        act.ActorPlasmaLimits.greenwald_fraction = 0.0
+        # scale confinement to roughly match STEP prediction
+        act.ActorTauenn.confinement_factor = 0.9
+    else
+        act.ActorTransportSolver.evolve_densities = Dict(
         :Ar        => :match_ne_scale,
         :DT        => :quasi_neutrality,
         :He        => :match_ne_scale,
         :electrons => :flux_match)
+    end
+
     # add wall layer
     if true
         gasc_add_wall_layers!(ini.build.layers; thickness=0.02)

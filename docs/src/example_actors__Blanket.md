@@ -8,31 +8,19 @@ using Plots;
 FUSE.logging(Logging.Info);
 ```
 
-### Initialize the ITER case case
-[ITER case documentation](https://fuse.help/cases.html#ITER)
+### Initialize case
 
 
 ```@julia
-dd, ini, act = FUSE.init(:ITER, init_from=:ods, do_plot=true);
+ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars);
+dd = FUSE.init(ini, act; do_plot=false);
 ```
 
-### Run Actors that will be needed for the blanket actor
+### Run Neutronics actors
 
 
 ```@julia
-FUSE.ActorEquilibriumTransport(dd, act)
-FUSE.ActorCXbuild(dd, act)
 FUSE.ActorNeutronics(dd, act; do_plot=true);
-```
-
-### Running the simple blanket actor
-[ActorBlanket documentation](https://fuse.help/actors.html#Blanket)
-
-
-```@julia
-dd.build.structure
-FUSE.ActorBlanket(dd, act);
-dd.blanket
 ```
 
 ### Running the blanket actor
@@ -40,11 +28,8 @@ dd.blanket
 
 
 ```@julia
-FUSE.ActorBlanket(dd, act)
+dd.build.structure
+act.ActorBlanket.minimum_first_wall_thickness = 0.02
+FUSE.ActorBlanket(dd, act, verbose=true);
 dd.blanket
-```
-
-
-```@julia
-act
 ```

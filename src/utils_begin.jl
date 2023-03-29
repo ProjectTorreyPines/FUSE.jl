@@ -6,12 +6,18 @@ import TimerOutputs
 # ====== #
 # Timing #
 # ====== #
-const to = TimerOutputs.TimerOutput()
+const timer = TimerOutputs.TimerOutput()
 
 function TimerOutputs.reset_timer!(to::TimerOutputs.TimerOutput, section::String)
     pop!(to.inner_timers, section, nothing)
     to.prev_timer_label = ""
     to.prev_timer = nothing
+end
+
+function TimerOutputs.reset_timer!(section::String)
+    pop!(timer.inner_timers, section, nothing)
+    timer.prev_timer_label = ""
+    timer.prev_timer = nothing
 end
 
 # ==== #
@@ -172,10 +178,10 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
                 np = min(np, nprocs_max)
             end
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
-            if nprocs() < np
-                Distributed.addprocs(ClusterManagers.SlurmManager(np - nprocs()), exclusive="", topology=:master_worker, kw...)
+            if Distributed.nprocs() < np
+                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), exclusive="", topology=:master_worker, kw...)
             end
-            println("Working with $(nprocs()) distributed processes on $(gethostname())")
+            println("Working with $(Distributed.nprocs()) distributed processes on $(gethostname())")
         else
             error("Not running on saga cluster")
         end
@@ -185,10 +191,10 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
         if nprocs_max > 0
             np = min(np, nprocs_max)
         end
-        if nprocs() < np + 1
-            Distributed.addprocs(np - nprocs() + 1, topology=:master_worker)
+        if Distributed.nprocs() < np + 1
+            Distributed.addprocs(np - Distributed.nprocs() + 1, topology=:master_worker)
         end
-        println("Working with $(nprocs()-1) processes on $(gethostname())")
+        println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
 
     else
         error("Cluster $server is unknown. Add it to the FUSE.parallel_environment")

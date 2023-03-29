@@ -1,6 +1,6 @@
-module FUSE
-
 __precompile__(true)
+
+module FUSE
 
 using IMAS
 import Plots
@@ -85,7 +85,10 @@ include(joinpath("actors", "balance_plant", "power_needs_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_plot.jl"))
 
-include(joinpath("actors", "costing_actor.jl"))
+include(joinpath("actors", "costing", "costing_ARIES.jl"))
+include(joinpath("actors", "costing", "costing_Sheffield.jl"))
+include(joinpath("actors", "costing", "costing_fuse.jl"))
+include(joinpath("actors", "costing", "costing_actor.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "equilibrium_transport_actor.jl"))

@@ -56,6 +56,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     #ini.requirements.tritium_breeding_ratio = 1.0 ?
 
     ini.core_profiles.greenwald_fraction = 0.49
+    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.10 #estimate
     ini.core_profiles.T_shaping = 1.8 #estimate (from ITER)
     ini.core_profiles.zeff = 1.5

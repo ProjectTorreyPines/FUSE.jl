@@ -23,8 +23,8 @@ end
 
     for (testname, (args, kw)) in tests
         @testset "$testname" begin
-            FUSE.TimerOutputs.reset_timer!(FUSE.to, testname)
-            FUSE.TimerOutputs.@timeit FUSE.to "$testname" begin
+            FUSE.TimerOutputs.reset_timer!(FUSE.timer, testname)
+            FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
                 ini, act = FUSE.case_parameters(args...; kw...)
                 if occursin("ods", testname)
                     act.ActorEquilibrium.model = :Solovev

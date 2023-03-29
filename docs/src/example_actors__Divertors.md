@@ -20,9 +20,18 @@ dd, ini, act = FUSE.init(:ITER, init_from=:ods, do_plot=true);
 
 
 ```@julia
-FUSE.ActorEquilibriumTransport(dd, act)
-#FUSE.ActorCXbuild(dd, act)
-#FUSE.ActorNeutronics(dd, act; do_plot=true);
+FUSE.ActorEquilibriumTransport(dd, act);
+FUSE.ActorCXbuild(dd, act)
+FUSE.ActorNeutronics(dd, act; do_plot=true);
+```
+
+### Running the divertors actor
+[ActorDivertors documentation](https://fuse.help/actors.html#Divertors)
+
+
+```@julia
+FUSE.ActorDivertors(dd, act)
+dd.divertors
 ```
 
 ### Some divertor metrics that should be implemented
@@ -30,6 +39,8 @@ FUSE.ActorEquilibriumTransport(dd, act)
 
 ```@julia
 # Divertor gasc
+
+IMAS.widthSOL_eich(dd)
 
 # Outputs: 
 #        OUT["divertor metrics"] dict:
@@ -106,13 +117,4 @@ divDeliveredHeatFlux = heatFluxParallel * sin(divTotFieldLineAngle * pi / 180.0)
 
 # divDeliveredHeatFlux, heatFluxParallel, 
 
-```
-
-### Running the divertors actor
-[ActorDivertors documentation](https://fuse.help/actors.html#Divertors)
-
-
-```@julia
-FUSE.ActorDivertors(dd, act)
-dd.divertors
 ```

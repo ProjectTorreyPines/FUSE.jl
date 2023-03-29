@@ -1,12 +1,14 @@
+import Weave
+
 # ===================================== #
 # extract data from FUSE save folder(s) #
 # ===================================== #
 """
-    IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
+    IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
 
 Read dd.json/h5 in a folder and extract data from it.
 """
-function IMAS.extract(dir::AbstractString, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary)::Vector{IMAS.ExtractFunction}
+function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
     dd, ini, act = load(dir; load_ini=false, load_act=false)
     return extract(dd, xtract)
 end
@@ -16,9 +18,12 @@ end
 
 Extract data from multiple folders or `dd`s and return results in DataFrame format.
 
-Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, or both with `:all`
+Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
 """
 function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+    # test filter_invalid
+    @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
+
     # allocate memory
     df = DataFrames.DataFrame(extract(DD[1], xtract))
     for k in 2:length(DD)
@@ -164,15 +169,20 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
 end
 
 """
-    digest(dd::IMAS.dd)
+    digest(dd::IMAS.dd; terminal_width::Int=136)
 
 Provides concise and informative summary of `dd`, including several plots.
 """
-function digest(dd::IMAS.dd)
+function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
     #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
 
-    IMAS.print_tiled(extract(dd))
+    IMAS.print_tiled(extract(dd); terminal_width, line_char)
 
+    if !isempty(dd.build.layer)
+        display(dd.build.layer)
+    end
+
+    # equilibrium with build and PFs
     p = plot(dd.equilibrium, legend=false)
     if !isempty(dd.build.layer)
         plot!(p[1], dd.build, legend=false)
@@ -182,9 +192,72 @@ function digest(dd::IMAS.dd)
     end
     display(p)
 
-    display(plot(dd.core_profiles))
+    # core profiles
+    display(plot(dd.core_profiles, only=1))
+    display(plot(dd.core_profiles, only=2))
+    display(plot(dd.core_profiles, only=3))
 
-    display(plot(dd.core_sources))
+    # core sources
+    display(plot(dd.core_sources, only=1))
+    display(plot(dd.core_sources, only=2))
+    display(plot(dd.core_sources, only=3))
+    display(plot(dd.core_sources, only=4))
+
+    # neutron wall loading
+    if !isempty(dd.neutronics.time_slice)
+        xlim = extrema(dd.neutronics.first_wall.r)
+        xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
+        display(plot(dd.neutronics.time_slice[].wall_loading; xlim))
+    end
+
+    # center stack stresses
+    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh)
+        display(plot(dd.solid_mechanics.center_stack.stress))
+    end
+
+    # # balance of plant
+    # if !missing(dd.balance_of_plant, :Q_plant)
+    #     display(plot(dd.balance_of_plant))
+    # end
+
+    # costing
+    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0)
+        display(plot(dd.costing.cost_direct_capital))
+    end
 
     return nothing
+end
+
+"""
+    digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+
+Write digest to PDF in current working directory.
+
+PDF filename is based on title (with `" "` replaced by `"_"`)
+"""
+function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+    outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
+    tmpdir = mktempdir()
+    logger = SimpleLogger(stderr, Logging.Warn)
+    try
+        filename = redirect_stdout(Base.DevNull()) do
+            with_logger(logger) do
+                Weave.weave(joinpath(@__DIR__, "digest.jmd");
+                    mod=@__MODULE__,
+                    doctype="md2pdf",
+                    template=joinpath(@__DIR__, "digest.tpl"),
+                    out_path=tmpdir,
+                    args=Dict(
+                        :dd => dd,
+                        :title => title,
+                        :description => description))
+            end
+        end
+        cp(filename, outfilename, force=true)
+        return outfilename
+    catch e
+        println(tmpdir)
+    else
+        rm(tmpdir, recursive=true, force=true)
+    end
 end
