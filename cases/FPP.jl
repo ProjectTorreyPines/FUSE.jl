@@ -75,7 +75,11 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol):
 
     # simple analytic AT confinement
     act.ActorTauenn.transport_model = :ds03
-
+    act.ActorTransportSolver.evolve_densities = Dict(
+        :Ar        => :match_ne_scale,
+        :DT        => :quasi_neutrality,
+        :He        => :match_ne_scale,
+        :electrons => :flux_match)
     # add wall layer
     if true
         gasc_add_wall_layers!(ini.build.layers; thickness=0.02)

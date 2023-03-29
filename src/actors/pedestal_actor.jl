@@ -108,7 +108,7 @@ end
 
 Writes results to dd.summary.local.pedestal and possibly updates core_profiles
 """
-function _finalize(actor::ActorPedestal;
+function finalize(actor::ActorPedestal;
     temp_pedestal_ratio::Real=actor.par.temp_pedestal_ratio,
     ped_factor::Real=actor.par.ped_factor,
     edge_bound::Real=actor.par.edge_bound,
