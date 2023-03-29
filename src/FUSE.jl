@@ -77,6 +77,8 @@ include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 include(joinpath("actors", "transport", "transport_solver_actor.jl"))
 
+include(joinpath("actors", "stability", "beta_limit_actor.jl"))
+include(joinpath("actors", "stability", "stability_actor.jl"))
 include(joinpath("actors", "limits_actor.jl"))
 
 include(joinpath("actors", "balance_plant", "heat_transfer_actor.jl"))
