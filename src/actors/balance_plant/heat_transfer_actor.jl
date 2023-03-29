@@ -25,7 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersAct
     breeder_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the breeder - cycle heat exchanger"; default=0.9)
     divertor_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the divertor - cycle heat exchanger"; default=0.9)
     blanket_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the wall - cycle heat exchanger"; default=0.9)
-    breeder_fluid::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:Pbli)
+    breeder_fluid::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:PbLi)
     blanket_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
     divertor_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
 end
