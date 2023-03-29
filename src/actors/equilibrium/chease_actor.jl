@@ -116,7 +116,7 @@ function _step(actor::ActorCHEASE)
 end
 
 # finalize by converting gEQDSK data to IMAS
-function finalize(actor::ActorCHEASE)
+function _finalize(actor::ActorCHEASE)
     try
         gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
     catch e

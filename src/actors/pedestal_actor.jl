@@ -108,7 +108,7 @@ end
 
 Writes results to dd.summary.local.pedestal and possibly updates core_profiles
 """
-function finalize(actor::ActorPedestal;
+function _finalize(actor::ActorPedestal;
     temp_pedestal_ratio::Real=actor.par.temp_pedestal_ratio,
     ped_factor::Real=actor.par.ped_factor,
     edge_bound::Real=actor.par.edge_bound,
@@ -132,4 +132,6 @@ function finalize(actor::ActorPedestal;
     if update_core_profiles
         IMAS.blend_core_edge_Hmode(cp1d, dd_ped, edge_bound)
     end
+
+    return actor
 end
