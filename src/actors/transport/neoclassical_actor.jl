@@ -65,12 +65,12 @@ end
 
 Writes ActorNeoclassical results to dd.core_transport
 """
-function finalize(actor::ActorNeoclassical)
+function _finalize(actor::ActorNeoclassical)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
-    model = findfirst(:neoclassical, actor.dd.core_transport.model)
+    model = dd.core_transport.model[findfirst(model.identifier.index == IMAS.name_2_index(dd.core_transport.model)[:neoclassical] for model in dd.core_transport.model)]
     m1d = model.profiles_1d[]
     m1d.total_ion_energy.flux = zeros(length(actor.par.rho_transport))
     for (neoclassical_idx, rho) in enumerate(actor.par.rho_transport)
