@@ -37,6 +37,9 @@ function future_dollars(dollars::Real, da::DollarAdjust)
 
     n_years = year - 2023
     future_val = val_today * ((1 + da.future_inflation_rate)^n_years)
+
+    da.year_assessed = missing #wipe out year_assessed each time to avoid propogating the wrong year 
+
     return future_val
 end
 
