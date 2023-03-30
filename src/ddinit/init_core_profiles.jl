@@ -42,10 +42,6 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 polarized_fuel_fraction=ini.core_profiles.polarized_fuel_fraction)
         end
 
-        if ismissing(dd.core_profiles.profiles_1d[], :j_ohmic)
-            ActorSteadyStateCurrent(dd, act)
-        end
-
         return dd
     end
 end

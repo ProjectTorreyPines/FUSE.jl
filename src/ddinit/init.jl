@@ -26,6 +26,26 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
             end
         end
 
+        # initialize core profiles
+        if !ismissing(ini.core_profiles, :bulk) || :core_profiles ∈ ods_items
+            init_core_profiles(dd, ini, act)
+            if do_plot
+                display(plot(dd.core_profiles, legend=:bottomleft))
+            end
+        end
+
+        # initialize core sources
+        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || :core_sources ∈ ods_items
+            init_core_sources(dd, ini, act)
+            if do_plot
+                display(plot(dd.core_sources, legend=:topright))
+                display(plot(dd.core_sources, legend=:bottomright; integrated=true))
+            end
+        end
+
+        # initialize currents
+        init_currents(dd, ini, act)
+        
         # initialize build
         if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || :build ∈ ods_items
             init_build(dd, ini, act)
@@ -45,23 +65,6 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
                 plot!(dd.build)
                 plot!(dd.build.pf_active.rail)
                 display(plot!(dd.pf_active))
-            end
-        end
-
-        # initialize core profiles
-        if !ismissing(ini.core_profiles, :bulk) || :core_profiles ∈ ods_items
-            init_core_profiles(dd, ini, act)
-            if do_plot
-                display(plot(dd.core_profiles, legend=:bottomleft))
-            end
-        end
-
-        # initialize core sources
-        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || :core_sources ∈ ods_items
-            init_core_sources(dd, ini, act)
-            if do_plot
-                display(plot(dd.core_sources, legend=:topright))
-                display(plot(dd.core_sources, legend=:bottomright; integrated=true))
             end
         end
 
