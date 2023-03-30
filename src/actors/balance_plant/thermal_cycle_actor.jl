@@ -103,22 +103,22 @@ function _step(actor::ActorThermalCycle)
 
         @ddtime(bop_thermal.input_work = mflow_cycle * pc.work)
 
-        hxA = ihts_heat_exchanger(ihts_par.blanket_η_pump, ihts_par.blanket_HX_ϵ, Niter, pc.T_out, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, blanket_power, rp_blanket, cp_blk, kcoeff_blk)
+        blanket_coolant_heat_exchanger = ihts_heat_exchanger(ihts_par.blanket_η_pump, ihts_par.blanket_HX_ϵ, Niter, pc.T_out, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, blanket_power, rp_blanket, cp_blk, kcoeff_blk)
 
-        @ddtime(wall.HX_outlet_temperature = hxA.Tmin)
-        @ddtime(wall.inlet_temperature = hxA.Tin)
-        @ddtime(wall.outlet_temperature = hxA.Tmax)
-        @ddtime(wall.circulator_power = hxA.pump_work)
-        @ddtime(wall.heat_delivered = hxA.HX_q)
-        @ddtime(wall.heat_waste = abs(blanket_power + hxA.pump_work - hxA.HX_q))
-        hxB = ihts_heat_exchanger(ihts_par.divertor_η_pump, ihts_par.divertor_HX_ϵ, Niter, hxA.Tout_cycle, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, divertor_power, rp_divertor, cp_div, kcoeff_div)
-
-        @ddtime(divertor.HX_outlet_temperature = hxB.Tmin)
-        @ddtime(divertor.inlet_temperature = hxB.Tin)
-        @ddtime(divertor.outlet_temperature = hxB.Tmax)
-        @ddtime(divertor.circulator_power = hxB.pump_work)
-        @ddtime(divertor.heat_delivered = hxB.HX_q)
-        @ddtime(divertor.heat_waste = divertor_power + hxB.pump_work - hxB.HX_q)
+        @ddtime(wall.HX_outlet_temperature = blanket_coolant_heat_exchanger.Tmin)
+        @ddtime(wall.inlet_temperature = blanket_coolant_heat_exchanger.Tin)
+        @ddtime(wall.outlet_temperature = blanket_coolant_heat_exchanger.Tmax)
+        @ddtime(wall.circulator_power = blanket_coolant_heat_exchanger.pump_work)
+        @ddtime(wall.heat_delivered = blanket_coolant_heat_exchanger.HX_q)
+        @ddtime(wall.heat_waste = abs(blanket_power + blanket_coolant_heat_exchanger.pump_work - blanket_coolant_heat_exchanger.HX_q))
+        
+        divertor_coolant_heat_exchanger = ihts_heat_exchanger(ihts_par.divertor_η_pump, ihts_par.divertor_HX_ϵ, Niter, blanket_coolant_heat_exchanger.Tout_cycle, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, divertor_power, rp_divertor, cp_div, kcoeff_div)
+        @ddtime(divertor.HX_outlet_temperature = divertor_coolant_heat_exchanger.Tmin)
+        @ddtime(divertor.inlet_temperature = divertor_coolant_heat_exchanger.Tin)
+        @ddtime(divertor.outlet_temperature = divertor_coolant_heat_exchanger.Tmax)
+        @ddtime(divertor.circulator_power = divertor_coolant_heat_exchanger.pump_work)
+        @ddtime(divertor.heat_delivered = divertor_coolant_heat_exchanger.HX_q)
+        @ddtime(divertor.heat_waste = divertor_power + divertor_coolant_heat_exchanger.pump_work - divertor_coolant_heat_exchanger.HX_q)
 
         Tb_max = @ddtime(bop.heat_transfer.breeder.outlet_temperature)
         Tb_min = @ddtime(bop.heat_transfer.breeder.HX_outlet_temperature)
@@ -142,12 +142,12 @@ function _step(actor::ActorThermalCycle)
         Tb_after_hx = Tb_min
         post_turbine_guess = turbine_stages(par)
 
-        qq = 0.0
+        Q_breeder = 0.0
         Tco = 0.0
         Tcyc_out = 0.0
         #iterating
 
-        Tci_regen_cycle = hxB.Tout_cycle
+        Tci_regen_cycle = divertor_coolant_heat_exchanger.Tout_cycle
         ηt = 0.93
         ϵ_breeder = ihts_par.breeder_HX_ϵ
         ϵ_regen = 0.9
@@ -163,9 +163,9 @@ function _step(actor::ActorThermalCycle)
 
         for iter in 1:50
             post_turbine_guess = turbine_stages(par)
-            Tco, Tho = regenHX(hxB.Tout_cycle, post_turbine_guess.T_out, 0.95)
+            Tco, Tho = regenHX(divertor_coolant_heat_exchanger.Tout_cycle, post_turbine_guess.T_out, 0.95)
 
-            qq, Tbreed_out, Tcyc_out = hxeff(Tb_max, mcp_breeder, Tco, mcp_cyc, ihts_par.breeder_HX_ϵ)
+            Q_breeder, Tbreed_out, Tcyc_out = hxeff(Tb_max, mcp_breeder, Tco, mcp_cyc, ihts_par.breeder_HX_ϵ)
 
             par.Tmax = Tcyc_out
             Tb_after_hx = Tbreed_out
@@ -197,10 +197,10 @@ function _step(actor::ActorThermalCycle)
         @ddtime(bop.heat_transfer.breeder.excess_temperature = Tb_after_hx - Tb_min)
         @ddtime(bop.heat_transfer.breeder.inlet_temperature = Tb_blanket_in)
         @ddtime(bop.heat_transfer.breeder.outlet_temperature = Tb_max)
-        @ddtime(bop.heat_transfer.breeder.heat_delivered = qq)
-        @ddtime(bop.heat_transfer.breeder.heat_waste = breeder_power + bpump - qq)
+        @ddtime(bop.heat_transfer.breeder.heat_delivered = Q_breeder)
+        @ddtime(bop.heat_transfer.breeder.heat_waste = breeder_power + bpump - Q_breeder)
         @ddtime(bop.thermal_cycle.net_work = mflow_cycle * (pt.work - pc.work))
-        @ddtime(bop_thermal.thermal_effeciency = mflow_cycle * (pt.work - pc.work) / (hxB.HX_q + hxA.HX_q + qq))
+        @ddtime(bop_thermal.thermal_effeciency = mflow_cycle * (pt.work - pc.work) / (divertor_coolant_heat_exchanger.HX_q + blanket_coolant_heat_exchanger.HX_q + Q_breeder))
         return actor
 
     elseif bop.power_cycle_type == "brayton_only"
@@ -373,8 +373,8 @@ function ihts_heat_exchanger(pump_η::Real, ϵ_hx::Real, Niter::Int64, Tin_cycle
         Tmin_sys = Tout_sys - qact ./ (mcp_sys)
         Tout_cycle = Tin_cycle + qact ./ mcp_cyc
         error_Tmin = abs(Tmin_sys - oldTmin)
-
-        pump_work = mcp_sys .* (Tin_sys - Tmin_sys) / pump_η
+        # extra effeciency term
+        pump_work = mcp_sys .* (Tin_sys - Tmin_sys)
         if abs(error_Tmin) < 0.000001 || i == Niter
             return ihts_output(Tmin_sys, Tin_sys, Tout_sys, Tout_cycle, pump_work, qact, error_Tmin)
         end
