@@ -83,7 +83,7 @@ function _finalize(actor::ActorTGLF)
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
-    model = dd.core_transport.model[findfirst(model.identifier.index == IMAS.name_2_index(dd.core_transport.model)[:anomalous] for model in dd.core_transport.model)]
+    model = findfirst(:anomalous, actor.dd.core_transport.model)
     m1d = model.profiles_1d[]
     m1d.electrons.energy.flux = zeros(length(par.rho_transport))
     m1d.total_ion_energy.flux = zeros(length(par.rho_transport))
