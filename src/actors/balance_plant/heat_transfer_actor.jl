@@ -3,16 +3,6 @@
 #= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
 
-mutable struct ActorHeatTransfer <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::ParametersActor
-    function ActorHeatTransfer(dd::IMAS.dd, par::ParametersActor; kw...)
-        logging_actor_init(ActorHeatTransfer)
-        par = par(kw...)
-        return new(dd, par)
-    end
-end
-
 const coolant_fluid = [:He, :PbLi]
 
 Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersActor where {T<:Real}
@@ -35,9 +25,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersAct
     breeder_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the breeder - cycle heat exchanger"; default=0.9)
     divertor_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the divertor - cycle heat exchanger"; default=0.9)
     blanket_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the wall - cycle heat exchanger"; default=0.9)
-    breeder_fluid::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:Pbli)
+    breeder_fluid::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:PbLi)
     blanket_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
     divertor_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
+end
+
+mutable struct ActorHeatTransfer <: FacilityAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorHeatTransfer
 end
 
 """
@@ -52,6 +47,12 @@ function ActorHeatTransfer(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
+end
+
+function ActorHeatTransfer(dd::IMAS.dd, par::FUSEparameters__ActorHeatTransfer, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorHeatTransfer)
+    par = par(kw...)
+    return ActorHeatTransfer(dd, par)
 end
 
 function _step(actor::ActorHeatTransfer)
@@ -70,14 +71,13 @@ function _step(actor::ActorHeatTransfer)
     # ======= #
     bop_IHTS = bop.heat_transfer
 
-    # breeder_heat_load   = (sum([bmod.time_slice[time].power_thermal_extracted for bmod in dd.blanket.module]) for time in bop.time)
-    breeder_heat_load = abs.(sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module]))
-    divertor_heat_load = abs.(sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor]))
+    breeder_heat_load = sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module])
+    divertor_heat_load = sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor])
     blanket_heat_load = abs.(IMAS.radiation_losses(dd.core_sources))
 
+    # @show breeder_heat_load
     # @show divertor_heat_load
     # @show blanket_heat_load
-    # @show breeder_heat_load
 
     cp_low, rho_low = pbLi_props(par.breeder_low_temp)
     cp_hi, rho_hi = pbLi_props(par.breeder_hi_temp)
@@ -93,11 +93,8 @@ function _step(actor::ActorHeatTransfer)
 
     # inital values as guess
     ΔT_cycle_breeder = par.breeder_hi_temp - par.divertor_max_temp
-
-    @ddtime(bop.thermal_cycle.flow_rate = breeder_heat_load / (ΔT_cycle_breeder * cp_he))
-
-    cycle_flow = @ddtime(bop.thermal_cycle.flow_rate)
-
+    cycle_flow = breeder_heat_load / (ΔT_cycle_breeder * cp_he)
+    @ddtime(bop.thermal_cycle.flow_rate = cycle_flow)
     @ddtime(bop_IHTS.wall.flow_rate = cycle_flow)
     @ddtime(bop_IHTS.divertor.flow_rate = cycle_flow)
 
@@ -148,14 +145,7 @@ function _step(actor::ActorHeatTransfer)
     return actor
 end
 
-function pbLi_props(Temperature)
-    #temperature input in celcius
-    specific_heat = (0.195 - 9.116 * 1e-6 .* (temperature)) .* 1000   #J/kgK
-    density = 10520.35 - 1.19051 .* (temperature)
-    return [specific_heat, density]
-end
-
-function gas_circulator(rp, Tin, effC, mflow, nstages = 1)
+function gas_circulator(rp, Tin, effC, mflow, nstages=1)
     cp = 5.1926e3
     cv = 3.1156e3
     a1c = (effC * (rp^(1.0 / nstages))^(cv / cp) - (rp^(1.0 / nstages))^(cv / cp) + rp^(1.0 / nstages)) / (effC * (rp^(1.0 / nstages))^(cv / cp))

@@ -52,8 +52,8 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     end
 
     # Core_profiles parameters
-    ini.core_profiles.ne_ped = data_row[:NEL] / 1.3
     ini.core_profiles.greenwald_fraction = data_row[:NEL] * 1e-20 / (data_row[:IP] / 1e6 / (pi * data_row[:AMIN]^2))
+    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.zeff = data_row[:ZEFF]

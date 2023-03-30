@@ -6,15 +6,17 @@ Base.@kwdef mutable struct FUSEparameters__ActorNBIsimple{T} <: ParametersActor 
     _name::Symbol = :not_set
     width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.3)
     rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
-    current_efficiency::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "A/W", "Current drive efficiency"; default=0.3)
 end
 
 mutable struct ActorNBIsimple <: HCDAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorNBIsimple
-    width::AbstractVector{<:Real}
-    rho_0::AbstractVector{<:Real}
-    current_efficiency::AbstractVector{<:Real}
+
+    function ActorNBIsimple(dd::IMAS.dd, par::FUSEparameters__ActorNBIsimple; kw...)
+        logging_actor_init(ActorNBIsimple)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 """
@@ -22,8 +24,10 @@ end
 
 Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
-!!! note 
-    Stores data in `dd.nbi, dd.core_sources`
+NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
+
+!!! note
+    Reads data in `dd.nbi` and stores data in `dd.core_sources`
 """
 function ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorNBIsimple(kw...)
@@ -33,19 +37,17 @@ function ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorNBIsimple(dd::IMAS.dd, par::FUSEparameters__ActorNBIsimple; kw...)
-    logging_actor_init(ActorNBIsimple)
-    par = par(kw...)
-    n_beams = length(dd.nbi.unit)
-    _, width, rho_0, current_efficiency = same_length_vectors(1:n_beams, par.width, par.rho_0, par.current_efficiency)
-    return ActorNBIsimple(dd, par, width, rho_0, current_efficiency)
-end
-
 function _step(actor::ActorNBIsimple)
-    for (idx, nbu) in enumerate(actor.dd.nbi.unit)
-        eqt = actor.dd.equilibrium.time_slice[]
-        cp1d = actor.dd.core_profiles.profiles_1d[]
-        cs = actor.dd.core_sources
+    dd = actor.dd
+    par = actor.par
+
+    n_beams = length(dd.nbi.unit)
+    _, width, rho_0 = same_length_vectors(1:n_beams, par.width, par.rho_0)
+
+    for (idx, nbu) in enumerate(dd.nbi.unit)
+        eqt = dd.equilibrium.time_slice[]
+        cp1d = dd.core_profiles.profiles_1d[]
+        cs = dd.core_sources
 
         beam_energy = @ddtime (nbu.energy.data)
         beam_mass = nbu.species.a
@@ -61,12 +63,16 @@ function _step(actor::ActorNBIsimple)
         momentum_source =
             sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
-        ne_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end]
-        j_parallel = actor.current_efficiency[idx] / eqt.boundary.geometric_axis.r / (ne_vol / 1e19) * power_launched
+        R0 = eqt.boundary.geometric_axis.r
+        ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
+        TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
+
+        eta = TekeV * 0.025
+        j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source_index = IMAS.name_2_index(cs.source)[:nbi]
-        source = resize!(cs.source, "identifier.index" => source_index)
+        source = resize!(cs.source, "identifier.index" => source_index; allow_multiple_matches=true)
         gaussian_source(
             source,
             nbu.name,
@@ -76,8 +82,8 @@ function _step(actor::ActorNBIsimple)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            actor.rho_0[idx],
-            actor.width[idx],
+            rho_0[idx],
+            width[idx],
             2.0;
             electrons_particles=beam_particles,
             momentum_tor=momentum_source,

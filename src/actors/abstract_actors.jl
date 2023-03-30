@@ -8,16 +8,53 @@ function logging_actor_init(typeof_actor::DataType, args...; kw...)
     logging(Logging.Debug, :actors, "$typeof_actor @ init")
 end
 
-function step(actor::AbstractActor, args...; kw...)
+#= ==== =#
+#  step  #
+#= ==== =#
+"""
+    step(actor::T, args...; kw...) where {T<:AbstractActor}
+
+Run a actor
+"""
+function step(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Info, :actors, "$(typeof(actor)) @ step")
-    return _step(actor, args...; kw...)
+    timer_name = replace(string(typeof(actor).name.name),r"^Actor" => "")
+    TimerOutputs.reset_timer!(timer_name)
+    TimerOutputs.@timeit timer timer_name begin
+        s = _step(actor, args...; kw...)
+        @assert s === actor "_step should return the same actor (check if it is actor at all)"
+    end
+    return actor
 end
 
+#= ======== =#
+#  finalize  #
+#= ======== =#
 function _finalize(actor::AbstractActor)
-    actor
+    return actor
 end
 
-function finalize(actor::AbstractActor, args...; kw...)
+"""
+    finalize(actor::T, args...; kw...) where {T<:AbstractActor}
+
+Finalize the actor run. This is typically used to update dd.
+"""
+function finalize(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Debug, :actors, "$(typeof(actor)) @finalize")
-    return _finalize(actor, args...; kw...)
+    s = _finalize(actor, args...; kw...)
+    @assert s === actor "_finalize should return the same actor (check if it is actor at all)"
+    return actor
+end
+
+#= ======= =#
+#  prepare  #
+#= ======= =#
+"""
+    prepare(actor_type::DataType, dd::IMAS.dd, act::ParametersAllActors; kw...)
+
+Dispatch `prepare` function for different actors based on actor_type that is passed
+"""
+function prepare(dd::IMAS.dd, actor_name::Symbol, act::ParametersAllActors; kw...)
+    prepare(dd, Val{actor_name}, act; kw...)
+    return dd
 end

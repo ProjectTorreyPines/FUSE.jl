@@ -70,4 +70,5 @@ function _step(actor::ActorLFSsizing; verbose::Bool=false)
         end
     end
 
+    return actor
 end

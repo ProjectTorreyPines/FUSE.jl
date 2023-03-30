@@ -62,7 +62,6 @@ These currents may or may not exceed the OH and TF current limits.
 The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 """
 function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
-
     bd = actor.dd.build
     requirements = actor.dd.requirements
     eq = actor.dd.equilibrium

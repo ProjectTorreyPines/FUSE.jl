@@ -1,6 +1,5 @@
 import MXHEquilibrium
 import EFIT
-import ForwardDiff
 import Optim
 
 #= ============ =#
@@ -91,6 +90,7 @@ function prepare(dd::IMAS.dd, ::Type{Val{:ActorSolovev}}, act::ParametersAllActo
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     cp1d = dd.core_profiles.profiles_1d[]
     eq1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
+    eq1d.j_tor = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.j_tor).(eq1d.psi_norm)
 end
 
 """
@@ -117,8 +117,7 @@ function _step(actor::ActorSolovev)
         psimag, psibry = MXHEquilibrium.psi_limits(S)
         pressure_cost = (MXHEquilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
         ip_cost = (MXHEquilibrium.plasma_current(S) - target_ip) / target_ip
-        c = sqrt(pressure_cost^2 + ip_cost^2)
-        return c
+        return sqrt(pressure_cost^2 + 100.0 * ip_cost^2)
     end
 
     res = Optim.optimize(cost, [alpha, qstar], Optim.NelderMead(), Optim.Options(g_tol=1E-3))
@@ -137,14 +136,14 @@ end
         actor::ActorSolovev;
         rlims::NTuple{2,<:Real}=(maximum([actor.S.S.R0 * (1 - actor.S.S.ϵ * 2), 0.0]), actor.S.S.R0 * (1 + actor.S.S.ϵ * 2)),
         zlims::NTuple{2,<:Real}=(-actor.S.S.R0 * actor.S.S.ϵ * actor.S.S.κ 1.7, actor.S.S.R0 * actor.S.S.ϵ * actor.S.S.κ * 1.7)
-    )::IMAS.equilibrium__time_slice
+    )
 
 Store ActorSolovev data in IMAS.equilibrium format
 """
 function _finalize(
     actor::ActorSolovev;
     rlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0.3)[1],
-    zlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0.3)[2])::IMAS.equilibrium__time_slice
+    zlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0.3)[2])
 
     ngrid = actor.par.ngrid
     tc = MXHEquilibrium.transform_cocos(3, 11)
@@ -152,6 +151,8 @@ function _finalize(
     eq = actor.eq
     eqt = eq.time_slice[]
     target_ip = eqt.global_quantities.ip
+    target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
+    target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
     sign_Ip = sign(target_ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
 
@@ -182,9 +183,24 @@ function _finalize(
     eqt.profiles_2d[1].grid_type.index = 1
     eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
     eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * actor.S.S.κ)))
-
     eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
+
     IMAS.flux_surfaces(eqt)
+
+    if true
+        # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
+        eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+        eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+        # match entry target_pressure and target_j_tor as if Solovev could do this
+        if !ismissing(target_pressure)
+            eqt.profiles_1d.pressure = target_pressure
+        end
+        if !ismissing(target_j_tor)
+            eqt.profiles_1d.j_tor = target_j_tor
+        end
+        IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, actor.S.S.R0, actor.S.B0)
+        IMAS.flux_surfaces(eqt)
+    end
 
     # this is to fix the boundary back to its original input
     # since Solovev will not satisfy the original boundary
@@ -195,8 +211,6 @@ function _finalize(
     eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
     eqt.boundary.geometric_axis.r = actor.mxh.R0
     eqt.boundary.geometric_axis.z = actor.mxh.Z0
-    # force total plasma current to target ip since Solovev integration of Jtor is not accurate
-    eqt.global_quantities.ip = target_ip
 
     # correct equilibrium volume and area
     if !ismissing(actor.par, :volume)
@@ -206,33 +220,5 @@ function _finalize(
         eqt.profiles_1d.area .*= actor.par.area / eqt.profiles_1d.area[end]
     end
 
-    return eqt
-end
-
-"""
-    IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
-
-Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
-"""
-function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
-    dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
-    @assert collect(dim1) ≈ eqt.profiles_2d[1].grid.dim1
-    dim2 = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
-    @assert collect(dim2) ≈ eqt.profiles_2d[1].grid.dim2
-    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length=length(eqt.profiles_1d.psi))
-    @assert collect(psi) ≈ eqt.profiles_1d.psi
-
-    MXHEquilibrium.efit(
-        MXHEquilibrium.cocos(11), # COCOS
-        dim1, # Radius/R range
-        dim2, # Elevation/Z range
-        psi, # Polodial Flux range (polodial flux from magnetic axis)
-        eqt.profiles_2d[1].psi, # Polodial Flux on RZ grid (polodial flux from magnetic axis)
-        eqt.profiles_1d.f, # Polodial Current
-        eqt.profiles_1d.pressure, # Plasma pressure
-        eqt.profiles_1d.q, # Q profile
-        eqt.profiles_1d.psi .* 0, # Electric Potential
-        (eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z), # Magnetic Axis (raxis,zaxis)
-        Int(sign(eqt.profiles_1d.f[end]) * sign(eqt.global_quantities.ip)) # sign(dot(J,B))
-    )
+    return actor
 end

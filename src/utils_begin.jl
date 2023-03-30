@@ -1,6 +1,24 @@
 import ForwardDiff
 import Distributed
 import ClusterManagers
+import TimerOutputs
+
+# ====== #
+# Timing #
+# ====== #
+const timer = TimerOutputs.TimerOutput()
+
+function TimerOutputs.reset_timer!(to::TimerOutputs.TimerOutput, section::String)
+    pop!(to.inner_timers, section, nothing)
+    to.prev_timer_label = ""
+    to.prev_timer = nothing
+end
+
+function TimerOutputs.reset_timer!(section::String)
+    pop!(timer.inner_timers, section, nothing)
+    timer.prev_timer_label = ""
+    timer.prev_timer = nothing
+end
 
 # ==== #
 # Math #
@@ -127,21 +145,6 @@ end
     end
 end
 
-# ===== #
-# types #
-# ===== #
-"""
-    returns enum from symbol
-"""
-function to_enum(smbl::Symbol)::Enum
-    smbl = Symbol("_$(smbl)_")
-    return @eval($smbl)
-end
-
-function to_enum(smbl::T where {T<:Enum})
-    return smbl
-end
-
 # ==== #
 # fuse #
 # ==== #
@@ -156,27 +159,17 @@ function fuse()
 """
 end
 
-"""
-    warmup()
-
-Function used to precompile the majority of FUSE
-"""
-function warmup()
-    dd = IMAS.dd()
-    return warmup(dd)
-end
-
-function warmup(dd::IMAS.dd)
-    ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
-    init(dd, ini, act)
-    ActorWholeFacility(dd, act)
-    IMAS.freeze(dd)
-end
-
 # ======== #
 # parallel #
 # ======== #
-function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0)
+"""
+    parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...) 
+
+Start multiprocessing environment
+
+kw arguments are passed to the Distributed.addprocs
+"""
+function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...)
     if cluster == "saga"
         if gethostname() == "saga.cluster"
             nodes = 4
@@ -185,10 +178,10 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
                 np = min(np, nprocs_max)
             end
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
-            if nprocs() < np
-                addprocs(ClusterManagers.SlurmManager(np - nprocs()), exclusive="", topology=:master_worker, nodelist="saga02,saga03,saga04,saga05,saga06,saga07")
+            if Distributed.nprocs() < np
+                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), exclusive="", topology=:master_worker, kw...)
             end
-            println("Working with $(nprocs()) distributed processes on $(gethostname())")
+            println("Working with $(Distributed.nprocs()) distributed processes on $(gethostname())")
         else
             error("Not running on saga cluster")
         end
@@ -198,10 +191,10 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
         if nprocs_max > 0
             np = min(np, nprocs_max)
         end
-        if nprocs() < np + 1
-            addprocs(np - nprocs() + 1, topology=:master_worker)
+        if Distributed.nprocs() < np + 1
+            Distributed.addprocs(np - Distributed.nprocs() + 1, topology=:master_worker)
         end
-        println("Working with $(nprocs()-1) processes on $(gethostname())")
+        println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
 
     else
         error("Cluster $server is unknown. Add it to the FUSE.parallel_environment")

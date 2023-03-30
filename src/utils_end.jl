@@ -1,108 +1,29 @@
+import Weave
 
-# ==================== #
-# extract data from dd #
-# ==================== #
-mutable struct ExtractFunction
-    group::Symbol
-    name::Symbol
-    units::String
-    func::Function
-    # inner constructor to register ExtractFunction in ExtractFunctionsLibrary
-    ExtractFunction(group::Symbol, name::Symbol, units::String, func::Function) = begin
-        objf = new(group, name, units, func)
-        ExtractFunctionsLibrary[objf.name] = objf
-        return objf
-    end
-end
-
-const ExtractFunctionsLibrary = OrderedCollections.OrderedDict{Symbol,ExtractFunction}()
-function update_ExtractFunctionsLibrary!()
-    empty!(ExtractFunctionsLibrary)
-    ExtractFunction(:equilibrium, :κ, "-", dd -> dd.equilibrium.time_slice[].boundary.elongation)
-    ExtractFunction(:equilibrium, :δ, "-", dd -> dd.equilibrium.time_slice[].boundary.triangularity)
-    ExtractFunction(:equilibrium, :ζ, "-", dd -> dd.equilibrium.time_slice[].boundary.squareness)
-    ExtractFunction(:equilibrium, :B0, "T", dd -> @ddtime(dd.summary.global_quantities.b0.value))
-    ExtractFunction(:equilibrium, :ip, "MA", dd -> @ddtime(dd.summary.global_quantities.ip.value) / 1e6)
-    ExtractFunction(:equilibrium, :R0, "m", dd -> dd.summary.global_quantities.r0.value)
-    ExtractFunction(:equilibrium, :βn, "-", dd -> @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
-    ExtractFunction(:profiles, :Qfusion, "-", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / @ddtime(dd.summary.heating_current_drive.power_launched_total.value))
-    ExtractFunction(:profiles, :Pfusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6)
-    ExtractFunction(:profiles, :zeff, "-", dd -> @ddtime(dd.summary.volume_average.zeff.value))
-    ExtractFunction(:profiles, :Te0, "keV", dd -> dd.core_profiles.profiles_1d[].electrons.temperature[1] / 1E3)
-    ExtractFunction(:profiles, :Ti0, "keV", dd -> dd.core_profiles.profiles_1d[].ion[1].temperature[1] / 1E3)
-    ExtractFunction(:balance_of_plant, :Pelectric_net, "MWe", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6)
-    ExtractFunction(:balance_of_plant, :Qplant, "-", dd -> @ddtime(dd.balance_of_plant.Q_plant))
-    ExtractFunction(:heating_current_drive, :Pelectron_cyclotron, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_ec.value))
-    ExtractFunction(:heating_current_drive, :Pneutral_beam, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_nbi.value))
-    ExtractFunction(:heating_current_drive, :Pion_cyclotron, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_ic.value))
-    ExtractFunction(:heating_current_drive, :Plower_hybrid, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_lh.value))
-    ExtractFunction(:heating_current_drive, :Paux_total, "W", dd -> @ddtime(dd.summary.heating_current_drive.power_launched_total.value))
-    ExtractFunction(:costing, :levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE)
-    ExtractFunction(:costing, :capital_cost, "\$M", dd -> dd.costing.cost_direct_capital.cost)
-    ExtractFunction(:build, :flattop, "Hours", dd -> dd.build.oh.flattop_duration / 3600.0)
-end
-update_ExtractFunctionsLibrary!()
-
+# ===================================== #
+# extract data from FUSE save folder(s) #
+# ===================================== #
 """
-    (ef::ExtractFunction)(dd::IMAS.dd)
-
-Run the extract function
-"""
-function (ef::ExtractFunction)(dd::IMAS.dd)
-    return ef.func(dd)
-end
-
-function Base.show(io::IO, f::ExtractFunction)
-    printstyled(io, f.group; bold=true)
-    printstyled(io, "."; bold=true)
-    printstyled(io, f.name; bold=true, color=:blue)
-    print(io, " →")
-end
-
-"""
-    extract(dd::IMAS.dd, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
-
-Extract data from `dd``.
-By default, the `FUSE.ExtractFunctionsLibrary`` is used.
-Each of the `xtract` functions should accept `dd` as input, like this:
-
-    xtract = Dict(
-            :beta_normal => dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal,
-            :time => dd -> @ddtime(dd.equilibrium.time)
-        )
-"""
-function extract(dd::IMAS.dd, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
-    results = Dict{Symbol,Any}()
-    for key in keys(xtract)
-        if dd === missing
-            results[key] = NaN
-            continue
-        end
-        try
-            results[key] = xtract[key](dd)
-        catch e
-            results[key] = NaN
-        end
-    end
-    return results
-end
-
-"""
-    extract(dir::AbstractString, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
+    IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
 
 Read dd.json/h5 in a folder and extract data from it.
 """
-function extract(dir::AbstractString, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary)::Dict{Symbol,Any} where {T<:Union{Function,ExtractFunction}}
+function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
     dd, ini, act = load(dir; load_ini=false, load_act=false)
     return extract(dd, xtract)
 end
 
 """
-    extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary; filter_invalid::Bool=false)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
+    IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
 
-Extract data from multiple folders or `dd`s and returns results in DataFrame format
+Extract data from multiple folders or `dd`s and return results in DataFrame format.
+
+Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
 """
-function extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,T}=ExtractFunctionsLibrary; filter_invalid::Bool=false)::DataFrames.DataFrame where {T<:Union{Function,ExtractFunction}}
+function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+    # test filter_invalid
+    @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
+
     # allocate memory
     df = DataFrames.DataFrame(extract(DD[1], xtract))
     for k in 2:length(DD)
@@ -112,21 +33,44 @@ function extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDi
     # load the data
     p = ProgressMeter.Progress(length(DD); showspeed=true)
     Threads.@threads for k in eachindex(DD)
-        df[k, :] = extract(DD[k], xtract)
+        df[k, :] = Dict(extract(DD[k], xtract))
         ProgressMeter.next!(p)
     end
 
     # filter
-    if filter_invalid
+    if filter_invalid ∈ [:cols, :all]
         # drop columns that have all NaNs
         visnan(x::Vector) = isnan.(x)
         df = df[:, .!all.(visnan.(eachcol(df)))]
-
+    end
+    if filter_invalid ∈ [:rows, :all]
         # drop rows that have any NaNs
         df = filter(row -> all(x -> !(x isa Number && (isnan(x) || isinf(x))), row), df)
     end
 
     return df
+end
+
+"""
+    DataFrames.DataFrame(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+
+Construct a DataFrame from a dictionary of IMAS.ExtractFunction
+"""
+function DataFrames.DataFrame(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+    return DataFrames.DataFrame(Dict(xtract))
+end
+
+"""
+    Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+
+Construct a Dictionary with the evaluated values of a dictionary of IMAS.ExtractFunction
+"""
+function Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+    tmp = Dict()
+    for xfun in values(xtract)
+        tmp[xfun.name] = xfun.value
+    end
+    return tmp
 end
 
 # ==================== #
@@ -222,4 +166,98 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
         act = json2act(joinpath(savedir, "act.json"))
     end
     return dd, ini, act
+end
+
+"""
+    digest(dd::IMAS.dd; terminal_width::Int=136)
+
+Provides concise and informative summary of `dd`, including several plots.
+"""
+function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
+    #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
+
+    IMAS.print_tiled(extract(dd); terminal_width, line_char)
+
+    if !isempty(dd.build.layer)
+        display(dd.build.layer)
+    end
+
+    # equilibrium with build and PFs
+    p = plot(dd.equilibrium, legend=false)
+    if !isempty(dd.build.layer)
+        plot!(p[1], dd.build, legend=false)
+    end
+    if !isempty(dd.pf_active.coil)
+        plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+    end
+    display(p)
+
+    # core profiles
+    display(plot(dd.core_profiles, only=1))
+    display(plot(dd.core_profiles, only=2))
+    display(plot(dd.core_profiles, only=3))
+
+    # core sources
+    display(plot(dd.core_sources, only=1))
+    display(plot(dd.core_sources, only=2))
+    display(plot(dd.core_sources, only=3))
+    display(plot(dd.core_sources, only=4))
+
+    # neutron wall loading
+    if !isempty(dd.neutronics.time_slice)
+        xlim = extrema(dd.neutronics.first_wall.r)
+        xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
+        display(plot(dd.neutronics.time_slice[].wall_loading; xlim))
+    end
+
+    # center stack stresses
+    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh)
+        display(plot(dd.solid_mechanics.center_stack.stress))
+    end
+
+    # # balance of plant
+    # if !missing(dd.balance_of_plant, :Q_plant)
+    #     display(plot(dd.balance_of_plant))
+    # end
+
+    # costing
+    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0)
+        display(plot(dd.costing.cost_direct_capital))
+    end
+
+    return nothing
+end
+
+"""
+    digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+
+Write digest to PDF in current working directory.
+
+PDF filename is based on title (with `" "` replaced by `"_"`)
+"""
+function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+    outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
+    tmpdir = mktempdir()
+    logger = SimpleLogger(stderr, Logging.Warn)
+    try
+        filename = redirect_stdout(Base.DevNull()) do
+            with_logger(logger) do
+                Weave.weave(joinpath(@__DIR__, "digest.jmd");
+                    mod=@__MODULE__,
+                    doctype="md2pdf",
+                    template=joinpath(@__DIR__, "digest.tpl"),
+                    out_path=tmpdir,
+                    args=Dict(
+                        :dd => dd,
+                        :title => title,
+                        :description => description))
+            end
+        end
+        cp(filename, outfilename, force=true)
+        return outfilename
+    catch e
+        println(tmpdir)
+    else
+        rm(tmpdir, recursive=true, force=true)
+    end
 end

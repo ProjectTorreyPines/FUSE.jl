@@ -9,34 +9,37 @@ const coils_turns_spacing = 0.03
 Initialize `dd.pf_active` starting from `ini` and `act` parameters
 """
 function init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    init_from = ini.general.init_from
+    TimerOutputs.reset_timer!("init_pf_active")
+    TimerOutputs.@timeit timer "init_pf_active" begin
+        init_from = ini.general.init_from
 
-    if init_from == :ods
-        dd1 = IMAS.json2imas(ini.ods.filename)
-        if length(keys(dd1.pf_active)) > 0
-            dd.global_time = max(dd.global_time, maximum(dd1.pf_active.time))
-            dd.pf_active = dd1.pf_active
-        else
-            init_from = :scalars
+        if init_from == :ods
+            dd1 = IMAS.json2imas(ini.ods.filename)
+            if length(keys(dd1.pf_active)) > 0
+                dd.global_time = max(dd.global_time, maximum(dd1.pf_active.time))
+                dd.pf_active = dd1.pf_active
+            else
+                init_from = :scalars
+            end
         end
+
+        if init_from == :scalars
+            n_coils = [ini.pf_active.n_oh_coils]
+            if any([contains(lowercase(layer.name), "coils") for layer in dd.build.layer])
+                push!(n_coils, ini.pf_active.n_pf_coils_inside)
+            end
+            if ini.pf_active.n_pf_coils_outside > 0
+                push!(n_coils, ini.pf_active.n_pf_coils_outside)
+            end
+            init_pf_active(dd.pf_active, dd.build, n_coils)
+        end
+
+        assign_coil_technology(dd, ini, :tf)
+        assign_coil_technology(dd, ini, :oh)
+        assign_coil_technology(dd, ini, :pf_active)
+
+        return dd
     end
-
-    if init_from == :scalars
-        n_coils = [ini.pf_active.n_oh_coils]
-        if any([contains(lowercase(layer.name), "coils") for layer in dd.build.layer])
-            push!(n_coils, ini.pf_active.n_pf_coils_inside)
-        end
-        if ini.pf_active.n_pf_coils_outside > 0
-            push!(n_coils, ini.pf_active.n_pf_coils_outside)
-        end
-        init_pf_active(dd.pf_active, dd.build, n_coils)
-    end
-
-    assign_coil_technology(dd, ini, :tf)
-    assign_coil_technology(dd, ini, :oh)
-    assign_coil_technology(dd, ini, :pf_active)
-
-    return dd
 end
 
 """

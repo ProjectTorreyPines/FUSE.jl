@@ -38,8 +38,40 @@ function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function _step(actor::ActorCXbuild; rebuild_wall::Bool=actor.par.rebuild_wall)
-    build_cx!(actor.dd; rebuild_wall)
+function _step(actor::ActorCXbuild)
+    dd = actor.dd
+    par = actor.par
+
+    # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
+    wall = IMAS.first_wall(dd.wall)
+    if wall === missing || par.rebuild_wall
+        pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
+    else
+        pr = wall.r
+        pz = wall.z
+    end
+
+    # empty layer outlines and structures
+    for layer in dd.build.layer
+        empty!(layer.outline)
+    end
+    empty!(dd.build.structure)
+
+    build_cx!(dd.build, pr, pz)
+
+    divertor_regions!(dd.build, dd.equilibrium.time_slice[])
+
+    blanket_regions!(dd.build, dd.equilibrium.time_slice[])
+
+    if wall === missing || par.rebuild_wall
+        plasma = IMAS.get_build(dd.build, type=_plasma_)
+        resize!(dd.wall.description_2d, 1)
+        resize!(dd.wall.description_2d[1].limiter.unit, 1)
+        dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
+        dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
+    end
+
+    return actor
 end
 
 """
@@ -90,7 +122,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         end
 
         # xpoint at location of maximum curvature
-        index = argmax(abs.(IMAS.curvature(pr,pz)))
+        index = argmax(abs.(IMAS.curvature(pr, pz)))
         Rx = pr[index]
         Zx = pz[index]
 
@@ -147,7 +179,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     ψb = IMAS.find_psi_boundary(eqt)
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
     linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
-    
+
     wall_poly = xy_polygon(bd.layer[ipl-1])
     for ltype in [_blanket_, _shield_, _wall_,]
         iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
@@ -246,38 +278,6 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 end
 
 """
-    build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
-
-Translates 1D build to 2D cross-sections starting either wall information
-If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
-"""
-function build_cx!(dd::IMAS.dd; rebuild_wall::Bool=false)
-    wall = IMAS.first_wall(dd.wall)
-    if wall === missing || rebuild_wall
-        pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
-    else
-        pr = wall.r
-        pz = wall.z
-    end
-
-    build_cx!(dd.build, pr, pz)
-
-    divertor_regions!(dd.build, dd.equilibrium.time_slice[])
-
-    blanket_regions!(dd.build, dd.equilibrium.time_slice[])
-
-    if wall === missing || rebuild_wall
-        plasma = IMAS.get_build(dd.build, type=_plasma_)
-        resize!(dd.wall.description_2d, 1)
-        resize!(dd.wall.description_2d[1].limiter.unit, 1)
-        dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
-        dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
-    end
-
-    return dd.build
-end
-
-"""
     build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
@@ -312,16 +312,20 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         if k == itf + 1
             # layer that is inside of the TF sets TF shape
             layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
+            @debug "forward $(bd.layer[k].name) $(layer_shape)"
             optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside)
         else
             # everything else is conformal convex hull
+            @debug "forward $(bd.layer[k].name) CONVEX HULL"
             optimize_shape(bd, k + 1, k, _convex_hull_)
             bd.layer[k].shape = original_shape
         end
     end
+    # NOTE:: To debug it helps to comment out the subsequent reverse and forward passes
     # reverse pass: from TF to plasma only with negative offset
     for k in tf_to_plasma[2:end]
         if bd.layer[k+1].shape == Int(_negative_offset_)
+            @debug "reverse $(bd.layer[k].name) NEGATIVE OFFSET"
             optimize_shape(bd, k, k + 1, _negative_offset_)
         end
     end
@@ -331,6 +335,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
             break
         else
             layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
+            @debug "reverse $(bd.layer[k].name) $(layer_shape)"
             optimize_shape(bd, k + 1, k, layer_shape)
         end
     end
@@ -479,7 +484,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     end
 
     IMAS.reorder_flux_surface!(layer.outline.r, layer.outline.z)
-    # display(plot!(layer.outline.r, layer.outline.z))
+    # display(plot(layer.outline.r, layer.outline.z; aspect_ratio=:equal))
 end
 
 function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)

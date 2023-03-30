@@ -4,8 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    needs_model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO], "-", "Power plant electrical needs model"; default=:EU_DEMO)
-    thermal_electric_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the steam cycle, thermal to electric"; default=0.9)
+    generator_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
 end
 
@@ -15,16 +14,13 @@ mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
     act::ParametersAllActors
     thermal_cycle_actor::ActorThermalCycle
     IHTS_actor::ActorHeatTransfer
+    power_needs_actor::ActorPowerNeeds
 end
 
 """
     ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Balance of plant actor that estimates the net electrical power output by comparing the balance of plant electrical needs with the electricity generated from the thermal cycle.
-
-* `needs_model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
-* `needs_model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
-
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
@@ -43,14 +39,21 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     # set the time
     @ddtime(dd.balance_of_plant.time = dd.global_time)
 
-    breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(act.ActorThermalCycle.power_cycle_type)
+    breeder_hi_temp, breeder_low_temp, cycle_tmax = initial_temperatures(act.ActorThermalCycle.power_cycle_type)
 
-    IHTS_actor = ActorHeatTransfer(dd, act; breeder_hi_temp, breeder_low_temp)
-    thermal_cycle_actor = ActorThermalCycle(dd, act; Tmax=cycle_tmax, rp=3.0)
-    return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor)
+    IHTS_actor = ActorHeatTransfer(dd, act.ActorHeatTransfer, act; breeder_hi_temp, breeder_low_temp)
+    thermal_cycle_actor = ActorThermalCycle(dd, act.ActorThermalCycle, act; Tmax=cycle_tmax, rp=3.0)
+    power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act)
+    return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor, power_needs_actor)
 end
 
-function ihts_specs(power_cycle_type::Symbol)
+
+"""
+    initial_temperatures(power_cycle_type::Symbol)
+
+    intializes initial temperatures of the coolant loops based on cycle type
+"""
+function initial_temperatures(power_cycle_type::Symbol)
     breeder_tmax = 1100.0 + 273.15
     breeder_tmin = 550.0 + 273.15
     if power_cycle_type == :rankine_only
@@ -67,38 +70,11 @@ function _step(actor::ActorBalanceOfPlant)
     bop = dd.balance_of_plant
 
     bop_thermal = bop.thermal_cycle
-    bop_thermal.thermal_electric_conversion_efficiency = par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
-    bop_thermal.power_electric_generated = bop_thermal.net_work .* par.thermal_electric_conversion_efficiency .* ones(length(bop.time))
+    @ddtime(bop_thermal.generator_conversion_efficiency = par.generator_conversion_efficiency)
 
-    @ddtime(bop_thermal.total_useful_heat_power = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered))
-
-    bop_electric = bop.power_electric_plant_operation
-
-    ## heating and current drive systems
-    sys = resize!(bop_electric.system, "name" => "H&CD", "index" => 1)
-    sys.power = zeros(length(bop.time))
-    for (idx, hcd_system) in enumerate(intersect([:nbi, :ec_launchers, :ic_antennas, :lh_antennas], keys(dd)))
-        sub_sys = resize!(sys.subsystem, "name" => string(hcd_system), "index" => idx)
-        sub_sys.power = electricity(getproperty(dd, hcd_system), bop.time)
-        sys.power .+= sub_sys.power
-    end
-
-    ## balance of plant systems
-    if par.needs_model == :gasc
-        sys = resize!(bop_electric.system, "name" => "BOP_gasc", "index" => 2)
-        sys.power = 0.07 .* bop_thermal.power_electric_generated
-
-    elseif par.needs_model == :EU_DEMO
-        # More realistic DEMO numbers
-        bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active] # index 2 : 5
-        for (idx, system) in enumerate(bop_systems)
-            sys = resize!(bop_electric.system, "name" => string(system), "index" => (idx + 1))
-            sys.power = electricity(system, bop.time)
-        end
-    else
-        error("ActorBalanceOfPlant: par.needs_model = $(par.needs_model) not recognized")
-    end
-
+    finalize(step(actor.IHTS_actor))
+    finalize(step(actor.thermal_cycle_actor))
+    finalize(step(actor.power_needs_actor))
 
     if par.do_plot
         core = sys_coords(dd)
@@ -175,50 +151,4 @@ function _step(actor::ActorBalanceOfPlant)
     end
 
     return actor
-end
-
-function heating_and_current_drive_calc(system_unit, time_array::Vector{<:Real})
-    power_electric_total = zeros(length(time_array))
-    for item_unit in system_unit
-        efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
-        power_electric_total .+= IMAS.get_time_array(item_unit.power_launched, :data, time_array, :constant) ./ efficiency
-    end
-    return power_electric_total
-end
-
-function electricity(nbi::IMAS.nbi, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(nbi.unit, time_array)
-end
-
-function electricity(ec_launchers::IMAS.ec_launchers, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(ec_launchers.beam, time_array)
-end
-
-function electricity(ic_antennas::IMAS.ic_antennas, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(ic_antennas.antenna, time_array)
-end
-
-function electricity(lh_antennas::IMAS.lh_antennas, time_array::Vector{<:Real})
-    return heating_and_current_drive_calc(lh_antennas.antenna, time_array)
-end
-
-function electricity(symbol::Symbol, time_array::Vector{<:Real})
-    return electricity(Val{symbol}, time_array)
-end
-
-# Dummy functions values taken from DEMO 2017  https://iopscience.iop.org/article/10.1088/0029-5515/57/1/016011
-function electricity(::Type{Val{:cryostat}}, time_array::Vector{<:Real})
-    return 30e6 .* ones(length(time_array)) # MWe
-end
-
-function electricity(::Type{Val{:tritium_handling}}, time_array::Vector{<:Real})
-    return 15e6 .* ones(length(time_array)) # MWe
-end
-
-function electricity(::Type{Val{:pumping}}, time_array::Vector{<:Real})
-    return 80e6 .* ones(length(time_array)) # MWe    (Note this should not be a constant!)
-end
-
-function electricity(::Type{Val{:pf_active}}, time_array::Vector{<:Real})
-    return 0e6 .* ones(length(time_array)) # MWe    (Note this should not be a constant!)
 end

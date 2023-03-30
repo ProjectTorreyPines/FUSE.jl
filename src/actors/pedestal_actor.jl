@@ -132,4 +132,6 @@ function _finalize(actor::ActorPedestal;
     if update_core_profiles
         IMAS.blend_core_edge_Hmode(cp1d, dd_ped, edge_bound)
     end
+
+    return actor
 end

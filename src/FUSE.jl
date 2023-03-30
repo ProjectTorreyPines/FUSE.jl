@@ -1,11 +1,12 @@
-module FUSE
-
 __precompile__(true)
+
+module FUSE
 
 using IMAS
 import Plots
 using Plots
 using Printf
+import SnoopPrecompile
 
 #= ===== =#
 #  UTILS  #
@@ -31,6 +32,7 @@ include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
+include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
 include(joinpath("ddinit", "gasc.jl"))
@@ -81,10 +83,14 @@ include(joinpath("actors", "limits_actor.jl"))
 
 include(joinpath("actors", "balance_plant", "heat_transfer_actor.jl"))
 include(joinpath("actors", "balance_plant", "thermal_cycle_actor.jl"))
+include(joinpath("actors", "balance_plant", "power_needs_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_plot.jl"))
 
-include(joinpath("actors", "costing_actor.jl"))
+include(joinpath("actors", "costing", "costing_ARIES.jl"))
+include(joinpath("actors", "costing", "costing_Sheffield.jl"))
+include(joinpath("actors", "costing", "costing_fuse.jl"))
+include(joinpath("actors", "costing", "costing_actor.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "equilibrium_transport_actor.jl"))
@@ -116,6 +122,11 @@ include("logging.jl")
 #  UTILS  #
 #= ===== =#
 include("utils_end.jl")
+
+#= ========== =#
+#  PRECOMPILE  #
+#= ========== =#
+include("precompile.jl")
 
 #= ====== =#
 #= EXPORT =#
