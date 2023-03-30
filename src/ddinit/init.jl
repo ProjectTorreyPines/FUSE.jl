@@ -26,16 +26,6 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
             end
         end
 
-        # # initialize stability
-        # if !ismissing(ini.stability, :B0) || :stability ∈ ods_items
-        #     init_stability(dd, ini, act)
-        #     if do_plot
-        #         # display(plot(dd.equilibrium.time_slice[end]))
-        #         # plot(dd.equilibrium.time_slice[end]; cx=true, show_x_points=true)
-        #         # display(plot!(dd.equilibrium.time_slice[1].boundary, label="Field null"))
-        #     end
-        # end
-
         # initialize build
         if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || :build ∈ ods_items
             init_build(dd, ini, act)
