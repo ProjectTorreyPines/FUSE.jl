@@ -205,10 +205,8 @@ function _step(actor::ActorThermalCycle)
 
     elseif bop.power_cycle_type == "brayton_only"
         braytonT = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr)
-        evalBrayton(braytonT, ihts_par, dd)
+        par.Tmax = evalBrayton(braytonT, ihts_par, dd)
         cp_cycle = 5.1926e3
-        totPower = @ddtime(bop.heat_transfer.wall.heat_delivered) + @ddtime(bop.heat_transfer.divertor.heat_delivered) + @ddtime(bop.heat_transfer.breeder.heat_delivered)
-        par.Tmax = totPower / (mflow_cycle * cp_cycle) + par.Tmin
         braytonOut = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr)
         @ddtime(bop_thermal.turbine_work = mflow_cycle .* braytonOut.w_out)
         @ddtime(bop_thermal.input_work = mflow_cycle .* braytonOut.w_in)
