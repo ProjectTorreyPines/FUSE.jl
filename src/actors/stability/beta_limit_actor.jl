@@ -6,13 +6,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorBetaLimit{T} <: ParametersActor 
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch(Symbol, [:Li, :Basic, :None], "-", "Model for the limit calculation"; default=:None)
+    submodel::Switch{Symbol} = Switch(Symbol, [:A, :B, :C, :None], "-", "Submodel for the limit calculation"; default=:None)
 end
 
 mutable struct ActorBetaLimit <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorBetaLimit
-    passed::Union{Nothing, Bool}
-    value::Union{Nothing, Real}
+    fraction::Union{Missing, Real}
+    passed::Union{Missing, Bool}
 end
 
 """
@@ -31,7 +32,7 @@ end
 function ActorBetaLimit(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit; kw...)
     logging_actor_init(ActorBetaLimit)
     par = par(kw...)
-    ActorBetaLimit(dd, par, nothing, nothing)
+    ActorBetaLimit(dd, par, missing, missing)
 end
 
 """
@@ -41,41 +42,53 @@ Runs ActorBetaLimit to evaluate the beta limit for the given equilibrium
 """
 function _step(actor::ActorBetaLimit)
     dd = actor.dd
-    eqt = dd.equilibrium.time_slice[]
     par = actor.par
 
     if par.model == :None 
         logging(Logging.Error, :actors, "ActorBetaLimit: limit check disabled")
     elseif par.model == :Basic
-        #actor.val = model1!eqt)
-        val = model1(eqt)
+        actor.fraction = model1(dd, par)
     elseif par.model == :Li
         #actor.val = model2(eqt)
     else
         error("ActorBetaLimit: model = $(par.model) is unknown")
     end
 
-    actor.passed = check_pass(val)
+    actor.passed = check_pass(actor.fraction)
     return actor
 end
 
 function check_pass(value)
-    if value > 0
+    if value < 1
         return true
     else
         return false
     end
 end
 
-function model1(eqt)
+function model1(dd, par)
+    eqt = dd.equilibrium.time_slice[]
     beta_normal = eqt.global_quantities.beta_normal
-    target_value = 3.5
-    actual_value = beta_normal
-    value = actual_value - target_value
-    return value
+
+    if par.submodel == :None # Fial
+        error("ActorBetaLimit: submodel = $(par.model) is not implemented")
+    elseif par.submodel == :A #Troyon Limit
+        target_value = 2.8
+    elseif par.submodel == :B #Classical Limit
+        target_value = 3.5
+    else
+        error("ActorBetaLimit: model = $(par.model) is unknown")
+    end
+
+    model_value = beta_normal # This is the actual model being applied
+
+    fraction = model_value / target_value
+    return fraction
 end #use par.value, or return value?
 
-function model2(eqt)
+
+function model2(dd, par)
+    eqt = dd.equilibrium.time_slice[]
     beta_normal = eqt.global_quantities.beta_normal
     plasma_inductance =  eqt.global_quantities.li_3
     target_value = 4.0

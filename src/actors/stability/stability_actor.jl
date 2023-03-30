@@ -5,8 +5,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorStability{T} <: ParametersActor 
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     stability_actor::Switch{Symbol} = Switch(Symbol, [:BetaLimit, :CurrentLimit, :DensityLimit, :Limits, :None], "-", "Stability Actor to run"; default=:Limits)
-    stability_value::Entry{T} = Entry(T, "-", "value of the stability metric"; default=0.0)
-    #stability_pass::Entry{Bool} = Entry(Bool, "-", "True if all stability metrics are met"; default=true) #don't really like this, but might be useful
 end
 
 mutable struct ActorStability<: PlasmaAbstractActor
