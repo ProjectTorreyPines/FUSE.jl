@@ -179,6 +179,7 @@ Find shape parameters that generate smallest shape and target clearance from an 
 function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
+    initial_guess = deepcopy(shape_parameters)
 
     if length(shape_parameters) in [0, 1]
         func(r_start, r_end, shape_parameters...)
@@ -219,7 +220,6 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
             return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2
         end
 
-        initial_guess = copy(shape_parameters)
         # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
         #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
         res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
@@ -236,14 +236,13 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     cost_inside = sum(inpoly)
     if cost_inside > 0
         @warn "optimize_hape function could not avoid polygon crossings! Perhaps try changing shape?"
+
+        R, Z = func(r_start, r_end, shape_parameters...; resample=false)
+        plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
+        plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
+        display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
+
     end
-
-    # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
-    # plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
-    # plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
-    # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
-    # cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
-
     return shape_parameters
 end
 

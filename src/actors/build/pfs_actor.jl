@@ -14,6 +14,7 @@ end
 
 """
     ActorPlasmaFacingSurfaces(dd::IMAS.dd, act::ParametersAllActors; kw...)
+
 Takes equilibrium and builds a first wall (ie. all plasma facing surfaces, including divertor)
 Creates `main_chamber_wall` and `upper_divertor` and/or `lower_divertor`  2D descriptions to the `wall` IDS
 A divertor is composed of three sub-systems:
