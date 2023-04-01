@@ -65,7 +65,7 @@ end
 
 Finalizes the selected equilibrium actor
 """
-function finalize(actor::ActorCoreTransport)
+function _finalize(actor::ActorCoreTransport)
     finalize(actor.turb_actor)
     finalize(actor.neoc_actor)
     return actor

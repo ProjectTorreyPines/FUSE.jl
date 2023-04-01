@@ -1,0 +1,18 @@
+---
+title: `j "$(WEAVE_ARGS[:title])"`
+author: `j chomp(read(Cmd(map(String,split("git config --global user.name"," "))), String))`
+date: `j import Dates; Dates.format(Dates.now(), "yyyy-mm-dd HH:MM")`
+---
+
+------------
+
+```julia; echo = false; results = "markup"; line_width = 120
+println(WEAVE_ARGS[:description])
+```
+
+-----------
+
+```julia; echo = false; results = "markup"; line_width = 120
+FUSE.digest(WEAVE_ARGS[:dd]; terminal_width=120, line_char="-")
+```
+

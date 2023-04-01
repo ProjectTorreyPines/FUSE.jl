@@ -1,6 +1,6 @@
-module FUSE
-
 __precompile__(true)
+
+module FUSE
 
 using IMAS
 import Plots
@@ -32,6 +32,7 @@ include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
+include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
 include(joinpath("ddinit", "gasc.jl"))

@@ -30,6 +30,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.oh.technology = coil_technology(:copper)
 
     ini.core_profiles.greenwald_fraction = 0.7
+    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.zeff = 2.0

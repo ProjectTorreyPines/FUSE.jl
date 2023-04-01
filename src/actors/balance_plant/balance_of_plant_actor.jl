@@ -39,15 +39,21 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     # set the time
     @ddtime(dd.balance_of_plant.time = dd.global_time)
 
-    breeder_hi_temp, breeder_low_temp, cycle_tmax = ihts_specs(act.ActorThermalCycle.power_cycle_type)
+    breeder_hi_temp, breeder_low_temp, cycle_tmax = initial_temperatures(act.ActorThermalCycle.power_cycle_type)
 
     IHTS_actor = ActorHeatTransfer(dd, act.ActorHeatTransfer, act; breeder_hi_temp, breeder_low_temp)
-    thermal_cycle_actor = ActorThermalCycle(dd, act.ActorThermalCycle, act; Tmax=cycle_tmax, rp=3.0)
+    thermal_cycle_actor = ActorThermalCycle(dd, act.ActorThermalCycle, act)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act)
     return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor, power_needs_actor)
 end
 
-function ihts_specs(power_cycle_type::Symbol)
+
+"""
+    initial_temperatures(power_cycle_type::Symbol)
+
+    intializes initial temperatures of the coolant loops based on cycle type
+"""
+function initial_temperatures(power_cycle_type::Symbol)
     breeder_tmax = 1100.0 + 273.15
     breeder_tmin = 550.0 + 273.15
     if power_cycle_type == :rankine_only

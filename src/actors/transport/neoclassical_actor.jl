@@ -65,7 +65,7 @@ end
 
 Writes ActorNeoclassical results to dd.core_transport
 """
-function finalize(actor::ActorNeoclassical)
+function _finalize(actor::ActorNeoclassical)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]

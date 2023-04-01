@@ -43,7 +43,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
-    greenwald_fraction::Entry{T} = Entry(T, "-", "Greenwald fraction, ne_vol / ne_gw")
+    greenwald_fraction::Entry{T} = Entry(T, "-", "Line average electron density expressed as fraction of Greenwald density")
+    greenwald_fraction_ped::Entry{T} = Entry(T, "-", "Pedestal electron density expressed as fraction of Greenwald density")
     ne_ped::Entry{T} = Entry(T, "m^-3", "Pedestal electron density")
     w_ped::Entry{T} = Entry(T, "-", "Pedestal width expressed in fraction of ψₙ", default=0.05)
     T_shaping::Entry{T} = Entry(T, "-", "Temperature shaping factor")
@@ -80,7 +81,7 @@ end
 
 tf_shape_options = OrderedCollections.OrderedDict{Symbol,SwitchOption}(
     :princeton_D_exact => SwitchOption(_princeton_D_exact_, "princeton_D_exact"),
-    :princeton_D => SwitchOption(_princeton_D_, "princeton_D_"),
+    :princeton_D => SwitchOption(_princeton_D_, "princeton_D"),
     :princeton_D_scaled => SwitchOption(_princeton_D_scaled_, "princeton_D_scaled"),
     :rectangle => SwitchOption(_rectangle_, "rectangle"),
     :double_ellipse => SwitchOption(_double_ellipse_, "double_ellipse"),
@@ -92,7 +93,7 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
     n_coils::Entry{Int} = Entry(Int, "-", "Number of TF coils")
-    shape::Switch{BuildLayerShape} = Switch(BuildLayerShape, tf_shape_options, "-", "Shape of the TF coils"; default=:princeton_D_scaled)
+    shape::Switch{BuildLayerShape} = Switch(BuildLayerShape, tf_shape_options, "-", "Shape of the TF coils"; default=:double_ellipse)
     ripple::Entry{T} = Entry(T, "-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
     technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
 end
