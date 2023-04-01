@@ -78,6 +78,8 @@ include(joinpath("actors", "transport", "core_transport_actor.jl"))
 include(joinpath("actors", "transport", "transport_solver_actor.jl"))
 
 include(joinpath("actors", "stability", "beta_limit_actor.jl"))
+include(joinpath("actors", "stability", "current_limit_actor.jl"))
+include(joinpath("actors", "stability", "density_limit_actor.jl"))
 include(joinpath("actors", "stability", "stability_actor.jl"))
 include(joinpath("actors", "limits_actor.jl"))
 
