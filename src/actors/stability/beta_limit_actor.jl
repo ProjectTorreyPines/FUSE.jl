@@ -47,7 +47,6 @@ function _step(actor::ActorBetaLimit)
 
     beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
 
-
     if par.model == :None 
         logging(Logging.Error, :actors, "ActorBetaLimit: limit check disabled")
 
@@ -68,7 +67,6 @@ function _step(actor::ActorBetaLimit)
     else
         error("ActorBetaLimit: model = $(par.model) is unknown")
     end
-
 
     limit.model.fraction = model_value / target_value
     return actor
@@ -112,9 +110,6 @@ function beta_standard_2(dd, par, limit)
     return target_value
 end
 
-
-
-
 # function model_name_number()
 #     limit.model.name = "NAME"
 #     #limit.model.description = "LONG DESCRIPTION"
@@ -123,25 +118,5 @@ end
 #     actual_value = formula_result
 #     fraction = actual_value / target_value
 #     return fraction
-# end
-
-
-
-
-
-
-
-
-
-
-
-# function model2(dd, par)
-#     eqt = dd.equilibrium.time_slice[]
-#     beta_normal = eqt.global_quantities.beta_normal
-#     plasma_inductance =  eqt.global_quantities.li_3
-#     target_value = 4.0
-#     actual_value = beta_normal / plasma_inductance
-#     value = actual_value - target_value
-#     return value
 # end
 
