@@ -78,19 +78,20 @@ register:
 	$(foreach package,$(DEV_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate(""); using LocalRegistry; LocalRegistry.is_dirty(path, gitconfig)= false; register("$(package)", registry="GAregistry")';)
 
 # install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
-develop: revise
+develop:
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
+Pkg.activate();\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
 Pkg.activate("./docs");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
-Pkg.activate();\
-Pkg.develop([["FUSE"] ; fuse_packages]);\
-Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 '
+	make revise
 
 # install revise and load it when Julia starts up
 revise:
