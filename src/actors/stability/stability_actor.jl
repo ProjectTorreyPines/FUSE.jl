@@ -34,7 +34,6 @@ function ActorStability(dd::IMAS.dd, par::FUSEparameters__ActorStability, act::P
     if par.stability_actor == :None 
         error("stability_actor $(par.stability_actor) is not supported yet")
     elseif par.stability_actor == :Limits
-        #error("stability_actor $(par.stability_actor) is not supported yet")
         stab_actor = ActorStabilityLimits(dd, act)
     elseif par.stability_actor == :BetaLimit
         stab_actor = ActorBetaLimit(dd, act.ActorBetaLimit)
@@ -48,7 +47,6 @@ function ActorStability(dd::IMAS.dd, par::FUSEparameters__ActorStability, act::P
 
     return ActorStability(dd, par, stab_actor)
 end
-
 
 """
     step(actor::ActorStability)
@@ -67,31 +65,14 @@ end
 """
 function _finalize(actor::ActorStability)
     finalize(actor.stab_actor)
+    lim = actor.dd.stability.limit
+    for limit in lim
+        if Bool(limit.cleared)
+            println("$(limit.name) all clear")
+        else
+            println("$(limit.name) failed: $(trunc(Int64,limit.model.fraction*100))% of limit")
+        end
+    end
     return actor
 end
 
-
-
-
-
-
-
-# function ActorStability(dd::IMAS.dd, par::FUSEparameters__ActorStability, act::ParametersAllActors; stability_actors::Vector{:Symbol} , kw...)
-    
-#     stab_actor = deepcopy(act)
-#     if :BetaLimit in stability_actors
-#         stab_actor.ActorStability.stability_actor = :BetaLimit
-#         stab_actor = ActorStability(dd, stab_actor.ActorBetaLimit)
-#     end
-#     if :CurrentLimit in stability_actors
-#         stab_actor = ActorCurrentLimit(dd, act.ActorCurrentLimit)
-#     end
-#     if :DensityLimit in stability_actors
-#         stab_actor = ActorDensityLimit(dd, act.ActorDensityLimit)
-#     end
-#     stab_actor = ActorBetaLimit(dd, act.ActorBetaLimit)
-#     stab_actor = ActorCurrentLimit(dd, act.ActorCurrentLimit)
-#     #stab_actor = ActorDensityLimit(dd, act.ActorDensityLimit)
-
-#     return ActorStability(dd, par, stab_actor)
-# end

@@ -12,13 +12,13 @@ end
 mutable struct ActorDensityLimit <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorDensityLimit
-    limit::IMAS.stability__limit
+    lim::IMAS.stability__limit
 end
 
 """
     ActorDensityLimit(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-
+Calculates the emperical density limit using various models
 """
 function ActorDensityLimit(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorDensityLimit(kw...)
@@ -31,8 +31,8 @@ end
 function ActorDensityLimit(dd::IMAS.dd, par::FUSEparameters__ActorDensityLimit; kw...)
     logging_actor_init(ActorDensityLimit)
     par = par(kw...)
-    limit = resize!(dd.stability.limit, "name" => "Density limit")
-    ActorDensityLimit(dd, par, limit)
+    lim = resize!(dd.stability.limit, "name" => "Density limit")
+    ActorDensityLimit(dd, par, lim)
 end
 
 
@@ -44,30 +44,25 @@ Runs ActorDensityLimit to evaluate the Density limit for the given equilibrium
 function _step(actor::ActorDensityLimit)
     dd = actor.dd
     par = actor.par
-    limit = actor.limit
-
-    eqt = dd.equilibrium.time_slice[]
-    cp1d = dd.core_profiles.profiles_1d[]
+    lim = actor.lim
 
     if par.model == :None 
         logging(Logging.Error, :actors, "ActorDensityLimit: limit check disabled")
     elseif par.model == :Standard
-        model_value = IMAS.greenwald_fraction(eqt, cp1d)
-        target_value = density_standard_1(dd, par, limit)
+        density_standard_a(dd, par, lim)
     else
         error("ActorDensityLimit: model = $(par.model) is unknown")
     end
 
-    limit.model.fraction = model_value / target_value
     return actor
 end
 
 function _finalize(actor::ActorDensityLimit)
-    limit = actor.limit
-    if limit.model.fraction  < 1
-        limit.cleared = 1
+    lim = actor.lim
+    if lim.model.fraction  < 1
+        lim.cleared = 1
     else
-        limit.cleared = 0 
+        lim.cleared = 0 
     end
 
     return actor
@@ -75,9 +70,36 @@ end
 
 ##### Limit Model Functions #####
 
-function density_standard_1(dd, par, limit)
-    limit.model.name = "Standard::IMAS_Greenwald"
-    limit.model.formula = "IMAS.greenwald_fraction < 1.0"
-    target_value = limit.model.limit = 1.0
-    return target_value
+"""
+    density_standard(dd::IMAS.dd)
+
+Standard limit in density
+Model Formulation: f_GW < 1
+Citation: 
+"""
+function density_standard(dd::IMAS.dd)
+ 
+    eqt = dd.equilibrium.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    model_value = IMAS.greenwald_fraction(eqt, cp1d)
+
+    return model_value
+end
+
+"""
+    density_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorDensityLimit, lim::IMAS.stability__limit)
+
+Standard limit in density using IMAS greenwald fraction
+Model Formulation: f_{GW,IMAS} < 1.0
+Citation: 
+"""
+function density_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorDensityLimit, lim::IMAS.stability__limit)
+    lim.model.name = "Standard::IMAS_Greenwald"
+    lim.model.formula = "IMAS.greenwald_fraction < 1.0"
+
+    model_value = density_standard(dd)
+    target_value = 1.0
+
+    lim.model.fraction = model_value / target_value
 end

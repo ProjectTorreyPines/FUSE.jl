@@ -12,13 +12,13 @@ end
 mutable struct ActorCurrentLimit <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorCurrentLimit
-    limit::IMAS.stability__limit
+    lim::IMAS.stability__limit
 end
 
 """
     ActorCurrentLimit(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-
+Calculates the emperical current limit driven instabilities using various models
 """
 function ActorCurrentLimit(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorCurrentLimit(kw...)
@@ -31,41 +31,37 @@ end
 function ActorCurrentLimit(dd::IMAS.dd, par::FUSEparameters__ActorCurrentLimit; kw...)
     logging_actor_init(ActorCurrentLimit)
     par = par(kw...)
-    limit = resize!(dd.stability.limit, "name" => "Current limit")
-    ActorCurrentLimit(dd, par, limit)
+    lim = resize!(dd.stability.limit, "name" => "Current limit")
+    ActorCurrentLimit(dd, par, lim)
 end
 
 """
     step(actor::ActorCurrentLimit)
 
-Runs ActorCurrentLimit to evaluate the Current limit for the given equilibrium
+Runs ActorCurrentLimit to evaluate the current limit for the given equilibrium
 """
 function _step(actor::ActorCurrentLimit)
     dd = actor.dd
     par = actor.par
-    limit = actor.limit
-
-    eqt = dd.equilibrium.time_slice[]
+    lim = actor.lim
 
     if par.model == :None 
         logging(Logging.Error, :actors, "ActorCurrentLimit: limit check disabled")
     elseif par.model == :Standard
-        model_value = 1/abs(eqt.global_quantities.q_95)
-        target_value = current_standard_1(dd, par, limit)
+        current_standard_a(dd, par, lim)
     else
         error("ActorCurrentLimit: model = $(par.model) is unknown")
     end
 
-    limit.model.fraction = model_value / target_value
     return actor
 end
 
 function _finalize(actor::ActorCurrentLimit)
-    limit = actor.limit
-    if limit.model.fraction  < 1
-        limit.cleared = 1
+    lim = actor.lim
+    if lim.model.fraction  < 1
+        lim.cleared = 1
     else
-        limit.cleared = 0 
+        lim.cleared = 0 
     end
 
     return actor
@@ -73,9 +69,35 @@ end
 
 ##### Limit Model Functions #####
 
-function current_standard_1(dd, par, limit)
-    limit.model.name = "Standard::q95"
-    limit.model.formula = "q_95 > 2.0"
-    target_value = limit.model.limit = 0.5
-    return target_value
+"""
+    current_standard(dd::IMAS.dd)
+
+Standard limit in edge current via the safety factor
+Model Formulation: q95 < C
+Citation: 
+"""
+function current_standard(dd::IMAS.dd)
+    
+    q95 = dd.equilibrium.time_slice[].global_quantities.q_95 
+    
+    model_value = 1/abs(q95)
+
+    return model_value
+end
+
+"""
+    current_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+
+Standard limit in edge current via the safety factor
+Model Formulation: q95 < 2
+Citation: 
+"""
+function current_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorCurrentLimit, lim::IMAS.stability__limit)
+    lim.model.name = "Standard::q95"
+    lim.model.formula = "q_95 > 2.0"
+
+    model_value = current_standard(dd)
+    target_value = 0.5
+
+    lim.model.fraction = model_value / target_value
 end
