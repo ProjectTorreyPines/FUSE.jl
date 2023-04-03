@@ -5,12 +5,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorPlasmaLimits{T} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     error_on_exceeded_limits::Entry{Bool} = Entry(Bool, "-", "Error if limits are exceeded"; default=true)
-    limit_beta_model::Switch{Symbol} = Switch(Symbol, [:none, :basic, :li], "-", "Beta limit model to use"; default=:none)
-    limit_beta_value::Entry{T} = Entry(T, "-", "Value for the beta limit")
-    limit_q95_model::Switch{Symbol} = Switch(Symbol, [:none, :basic], "-", "Current limit model to use"; default=:none)
-    limit_q95_value::Entry{T} = Entry(T, "-", "Value for the q95/current limit")
-    limit_density_model::Switch{Symbol} = Switch(Symbol, [:none, :greenwald], "-", "Density limit model to use"; default=:none)
-    limit_density_value::Entry{T} = Entry(T, "-", "Value for the density limit")
+    beta_model::Switch{Symbol} = Switch(Symbol, [:none, :basic, :li], "-", "Beta limit model to use"; default=:li)
+    beta_value::Entry{T} = Entry(T, "-", "Value for the beta limit")
+    current_model::Switch{Symbol} = Switch(Symbol, [:none, :q95], "-", "Current limit model to use"; default=:q95)
+    current_value::Entry{T} = Entry(T, "-", "Value for the current limit")
+    density_model::Switch{Symbol} = Switch(Symbol, [:none, :greenwald], "-", "Density limit model to use"; default=:greenwald)
+    density_value::Entry{T} = Entry(T, "-", "Value for the density limit")
     vertical_stability::Entry{Bool} = Entry(Bool, "-", "Vertical stability"; default=true)
 end
 
@@ -50,7 +50,7 @@ function _step(actor::ActorPlasmaLimits)
     exceeded_limits = String[]
 
     check_limit_beta!(exceeded_limits, dd, par)
-    check_limit_q95!(exceeded_limits, dd, par)
+    check_limit_current!(exceeded_limits, dd, par)
     check_limit_density!(exceeded_limits, dd, par)
 
     if par.vertical_stability
@@ -95,41 +95,41 @@ Evaulates the beta limit based on a given model and determines if the current pl
 function check_limit_beta!(exceeded_limits, dd, par)
     limit_name = "beta limit"
 
-    if par.limit_beta_model == :none
+    if par.beta_model == :none
         message = "Limit check disabled: " * limit_name
         logging(Logging.Error, :actors, message)
 
-    elseif par.limit_beta_model == :basic
+    elseif par.beta_model == :basic
         value = dd.equilibrium.time_slice[].global_quantities.beta_normal
-        limit = par.limit_beta_value
+        limit = par.beta_value
         add_limit_check!(exceeded_limits, limit_name, value, >, limit)
 
-    elseif par.limit_beta_model == :li
+    elseif par.beta_model == :li
         beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
         plasma_inductance = dd.equilibrium.time_slice[].global_quantities.li_3
         value = beta_normal / plasma_inductance
-        limit = par.limit_beta_value
+        limit = par.beta_value
         add_limit_check!(exceeded_limits, limit_name, value, >, limit)
 
     else
-        error("limit_betan_model `$(par.limit_betan_model)` is not implemented")
+        error("limit_betan_model `$(par.betan_model)` is not implemented")
     end
 end
 
-function check_limit_q95!(exceeded_limits, dd, par)
+function check_limit_current!(exceeded_limits, dd, par)
     limit_name = "current limit"
 
-    if par.limit_q95_model == :none
+    if par.current_model == :none
         message = "Limit check disabled: " * limit_name
         logging(Logging.Error, :actors, message)
 
-    elseif par.limit_q95_model == :basic
+    elseif par.current_model == :q95
         value = abs(dd.equilibrium.time_slice[].global_quantities.q_95)
-        limit = par.limit_q95_value
+        limit = par.q95_value
         add_limit_check!(exceeded_limits, "q95", value, <, limit)
 
     else
-        error("limit_q95_model `$(par.limit_q95_model)` is not implemented")
+        error("current_model `$(par.current_model)` is not implemented")
     end
 end
 
@@ -139,15 +139,15 @@ function check_limit_density!(exceeded_limits, dd, par)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    if par.limit_density_model == :none
+    if par.density_model == :none
         # Don't check limit
 
-    elseif par.limit_density_model == :greenwald
+    elseif par.density_model == :greenwald
         value = IMAS.greenwald_fraction(eqt, cp1d)
-        limit = par.limit_density_value
+        limit = par.density_value
         add_limit_check!(exceeded_limits, limit_name, value, >, limit)
 
     else
-        error("limit_density_model `$(par.limit_density_model)` is not implemented")
+        error("limit_density_model `$(par.density_model)` is not implemented")
     end
 end
