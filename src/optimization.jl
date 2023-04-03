@@ -25,7 +25,7 @@ function update_ObjectivesFunctionsLibrary!()
     empty!(ObjectivesFunctionsLibrary)
     ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
     ObjectiveFunction(:min_log10_levelized_CoE, "log₁₀(\$/kW)", dd -> log10(dd.costing.levelized_CoE), -Inf)
-    ObjectiveFunction(:min_capital_cost, "\$B", dd -> dd.costing.cost_direct_capital.cost/1E3, -Inf)
+    ObjectiveFunction(:min_capital_cost, "\$B", dd -> dd.costing.cost_direct_capital.cost / 1E3, -Inf)
     ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
     ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
     ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)
@@ -191,9 +191,9 @@ Turn NaNs into Inf
 """
 function nan2inf(x::Float64)::Float64
     if isnan(x)
-      	return Inf
+        return Inf
     else
-      	return x
+        return x
     end
 end
 
@@ -225,4 +225,44 @@ function optimization_engine(
         end
     end
     return F, G, H
+end
+
+"""
+    categorize_optmization_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true)
+
+Looks at the first line of each error and categorizes them
+"""
+function categorize_optmization_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true)
+    # error counting and error message dict
+    errors = Dict(:other => 0, :chease_e => 0, :aspect_changed => 0, :blend_core_ped => 0, :bad_expression => 0, :exceed_lim => 0, :task_exception => 0)
+    error_message = Dict(:chease_e => "EQDSK_COCOS_01.OUT", :aspect_changed => "plasma aspect ratio changed",
+        :blend_core_ped => "Unable to blend the core-pedestal", :bad_expression => "Bad expression", :exceed_lim => "Exceeded limits",
+        :task_exception => "TaskFailedException")
+
+    for dir in dirs
+        f = open(dir * "/error.txt")
+        first_line = readline(f)
+        found = false
+        for key in keys(error_message)
+            if occursin(error_message[key], first_line)
+                found = true
+                errors[key] += 1
+            end
+        end
+        if !found
+            errors[:other] += 1
+        end
+        if show_first_line
+            println(first_line)
+            println(dir)
+            println()
+        end
+    end
+    if do_plot
+        labels = collect(keys(errors))
+        v = collect(values(errors))
+
+        display(pie([string(i) * "  $(errors[i])" for i in labels], v, legend=:outerright))
+    end
+    return errors
 end
