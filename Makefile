@@ -360,6 +360,7 @@ manifest_ci_commit:
 	git config user.email "fuse-bot@fusion.gat.com"
 	git config user.name "fuse bot"
 	git config push.autoSetupRemote true
+	git fetch
 	git checkout manifest
 	git merge master
 	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)/git/g' Manifest.toml > Manifest_CI.toml
