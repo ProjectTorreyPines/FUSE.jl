@@ -5,8 +5,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "rho core transport grid"; default=0.2:0.1:0.8)
-    turbulence_actor::Switch{Symbol} = Switch(Symbol, [:TGLF, :None], "-", "Turbulence Actor to run"; default=:TGLF)
-    neoclassical_actor::Switch{Symbol} = Switch(Symbol, [:Neoclassical, :None], "-", "Neocalssical actor to run"; default=:Neoclassical)
+    turbulence_model::Switch{Symbol} = Switch(Symbol, [:TGLF, :none], "-", "Turbulence model to use"; default=:TGLF)
+    neoclassical_model::Switch{Symbol} = Switch(Symbol, [:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
 end
 
 mutable struct ActorCoreTransport <: PlasmaAbstractActor
@@ -32,18 +32,22 @@ end
 function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
     par = par(kw...)
 
-    if par.turbulence_actor == :TGLF
+    if par.turbulence_model == :none
+        logging(Logging.Debug, :actors, "ActorCoreTransport: turbulent transport disabled")
+    elseif par.turbulence_model == :TGLF
         act.ActorTGLF.rho_transport = par.rho_transport
         turb_actor = ActorTGLF(dd, act.ActorTGLF)
     else
-        error("turbulence_actor $(par.turbulence_actor) is not supported yet")
+        error("turbulence_model `$(par.turbulence_model)` is not supported yet")
     end
 
-    if par.neoclassical_actor == :Neoclassical
+    if par.neoclassical_model == :none
+        logging(Logging.Debug, :actors, "ActorCoreTransport: neoclassical transport disabled")
+    elseif par.neoclassical_model == :neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport
         neoc_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
     else
-        error("neoclassical_actor $(par.neoclassical_actor) is not supported yet")
+        error("neoclassical_model `$(par.neoclassical_model)` is not supported yet")
     end
 
     return ActorCoreTransport(dd, par, turb_actor, neoc_actor)
