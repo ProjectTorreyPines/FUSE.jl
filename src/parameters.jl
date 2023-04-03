@@ -6,8 +6,7 @@ function SimulationParameters.Entry(T::Type, ids::Type, field::Symbol; default=m
 end
 
 function SimulationParameters.Switch(T::Type, options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing)
-    location = "$(IMAS.fs2u(ids)).$(field)"
-    txt = IMAS.info(location)
+    txt = IMAS.info(ids, field)
     return Switch(T, options, get(txt, "units", "-"), get(txt, "documentation", ""); default)
 end
 
