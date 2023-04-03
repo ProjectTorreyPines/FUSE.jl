@@ -5,8 +5,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorDensityLimit{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch(Symbol, [:Standard, :None], "-", "Model for the limit calculation"; default=:None)
-    submodel::Switch{Symbol} = Switch(Symbol, [:A, :B, :C, :None], "-", "Submodel for the limit calculation"; default=:None)
+    model::Switch{Symbol} = Switch(Symbol, [:standard, :none], "-", "Model for the limit calculation"; default=:none)
+    submodel::Switch{Symbol} = Switch(Symbol, [:A, :B, :C, :none], "-", "Submodel for the limit calculation"; default=:none)
 end
 
 mutable struct ActorDensityLimit <: PlasmaAbstractActor
@@ -46,9 +46,9 @@ function _step(actor::ActorDensityLimit)
     par = actor.par
     lim = actor.lim
 
-    if par.model == :None 
+    if par.model == :none 
         logging(Logging.Error, :actors, "ActorDensityLimit: limit check disabled")
-    elseif par.model == :Standard
+    elseif par.model == :standard
         density_standard_a(dd, par, lim)
     else
         error("ActorDensityLimit: model = $(par.model) is unknown")

@@ -5,8 +5,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorBetaLimit{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch(Symbol, [:BetaLi, :Standard, :None], "-", "Model for the limit calculation"; default=:None)
-    submodel::Switch{Symbol} = Switch(Symbol, [:A, :B, :C, :D, :None], "-", "Submodel for the limit calculation"; default=:None)
+    model::Switch{Symbol} = Switch(Symbol, [:betali, :standard, :none], "-", "Model for the limit calculation"; default=:none)
+    submodel::Switch{Symbol} = Switch(Symbol, [:A, :B, :C, :D, :none], "-", "Submodel for the limit calculation"; default=:none)
 end
 
 mutable struct ActorBetaLimit <: PlasmaAbstractActor
@@ -45,11 +45,11 @@ function _step(actor::ActorBetaLimit)
     par = actor.par
     lim = actor.lim
 
-    if par.model == :None 
+    if par.model == :none 
         logging(Logging.Error, :actors, "ActorBetaLimit: limit check disabled")
 
-    elseif par.model == :Standard
-        if par.submodel == :None # Fail
+    elseif par.model == :standard
+        if par.submodel == :none # Fail
             error("ActorBetaLimit: model = $(par.model):$(par.submodel) is not implemented")
         elseif par.submodel == :A #Troyon Limit
             beta_standard_a(dd, par, lim)
@@ -63,8 +63,8 @@ function _step(actor::ActorBetaLimit)
             error("ActorBetaLimit: model = $(par.model):$(par.submodel) is unknown")
         end
 
-    elseif par.model == :BetaLi
-        if par.submodel == :None # Fail
+    elseif par.model == :betali
+        if par.submodel == :none # Fail
             error("ActorBetaLimit: model = $(par.model):$(par.submodel) is not implemented")
         elseif par.submodel == :A #NAME Limit
             beta_betali_a(dd, par, lim)
