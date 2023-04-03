@@ -32,14 +32,18 @@ end
 function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
     par = par(kw...)
 
-    if par.turbulence_model == :TGLF
+    if par.turbulence_model == :none
+        logging(Logging.Debug, :actors, "ActorCoreTransport: turbulent transport disabled")
+    elseif par.turbulence_model == :TGLF
         act.ActorTGLF.rho_transport = par.rho_transport
         turb_actor = ActorTGLF(dd, act.ActorTGLF)
     else
         error("turbulence_model `$(par.turbulence_model)` is not supported yet")
     end
 
-    if par.neoclassical_model == :neoclassical
+    if par.neoclassical_model == :none
+        logging(Logging.Debug, :actors, "ActorCoreTransport: neoclassical transport disabled")
+    elseif par.neoclassical_model == :neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport
         neoc_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
     else
