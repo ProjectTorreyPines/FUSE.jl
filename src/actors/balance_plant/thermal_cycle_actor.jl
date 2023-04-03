@@ -446,7 +446,7 @@ function waste(dd::IMAS.dd, nm::String, sys_power)
 end
 
 function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd)
-    cycle_minTemp = bout.T_HX
+    Tco = cycle_minTemp = bout.T_HX
     Tmax_blk = ihts_par.blanket_max_temp
     Tmax_div = ihts_par.divertor_max_temp
     Tmax_breeder = ihts_par.breeder_hi_temp
