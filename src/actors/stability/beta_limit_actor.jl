@@ -1,12 +1,12 @@
 #= ============== =#
 #  ActorBetaLimit  #
 #= ============== =#
-
 Base.@kwdef mutable struct FUSEparameters__ActorBetaLimit{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch(Symbol, [:betali, :standard, :none], "-", "Model for the limit calculation"; default=:none)
-    submodel::Switch{Symbol} = Switch(Symbol, [:A, :B, :C, :D, :none], "-", "Submodel for the limit calculation"; default=:none)
+    model::Switch{Symbol} = Switch(Symbol, [:none, :standard, :betali], "-", "Model for the limit calculation"; default=:standard)
+    standard_submodel::Switch{Symbol} = Switch(Symbol, [:troyon, :classical, :kink, :ballooning], "-", "Submodel for the `standard` beta limit model"; default=:troyon)
+    betali_submodel::Switch{Symbol} = Switch(Symbol, [:troyon], "-", "Submodel for the `betali` beta limit model"; default=:troyon)
 end
 
 mutable struct ActorBetaLimit <: PlasmaAbstractActor
@@ -45,32 +45,29 @@ function _step(actor::ActorBetaLimit)
     par = actor.par
     lim = actor.lim
 
-    if par.model == :none 
-        logging(Logging.Error, :actors, "ActorBetaLimit: limit check disabled")
+    if par.model == :none
+        logging(Logging.Debug, :actors, "ActorBetaLimit: limit check disabled")
 
-    elseif par.model == :standard
-        if par.submodel == :none # Fail
-            error("ActorBetaLimit: model = $(par.model):$(par.submodel) is not implemented")
-        elseif par.submodel == :A #Troyon Limit
-            beta_standard_a(dd, par, lim)
-        elseif par.submodel == :B #Classical Limit
-            beta_standard_b(dd, par, lim)
-        elseif par.submodel == :C #Kink Only Limit
-            beta_standard_c(dd, par, lim)
-        elseif par.submodel == :D #Ballooning Only Limit
-            beta_standard_d(dd, par, lim)
+    if par.model == :standard
+        if par.submodel == :troyon
+            beta_standard_troyon(dd, par, lim)
+        elseif par.submodel == :classical
+            beta_standard_classical(dd, par, lim)
+        elseif par.submodel == :kink
+            beta_standard_kink(dd, par, lim)
+        elseif par.submodel == :ballooning
+            beta_standard_ballooning(dd, par, lim)
         else
             error("ActorBetaLimit: model = $(par.model):$(par.submodel) is unknown")
         end
 
     elseif par.model == :betali
-        if par.submodel == :none # Fail
-            error("ActorBetaLimit: model = $(par.model):$(par.submodel) is not implemented")
-        elseif par.submodel == :A #NAME Limit
-            beta_betali_a(dd, par, lim)
+        if par.submodel == :troyon
+            beta_betali_troyon(dd, par, lim)
         else
             error("ActorBetaLimit: model = $(par.model):$(par.submodel) is unknown")
         end
+
     else
         error("ActorBetaLimit: model = $(par.model) is unknown")
     end
@@ -90,7 +87,6 @@ function _finalize(actor::ActorBetaLimit)
     else
         lim.cleared = 0 
     end
-
     return actor
 end
 
@@ -105,22 +101,19 @@ Model Formulation: beta_{N} < C_{beta}
 Citation: 
 """
 function beta_standard(dd::IMAS.dd)
-    
     beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
-    
-    model_value = beta_normal 
-
+    model_value = beta_normal
     return model_value
 end
 
 """
-    beta_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+    beta_standard_troyon(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
 
 Standard limit in beta_normal using Troyon scaling
 Model Formulation: Beta_{N} < 3.5
 Citation:  F. Troyon, et. al., Plasma phys. control. fusion 26, 209 (1984)
 """
-function beta_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+function beta_standard_troyon(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
     lim.model.name = "Standard::Troyon"
     lim.model.formula = "Beta_{N} < 3.5"
  
@@ -131,13 +124,13 @@ function beta_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::
 end
 
 """
-    beta_standard_b(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+    beta_standard_classical(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
 
 Standard limit in beta_normal using classical scaling using combined kink and ballooning stability
 Model Formulation: Beta_{N} < 2.8
 Citation: 
 """
-function beta_standard_b(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+function beta_standard_classical(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
     lim.model.name = "Standard::Classical"
     lim.model.formula = "Beta_{N} < 2.8"
 
@@ -148,13 +141,13 @@ function beta_standard_b(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::
 end
 
 """
-    beta_standard_c(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+    beta_standard_kink(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
 
 Standard limit in beta_normal using classical scaling using only kink stability
 Model Formulation: Beta_{N} < 2.8
 Citation: 
 """
-function beta_standard_c(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+function beta_standard_kink(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
     lim.model.name = "Standard::KinkOnly"
     lim.model.formula = "Beta_{N} < 3.2"
 
@@ -165,13 +158,13 @@ function beta_standard_c(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::
 end
 
 """
-    beta_standard_d(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+    beta_standard_ballooning(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
 
 Standard limit in normalized beta using classical scaling using only ballooning stability
 Model Formulation: Beta_{N} < 2.8
 Citation: 
 """
-function beta_standard_d(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+function beta_standard_ballooning(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
     lim.model.name = "Standard::BallooningOnly"
     lim.model.formula = "Beta_{N} < 4.4"
 
@@ -189,23 +182,20 @@ Model Formulation: beta_{N} / li < C_{beta}
 Citation: 
 """
 function beta_betali(dd::IMAS.dd)
-    
     beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
     plasma_inductance =  dd.equilibrium.time_slice[].global_quantities.li_3
-    
     model_value = beta_normal / plasma_inductance
-
     return model_value
 end
 
 """
-    beta_betali_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+    beta_betali_troyon(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
 
 Modern limit in normlaized beta normalized by plasma inductance
 Model Formulation: beta_{N} / li < C_{beta}
 Citation: 
 """
-function beta_betali_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+function beta_betali_troyon(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
     lim.model.name = "BetaLi::Troyon"
     lim.model.formula = "Beta_{N} / Li < 4.0"
 

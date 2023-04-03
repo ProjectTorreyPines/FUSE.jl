@@ -5,8 +5,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorCurrentLimit{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch(Symbol, [:standard, :none], "-", "Model for the limit calculation"; default=:none)
-    submodel::Switch{Symbol} = Switch(Symbol, [:A, :B, :C, :none], "-", "Submodel for the limit calculation"; default=:none)
+    model::Switch{Symbol} = Switch(Symbol, [:none, :q95], "-", "Model for the current limit calculation"; default=:q95)
 end
 
 mutable struct ActorCurrentLimit <: PlasmaAbstractActor
@@ -45,10 +44,10 @@ function _step(actor::ActorCurrentLimit)
     par = actor.par
     lim = actor.lim
 
-    if par.model == :none 
-        logging(Logging.Error, :actors, "ActorCurrentLimit: limit check disabled")
+    if par.model == :none
+        logging(Logging.Debug, :actors, "ActorCurrentLimit: limit check disabled")
     elseif par.model == :standard
-        current_standard_a(dd, par, lim)
+        current_q95(dd, par, lim)
     else
         error("ActorCurrentLimit: model = $(par.model) is unknown")
     end
@@ -58,10 +57,10 @@ end
 
 function _finalize(actor::ActorCurrentLimit)
     lim = actor.lim
-    if lim.model.fraction  < 1
+    if lim.model.fraction < 1
         lim.cleared = 1
     else
-        lim.cleared = 0 
+        lim.cleared = 0
     end
 
     return actor
@@ -69,34 +68,20 @@ end
 
 ##### Limit Model Functions #####
 
-"""
-    current_standard(dd::IMAS.dd)
-
-Standard limit in edge current via the safety factor
-Model Formulation: q95 < C
-Citation: 
-"""
-function current_standard(dd::IMAS.dd)
-    
-    q95 = dd.equilibrium.time_slice[].global_quantities.q_95 
-    
-    model_value = 1/abs(q95)
-
-    return model_value
-end
 
 """
-    current_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+    current_q95(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
 
 Standard limit in edge current via the safety factor
 Model Formulation: q95 < 2
 Citation: 
 """
-function current_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorCurrentLimit, lim::IMAS.stability__limit)
+function current_q95(dd::IMAS.dd, par::FUSEparameters__ActorCurrentLimit, lim::IMAS.stability__limit)
     lim.model.name = "Standard::q95"
     lim.model.formula = "q_95 > 2.0"
 
-    model_value = current_standard(dd)
+    q95 = dd.equilibrium.time_slice[].global_quantities.q_95
+    model_value = 1.0 / abs(q95)
     target_value = 0.5
 
     lim.model.fraction = model_value / target_value
