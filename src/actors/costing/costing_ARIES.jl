@@ -37,7 +37,7 @@ end
 Capital cost for each layer in the build
 """
 function cost_direct_capital_ARIES(layer::IMAS.build__layer, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2016
     if layer.type == Int(_oh_)
         return 0.0
     elseif layer.type == Int(_tf_)
@@ -67,7 +67,7 @@ Capital cost for each EC launcher is proportional to its power
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(ecl::IMAS.ec_launchers__beam, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009  
     unit_cost = 3.0 # $/W
     cost = ecl.available_launch_power / 1E6 * unit_cost
     return future_dollars(cost, da)
@@ -81,7 +81,7 @@ Capital cost for each IC antenna is proportional to its power
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(ica::IMAS.ic_antennas__antenna, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009   #Table 8 in ARIES
     unit_cost = 1.64 # $/W
     cost = ica.available_launch_power / 1E6 * unit_cost
     return future_dollars(cost, da)
@@ -95,7 +95,7 @@ Capital cost for each LH antenna is proportional to its power
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(lha::IMAS.lh_antennas__antenna, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009
     unit_cost = 2.13 # $/W
     cost = lha.available_launch_power / 1E6 * unit_cost
     return future_dollars(cost, da)
@@ -109,7 +109,7 @@ Capital cost for each NBI unit is proportional to its power
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(nbu::IMAS.nbi__unit, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009
     unit_cost = 4.93 # $/W
     cost = nbu.available_launch_power / 1E6 * unit_cost
     return future_dollars(cost, da)
@@ -136,7 +136,7 @@ end
 
 """
 function cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, da::DollarAdjust)
-    da.year_assessed = 2013 
+    da.year_assessed = 2016
     cost = IMAS.volume(coil) * unit_cost(technology)
     return future_dollars(cost, da)
 end
@@ -147,9 +147,13 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(::Type{Val{:land}}, land::Real, power_electric_net::Real, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009 #pg. 8, ARIES report
     power_electric_net = power_electric_net / 1E6
-    cost = 1.2 * land * 20.0e-3 * (power_electric_net / 1000.0)^0.3
+    if power_electric_net > 0.0
+        cost = 1.2 * land * 20.0e-3 * (power_electric_net / 1000.0)^0.3
+    else 
+        cost = 1.2 * land * 20.0e-3
+    end
     return future_dollars(cost, da)
 end
 
@@ -159,7 +163,7 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(::Type{Val{:buildings}}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
     power_thermal = power_thermal / 1E6
     power_electric_net = power_electric_net / 1E6
@@ -169,8 +173,8 @@ function cost_direct_capital_ARIES(::Type{Val{:buildings}}, land::Real, building
     cost += 16.804 * ((power_thermal - power_electric_net) / 1860.0)^0.5 # heat rejection
     cost += 22.878 * (power_electric_net / 1000.0)^0.3 # electrical equipment
     cost += 21.96 * (power_electric_generated / 1246)^0.3  # Plant auxiliary systems
-    cost += 4.309 * (power_electric_generated / 1000.0)^0.3 # power core service building
-    cost += 1.513 * (power_electric_generated / 1000.0)^0.3  # service water
+    cost += 4.309 * (power_electric_net / 1000.0)^0.3 # power core service building
+    cost += 1.513 * (power_electric_net / 1000.0)^0.3  # service water
     cost += 25.0 * (power_thermal / 1759.0)^0.3  # tritium plant and systems
     cost += 7.11 # control room
     cost += 4.7 * (power_electric_net / 1000.0)^0.3  # On-site AC power supply building
@@ -188,7 +192,7 @@ end
 NOTE: https://www.iter.org/mach/HotCell
 """
 function cost_direct_capital_ARIES(::Type{Val{:hot_cell}}, building_volume::Real, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009
     cost = 0.34 * 111.661 * (building_volume / 80.0e3)^0.62
     return future_dollars(cost, da)
 end
@@ -199,7 +203,7 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
 function cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real, da::DollarAdjust) 
-    da.year_assessed = 2013
+    da.year_assessed = 2009  # Table 15 ARIES report
     power_thermal = power_thermal / 1E6
     cost = 50.0 * (power_thermal / 2000.0)^0.55 # water
     cost += 125.0 * (power_thermal / 2000.0)^0.55 # LiPb
@@ -215,7 +219,7 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009
     power_thermal = power_thermal / 1E6
     power_electric_generated = power_electric_generated / 1E6
     cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
@@ -231,13 +235,17 @@ end
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
 function cost_direct_capital_ARIES(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009 
     power_thermal = power_thermal / 1E6
     power_electric_net = power_electric_net / 1E6
     cost = 15.0 * (power_thermal / 1758.0)^0.85 # radioactive material treatment and management
     cost += 70.0 * (power_thermal / 1758.0)^0.8 # Fuel handling and storage
     cost += 100.0 * (power_electric_net / 2000.0)^0.55 # Hot cell maintenance
-    cost += 60.0 # Instrumentation and Control
+    if power_thermal > 0.0
+        cost += 60.0 # Instrumentation and Control
+    else
+        cost += 0.0
+    end
     cost += 8.0 * (power_thermal / 1000.0)^0.8 # Misc power core equipment
     return future_dollars(cost, da)
 end
@@ -252,7 +260,7 @@ Yearly cost for maintenance [\$M/year]
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electric_generated::Real, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
     cost = 80.0 * (power_electric_generated / 1200.0)^0.5
     return future_dollars(cost, da)
@@ -275,8 +283,8 @@ end
 
 Yearly cost for blanket replacement [\$M/year]
 """
-function cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust) #What about divertor replacement?  
-    da.year_assessed = 2013
+function cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
+    da.year_assessed = 2023   # Assume that the user will give you the cost of the blanket in the dollars of their current year 
     cost = cost_blanket / blanket_lifetime
     return future_dollars(cost, da)
 end
@@ -292,7 +300,7 @@ Cost to decommission the plant [\$M]
 LIKELY NEEDS FIXING
 """
 function cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, lifetime::Real, da::DollarAdjust)
-    da.year_assessed = 2013
+    da.year_assessed = 2009  # pg. 94 ARIES
     unit_cost = 2.76 # [$M/year]From GASC
     cost = unit_cost * lifetime
     return future_dollars(cost, da)
@@ -357,27 +365,28 @@ function costing_ARIES(dd, par)
         power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) # should be pulse average
         power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
+    end
 
-        for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
-            sub = resize!(sys.subsystem, "name" => string(item))
-            if item == :land
-                sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_generated, da)
-            elseif item == :buildings
-                sub.cost = cost_direct_capital_ARIES(item, par.building_volume,
-                    par.land_space, power_electric_generated,
-                    power_thermal, power_electric_net, da)
-            elseif item == :hot_cell
-                sub.cost = cost_direct_capital_ARIES(item, par.building_volume, da)
-            elseif item == :heat_transfer_loop_materials
-                sub.cost = cost_direct_capital_ARIES(item, power_thermal, da)
-            elseif item == :balance_of_plant_equipment
-                sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_generated, da)
-            elseif item == :fuel_cycle_rad_handling
-                sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_net, da)
-            else
-                sub.cost = cost_direct_capital_ARIES(item, da) #why is this here? 
-            end
+    for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
+        sub = resize!(sys.subsystem, "name" => string(item))
+        if item == :land
+            sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_generated, da)
+        elseif item == :buildings
+            sub.cost = cost_direct_capital_ARIES(item, par.building_volume,
+                par.land_space, power_electric_generated,
+                power_thermal, power_electric_net, da)
+        elseif item == :hot_cell
+            sub.cost = cost_direct_capital_ARIES(item, par.building_volume, da)
+        elseif item == :heat_transfer_loop_materials
+            sub.cost = cost_direct_capital_ARIES(item, power_thermal, da)
+        elseif item == :balance_of_plant_equipment
+            sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_generated, da)
+        elseif item == :fuel_cycle_rad_handling
+            sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_net, da)
+        else
+            sub.cost = cost_direct_capital_ARIES(item, da)
         end
+    end
 
     ###### Operations ######
     sys = resize!(cost_ops.system, "name" => "tritium handling")
@@ -394,11 +403,10 @@ function costing_ARIES(dd, par)
             blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
             sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime, da)
         else
-            sub.yearly_cost = cost_operations_ARIES(item, da) #again, why do we need this? 
+            sub.yearly_cost = cost_operations_ARIES(item, da)
         end
     end
-end
-
+    
     ###### Decomissioning ######
     sys = resize!(cost_decom.system, "name" => "decommissioning")
     sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, par.lifetime, da)
