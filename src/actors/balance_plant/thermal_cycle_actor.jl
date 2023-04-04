@@ -200,7 +200,7 @@ function _step(actor::ActorThermalCycle)
         @ddtime(bop.heat_transfer.breeder.heat_delivered = Q_breeder)
         @ddtime(bop.heat_transfer.breeder.heat_waste = breeder_power + bpump - Q_breeder)
         @ddtime(bop.thermal_cycle.net_work = mflow_cycle * (pt.work - pc.work))
-        @ddtime(bop_thermal.thermal_effeciency = mflow_cycle * (pt.work - pc.work) / (divertor_coolant_heat_exchanger.HX_q + blanket_coolant_heat_exchanger.HX_q + Q_breeder))
+        @ddtime(bop_thermal.thermal_efficiency = mflow_cycle * (pt.work - pc.work) / (divertor_coolant_heat_exchanger.HX_q + blanket_coolant_heat_exchanger.HX_q + Q_breeder))
         return actor
 
     elseif bop.power_cycle_type == "brayton_only"
@@ -211,7 +211,7 @@ function _step(actor::ActorThermalCycle)
         @ddtime(bop_thermal.turbine_work = mflow_cycle .* braytonOut.w_out)
         @ddtime(bop_thermal.input_work = mflow_cycle .* braytonOut.w_in)
         @ddtime(bop_thermal.net_work = mflow_cycle .* (braytonOut.w_out - braytonOut.w_in))
-        @ddtime(bop_thermal.thermal_effeciency = braytonOut.η_th)
+        @ddtime(bop_thermal.thermal_efficiency = braytonOut.η_th)
         return actor
     else
         error("Power cycle type `$(bop.power_cycle_type)` not recognized")
@@ -446,7 +446,7 @@ function waste(dd::IMAS.dd, nm::String, sys_power)
 end
 
 function evalBrayton(bout::BraytonOutput, ihts_par::ParametersActor, dd::IMAS.dd)
-    cycle_minTemp = bout.T_HX
+    Tco = cycle_minTemp = bout.T_HX
     Tmax_blk = ihts_par.blanket_max_temp
     Tmax_div = ihts_par.divertor_max_temp
     Tmax_breeder = ihts_par.breeder_hi_temp

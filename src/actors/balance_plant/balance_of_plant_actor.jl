@@ -42,7 +42,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     breeder_hi_temp, breeder_low_temp, cycle_tmax = initial_temperatures(act.ActorThermalCycle.power_cycle_type)
 
     IHTS_actor = ActorHeatTransfer(dd, act.ActorHeatTransfer, act; breeder_hi_temp, breeder_low_temp)
-    thermal_cycle_actor = ActorThermalCycle(dd, act.ActorThermalCycle, act; Tmax=cycle_tmax, rp=3.0)
+    thermal_cycle_actor = ActorThermalCycle(dd, act.ActorThermalCycle, act)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act)
     return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor, power_needs_actor)
 end
