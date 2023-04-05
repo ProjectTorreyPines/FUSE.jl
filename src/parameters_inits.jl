@@ -81,7 +81,7 @@ end
 
 tf_shape_options = OrderedCollections.OrderedDict{Symbol,SwitchOption}(
     :princeton_D_exact => SwitchOption(_princeton_D_exact_, "princeton_D_exact"),
-    :princeton_D => SwitchOption(_princeton_D_, "princeton_D_"),
+    :princeton_D => SwitchOption(_princeton_D_, "princeton_D"),
     :princeton_D_scaled => SwitchOption(_princeton_D_scaled_, "princeton_D_scaled"),
     :rectangle => SwitchOption(_rectangle_, "rectangle"),
     :double_ellipse => SwitchOption(_double_ellipse_, "double_ellipse"),

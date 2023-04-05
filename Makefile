@@ -78,23 +78,24 @@ register:
 	$(foreach package,$(DEV_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate(""); using LocalRegistry; LocalRegistry.is_dirty(path, gitconfig)= false; register("$(package)", registry="GAregistry")';)
 
 # install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
-develop: revise
+develop:
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
+Pkg.activate();\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
 Pkg.activate("./docs");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
-Pkg.activate();\
-Pkg.develop([["FUSE"] ; fuse_packages]);\
-Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 '
+	make revise
 
 # install revise and load it when Julia starts up
 revise:
-	julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0"))'
+	julia -e 'import Pkg; Pkg.compat("Revise", "< 3.4.1"); Pkg.update(); Pkg.add("Revise")'
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
@@ -341,29 +342,31 @@ blank_examples:
 daily_example:
 	cd docs; julia notebooks_to_md.jl --daily --execute --canfail
 
-# commit daily example md (this should only be run by the CI)
+# commit daily example md (this must only be run by the CI)
 ifdef GITHUB_ACTION
 daily_example_ci_commit:
-	git checkout -b examples_$(TODAY)
-	git add -A
 	git config user.email "fuse-bot@fusion.gat.com"
 	git config user.name "fuse bot"
 	git config push.autoSetupRemote true
+	git checkout -b examples_$(TODAY)
+	git add -A
 	git commit --allow-empty -m "example of the day"
 	git push --set-upstream origin examples_$(TODAY)
 endif
 
-# commit manifest (this should only be run by the CI)
+# commit manifest (this must only be run by the CI)
 ifdef GITHUB_ACTION
 manifest_ci_commit:
-	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)/git/g' Manifest.toml > Manifest_CI.toml
-	git checkout -b manifest
-	git add Manifest_CI.toml
 	git config user.email "fuse-bot@fusion.gat.com"
 	git config user.name "fuse bot"
 	git config push.autoSetupRemote true
+	git fetch
+	git checkout manifest
+	git merge master
+	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)/git/g' Manifest.toml > Manifest_CI.toml
+	git add Manifest_CI.toml
 	git commit --allow-empty -m "Manifest $(TODAY)"
-	git push -f --set-upstream origin manifest
+	git push --set-upstream origin manifest
 endif
 
 manifest:

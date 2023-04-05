@@ -163,21 +163,39 @@ end
    make web
    ```
 
+!!! note
+    Documentation files (PDF, DOC, XLS, PPT, ...) can be committed and pushed to the [FUSE_extra_files](https://github.com/ProjectTorreyPines/FUSE_extra_files) repository, and then linked directly from within the FUSE documentation, like this:
+
+    ```markdown
+    [video recording of the first FUSE tutorial](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/FUSE_tutorial_1_6Jul22.mp4)
+    ```
+
+## Examples
+
+The `FUSE/examples` folder contains jupyter notebook that showcase some possible uses of FUSE.
+
+!!! note
+    When pushing changes to in a jupyter notebook, make sure that all the output cells are cleared 
+
+
 ## Tips and more
 
 ### Revise.jl
+
 Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
 We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions.
 All this can be done by running in the `FUSE` folder:
-   ```bash
-   make revise
-   ```
+
+```bash
+make revise
+```
 
 ### Development in VSCode
 
 [VSCode](https://code.visualstudio.com) is an excellent development environment for Julia.
 
 FUSE uses the following VSCode settings for formatting the Julia code:
+
 ```json
 {
     "files.autoSave": "onFocusChange",
@@ -197,17 +215,16 @@ FUSE uses the following VSCode settings for formatting the Julia code:
 !!! note
     To add these settings to VSCode add these lines to: `<Command> + <shift> + p` -> `Preferences: Open Settings (JSON)`
 
-In addition, we suggest enabling the VSCode `autoSave` feature and increasing the `workbench tree indent` to 24
-
-To format Julia you will need to install `Julia Language Support` under the extensions tab (`<Command> + <shift> + x`)
-
-!!! tip
-    To see what is precompiled at runtime, you can add a Julia kernel with the `trace-compile` option to Jupyter
-    ```julia
-    import IJulia
-    IJulia.installkernel("Julia tracecompile", "--trace-compile=stderr")
-    ```
-    Then select the `Julia tracecompile` in jupyter-lab
-
 !!! note
-    When pushing changes in a jupyter notebook, make sure that all the output cells are cleared 
+    To format Julia you will need to install `Julia Language Support` under the extensions tab (`<Command> + <shift> + x`)
+
+### Tracking Julia precompilation
+
+To see what is precompiled at runtime, you can add a Julia kernel with the `trace-compile` option to Jupyter
+
+```julia
+import IJulia
+IJulia.installkernel("Julia tracecompile", "--trace-compile=stderr")
+```
+
+Then select the `Julia tracecompile` in jupyter-lab
