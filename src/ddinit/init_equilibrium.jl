@@ -32,6 +32,11 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             # different entry points
             ini = deepcopy(ini)
 
+            # if elongation is not defined, then set it to 95% of maximum controllable elongation estimate
+            if ismissing(ini.equilibrium, :κ)
+                ini.equilibrium.κ = IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * 0.95
+            end
+
             if init_from == :ods
                 ini.equilibrium.ip = eqt.global_quantities.ip
                 ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
@@ -41,8 +46,10 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
                 pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
                 pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+
                 if ini.equilibrium.boundary_from == :MXH_params
                     mxh = IMAS.MXH(pr, pz, 2)
+                
                 elseif boundary_from == :scalars
                     mxh = IMAS.MXH(
                         ini.equilibrium.R0,
@@ -53,6 +60,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                         [0.0, 0.0],
                         [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
                 end
+
                 if ismissing(ini.equilibrium, :xpoints_number)
                     # if number of x-points is not set explicitly, get it from the ODS
                     ini.equilibrium.xpoints_number = length(eqt.boundary.x_point)

@@ -69,6 +69,9 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.greenwald_fraction_ped = 0.75
 
+    # set κ to 95% of maximum controllable elongation estimate
+    ini.equilibrium.κ = missing
+
     # negative triangularity
     # ini.equilibrium.δ *= -1
 
@@ -94,10 +97,10 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         act.ActorTauenn.confinement_factor = 0.9
     else
         act.ActorTransportSolver.evolve_densities = Dict(
-        :Ar        => :match_ne_scale,
-        :DT        => :quasi_neutrality,
-        :He        => :match_ne_scale,
-        :electrons => :flux_match)
+            :Ar => :match_ne_scale,
+            :DT => :quasi_neutrality,
+            :He => :match_ne_scale,
+            :electrons => :flux_match)
     end
 
     # add wall layer
