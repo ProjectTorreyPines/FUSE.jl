@@ -263,25 +263,35 @@ function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString=
 end
 
 """
-    categorize_optmization_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true)
+    categorize_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true, extra_error_messages::AbstractDict=Dict())
 
-Looks at the first line of each error and categorizes them
+Looks at the first line of each error.txt file in dirs and categorizes them
 """
-function categorize_optmization_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true)
+function categorize_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true, extra_error_messages::AbstractDict{Symbol,<:AbstractString}=Dict())
     # error counting and error message dict
-    errors = Dict(:other => 0, :chease_e => 0, :aspect_changed => 0, :blend_core_ped => 0, :bad_expression => 0, :exceed_lim => 0, :task_exception => 0)
-    error_message = Dict(:chease_e => "EQDSK_COCOS_01.OUT", :aspect_changed => "plasma aspect ratio changed",
-        :blend_core_ped => "Unable to blend the core-pedestal", :bad_expression => "Bad expression", :exceed_lim => "Exceeded limits",
+    errors = Dict(:other => 0)
+    error_messages = Dict(
+        :chease_e => "EQDSK_COCOS_01.OUT",
+        :aspect_changed => "plasma aspect ratio changed",
+        :blend_core_ped => "Unable to blend the core-pedestal",
+        :bad_expression => "Bad expression",
+        :exceed_lim => "Exceeded limits",
         :task_exception => "TaskFailedException")
+    merge!(error_messages, extra_error_messages)
 
+    # go through directories
     for dir in dirs
         f = open(dir * "/error.txt")
         first_line = readline(f)
         found = false
-        for key in keys(error_message)
-            if occursin(error_message[key], first_line)
+        for key in keys(error_messages)
+            if occursin(error_messages[key], first_line)
                 found = true
+                if key ∉ errors
+                    errors[key] = 0
+                end
                 errors[key] += 1
+                break
             end
         end
         if !found
@@ -293,11 +303,12 @@ function categorize_optmization_errors(dirs::AbstractVector{<:AbstractString}; s
             println()
         end
     end
-    if do_plot
-        labels = collect(keys(errors))
-        v = collect(values(errors))
 
+    if do_plot
+        labels = keys(errors)
+        v = values(errors)
         display(pie([string(i) * "  $(errors[i])" for i in labels], v, legend=:outerright))
     end
+
     return errors
 end
