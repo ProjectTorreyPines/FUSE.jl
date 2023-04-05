@@ -169,59 +169,117 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
 end
 
 """
-    digest(dd::IMAS.dd; terminal_width::Int=136)
+    digest(dd::IMAS.dd;
+        terminal_width::Int=136,
+        line_char::Char='─',
+        section::Int=0,
+        ini::Union{Nothing,ParametersAllInits}=nothing,
+        act::Union{Nothing,ParametersAllActors}=nothing)
 
-Provides concise and informative summary of `dd`, including several plots.
+Provides concise and informative summary of `dd`, including several plots
+
+NOTE: `section` is used internally to produce digest PDFs
 """
-function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
+function digest(dd::IMAS.dd;
+    terminal_width::Int=136,
+    line_char::Char='─',
+    section::Int=0)
+
     #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
+    #      also it references ini and act
 
-    IMAS.print_tiled(extract(dd); terminal_width, line_char)
-
-    if !isempty(dd.build.layer)
-        display(dd.build.layer)
+    sec = 1
+    if section ∈ [0, sec]
+        IMAS.print_tiled(extract(dd); terminal_width, line_char)
     end
 
     # equilibrium with build and PFs
-    p = plot(dd.equilibrium, legend=false)
-    if !isempty(dd.build.layer)
-        plot!(p[1], dd.build, legend=false)
+    sec += 1
+    if !isempty(dd.equilibrium.time_slice) && section ∈ [0, sec]
+        println('\u200B')
+        p = plot(dd.equilibrium, legend=false)
+        if !isempty(dd.build.layer)
+            plot!(p[1], dd.build, legend=false)
+        end
+        if !isempty(dd.pf_active.coil)
+            plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+        end
+        display(p)
     end
-    if !isempty(dd.pf_active.coil)
-        plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+
+    # build layers
+    sec += 1
+    if !isempty(dd.build.layer) && section ∈ [0, sec]
+        println('\u200B')
+        display(dd.build.layer)
     end
-    display(p)
 
     # core profiles
-    display(plot(dd.core_profiles, only=1))
-    display(plot(dd.core_profiles, only=2))
-    display(plot(dd.core_profiles, only=3))
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=1))
+    end
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=2))
+    end
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=3))
+    end
 
     # core sources
-    display(plot(dd.core_sources, only=1))
-    display(plot(dd.core_sources, only=2))
-    display(plot(dd.core_sources, only=3))
-    display(plot(dd.core_sources, only=4))
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=1))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=2))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=3))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=4))
+    end
 
     # neutron wall loading
-    if !isempty(dd.neutronics.time_slice)
+    sec += 1
+    if !isempty(dd.neutronics.time_slice) && section ∈ [0, sec]
+        println('\u200B')
         xlim = extrema(dd.neutronics.first_wall.r)
         xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
         display(plot(dd.neutronics.time_slice[].wall_loading; xlim))
     end
 
     # center stack stresses
-    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh)
+    sec += 1
+    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh) && section ∈ [0, sec]
+        println('\u200B')
         display(plot(dd.solid_mechanics.center_stack.stress))
     end
 
-    # # balance of plant
-    # if !missing(dd.balance_of_plant, :Q_plant)
+    # balance of plant (cannot be plotted right now plotting can only be done when running actor and not from data in dd)
+    # sec += 1
+    # if !missing(dd.balance_of_plant, :Q_plant) && section ∈ [0, sec]
+    # println('\u200B')
     #     display(plot(dd.balance_of_plant))
     # end
 
     # costing
-    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0)
+    sec += 1
+    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0) && section ∈ [0, sec]
+        println('\u200B')
         display(plot(dd.costing.cost_direct_capital))
     end
 
@@ -229,19 +287,28 @@ function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
 end
 
 """
-    digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+    digest(dd::IMAS.dd,
+        title::AbstractString,
+        description::AbstractString="";
+        ini::Union{Nothing,ParametersAllInits}=nothing,
+        act::Union{Nothing,ParametersAllActors}=nothing)
 
 Write digest to PDF in current working directory.
 
 PDF filename is based on title (with `" "` replaced by `"_"`)
 """
-function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+function digest(dd::IMAS.dd,
+    title::AbstractString,
+    description::AbstractString="";
+    ini::Union{Nothing,ParametersAllInits}=nothing,
+    act::Union{Nothing,ParametersAllActors}=nothing)
+
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)
     try
         filename = redirect_stdout(Base.DevNull()) do
-            with_logger(logger) do
+            filename = with_logger(logger) do
                 Weave.weave(joinpath(@__DIR__, "digest.jmd");
                     mod=@__MODULE__,
                     doctype="md2pdf",
@@ -249,6 +316,8 @@ function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString=
                     out_path=tmpdir,
                     args=Dict(
                         :dd => dd,
+                        :ini => ini,
+                        :act => act,
                         :title => title,
                         :description => description))
             end
@@ -256,7 +325,7 @@ function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString=
         cp(filename, outfilename, force=true)
         return outfilename
     catch e
-        println(tmpdir)
+        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir")
     else
         rm(tmpdir, recursive=true, force=true)
     end
