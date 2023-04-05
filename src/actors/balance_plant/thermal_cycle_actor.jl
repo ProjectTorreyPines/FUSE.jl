@@ -1,16 +1,11 @@
 #= =================== =#
 #  Thermal Cycle actor  #
-#   Cases
-#       SIMPLE Brayton
-#       COMPLEX BRAYTON
-#       SIMPLE rankine
-#       COMBINED BRAYTON RANKINE
 #= =================== =#
 
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :complex_brayton], "-", "Power cycle configuration"; default=:complex_brayton)
+    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only)
     rp::Entry{T} = Entry(T, "-", "Overall compression ratio"; default=3.0)
     Pmax::Entry{T} = Entry(T, "-", "Max system pressure (MPa)"; default=8e6)
     Tmax::Entry{T} = Entry(T, "-", "Max cycle temperature K"; default=950.0 + 273.15)
@@ -111,7 +106,7 @@ function _step(actor::ActorThermalCycle)
         @ddtime(wall.circulator_power = blanket_coolant_heat_exchanger.pump_work)
         @ddtime(wall.heat_delivered = blanket_coolant_heat_exchanger.HX_q)
         @ddtime(wall.heat_waste = abs(blanket_power + blanket_coolant_heat_exchanger.pump_work - blanket_coolant_heat_exchanger.HX_q))
-        
+
         divertor_coolant_heat_exchanger = ihts_heat_exchanger(ihts_par.divertor_η_pump, ihts_par.divertor_HX_ϵ, Niter, blanket_coolant_heat_exchanger.Tout_cycle, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, divertor_power, rp_divertor, cp_div, kcoeff_div)
         @ddtime(divertor.HX_outlet_temperature = divertor_coolant_heat_exchanger.Tmin)
         @ddtime(divertor.inlet_temperature = divertor_coolant_heat_exchanger.Tin)
