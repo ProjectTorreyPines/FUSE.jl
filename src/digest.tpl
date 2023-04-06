@@ -1,8 +1,8 @@
-\documentclass[9pt,a4paper]{article}
-
-%\usepackage[a4paper,text={16.5cm,25.2cm},centering]{geometry}
-\usepackage[paperwidth=7in, paperheight=200in, voffset=0.1in, top=0.1in, left=0.1in, right=0.1in]{geometry}
-\usepackage{lmodern}
+\documentclass[]{article}
+\usepackage[paperwidth=8in, paperheight=200in, voffset=0.1in, top=0.1in, left=0.1in, right=0.1in]{geometry}
+\usepackage{fontspec}
+\setmonofont{DejaVu Sans Mono}   % Set the monospaced font
+\usepackage{newunicodechar}
 \usepackage{amssymb,amsmath}
 \usepackage{bm}
 \usepackage{graphicx}
@@ -13,6 +13,13 @@
 {{/:tex_deps}}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1.2ex}
+\usepackage{listings}
+\lstset{
+  columns=fullflexible,
+  keepspaces=true,
+  basicstyle=\ttfamily,
+  breaklines=false,
+}
 
 \hypersetup
        {   pdfauthor = { {{{:author}}} },
