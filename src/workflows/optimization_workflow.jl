@@ -43,8 +43,8 @@ function workflow_multiobjective_optimization(
     println("Running on $(Distributed.nprocs()-1) worker processes")
     if isempty(objectives_functions)
         error(
-            "Must specify objective functions. Available pre-baked functions from ObjectivesFunctionsLibrary:\n  * " *
-            join(keys(ObjectivesFunctionsLibrary), "\n  * "),
+            "Must specify objective functions. Available pre-baked functions from ObjectiveFunctionsLibrary:\n  * " *
+            join(keys(ObjectiveFunctionsLibrary), "\n  * "),
         )
     end
 
