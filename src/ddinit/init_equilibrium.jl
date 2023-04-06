@@ -33,7 +33,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             ini = deepcopy(ini)
 
             # if elongation is not defined, then set it to 95% of maximum controllable elongation estimate
-            if ismissing(ini.equilibrium, :κ)
+            if ismissing(ini.equilibrium, :κ) && !ismissing(ini.equilibrium, :ϵ)
                 ini.equilibrium.κ = IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * 0.95
             end
 
