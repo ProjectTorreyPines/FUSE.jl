@@ -61,7 +61,7 @@ function _step(actor::ActorNBIsimple)
 
         beam_particles = power_launched / (beam_energy * constants.e)
         momentum_source =
-            sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+            sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
         R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20

@@ -169,59 +169,117 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
 end
 
 """
-    digest(dd::IMAS.dd; terminal_width::Int=136)
+    digest(dd::IMAS.dd;
+        terminal_width::Int=136,
+        line_char::Char='─',
+        section::Int=0,
+        ini::Union{Nothing,ParametersAllInits}=nothing,
+        act::Union{Nothing,ParametersAllActors}=nothing)
 
-Provides concise and informative summary of `dd`, including several plots.
+Provides concise and informative summary of `dd`, including several plots
+
+NOTE: `section` is used internally to produce digest PDFs
 """
-function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
+function digest(dd::IMAS.dd;
+    terminal_width::Int=136,
+    line_char::Char='─',
+    section::Int=0)
+
     #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
+    #      also it references ini and act
 
-    IMAS.print_tiled(extract(dd); terminal_width, line_char)
-
-    if !isempty(dd.build.layer)
-        display(dd.build.layer)
+    sec = 1
+    if section ∈ [0, sec]
+        IMAS.print_tiled(extract(dd); terminal_width, line_char)
     end
 
     # equilibrium with build and PFs
-    p = plot(dd.equilibrium, legend=false)
-    if !isempty(dd.build.layer)
-        plot!(p[1], dd.build, legend=false)
+    sec += 1
+    if !isempty(dd.equilibrium.time_slice) && section ∈ [0, sec]
+        println('\u200B')
+        p = plot(dd.equilibrium, legend=false)
+        if !isempty(dd.build.layer)
+            plot!(p[1], dd.build, legend=false)
+        end
+        if !isempty(dd.pf_active.coil)
+            plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+        end
+        display(p)
     end
-    if !isempty(dd.pf_active.coil)
-        plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+
+    # build layers
+    sec += 1
+    if !isempty(dd.build.layer) && section ∈ [0, sec]
+        println('\u200B')
+        display(dd.build.layer)
     end
-    display(p)
 
     # core profiles
-    display(plot(dd.core_profiles, only=1))
-    display(plot(dd.core_profiles, only=2))
-    display(plot(dd.core_profiles, only=3))
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=1))
+    end
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=2))
+    end
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=3))
+    end
 
     # core sources
-    display(plot(dd.core_sources, only=1))
-    display(plot(dd.core_sources, only=2))
-    display(plot(dd.core_sources, only=3))
-    display(plot(dd.core_sources, only=4))
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=1))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=2))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=3))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=4))
+    end
 
     # neutron wall loading
-    if !isempty(dd.neutronics.time_slice)
+    sec += 1
+    if !isempty(dd.neutronics.time_slice) && section ∈ [0, sec]
+        println('\u200B')
         xlim = extrema(dd.neutronics.first_wall.r)
         xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
         display(plot(dd.neutronics.time_slice[].wall_loading; xlim))
     end
 
     # center stack stresses
-    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh)
+    sec += 1
+    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh) && section ∈ [0, sec]
+        println('\u200B')
         display(plot(dd.solid_mechanics.center_stack.stress))
     end
 
-    # # balance of plant
-    # if !missing(dd.balance_of_plant, :Q_plant)
+    # balance of plant (cannot be plotted right now plotting can only be done when running actor and not from data in dd)
+    # sec += 1
+    # if !missing(dd.balance_of_plant, :Q_plant) && section ∈ [0, sec]
+    # println('\u200B')
     #     display(plot(dd.balance_of_plant))
     # end
 
     # costing
-    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0)
+    sec += 1
+    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0) && section ∈ [0, sec]
+        println('\u200B')
         display(plot(dd.costing.cost_direct_capital))
     end
 
@@ -229,19 +287,28 @@ function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
 end
 
 """
-    digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+    digest(dd::IMAS.dd,
+        title::AbstractString,
+        description::AbstractString="";
+        ini::Union{Nothing,ParametersAllInits}=nothing,
+        act::Union{Nothing,ParametersAllActors}=nothing)
 
 Write digest to PDF in current working directory.
 
 PDF filename is based on title (with `" "` replaced by `"_"`)
 """
-function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+function digest(dd::IMAS.dd,
+    title::AbstractString,
+    description::AbstractString="";
+    ini::Union{Nothing,ParametersAllInits}=nothing,
+    act::Union{Nothing,ParametersAllActors}=nothing)
+
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)
     try
         filename = redirect_stdout(Base.DevNull()) do
-            with_logger(logger) do
+            filename = with_logger(logger) do
                 Weave.weave(joinpath(@__DIR__, "digest.jmd");
                     mod=@__MODULE__,
                     doctype="md2pdf",
@@ -249,6 +316,8 @@ function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString=
                     out_path=tmpdir,
                     args=Dict(
                         :dd => dd,
+                        :ini => ini,
+                        :act => act,
                         :title => title,
                         :description => description))
             end
@@ -256,32 +325,42 @@ function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString=
         cp(filename, outfilename, force=true)
         return outfilename
     catch e
-        println(tmpdir)
+        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir")
     else
         rm(tmpdir, recursive=true, force=true)
     end
 end
 
 """
-    categorize_optmization_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true)
+    categorize_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true, extra_error_messages::AbstractDict=Dict())
 
-Looks at the first line of each error and categorizes them
+Looks at the first line of each error.txt file in dirs and categorizes them
 """
-function categorize_optmization_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true)
+function categorize_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true, extra_error_messages::AbstractDict{Symbol,<:AbstractString}=Dict())
     # error counting and error message dict
-    errors = Dict(:other => 0, :chease_e => 0, :aspect_changed => 0, :blend_core_ped => 0, :bad_expression => 0, :exceed_lim => 0, :task_exception => 0)
-    error_message = Dict(:chease_e => "EQDSK_COCOS_01.OUT", :aspect_changed => "plasma aspect ratio changed",
-        :blend_core_ped => "Unable to blend the core-pedestal", :bad_expression => "Bad expression", :exceed_lim => "Exceeded limits",
+    errors = Dict(:other => 0)
+    error_messages = Dict(
+        :chease_e => "EQDSK_COCOS_01.OUT",
+        :aspect_changed => "plasma aspect ratio changed",
+        :blend_core_ped => "Unable to blend the core-pedestal",
+        :bad_expression => "Bad expression",
+        :exceed_lim => "Exceeded limits",
         :task_exception => "TaskFailedException")
+    merge!(error_messages, extra_error_messages)
 
+    # go through directories
     for dir in dirs
         f = open(dir * "/error.txt")
         first_line = readline(f)
         found = false
-        for key in keys(error_message)
-            if occursin(error_message[key], first_line)
+        for key in keys(error_messages)
+            if occursin(error_messages[key], first_line)
                 found = true
+                if key ∉ errors
+                    errors[key] = 0
+                end
                 errors[key] += 1
+                break
             end
         end
         if !found
@@ -293,11 +372,12 @@ function categorize_optmization_errors(dirs::AbstractVector{<:AbstractString}; s
             println()
         end
     end
-    if do_plot
-        labels = collect(keys(errors))
-        v = collect(values(errors))
 
+    if do_plot
+        labels = keys(errors)
+        v = values(errors)
         display(pie([string(i) * "  $(errors[i])" for i in labels], v, legend=:outerright))
     end
+
     return errors
 end

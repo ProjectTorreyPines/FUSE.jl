@@ -19,8 +19,11 @@ end
 Power needs actor that calculates the needed power to operate the plant
 
 * `model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
+
 * `model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
-* `model = :FUSE` subdivides power plant needs and self-consistently calculates the power needs according to FUSE
+
+* `model = :FUSE` subdivides power plant needs into subsystems and calculates their power needs.
+
 !!! note 
     Stores data in `dd.balance_of_plant.power_electric_plant_operation`
 """

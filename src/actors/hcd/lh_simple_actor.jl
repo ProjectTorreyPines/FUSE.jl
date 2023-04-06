@@ -59,11 +59,10 @@ function _step(actor::ActorLHsimple)
 
         R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
-        ne20_vol = integrate(volume_cp, cp1d.electrons.density) / volume_cp[end] / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
         zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx]) / 1E3
 
-        eta = TekeV * 0.037 * B0 / (5.0 + zeff) / ne20_vol^0.33
+        eta = TekeV * 0.037 * B0 / (5.0 + zeff) / ne20^0.33
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
