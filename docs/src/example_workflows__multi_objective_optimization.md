@@ -63,7 +63,7 @@ ini_opt.equilibrium.R0 = ini.equilibrium.R0 ↔ [ini.equilibrium.R0, 10.0];
 
 ```@julia
 # FUSE comes with a library of objective functions
-OFL = deepcopy(FUSE.ObjectivesFunctionsLibrary)
+OFL = deepcopy(FUSE.ObjectiveFunctionsLibrary)
 OFL[:max_power_electric_net].target = 200.0
 objective_functions = [OFL[:max_power_electric_net], OFL[:min_log10_levelized_CoE], OFL[:max_log10_flattop]]
 
