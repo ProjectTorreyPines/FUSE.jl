@@ -9,7 +9,7 @@ import Weave
 Read dd.json/h5 in a folder and extract data from it.
 """
 function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
-    dd, ini, act = load(dir; load_ini=false, load_act=false)
+    dd, ini, act = load(dir; load_ini=false, load_act=false, skip_on_error=true)
     return extract(dd, xtract)
 end
 
@@ -138,14 +138,14 @@ function save(
 end
 
 """
-    load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true)
+    load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
 
 Read (dd, ini, act) to dd.json/h5, ini.json, and act.json files.
 
 Returns `missing` for files are not there or if `error.txt` file exists in the folder.
 """
-function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true)
-    if isfile(joinpath(savedir, "error.txt"))
+function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
+    if isfile(joinpath(savedir, "error.txt")) && skip_on_error
         @warn "$savedir simulation errored"
         return missing, missing, missing
     end
@@ -336,47 +336,58 @@ end
 
 Looks at the first line of each error.txt file in dirs and categorizes them
 """
-function categorize_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true, extra_error_messages::AbstractDict{Symbol,<:AbstractString}=Dict())
+function categorize_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true, extra_error_messages::AbstractDict{<:AbstractString,Symbol}=Dict{String,Symbol}())
     # error counting and error message dict
-    errors = Dict(:other => 0)
+    errors = Dict(:other => String[])
     error_messages = Dict(
-        :chease_e => "EQDSK_COCOS_01.OUT",
-        :aspect_changed => "plasma aspect ratio changed",
-        :blend_core_ped => "Unable to blend the core-pedestal",
-        :bad_expression => "Bad expression",
-        :exceed_lim => "Exceeded limits",
-        :task_exception => "TaskFailedException")
+        "EQDSK_COCOS_01.OUT" => :chease,
+        "plasma aspect ratio changed" => :aspect_ratio_change,
+        "Unable to blend the core-pedestal" => :blend_core_ped,
+        "Bad expression" => :bad_expression,
+        "Exceeded limits" => :exceed_lim,
+        "TaskFailedException" => :task_exception,
+	"Could not trace closed flux surface" => :flux_surfaces_A,
+	"Flux surface at ψ=" => :flux_surfaces_B,
+	"stainless_steel.yield_strength" => :CS_stresses,
+	"DomainError with" => :Solovev,
+	"BoundsError: attempt to access" => :flux_surfaces_C)
     merge!(error_messages, extra_error_messages)
 
     # go through directories
     for dir in dirs
-        f = open(dir * "/error.txt")
-        first_line = readline(f)
+	filename = joinpath([dir, "error.txt"])
+    	if !isfile(filename)
+           continue
+	end
+        first_line = open(filename, "r") do f
+           readline(f)
+        end
         found = false
-        for key in keys(error_messages)
-            if occursin(error_messages[key], first_line)
+        for (err,cat) in error_messages
+            if occursin(err, first_line)
                 found = true
-                if key ∉ errors
-                    errors[key] = 0
+                if cat ∉ keys(errors)
+                    errors[cat] = String[]
                 end
-                errors[key] += 1
+                push!(errors[cat], dir)
                 break
             end
         end
         if !found
-            errors[:other] += 1
-        end
-        if show_first_line
-            println(first_line)
-            println(dir)
-            println()
+            push!(errors[:other], dir)
+            if show_first_line
+                println(first_line)
+                println(dir)
+                println()
+            end
         end
     end
 
     if do_plot
-        labels = keys(errors)
-        v = values(errors)
-        display(pie([string(i) * "  $(errors[i])" for i in labels], v, legend=:outerright))
+        labels = collect(keys(errors))
+        v = collect(map(length,values(errors)))
+	index=sortperm(v)[end:-1:1]
+        display(pie([string(cat) * "  $(length(errors[cat]))" for cat in labels[index]], v[index], legend=:outerright))
     end
 
     return errors
