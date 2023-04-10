@@ -100,6 +100,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
             :Ar => :match_ne_scale,
             :DT => :quasi_neutrality,
             :He => :match_ne_scale,
+            :He_fast => :constant,
             :electrons => :flux_match)
     end
 
