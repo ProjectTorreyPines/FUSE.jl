@@ -147,6 +147,7 @@ function _step(actor::ActorBalanceOfPlant)
         plot!(C3)
         plot!(ic1)
         plot!(ic2)
+        plot!(pl, legend=true, grid=false, axis=nothing, border=:none)
         display(pl)
     end
 
