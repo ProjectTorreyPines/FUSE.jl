@@ -46,8 +46,8 @@ Compound actor that runs all the physics, engineering and costing actors needed 
     Stores data in `dd`
 """
 function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorWholeFacility(kw...)
-    actor = ActorWholeFacility(dd, par, act)
+    par = act.ActorWholeFacility
+    actor = ActorWholeFacility(dd, par, act; kw...)
     step(actor)
     finalize(actor)
     return actor

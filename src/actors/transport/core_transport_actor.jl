@@ -22,8 +22,8 @@ end
 Provides a common interface to run multiple equilibrium actors
 """
 function ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCoreTransport(kw...)
-    actor = ActorCoreTransport(dd, par, act)
+    par = act.ActorCoreTransport
+    actor = ActorCoreTransport(dd, par, act; kw...)
     step(actor)
     finalize(actor)
     return actor

@@ -26,8 +26,8 @@ end
 Tests if plasma operational limits are exceeded
 """
 function ActorPlasmaLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPlasmaLimits(kw...)
-    actor = ActorPlasmaLimits(dd, par)
+    par = act.ActorPlasmaLimits
+    actor = ActorPlasmaLimits(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor

@@ -23,8 +23,8 @@ end
 Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCHEASE(kw...)
-    actor = ActorCHEASE(dd, par)
+    par = act.ActorCHEASE
+    actor = ActorCHEASE(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor

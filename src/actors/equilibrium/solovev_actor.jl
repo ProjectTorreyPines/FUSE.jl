@@ -31,8 +31,8 @@ Solovev equilibrium actor, based on:
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
 function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorSolovev(kw...)
-    actor = ActorSolovev(dd, par)
+    par = act.ActorSolovev
+    actor = ActorSolovev(dd, par; kw...)
     step(actor)
     finalize(actor)
     # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
