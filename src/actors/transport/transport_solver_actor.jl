@@ -7,7 +7,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTransportSolver{T} <: Parameters
     _name::Symbol = :not_set
     evolve_Ti::Switch{Symbol} = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve ion temperature "; default=:flux_match)
     evolve_Te::Switch{Symbol} = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve electron temperature"; default=:flux_match)
-    evolve_densities::Entry{Union{Dict,Symbol}} = Entry(Union{Dict,Symbol}, "-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
+    evolve_densities::Entry{Union{AbstractDict,Symbol}} = Entry(Union{AbstractDict,Symbol}, "-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
     evolve_rotation::Switch{Symbol} = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve the electron temperature"; default=:fixed)
     rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "Rho transport grid"; default=0.2:0.1:0.8)
     evolve_pedestal::Entry{Bool} = Entry(Bool, "-", "Evolve the pedestal inside the transport solver"; default=true)
@@ -64,7 +64,7 @@ function _step(actor::ActorTransportSolver)
     res = try
         log_topics[:actors] = Logging.Warn
         if par.optimizer_algorithm == :anderson
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=5, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-4, xtol=1E-3)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=5, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         elseif par.optimizer_algorithm == :jacobian_based
             res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         end

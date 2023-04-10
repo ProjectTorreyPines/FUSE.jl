@@ -50,7 +50,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            shape_parameters = [height * 0.75, height]
+            centerpost_height = height * 0.75
+            shape_parameters = [centerpost_height, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
@@ -169,67 +170,80 @@ function shape_function(shape_function_index)
 
     return resampled_zfunc
 end
+
 """
     optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
 function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
-    if length(shape_parameters) in [0, 1]
-        func(r_start, r_end, shape_parameters...)
-        return shape_parameters
-    end
-
-    function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
-        R, Z = func(r_start, r_end, shape_parameters...)
-
-        # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-        index = abs.((R .- r_start) .* (R .- r_end)) .> (target_clearance / 1000)
-        R = R[index]
-        Z = Z[index]
-
-        # no polygon crossings  O(N)
-        inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
-        cost_inside = sum(inpoly)
-
-        # target clearance  O(1)
-        minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
-        cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
-        mean_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance)
-        cost_mean_distance = mean_distance_error / target_clearance
-
-        # favor up/down symmetric solutions
-        cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
-
-        if verbose
-            @show minimum_distance
-            @show mean_distance_error
-            @show target_clearance
-            @show cost_min_clearance^2
-            @show cost_mean_distance^2
-            @show cost_inside^2
-            @show cost_up_down_symmetry^2
-        end
-
-        # return cost
-        return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2
-    end
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
-    initial_guess = copy(shape_parameters)
-    # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-    #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
-    res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-        initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit))
-    if verbose
-        println(res)
+
+    if length(shape_parameters) in [0, 1]
+        func(r_start, r_end, shape_parameters...)
+
+    else
+        function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
+            R, Z = func(r_start, r_end, shape_parameters...)
+
+            # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
+            index = abs.((R .- r_start) .* (R .- r_end)) .> (target_clearance / 1000)
+            R = R[index]
+            Z = Z[index]
+
+            # no polygon crossings  O(N)
+            inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
+            cost_inside = sum(inpoly)
+
+            # target clearance  O(1)
+            minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
+            cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
+            mean_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance)
+            cost_mean_distance = mean_distance_error / target_clearance
+
+            # favor up/down symmetric solutions
+            cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
+
+            if verbose
+                @show minimum_distance
+                @show mean_distance_error
+                @show target_clearance
+                @show cost_min_clearance^2
+                @show cost_mean_distance^2
+                @show cost_inside^2
+                @show cost_up_down_symmetry^2
+            end
+
+            # return cost
+            return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2
+        end
+
+        initial_guess = copy(shape_parameters)
+        # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
+        #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
+        res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
+            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit))
+        if verbose
+            println(res)
+        end
+        shape_parameters = Optim.minimizer(res)
     end
-    shape_parameters = Optim.minimizer(res)
+
+    # check no polygon crossings
+    R, Z = func(r_start, r_end, shape_parameters...)
+    inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
+    cost_inside = sum(inpoly)
+    if cost_inside > 0
+        @warn "optimize_hape function could not avoid polygon crossings! Perhaps try changing shape?"
+    end
+
     # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
-    # plot(func(r_start, r_end, initial_guess...); markershape=:x)
-    # plot!(r_obstruction, z_obstruction, ; markershape=:x)
-    # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal))
-    # cost_shape(r_obstruction, z_obstruction, rz_obstruction, obstruction_area, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
+    # plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
+    # plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
+    # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
+    # cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
+
     return shape_parameters
 end
 
@@ -289,17 +303,26 @@ end
 double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
-    r_e2 = r_center
-    z_e2 = 0.0
-    ra_e2 = r_end - r_center
-    zb_e2 = height / 2.0
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points)
+end
 
+function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    centerpost_height = abs(centerpost_height)
+    outerpost_height = abs(outerpost_height)
+    height = abs(height)
+
+    # inner
     r_e1 = r_center
     z_e1 = centerpost_height / 2.0
     ra_e1 = r_center - r_start
     zb_e1 = (height - centerpost_height) / 2.0
-
     r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points)
+
+    # outer
+    r_e2 = r_center
+    z_e2 = outerpost_height / 2.0
+    ra_e2 = r_end - r_center
+    zb_e2 = (height - outerpost_height) / 2.0
     r2, z2 = ellipse(ra_e2, zb_e2, float(π / 2), float(0.0), r_e2, z_e2; n_points)
 
     R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
@@ -312,11 +335,16 @@ end
 
 circle ellipse shape (parametrization of TF coils used in GATM)
 
-Special case of the double ellipse shape
+Special case of the double ellipse shape, where the inner ellipse is actually a circle
 """
 function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
     r_center = r_start + (height - centerpost_height) / 2.0
     return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points)
+end
+
+function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    r_center = r_start + (height - centerpost_height) / 2.0
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, outerpost_height, height; n_points)
 end
 
 """

@@ -21,7 +21,8 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
     timer_name = replace(string(typeof(actor).name.name),r"^Actor" => "")
     TimerOutputs.reset_timer!(timer_name)
     TimerOutputs.@timeit timer timer_name begin
-        _step(actor, args...; kw...)::T
+        s = _step(actor, args...; kw...)
+        @assert s === actor "_step should return the same actor (check if it is actor at all)"
     end
     return actor
 end
@@ -40,7 +41,8 @@ Finalize the actor run. This is typically used to update dd.
 """
 function finalize(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Debug, :actors, "$(typeof(actor)) @finalize")
-    _finalize(actor, args...; kw...)::T
+    s = _finalize(actor, args...; kw...)
+    @assert s === actor "_finalize should return the same actor (check if it is actor at all)"
     return actor
 end
 

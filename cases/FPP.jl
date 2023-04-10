@@ -34,10 +34,12 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints_number = 2
         act.ActorEquilibrium.model = :CHEASE
+        act.ActorWholeFacility.update_plasma = false
+        STEP = true
     end
 
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.cost = 5000. # M$
+    ini.requirements.cost = 5000.0 # M$
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
@@ -65,6 +67,10 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
 
     # greenwald_fraction is a powerful knob
     ini.core_profiles.greenwald_fraction = 0.9
+    ini.core_profiles.greenwald_fraction_ped = 0.75
+
+    # set κ to 95% of maximum controllable elongation estimate
+    ini.equilibrium.κ = missing
 
     # negative triangularity
     # ini.equilibrium.δ *= -1
@@ -85,12 +91,16 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         # lower ip
         ini.equilibrium.ip = 8.0E6
         # higher density
-        ini.core_profiles.ne_ped = 9.4E19
         ini.core_profiles.greenwald_fraction = 1.26
-        # CHEASE solver
-        act.ActorEquilibrium.model = :CHEASE
+        act.ActorPlasmaLimits.greenwald_fraction = 0.0
         # scale confinement to roughly match STEP prediction
-        act.ActorTauenn.confinement_factor=0.9
+        act.ActorTauenn.confinement_factor = 0.9
+    else
+        act.ActorTransportSolver.evolve_densities = Dict(
+            :Ar => :match_ne_scale,
+            :DT => :quasi_neutrality,
+            :He => :match_ne_scale,
+            :electrons => :flux_match)
     end
 
     # add wall layer

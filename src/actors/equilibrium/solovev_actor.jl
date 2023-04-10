@@ -90,6 +90,7 @@ function prepare(dd::IMAS.dd, ::Type{Val{:ActorSolovev}}, act::ParametersAllActo
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     cp1d = dd.core_profiles.profiles_1d[]
     eq1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
+    eq1d.j_tor = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.j_tor).(eq1d.psi_norm)
 end
 
 """
@@ -150,6 +151,8 @@ function _finalize(
     eq = actor.eq
     eqt = eq.time_slice[]
     target_ip = eqt.global_quantities.ip
+    target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
+    target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
     sign_Ip = sign(target_ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
 
@@ -184,6 +187,21 @@ function _finalize(
 
     IMAS.flux_surfaces(eqt)
 
+    if true
+        # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
+        eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+        eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+        # match entry target_pressure and target_j_tor as if Solovev could do this
+        if !ismissing(target_pressure)
+            eqt.profiles_1d.pressure = target_pressure
+        end
+        if !ismissing(target_j_tor)
+            eqt.profiles_1d.j_tor = target_j_tor
+        end
+        IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, actor.S.S.R0, actor.S.B0)
+        IMAS.flux_surfaces(eqt)
+    end
+
     # this is to fix the boundary back to its original input
     # since Solovev will not satisfy the original boundary
     eqt.boundary.outline.r, eqt.boundary.outline.z = actor.mxh()
@@ -193,8 +211,6 @@ function _finalize(
     eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
     eqt.boundary.geometric_axis.r = actor.mxh.R0
     eqt.boundary.geometric_axis.z = actor.mxh.Z0
-    # force total plasma current to target ip to avoid drifting after multiple calls of SolovevActor
-    eqt.global_quantities.ip = target_ip
 
     # correct equilibrium volume and area
     if !ismissing(actor.par, :volume)

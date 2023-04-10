@@ -25,7 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersAct
     breeder_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the breeder - cycle heat exchanger"; default=0.9)
     divertor_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the divertor - cycle heat exchanger"; default=0.9)
     blanket_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the wall - cycle heat exchanger"; default=0.9)
-    breeder_fluid::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:Pbli)
+    breeder_fluid::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:PbLi)
     blanket_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
     divertor_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
 end
@@ -71,8 +71,14 @@ function _step(actor::ActorHeatTransfer)
     # ======= #
     bop_IHTS = bop.heat_transfer
 
-    breeder_heat_load = sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module])
-    divertor_heat_load = sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor])
+    breeder_heat_load = 0.0
+    if !isempty(dd.blanket.module)
+        breeder_heat_load = sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module])
+    end
+    divertor_heat_load = 0.0
+    if !isempty(dd.divertors.divertor)
+        divertor_heat_load = sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor])
+    end
     blanket_heat_load = abs.(IMAS.radiation_losses(dd.core_sources))
 
     # @show breeder_heat_load
