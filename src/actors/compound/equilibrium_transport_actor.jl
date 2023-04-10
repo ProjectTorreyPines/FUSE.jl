@@ -30,8 +30,8 @@ Compound actor that runs the following actors in succesion:
     Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibriumTransport(kw...)
-    actor = ActorEquilibriumTransport(dd, par, act)
+    par = act.ActorEquilibriumTransport
+    actor = ActorEquilibriumTransport(dd, par, act; kw...)
     step(actor)
     finalize(actor)
     return actor
