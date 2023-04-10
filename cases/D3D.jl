@@ -46,7 +46,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.requirements.flattop_duration = 5.0
 
     act.ActorPFcoilsOpt.symmetric = true
-    act.ActorTransportSolver.evolve_densities = Dict(
+    act.ActorFluxMatcher.evolve_densities = Dict(
         :D         => :quasi_neutrality,
         :electrons => :flux_match,
         :C         => :match_ne_scale)

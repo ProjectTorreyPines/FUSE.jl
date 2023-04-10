@@ -2,7 +2,7 @@ import NLsolve
 #= ========================== =#
 #     transport solver actor   #
 #= ========================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTransportSolver{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     evolve_Ti::Switch{Symbol} = Switch(Symbol, [:flux_match, :fixed], "-", "Evolve ion temperature "; default=:flux_match)
@@ -18,40 +18,40 @@ Base.@kwdef mutable struct FUSEparameters__ActorTransportSolver{T} <: Parameters
     verbose::Entry{Bool} = Entry(Bool, "-", "Print trace and optimization result"; default=false)
 end
 
-mutable struct ActorTransportSolver <: PlasmaAbstractActor
+mutable struct ActorFluxMatcher <: PlasmaAbstractActor
     dd::IMAS.dd
-    par::FUSEparameters__ActorTransportSolver
-    actor_ct::ActorCoreTransport
+    par::FUSEparameters__ActorFluxMatcher
+    actor_ct::ActorFluxCalculator
     actor_ped::ActorPedestal
 end
 
 """
-    ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Evalutes the transport fluxes and source fluxes and minimizes the flux_match error
 """
-function ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorTransportSolver(kw...)
-    actor = ActorTransportSolver(dd, par, act)
+function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorFluxMatcher(kw...)
+    actor = ActorFluxMatcher(dd, par, act)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTransportSolver(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver, act::ParametersAllActors; kw...)
-    logging_actor_init(ActorTransportSolver)
+function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorFluxMatcher)
     par = par(kw...)
-    actor_ct = ActorCoreTransport(dd, act.ActorCoreTransport, act; par.rho_transport)
+    actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
     actor_ped = ActorPedestal(dd, act.ActorPedestal)
-    ActorTransportSolver(dd, par, actor_ct, actor_ped)
+    ActorFluxMatcher(dd, par, actor_ct, actor_ped)
 end
 
 """
-    _step(actor::ActorTransportSolver)
+    _step(actor::ActorFluxMatcher)
 
-ActorTransportSolver step
+ActorFluxMatcher step
 """
-function _step(actor::ActorTransportSolver)
+function _step(actor::ActorFluxMatcher)
     dd = actor.dd
     par = actor.par
 
@@ -78,7 +78,7 @@ function _step(actor::ActorTransportSolver)
         parse_and_plot_error(string(res.trace.states))
     end
 
-    flux_match_errors(actor::ActorTransportSolver, res.zero) # res.zero == z_profiles for the smallest error iteration
+    flux_match_errors(actor::ActorFluxMatcher, res.zero) # res.zero == z_profiles for the smallest error iteration
     if par.evolve_densities !== :fixed
         IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
     end
@@ -98,11 +98,11 @@ function _step(actor::ActorTransportSolver)
 end
 
 """
-    flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVector{<:Real})
+    flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
-function flux_match_errors(actor::ActorTransportSolver, z_profiles::AbstractVector{<:Real})
+function flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
     dd = actor.dd
     par = actor.par
 
@@ -130,12 +130,12 @@ function error_transformation!(target::T, output::T, norm::Real) where {T<:Abstr
 end
 
 """
-    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
+    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 
 Evaluates the flux_matching errors for the :flux_match species and channels
 NOTE: flux matching is done in physical units
 """
-function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
+function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     if par.verbose
         flush(stdout)
     end
@@ -188,13 +188,13 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolve
 end
 
 """
-    pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
+    pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 
 Packs the z_profiles based on evolution parameters
 
 NOTE: the order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
-function pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
+function pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
     z_profiles = Float64[]
     cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
@@ -232,13 +232,13 @@ function pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorTransportSolver)
 end
 
 """
-    unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorTransportSolver, z_profiles::AbstractVector{<:Real})
+    unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
 
 Unpacks z_profiles based on evolution parameters
 
 NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
-function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorTransportSolver, z_profiles::AbstractVector{<:Real})
+function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
     rho_transport = par.rho_transport
     counter = 0
     N = length(rho_transport)
