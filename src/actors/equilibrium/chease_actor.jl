@@ -23,8 +23,8 @@ end
 Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCHEASE(kw...)
-    actor = ActorCHEASE(dd, par)
+    par = act.ActorCHEASE
+    actor = ActorCHEASE(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -34,20 +34,6 @@ function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; kw...)
     logging_actor_init(ActorCHEASE)
     par = par(kw...)
     ActorCHEASE(dd, par, nothing)
-end
-
-"""
-    prepare(dd::IMAS.dd, :ActorCHEASE, act::ParametersAllActors; kw...)
-
-Prepare dd to run ActorCHEASE
-* Copy pressure from core_profiles to equilibrium
-* Copy j_parallel from core_profiles to equilibrium
-"""
-function prepare(dd::IMAS.dd, ::Type{Val{:ActorCHEASE}}, act::ParametersAllActors; kw...)
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
-    cp1d = dd.core_profiles.profiles_1d[]
-    eq1d.j_tor = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.j_tor).(eq1d.psi_norm)
-    eq1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
 end
 
 """

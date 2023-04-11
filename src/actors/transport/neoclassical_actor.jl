@@ -23,8 +23,8 @@ end
 Evaluates the neoclassical transport fluxes
 """
 function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorNeoclassical(kw...)
-    actor = ActorNeoclassical(dd, par)
+    par = act.ActorNeoclassical
+    actor = ActorNeoclassical(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor

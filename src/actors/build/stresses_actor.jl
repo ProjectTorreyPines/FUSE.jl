@@ -27,8 +27,8 @@ Estimates mechanical stresses on the center stack
     Stores data in `dd.solid_mechanics`
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorStresses(kw...)
-    actor = ActorStresses(dd, par)
+    par = act.ActorStresses
+    actor = ActorStresses(dd, par; kw...)
     step(actor; par.n_points)
     finalize(actor)
     if par.do_plot

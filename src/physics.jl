@@ -235,7 +235,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
     cost_inside = sum(inpoly)
     if cost_inside > 0
-        @warn "optimize_hape function could not avoid polygon crossings! Perhaps try changing shape?"
+        @warn "optimize_shape function could not avoid polygon crossings! Perhaps try changing shape?"
     end
 
     # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
