@@ -31,8 +31,8 @@ end
 Evalutes the transport fluxes and source fluxes and minimizes the flux_match error
 """
 function ActorTransportSolver(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorTransportSolver(kw...)
-    actor = ActorTransportSolver(dd, par, act)
+    par = act.ActorTransportSolver
+    actor = ActorTransportSolver(dd, par, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -339,7 +339,8 @@ function parse_and_plot_error(data::String)
     data = split(data, "\n")[2:end-1]
     array = zeros(length(data))
     for (idx, line) in enumerate(data)
-        array[idx] = parse(Float64, (split(line, "     ")[3]))
+        filtered_arr = filter(x -> !occursin(r"^\s*$", x), split(line, " "))
+        array[idx] = parse(Float64,filtered_arr[3])
     end
-    display(plot(array, yscale=:log10, ylabel="log of convergence errror", xlabel="iterations", label="", ylim=[1e-4, 10]))
+    display(plot(array, yscale=:log10, ylabel="log of convergence errror", xlabel="iterations", label= @sprintf("Minimum error =  %.3e ", (minimum(array))), ylim=[1e-4, 10]))
 end

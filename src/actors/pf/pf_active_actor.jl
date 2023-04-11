@@ -67,8 +67,8 @@ to match the equilibrium boundary shape and obtain a field-null region at plasma
     Manupulates data in `dd.pf_active`
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPFcoilsOpt(kw...)
-    actor = ActorPFcoilsOpt(dd, par)
+    par = act.ActorPFcoilsOpt
+    actor = ActorPFcoilsOpt(dd, par; kw...)
 
     if par.optimization_scheme == :none
         if par.do_plot
