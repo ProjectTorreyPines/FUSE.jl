@@ -80,7 +80,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.pf_active.technology = coil_technology(:ITER, :PF)
     act.ActorPFcoilsOpt.symmetric = false
 
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
     ini.tf.technology = coil_technology(:ITER, :TF)
 
@@ -107,6 +107,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         :Ne        => :match_ne_scale,
         :DT        => :quasi_neutrality,
         :He        => :match_ne_scale,
+        :He_fast => :fixed,
         :electrons => :flux_match)
 
     set_new_base!(ini)

@@ -42,8 +42,8 @@ end
     Stores data in `dd.balance_of_plant`
 """
 function ActorHeatTransfer(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorHeatTransfer(kw...)
-    actor = ActorHeatTransfer(dd, par)
+    par = act.ActorHeatTransfer
+    actor = ActorHeatTransfer(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -71,8 +71,14 @@ function _step(actor::ActorHeatTransfer)
     # ======= #
     bop_IHTS = bop.heat_transfer
 
-    breeder_heat_load = sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module])
-    divertor_heat_load = sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor])
+    breeder_heat_load = 0.0
+    if !isempty(dd.blanket.module)
+        breeder_heat_load = sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module])
+    end
+    divertor_heat_load = 0.0
+    if !isempty(dd.divertors.divertor)
+        divertor_heat_load = sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor])
+    end
     blanket_heat_load = abs.(IMAS.radiation_losses(dd.core_sources))
 
     # @show breeder_heat_load

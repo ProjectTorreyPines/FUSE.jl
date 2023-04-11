@@ -30,8 +30,8 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
     Reads data in `dd.lh_antennas` and stores data in `dd.core_sources`
 """
 function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorLHsimple(kw...)
-    actor = ActorLHsimple(dd, par)
+    par = act.ActorLHsimple
+    actor = ActorLHsimple(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor

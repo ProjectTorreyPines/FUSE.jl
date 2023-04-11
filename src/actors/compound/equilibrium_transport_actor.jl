@@ -30,8 +30,8 @@ Compound actor that runs the following actors in succesion:
     Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibriumTransport(kw...)
-    actor = ActorEquilibriumTransport(dd, par, act)
+    par = act.ActorEquilibriumTransport
+    actor = ActorEquilibriumTransport(dd, par, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -80,9 +80,6 @@ function _step(actor::ActorEquilibriumTransport)
 
             # Set j_ohmic to steady state
             finalize(step(actor.actor_jt))
-
-            # prepare equilibrium input based on transport core_profiles output
-            prepare(dd, :ActorEquilibrium, act)
 
             # run equilibrium actor with the updated beta
             finalize(step(actor.actor_eq))

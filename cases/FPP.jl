@@ -43,7 +43,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
 
     ini.pf_active.n_oh_coils = 6

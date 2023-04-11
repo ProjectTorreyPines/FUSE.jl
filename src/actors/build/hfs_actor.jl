@@ -30,8 +30,8 @@ Actor that resizes the High Field Side of the tokamak radial build
     Manipulates radial build information in `dd.build.layer`
 """
 function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw_ActorFluxSwing=Dict(), kw_ActorStresses=Dict(), kw...)
-    par = act.ActorHFSsizing(kw...)
-    actor = ActorHFSsizing(dd, par, act; kw_ActorFluxSwing, kw_ActorStresses)
+    par = act.ActorHFSsizing
+    actor = ActorHFSsizing(dd, par, act; kw_ActorFluxSwing, kw_ActorStresses, kw...)
     if par.do_plot
         p = plot(dd.build)
     end
