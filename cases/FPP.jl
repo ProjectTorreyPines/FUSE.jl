@@ -96,10 +96,11 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         # scale confinement to roughly match STEP prediction
         act.ActorTauenn.confinement_factor = 0.9
     else
-        act.ActorTransportSolver.evolve_densities = Dict(
+        act.ActorFluxMatcher.evolve_densities = Dict(
             :Ar => :match_ne_scale,
             :DT => :quasi_neutrality,
             :He => :match_ne_scale,
+            :He_fast => :constant,
             :electrons => :flux_match)
     end
 

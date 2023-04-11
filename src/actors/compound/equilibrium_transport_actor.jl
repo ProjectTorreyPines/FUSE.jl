@@ -15,7 +15,7 @@ mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
     act::ParametersAllActors
     actor_jt::ActorSteadyStateCurrent
     actor_eq::ActorEquilibrium
-    actor_tr::ActorTauenn
+    actor_tr::ActorCoreTransport
 end
 
 """
@@ -42,7 +42,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquili
     par = par(kw...)
     actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
-    actor_tr = ActorTauenn(dd, act.ActorTauenn)
+    actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     return ActorEquilibriumTransport(dd, par, act, actor_jt, actor_eq, actor_tr)
 end
 

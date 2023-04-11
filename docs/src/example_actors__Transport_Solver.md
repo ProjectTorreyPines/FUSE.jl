@@ -18,15 +18,15 @@ dd, ini, act = FUSE.init(:D3D, do_plot=false);
 ```
 
 ### Take a look at the parameters of the actors associated with the transport solver
-1. ActorTransportSolver
-2. ActorCoreTransport
+1. ActorFluxMatcher
+2. ActorFluxCalculator
 3. ActorTGLF
 4. ActorNeoclassical
 
 
 ```@julia
-display(act.ActorTransportSolver)
-display(act.ActorCoreTransport)
+display(act.ActorFluxMatcher)
+display(act.ActorFluxCalculator)
 display(act.ActorTGLF)
 display(act.ActorNeoclassical)
 ```
@@ -44,7 +44,7 @@ FUSE.ActorNeoclassical(dd,act);
 plot(dd.core_transport)
 ```
 
-#### act.ActorTransportSolver defines what is evolved. In this case:
+#### act.ActorFluxMatcher defines what is evolved. In this case:
    -  Electron Temperature Te
    -  Ion temperature Ti
    -  Electron density ne
@@ -65,19 +65,19 @@ act.ActorTGLF.nn = true
 act.ActorTGLF.sat_rule = :sat0
 act.ActorTGLF.electromagnetic = false
 
-act.ActorTransportSolver.rho_transport = 0.3:0.1:0.8
-act.ActorTransportSolver.max_iterations = 100
-act.ActorTransportSolver.optimizer_algorithm = :anderson # or :jacobian_based
-act.ActorTransportSolver.step_size = 0.2
-act.ActorTransportSolver.verbose = true
-act.ActorTransportSolver.evolve_rotation = :fixed
+act.ActorFluxMatcher.rho_transport = 0.3:0.1:0.8
+act.ActorFluxMatcher.max_iterations = 100
+act.ActorFluxMatcher.optimizer_algorithm = :anderson # or :jacobian_based
+act.ActorFluxMatcher.step_size = 0.2
+act.ActorFluxMatcher.verbose = true
+act.ActorFluxMatcher.evolve_rotation = :fixed
 
 # show pre evolution
-display(act.ActorTransportSolver)
+display(act.ActorFluxMatcher)
 display(plot(dd.core_profiles, label=" before"))
 
 #FUSE.ActorPedestal(dd,act)
-actor_transport = FUSE.ActorTransportSolver(dd, act)
+actor_transport = FUSE.ActorFluxMatcher(dd, act)
 
 # show after
 display(plot!(dd.core_profiles, label=" after"))
@@ -101,10 +101,10 @@ IMAS.is_quasi_neutral(dd)
 act.ActorTGLF.nn = false
 
 # Dialing the iterations a bit down since tglf_sat0 is much slower than it's neural net counterpart
-act.ActorTransportSolver.max_iterations = 30
+act.ActorFluxMatcher.max_iterations = 30
 
 display(plot(dd.core_profiles, label="  tglfnn"))
-FUSE.ActorTransportSolver(dd, act)
+FUSE.ActorFluxMatcher(dd, act)
 
 display(plot!(dd.core_profiles, label="  tglf"))
 display(plot(dd.core_transport))
