@@ -57,7 +57,8 @@ function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
         index,
         "α",
         cp1d.grid.rho_tor_norm,
-        cp1d.grid.volume;
+        cp1d.grid.volume,
+        cp1d.grid.area;
         electrons_energy=α .* (1.0 .- ion_to_electron_fraction),
         total_ion_energy=α .* ion_to_electron_fraction
     )
