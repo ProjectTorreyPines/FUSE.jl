@@ -53,7 +53,7 @@ function finalize(actor::T) where {T<:AbstractActor}
         idsw = pop!(IMASDD.expression_onetime_weakref)
         if idsw.value !== nothing
             # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
-            IMAS.freeze(idsw.value)
+            IMAS.freeze!(idsw.value)
         end
     end
     
