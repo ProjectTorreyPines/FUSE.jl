@@ -581,7 +581,8 @@ function volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvect
     return layer.volume - vol
 end
 
-IMAS.expressions["build.layer[:].volume_no_structures"] =
+# this expressions is added here because volume_no_structures is not a IMAS function
+IMAS.dynamic_expressions["build.layer[:].volume_no_structures"] =
     (; build, layer, _...) -> volume_no_structures(layer, build.structure)
 
 """
