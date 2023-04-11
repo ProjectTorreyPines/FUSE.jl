@@ -49,10 +49,10 @@ function _step(actor::ActorCXbuild)
         empty!(layer.outline)
     end
     empty!(dd.build.structure)
-
+    actor_pfs = nothing
     wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
     if wall === missing || par.rebuild_wall
-        ActorPlasmaFacingSurfaces(dd, act)
+        actor_pfs = ActorPlasmaFacingSurfaces(dd, act)
         wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
     end
     pr = wall.r
@@ -63,6 +63,21 @@ function _step(actor::ActorCXbuild)
     #divertor_regions!(dd.build, dd.equilibrium.time_slice[])
 
     blanket_regions!(dd.build, dd.equilibrium.time_slice[])
+    
+    #JG: redo to adjust the pfs to current build. Not sure where to set a switch to call adjust2build procedure. probabbly in cx_build?
+    if actor_pfs !==nothing 
+        PlasmaFacingSurfaces.adjust2build(actor_pfs.pfs,dd)
+        actor_pfs.pfs()
+        finalize(actor_pfs)
+        wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
+        pr = wall.r
+        pz = wall.z
+        build_cx!(dd.build, pr, pz)
+
+    #divertor_regions!(dd.build, dd.equilibrium.time_slice[])
+
+        blanket_regions!(dd.build, dd.equilibrium.time_slice[])
+    end
 
     return actor
 end
