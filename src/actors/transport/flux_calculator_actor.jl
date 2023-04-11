@@ -22,8 +22,8 @@ end
 Provides a common interface to run multiple equilibrium actors
 """
 function ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorFluxCalculator(kw...)
-    actor = ActorFluxCalculator(dd, par, act)
+    par = act.ActorFluxCalculator
+    actor = ActorFluxCalculator(dd, par, act; kw...)
     step(actor)
     finalize(actor)
     return actor
