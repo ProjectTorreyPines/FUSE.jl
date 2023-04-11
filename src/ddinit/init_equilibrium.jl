@@ -67,7 +67,6 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 end
 
             else
-                eqt = resize!(dd.equilibrium.time_slice)
                 if boundary_from == :rz_points
                     # R,Z boundary from points
                     if ismissing(ini.equilibrium, :rz_points)
@@ -106,26 +105,32 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 ini.equilibrium.ζ = -mxh.s[2]
             end
 
-            # ultimately always initialize from mxh
-            init_equilibrium_boundary(eqt, mxh, ini.equilibrium.xpoints_number)
+            # initialize dd.pulse_schedule.position_control from mxh
+            init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints_number)
 
             # scalar quantities
-            eqt.global_quantities.ip = ini.equilibrium.ip
+            @ddtime(dd.pulse_schedule.flux_control.i_plasma.reference.data = ini.equilibrium.ip)
+            @ddtime(dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = ini.equilibrium.B0 * ini.equilibrium.R0)
             dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
-            @ddtime dd.equilibrium.vacuum_toroidal_field.b0 = ini.equilibrium.B0
 
-            # pressure and j_tor to be used by equilibrium solver
-            if init_from == :ods
-                # take p and j from ods
-                eqt1 = dd1.equilibrium.time_slice[]
-                eqt.profiles_1d.psi = eqt1.profiles_1d.psi
-                eqt.profiles_1d.j_tor = eqt1.profiles_1d.j_tor
-                eqt.profiles_1d.pressure = eqt1.profiles_1d.pressure
-            else
-                # guesses for pressure and j_tor
-                psin = eqt.profiles_1d.psi = LinRange(0, 1, 129)
-                eqt.profiles_1d.j_tor = eqt.global_quantities.ip .* (1.0 .- psin .^ 2) ./ eqt.boundary.geometric_axis.r
-                eqt.profiles_1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
+            # the pressure and j_tor to be used by equilibrium solver will need to be set in dd.core_profiles
+            if isempty(dd.core_profiles.profiles_1d)
+                cp1d = resize!(dd.core_profiles.profiles_1d)
+                if init_from == :ods
+                    # take p and j from input equilibrium ods
+                    eqt1 = dd1.equilibrium.time_slice[]
+                    cp1d.grid.rho_tor_norm = eqt1.profiles_1d.rho_tor_norm
+                    cp1d.j_tor = eqt1.profiles_1d.j_tor
+                    cp1d.pressure = eqt1.profiles_1d.pressure
+
+                else
+                    # guess pressure and j_tor from input current and peak pressure
+                    psin = LinRange(0, 1, 129)
+                    cp1d.grid.rho_tor_norm = psin
+                    cp1d.grid.psi = psin
+                    cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference.data)
+                    cp1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
+                end
             end
 
             # solve equilibrium
@@ -147,15 +152,15 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
 end
 
 """
-    init_equilibrium_boundary(
-        eqt::IMAS.equilibrium__time_slice,
+    init_pulse_schedule_postion_control(
+        pc::IMAS.pulse_schedule__position_control,
         mxh::IMAS.MXH,
         xpoints_number::Integer)
 
-Initialize equilibrium boundary based on MXH boundary and number of x_points
+Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
-function init_equilibrium_boundary(
-    eqt::IMAS.equilibrium__time_slice,
+function init_pulse_schedule_postion_control(
+    pc::IMAS.pulse_schedule__position_control,
     mxh::IMAS.MXH,
     xpoints_number::Integer)
 
@@ -171,14 +176,15 @@ function init_equilibrium_boundary(
     pr, pz = mxh()
 
     # scalars
-    eqt.boundary.minor_radius = mxh.ϵ * mxh.R0
-    eqt.boundary.geometric_axis.r = mxh.R0
-    eqt.boundary.geometric_axis.z = Z0 = mxh.Z0
-    eqt.boundary.elongation = mxh.κ
-    eqt.boundary.triangularity = sin(mxh.s[1])
-    eqt.boundary.squareness = -mxh.s[2]
+    @ddtime(pc.minor_radius.reference.data = mxh.ϵ * mxh.R0)
+    @ddtime(pc.geometric_axis.r.reference.data = mxh.R0)
+    @ddtime(pc.geometric_axis.z.reference.data = mxh.Z0)
+    @ddtime(pc.elongation.reference.data = mxh.κ)
+    @ddtime(pc.triangularity.reference.data = sin(mxh.s[1]))
+    @ddtime(pc.squareness.reference.data = -mxh.s[2])
 
     # x points at maximum curvature
+    Z0 = mxh.Z0
     x_points = []
     if xpoints_number >= 1
         i1 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .< Z0))
@@ -189,18 +195,21 @@ function init_equilibrium_boundary(
         push!(x_points, (pr[i2], pz[i2]))
     end
     if length(x_points) > 0
-        resize!(eqt.boundary.x_point, length(x_points))
+        resize!(pc.x_point, length(x_points))
         for (k, xp_rz) in enumerate(x_points)
-            eqt.boundary.x_point[k].r = xp_rz[1]
-            eqt.boundary.x_point[k].z = xp_rz[2]
+            @ddtime(pc.x_point[k].r.reference.data = xp_rz[1])
+            @ddtime(pc.x_point[k].z.reference.data = xp_rz[2])
         end
     end
 
     # boundary
-    eqt.boundary.outline.r = pr
-    eqt.boundary.outline.z = pz
+    resize!(pc.boundary_outline, length(pr))
+    for (k,(r,z)) in enumerate(zip(pr,pz))
+        @ddtime(pc.boundary_outline[k].r.reference.data = r)
+        @ddtime(pc.boundary_outline[k].z.reference.data = z)
+    end
 
-    return eqt
+    return pc
 end
 
 """

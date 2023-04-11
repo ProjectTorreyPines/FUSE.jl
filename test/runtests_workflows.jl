@@ -8,7 +8,7 @@ using Test
 end
 
 @testset "init" begin
-    tests = Dict()
+    tests = FUSE.OrderedCollections.OrderedDict()
     tests["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
     tests["ITER_scalars"] = ([:ITER], Dict(:init_from => :scalars))
     tests["D3D"] = ([:D3D], Dict())
@@ -18,13 +18,14 @@ end
     tests["FPP_v1_scalars"] = ([:FPP], Dict(:version => :v1, :init_from => :scalars))
     tests["CAT"] = ([:CAT], Dict())
     tests["HDB5"] = ([:HDB5], Dict(:tokamak => :JET, :case => 500))
-    tests["ARG"] = ([:ARC], Dict())
+    tests["ARC"] = ([:ARC], Dict())
     tests["SPARC"] = ([:SPARC], Dict())
 
     for (testname, (args, kw)) in tests
         @testset "$testname" begin
             FUSE.TimerOutputs.reset_timer!(FUSE.timer, testname)
             FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
+                println("== $(testname) ==")
                 ini, act = FUSE.case_parameters(args...; kw...)
                 if occursin("ods", testname)
                     act.ActorEquilibrium.model = :Solovev

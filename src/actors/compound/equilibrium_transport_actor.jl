@@ -81,9 +81,6 @@ function _step(actor::ActorEquilibriumTransport)
             # Set j_ohmic to steady state
             finalize(step(actor.actor_jt))
 
-            # prepare equilibrium input based on transport core_profiles output
-            prepare(dd, :ActorEquilibrium, act)
-
             # run equilibrium actor with the updated beta
             finalize(step(actor.actor_eq))
 
