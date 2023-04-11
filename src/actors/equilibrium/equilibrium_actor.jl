@@ -88,8 +88,8 @@ function prepare(actor::ActorEquilibrium)
     pc = ps.position_control
 
     # pressure and current profiles
-    # NOTE: this is done this way because the cp1d.grid.psi may be an expression of eq1d.psi
-    #       so we cannot add/clear time-slice before getting j_tor and pressure
+    # NOTE: this is done this way because j_tor is an expression that depends on equilibrium (via j_bootstrap)
+    #       so we cannot add/clear time-slice before getting j_tor (and pressure)
     if isempty(dd.equilibrium.time_slice)
         resize!(dd.equilibrium.time_slice)
     end
