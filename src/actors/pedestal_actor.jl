@@ -39,13 +39,12 @@ end
 function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
-
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
     return ActorPedestal(dd, par, epedmod, missing, missing, missing)
 end
 
 """
-    step(actor::ActorPedestal;
+    _step(actor::ActorPedestal;
         warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
         only_powerlaw::Bool=false)
 
