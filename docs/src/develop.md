@@ -66,8 +66,8 @@ function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
 end
 ```
 
-!!! note
-    The documentation string is added to the specialized function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles) and the dispatch function DT_fusion_source!(dd::IMAS.dd) is added on top of the function
+!!! convention
+    The documentation string is added to the specialized function `DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)` and the dispatch function `DT_fusion_source!(dd::IMAS.dd)` is added on top of the function
 
 
 ## How to add/modify entries in `ini` and `act`
