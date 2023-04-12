@@ -120,6 +120,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                     # take p and j from input equilibrium ods
                     eqt1 = dd1.equilibrium.time_slice[]
                     cp1d.grid.rho_tor_norm = eqt1.profiles_1d.rho_tor_norm
+                    cp1d.grid.psi = eqt1.profiles_1d.psi
                     cp1d.j_tor = eqt1.profiles_1d.j_tor
                     cp1d.pressure = eqt1.profiles_1d.pressure
 
