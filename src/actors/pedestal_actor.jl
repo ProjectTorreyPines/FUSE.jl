@@ -39,13 +39,12 @@ end
 function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
-
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
     return ActorPedestal(dd, par, epedmod, missing, missing, missing)
 end
 
 """
-    step(actor::ActorPedestal;
+    _step(actor::ActorPedestal;
         warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
         only_powerlaw::Bool=false)
 
@@ -89,7 +88,7 @@ function _step(actor::ActorPedestal;
 
     if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
         actor.pped = 1.5 * sol.pressure.GH.H
-        actor.wped = maximum(sol.width.GH.H,0.01)
+        actor.wped = maximum(sol.width.GH.H, 0.01)
         @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.5 = $(round(actor.pped*1e6)) [Pa] assumed "
     else
         actor.pped = sol.pressure.GH.H
@@ -100,21 +99,18 @@ function _step(actor::ActorPedestal;
 end
 
 """
-    _finalize(actor::ActorPedestal;
-        temp_pedestal_ratio::Real=actor.par.temp_pedestal_ratio,
-        ped_factor::Real=actor.par.ped_factor,
-        edge_bound::Real=actor.par.edge_bound,
-        update_core_profiles::Bool=actor.par.update_core_profiles)
+    _finalize(actor::ActorPedestal)
 
 Writes results to dd.summary.local.pedestal and possibly updates core_profiles
 """
-function _finalize(actor::ActorPedestal;
-    temp_pedestal_ratio::Real=actor.par.temp_pedestal_ratio,
-    ped_factor::Real=actor.par.ped_factor,
-    edge_bound::Real=actor.par.edge_bound,
-    update_core_profiles::Bool=actor.par.update_core_profiles)
-
+function _finalize(actor::ActorPedestal)
     dd = actor.dd
+    par = actor.par
+
+    temp_pedestal_ratio = par.temp_pedestal_ratio
+    ped_factor = par.ped_factor
+    edge_bound = par.edge_bound
+    update_core_profiles = par.update_core_profiles
 
     cp1d = dd.core_profiles.profiles_1d[]
     impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]

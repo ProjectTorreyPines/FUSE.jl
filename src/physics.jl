@@ -235,7 +235,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
     cost_inside = sum(inpoly)
     if cost_inside > 0
-        @warn "optimize_hape function could not avoid polygon crossings! Perhaps try changing shape?"
+        @warn "optimize_shape function could not avoid polygon crossings! Perhaps try changing shape?"
     end
 
     # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
@@ -581,7 +581,8 @@ function volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvect
     return layer.volume - vol
 end
 
-IMAS.expressions["build.layer[:].volume_no_structures"] =
+# this expressions is added here because volume_no_structures is not a IMAS function
+IMAS.dynamic_expressions["build.layer[:].volume_no_structures"] =
     (; build, layer, _...) -> volume_no_structures(layer, build.structure)
 
 """

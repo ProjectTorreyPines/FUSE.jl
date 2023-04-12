@@ -46,6 +46,7 @@ Base.@kwdef mutable struct PFcoilsOptTrace
 end
 
 mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
+    dd::IMAS.dd
     par::FUSEparameters__ActorPFcoilsOpt
     eq_in::IMAS.equilibrium
     eq_out::IMAS.equilibrium
@@ -78,15 +79,16 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
         end
 
     else
+        old_update_equilibrium = par.update_equilibrium
+        par.update_equilibrium = false
+
         if par.optimization_scheme == :currents
             # find coil currents
-            step(actor)
-            finalize(actor; update_equilibrium=false)
+            finalize(step(actor))
 
         elseif par.optimization_scheme == :rail
             # optimize coil location and currents
-            step(actor)
-            finalize(actor; update_equilibrium=false)
+            finalize(step(actor))
 
             if par.do_plot
                 display(plot(actor.trace, :cost, title="Evolution of cost"))
@@ -103,6 +105,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
             display(plot(actor, equilibrium=true, time_index=length(dd.equilibrium.time)))
         end
 
+        par.update_equilibrium = old_update_equilibrium
         finalize(actor)
     end
 
@@ -126,7 +129,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw..
     n_coils = [rail.coils_number for rail in bd.pf_active.rail]
     init_pf_active(pf, bd, n_coils)
 
-    return ActorPFcoilsOpt(par, eq_in, eq_out, pf, bd, par.symmetric, λ_regularize, trace, par.green_model)
+    return ActorPFcoilsOpt(dd, par, eq_in, eq_out, pf, bd, par.symmetric, λ_regularize, trace, par.green_model)
 end
 
 """
@@ -180,17 +183,12 @@ function _step(actor::ActorPFcoilsOpt;
 end
 
 """
-    finalize(
-        actor::ActorPFcoilsOpt;
-        update_equilibrium::Bool=actor.par.update_equilibrium,
-        scale_eq_domain_size::Float64=1.0)
+    _finalize(actor::ActorPFcoilsOpt)
 
 Update actor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
-function _finalize(
-    actor::ActorPFcoilsOpt;
-    update_equilibrium::Bool=actor.par.update_equilibrium,
-    scale_eq_domain_size::Float64=1.0)
+function _finalize(actor::ActorPFcoilsOpt)
+    update_equilibrium = actor.par.update_equilibrium
 
     coils = GS_IMAS_pf_active__coil[]
     for (k, coil) in enumerate(actor.pf_active.coil)
@@ -214,7 +212,8 @@ function _finalize(
         # convert equilibrium to MXHEquilibrium.jl format, since this is what VacuumFields uses
         EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
-        # # update ψ map
+        # update ψ map
+        scale_eq_domain_size=1.0
         R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length=length(EQfixed.r))
         Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length=length(EQfixed.z))
         ψ_f2f = transpose(VacuumFields.fixed2free(EQfixed, coils, R, Z))

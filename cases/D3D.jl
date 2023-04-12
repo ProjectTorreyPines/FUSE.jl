@@ -16,14 +16,14 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.build.blanket = 0.0
     ini.build.shield = 0.0
     ini.build.vessel = 0.0
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
 
     ini.pf_active.n_oh_coils = 10
     ini.pf_active.n_pf_coils_inside = 8
     ini.pf_active.n_pf_coils_outside = 0
     ini.pf_active.technology = coil_technology(:copper)
 
-    ini.tf.shape = :triple_arc
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 24
     ini.tf.technology = coil_technology(:copper)
 
@@ -46,7 +46,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.requirements.flattop_duration = 5.0
 
     act.ActorPFcoilsOpt.symmetric = true
-    act.ActorTransportSolver.evolve_densities = Dict(
+    act.ActorFluxMatcher.evolve_densities = Dict(
         :D         => :quasi_neutrality,
         :electrons => :flux_match,
         :C         => :match_ne_scale)

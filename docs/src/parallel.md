@@ -67,5 +67,5 @@ Distributed.addprocs(ClusterManagers.SlurmManager(np), exclusive="", topology=:m
    ```
    conda install -c conda-forge mamba
    mamba install -c conda-forge gfortran # to compile CHEASE
-   mamba install -c conda-forge jupyter-lab
+   mamba install -c conda-forge jupyterlab
    ```

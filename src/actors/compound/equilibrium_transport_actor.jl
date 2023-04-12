@@ -15,7 +15,7 @@ mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
     act::ParametersAllActors
     actor_jt::ActorSteadyStateCurrent
     actor_eq::ActorEquilibrium
-    actor_tr::ActorTauenn
+    actor_tr::ActorCoreTransport
 end
 
 """
@@ -30,8 +30,8 @@ Compound actor that runs the following actors in succesion:
     Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibriumTransport(kw...)
-    actor = ActorEquilibriumTransport(dd, par, act)
+    par = act.ActorEquilibriumTransport
+    actor = ActorEquilibriumTransport(dd, par, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -42,7 +42,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquili
     par = par(kw...)
     actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
-    actor_tr = ActorTauenn(dd, act.ActorTauenn)
+    actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     return ActorEquilibriumTransport(dd, par, act, actor_jt, actor_eq, actor_tr)
 end
 
@@ -80,9 +80,6 @@ function _step(actor::ActorEquilibriumTransport)
 
             # Set j_ohmic to steady state
             finalize(step(actor.actor_jt))
-
-            # prepare equilibrium input based on transport core_profiles output
-            prepare(dd, :ActorEquilibrium, act)
 
             # run equilibrium actor with the updated beta
             finalize(step(actor.actor_eq))

@@ -80,7 +80,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.pf_active.technology = coil_technology(:ITER, :PF)
     act.ActorPFcoilsOpt.symmetric = false
 
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
     ini.tf.technology = coil_technology(:ITER, :TF)
 
@@ -103,7 +103,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
 
-    act.ActorTransportSolver.evolve_densities = Dict(
+    act.ActorFluxMatcher.evolve_densities = Dict(
         :Ne        => :match_ne_scale,
         :DT        => :quasi_neutrality,
         :He        => :match_ne_scale,
