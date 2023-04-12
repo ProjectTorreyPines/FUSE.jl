@@ -52,7 +52,8 @@ Runs pedestal actor to evaluate pedestal width and height
 """
 function _step(actor::ActorPedestal;
     warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
-    only_powerlaw::Bool=false)
+    only_powerlaw::Bool=false,
+    beta_n_from_eq::Bool=false)
 
     dd = actor.dd
     eq = dd.equilibrium
@@ -70,7 +71,12 @@ function _step(actor::ActorPedestal;
     neped = @ddtime dd.summary.local.pedestal.n_e.value
     zeffped = @ddtime dd.summary.local.pedestal.zeff.value
     Bt = abs(@ddtime(eq.vacuum_toroidal_field.b0)) * eq.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
-    βn = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
+
+    if beta_n_from_eq
+        βn = @ddtime(dd.summary.global_quantities.beta_tor_mhd.value)
+    else
+        βn = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
+    end
 
     actor.inputs = EPEDNN.InputEPED(
         eqt.boundary.minor_radius,
