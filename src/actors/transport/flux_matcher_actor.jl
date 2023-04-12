@@ -1,4 +1,5 @@
 import NLsolve
+using LinearAlgebra
 #= ========================== =#
 #     transport solver actor   #
 #= ========================== =#
@@ -59,14 +60,16 @@ function _step(actor::ActorFluxMatcher)
         p = plot(dd.core_profiles, label="before")
     end
 
-    z_init = pack_z_profiles(dd, par)
+    z_init = pack_z_profiles(dd, par) .* 100
     old_log_level = log_topics[:actors]
+    err_history = Float64[]
+    z_history = Vector{Float64}[]
     res = try
         log_topics[:actors] = Logging.Warn
         if par.optimizer_algorithm == :anderson
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=5, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=0, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, factor=par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, method=:newton, iterations=par.max_iterations, ftol=1E-3)
         end
         res
     finally
@@ -78,7 +81,7 @@ function _step(actor::ActorFluxMatcher)
         parse_and_plot_error(string(res.trace.states))
     end
 
-    flux_match_errors(actor::ActorFluxMatcher, res.zero) # res.zero == z_profiles for the smallest error iteration
+    flux_match_errors(actor::ActorFluxMatcher, z_history[argmin(err_history)]) # res.zero == z_profiles for the smallest error iteration
     if par.evolve_densities !== :fixed
         IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
     end
@@ -102,26 +105,34 @@ end
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
-function flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
+function flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real}; z_history::Vector{Vector{Float64}}=Vector{Float64}[], err_history::Vector{Float64}=Float64[])
+    push!(z_history,z_profiles)
+    z_profiles = z_profiles ./ 100
     dd = actor.dd
     par = actor.par
 
-    # modify dd with new z_profiles
-    unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
 
     # evolve pedestal
     if par.evolve_pedestal
-        finalize(step(actor.actor_ped))
+        # modify dd with new z_profiles
+        finalize(step(actor.actor_ped, beta_n_from_eq=true))
+        unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
+        finalize(step(actor.actor_ped, beta_n_from_eq=false))
+        unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
+    else
+        # modify dd with new z_profiles
+        unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
     end
+    # evaluate sources (ie. target fluxes)
+    IMAS.sources!(dd)
 
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
-    # evaluate sources (ie. target fluxes)
-    IMAS.sources!(dd)
-
     # compare fluxes
-    return flux_match_errors(dd, par)
+    errors = flux_match_errors(dd, par)
+    push!(err_history, norm(errors))
+    return errors
 end
 
 function error_transformation!(target::T, output::T, norm::Real) where {T<:AbstractVector{<:Real}}
