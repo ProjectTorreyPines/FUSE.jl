@@ -77,8 +77,9 @@ include(joinpath("actors", "boundary", "divertorheatfluxtarget_actor.jl"))
 include(joinpath("actors", "transport", "tauenn_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
+include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
+include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
-include(joinpath("actors", "transport", "transport_solver_actor.jl"))
 
 include(joinpath("actors", "limits_actor.jl"))
 

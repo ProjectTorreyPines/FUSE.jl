@@ -14,7 +14,9 @@ end
 """
     step(actor::T, args...; kw...) where {T<:AbstractActor}
 
-Run a actor
+Calls `_step(actor)`
+
+This is where the calculation is done.
 """
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
     logging(Logging.Info, :actors, "$(typeof(actor)) @ step")
@@ -35,26 +37,25 @@ function _finalize(actor::AbstractActor)
 end
 
 """
-    finalize(actor::T, args...; kw...) where {T<:AbstractActor}
+    finalize(actor::T) where {T<:AbstractActor}
 
-Finalize the actor run. This is typically used to update dd.
+Calls `_finalize(actor)`
+
+This is typically used to update `dd` to whatever the actor has calculated at the `step` function.
 """
-function finalize(actor::T, args...; kw...) where {T<:AbstractActor}
+function finalize(actor::T) where {T<:AbstractActor}
     logging(Logging.Debug, :actors, "$(typeof(actor)) @finalize")
-    s = _finalize(actor, args...; kw...)
+    s = _finalize(actor)
     @assert s === actor "_finalize should return the same actor (check if it is actor at all)"
+    
+    # freeze onetime expressions (ie. grids)
+    while !isempty(IMASDD.expression_onetime_weakref)
+        idsw = pop!(IMASDD.expression_onetime_weakref)
+        if idsw.value !== nothing
+            # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
+            IMAS.freeze!(idsw.value)
+        end
+    end
+    
     return actor
-end
-
-#= ======= =#
-#  prepare  #
-#= ======= =#
-"""
-    prepare(actor_type::DataType, dd::IMAS.dd, act::ParametersAllActors; kw...)
-
-Dispatch `prepare` function for different actors based on actor_type that is passed
-"""
-function prepare(dd::IMAS.dd, actor_name::Symbol, act::ParametersAllActors; kw...)
-    prepare(dd, Val{actor_name}, act; kw...)
-    return dd
 end

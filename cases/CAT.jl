@@ -25,7 +25,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.pf_active.n_pf_coils_outside = 6
     ini.pf_active.technology = coil_technology(:ITER, :PF)
 
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
     ini.tf.technology = coil_technology(:ITER, :TF)
 

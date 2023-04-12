@@ -30,10 +30,11 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorCosting::FUSEparameters__ActorCosting{T}
     ActorNeutronics::FUSEparameters__ActorNeutronics{T}
     ActorNeoclassical::FUSEparameters__ActorNeoclassical{T}
+    ActorFluxMatcher::FUSEparameters__ActorFluxMatcher{T}
+    ActorCoreTransport::FUSEparameters__ActorCoreTransport{T}
+    ActorFluxCalculator::FUSEparameters__ActorFluxCalculator{T}
     ActorPedestal::FUSEparameters__ActorPedestal{T}
     ActorTGLF::FUSEparameters__ActorTGLF{T}
-    ActorCoreTransport::FUSEparameters__ActorCoreTransport{T}
-    ActorDivertorHeatFluxTarget::FUSEparameters__ActorDivertorHeatFluxTarget{T}
     ActorTransportSolver::FUSEparameters__ActorTransportSolver{T}
     ActorEquilibriumTransport::FUSEparameters__ActorEquilibriumTransport{T}
     ActorWholeFacility::FUSEparameters__ActorWholeFacility{T}
@@ -71,6 +72,9 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorCosting{T}(),
         FUSEparameters__ActorNeutronics{T}(),
         FUSEparameters__ActorNeoclassical{T}(),
+        FUSEparameters__ActorFluxMatcher{T}(),
+        FUSEparameters__ActorCoreTransport{T}(),
+        FUSEparameters__ActorFluxCalculator{T}(),
         FUSEparameters__ActorPedestal{T}(),
         FUSEparameters__ActorTGLF{T}(),
         FUSEparameters__ActorCoreTransport{T}(),

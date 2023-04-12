@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
 end
 
 mutable struct ActorSolovev <: PlasmaAbstractActor
-    eq::IMAS.equilibrium
+    dd::IMAS.dd
     par::FUSEparameters__ActorSolovev
     mxh::IMAS.MXH
     S::MXHEquilibrium.SolovevEquilibrium
@@ -44,6 +44,8 @@ end
 function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; kw...)
     logging_actor_init(ActorSolovev)
     par = par(kw...)
+
+    prepare_eq(dd)
 
     # extract info from dd
     eq = dd.equilibrium
@@ -77,24 +79,11 @@ function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; kw...)
     # run Solovev
     S = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar; B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
 
-    return ActorSolovev(dd.equilibrium, par, mxh, S)
+    return ActorSolovev(dd, par, mxh, S)
 end
 
 """
-    prepare(dd::IMAS.dd, :ActorSolovev, act::ParametersAllActors; kw...)
-
-Prepare dd to run ActorSolovev
-* Copy pressure from core_profiles to equilibrium
-"""
-function prepare(dd::IMAS.dd, ::Type{Val{:ActorSolovev}}, act::ParametersAllActors; kw...)
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
-    cp1d = dd.core_profiles.profiles_1d[]
-    eq1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
-    eq1d.j_tor = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.j_tor).(eq1d.psi_norm)
-end
-
-"""
-    step(actor::ActorSolovev)
+    _step(actor::ActorSolovev)
 
 Non-linear optimization to obtain a target `ip` and `pressure_core`
 """
@@ -102,7 +91,7 @@ function _step(actor::ActorSolovev)
     S0 = actor.S
     par = actor.par
 
-    eqt = actor.eq.time_slice[]
+    eqt = actor.dd.equilibrium.time_slice[]
     target_ip = abs(eqt.global_quantities.ip)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
@@ -132,27 +121,20 @@ function _step(actor::ActorSolovev)
 end
 
 """
-    finalize(
-        actor::ActorSolovev;
-        rlims::NTuple{2,<:Real}=(maximum([actor.S.S.R0 * (1 - actor.S.S.ϵ * 2), 0.0]), actor.S.S.R0 * (1 + actor.S.S.ϵ * 2)),
-        zlims::NTuple{2,<:Real}=(-actor.S.S.R0 * actor.S.S.ϵ * actor.S.S.κ 1.7, actor.S.S.R0 * actor.S.S.ϵ * actor.S.S.κ * 1.7)
-    )
+    _finalize(actor::ActorSolovev)
 
 Store ActorSolovev data in IMAS.equilibrium format
 """
-function _finalize(
-    actor::ActorSolovev;
-    rlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0.3)[1],
-    zlims::NTuple{2,<:Real}=MXHEquilibrium.limits(actor.S.S; pad=0.3)[2])
+function _finalize(actor::ActorSolovev)
+    rlims = MXHEquilibrium.limits(actor.S.S; pad=0.3)[1]
+    zlims = MXHEquilibrium.limits(actor.S.S; pad=0.3)[2]
 
     ngrid = actor.par.ngrid
     tc = MXHEquilibrium.transform_cocos(3, 11)
 
-    eq = actor.eq
+    eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
     target_ip = eqt.global_quantities.ip
-    target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
-    target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
     sign_Ip = sign(target_ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
 
@@ -191,14 +173,6 @@ function _finalize(
         # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
         eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
         eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
-        # match entry target_pressure and target_j_tor as if Solovev could do this
-        if !ismissing(target_pressure)
-            eqt.profiles_1d.pressure = target_pressure
-        end
-        if !ismissing(target_j_tor)
-            eqt.profiles_1d.j_tor = target_j_tor
-        end
-        IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, actor.S.S.R0, actor.S.B0)
         IMAS.flux_surfaces(eqt)
     end
 
