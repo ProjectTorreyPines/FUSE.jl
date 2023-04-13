@@ -72,7 +72,7 @@ include(joinpath("actors", "hcd", "nbi_simple_actor.jl"))
 include(joinpath("actors", "pedestal_actor.jl"))
 
 include(joinpath("actors", "divertors_actor.jl"))
-#include(joinpath("actors", "boundary", "divertorheatfluxtarget_actor.jl"))
+include(joinpath("actors", "boundary", "divertorheatflux_actor.jl"))
 
 include(joinpath("actors", "transport", "tauenn_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
