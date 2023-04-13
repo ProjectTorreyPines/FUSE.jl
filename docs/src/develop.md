@@ -57,7 +57,8 @@ function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
         index,
         "α",
         cp1d.grid.rho_tor_norm,
-        cp1d.grid.volume;
+        cp1d.grid.volume,
+        cp1d.grid.area;
         electrons_energy=α .* (1.0 .- ion_to_electron_fraction),
         total_ion_energy=α .* ion_to_electron_fraction
     )
@@ -65,8 +66,8 @@ function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
 end
 ```
 
-!!! note
-    The documentation string is added to the specialized function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles) and the dispatch function DT_fusion_source!(dd::IMAS.dd) is added on top of the function
+!!! convention
+    The documentation string is added to the specialized function `DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)` and the dispatch function `DT_fusion_source!(dd::IMAS.dd)` is added on top of the function
 
 
 ## How to add/modify entries in `ini` and `act`

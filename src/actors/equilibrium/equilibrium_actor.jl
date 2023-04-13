@@ -44,8 +44,6 @@ function _step(actor::ActorEquilibrium)
     par = actor.par
     act = actor.act
     
-    prepare(actor)
-
     if par.model == :Solovev
         actor.eq_actor = ActorSolovev(dd, act.ActorSolovev)
     elseif par.model == :CHEASE
@@ -74,33 +72,20 @@ function _finalize(actor::ActorEquilibrium)
 end
 
 """
-    prepare(actor::ActorEquilibrium)
+    prepare_eq(dd::IMAS.dd)
 
-Prepare `dd.equilbrium` to run ActorEquilibrium
+Prepare `dd.equilbrium` to run equilibrium actors
 * clear equilibrium__time_slice
 * set Ip, Bt, position control from pulse_schedule
 * Copy pressure from core_profiles to equilibrium
-* Copy j_parallel from core_profiles to equilibrium
+* Copy j_tor from core_profiles to equilibrium
 """
-function prepare(actor::ActorEquilibrium)
-    dd = actor.dd
+function prepare_eq(dd::IMAS.dd)
     ps = dd.pulse_schedule
     pc = ps.position_control
 
-    # pressure and current profiles
-    # NOTE: this is done this way because the cp1d.grid.psi may be an expression of eq1d.psi
-    #       so we cannot add/clear time-slice before getting j_tor and pressure
-    if isempty(dd.equilibrium.time_slice)
-        resize!(dd.equilibrium.time_slice)
-    end
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
-    cp1d = dd.core_profiles.profiles_1d[]
-    if ismissing(eq1d, :psi)
-        eq1d.psi = cp1d.grid.psi
-    end
-    psi = eq1d.psi
-    j_tor = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.j_tor).(eq1d.psi_norm)
-    pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
+    # freeze cp1d before wiping eqt
+    cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[])
 
     # add/clear time-slice
     eqt = resize!(dd.equilibrium.time_slice)
@@ -125,11 +110,12 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.outline.z = [@ddtime(pcb.z.reference.data) for pcb in pc.boundary_outline]
 
     # set j_tor and pressure
-    eq1d.psi = psi
-    eq1d.j_tor = j_tor
-    eq1d.pressure = pressure
+    eq1d = dd.equilibrium.time_slice[].profiles_1d
+    eq1d.psi = cp1d.grid.psi
+    eq1d.j_tor = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.j_tor).(eq1d.psi_norm)
+    eq1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
 
-    return actor
+    return dd
 end
 
 """

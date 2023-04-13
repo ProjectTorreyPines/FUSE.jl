@@ -43,6 +43,8 @@ Runs CHEASE on the r_z boundary, equilibrium pressure and equilibrium j_tor
 """
 function _step(actor::ActorCHEASE)
     dd = actor.dd
+    prepare_eq(dd)
+
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
     par = actor.par

@@ -2,7 +2,8 @@ all: header branch
 
 help: header
 	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update       : git pull FUSE and its dependencies'
+	@echo ' - make update       : git pull FUSE and its TorreyPines dependencies'
+	@echo ' - make update_all   : git pull FUSE and all of its dependencies'
 	@echo ' - make IJulia       : Install IJulia'
 	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
 	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
@@ -47,7 +48,7 @@ DOCKER_PLATFORM := $(shell uname -m)
 DOCKER_PLATFORM := amd64
 #DOCKER_PLATFORM := arm64
 
-define clone_update_repo
+define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 endef
@@ -140,9 +141,9 @@ Pkg.develop(["FUSE"; fuse_packages]);\
 '
 
 # install FUSE without using the registry
-install_no_registry: forward_compatibility clone_update_all develop special_dependencies
+install_no_registry: forward_compatibility clone_pull_all develop special_dependencies
 
-# install FUSE using the registry (requires registry to be up-to-date, which most likely are not!)
+# install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
 install_via_registry: forward_compatibility registry develop special_dependencies
 
 # install used by CI (add packages, do not dev them)
@@ -160,12 +161,13 @@ dependencies = Pkg.PackageSpec[PackageSpec(url="https://github.com/IanButterwort
 Pkg.add(dependencies);\
 '
 
-# precompile all FUSE packages (NOTE: it also updates all packages!)
-precompile:
+# update_all, a shorthand for install and precompile
+update_all: install
 	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
-# update, a shorthand for install and precompile
-update: install_no_registry precompile
+# update, a synonim of clone_pull and develop
+update: clone_pull_all develop
+	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.precompile()'
 
 # delete local packages that have become obsolete
 forward_compatibility:
@@ -178,69 +180,69 @@ end;\
 '
 
 # clone and update all FUSE packages
-clone_update_all: branch
+clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
 
 WarmupFUSE:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 FUSE:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 IMAS:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 IMASDD:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 CoordinateConventions:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 MillerExtendedHarmonic:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 FusionMaterials:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 VacuumFields:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 MXHEquilibrium:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 MeshTools:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 TAUENN:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 TGLFNN:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 EPEDNN:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 QED:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 FiniteElementHermite:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 Fortran90Namelists:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 CHEASE:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 TEQUILA:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 NNeutronics:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 SimulationParameters:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 # Install IJulia
 IJulia:
@@ -369,8 +371,41 @@ manifest_ci_commit:
 	git push --set-upstream origin manifest
 endif
 
-manifest:
+# merge manifest branch into the current branch
+merge_manifest_ci:
 	git merge origin/manifest
+
+# merges the Manifest_CI.toml into Manifest.toml
+# this is useful to get the same environment where the CI passed regression tests
+manifest_ci: merge_manifest_ci
+	julia -e ';\
+using TOML;\
+;\
+Manifest_path = "$(CURRENTDIR)/Manifest.toml";\
+Manifest = TOML.parse(read(Manifest_path, String));\
+;\
+Manifest_CI_path = "$(CURRENTDIR)/Manifest_CI.toml";\
+Manifest_CI = TOML.parse(read(Manifest_CI_path, String));\
+;\
+for dep_name in sort(collect(keys(Manifest_CI["deps"])));\
+    depCI = Manifest_CI["deps"][dep_name][1];\
+    if dep_name ∉ keys(Manifest["deps"]);\
+        continue;\
+    end;\
+    dep = Manifest["deps"][dep_name][1];\
+    if "repo-url" in keys(depCI);\
+        println(dep_name);\
+        Manifest_CI["deps"][dep_name][1] = dep;\
+    elseif "version" ∈ keys(depCI) && dep["version"] != depCI["version"];\
+        println("$dep_name $$(dep["version"]) => $$(depCI["version"])");\
+    end;\
+end;\
+;\
+open(Manifest_path, "w") do io;\
+    TOML.print(io, Manifest_CI);\
+end;\
+'
+	julia -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
 
 # remove all Manifest.toml files
 rm_manifests:

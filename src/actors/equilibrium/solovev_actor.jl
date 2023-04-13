@@ -45,6 +45,8 @@ function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; kw...)
     logging_actor_init(ActorSolovev)
     par = par(kw...)
 
+    prepare_eq(dd)
+
     # extract info from dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -133,8 +135,6 @@ function _finalize(actor::ActorSolovev)
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
     target_ip = eqt.global_quantities.ip
-    target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
-    target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
     sign_Ip = sign(target_ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
 
@@ -173,14 +173,6 @@ function _finalize(actor::ActorSolovev)
         # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
         eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
         eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
-        # match entry target_pressure and target_j_tor as if Solovev could do this
-        if !ismissing(target_pressure)
-            eqt.profiles_1d.pressure = target_pressure
-        end
-        if !ismissing(target_j_tor)
-            eqt.profiles_1d.j_tor = target_j_tor
-        end
-        IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, actor.S.S.R0, actor.S.B0)
         IMAS.flux_surfaces(eqt)
     end
 

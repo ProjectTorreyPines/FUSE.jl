@@ -47,5 +47,15 @@ function finalize(actor::T) where {T<:AbstractActor}
     logging(Logging.Debug, :actors, "$(typeof(actor)) @finalize")
     s = _finalize(actor)
     @assert s === actor "_finalize should return the same actor (check if it is actor at all)"
+    
+    # freeze onetime expressions (ie. grids)
+    while !isempty(IMASDD.expression_onetime_weakref)
+        idsw = pop!(IMASDD.expression_onetime_weakref)
+        if idsw.value !== nothing
+            # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
+            IMAS.freeze!(idsw.value)
+        end
+    end
+    
     return actor
 end
