@@ -161,15 +161,13 @@ dependencies = Pkg.PackageSpec[PackageSpec(url="https://github.com/IanButterwort
 Pkg.add(dependencies);\
 '
 
-# precompile all FUSE packages (NOTE: it also updates all packages!)
-precompile:
+# update_all, a shorthand for install and precompile
+update_all: install
 	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
-# update_all, a shorthand for install and precompile
-update_all: install precompile
-
 # update, a synonim of clone_pull and develop
-update: clone_pull_all develop precompile
+update: clone_pull_all develop
+	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.precompile()'
 
 # delete local packages that have become obsolete
 forward_compatibility:
