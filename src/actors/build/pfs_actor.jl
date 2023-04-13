@@ -37,13 +37,12 @@ function ActorPlasmaFacingSurfaces(dd::IMAS.dd, par::PlasmaFacingSurfaces.FUSEpa
 end
 
 function _step(actor::ActorPlasmaFacingSurfaces)
-    actor.pfs = PlasmaFacingSurfaces.PFSDesign(actor.dd.equilibrium.time_slice[])
-    actor.pfs(actor.par)
+    actor.pfs = PlasmaFacingSurfaces.PFSDesign(actor.dd.equilibrium.time_slice[], actor.par) 
+    actor.pfs() #execute with embedded parameters
     return actor
 end
 
 function _finalize(actor::ActorPlasmaFacingSurfaces; kw...)
-    PlasmaFacingSurfaces.export2ddwall(actor.dd, actor.pfs; kw...)
-    PlasmaFacingSurfaces.export2ddbuild(actor.dd, actor.pfs; kw...)
+    PlasmaFacingSurfaces.export2dd(actor.dd, actor.pfs; kw...)
     actor
 end

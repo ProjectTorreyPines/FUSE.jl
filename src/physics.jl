@@ -243,7 +243,6 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
         display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
 
-    end
     return shape_parameters
 end
 
