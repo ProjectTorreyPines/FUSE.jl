@@ -373,15 +373,20 @@ manifest_ci_commit:
 	git push --set-upstream origin manifest
 endif
 
+# merge manifest branch into the current branch
+merge_manifest_ci:
+	git merge origin/manifest
+
 # merges the Manifest_CI.toml into Manifest.toml
-manifest_ci:
+# this is useful to get the same environment where the CI passed regression tests
+manifest_ci: merge_manifest_ci
 	julia -e ';\
 using TOML;\
 ;\
-Manifest_path = "/home/meneghini/FUSE/Manifest.toml";\
+Manifest_path = "$(CURRENTDIR)/Manifest.toml";\
 Manifest = TOML.parse(read(Manifest_path, String));\
 ;\
-Manifest_CI_path = "/home/meneghini/FUSE/Manifest_CI.toml";\
+Manifest_CI_path = "$(CURRENTDIR)/Manifest_CI.toml";\
 Manifest_CI = TOML.parse(read(Manifest_CI_path, String));\
 ;\
 for dep_name in sort(collect(keys(Manifest_CI["deps"])));\
@@ -402,6 +407,7 @@ open(Manifest_path, "w") do io;\
     TOML.print(io, Manifest_CI);\
 end;\
 '
+	julia -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
 
 # remove all Manifest.toml files
 rm_manifests:
