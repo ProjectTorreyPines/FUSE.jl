@@ -60,7 +60,7 @@ function _step(actor::ActorECsimple)
         R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
-        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx]) / 1E3
+        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx])
 
         eta = TekeV * 0.09 / (5.0 + zeff)
         j_parallel = eta / R0 / ne20 * power_launched
