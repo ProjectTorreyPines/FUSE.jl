@@ -369,8 +369,35 @@ manifest_ci_commit:
 	git push --set-upstream origin manifest
 endif
 
-manifest:
-	git merge origin/manifest
+# merges the Manifest_CI.toml into Manifest.toml
+manifest_ci:
+	julia -e ';\
+using TOML;\
+;\
+Manifest_path = "/home/meneghini/FUSE/Manifest.toml";\
+Manifest = TOML.parse(read(Manifest_path, String));\
+;\
+Manifest_CI_path = "/home/meneghini/FUSE/Manifest_CI.toml";\
+Manifest_CI = TOML.parse(read(Manifest_CI_path, String));\
+;\
+for dep_name in sort(collect(keys(Manifest_CI["deps"])));\
+    depCI = Manifest_CI["deps"][dep_name][1];\
+    if dep_name ∉ keys(Manifest["deps"]);\
+        continue;\
+    end;\
+    dep = Manifest["deps"][dep_name][1];\
+    if "repo-url" in keys(depCI);\
+        println(dep_name);\
+        Manifest_CI["deps"][dep_name][1] = dep;\
+    elseif "version" ∈ keys(depCI) && dep["version"] != depCI["version"];\
+        println("$dep_name $$(dep["version"]) => $$(depCI["version"])");\
+    end;\
+end;\
+;\
+open(Manifest_path, "w") do io;\
+    TOML.print(io, Manifest_CI);\
+end;\
+'
 
 # remove all Manifest.toml files
 rm_manifests:
