@@ -40,7 +40,7 @@ end
 """
     _step(actor::ActorCoreTransport)
 
-Runs through the selected core transport actor's step
+Runs through the selected core transport actor step
 """
 function _step(actor::ActorCoreTransport)
     step(actor.tr_actor)
@@ -50,7 +50,7 @@ end
 """
     finalize(actor::ActorCoreTransport)
 
-Finalizes the selected core transport actor
+Finalizes the selected core transport actor finalize
 """
 function _finalize(actor::ActorCoreTransport)
     finalize(actor.tr_actor)
