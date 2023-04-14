@@ -10,7 +10,7 @@ end
 mutable struct ActorCoreTransport <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorCoreTransport
-    tr_actor::Union{ActorFluxMatcher, ActorTauenn}
+    tr_actor::Union{ActorFluxMatcher,ActorTauenn}
 end
 
 """
@@ -36,7 +36,6 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     end
     return ActorCoreTransport(dd, par, tr_actor)
 end
-
 
 """
     _step(actor::ActorCoreTransport)

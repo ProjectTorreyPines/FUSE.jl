@@ -73,11 +73,11 @@ function _step(actor::ActorHeatTransfer)
 
     breeder_heat_load = 0.0
     if !isempty(dd.blanket.module)
-        breeder_heat_load = sum([bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module])
+        breeder_heat_load = sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)
     end
     divertor_heat_load = 0.0
     if !isempty(dd.divertors.divertor)
-        divertor_heat_load = sum([(@ddtime(div.power_incident.data)) for div in dd.divertors.divertor])
+        divertor_heat_load = sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)
     end
     blanket_heat_load = abs.(IMAS.radiation_losses(dd.core_sources))
 

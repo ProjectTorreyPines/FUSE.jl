@@ -355,7 +355,7 @@ function costing_ARIES(dd, par)
         sub = resize!(sys.subsystem, "name" => string(item))
         if item == :blanket_replacement
             tokamak = cost_direct.system[findfirst(system -> system.name == "tokamak", cost_direct.system)]
-            blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
+            blanket_cost = sum(item.cost for item in tokamak.subsystem if item.name == "blanket")
             sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime)
         else
             sub.yearly_cost = cost_operations_ARIES(item)
