@@ -257,6 +257,15 @@ IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
 
+# Install PyCall
+PyCall:
+	julia -e '\
+ENV["PYTHON"]="";\
+using Pkg;\
+Pkg.add("PyCall");\
+Pkg.build("PyCall");\
+'
+
 # create a docker image with just FUSE
 docker_clean:
 	rm -rf ../Dockerfile
@@ -397,7 +406,7 @@ for dep_name in sort(collect(keys(Manifest_CI["deps"])));\
         println(dep_name);\
         Manifest_CI["deps"][dep_name][1] = dep;\
     elseif "version" ∈ keys(depCI) && dep["version"] != depCI["version"];\
-        println("$dep_name $$(dep["version"]) => $$(depCI["version"])");\
+        println("$$dep_name $$(dep["version"]) => $$(depCI["version"])");\
     end;\
 end;\
 ;\
