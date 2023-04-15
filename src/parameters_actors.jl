@@ -19,7 +19,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorQEDcurrent::FUSEparameters__ActorQEDcurrent{T}
     ActorSteadyStateCurrent::FUSEparameters__ActorSteadyStateCurrent{T}
     ActorDivertors::FUSEparameters__ActorDivertors{T}
-    ActorNBIsimple::FUSEparameters__ActorNBIsimple{T}
+    ActorNBsimple::FUSEparameters__ActorNBsimple{T}
     ActorECsimple::FUSEparameters__ActorECsimple{T}
     ActorICsimple::FUSEparameters__ActorICsimple{T}
     ActorLHsimple::FUSEparameters__ActorLHsimple{T}
@@ -35,6 +35,7 @@ mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     ActorEquilibriumTransport::FUSEparameters__ActorEquilibriumTransport{T}
     ActorWholeFacility::FUSEparameters__ActorWholeFacility{T}
     ActorPlasmaLimits::FUSEparameters__ActorPlasmaLimits{T}
+    ActorHCD::FUSEparameters__ActorHCD{T}
 end
 
 function ParametersActors{T}() where {T<:Real}
@@ -59,7 +60,7 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorQEDcurrent{T}(),
         FUSEparameters__ActorSteadyStateCurrent{T}(),
         FUSEparameters__ActorDivertors{T}(),
-        FUSEparameters__ActorNBIsimple{T}(),
+        FUSEparameters__ActorNBsimple{T}(),
         FUSEparameters__ActorECsimple{T}(),
         FUSEparameters__ActorICsimple{T}(),
         FUSEparameters__ActorLHsimple{T}(),
@@ -74,7 +75,8 @@ function ParametersActors{T}() where {T<:Real}
         FUSEparameters__ActorTGLF{T}(),
         FUSEparameters__ActorEquilibriumTransport{T}(),
         FUSEparameters__ActorWholeFacility{T}(),
-        FUSEparameters__ActorPlasmaLimits{T}()
+        FUSEparameters__ActorPlasmaLimits{T}(),
+        FUSEparameters__ActorHCD{T}()
     )
     setup_parameters!(act)
     return act

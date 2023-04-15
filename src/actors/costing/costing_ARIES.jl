@@ -323,7 +323,7 @@ function costing_ARIES(dd, par)
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
 
         for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
-            sub = resize!(sys.subsystem, "name" => string(item))
+            sub = resize!(sys.subsystem, "name" => replace(string(item),"_" => " "))
             if item == :land
                 sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_generated)
             elseif item == :buildings
@@ -355,7 +355,7 @@ function costing_ARIES(dd, par)
         sub = resize!(sys.subsystem, "name" => string(item))
         if item == :blanket_replacement
             tokamak = cost_direct.system[findfirst(system -> system.name == "tokamak", cost_direct.system)]
-            blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
+            blanket_cost = sum(item.cost for item in tokamak.subsystem if item.name == "blanket")
             sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime)
         else
             sub.yearly_cost = cost_operations_ARIES(item)

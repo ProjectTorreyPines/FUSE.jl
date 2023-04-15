@@ -610,7 +610,7 @@ function optimize_coils_rail(
                 index = findfirst(rail -> rail.name === "OH", bd.pf_active.rail)
                 if index !== nothing
                     oh_rail_length = diff(collect(extrema(bd.pf_active.rail[index].outline.z)))[1]
-                    total_oh_coils_length = sum([coil.height for coil in coils[oh_indexes.==true]])
+                    total_oh_coils_length = sum(coil.height for coil in coils[oh_indexes.==true])
                     cost_oh = oh_rail_length / total_oh_coils_length
                 else
                     cost_oh = 0.0
