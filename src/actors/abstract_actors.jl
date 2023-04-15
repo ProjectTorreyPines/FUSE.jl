@@ -24,7 +24,7 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
     TimerOutputs.reset_timer!(timer_name)
     TimerOutputs.@timeit timer timer_name begin
         s = _step(actor, args...; kw...)
-        @assert s === actor "_step should return the same actor (check if it is actor at all)"
+        @assert s === actor "`$(typeof(T))._step(actor)` should return the same actor that is input to the function"
     end
     return actor
 end

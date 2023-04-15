@@ -30,6 +30,10 @@ end
 
 Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
 * ActorEquilibriumTransport
+    * ActorSteadyStateCurrent
+    * ActorHCD
+    * ActorCoreTransport
+    * ActorEquilibrium
 * ActorPlasmaLimits
 * ActorHFSsizing
 * ActorLFSsizing

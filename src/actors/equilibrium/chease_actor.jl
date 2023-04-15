@@ -43,11 +43,12 @@ Runs CHEASE on the r_z boundary, equilibrium pressure and equilibrium j_tor
 """
 function _step(actor::ActorCHEASE)
     dd = actor.dd
-    prepare_eq(dd)
+    par = actor.par
 
+    # initialize eqt from pulse_schedule and core_profiles
+    prepare_eq(dd)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
-    par = actor.par
 
     # remove points at high curvature points (ie. X-points)
     r_bound = eqt.boundary.outline.r
@@ -83,15 +84,15 @@ function _step(actor::ActorCHEASE)
             clear_workdir=par.clear_workdir)
     catch
         display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
-        display(plot(psin, pressure))
-        display(plot(psin, abs.(j_tor)))
+        display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
+        display(plot(rho_pol, abs.(j_tor); marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
         rethrow()
     end
 
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = Float64.(VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound)/2))))
+        psi_free_rz = Float64.(VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound) / 2))))
         actor.chease.gfile.psirz = psi_free_rz
         # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
