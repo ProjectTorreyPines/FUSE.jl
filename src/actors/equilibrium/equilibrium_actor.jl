@@ -107,6 +107,13 @@ function prepare_eq(dd::IMAS.dd)
     eqt.boundary.outline.r = [@ddtime(pcb.r.reference.data) for pcb in pc.boundary_outline]
     eqt.boundary.outline.z = [@ddtime(pcb.z.reference.data) for pcb in pc.boundary_outline]
 
+    # x-points
+    resize!(eqt.boundary.x_point, length(pc.x_point))
+    for k in eachindex(pc.x_point)
+        eqt.boundary.x_point[k].r = @ddtime(pc.x_point[k].r.reference.data)
+        eqt.boundary.x_point[k].z = @ddtime(pc.x_point[k].z.reference.data)
+    end
+
     # set j_tor and pressure
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
