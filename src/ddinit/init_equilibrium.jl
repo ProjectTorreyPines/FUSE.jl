@@ -172,7 +172,7 @@ function init_pulse_schedule_postion_control(
         pz = mxhb.z_boundary
 
         # boundary with x-points parametrized with MXH
-        mxh = IMAS.MXH(pr, pz, 4)
+        mxh = IMAS.MXH(pr, pz, 5)
     end
     pr, pz = mxh()
 

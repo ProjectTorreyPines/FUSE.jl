@@ -110,12 +110,12 @@ function prepare_eq(dd::IMAS.dd)
     # set j_tor and pressure
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
-    index = cp1d.grid.psi_norm .> 0.05 # fix current/pressure in the very core
-    psi_norm0 = vcat(-reverse(cp1d.grid.psi_norm[index]), cp1d.grid.psi_norm[index])
+    index = cp1d.grid.psi_norm .> 0.05 # force zero derivative current/pressure on axis
+    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
     j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
     pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-    eq1d.j_tor = IMAS.interp1d(psi_norm0, j_tor0, :cubic).(eq1d.psi_norm)
-    eq1d.pressure = IMAS.interp1d(psi_norm0, pressure0, :cubic).(eq1d.psi_norm)
+    eq1d.j_tor = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic).(sqrt.(eq1d.psi_norm))
+    eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
 
     return dd
 end

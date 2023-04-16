@@ -69,7 +69,6 @@ function _step(actor::ActorEquilibriumTransport)
     if actor.actor_eq.par.model == :CHEASE
         chease_par = actor.actor_eq.eq_actor.par
         orig_par_chease = deepcopy(chease_par)
-        chease_par.free_boundary = false
         chease_par.rescale_eq_to_ip = true
     end
 
@@ -112,9 +111,6 @@ function _step(actor::ActorEquilibriumTransport)
     finally
         if actor.actor_eq.par.model == :CHEASE
             actor.actor_eq.eq_actor.par = orig_par_chease
-            if orig_par_chease.free_boundary
-                finalize(step(actor.actor_eq))
-            end
         end
     end
 
