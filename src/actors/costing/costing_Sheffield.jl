@@ -262,7 +262,7 @@ function costing_Sheffield(dd, par)
     ###### Direct Capital ######
     total_direct_capital_cost = 0
     ##### fusion island
-    sys_fi = resize!(cost_direct.system, "name" => "fusion island")
+    sys_fi = resize!(cost_direct.system, "name" => "tokamak")
 
     #main heat transfer system 
     sub = resize!(sys_fi.subsystem, "name" => "main heat transfer system")
@@ -289,15 +289,18 @@ function costing_Sheffield(dd, par)
     sub.cost = cost_direct_capital_Sheffield(:aux_power, ec_power, ic_power, lh_power, nbi_power)
     total_direct_capital_cost += sub.cost
 
-    ##### balance of plant
-    sys = resize!(cost_direct.system, "name" => "balance of plant")
-    sys.cost = cost_direct_capital_Sheffield(:balance_of_plant, power_electric_net, power_thermal, da)
-    total_direct_capital_cost += sys.cost
+    ##### Facility structures, buildings and site 
+    sys_bld = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
 
-    ##### buildings 
-    sys = resize!(cost_direct.system, "name" => "buildings")
-    sys.cost = cost_direct_capital_Sheffield(:buildings, bd, da)
-    total_direct_capital_cost += sys.cost
+    #balance of plant
+    sub = resize!(sys_bld.subsystem, "name" => "balance of plant")
+    sub.cost = cost_direct_capital_Sheffield(:balance_of_plant, power_electric_net, power_thermal, da)
+    total_direct_capital_cost += sub.cost
+
+    #buildings 
+    sub = resize!(sys_bld.subsystem, "name" => "buildings")
+    sub.cost = cost_direct_capital_Sheffield(:buildings, bd, da)
+    total_direct_capital_cost += sub.cost
 
     ###### Fuel ######
     total_fuel_cost = 0
