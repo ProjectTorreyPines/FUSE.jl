@@ -12,7 +12,7 @@ end
 mutable struct ActorDensityLimit <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorDensityLimit
-    lim::IMAS.stability__limit
+    lim::IMAS.stability__model
 end
 
 """
@@ -31,7 +31,9 @@ end
 function ActorDensityLimit(dd::IMAS.dd, par::FUSEparameters__ActorDensityLimit; kw...)
     logging_actor_init(ActorDensityLimit)
     par = par(kw...)
-    lim = resize!(dd.stability.limit, "name" => "Density limit")
+    #lim = resize!(dd.stability.limit, "name" => "Density limit")
+    model_index = 999
+    lim = resize!(dd.stability.model, "identifier.index" => model_index)
     ActorDensityLimit(dd, par, lim)
 end
 
@@ -58,13 +60,12 @@ function _step(actor::ActorDensityLimit)
 end
 
 function _finalize(actor::ActorDensityLimit)
-    lim = actor.lim
-    if lim.model.fraction  < 1
-        lim.cleared = 1
-    else
-        lim.cleared = 0 
-    end
-
+    # lim = actor.lim
+    # if lim.fraction  < 1
+    #     lim.cleared = 1
+    # else
+    #     lim.cleared = 0 
+    # end
     return actor
 end
 
@@ -88,18 +89,18 @@ function density_standard(dd::IMAS.dd)
 end
 
 """
-    density_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorDensityLimit, lim::IMAS.stability__limit)
+    density_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorDensityLimit, lim::IMAS.stability__model)
 
 Standard limit in density using IMAS greenwald fraction
 Model Formulation: f_{GW,IMAS} < 1.0
 Citation: 
 """
-function density_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorDensityLimit, lim::IMAS.stability__limit)
-    lim.model.name = "Standard::IMAS_Greenwald"
-    lim.model.formula = "IMAS.greenwald_fraction < 1.0"
+function density_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorDensityLimit, lim::IMAS.stability__model)
+    lim.identifier.name = "Standard::IMAS_Greenwald"
+    lim.identifier.description = "IMAS.greenwald_fraction < 1.0"
 
     model_value = density_standard(dd)
     target_value = 1.0
 
-    lim.model.fraction = model_value / target_value
+    lim.fraction = model_value / target_value
 end

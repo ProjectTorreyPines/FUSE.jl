@@ -1,17 +1,16 @@
-#= =========== =#
+#= ==================== =#
 #  ActorStabilityLimits  #
-#= =========== =#
+#= ==================== =#
+
 Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+   model_ids::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models for the limit calculation"; default=[:force_fail])
 end
 
-mutable struct ActorStabilityLimits<: PlasmaAbstractActor
+mutable struct ActorStabilityLimits <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorStabilityLimits
-    beta_actor::PlasmaAbstractActor
-    current_actor::PlasmaAbstractActor
-    density_actor::PlasmaAbstractActor
 end
 
 """
@@ -21,23 +20,18 @@ Runs all the limit actors.
 """
 function ActorStabilityLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorStabilityLimits(kw...)
-    actor = ActorStabilityLimits(dd, par, act)
+    actor = ActorStabilityLimits(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorStabilityLimits(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, act::ParametersAllActors; kw...)
+function ActorStabilityLimits(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits; kw...)
     logging_actor_init(ActorStabilityLimits)
     par = par(kw...)
-
-    beta_actor = ActorBetaLimit(dd, act)
-    current_actor = ActorCurrentLimit(dd, act)
-    density_actor = ActorDensityLimit(dd, act)
-
-    return ActorStabilityLimits(dd, par, beta_actor, current_actor, density_actor)
+    @ddtime(dd.stability.time = dd.global_time)
+    return ActorStabilityLimits(dd, par)
 end
-
 
 """
     step(actor::ActorStabilityLimits)
@@ -45,9 +39,15 @@ end
 Runs through the selected stability actor's step
 """
 function _step(actor::ActorStabilityLimits)
-    step(actor.beta_actor)
-    step(actor.current_actor)
-    step(actor.density_actor)
+    dd = actor.dd
+    par = actor.par
+
+    for model_id in par.model_ids
+        model_index = IMAS.name_2_index(dd.stability.model)[model_id]
+        model = resize!(dd.stability.model, "identifier.index" => model_index)
+        limit_models[model_index](dd, par, model)
+    end    
+
     return actor
 end
 
@@ -57,9 +57,14 @@ end
     Finalizes the selected stability actor
 """
 function _finalize(actor::ActorStabilityLimits)
-    finalize(actor.beta_actor)
-    finalize(actor.current_actor)
-    finalize(actor.density_actor)
+    # put a sort here by index
     return actor
 end
+
+
+
+
+
+#######################################################
+
 

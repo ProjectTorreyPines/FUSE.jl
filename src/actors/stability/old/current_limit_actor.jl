@@ -12,7 +12,7 @@ end
 mutable struct ActorCurrentLimit <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorCurrentLimit
-    lim::IMAS.stability__limit
+    lim::IMAS.stability__model
 end
 
 """
@@ -31,7 +31,9 @@ end
 function ActorCurrentLimit(dd::IMAS.dd, par::FUSEparameters__ActorCurrentLimit; kw...)
     logging_actor_init(ActorCurrentLimit)
     par = par(kw...)
-    lim = resize!(dd.stability.limit, "name" => "Current limit")
+    #lim = resize!(dd.stability.limit, "name" => "Current limit")
+    model_index = 999
+    lim = resize!(dd.stability.model, "identifier.index" => model_index)
     ActorCurrentLimit(dd, par, lim)
 end
 
@@ -57,12 +59,12 @@ function _step(actor::ActorCurrentLimit)
 end
 
 function _finalize(actor::ActorCurrentLimit)
-    lim = actor.lim
-    if lim.model.fraction  < 1
-        lim.cleared = 1
-    else
-        lim.cleared = 0 
-    end
+    # lim = actor.lim
+    # if lim.fraction  < 1
+    #     lim.cleared = 1
+    # else
+    #     lim.cleared = 0 
+    # end
 
     return actor
 end
@@ -86,18 +88,18 @@ function current_standard(dd::IMAS.dd)
 end
 
 """
-    current_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__limit)
+    current_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorBetaLimit, lim::IMAS.stability__model)
 
 Standard limit in edge current via the safety factor
 Model Formulation: q95 < 2
 Citation: 
 """
-function current_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorCurrentLimit, lim::IMAS.stability__limit)
-    lim.model.name = "Standard::q95"
-    lim.model.formula = "q_95 > 2.0"
+function current_standard_a(dd::IMAS.dd, par::FUSEparameters__ActorCurrentLimit, lim::IMAS.stability__model)
+    lim.identifier.name = "Standard::q95"
+    lim.identifier.description = "q_95 > 2.0"
 
     model_value = current_standard(dd)
     target_value = 0.5
 
-    lim.model.fraction = model_value / target_value
+    lim.fraction = model_value / target_value
 end
