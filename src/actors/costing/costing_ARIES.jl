@@ -303,14 +303,14 @@ function costing_ARIES(dd, par)
     for hcd in vcat(dd.ec_launchers.beam, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
         c = cost_direct_capital_ARIES(hcd)
         if c > 0
-            sub = resize!(sys.subsystem, "name" => hcd.name)
+            sub = resize!(sys.subsystem, "name" => uppercase(hcd.name))
             sub.cost = c
         end
     end
 
     ### Facility
 
-    sys = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
+    sys = resize!(cost_direct.system, "name" => "facility")
     
     if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
         @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")

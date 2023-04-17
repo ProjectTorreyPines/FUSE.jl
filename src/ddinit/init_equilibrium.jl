@@ -171,8 +171,15 @@ function init_pulse_schedule_postion_control(
         pr = mxhb.r_boundary
         pz = mxhb.z_boundary
 
+        # x-point information
+        resize!(pc.x_point, length(mxhb.RX))
+        for (k,(rx,zx)) in enumerate(zip(mxhb.RX,mxhb.ZX))
+            @ddtime(pc.x_point[k].r.reference.data = rx)
+            @ddtime(pc.x_point[k].r.reference.data = zx)
+        end
+
         # boundary with x-points parametrized with MXH
-        mxh = IMAS.MXH(pr, pz, 4)
+        mxh = IMAS.MXH(pr, pz, 5)
     end
     pr, pz = mxh()
 

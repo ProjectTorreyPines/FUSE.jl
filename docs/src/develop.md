@@ -98,6 +98,8 @@ mutable struct ActorNAME <: ???AbstractActor
     par::ParametersActor  # Actors must carry with them the parameters they are run with
     something_else::??? # Some actors may want to carry something else with them
     # Inner constructor for the actor starting from `dd` and `par` (we generally refer to `par` as `act.ActorNAME`)
+    # NOTE: Computation should not happen here since in workflows it is normal to instantiate
+    #       an actor once `ActorNAME(dd, act.ActorNAME)` and then call `finaleze(step(actor))` several times as needed.
     function ActorNAME(dd::IMAS.dd, par::FUSEparameters__ActorNAME; kw...)
         logging_actor_init(ActorNAME)
         par = par(kw...)

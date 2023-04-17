@@ -777,7 +777,41 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
 
-    R, Z = IMAS.resample_2d_path(R, Z; n_points)
+    # resample boundary after convex_hull in such a way to preserve x-points and add proper curvature in the x-point region
+    if upper_x_point + lower_x_point == 1
+        if upper_x_point
+            R, Z = IMAS.reorder_flux_surface!(R, Z, argmax(Z))
+        else
+            R, Z = IMAS.reorder_flux_surface!(R, Z, argmin(Z))
+        end
+        RR = [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
+        ZZ = [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
+        RR, ZZ = IMAS.resample_2d_path(RR, ZZ; n_points=length(R) * 2)
+        if upper_x_point
+            I = ZZ .< Z[1]
+        else
+            I = ZZ .> Z[1]
+        end
+        R = [R[1]; RR[I]; R[1]]
+        Z = [Z[1]; ZZ[I]; Z[1]]
+    else
+        R, Z = IMAS.reorder_flux_surface!(R, Z, argmax(Z))
+        izmin = argmin(Z)
+        R1, R2 = R[1:izmin], R[izmin:end]
+        Z1, Z2 = Z[1:izmin], Z[izmin:end]
+        ΔZ = (Z1[end] - Z[1])
+        ZZ1 = [Z1[2:end-1] .- ΔZ; Z1[2:end-1]; Z1[2:end-1] .+ ΔZ]
+        RR1 = [-(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]; R1[2:end-1]; -(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]]
+        ZZ2 = [Z2[2:end-1] .+ ΔZ; Z2[2:end-1]; Z2[2:end-1] .- ΔZ]
+        RR2 = [-(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]; R2[2:end-1]; -(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]]
+        RR1, ZZ1 = IMAS.resample_2d_path(RR1, ZZ1; n_points=length(R) * 2)
+        RR2, ZZ2 = IMAS.resample_2d_path(RR2, ZZ2; n_points=length(R) * 2)
+        I1 = (ZZ1 .< Z1[1]) .&& (ZZ1 .> Z1[end])
+        I2 = (ZZ2 .< Z1[1]) .&& (ZZ2 .> Z1[end])
+        R = [R1[1]; RR1[I1]; R1[end]; RR2[I2]; R1[1]]
+        Z = [Z1[1]; ZZ1[I1]; Z1[end]; ZZ2[I2]; Z1[1]]
+    end
+
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
 
     mxhb.RX = RX
