@@ -14,18 +14,27 @@ function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrar
 end
 
 """
-    IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+    IMAS.extract(
+        DD::Vector{<:Union{AbstractString,IMAS.dd}},
+        xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
+        filter_invalid::Symbol=:none)::DataFrames.DataFrame
 
 Extract data from multiple folders or `dd`s and return results in DataFrame format.
 
 Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
 """
-function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+function IMAS.extract(
+    DD::Vector{<:Union{AbstractString,IMAS.dd}},
+    xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
+    filter_invalid::Symbol=:none)::DataFrames.DataFrame
+
     # test filter_invalid
     @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
 
     # allocate memory
-    df = DataFrames.DataFrame(extract(DD[1], xtract))
+    tmp = Dict(extract(DD[1], xtract))
+    tmp[:dir] = DD[1]
+    df = DataFrames.DataFrame(tmp)
     for k in 2:length(DD)
         push!(df, df[1, :])
     end
@@ -33,14 +42,17 @@ function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Abstr
     # load the data
     p = ProgressMeter.Progress(length(DD); showspeed=true)
     Threads.@threads for k in eachindex(DD)
-        df[k, :] = Dict(extract(DD[k], xtract))
+        tmp = Dict(extract(DD[k], xtract))
+        tmp[:dir] = DD[k]
+        df[k, :] = tmp
         ProgressMeter.next!(p)
     end
 
     # filter
     if filter_invalid ∈ [:cols, :all]
         # drop columns that have all NaNs
-        visnan(x::Vector) = isnan.(x)
+        isnan_nostring(x::Any) = (typeof(x) <: Number) ? isnan(x) : false
+        visnan(x::Vector) = isnan_nostring.(x)
         df = df[:, .!all.(visnan.(eachcol(df)))]
     end
     if filter_invalid ∈ [:rows, :all]
@@ -169,18 +181,18 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
 end
 
 """
-    digest(dd::IMAS.dd;
+    digest(
+        dd::IMAS.dd;
         terminal_width::Int=136,
         line_char::Char='─',
-        section::Int=0,
-        ini::Union{Nothing,ParametersAllInits}=nothing,
-        act::Union{Nothing,ParametersAllActors}=nothing)
+        section::Int=0)
 
 Provides concise and informative summary of `dd`, including several plots
 
 NOTE: `section` is used internally to produce digest PDFs
 """
-function digest(dd::IMAS.dd;
+function digest(
+    dd::IMAS.dd;
     terminal_width::Int=136,
     line_char::Char='─',
     section::Int=0)
@@ -301,8 +313,8 @@ function digest(dd::IMAS.dd,
     title::AbstractString,
     description::AbstractString="";
     ini::Union{Nothing,ParametersAllInits}=nothing,
-    act::Union{Nothing,ParametersAllActors}=nothing)
-
+    act::Union{Nothing,ParametersAllActors}=nothing
+)
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)
@@ -336,7 +348,12 @@ end
 
 Looks at the first line of each error.txt file in dirs and categorizes them
 """
-function categorize_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true, extra_error_messages::AbstractDict{<:AbstractString,Symbol}=Dict{String,Symbol}())
+function categorize_errors(
+    dirs::AbstractVector{<:AbstractString};
+    show_first_line=false,
+    do_plot=true,
+    extra_error_messages::AbstractDict{<:AbstractString,Symbol}=Dict{String,Symbol}()
+)
     # error counting and error message dict
     errors = Dict(:other => String[])
     error_messages = Dict(

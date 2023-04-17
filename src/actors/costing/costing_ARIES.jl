@@ -347,14 +347,14 @@ function costing_ARIES(dd, par)
     for hcd in vcat(dd.ec_launchers.beam, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
         c = cost_direct_capital_ARIES(hcd, da)
         if c > 0
-            sub = resize!(sys.subsystem, "name" => hcd.name)
-            sub.cost = c 
+            sub = resize!(sys.subsystem, "name" => uppercase(hcd.name))
+            sub.cost = c
         end
     end
 
     ### Facility
 
-    sys = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
+    sys = resize!(cost_direct.system, "name" => "facility")
     
     if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
         @warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
@@ -367,26 +367,26 @@ function costing_ARIES(dd, par)
         power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
     end
 
-    for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
-        sub = resize!(sys.subsystem, "name" => string(item))
-        if item == :land
-            sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_generated, da)
-        elseif item == :buildings
-            sub.cost = cost_direct_capital_ARIES(item, par.building_volume,
-                par.land_space, power_electric_generated,
-                power_thermal, power_electric_net, da)
-        elseif item == :hot_cell
-            sub.cost = cost_direct_capital_ARIES(item, par.building_volume, da)
-        elseif item == :heat_transfer_loop_materials
-            sub.cost = cost_direct_capital_ARIES(item, power_thermal, da)
-        elseif item == :balance_of_plant_equipment
-            sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_generated, da)
-        elseif item == :fuel_cycle_rad_handling
-            sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_net, da)
-        else
-            sub.cost = cost_direct_capital_ARIES(item, da)
+        for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
+            sub = resize!(sys.subsystem, "name" => string(item))
+            if item == :land
+                sub.cost = cost_direct_capital_ARIES(item, par.land_space, power_electric_generated)
+            elseif item == :buildings
+                sub.cost = cost_direct_capital_ARIES(item, par.building_volume,
+                    par.land_space, power_electric_generated,
+                    power_thermal, power_electric_net)
+            elseif item == :hot_cell
+                sub.cost = cost_direct_capital_ARIES(item, par.building_volume)
+            elseif item == :heat_transfer_loop_materials
+                sub.cost = cost_direct_capital_ARIES(item, power_thermal)
+            elseif item == :balance_of_plant_equipment
+                sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_generated)
+            elseif item == :fuel_cycle_rad_handling
+                sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_net)
+            else
+                sub.cost = cost_direct_capital_ARIES(item)
+            end
         end
-    end
 
     ###### Operations ######
     sys = resize!(cost_ops.system, "name" => "tritium handling")
@@ -401,7 +401,7 @@ function costing_ARIES(dd, par)
         if item == :blanket_replacement
             tokamak = cost_direct.system[findfirst(system -> system.name == "tokamak", cost_direct.system)]
             blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
-            sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime, da)
+            sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime)
         else
             sub.yearly_cost = cost_operations_ARIES(item, da)
         end

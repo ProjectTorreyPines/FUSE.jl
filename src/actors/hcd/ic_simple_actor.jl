@@ -30,8 +30,8 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
     Reads data in `dd.ic_antennas` and stores data in `dd.core_sources`
 """
 function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorICsimple(kw...)
-    actor = ActorICsimple(dd, par)
+    par = act.ActorICsimple
+    actor = ActorICsimple(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -61,7 +61,7 @@ function _step(actor::ActorICsimple)
         R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
-        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx]) / 1E3
+        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx])
         beta_tor = eqt.global_quantities.beta_tor
 
         eta = TekeV * 0.063 / (2.0 + zeff) / (1.0 + 0.5 * beta_tor)

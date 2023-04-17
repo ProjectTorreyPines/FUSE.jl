@@ -1,5 +1,5 @@
 \documentclass[]{article}
-\usepackage[paperwidth=8in, paperheight=200in, voffset=0.1in, top=0.1in, left=0.1in, right=0.1in]{geometry}
+\usepackage[paperwidth=8.2in, paperheight=200in, voffset=0.1in, top=0.1in, left=0.1in, right=0.1in]{geometry}
 \usepackage{fontspec}
 \setmonofont{DejaVu Sans Mono}   % Set the monospaced font
 \usepackage{newunicodechar}
@@ -18,7 +18,7 @@
   columns=fullflexible,
   keepspaces=true,
   basicstyle=\ttfamily,
-  breaklines=false,
+  breaklines=false
 }
 
 \hypersetup

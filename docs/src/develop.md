@@ -57,7 +57,8 @@ function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
         index,
         "α",
         cp1d.grid.rho_tor_norm,
-        cp1d.grid.volume;
+        cp1d.grid.volume,
+        cp1d.grid.area;
         electrons_energy=α .* (1.0 .- ion_to_electron_fraction),
         total_ion_energy=α .* ion_to_electron_fraction
     )
@@ -65,8 +66,8 @@ function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
 end
 ```
 
-!!! note
-    The documentation string is added to the specialized function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles) and the dispatch function DT_fusion_source!(dd::IMAS.dd) is added on top of the function
+!!! convention
+    The documentation string is added to the specialized function `DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)` and the dispatch function `DT_fusion_source!(dd::IMAS.dd)` is added on top of the function
 
 
 ## How to add/modify entries in `ini` and `act`
@@ -97,6 +98,8 @@ mutable struct ActorNAME <: ???AbstractActor
     par::ParametersActor  # Actors must carry with them the parameters they are run with
     something_else::??? # Some actors may want to carry something else with them
     # Inner constructor for the actor starting from `dd` and `par` (we generally refer to `par` as `act.ActorNAME`)
+    # NOTE: Computation should not happen here since in workflows it is normal to instantiate
+    #       an actor once `ActorNAME(dd, act.ActorNAME)` and then call `finalize(step(actor))` several times as needed.
     function ActorNAME(dd::IMAS.dd, par::FUSEparameters__ActorNAME; kw...)
         logging_actor_init(ActorNAME)
         par = par(kw...)
@@ -228,3 +231,76 @@ IJulia.installkernel("Julia tracecompile", "--trace-compile=stderr")
 ```
 
 Then select the `Julia tracecompile` in jupyter-lab
+
+## Running Julia within a Python environment
+
+This can be particularly useful for benchmarking FUSE physics against existing Python routines (eg. in OMFIT)
+
+1. Install `PyCall` in your Julia environment:
+
+   ```
+   export PYTHON="" # Sometimes one needs to empty the PYTHON environmental variable to install PyCall
+   julia -e 'using Pkg; Pkg.add("PyCall"); Pkg.build("PyCall")'
+   ```
+
+   !!! note
+
+       Python and Julia must be compiled for the same architecture.
+       For example, to install Julia x64 in a Apple Silicon MACs:
+
+       ```bash
+       juliaup add release~x64
+       export PYTHON=""
+       julia +release~x64 -e 'using Pkg; Pkg.add("PyCall"); Pkg.build("PyCall")'
+       ```
+
+       You can make this verison your default one with
+
+       ```bash
+       juliaup default release~x64
+       ```
+
+1. Use pip to install the package PyJulia — remember to use the same Python passed to ENV["PYTHON"]:
+
+   ```bash
+   python3 –m pip install julia
+   ```
+
+1. Configure the communication between Julia and Python by running the following in the Python interpreter:
+
+   ```python
+   import julia
+   julia.install()
+   ```
+
+   !!! note
+       If you have more than one Julia version on our system, we could specify it with an argument:
+       ```
+       julia.install(julia="/Users/meneghini/.julia/juliaup/julia-1.8.5+0.x64.apple.darwin14/bin/julia")
+       ```
+
+1. Test the installation running the following in the Python interpreter run:
+
+   ```python
+   from julia import Main
+   Main.eval('[x^2 for x in 0:4]')
+   ```
+
+1. Now, try something more useful:
+
+   ```python
+   from julia.api import Julia
+   Julia(compiled_modules=False)
+   def S(string): # from Python str to Julia Symbol
+       return Main.eval(f"PyCall.pyjlwrap_new({string})")
+
+   from julia import Main, IMAS, FUSE, Logging
+   FUSE.logging(Logging.Info, actors=Logging.Debug);
+
+   ini, act = FUSE.case_parameters(S(":FPP"), version=S(":v1_demount"), init_from=S(":scalars"), STEP=True);
+   dd = FUSE.init(ini, act);
+
+   eqt=dd.equilibrium.time_slice[-1]
+   cp1d=dd.core_profiles.profiles_1d[-1]
+   jFUSE = IMAS.Sauter_neo2021_bootstrap(eqt, cp1d, neo_2021=True)
+   ```
