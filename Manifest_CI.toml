@@ -1128,7 +1128,7 @@ version = "0.1.4"
 
 [[deps.MillerExtendedHarmonic]]
 deps = ["LinearAlgebra", "Optim", "RecipesBase"]
-git-tree-sha1 = "2e2ba1508f2e3eafd3cab16debe71e5bfc7c4d16"
+git-tree-sha1 = "50b5ffc6ab1bd3a6dcc7d8717b7bf9897db9e82a"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"
 uuid = "c82744c2-dc08-461a-8c37-87ab04d0f9b8"
