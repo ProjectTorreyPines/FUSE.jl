@@ -230,7 +230,7 @@ function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, pow
 		println(cost)
 	elseif contains(lowercase(bop.power_cycle_type), "brayton")
 		println("brayton")
-		cost = 360.0 * (power_thermal / 2000.0)^0.8 * (bop.thermal_cycle.thermal_effeciency[1] / 0.6)
+		cost = 360.0 * (power_thermal / 2000.0)^0.8 * (bop.thermal_cycle.thermal_efficiency[1] / 0.6)
 		println(cost)
 	end
 
@@ -335,7 +335,7 @@ function costing_ARIES(dd, par)
 	### Tokamak
 
 	# build layers
-	sys = resize!(cost_direct.system, "name" => "tokamak")
+	tokamak = resize!(cost_direct.system, "name" => "tokamak")
 	for layer in dd.build.layer
 		if layer.fs == Int(_lfs_)
 			continue # avoid double counting of hfs and lfs layers
@@ -344,14 +344,14 @@ function costing_ARIES(dd, par)
 		end
 		c = cost_direct_capital_ARIES(layer, da)
 		if c > 0
-			sub = resize!(sys.subsystem, "name" => replace(layer.name, r"^hfs " => ""))
+			sub = resize!(tokamak.subsystem, "name" => replace(layer.name, r"^hfs " => ""))
 			sub.cost = c
 		end
 	end
 
 	# PF coils
 	for (name, c) in cost_direct_capital_ARIES(dd.pf_active, da)
-		sub = resize!(sys.subsystem, "name" => name)
+		sub = resize!(tokamak.subsystem, "name" => name)
 		sub.cost = c
 	end
 
@@ -359,7 +359,7 @@ function costing_ARIES(dd, par)
 	for hcd in vcat(dd.ec_launchers.beam, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
 		c = cost_direct_capital_ARIES(hcd, da)
 		if c > 0
-			sub = resize!(sys.subsystem, "name" => uppercase(hcd.name))
+			sub = resize!(tokamak.subsystem, "name" => uppercase(hcd.name))
 			sub.cost = c
 		end
 	end
@@ -392,7 +392,7 @@ function costing_ARIES(dd, par)
 		elseif item == :heat_transfer_loop_materials
 			sub.cost = cost_direct_capital_ARIES(item, power_thermal, da)
 		elseif item == :balance_of_plant_equipment
-			sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_generated, da)
+			sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_generated, da, dd)
 		elseif item == :fuel_cycle_rad_handling
 			sub.cost = cost_direct_capital_ARIES(item, power_thermal, power_electric_net, da)
 		else
@@ -412,7 +412,7 @@ function costing_ARIES(dd, par)
 		sub = resize!(sys.subsystem, "name" => string(item))
 		if item == :blanket_replacement
 			blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
-			sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime)
+			sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime, da)
 		else
 			sub.yearly_cost = cost_operations_ARIES(item, da)
 		end
