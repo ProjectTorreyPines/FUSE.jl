@@ -222,10 +222,6 @@ function costing_Sheffield(dd, par)
 
     thermal_flux = 1 # placeholder value for thermal flux on the divertor 
 
-    ##### test availability ###########
-
-    unscheduled_unavailability(10)
-
     ec_power = 0
     if !isempty(dd.ec_launchers.beam)
         for num in length(dd.ec_launchers.beam[:])
@@ -302,7 +298,7 @@ function costing_Sheffield(dd, par)
     total_direct_capital_cost += sub.cost
 
     ##### Facility structures, buildings and site 
-    sys_bld = resize!(cost_direct.system, "name" => "Facility structures, buildings and site")
+    sys_bld = resize!(cost_direct.system, "name" => "Facility")
 
     #balance of plant
     sub = resize!(sys_bld.subsystem, "name" => "balance of plant")
