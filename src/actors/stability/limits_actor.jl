@@ -5,7 +5,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-   model_ids::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models for the limit calculation"; default=[:force_fail])
+   model_ids::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models for the limit calculation"; default=[:default])
 end
 
 mutable struct ActorStabilityLimits <: PlasmaAbstractActor
