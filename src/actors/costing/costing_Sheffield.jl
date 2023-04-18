@@ -317,9 +317,9 @@ function costing_Sheffield(dd, par)
 		sys.yearly_cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
 		total_fuel_cost += sys.yearly_cost
 	else
-		sys = resize!(cost_direct.system, "name" => "blanket")
-		sys.cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
-		total_direct_capital_cost += sys.cost
+		sub = resize!(sys_fi.subsystem, "name" => "blanket")
+		sub.cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
+		total_direct_capital_cost += sub.cost
 	end
 
 	if power_electric_net > 0.0
@@ -327,9 +327,9 @@ function costing_Sheffield(dd, par)
 		sys.yearly_cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
 		total_fuel_cost += sys.yearly_cost
 	else
-		sys = resize!(cost_direct.system, "name" => "divertor")
-		sys.cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
-		total_direct_capital_cost += sys.cost
+		sub = resize!(sys_fi.subsystem, "name" => "divertor")
+		sub.cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
+		total_direct_capital_cost += sub.cost
 	end
 
 	sys = resize!(cost_ops.system, "name" => "aux power")
