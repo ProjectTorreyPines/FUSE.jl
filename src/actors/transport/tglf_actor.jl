@@ -26,8 +26,8 @@ end
 Evaluates the TGLF predicted turbulence
 """
 function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorTGLF(kw...)
-    actor = ActorTGLF(dd, par)
+    par = act.ActorTGLF
+    actor = ActorTGLF(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -78,12 +78,11 @@ end
 
 Writes results to dd.core_transport
 """
-function finalize(actor::ActorTGLF)
+function _finalize(actor::ActorTGLF)
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
-
     model = findfirst(:anomalous, actor.dd.core_transport.model)
     m1d = model.profiles_1d[]
     m1d.electrons.energy.flux = zeros(length(par.rho_transport))

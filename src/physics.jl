@@ -50,7 +50,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            shape_parameters = [height * 0.75, height]
+            centerpost_height = height * 0.75
+            shape_parameters = [centerpost_height, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
@@ -234,7 +235,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
     cost_inside = sum(inpoly)
     if cost_inside > 0
-        @warn "optimize_hape function could not avoid polygon crossings! Perhaps try changing shape?"
+        @warn "optimize_shape function could not avoid polygon crossings! Perhaps try changing shape?"
     end
 
     # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
@@ -302,17 +303,26 @@ end
 double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
-    r_e2 = r_center
-    z_e2 = 0.0
-    ra_e2 = r_end - r_center
-    zb_e2 = height / 2.0
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points)
+end
 
+function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    centerpost_height = abs(centerpost_height)
+    outerpost_height = abs(outerpost_height)
+    height = abs(height)
+
+    # inner
     r_e1 = r_center
     z_e1 = centerpost_height / 2.0
     ra_e1 = r_center - r_start
     zb_e1 = (height - centerpost_height) / 2.0
-
     r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points)
+
+    # outer
+    r_e2 = r_center
+    z_e2 = outerpost_height / 2.0
+    ra_e2 = r_end - r_center
+    zb_e2 = (height - outerpost_height) / 2.0
     r2, z2 = ellipse(ra_e2, zb_e2, float(π / 2), float(0.0), r_e2, z_e2; n_points)
 
     R = [r1[1:end-1]; r2[1:end-1]; r2[end:-1:2]; r1[end:-1:1]; r1[1]]
@@ -325,11 +335,16 @@ end
 
 circle ellipse shape (parametrization of TF coils used in GATM)
 
-Special case of the double ellipse shape
+Special case of the double ellipse shape, where the inner ellipse is actually a circle
 """
 function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
     r_center = r_start + (height - centerpost_height) / 2.0
     return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points)
+end
+
+function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    r_center = r_start + (height - centerpost_height) / 2.0
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, outerpost_height, height; n_points)
 end
 
 """
@@ -566,7 +581,8 @@ function volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvect
     return layer.volume - vol
 end
 
-IMAS.expressions["build.layer[:].volume_no_structures"] =
+# this expressions is added here because volume_no_structures is not a IMAS function
+IMAS.dynamic_expressions["build.layer[:].volume_no_structures"] =
     (; build, layer, _...) -> volume_no_structures(layer, build.structure)
 
 """
@@ -761,7 +777,41 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
     R = [r for (r, z) in RZ]
     Z = [z for (r, z) in RZ]
 
-    R, Z = IMAS.resample_2d_path(R, Z; n_points)
+    # resample boundary after convex_hull in such a way to preserve x-points and add proper curvature in the x-point region
+    if upper_x_point + lower_x_point == 1
+        if upper_x_point
+            R, Z = IMAS.reorder_flux_surface!(R, Z, argmax(Z))
+        else
+            R, Z = IMAS.reorder_flux_surface!(R, Z, argmin(Z))
+        end
+        RR = [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
+        ZZ = [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
+        RR, ZZ = IMAS.resample_2d_path(RR, ZZ; n_points=length(R) * 2)
+        if upper_x_point
+            I = ZZ .< Z[1]
+        else
+            I = ZZ .> Z[1]
+        end
+        R = [R[1]; RR[I]; R[1]]
+        Z = [Z[1]; ZZ[I]; Z[1]]
+    else
+        R, Z = IMAS.reorder_flux_surface!(R, Z, argmax(Z))
+        izmin = argmin(Z)
+        R1, R2 = R[1:izmin], R[izmin:end]
+        Z1, Z2 = Z[1:izmin], Z[izmin:end]
+        ΔZ = (Z1[end] - Z[1])
+        ZZ1 = [Z1[2:end-1] .- ΔZ; Z1[2:end-1]; Z1[2:end-1] .+ ΔZ]
+        RR1 = [-(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]; R1[2:end-1]; -(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]]
+        ZZ2 = [Z2[2:end-1] .+ ΔZ; Z2[2:end-1]; Z2[2:end-1] .- ΔZ]
+        RR2 = [-(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]; R2[2:end-1]; -(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]]
+        RR1, ZZ1 = IMAS.resample_2d_path(RR1, ZZ1; n_points=length(R) * 2)
+        RR2, ZZ2 = IMAS.resample_2d_path(RR2, ZZ2; n_points=length(R) * 2)
+        I1 = (ZZ1 .< Z1[1]) .&& (ZZ1 .> Z1[end])
+        I2 = (ZZ2 .< Z1[1]) .&& (ZZ2 .> Z1[end])
+        R = [R1[1]; RR1[I1]; R1[end]; RR2[I2]; R1[1]]
+        Z = [Z1[1]; ZZ1[I1]; Z1[end]; ZZ2[I2]; Z1[1]]
+    end
+
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
 
     mxhb.RX = RX

@@ -80,7 +80,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.pf_active.technology = coil_technology(:ITER, :PF)
     act.ActorPFcoilsOpt.symmetric = false
 
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
     ini.tf.technology = coil_technology(:ITER, :TF)
 
@@ -90,6 +90,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.requirements.flattop_duration = 1800.0
 
     ini.core_profiles.greenwald_fraction = 0.9
+    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.zeff = 2.0
@@ -102,10 +103,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
 
-    act.ActorTransportSolver.evolve_densities = Dict(
+    act.ActorFluxMatcher.evolve_densities = Dict(
         :Ne        => :match_ne_scale,
         :DT        => :quasi_neutrality,
         :He        => :match_ne_scale,
+        :He_fast => :fixed,
         :electrons => :flux_match)
 
     set_new_base!(ini)

@@ -43,7 +43,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
 
     ini.pf_active.n_oh_coils = 6
@@ -67,6 +67,10 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
 
     # greenwald_fraction is a powerful knob
     ini.core_profiles.greenwald_fraction = 0.9
+    ini.core_profiles.greenwald_fraction_ped = 0.75
+
+    # set κ to 95% of maximum controllable elongation estimate
+    ini.equilibrium.κ = missing
 
     # negative triangularity
     # ini.equilibrium.δ *= -1
@@ -87,10 +91,17 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         # lower ip
         ini.equilibrium.ip = 8.0E6
         # higher density
-        ini.core_profiles.ne_ped = 9.4E19
         ini.core_profiles.greenwald_fraction = 1.26
+        act.ActorPlasmaLimits.greenwald_fraction = 0.0
         # scale confinement to roughly match STEP prediction
         act.ActorTauenn.confinement_factor = 0.9
+    else
+        act.ActorFluxMatcher.evolve_densities = Dict(
+            :Ar => :match_ne_scale,
+            :DT => :quasi_neutrality,
+            :He => :match_ne_scale,
+            :He_fast => :constant,
+            :electrons => :flux_match)
     end
 
     # add wall layer

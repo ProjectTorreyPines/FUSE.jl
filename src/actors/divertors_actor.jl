@@ -24,8 +24,8 @@ Evaluates divertor loading and deposited power
     Stores data in `dd.divertors`
 """
 function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorDivertors(kw...)
-    actor = ActorDivertors(dd, par)
+    par = act.ActorDivertors
+    actor = ActorDivertors(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor

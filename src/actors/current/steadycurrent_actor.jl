@@ -27,8 +27,8 @@ Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_pr
     Stores data in `dd.core_profiles, dd.equilbrium`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorSteadyStateCurrent(kw...)
-    actor = ActorSteadyStateCurrent(dd, par)
+    par = act.ActorSteadyStateCurrent
+    actor = ActorSteadyStateCurrent(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -36,7 +36,10 @@ end
 
 function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
-    IMAS.j_ohmic_steady_state!(dd.equilibrium.time_slice[], dd.core_profiles.profiles_1d[])
+    eqt = dd.equilibrium.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
+    # update j_ohmic (this also restores j_tor, j_total as expressions)
+    IMAS.j_ohmic_steady_state!(eqt, cp1d)
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)

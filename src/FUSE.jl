@@ -1,6 +1,6 @@
-module FUSE
-
 __precompile__(true)
+
+module FUSE
 
 using IMAS
 import Plots
@@ -32,6 +32,7 @@ include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
+include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
 include(joinpath("ddinit", "gasc.jl"))
@@ -65,7 +66,8 @@ include(joinpath("actors", "hcd", "simple_common.jl"))
 include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
-include(joinpath("actors", "hcd", "nbi_simple_actor.jl"))
+include(joinpath("actors", "hcd", "nb_simple_actor.jl"))
+include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal_actor.jl"))
 
@@ -74,8 +76,9 @@ include(joinpath("actors", "divertors_actor.jl"))
 include(joinpath("actors", "transport", "tauenn_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
+include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
+include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
-include(joinpath("actors", "transport", "transport_solver_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))
 include(joinpath("actors", "stability", "limit_models.jl"))

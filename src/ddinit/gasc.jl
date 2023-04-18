@@ -123,7 +123,7 @@ end
 """
     gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
 
-Convert sources (NBI, EC, IC, LH) information in GASC solution to FUSE `ini` and `act` parameters
+Convert sources (NB, EC, IC, LH) information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
     inputs = gasc.inputs["current drive"]

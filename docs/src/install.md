@@ -54,6 +54,10 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
    make IJulia
    ```
 
+   !!! note
+       Run `make IJulia` every time a new julia version is installed.
+       This will setup the single- and multi-thread julia kernels in Jupyter.
+
 1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
 
    ```bash
@@ -72,7 +76,3 @@ this can be resolved by telling Julia to use the git command line interface, via
 ```julia
 export JULIA_PKG_USE_CLI_GIT=true
 ```
-
-## Install TGLF from Fortran source (optional)
-
-

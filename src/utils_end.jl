@@ -9,20 +9,32 @@ import Weave
 Read dd.json/h5 in a folder and extract data from it.
 """
 function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
-    dd, ini, act = load(dir; load_ini=false, load_act=false)
+    dd, ini, act = load(dir; load_ini=false, load_act=false, skip_on_error=true)
     return extract(dd, xtract)
 end
 
 """
-    IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+    IMAS.extract(
+        DD::Vector{<:Union{AbstractString,IMAS.dd}},
+        xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
+        filter_invalid::Symbol=:none)::DataFrames.DataFrame
 
 Extract data from multiple folders or `dd`s and return results in DataFrame format.
 
-Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, or both with `:all`
+Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
 """
-function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary; filter_invalid::Symbol=:none)::DataFrames.DataFrame
+function IMAS.extract(
+    DD::Vector{<:Union{AbstractString,IMAS.dd}},
+    xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
+    filter_invalid::Symbol=:none)::DataFrames.DataFrame
+
+    # test filter_invalid
+    @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
+
     # allocate memory
-    df = DataFrames.DataFrame(extract(DD[1], xtract))
+    tmp = Dict(extract(DD[1], xtract))
+    tmp[:dir] = DD[1]
+    df = DataFrames.DataFrame(tmp)
     for k in 2:length(DD)
         push!(df, df[1, :])
     end
@@ -30,14 +42,17 @@ function IMAS.extract(DD::Vector{<:Union{AbstractString,IMAS.dd}}, xtract::Abstr
     # load the data
     p = ProgressMeter.Progress(length(DD); showspeed=true)
     Threads.@threads for k in eachindex(DD)
-        df[k, :] = Dict(extract(DD[k], xtract))
+        tmp = Dict(extract(DD[k], xtract))
+        tmp[:dir] = DD[k]
+        df[k, :] = tmp
         ProgressMeter.next!(p)
     end
 
     # filter
     if filter_invalid ∈ [:cols, :all]
         # drop columns that have all NaNs
-        visnan(x::Vector) = isnan.(x)
+        isnan_nostring(x::Any) = (typeof(x) <: Number) ? isnan(x) : false
+        visnan(x::Vector) = isnan_nostring.(x)
         df = df[:, .!all.(visnan.(eachcol(df)))]
     end
     if filter_invalid ∈ [:rows, :all]
@@ -135,14 +150,14 @@ function save(
 end
 
 """
-    load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true)
+    load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
 
 Read (dd, ini, act) to dd.json/h5, ini.json, and act.json files.
 
 Returns `missing` for files are not there or if `error.txt` file exists in the folder.
 """
-function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true)
-    if isfile(joinpath(savedir, "error.txt"))
+function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
+    if isfile(joinpath(savedir, "error.txt")) && skip_on_error
         @warn "$savedir simulation errored"
         return missing, missing, missing
     end
@@ -166,59 +181,117 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
 end
 
 """
-    digest(dd::IMAS.dd; terminal_width::Int=136)
+    digest(
+        dd::IMAS.dd;
+        terminal_width::Int=136,
+        line_char::Char='─',
+        section::Int=0)
 
-Provides concise and informative summary of `dd`, including several plots.
+Provides concise and informative summary of `dd`, including several plots
+
+NOTE: `section` is used internally to produce digest PDFs
 """
-function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
+function digest(
+    dd::IMAS.dd;
+    terminal_width::Int=136,
+    line_char::Char='─',
+    section::Int=0)
+
     #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
+    #      also it references ini and act
 
-    IMAS.print_tiled(extract(dd); terminal_width, line_char)
-
-    if !isempty(dd.build.layer)
-        display(dd.build.layer)
+    sec = 1
+    if section ∈ [0, sec]
+        IMAS.print_tiled(extract(dd); terminal_width, line_char)
     end
 
     # equilibrium with build and PFs
-    p = plot(dd.equilibrium, legend=false)
-    if !isempty(dd.build.layer)
-        plot!(p[1], dd.build, legend=false)
+    sec += 1
+    if !isempty(dd.equilibrium.time_slice) && section ∈ [0, sec]
+        println('\u200B')
+        p = plot(dd.equilibrium, legend=false)
+        if !isempty(dd.build.layer)
+            plot!(p[1], dd.build, legend=false)
+        end
+        if !isempty(dd.pf_active.coil)
+            plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+        end
+        display(p)
     end
-    if !isempty(dd.pf_active.coil)
-        plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+
+    # build layers
+    sec += 1
+    if !isempty(dd.build.layer) && section ∈ [0, sec]
+        println('\u200B')
+        display(dd.build.layer)
     end
-    display(p)
 
     # core profiles
-    display(plot(dd.core_profiles, only=1))
-    display(plot(dd.core_profiles, only=2))
-    display(plot(dd.core_profiles, only=3))
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=1))
+    end
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=2))
+    end
+    sec += 1
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_profiles, only=3))
+    end
 
     # core sources
-    display(plot(dd.core_sources, only=1))
-    display(plot(dd.core_sources, only=2))
-    display(plot(dd.core_sources, only=3))
-    display(plot(dd.core_sources, only=4))
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=1))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=2))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=3))
+    end
+    sec += 1
+    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+        println('\u200B')
+        display(plot(dd.core_sources, only=4))
+    end
 
     # neutron wall loading
-    if !isempty(dd.neutronics.time_slice)
+    sec += 1
+    if !isempty(dd.neutronics.time_slice) && section ∈ [0, sec]
+        println('\u200B')
         xlim = extrema(dd.neutronics.first_wall.r)
         xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
         display(plot(dd.neutronics.time_slice[].wall_loading; xlim))
     end
 
     # center stack stresses
-    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh)
+    sec += 1
+    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh) && section ∈ [0, sec]
+        println('\u200B')
         display(plot(dd.solid_mechanics.center_stack.stress))
     end
 
-    # # balance of plant
-    # if !missing(dd.balance_of_plant, :Q_plant)
+    # balance of plant (cannot be plotted right now plotting can only be done when running actor and not from data in dd)
+    # sec += 1
+    # if !missing(dd.balance_of_plant, :Q_plant) && section ∈ [0, sec]
+    # println('\u200B')
     #     display(plot(dd.balance_of_plant))
     # end
 
     # costing
-    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0)
+    sec += 1
+    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0) && section ∈ [0, sec]
+        println('\u200B')
         display(plot(dd.costing.cost_direct_capital))
     end
 
@@ -226,19 +299,28 @@ function digest(dd::IMAS.dd; terminal_width::Int=136, line_char="─")
 end
 
 """
-    digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+    digest(dd::IMAS.dd,
+        title::AbstractString,
+        description::AbstractString="";
+        ini::Union{Nothing,ParametersAllInits}=nothing,
+        act::Union{Nothing,ParametersAllActors}=nothing)
 
 Write digest to PDF in current working directory.
 
 PDF filename is based on title (with `" "` replaced by `"_"`)
 """
-function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString="")
+function digest(dd::IMAS.dd,
+    title::AbstractString,
+    description::AbstractString="";
+    ini::Union{Nothing,ParametersAllInits}=nothing,
+    act::Union{Nothing,ParametersAllActors}=nothing
+)
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)
     try
         filename = redirect_stdout(Base.DevNull()) do
-            with_logger(logger) do
+            filename = with_logger(logger) do
                 Weave.weave(joinpath(@__DIR__, "digest.jmd");
                     mod=@__MODULE__,
                     doctype="md2pdf",
@@ -246,6 +328,8 @@ function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString=
                     out_path=tmpdir,
                     args=Dict(
                         :dd => dd,
+                        :ini => ini,
+                        :act => act,
                         :title => title,
                         :description => description))
             end
@@ -253,8 +337,75 @@ function digest(dd::IMAS.dd, title::AbstractString, description::AbstractString=
         cp(filename, outfilename, force=true)
         return outfilename
     catch e
-        println(tmpdir)
+        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir")
     else
         rm(tmpdir, recursive=true, force=true)
     end
+end
+
+"""
+    categorize_errors(dirs::AbstractVector{<:AbstractString}; show_first_line=false, do_plot=true, extra_error_messages::AbstractDict=Dict())
+
+Looks at the first line of each error.txt file in dirs and categorizes them
+"""
+function categorize_errors(
+    dirs::AbstractVector{<:AbstractString};
+    show_first_line=false,
+    do_plot=true,
+    extra_error_messages::AbstractDict{<:AbstractString,Symbol}=Dict{String,Symbol}()
+)
+    # error counting and error message dict
+    errors = Dict(:other => String[])
+    error_messages = Dict(
+        "EQDSK_COCOS_01.OUT" => :chease,
+        "plasma aspect ratio changed" => :aspect_ratio_change,
+        "Unable to blend the core-pedestal" => :blend_core_ped,
+        "Bad expression" => :bad_expression,
+        "Exceeded limits" => :exceed_lim,
+        "TaskFailedException" => :task_exception,
+	"Could not trace closed flux surface" => :flux_surfaces_A,
+	"Flux surface at ψ=" => :flux_surfaces_B,
+	"stainless_steel.yield_strength" => :CS_stresses,
+	"DomainError with" => :Solovev,
+	"BoundsError: attempt to access" => :flux_surfaces_C)
+    merge!(error_messages, extra_error_messages)
+
+    # go through directories
+    for dir in dirs
+	filename = joinpath([dir, "error.txt"])
+    	if !isfile(filename)
+           continue
+	end
+        first_line = open(filename, "r") do f
+           readline(f)
+        end
+        found = false
+        for (err,cat) in error_messages
+            if occursin(err, first_line)
+                found = true
+                if cat ∉ keys(errors)
+                    errors[cat] = String[]
+                end
+                push!(errors[cat], dir)
+                break
+            end
+        end
+        if !found
+            push!(errors[:other], dir)
+            if show_first_line
+                println(first_line)
+                println(dir)
+                println()
+            end
+        end
+    end
+
+    if do_plot
+        labels = collect(keys(errors))
+        v = collect(map(length,values(errors)))
+	index=sortperm(v)[end:-1:1]
+        display(pie([string(cat) * "  $(length(errors[cat]))" for cat in labels[index]], v[index], legend=:outerright))
+    end
+
+    return errors
 end

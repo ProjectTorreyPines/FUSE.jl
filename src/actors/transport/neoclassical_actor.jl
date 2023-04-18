@@ -23,8 +23,8 @@ end
 Evaluates the neoclassical transport fluxes
 """
 function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorNeoclassical(kw...)
-    actor = ActorNeoclassical(dd, par)
+    par = act.ActorNeoclassical
+    actor = ActorNeoclassical(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -65,7 +65,7 @@ end
 
 Writes ActorNeoclassical results to dd.core_transport
 """
-function finalize(actor::ActorNeoclassical)
+function _finalize(actor::ActorNeoclassical)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
