@@ -59,6 +59,7 @@ end
 """
 function _finalize(actor::ActorStability)
     finalize(actor.stab_actor)
+    actor.dd.stability.all_cleared
     return actor
 end
 

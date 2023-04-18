@@ -62,7 +62,9 @@ end
     Finalizes the selected stability actor
 """
 function _finalize(actor::ActorStabilityLimits)
-    # put a sort here by index
+    sort!(actor.dd.stability.collection, by=x -> x.identifier.index)
+    sort!(actor.dd.stability.model, by=x -> x.identifier.index)
+    #actor.dd.stability.model[].cleared
     return actor
 end
 
