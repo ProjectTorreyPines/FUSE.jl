@@ -44,7 +44,11 @@ function _step(actor::ActorStabilityLimits)
 
     for model_id in par.model_ids
         model_index = IMAS.name_2_index(dd.stability.model)[model_id]
-        model = resize!(dd.stability.model, "identifier.index" => model_index)
+        if model_index < 100
+            model = resize!(dd.stability.collection, "identifier.index" => model_index)
+        else
+            model = resize!(dd.stability.model, "identifier.index" => model_index)
+        end
         limit_models[model_index](dd, par, model)
     end    
 

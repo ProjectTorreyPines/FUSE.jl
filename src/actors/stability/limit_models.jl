@@ -1,56 +1,32 @@
-##### QUESTIONS #####
-# 1) Putting the models in a constant Dictionary of functions
-#    > should match the constant dataset
-#    > Is there a better way to link them? 
-#    > something more automatic?
-# 2) Add actual links to references in the docstring?
-#    > How to do this? 
-#    > Can we clone the docstring to the id.description?
-# 3) Best way to implement collections?
-#    > Just run all the model functions?
-#    >>> This wouldn't do the `dd` correctly
-#    > Run new actors for each? 
-# 4) Best way to handle inputs to keep compatability with function Dict?
-#    > new mutable struct? function params? 
+##### SPECIAL CASES #####
+
+function force_fail(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::IMAS.stability__model) 
+    error(raw"¯\_(ツ)_/¯") #I'll change this eventually
+end
 
 ##### MODEL COLLECTIONS #####
-function force_fail(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::IMAS.stability__model) 
-    error(raw"¯\_(ツ)_/¯")
-end
 
-function default(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::IMAS.stability__model)
-    #error("Not implemented")
+function default(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::IMAS.stability__collection)
+    model.identifier.name = "Default"
+    model.identifier.description = "Uses the default set of models"
+
     logging(Logging.Error, :actors, "ActorStabilityLimits: default model may not be sufficent check on stability.")
+
+    par.model_ids = [:troyon_1984]
+    step(ActorStabilityLimits(dd, par))
+
 end
 
-function collection_cleared()
-    all_cleared = Vector{Int64}([])
-    for (time_index, time) in enumerate(stability.time)
-        cleared = []
-        for model in stability.model
-            append!(cleared, model.cleared[time_index])
-        end
-        append!(all_cleared,prod(cleared))
-    end
-    stability.all_cleared = all_cleared
-end
-
-
-##### BETA LIMIT MODELS #####
-
-function beta_limits(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::IMAS.stability__model)
+function beta_limits(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::IMAS.stability__collection)
     model.identifier.name = "Beta Limits"
     model.identifier.description = "Checks all beta limits models"
-    
-    println(model)
 
     par.model_ids = [:troyon_1984, :troyon_1985]
     step(ActorStabilityLimits(dd, par))
 
-    
-
-
 end
+
+##### BETA LIMIT MODELS #####
 
 """
     beta_troyon_1984(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::IMAS.stability__model)
@@ -91,19 +67,40 @@ function beta_troyon_1985(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits
     @ddtime(model.fraction = model_value / target_value)
 end
 
+##### MAPPING DICTIONARY #####
+# Is there a better way to do this? 
 
 const limit_models = Dict(
     0 => force_fail,
     1 => default,
-    100 => beta_limits,
+    11 => beta_limits,
     101 => beta_troyon_1984,
     102 => beta_troyon_1985
 )
 
 
+
+
+##### QUESTIONS #####
+# 1) Putting the models in a constant Dictionary of functions
+#    > should match the constant dataset
+#    > Is there a better way to link them? 
+#    > something more automatic?
+# 2) Add actual links to references in the docstring?
+#    > How to do this? 
+#    > Can we clone the docstring to the id.description?
+# 3) Best way to implement collections?
+#    > Just run all the model functions?
+#    >>> Changed `dd` to make this work better
+#    > Run new actors for each? 
+# 4) Best way to handle inputs to keep compatability with function Dict?
+#    > new mutable struct? function params? 
+
+
+
+##### NEED TO CLEAN UP THESE
+ 
 ### Everything below has par::LimFUSE instead of just FUSE?
-
-
 
 # """
 #     beta_tuda1985(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, lim::IMAS.stability__model)
