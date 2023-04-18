@@ -12,7 +12,7 @@ function default(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::
 
     logging(Logging.Error, :actors, "ActorStabilityLimits: default model may not be sufficent check on stability.")
 
-    par.model_ids = [:troyon_1984]
+    par.model_ids = [:troyon_1984, :model_201, :model_301, :model_401]
     step(ActorStabilityLimits(dd, par))
 end
 
@@ -181,6 +181,19 @@ function model_301(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model
 end
 
 
+##### SHAPE LIMIT MODELS #####
+
+function model_401(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits, model::IMAS.stability__model)
+    model.identifier.name = "Standard elongation limit"
+    model.identifier.description = "elongation < IMAS.elongation_limit"
+
+    eqt = dd.equilibrium.time_slice[]
+    model_value = dd.equilibrium.time_slice[].boundary.elongation
+    target_value = IMAS.elongation_limit(eqt)
+
+    @ddtime(model.fraction = model_value / target_value)
+
+end
 
 ##### MAPPING DICTIONARY #####
 # Is there a better way to do this? 
@@ -197,7 +210,8 @@ const limit_models = Dict(
     104 => beta_bernard_1983,
     105 => model_105,
     201 => model_201,
-    301 => model_301
+    301 => model_301,
+    401 => model_401
 )
 
 
