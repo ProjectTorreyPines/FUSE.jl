@@ -11,6 +11,11 @@ end
 mutable struct ActorStabilityLimits <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorStabilityLimits
+    function ActorStabilityLimits(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits; kw...)
+        logging_actor_init(ActorStabilityLimits)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 """
@@ -24,13 +29,6 @@ function ActorStabilityLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorStabilityLimits(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits; kw...)
-    logging_actor_init(ActorStabilityLimits)
-    par = par(kw...)
-    @ddtime(dd.stability.time = dd.global_time)
-    return ActorStabilityLimits(dd, par)
 end
 
 """
