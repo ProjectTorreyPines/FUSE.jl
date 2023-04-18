@@ -42,14 +42,15 @@ function _step(actor::ActorStabilityLimits)
     dd = actor.dd
     par = actor.par
 
-    for model_id in par.model_ids
-        model_index = IMAS.name_2_index(dd.stability.model)[model_id]
-        if model_index < 100
-            model = resize!(dd.stability.collection, "identifier.index" => model_index)
+    # IS `item` CORRECT? WHAT TO CALL IT?
+    for item_id in par.model_ids
+        item_index = IMAS.name_2_index(dd.stability.model)[item_id]
+        if item_index < 100
+            item = resize!(dd.stability.collection, "identifier.index" => item_index)
         else
-            model = resize!(dd.stability.model, "identifier.index" => model_index)
+            item = resize!(dd.stability.model, "identifier.index" => item_index)
         end
-        limit_models[model_index](dd, par, model)
+        limit_models[item_index](dd, par, item)
     end    
 
     return actor
