@@ -80,7 +80,6 @@ include(joinpath("actors", "transport", "transport_solver_actor.jl"))
 include(joinpath("actors", "stability", "limits_actor.jl"))
 include(joinpath("actors", "stability", "limit_models.jl"))
 include(joinpath("actors", "stability", "stability_actor.jl"))
-include(joinpath("actors", "limits_actor.jl"))
 
 include(joinpath("actors", "balance_plant", "heat_transfer_actor.jl"))
 include(joinpath("actors", "balance_plant", "thermal_cycle_actor.jl"))
