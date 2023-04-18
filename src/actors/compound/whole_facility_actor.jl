@@ -12,7 +12,7 @@ mutable struct ActorWholeFacility <: FacilityAbstractActor
     par::FUSEparameters__ActorWholeFacility
     act::ParametersAllActors
     EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport}
-    PlasmaLimits::Union{Nothing,ActorPlasmaLimits}
+    Stability::Union{Nothing,ActorStability}
     HFSsizing::Union{Nothing,ActorHFSsizing}
     LFSsizing::Union{Nothing,ActorLFSsizing}
     CXbuild::Union{Nothing,ActorCXbuild}
@@ -30,7 +30,7 @@ end
 
 Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
 * ActorEquilibriumTransport
-* ActorPlasmaLimits
+* ActorStability
 * ActorHFSsizing
 * ActorLFSsizing
 * ActorCXbuild
@@ -79,7 +79,7 @@ function _step(actor::ActorWholeFacility)
 
     if par.update_plasma
         actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
-        actor.PlasmaLimits == ActorPlasmaLimits(dd, act)
+        actor.Stability == ActorStability(dd, act)
     end
     actor.HFSsizing = ActorHFSsizing(dd, act)
     actor.LFSsizing = ActorLFSsizing(dd, act)
