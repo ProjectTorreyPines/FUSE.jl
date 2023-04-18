@@ -5,7 +5,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-   model_ids::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models for the limit calculation"; default=[:default])
+    models::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models for the limit calculation"; default=[:default])
 end
 
 mutable struct ActorStabilityLimits <: PlasmaAbstractActor
@@ -24,7 +24,7 @@ ActorStabilityLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
 Runs all the limit actors. 
 """
 function ActorStabilityLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorStabilityLimits(kw...)
+    par = act.ActorStabilityLimits
     actor = ActorStabilityLimits(dd, par)
     step(actor)
     finalize(actor)
@@ -32,44 +32,23 @@ function ActorStabilityLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 """
-    step(actor::ActorStabilityLimits)
+    _step(actor::ActorStabilityLimits)
 
 Runs through the selected stability actor's step
 """
 function _step(actor::ActorStabilityLimits)
     dd = actor.dd
     par = actor.par
-
-    # IS `item` CORRECT? WHAT TO CALL IT?
-    for item_id in par.model_ids
-        item_index = IMAS.name_2_index(dd.stability.model)[item_id]
-        if item_index < 100
-            item = resize!(dd.stability.collection, "identifier.index" => item_index)
-        else
-            item = resize!(dd.stability.model, "identifier.index" => item_index)
-        end
-        limit_models[item_index](dd, par, item)
-    end    
-
-    return actor
+    run_stability_models(dd, par.models)
 end
 
 """
-    finalize(actor::ActorStabilityLimits)
+    _finalize(actor::ActorStabilityLimits)
 
-    Finalizes the selected stability actor
+Finalizes the selected stability actor
 """
 function _finalize(actor::ActorStabilityLimits)
     sort!(actor.dd.stability.collection, by=x -> x.identifier.index)
     sort!(actor.dd.stability.model, by=x -> x.identifier.index)
-    #actor.dd.stability.model[].cleared
     return actor
 end
-
-
-
-
-
-#######################################################
-
-
