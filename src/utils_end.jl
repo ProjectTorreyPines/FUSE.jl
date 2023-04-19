@@ -48,8 +48,10 @@ function IMAS.extract(
 
     # to dataframe
     df = DataFrames.DataFrame(all_extracts[1])
-    for k in 2:length(DD)
-        push!(df, pop!(all_extracts, k))
+    for k in 1:length(DD)
+        if k in keys(all_extracts)
+            push!(df, pop!(all_extracts, k))
+        end
     end
 
     # filter
@@ -365,28 +367,32 @@ function categorize_errors(
         "plasma aspect ratio changed" => :aspect_ratio_change,
         "Unable to blend the core-pedestal" => :blend_core_ped,
         "Bad expression" => :bad_expression,
-        "Exceeded limits" => :exceed_lim,
+        "Exceeded limits" => :exceed_lim_A,
+        "Some stability models have breached their limit threshold:" => :exceed_lim_B,
         "TaskFailedException" => :task_exception,
-	"Could not trace closed flux surface" => :flux_surfaces_A,
-	"Flux surface at ψ=" => :flux_surfaces_B,
-	"stainless_steel.yield_strength" => :CS_stresses,
-	"DomainError with" => :Solovev,
-	"BoundsError: attempt to access" => :flux_surfaces_C)
+        "Could not trace closed flux surface" => :flux_surfaces_A,
+        "Flux surface at ψ=" => :flux_surfaces_B,
+        "stainless_steel.yield_strength" => :CS_stresses,
+        "DomainError with" => :Solovev,
+        "BoundsError: attempt to access" => :flux_surfaces_C)
     merge!(error_messages, extra_error_messages)
 
     # go through directories
     for dir in dirs
-	filename = joinpath([dir, "error.txt"])
-    	if !isfile(filename)
+        filename = joinpath([dir, "error.txt"])
+        if !isfile(filename)
            continue
-	end
-        first_line = open(filename, "r") do f
-           readline(f)
+        end
+        first_line,second_line = open(filename, "r") do f
+           (readline(f),readline(f))
         end
         found = false
         for (err,cat) in error_messages
             if occursin(err, first_line)
                 found = true
+                if cat == :exceed_lim_B
+                    cat = Symbol(second_line)
+                end
                 if cat ∉ keys(errors)
                     errors[cat] = String[]
                 end
@@ -398,6 +404,7 @@ function categorize_errors(
             push!(errors[:other], dir)
             if show_first_line
                 println(first_line)
+                println(second_line)
                 println(dir)
                 println()
             end
@@ -407,8 +414,8 @@ function categorize_errors(
     if do_plot
         labels = collect(keys(errors))
         v = collect(map(length,values(errors)))
-	index=sortperm(v)[end:-1:1]
-        display(pie([string(cat) * "  $(length(errors[cat]))" for cat in labels[index]], v[index], legend=:outerright))
+        index = sortperm(v)[end:-1:1]
+        display(pie(["$(rpad(string(length(errors[cat])),8))   $(string(cat))" for cat in labels[index]], v[index], legend=:outerright))
     end
 
     return errors
