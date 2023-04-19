@@ -1,9 +1,3 @@
-##### SPECIAL CASES #####
-
-function force_fail(dd::IMAS.dd, model::IMAS.stability__model)
-    error(raw"¯\_(ツ)_/¯") #I'll change this eventually
-end
-
 function run_stability_models(dd::IMAS.dd, model_name::Symbol)
     return run_stability_models(dd, [model_name])
 end
@@ -14,7 +8,14 @@ function run_stability_models(dd::IMAS.dd, model_names::Vector{Symbol})
     end
 end
 
+##### SPECIAL CASES #####
+
+function force_fail(dd::IMAS.dd, model::IMAS.stability__model)
+    error(raw"¯\_(ツ)_/¯") #I'll change this eventually
+end
+
 ##### MODEL COLLECTIONS #####
+
 function default_limits(dd::IMAS.dd)
     collection = resize!(dd.stability.collection, :default_limits)
     collection.identifier.name = "Default Limits"
