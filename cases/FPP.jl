@@ -92,7 +92,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         ini.equilibrium.ip = 8.0E6
         # higher density
         ini.core_profiles.greenwald_fraction = 1.26
-        act.ActorPlasmaLimits.greenwald_fraction = 0.0
+        act.ActorStabilityLimits.models = [:beta_troyon_1984, :model_201, :model_401]
         # scale confinement to roughly match STEP prediction
         act.ActorTauenn.confinement_factor = 0.9
     else
