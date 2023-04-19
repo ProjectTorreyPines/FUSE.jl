@@ -12,7 +12,7 @@ mutable struct ActorWholeFacility <: FacilityAbstractActor
     par::FUSEparameters__ActorWholeFacility
     act::ParametersAllActors
     EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport}
-    Stability::Union{Nothing,ActorStability}
+    StabilityLimits::Union{Nothing,ActorStabilityLimits}
     HFSsizing::Union{Nothing,ActorHFSsizing}
     LFSsizing::Union{Nothing,ActorLFSsizing}
     CXbuild::Union{Nothing,ActorCXbuild}
@@ -34,7 +34,7 @@ Compound actor that runs all the physics, engineering and costing actors needed 
     * ActorHCD
     * ActorCoreTransport
     * ActorEquilibrium
-* ActorStability
+* ActorStabilityLimits
 * ActorHFSsizing
 * ActorLFSsizing
 * ActorCXbuild
@@ -82,7 +82,7 @@ function _step(actor::ActorWholeFacility)
     act = actor.act
     if par.update_plasma
         actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
-        actor.Stability == ActorStability(dd, act)
+        actor.StabilityLimits == ActorStabilityLimits(dd, act)
     end
     actor.HFSsizing = ActorHFSsizing(dd, act)
     actor.LFSsizing = ActorLFSsizing(dd, act)
