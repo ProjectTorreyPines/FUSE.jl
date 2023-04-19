@@ -35,7 +35,8 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
         try
             s_actor = _step(actor, args...; kw...)
             @assert s_actor === actor "`$(typeof(T))._step(actor)` should return the same actor that is input to the function"
-        catch
+        catch e
+            rethrow(e)
         finally
             exit_workflow(actor)
         end
