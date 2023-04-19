@@ -31,21 +31,25 @@ function IMAS.extract(
     # test filter_invalid
     @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
 
-    # allocate memory
-    tmp = Dict(extract(DD[1], xtract))
-    tmp[:dir] = DD[1]
-    df = DataFrames.DataFrame(tmp)
-    for k in 2:length(DD)
-        push!(df, df[1, :])
-    end
-
     # load the data
     p = ProgressMeter.Progress(length(DD); showspeed=true)
+    all_extracts = Dict()
     Threads.@threads for k in eachindex(DD)
-        tmp = Dict(extract(DD[k], xtract))
-        tmp[:dir] = DD[k]
-        df[k, :] = tmp
+        try
+            tmp = Dict(extract(DD[k], xtract))
+            tmp[:dir] = DD[k]
+            all_extracts[k] = tmp
+        catch
+            continue
+        end
         ProgressMeter.next!(p)
+    end
+    ProgressMeter.finish!(p)
+
+    # to dataframe
+    df = DataFrames.DataFrame(all_extracts[1])
+    for k in 2:length(DD)
+        push!(df, pop!(all_extracts, k))
     end
 
     # filter
