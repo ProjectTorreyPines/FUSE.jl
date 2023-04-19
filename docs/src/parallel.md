@@ -74,5 +74,11 @@ Distributed.addprocs(ClusterManagers.SlurmManager(np), exclusive="", topology=:m
    mamba install -c conda-forge gfortran
    git clone https://gitlab.epfl.ch/spc/chease.git
    cd chease/src-f90
-   make
+   make chease
+   ```
+
+   or simply setup your enviornment this way:
+
+   ```
+   export PATH=$PATH:/mnt/beegfs/users/meneghini/chease/src-f90
    ```
