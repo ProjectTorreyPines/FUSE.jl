@@ -66,6 +66,19 @@ Distributed.addprocs(ClusterManagers.SlurmManager(np), exclusive="", topology=:m
 3. install `mamba` for faster package management, and then the rest
    ```
    conda install -c conda-forge mamba
-   mamba install -c conda-forge gfortran # to compile CHEASE
    mamba install -c conda-forge jupyterlab
+   ```
+
+4. install CHEASE (optional)
+   ```
+   mamba install -c conda-forge gfortran
+   git clone https://gitlab.epfl.ch/spc/chease.git
+   cd chease/src-f90
+   make chease
+   ```
+
+   or simply setup your enviornment this way:
+
+   ```
+   export PATH=$PATH:/mnt/beegfs/users/meneghini/chease/src-f90
    ```
