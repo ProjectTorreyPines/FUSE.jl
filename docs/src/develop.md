@@ -50,11 +50,10 @@ function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
     end
     ion_to_electron_fraction = sivukhin_fraction(cp1d, 3.5e6, 4.0)
 
-    index = name_2_index(cs.source)[:fusion]
-    source = resize!(cs.source, "identifier.index" => index; allow_multiple_matches=true)
+    source = resize!(cs.source, :fusion; allow_multiple_matches=true)
     new_source(
         source,
-        index,
+        source.identifier.index,
         "α",
         cp1d.grid.rho_tor_norm,
         cp1d.grid.volume,

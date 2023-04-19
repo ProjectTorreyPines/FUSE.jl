@@ -44,7 +44,6 @@ function _step(actor::ActorStabilityLimits)
     run_stability_models(dd, par.models)
 
     if par.raise_on_breach
-        println(par.raise_on_breach)
         failed = String[]
         time_index = findfirst(dd.stability.time .== @ddtime(dd.stability.time))
         for model in dd.stability.model

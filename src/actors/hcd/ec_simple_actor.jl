@@ -66,12 +66,11 @@ function _step(actor::ActorECsimple)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        source_index = IMAS.name_2_index(cs.source)[:ec]
-        source = resize!(cs.source, "identifier.index" => source_index; allow_multiple_matches=true)
+        source = resize!(cs.source, :ec; allow_multiple_matches=true)
         gaussian_source(
             source,
             ecl.name,
-            source_index,
+            source.identifier.index,
             rho_cp,
             volume_cp,
             area_cp,
