@@ -43,8 +43,7 @@ Runs ActorNeoclassical to evaluate the neoclassical transport flux on a vector o
 function _step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
-    neoclassical_index = IMAS.name_2_index(dd.core_transport.model)[:neoclassical]
-    model = resize!(dd.core_transport.model, "identifier.index" => neoclassical_index)
+    model = resize!(dd.core_transport.model, :neoclassical)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 

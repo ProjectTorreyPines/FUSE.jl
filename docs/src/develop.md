@@ -50,11 +50,10 @@ function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
     end
     ion_to_electron_fraction = sivukhin_fraction(cp1d, 3.5e6, 4.0)
 
-    index = name_2_index(cs.source)[:fusion]
-    source = resize!(cs.source, "identifier.index" => index; allow_multiple_matches=true)
+    source = resize!(cs.source, :fusion; allow_multiple_matches=true)
     new_source(
         source,
-        index,
+        source.identifier.index,
         "α",
         cp1d.grid.rho_tor_norm,
         cp1d.grid.volume,
@@ -92,10 +91,21 @@ The definition of each FUSE actor follows a well defined pattern.
 **DO NOT** deviate from this pattern. This is important to ensure modularity and compostability of the actors.
 
 ```julia
+# Definition of the `act` parameters relevant to the actor
+# NOTE: To create a `ActorNAME` in `act` you'll have to add these to the FUSE/src/parameters_actors.jl file
+Base.@kwdef mutable struct FUSEparameters__ActorNAME{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    length::Entry{T} = Entry(T, "m", "Some decription") # it's ok not to have a default, it forces users to think about what a parameter should be
+    verbose::Entry{Bool} = Entry(Bool, "", "Some other decription"; default=true)
+    switch::Switch{Symbol} = Switch(Symbol, [:option_a, :option_b], "", "user can only select one of these"; default=:option_a)
+end
+
 # Defintion of the actor structure
+# NOTE: To be valid all actors must have `dd::IMAS.dd` and `par::FUSEparameters__ActorNAME`
 mutable struct ActorNAME <: ???AbstractActor
     dd::IMAS.dd
-    par::ParametersActor  # Actors must carry with them the parameters they are run with
+    par::FUSEparameters__ActorNAME  # Actors must carry with them the parameters they are run with
     something_else::??? # Some actors may want to carry something else with them
     # Inner constructor for the actor starting from `dd` and `par` (we generally refer to `par` as `act.ActorNAME`)
     # NOTE: Computation should not happen here since in workflows it is normal to instantiate
@@ -105,16 +115,6 @@ mutable struct ActorNAME <: ???AbstractActor
         par = par(kw...)
         return new(dd, par, something_else)
     end
-end
-
-# Definition of the `act` parameters relevant to the actor
-# NOTE: To create a `ActorNAME` in `act` you'll have to add these to the FUSE/src/parameters_actors.jl file
-Base.@kwdef mutable struct FUSEparameters__ActorNAME{T} <: ParametersActor where {T<:Real}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    length::Entry{T} = Entry(T, "m", "Some decription") # it's ok not to have a default, it forces users to think about what a parameter should be
-    verbose::Entry{Bool} = Entry(Bool, "", "Some other decription"; default=true)
-    switch::Switch{Symbol} = Switch(Symbol, [:option_a, :option_b], "", "user can only select one of these"; default=:option_a)
 end
 
 # Constructor with with `dd` and `act` as arguments will actually run the actor!

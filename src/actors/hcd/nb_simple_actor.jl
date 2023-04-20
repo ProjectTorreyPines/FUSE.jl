@@ -71,12 +71,11 @@ function _step(actor::ActorNBsimple)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        source_index = IMAS.name_2_index(cs.source)[:nbi]
-        source = resize!(cs.source, "identifier.index" => source_index; allow_multiple_matches=true)
+        source = resize!(cs.source, :nbi; allow_multiple_matches=true)
         gaussian_source(
             source,
             nbu.name,
-            source_index,
+            source.identifier.index,
             rho_cp,
             volume_cp,
             area_cp,
