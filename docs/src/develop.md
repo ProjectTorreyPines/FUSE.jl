@@ -203,6 +203,9 @@ FUSE uses the following VSCode settings for formatting the Julia code:
 {
     "files.autoSave": "onFocusChange",
     "workbench.tree.indent": 24,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": false,
     "[julia]": {
         "editor.defaultFormatter": "singularitti.vscode-julia-formatter"
     },
