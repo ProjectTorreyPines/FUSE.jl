@@ -1,3 +1,5 @@
+import Dates 
+
 #= ================== =#
 #  Dispatch on symbol  #
 #= ================== =#
@@ -144,7 +146,7 @@ end
 
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
 function cost_fuel_Sheffield(::Type{Val{:blanket}}, fixed_charge_rate::Real, initial_cost_blanket::Real, availability::Real, lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
-    da.year_assessed = 2023 # assume the user will give you the initial cost of the blanket in dollars of their present year 
+    da.year_assessed = Dates.year(Dates.now()) # assume the user will give you the initial cost of the blanket in dollars of their present year 
     #if electric power is generated then add in the blanket replacement cost; if it's not, just return the blanket capital cost
     blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
     blanket_replacement_cost = ((availability * lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / lifetime #blanket fluence lifetime in MW*yr/m^2
@@ -160,7 +162,7 @@ end
 
 #Equation 24
 function cost_fuel_Sheffield(::Type{Val{:divertor}}, fixed_charge_rate::Real, initial_cost_divertor::Real, availability::Real, lifetime::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
-    da.year_assessed = 2023
+    da.year_assessed = Dates.year(Dates.now())
 
     divertor_capital_cost = 1.1 * initial_cost_divertor * fixed_charge_rate
     divertor_replacement_cost = (availability * lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / lifetime #divertor_lifetime is fluence lifetime so in MW*yr/m^2
@@ -204,7 +206,7 @@ function costing_Sheffield(dd, par)
 
     bd = dd.build
 
-    da = DollarAdjust()
+    da = DollarAdjust(par)
 
     fixed_charge_rate = par.fixed_charge_rate
     availability = par.availability
@@ -215,13 +217,7 @@ function costing_Sheffield(dd, par)
     blanket_fluence_lifetime = par.blanket_fluence_lifetime
     construction_lead_time = par.construction_lead_time
 
-    da.inflate_to_start_year = par.inflate_to_start_year
-    da.future_inflation_rate = par.future_inflation_rate
-    da.construction_start_year = par.construction_start_year
-
     thermal_flux = 1 # placeholder value for thermal flux on the divertor 
-
-    println([unscheduled_unavailability(false, 10, i) for i in range(30, 40)])
 
     ec_power = 0
     if !isempty(dd.ec_launchers.beam)

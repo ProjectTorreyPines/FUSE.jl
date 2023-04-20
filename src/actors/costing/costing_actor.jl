@@ -1,15 +1,59 @@
 using CSV
 using DataFrames
 
-Base.@kwdef mutable struct DollarAdjust
-    year::Union{Missing,Int} = missing
-    future_inflation_rate::Union{Missing,Real} = missing 
-    construction_start_year::Union{Missing,Int} = missing 
-    inflate_to_start_year::Union{Missing,Bool} = missing 
-    year_assessed::Union{Missing,Int} = missing 
+#= ============ =#
+#  ActorCosting  #
+#= ============ =#
+Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
+    construction_start_year::Entry{T} = Entry(T, "-", "Year that plant construction begins"; default=2030)
+    construction_lead_time::Entry{T} = Entry(T, "years", "Duration of construction"; default=8)
+    inflate_to_start_year::Entry{Bool} = Entry(Bool, "-", "Return costs in dollars inflated to year that construction begins"; default = false)
+    future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
+    land_space::Entry{T} = Entry(T, "acres", "Plant site space required in acres"; default=1000.0)
+    building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default=140.0e3)
+    interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default=0.05)
+    fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default=0.078)
+    indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4) 
+    lifetime::Entry{Int} = Entry(Int, "years", "lifetime of the plant"; default=40)
+    availability::Entry{T} = Entry(T, "-", "availability fraction of the plant"; default=0.803)
+    escalation_fraction::Entry{T} = Entry(T, "-", "yearly escalation fraction based on risk assessment"; default=0.05)
+    blanket_lifetime::Entry{T} = Entry(T, "years", "lifetime of the blanket"; default=6.8)
+    initial_cost_blanket::Entry{T} = Entry(T, "millions of dollars", "cost of initial blanket"; default=200)
+    initial_cost_divertor::Entry{T} = Entry(T, "millions of dollars", "cost of initial divertor"; default=8)
+    divertor_fluence_lifetime::Entry{T} = Entry(T, "MW/yr*m^2", "divertor fluence lifetime"; default=10)
+    blanket_fluence_lifetime::Entry{T} = Entry(T, "MW/yr*m^2", "blanket fluence lifetime"; default=15)
 end
 
-# function future_dollars(inflate_to_start_year::Bool, construction_start_year::Real, future_inflation_rate::Real, dollars::Real)
+mutable struct ActorCosting <: FacilityAbstractActor
+    dd::IMAS.dd
+    par::FUSEparameters__ActorCosting
+    function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting; kw...)
+        logging_actor_init(ActorCosting)
+        par = par(kw...)
+        return new(dd, par)
+    end
+end
+
+
+#= ==================== =#
+#  Inflation Adjustment  #
+#= ==================== =#
+
+mutable struct DollarAdjust
+    future_inflation_rate::Real 
+    construction_start_year::Int
+    inflate_to_start_year::Bool 
+    year_assessed::Union{Missing,Int}
+    year::Union{Missing,Int}
+end
+
+function DollarAdjust(par::FUSEparameters__ActorCosting)
+    return DollarAdjust(par.future_inflation_rate, par.construction_start_year, par.inflate_to_start_year, missing, missing)
+end 
+
 function future_dollars(dollars::Real, da::DollarAdjust)
     csv_loc = abspath(joinpath(@__DIR__, "../../../../IMAS/data/CPI.csv"))
     CPI = DataFrame(CSV.File(csv_loc))
@@ -41,44 +85,6 @@ function future_dollars(dollars::Real, da::DollarAdjust)
     da.year_assessed = missing #wipe out year_assessed each time to avoid propogating the wrong year 
 
     return future_val
-end
-
-#= ============ =#
-#  ActorCosting  #
-#= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor where {T<:Real}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
-    construction_start_year::Entry{T} = Entry(T, "-", "Year that plant construction begins"; default=2030)
-    construction_lead_time::Entry{T} = Entry(T, "years", "Duration of construction"; default=8)
-    inflate_to_start_year::Entry{Bool} = Entry(Bool, "-", "Return costs in dollars inflated to year that construction begins"; default = false)
-
-    #dd.costing.generation::Switch(Symbol, [:prototype, :1stofkind, :nthofkind])
-    future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
-    land_space::Entry{T} = Entry(T, "acres", "Plant site space required in acres"; default=1000.0)
-    building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default=140.0e3)
-    interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default=0.05)
-    fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default=0.078)
-    indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4) 
-    lifetime::Entry{Int} = Entry(Int, "years", "lifetime of the plant"; default=40)
-    availability::Entry{T} = Entry(T, "-", "availability fraction of the plant"; default=0.803)
-    escalation_fraction::Entry{T} = Entry(T, "-", "yearly escalation fraction based on risk assessment"; default=0.05)
-    blanket_lifetime::Entry{T} = Entry(T, "years", "lifetime of the blanket"; default=6.8)
-    initial_cost_blanket::Entry{T} = Entry(T, "millions of dollars", "cost of initial blanket"; default=200)
-    initial_cost_divertor::Entry{T} = Entry(T, "millions of dollars", "cost of initial divertor"; default=8)
-    divertor_fluence_lifetime::Entry{T} = Entry(T, "MW/yr*m^2", "divertor fluence lifetime"; default=10)
-    blanket_fluence_lifetime::Entry{T} = Entry(T, "MW/yr*m^2", "blanket fluence lifetime"; default=15)
-end
-
-mutable struct ActorCosting <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorCosting
-    function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting; kw...)
-        logging_actor_init(ActorCosting)
-        par = par(kw...)
-        return new(dd, par)
-    end
 end
 
 """

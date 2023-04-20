@@ -1,3 +1,5 @@
+import Dates 
+
 #= ================== =#
 #  Dispatch on symbol  #
 #= ================== =#
@@ -225,13 +227,9 @@ function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, pow
     bop = dd.balance_of_plant
 
     if contains(lowercase(bop.power_cycle_type), "rankine")
-        println("rankine")
         cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
-        println(cost)
     elseif contains(lowercase(bop.power_cycle_type), "brayton")
-        println("brayton")
         cost = 360.0 * (power_thermal / 2000.0)^0.8 * (bop.thermal_cycle.thermal_efficiency[1] / 0.6)
-        println(cost)
     end
 
 
@@ -296,7 +294,7 @@ end
 Yearly cost for blanket replacement [\$M/year]
 """
 function cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
-    da.year_assessed = 2023   # Assume that the user will give you the cost of the blanket in the dollars of their current year 
+    da.year_assessed = Dates.year(Dates.now())   # Assume that the user will give you the cost of the blanket in the dollars of their current year 
     cost = cost_blanket / blanket_lifetime
     return future_dollars(cost, da)
 end
@@ -324,11 +322,7 @@ function costing_ARIES(dd, par)
     cost_ops = cst.cost_operations
     cost_decom = cst.cost_decommissioning
 
-    da = DollarAdjust()
-
-    da.inflate_to_start_year = par.inflate_to_start_year
-    da.construction_start_year = par.construction_start_year
-    da.future_inflation_rate = par.future_inflation_rate
+    da = DollarAdjust(par)
 
     ###### Direct Capital ######
 
