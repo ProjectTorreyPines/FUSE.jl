@@ -1,82 +1,45 @@
+"""
+    insert_subtype_members T
+
+Expands the subtypes into struct members
+"""
+macro insert_subtype_members(T)
+    expr = Expr(:block)
+    for s in subtypes(eval(T))
+        mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__"=>""))
+        constraint = Symbol(replace(String(Symbol(s)), "FUSE."=>""))
+        push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(constraint), esc(:T))))
+    end
+    expr
+end
+
+"""
+    @insert_constructor_members T
+
+Returns a tuple of all the evaluated cosntructors for the
+subtypes we can then splat into the larger constructor 
+"""
+macro insert_constructor_members(T)
+    expr = Expr(:tuple)
+    for s in subtypes(eval(T))
+        mem = Symbol(replace(String(Symbol(s)), "FUSE."=>""))
+        push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+    end
+    expr
+end
+
+
 mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
     _parent::WeakRef
     _name::Symbol
-    ActorCXbuild::FUSEparameters__ActorCXbuild{T}
-    ActorFluxSwing::FUSEparameters__ActorFluxSwing{T}
-    ActorLFSsizing::FUSEparameters__ActorLFSsizing{T}
-    ActorHFSsizing::FUSEparameters__ActorHFSsizing{T}
-    ActorStresses::FUSEparameters__ActorStresses{T}
-    ActorEquilibrium::FUSEparameters__ActorEquilibrium{T}
-    ActorSolovev::FUSEparameters__ActorSolovev{T}
-    ActorCHEASE::FUSEparameters__ActorCHEASE{T}
-    ActorPFcoilsOpt::FUSEparameters__ActorPFcoilsOpt{T}
-    ActorPassiveStructures::FUSEparameters__ActorPassiveStructures{T}
-    ActorBlanket::FUSEparameters__ActorBlanket{T}
-    ActorBalanceOfPlant::FUSEparameters__ActorBalanceOfPlant{T}
-    ActorPowerNeeds::FUSEparameters__ActorPowerNeeds{T}
-    ActorThermalCycle::FUSEparameters__ActorThermalCycle{T}
-    ActorHeatTransfer::FUSEparameters__ActorHeatTransfer{T}
-    ActorQEDcurrent::FUSEparameters__ActorQEDcurrent{T}
-    ActorSteadyStateCurrent::FUSEparameters__ActorSteadyStateCurrent{T}
-    ActorDivertors::FUSEparameters__ActorDivertors{T}
-    ActorNBsimple::FUSEparameters__ActorNBsimple{T}
-    ActorECsimple::FUSEparameters__ActorECsimple{T}
-    ActorICsimple::FUSEparameters__ActorICsimple{T}
-    ActorLHsimple::FUSEparameters__ActorLHsimple{T}
-    ActorTauenn::FUSEparameters__ActorTauenn{T}
-    ActorCosting::FUSEparameters__ActorCosting{T}
-    ActorNeutronics::FUSEparameters__ActorNeutronics{T}
-    ActorNeoclassical::FUSEparameters__ActorNeoclassical{T}
-    ActorFluxMatcher::FUSEparameters__ActorFluxMatcher{T}
-    ActorCoreTransport::FUSEparameters__ActorCoreTransport{T}
-    ActorFluxCalculator::FUSEparameters__ActorFluxCalculator{T}
-    ActorPedestal::FUSEparameters__ActorPedestal{T}
-    ActorTGLF::FUSEparameters__ActorTGLF{T}
-    ActorEquilibriumTransport::FUSEparameters__ActorEquilibriumTransport{T}
-    ActorWholeFacility::FUSEparameters__ActorWholeFacility{T}
-    ActorStabilityLimits::FUSEparameters__ActorStabilityLimits{T}
-    ActorHCD::FUSEparameters__ActorHCD{T}
+    @insert_subtype_members ParametersActor
 end
 
 function ParametersActors{T}() where {T<:Real}
     act = ParametersActors{T}(
         WeakRef(nothing),
         :act,
-        FUSEparameters__ActorCXbuild{T}(),
-        FUSEparameters__ActorFluxSwing{T}(),
-        FUSEparameters__ActorLFSsizing{T}(),
-        FUSEparameters__ActorHFSsizing{T}(),
-        FUSEparameters__ActorStresses{T}(),
-        FUSEparameters__ActorEquilibrium{T}(),
-        FUSEparameters__ActorSolovev{T}(),
-        FUSEparameters__ActorCHEASE{T}(),
-        FUSEparameters__ActorPFcoilsOpt{T}(),
-        FUSEparameters__ActorPassiveStructures{T}(),
-        FUSEparameters__ActorBlanket{T}(),
-        FUSEparameters__ActorBalanceOfPlant{T}(),
-        FUSEparameters__ActorPowerNeeds{T}(),
-        FUSEparameters__ActorThermalCycle{T}(),
-        FUSEparameters__ActorHeatTransfer{T}(),
-        FUSEparameters__ActorQEDcurrent{T}(),
-        FUSEparameters__ActorSteadyStateCurrent{T}(),
-        FUSEparameters__ActorDivertors{T}(),
-        FUSEparameters__ActorNBsimple{T}(),
-        FUSEparameters__ActorECsimple{T}(),
-        FUSEparameters__ActorICsimple{T}(),
-        FUSEparameters__ActorLHsimple{T}(),
-        FUSEparameters__ActorTauenn{T}(),
-        FUSEparameters__ActorCosting{T}(),
-        FUSEparameters__ActorNeutronics{T}(),
-        FUSEparameters__ActorNeoclassical{T}(),
-        FUSEparameters__ActorFluxMatcher{T}(),
-        FUSEparameters__ActorCoreTransport{T}(),
-        FUSEparameters__ActorFluxCalculator{T}(),
-        FUSEparameters__ActorPedestal{T}(),
-        FUSEparameters__ActorTGLF{T}(),
-        FUSEparameters__ActorEquilibriumTransport{T}(),
-        FUSEparameters__ActorWholeFacility{T}(),
-        FUSEparameters__ActorStabilityLimits{T}(),
-        FUSEparameters__ActorHCD{T}()
+        (@insert_constructor_members ParametersActor)...
     )
     setup_parameters!(act)
     return act
