@@ -59,14 +59,14 @@ end
 
 Limit in normalized beta using Troyon scaling
 
-Model Formulation: Beta_{N} < 3.5
+Model Formulation: βn < 3.5
 
 Citation:  F Troyon et al 1984 Plasma Phys. Control. Fusion 26 209
 """
 function beta_troyon_1984(dd::IMAS.dd)
     model = resize!(dd.stability.model, :beta_troyon_1984)
     model.identifier.name = "Troyon 1984"
-    model.identifier.description = "Beta_{N} < 3.5"
+    model.identifier.description = "βn < 3.5"
 
     beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
     model_value = beta_normal
@@ -80,14 +80,14 @@ end
 
 Limit in normalized beta using classical scaling using combined kink and ballooning stability
 
-Model Formulation: Beta_{N} < 2.8
+Model Formulation: βn < 2.8
 
 Citation: 
 """
 function beta_troyon_1985(dd::IMAS.dd)
     model = resize!(dd.stability.model, :beta_troyon_1985)
     model.identifier.name = "Troyon 1985"
-    model.identifier.description = "Beta_{N} < 2.8"
+    model.identifier.description = "βn < 2.8"
 
     beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
     model_value = beta_normal
@@ -101,14 +101,14 @@ end
 
 Limit in beta_normal using classical scaling using only kink stability
 
-Model Formulation: Beta_{N} < 3.2
+Model Formulation: βn < 3.2
 
 Citation: 
 """
 function beta_tuda_1985(dd::IMAS.dd)
     model = resize!(dd.stability.model, :beta_tuda_1985)
     model.identifier.name = "Tuda 1985"
-    model.identifier.description = "Beta_{N} < 3.2"
+    model.identifier.description = "βn < 3.2"
 
     beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
     model_value = beta_normal
@@ -122,14 +122,14 @@ end
 
 Limit in normalized beta using classical scaling using only ballooning stability
 
-Model Formulation: Beta_{N} < 2.8
+Model Formulation: βn < 2.8
 
 Citation: 
 """
 function beta_bernard_1983(dd::IMAS.dd)
     model = resize!(dd.stability.model, :beta_bernard_1983)
     model.identifier.name = "Bernard 1983"
-    model.identifier.description = "Beta_{N} < 4.4"
+    model.identifier.description = "βn < 4.4"
 
     beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
     model_value = beta_normal
@@ -143,14 +143,14 @@ end
 
 Modern limit in normlaized beta normalized by plasma inductance
 
-Model Formulation: beta_{N} / li < C_{beta}
+Model Formulation: βn / li < C_{beta}
 
 Citation: 
 """
 function model_105(dd::IMAS.dd)
     model = resize!(dd.stability.model, :model_105)
     model.identifier.name = "BetaLi::Troyon"
-    model.identifier.description = "Beta_{N} / Li < 4.0"
+    model.identifier.description = "βn / Li < 4.0"
 
     beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
     plasma_inductance = dd.equilibrium.time_slice[].global_quantities.li_3
