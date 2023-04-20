@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    models::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models used for checking plasma stability limits: [$(join(values(IMAS.index_2_name__stability__collection),", ")), $(join(values(IMAS.index_2_name__stability__model),", "))]"; default=[:default_limits])
+    models::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models used for checking plasma stability limits: $(supported_stability_models())"; default=[:default_limits])
     raise_on_breach::Entry{Bool} = Entry(Bool, "-", "Raise an error when one or more stability limits are breached"; default=true)
 end
 

@@ -1,10 +1,23 @@
+function supported_stability_models()
+    return "[:$(join(values(IMAS.index_2_name__stability__collection),", :")), :$(join(values(IMAS.index_2_name__stability__model),", :"))]"
+end
+
 function run_stability_models(dd::IMAS.dd, model_name::Symbol)
     return run_stability_models(dd, [model_name])
 end
 
 function run_stability_models(dd::IMAS.dd, model_names::Vector{Symbol})
     for model_name in model_names
-        eval(model_name)(dd)
+        func = try
+            eval(model_name)
+        catch e
+            if typeof(e) <: UndefVarError
+                error("Unknown model `$(repr(model_name))`. Supported models are $(supported_stability_models())")
+            else
+                rethrow(e)
+            end
+        end
+        func(dd)
     end
 end
 
@@ -30,7 +43,7 @@ function beta_limits(dd::IMAS.dd)
     collection.identifier.name = "Beta Limits"
     collection.identifier.description = "Checks all beta limit models"
 
-    models = [:beta_troyon_1984, :beta_troyon_1985, :beta_tuda_1985, :beta_bernard_1983, :beta_model_105]
+    models = [:beta_troyon_1984, :beta_troyon_1985, :beta_tuda_1985, :beta_bernard_1983]
     run_stability_models(dd, models)
 end
 
