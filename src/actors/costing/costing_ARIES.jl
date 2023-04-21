@@ -272,7 +272,12 @@ NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electric_generated::Real, da::DollarAdjust)
     da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
-    cost = 80.0 * (power_electric_generated / 1200.0)^0.5
+
+    if power_electric_generated == 0 
+        cost = 80.0 # estimate based on Table 36 in ARIES
+    else 
+        cost = 80.0 * (power_electric_generated / 1200.0)^0.5
+    end
     return future_dollars(cost, da)
 end
 

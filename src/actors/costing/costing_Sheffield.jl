@@ -193,8 +193,12 @@ end
 
 function cost_operations_maintenance_Sheffield(power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = 1983
-    power_electric_net = power_electric_net / 1e6
-    cost = 7.7 * (1200 / power_electric_net)^0.5
+    if power_electric_net == 0
+        cost = 49.1 # $M/yr 
+    else 
+        power_electric_net = power_electric_net / 1e6
+        cost = 7.7 * (power_electric_net / 1200)^0.5 # there is a typo in Sheffield 1986 equation F.10, which has been corrected here
+    end
     return future_dollars(cost, da)
 end
 

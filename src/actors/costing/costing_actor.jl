@@ -54,13 +54,23 @@ function DollarAdjust(par::FUSEparameters__ActorCosting)
     return DollarAdjust(par.future_inflation_rate, par.construction_start_year, par.inflate_to_start_year, missing, missing)
 end 
 
+"""
+    future_dollars(dollars::Real, da::DollarAdjust)
+
+    Adjusts costs assessed in a previous year to current or future dollar amount 
+
+    NOTE: Inflation of past costs according to U.S. Bureau of Labor Statistics CPI data 
+    Source: https://data.bls.gov/cgi-bin/surveymost?cu (Dataset CUUR0000SA0)
+"""
+
 function future_dollars(dollars::Real, da::DollarAdjust)
-    csv_loc = abspath(joinpath(@__DIR__, "../../../../IMAS/data/CPI.csv"))
+    csv_loc = abspath(joinpath(@__DIR__, "CPI.csv"))
     CPI = DataFrame(CSV.File(csv_loc))
     if 1913 <= da.year_assessed <= 2022 
         index = CPI.Year .== da.year_assessed 
         CPI_past_year = CPI[index, "Year Avg"][1]
-        val_today = 299.17 ./ CPI_past_year .* dollars  
+        index_2023 = CPI.Year .== 2023 
+        val_today = CPI[index_2023, "Year Avg"][1] ./ CPI_past_year .* dollars
     elseif da.year_assessed == 2023
         val_today = dollars 
     else 
