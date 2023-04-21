@@ -1,5 +1,6 @@
 using CSV
 using DataFrames
+import Memoize
 
 #= ============ =#
 #  ActorCosting  #
@@ -54,6 +55,12 @@ function DollarAdjust(par::FUSEparameters__ActorCosting)
     return DollarAdjust(par.future_inflation_rate, par.construction_start_year, par.inflate_to_start_year, missing, missing)
 end 
 
+Memoize.@memoize function load_inflation_rate()
+    csv_loc = abspath(joinpath(@__DIR__, "CPI.csv"))
+    CPI = DataFrame(CSV.File(csv_loc))
+    return CPI
+end
+
 """
     future_dollars(dollars::Real, da::DollarAdjust)
 
@@ -64,8 +71,7 @@ end
 """
 
 function future_dollars(dollars::Real, da::DollarAdjust)
-    csv_loc = abspath(joinpath(@__DIR__, "CPI.csv"))
-    CPI = DataFrame(CSV.File(csv_loc))
+    CPI = load_inflation_rate()
     if 1913 <= da.year_assessed <= 2022 
         index = CPI.Year .== da.year_assessed 
         CPI_past_year = CPI[index, "Year Avg"][1]
