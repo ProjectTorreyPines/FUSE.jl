@@ -8,7 +8,7 @@ Arguments:
 * `init_from`: `:scalars` or `:ods`
 * `STEP`: plasma parameters to match STEP modeling
 """
-function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, STEP::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, STEP::Bool=true)::Tuple{ParametersAllInits,ParametersAllActors}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
@@ -92,17 +92,21 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         ini.equilibrium.ip = 8.0E6
         # higher density
         ini.core_profiles.greenwald_fraction = 1.26
-        act.ActorStabilityLimits.models = [:beta_troyon_1984, :model_201, :model_401]
+        # limits (default FPP exceeds βn limits and greenwald density)
+        act.ActorStabilityLimits.models = [:model_201,  :model_401] # :model_301, :beta_troyon_1984
         # scale confinement to roughly match STEP prediction
         act.ActorTauenn.confinement_factor = 0.9
     else
-        act.ActorFluxMatcher.evolve_densities = Dict(
-            :Ar => :match_ne_scale,
-            :DT => :quasi_neutrality,
-            :He => :match_ne_scale,
-            :He_fast => :constant,
-            :electrons => :flux_match)
+        act.ActorStabilityLimits.models = [:model_201,  :model_301, :model_401] # :beta_troyon_1984
     end
+
+    # set density evolution for ActorFluxMatcher
+    act.ActorFluxMatcher.evolve_densities = Dict(
+        :Ar => :match_ne_scale,
+        :DT => :quasi_neutrality,
+        :He => :match_ne_scale,
+        :He_fast => :constant,
+        :electrons => :flux_match)
 
     # add wall layer
     if true

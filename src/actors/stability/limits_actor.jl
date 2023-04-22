@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    models::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models used for checking plasma stability limits: [$(join(values(IMAS.index_2_name__stability__collection),", ")), $(join(values(IMAS.index_2_name__stability__model),", "))]"; default=[:default_limits])
+    models::Entry{Vector{Symbol}} = Entry(Vector{Symbol}, "-", "Models used for checking plasma stability limits: $(supported_stability_models())"; default=[:default_limits])
     raise_on_breach::Entry{Bool} = Entry(Bool, "-", "Raise an error when one or more stability limits are breached"; default=true)
 end
 
@@ -44,17 +44,18 @@ function _step(actor::ActorStabilityLimits)
     run_stability_models(dd, par.models)
 
     if par.raise_on_breach
-        println(par.raise_on_breach)
         failed = String[]
+        desc = String[]
         time_index = findfirst(dd.stability.time .== @ddtime(dd.stability.time))
         for model in dd.stability.model
             if !Bool(model.cleared[time_index])
                 model_name = IMAS.index_2_name__stability__model[model.identifier.index]
-                push!(failed, "$(model_name): $(model.identifier.description)")
+                push!(failed, "$(model_name)")
+                push!(desc, "$(model_name) ($(@ddtime(model.fraction)) of limit): $(model.identifier.description)")
             end
         end
         if !isempty(failed)
-            error("Some stability models have breached their limit threshold:\n* $(join(failed, "\n* "))")
+            error("Some stability models have breached their limit threshold:\n$(join(failed, " "))\n* $(join(desc, "\n* "))")
         end
     end
 
