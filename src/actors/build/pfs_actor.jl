@@ -3,6 +3,7 @@
 #= ========================= =#
 
 import PlasmaFacingSurfaces
+import PlasmaFacingSurfaces: FUSEparameters__ActorPlasmaFacingSurfaces
 
 #==========#
 
@@ -23,8 +24,8 @@ A divertor is composed of three sub-systems:
 - a dome that is exposed to the private flux region and that is connecting the inner and outer components
 """
 function ActorPlasmaFacingSurfaces(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPlasmaFacingSurfaces(kw...)
-    actor = ActorPlasmaFacingSurfaces(dd, par)
+    par = act.ActorPlasmaFacingSurfaces
+    actor = ActorPlasmaFacingSurfaces(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor
