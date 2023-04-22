@@ -42,11 +42,16 @@ function IMAS.extract(
     # load the data
     p = ProgressMeter.Progress(length(DD); showspeed=true)
     Threads.@threads for k in eachindex(DD)
-        tmp = Dict(extract(DD[k], xtract))
-        tmp[:dir] = DD[k]
-        df[k, :] = tmp
+        try
+            tmp = Dict(extract(DD[k], xtract))
+            tmp[:dir] = DD[k]
+            df[k, :] = tmp
+       catch
+           continue
+       end
         ProgressMeter.next!(p)
     end
+    ProgressMeter.finish!(p)
 
     # filter
     if filter_invalid ∈ [:cols, :all]
