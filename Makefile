@@ -2,7 +2,8 @@ all: header branch
 
 help: header
 	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update       : git pull FUSE and its dependencies'
+	@echo ' - make update       : git pull FUSE and its TorreyPines dependencies'
+	@echo ' - make update_all   : git pull FUSE and all of its dependencies'
 	@echo ' - make IJulia       : Install IJulia'
 	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
 	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
@@ -24,7 +25,7 @@ JULIA_DIR ?= $(HOME)/.julia
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
-CURRENTDIR := $(shell pwd)
+CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
@@ -47,7 +48,7 @@ DOCKER_PLATFORM := $(shell uname -m)
 DOCKER_PLATFORM := amd64
 #DOCKER_PLATFORM := arm64
 
-define clone_update_repo
+define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 endef
@@ -95,7 +96,7 @@ Pkg.develop([["FUSE"] ; fuse_packages]);\
 
 # install revise and load it when Julia starts up
 revise:
-	julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0"))'
+	julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0")); Pkg.compat("Revise", "< 3.4.1")'
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
@@ -104,7 +105,7 @@ revise:
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
-	@ $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo "\t `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+	@cd $(CURRENTDIR); $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 https_add:
@@ -140,9 +141,9 @@ Pkg.develop(["FUSE"; fuse_packages]);\
 '
 
 # install FUSE without using the registry
-install_no_registry: forward_compatibility clone_update_all develop special_dependencies
+install_no_registry: forward_compatibility clone_pull_all develop special_dependencies
 
-# install FUSE using the registry (requires registry to be up-to-date, which most likely are not!)
+# install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
 install_via_registry: forward_compatibility registry develop special_dependencies
 
 # install used by CI (add packages, do not dev them)
@@ -160,12 +161,13 @@ dependencies = Pkg.PackageSpec[PackageSpec(url="https://github.com/IanButterwort
 Pkg.add(dependencies);\
 '
 
-# precompile all FUSE packages (NOTE: it also updates all packages!)
-precompile:
+# update_all, a shorthand for install and precompile
+update_all: install
 	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
-# update, a shorthand for install and precompile
-update: install_no_registry precompile
+# update, a synonim of clone_pull and develop
+update: clone_pull_all develop
+	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.precompile()'
 
 # delete local packages that have become obsolete
 forward_compatibility:
@@ -178,69 +180,69 @@ end;\
 '
 
 # clone and update all FUSE packages
-clone_update_all: branch
+clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
 
 WarmupFUSE:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 FUSE:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 IMAS:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 IMASDD:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 CoordinateConventions:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 MillerExtendedHarmonic:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 FusionMaterials:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 VacuumFields:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 MXHEquilibrium:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 MeshTools:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 TAUENN:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 TGLFNN:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 EPEDNN:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 QED:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 FiniteElementHermite:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 Fortran90Namelists:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 CHEASE:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 TEQUILA:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 NNeutronics:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 SimulationParameters:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 PlasmaFacingSurfaces:
 	$(call clone_update_repo,$@)
@@ -260,6 +262,15 @@ IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));
 '
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
+
+# Install PyCall
+PyCall:
+	julia -e '\
+ENV["PYTHON"]="";\
+using Pkg;\
+Pkg.add("PyCall");\
+Pkg.build("PyCall");\
+'
 
 # create a docker image with just FUSE
 docker_clean:
@@ -366,6 +377,7 @@ manifest_ci_commit:
 	git config user.email "fuse-bot@fusion.gat.com"
 	git config user.name "fuse bot"
 	git config push.autoSetupRemote true
+	git fetch
 	git checkout manifest
 	git merge master
 	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)/git/g' Manifest.toml > Manifest_CI.toml
@@ -374,8 +386,41 @@ manifest_ci_commit:
 	git push --set-upstream origin manifest
 endif
 
-manifest:
+# merge manifest branch into the current branch
+merge_manifest_ci:
 	git merge origin/manifest
+
+# merges the Manifest_CI.toml into Manifest.toml
+# this is useful to get the same environment where the CI passed regression tests
+manifest_ci: merge_manifest_ci
+	julia -e ';\
+using TOML;\
+;\
+Manifest_path = "$(CURRENTDIR)/Manifest.toml";\
+Manifest = TOML.parse(read(Manifest_path, String));\
+;\
+Manifest_CI_path = "$(CURRENTDIR)/Manifest_CI.toml";\
+Manifest_CI = TOML.parse(read(Manifest_CI_path, String));\
+;\
+for dep_name in sort(collect(keys(Manifest_CI["deps"])));\
+    depCI = Manifest_CI["deps"][dep_name][1];\
+    if dep_name ∉ keys(Manifest["deps"]);\
+        continue;\
+    end;\
+    dep = Manifest["deps"][dep_name][1];\
+    if "repo-url" in keys(depCI);\
+        println(dep_name);\
+        Manifest_CI["deps"][dep_name][1] = dep;\
+    elseif "version" ∈ keys(depCI) && dep["version"] != depCI["version"];\
+        println("$$dep_name $$(dep["version"]) => $$(depCI["version"])");\
+    end;\
+end;\
+;\
+open(Manifest_path, "w") do io;\
+    TOML.print(io, Manifest_CI);\
+end;\
+'
+	julia -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
 
 # remove all Manifest.toml files
 rm_manifests:

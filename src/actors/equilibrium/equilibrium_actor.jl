@@ -11,7 +11,8 @@ end
 mutable struct ActorEquilibrium <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorEquilibrium
-    eq_actor::Union{ActorSolovev,ActorCHEASE}
+    act::ParametersAllActors
+    eq_actor::Union{Nothing,ActorSolovev,ActorCHEASE}
 end
 
 """
@@ -20,8 +21,8 @@ end
 Provides a common interface to run multiple equilibrium actors
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibrium(kw...)
-    actor = ActorEquilibrium(dd, par, act)
+    par = act.ActorEquilibrium
+    actor = ActorEquilibrium(dd, par, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -35,26 +36,9 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
     elseif par.model == :CHEASE
         eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
     else
-        error("ActorEquilibrium: model = $(par.model) is unknown")
+        error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
     end
-    return ActorEquilibrium(dd, par, eq_actor)
-end
-
-"""
-    prepare(dd::IMAS.dd, :ActorEquilibrium, act::ParametersAllActors; kw...)
-
-Prepare dd to run ActorEquilibrium
-* call prapare function of the different equilibrium models
-"""
-function prepare(dd::IMAS.dd, ::Type{Val{:ActorEquilibrium}}, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibrium(kw...)
-    if par.model == :Solovev
-        return prepare(dd, :ActorSolovev, act; kw...)
-    elseif par.model == :CHEASE
-        return prepare(dd, :ActorCHEASE, act; kw...)
-    else
-        error("ActorEquilibrium: model = $(par.model) is unknown")
-    end
+    return ActorEquilibrium(dd, par, act, eq_actor)
 end
 
 """
@@ -79,6 +63,68 @@ function _finalize(actor::ActorEquilibrium)
         IMAS.flux_surfaces(actor.dd.equilibrium.time_slice[])
     end
     return actor
+end
+
+"""
+    prepare_eq(dd::IMAS.dd)
+
+Prepare `dd.equilbrium` to run equilibrium actors.
+* clear equilibrium__time_slice
+* set Ip, Bt, position control from pulse_schedule
+* Copy pressure from core_profiles to equilibrium
+* Copy j_tor from core_profiles to equilibrium
+
+NOTE: prepare_eq(dd) must be called at the _step() stage
+of all equilibrium actors to ensure that they work properly
+when used in a transport-equilibrium loop.
+"""
+function prepare_eq(dd::IMAS.dd)
+    ps = dd.pulse_schedule
+    pc = ps.position_control
+
+    # freeze cp1d before wiping eqt
+    cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[])
+
+    # add/clear time-slice
+    eqt = resize!(dd.equilibrium.time_slice)
+    eq1d = dd.equilibrium.time_slice[].profiles_1d
+
+    # scalar quantities
+    eqt.global_quantities.ip = @ddtime(ps.flux_control.i_plasma.reference.data)
+    R0 = dd.equilibrium.vacuum_toroidal_field.r0
+    B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference.data) / R0
+    @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)
+
+    # position control
+    eqt.boundary.minor_radius = @ddtime(pc.minor_radius.reference.data)
+    eqt.boundary.geometric_axis.r = @ddtime(pc.geometric_axis.r.reference.data)
+    eqt.boundary.geometric_axis.z = @ddtime(pc.geometric_axis.z.reference.data)
+    eqt.boundary.elongation = @ddtime(pc.elongation.reference.data)
+    eqt.boundary.triangularity = @ddtime(pc.triangularity.reference.data)
+    eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
+
+    # boundary
+    eqt.boundary.outline.r = [@ddtime(pcb.r.reference.data) for pcb in pc.boundary_outline]
+    eqt.boundary.outline.z = [@ddtime(pcb.z.reference.data) for pcb in pc.boundary_outline]
+
+    # x-points
+    resize!(eqt.boundary.x_point, length(pc.x_point))
+    for k in eachindex(pc.x_point)
+        eqt.boundary.x_point[k].r = @ddtime(pc.x_point[k].r.reference.data)
+        eqt.boundary.x_point[k].z = @ddtime(pc.x_point[k].z.reference.data)
+    end
+
+    # set j_tor and pressure
+    eq1d = dd.equilibrium.time_slice[].profiles_1d
+    eq1d.psi = cp1d.grid.psi
+    index = cp1d.grid.psi_norm .> 0.05 # force zero derivative current/pressure on axis
+    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+    j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
+    pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    eq1d.j_tor = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic).(sqrt.(eq1d.psi_norm))
+    eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
+
+    return dd
 end
 
 """

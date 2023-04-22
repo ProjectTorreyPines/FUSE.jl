@@ -43,8 +43,8 @@ function workflow_multiobjective_optimization(
     println("Running on $(Distributed.nprocs()-1) worker processes")
     if isempty(objectives_functions)
         error(
-            "Must specify objective functions. Available pre-baked functions from ObjectivesFunctionsLibrary:\n  * " *
-            join(keys(ObjectivesFunctionsLibrary), "\n  * "),
+            "Must specify objective functions. Available pre-baked functions from ObjectiveFunctionsLibrary:\n  * " *
+            join(keys(ObjectiveFunctionsLibrary), "\n  * "),
         )
     end
 
@@ -82,7 +82,9 @@ function workflow_multiobjective_optimization(
 
     # optimize
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)
-    algorithm = Metaheuristics.NSGA2(; N, options)
+    # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
+    # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
+    algorithm = Metaheuristics.SPEA2(; N, options) # converges and covers well the pareto front! 
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state

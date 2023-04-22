@@ -12,27 +12,28 @@ mutable struct ObjectiveFunction
     units::String
     func::Function
     target::Float64
-    # inner constructor to register ObjectiveFunction in ObjectivesFunctionsLibrary
+    # inner constructor to register ObjectiveFunction in ObjectiveFunctionsLibrary
     ObjectiveFunction(name::Symbol, units::String, func::Function, target::Float64) = begin
         objf = new(name, units, func, target)
-        ObjectivesFunctionsLibrary[objf.name] = objf
+        ObjectiveFunctionsLibrary[objf.name] = objf
         return objf
     end
 end
 
-const ObjectivesFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
-function update_ObjectivesFunctionsLibrary!()
-    empty!(ObjectivesFunctionsLibrary)
+const ObjectiveFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
+function update_ObjectiveFunctionsLibrary!()
+    empty!(ObjectiveFunctionsLibrary)
     ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
     ObjectiveFunction(:min_log10_levelized_CoE, "log₁₀(\$/kW)", dd -> log10(dd.costing.levelized_CoE), -Inf)
-    ObjectiveFunction(:min_capital_cost, "\$B", dd -> dd.costing.cost_direct_capital.cost/1E3, -Inf)
+    ObjectiveFunction(:min_capital_cost, "\$B", dd -> dd.costing.cost_direct_capital.cost / 1E3, -Inf)
     ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
     ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
     ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)
     ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), Inf)
     ObjectiveFunction(:min_βn, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, -Inf)
+    return ObjectiveFunctionsLibrary
 end
-update_ObjectivesFunctionsLibrary!()
+update_ObjectiveFunctionsLibrary!()
 
 """
     (objf::ObjectiveFunction)(dd::IMAS.dd)
@@ -79,6 +80,13 @@ function Base.show(io::IO, f::ObjectiveFunction)
     print(io, " [$(f.units)]")
 end
 
+function Base.show(io::IO, x::MIME"text/plain", objfs::AbstractDict{Symbol,ObjectiveFunction})
+    for objf in objfs
+        show(io, x, objf)
+        println(io, "")
+    end
+end
+
 # ==================== #
 # constraint functions #
 # ==================== #
@@ -110,12 +118,18 @@ function update_ConstraintFunctionsLibrary!()
     ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-2)
     ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
     ConstraintFunction(:steady_state, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), >, log10(10.0))
+    ConstraintFunction(:zero_ohmic, "MA", dd -> abs(sum(integrate(dd.core_profiles.profiles_1d[].grid.area, dd.core_profiles.profiles_1d[].j_ohmic))) / 1E6, ==, 0.0, 1E-2)
+    return ConstraintFunctionsLibrary
 end
 update_ConstraintFunctionsLibrary!()
 
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
     if ===(cnst.operation, ==)
-        return abs((cnst.func(dd) - cnst.limit) / cnst.limit) - cnst.tolerance
+        if cnst.limit === 0.0
+            return abs((cnst.func(dd) - cnst.limit))# - cnst.tolerance
+        else
+            return abs((cnst.func(dd) - cnst.limit) / cnst.limit) - cnst.tolerance
+        end
     elseif cnst.operation(1.0, 0.0) # > or >=
         return cnst.limit - cnst.func(dd)
     else # < or <=
@@ -123,14 +137,25 @@ function (cnst::ConstraintFunction)(dd::IMAS.dd)
     end
 end
 
-function Base.show(io::IO, f::ConstraintFunction)
-    printstyled(io, f.name; bold=true, color=:blue)
-    print(io, " $(f.operation)")
-    print(io, " $(f.limit)")
-    if ===(f.operation, ==)
-        print(io, " ± $(f.tolerance * f.limit)")
+function Base.show(io::IO, cnst::ConstraintFunction)
+    printstyled(io, cnst.name; bold=true, color=:blue)
+    print(io, " $(cnst.operation)")
+    print(io, " $(cnst.limit)")
+    if ===(cnst.operation, ==)
+        if cnst.limit == 0.0
+            print(io, " ± $(cnst.tolerance)")
+        else
+            print(io, " ± $(cnst.tolerance * cnst.limit)")
+        end
     end
-    print(io, " [$(f.units)]")
+    print(io, " [$(cnst.units)]")
+end
+
+function Base.show(io::IO, x::MIME"text/plain", cnsts::AbstractDict{Symbol,ConstraintFunction})
+    for cnst in cnsts
+        show(io, x, cnst)
+        println(io, "")
+    end
 end
 
 # =================== #
@@ -191,9 +216,9 @@ Turn NaNs into Inf
 """
 function nan2inf(x::Float64)::Float64
     if isnan(x)
-      	return Inf
+        return Inf
     else
-      	return x
+        return x
     end
 end
 

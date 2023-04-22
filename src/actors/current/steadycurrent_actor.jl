@@ -27,8 +27,8 @@ Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_pr
     Stores data in `dd.core_profiles, dd.equilbrium`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorSteadyStateCurrent(kw...)
-    actor = ActorSteadyStateCurrent(dd, par)
+    par = act.ActorSteadyStateCurrent
+    actor = ActorSteadyStateCurrent(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor

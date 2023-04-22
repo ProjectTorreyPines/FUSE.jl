@@ -1,26 +1,26 @@
 #= === =#
 #  NBI  #
 #= === =#
-Base.@kwdef mutable struct FUSEparameters__ActorNBIsimple{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.3)
     rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
 end
 
-mutable struct ActorNBIsimple <: HCDAbstractActor
+mutable struct ActorNBsimple <: HCDAbstractActor
     dd::IMAS.dd
-    par::FUSEparameters__ActorNBIsimple
+    par::FUSEparameters__ActorNBsimple
 
-    function ActorNBIsimple(dd::IMAS.dd, par::FUSEparameters__ActorNBIsimple; kw...)
-        logging_actor_init(ActorNBIsimple)
+    function ActorNBsimple(dd::IMAS.dd, par::FUSEparameters__ActorNBsimple; kw...)
+        logging_actor_init(ActorNBsimple)
         par = par(kw...)
         return new(dd, par)
     end
 end
 
 """
-    ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorNBsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
@@ -29,15 +29,15 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 !!! note
     Reads data in `dd.nbi` and stores data in `dd.core_sources`
 """
-function ActorNBIsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorNBIsimple(kw...)
-    actor = ActorNBIsimple(dd, par)
+function ActorNBsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorNBsimple
+    actor = ActorNBsimple(dd, par; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorNBIsimple)
+function _step(actor::ActorNBsimple)
     dd = actor.dd
     par = actor.par
 
@@ -61,7 +61,7 @@ function _step(actor::ActorNBIsimple)
 
         beam_particles = power_launched / (beam_energy * constants.e)
         momentum_source =
-            sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+            sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
         R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
@@ -71,12 +71,11 @@ function _step(actor::ActorNBIsimple)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        source_index = IMAS.name_2_index(cs.source)[:nbi]
-        source = resize!(cs.source, "identifier.index" => source_index; allow_multiple_matches=true)
+        source = resize!(cs.source, :nbi; allow_multiple_matches=true)
         gaussian_source(
             source,
             nbu.name,
-            source_index,
+            source.identifier.index,
             rho_cp,
             volume_cp,
             area_cp,

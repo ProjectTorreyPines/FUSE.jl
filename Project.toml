@@ -4,6 +4,7 @@ authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.1.2"
 
 [deps]
+AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 CHEASE = "40781a8e-f1bb-11ec-24ef-0f6bc40c1567"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -23,6 +24,7 @@ FusionMaterials = "4c86da02-02c8-4634-8460-96566129f8e0"
 GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
 IMAS = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
 IMASDD = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
+InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 JpegTurbo = "b835a17e-a41a-41e7-81f0-2f016b05efe0"
