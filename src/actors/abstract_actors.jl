@@ -65,7 +65,7 @@ function finalize(actor::T) where {T<:AbstractActor}
 
     # freeze onetime expressions (ie. grids)
     while !isempty(IMASDD.expression_onetime_weakref)
-        idsw = pop!(IMASDD.expression_onetime_weakref)
+        idsw = pop!(IMASDD.expression_onetime_weakref, first(keys(IMASDD.expression_onetime_weakref)))
         if idsw.value !== nothing
             # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
             IMAS.freeze!(idsw.value)
