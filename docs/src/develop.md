@@ -92,7 +92,6 @@ The definition of each FUSE actor follows a well defined pattern.
 
 ```julia
 # Definition of the `act` parameters relevant to the actor
-# NOTE: To create a `ActorNAME` in `act` you'll have to add these to the FUSE/src/parameters_actors.jl file
 Base.@kwdef mutable struct FUSEparameters__ActorNAME{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -203,6 +202,9 @@ FUSE uses the following VSCode settings for formatting the Julia code:
 {
     "files.autoSave": "onFocusChange",
     "workbench.tree.indent": 24,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": false,
     "[julia]": {
         "editor.defaultFormatter": "singularitti.vscode-julia-formatter"
     },
