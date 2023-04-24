@@ -10,22 +10,26 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{T} = Entry(T, "-", "Year that plant construction begins"; default=2030)
-    construction_lead_time::Entry{T} = Entry(T, "years", "Duration of construction"; default=8)
     inflate_to_start_year::Entry{Bool} = Entry(Bool, "-", "Return costs in dollars inflated to year that construction begins"; default=false)
     future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default=0.025)
+    lifetime::Entry{Int} = Entry(Int, "years", "lifetime of the plant"; default=40)
+    availability::Entry{T} = Entry(T, "-", "availability fraction of the plant"; default=0.803)
+
+    # ARIES
     land_space::Entry{T} = Entry(T, "acres", "Plant site space required in acres"; default=1000.0)
     building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default=140.0e3)
     interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default=0.05)
-    fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default=0.078)
     indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4)
-    lifetime::Entry{Int} = Entry(Int, "years", "lifetime of the plant"; default=40)
-    availability::Entry{T} = Entry(T, "-", "availability fraction of the plant"; default=0.803)
     escalation_fraction::Entry{T} = Entry(T, "-", "yearly escalation fraction based on risk assessment"; default=0.05)
     blanket_lifetime::Entry{T} = Entry(T, "years", "lifetime of the blanket"; default=6.8)
-    initial_cost_blanket::Entry{T} = Entry(T, "millions of dollars", "cost of initial blanket"; default=200)
-    initial_cost_divertor::Entry{T} = Entry(T, "millions of dollars", "cost of initial divertor"; default=8)
-    divertor_fluence_lifetime::Entry{T} = Entry(T, "MW/yr*m^2", "divertor fluence lifetime"; default=10)
-    blanket_fluence_lifetime::Entry{T} = Entry(T, "MW/yr*m^2", "blanket fluence lifetime"; default=15)
+
+    # Sheffield
+    construction_lead_time::Entry{T} = Entry(T, "years", "Duration of construction"; default=8)
+    fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default=0.078)
+    initial_cost_blanket::Entry{T} = Entry(T, "\$M", "cost of initial blanket"; default=200)
+    initial_cost_divertor::Entry{T} = Entry(T, "\$M", "cost of initial divertor"; default=8)
+    divertor_fluence_lifetime::Entry{T} = Entry(T, "MW/m^2/yr", "divertor fluence lifetime"; default=10)
+    blanket_fluence_lifetime::Entry{T} = Entry(T, "MW/m^2/yr", "blanket fluence lifetime"; default=15)
 end
 
 mutable struct ActorCosting <: FacilityAbstractActor

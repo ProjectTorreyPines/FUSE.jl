@@ -147,7 +147,8 @@ end
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
 function cost_fuel_Sheffield(::Type{Val{:blanket}}, fixed_charge_rate::Real, initial_cost_blanket::Real, availability::Real, lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = Dates.year(Dates.now()) # assume the user will give you the initial cost of the blanket in dollars of their present year 
-    #if electric power is generated then add in the blanket replacement cost; if it's not, just return the blanket capital cost
+
+    # If electric power is generated then add in the blanket replacement cost; if it's not, just return the blanket capital cost
     blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
     blanket_replacement_cost = ((availability * lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / lifetime #blanket fluence lifetime in MW*yr/m^2
 
@@ -162,8 +163,9 @@ end
 
 #Equation 24
 function cost_fuel_Sheffield(::Type{Val{:divertor}}, fixed_charge_rate::Real, initial_cost_divertor::Real, availability::Real, lifetime::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
-    da.year_assessed = Dates.year(Dates.now())
+    da.year_assessed = Dates.year(Dates.now()) # assume the user will give you the initial cost of the divertor in dollars of their present year 
 
+    # If electric power is generated then add in the divertor replacement cost; if it's not, just return the divertor capital cost
     divertor_capital_cost = 1.1 * initial_cost_divertor * fixed_charge_rate
     divertor_replacement_cost = (availability * lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / lifetime #divertor_lifetime is fluence lifetime so in MW*yr/m^2
 

@@ -18,7 +18,6 @@ end
 #= ============== =#
 #  materials cost  #
 #= ============== =#
-
 function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
     if coil_tech.material == "Copper"
         return unit_cost("Copper")
@@ -299,7 +298,7 @@ end
 Yearly cost for blanket replacement [\$M/year]
 """
 function cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
-    da.year_assessed = Dates.year(Dates.now())   # Assume that the user will give you the cost of the blanket in the dollars of their current year 
+    da.year_assessed = Dates.year(Dates.now()) # Assume that the user will give you the cost of the blanket in the dollars of their current year 
     cost = cost_blanket / blanket_lifetime
     return future_dollars(cost, da)
 end
