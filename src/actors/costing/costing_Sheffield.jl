@@ -1,4 +1,4 @@
-import Dates 
+import Dates
 
 #= ================== =#
 #  Dispatch on symbol  #
@@ -68,15 +68,15 @@ end
 
 function cost_direct_capital_Sheffield(::Type{Val{:primary_coils}}, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016   # Year the materials costs were assessed 
-    primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
+    primary_coils_hfs = IMAS.get_build(bd, type=IMAS._tf_, fs=_hfs_)
     cost = 1.5 * primary_coils_hfs.volume * unit_cost(primary_coils_hfs.material)
     return future_dollars(cost, da)
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
-    shield_hfs = IMAS.get_build(bd, type = IMAS._shield_, fs = _hfs_, return_only_one = false, raise_error_on_missing = false)
-    gaps_hfs = IMAS.get_build(bd, type = IMAS._gap_, fs = _hfs_, return_only_one = false, raise_error_on_missing = false)
+    shield_hfs = IMAS.get_build(bd, type=IMAS._shield_, fs=_hfs_, return_only_one=false, raise_error_on_missing=false)
+    gaps_hfs = IMAS.get_build(bd, type=IMAS._gap_, fs=_hfs_, return_only_one=false, raise_error_on_missing=false)
 
     cost = 0
 
@@ -101,7 +101,7 @@ end
 
 function cost_direct_capital_Sheffield(::Type{Val{:structure}}, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
-    primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
+    primary_coils_hfs = IMAS.get_build(bd, type=IMAS._tf_, fs=_hfs_)
     cost = 0.75 * primary_coils_hfs.volume * unit_cost("steel")
     return future_dollars(cost, da)
 end
@@ -128,7 +128,7 @@ end
 
 function cost_direct_capital_Sheffield(::Type{Val{:buildings}}, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
-    layers = IMAS.get_build(bd, return_only_one = false)
+    layers = IMAS.get_build(bd, return_only_one=false)
     vol_fusion_island = 0
 
     for layer in layers
@@ -195,7 +195,7 @@ function cost_operations_maintenance_Sheffield(power_electric_net::Real, da::Dol
     da.year_assessed = 1983
     if power_electric_net == 0
         cost = 49.1 # $M/yr 
-    else 
+    else
         power_electric_net = power_electric_net / 1e6
         cost = 7.7 * (power_electric_net / 1200)^0.5 # there is a typo in Sheffield 1986 equation F.10, which has been corrected here
     end

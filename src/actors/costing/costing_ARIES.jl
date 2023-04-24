@@ -1,4 +1,4 @@
-import Dates 
+import Dates
 
 #= ================== =#
 #  Dispatch on symbol  #
@@ -19,7 +19,7 @@ end
 #  materials cost  #
 #= ============== =#
 
-function unit_cost(coil_tech::Union{IMAS.build__tf__technology, IMAS.build__oh__technology, IMAS.build__pf_active__technology})
+function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
     if coil_tech.material == "Copper"
         return unit_cost("Copper")
     else
@@ -137,7 +137,7 @@ end
     cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
 
 """
-function cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology, IMAS.build__oh__technology, IMAS.build__pf_active__technology}, da::DollarAdjust)
+function cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, da::DollarAdjust)
     da.year_assessed = 2016
     cost = IMAS.volume(coil) * unit_cost(technology)
     return future_dollars(cost, da)
@@ -273,9 +273,9 @@ function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electr
     da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
 
-    if power_electric_generated == 0 
+    if power_electric_generated == 0
         cost = 80.0 # estimate based on Table 36 in ARIES
-    else 
+    else
         cost = 80.0 * (power_electric_generated / 1200.0)^0.5
     end
     return future_dollars(cost, da)

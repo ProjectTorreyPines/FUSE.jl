@@ -11,13 +11,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
     model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{T} = Entry(T, "-", "Year that plant construction begins"; default=2030)
     construction_lead_time::Entry{T} = Entry(T, "years", "Duration of construction"; default=8)
-    inflate_to_start_year::Entry{Bool} = Entry(Bool, "-", "Return costs in dollars inflated to year that construction begins"; default = false)
-    future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
+    inflate_to_start_year::Entry{Bool} = Entry(Bool, "-", "Return costs in dollars inflated to year that construction begins"; default=false)
+    future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default=0.025)
     land_space::Entry{T} = Entry(T, "acres", "Plant site space required in acres"; default=1000.0)
     building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default=140.0e3)
     interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default=0.05)
     fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default=0.078)
-    indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4) 
+    indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4)
     lifetime::Entry{Int} = Entry(Int, "years", "lifetime of the plant"; default=40)
     availability::Entry{T} = Entry(T, "-", "availability fraction of the plant"; default=0.803)
     escalation_fraction::Entry{T} = Entry(T, "-", "yearly escalation fraction based on risk assessment"; default=0.05)
@@ -44,16 +44,16 @@ end
 #= ==================== =#
 
 mutable struct DollarAdjust
-    future_inflation_rate::Real 
+    future_inflation_rate::Real
     construction_start_year::Int
-    inflate_to_start_year::Bool 
+    inflate_to_start_year::Bool
     year_assessed::Union{Missing,Int}
     year::Union{Missing,Int}
 end
 
 function DollarAdjust(par::FUSEparameters__ActorCosting)
     return DollarAdjust(par.future_inflation_rate, par.construction_start_year, par.inflate_to_start_year, missing, missing)
-end 
+end
 
 Memoize.@memoize function load_inflation_rate()
     csv_loc = abspath(joinpath(@__DIR__, "CPI.csv"))
@@ -72,16 +72,16 @@ end
 
 function future_dollars(dollars::Real, da::DollarAdjust)
     CPI = load_inflation_rate()
-    if 1913 <= da.year_assessed <= 2022 
-        index = CPI.Year .== da.year_assessed 
+    if 1913 <= da.year_assessed <= 2022
+        index = CPI.Year .== da.year_assessed
         CPI_past_year = CPI[index, "Year Avg"][1]
-        index_2023 = CPI.Year .== 2023 
+        index_2023 = CPI.Year .== 2023
         val_today = CPI[index_2023, "Year Avg"][1] ./ CPI_past_year .* dollars
     elseif da.year_assessed == 2023
-        val_today = dollars 
-    else 
+        val_today = dollars
+    else
         @warn "Inflation data not available for $(da.year_assessed)"
-        val_today = dollars 
+        val_today = dollars
     end
 
     if da.inflate_to_start_year
@@ -89,9 +89,9 @@ function future_dollars(dollars::Real, da::DollarAdjust)
             @warn "inflate_to_start_year = true requires that construction_start_year is in the future. Costs will be returned in 2023 dollars."
             year = 2023
         else
-            year = da.construction_start_year 
+            year = da.construction_start_year
         end
-    else 
+    else
         year = 2023
     end
 
