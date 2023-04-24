@@ -307,16 +307,16 @@ end
 #  Decomissioning cost  #
 #= =================== =#
 """
-    cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, lifetime::Real)
+    cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetime::Real, da::DollarAdjust)
 
 Cost to decommission the plant [\$M]
 
 LIKELY NEEDS FIXING
 """
-function cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, lifetime::Real, da::DollarAdjust)
+function cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetime::Real, da::DollarAdjust)
     da.year_assessed = 2009  # pg. 94 ARIES
     unit_cost = 2.76 # [$M/year]From GASC
-    cost = unit_cost * lifetime
+    cost = unit_cost * plant_lifetime
     return future_dollars(cost, da)
 end
 
@@ -418,16 +418,16 @@ function costing_ARIES(dd, par)
 
     ###### Decomissioning ######
     sys = resize!(cost_decom.system, "name" => "decommissioning")
-    sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, par.lifetime, da)
+    sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, par.plant_lifetime, da)
 
     ###### Levelized Cost Of Electricity 
-    capital_cost_rate = par.interest_rate / (1 - (1 + par.interest_rate)^(-1.0 * par.lifetime))
-    lifetime_cost = 0.0
-    for year in 1:par.lifetime
-        yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / par.lifetime)
-        lifetime_cost += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
+    capital_cost_rate = par.interest_rate / (1.0 - (1.0 + par.interest_rate)^(-1.0 * par.plant_lifetime))
+    cst.cost_lifetime = 0.0
+    for year in 1:par.plant_lifetime
+        yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / par.plant_lifetime)
+        cst.cost_lifetime += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
     end
-    dd.costing.cost_lifetime = lifetime_cost
-    dd.costing.levelized_CoE = (dd.costing.cost_lifetime * 1E6) / (par.lifetime * 24 * 365 * power_electric_net / 1e3 * par.availability)
+    cst.levelized_CoE = (cst.cost_lifetime * 1E6) / (par.plant_lifetime * 24 * 365 * power_electric_net / 1e3 * par.availability)
 
+    return dd
 end

@@ -145,12 +145,12 @@ end
 #= ====================== =#
 
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
-function cost_fuel_Sheffield(::Type{Val{:blanket}}, fixed_charge_rate::Real, initial_cost_blanket::Real, availability::Real, lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
+function cost_fuel_Sheffield(::Type{Val{:blanket}}, fixed_charge_rate::Real, initial_cost_blanket::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = Dates.year(Dates.now()) # assume the user will give you the initial cost of the blanket in dollars of their present year 
 
     # If electric power is generated then add in the blanket replacement cost; if it's not, just return the blanket capital cost
     blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
-    blanket_replacement_cost = ((availability * lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / lifetime #blanket fluence lifetime in MW*yr/m^2
+    blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m^2
 
     if power_electric_net > 0.0
         cost = 1.1 * (blanket_capital_cost + blanket_replacement_cost)
@@ -162,12 +162,12 @@ function cost_fuel_Sheffield(::Type{Val{:blanket}}, fixed_charge_rate::Real, ini
 end
 
 #Equation 24
-function cost_fuel_Sheffield(::Type{Val{:divertor}}, fixed_charge_rate::Real, initial_cost_divertor::Real, availability::Real, lifetime::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
+function cost_fuel_Sheffield(::Type{Val{:divertor}}, fixed_charge_rate::Real, initial_cost_divertor::Real, availability::Real, plant_lifetime::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
     da.year_assessed = Dates.year(Dates.now()) # assume the user will give you the initial cost of the divertor in dollars of their present year 
 
     # If electric power is generated then add in the divertor replacement cost; if it's not, just return the divertor capital cost
     divertor_capital_cost = 1.1 * initial_cost_divertor * fixed_charge_rate
-    divertor_replacement_cost = (availability * lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / lifetime #divertor_lifetime is fluence lifetime so in MW*yr/m^2
+    divertor_replacement_cost = (availability * plant_lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / plant_lifetime #divertor_lifetime is fluence lifetime so in MW*yr/m^2
 
     if power_electric_net > 0.0
         cost = 1.1 * (divertor_capital_cost + divertor_replacement_cost)
@@ -216,7 +216,7 @@ function costing_Sheffield(dd, par)
 
     fixed_charge_rate = par.fixed_charge_rate
     availability = par.availability
-    lifetime = par.lifetime
+    plant_lifetime = par.plant_lifetime
     initial_cost_divertor = par.initial_cost_divertor
     initial_cost_blanket = par.initial_cost_blanket
     divertor_fluence_lifetime = par.divertor_fluence_lifetime
@@ -318,21 +318,21 @@ function costing_Sheffield(dd, par)
 
     if power_electric_net > 0.0 #if there is no electric power generated, treat blanket and divertor as direct capital costs instead of fuel costs 
         sys = resize!(cost_ops.system, "name" => "blanket")
-        sys.yearly_cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
+        sys.yearly_cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
         total_fuel_cost += sys.yearly_cost
     else
         sub = resize!(sys_fi.subsystem, "name" => "blanket")
-        sub.cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
+        sub.cost = cost_fuel_Sheffield(:blanket, fixed_charge_rate, initial_cost_blanket, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
         total_direct_capital_cost += sub.cost
     end
 
     if power_electric_net > 0.0
         sys = resize!(cost_ops.system, "name" => "divertor")
-        sys.yearly_cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
+        sys.yearly_cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, plant_lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
         total_fuel_cost += sys.yearly_cost
     else
         sub = resize!(sys_fi.subsystem, "name" => "divertor")
-        sub.cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
+        sub.cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, plant_lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
         total_direct_capital_cost += sub.cost
     end
 
@@ -359,7 +359,7 @@ function costing_Sheffield(dd, par)
 
     total_capital_cost = total_direct_capital_cost * capitalization_factor(construction_lead_time) * indirect_charges(construction_lead_time)
 
-    levelized_CoE = 1e3 * (total_capital_cost * fixed_charge_rate + total_fuel_cost + cost_operations_maintenance_Sheffield(power_electric_net, da)) / (power_electric_net * 1e-6 * 8760 * availability) + 0.5e-3
-    dd.costing.levelized_CoE = levelized_CoE
+    cst.levelized_CoE = 1e3 * (total_capital_cost * fixed_charge_rate + total_fuel_cost + cost_operations_maintenance_Sheffield(power_electric_net, da)) / (power_electric_net * 1e-6 * 8760 * availability) + 0.5e-3
 
+    return dd
 end
