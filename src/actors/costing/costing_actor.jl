@@ -64,41 +64,44 @@ end
 """
     future_dollars(dollars::Real, da::DollarAdjust)
 
-    Adjusts costs assessed in a previous year to current or future dollar amount 
+Adjusts costs assessed in a previous year to current or future dollar amount 
 
-    NOTE: Inflation of past costs according to U.S. Bureau of Labor Statistics CPI data 
-    Source: https://data.bls.gov/cgi-bin/surveymost?cu (Dataset CUUR0000SA0)
+NOTE: Inflation of past costs according to U.S. Bureau of Labor Statistics CPI data 
+Source: https://data.bls.gov/cgi-bin/surveymost?cu (Dataset CUUR0000SA0)
 """
-
 function future_dollars(dollars::Real, da::DollarAdjust)
     CPI = load_inflation_rate()
-    if 1913 <= da.year_assessed <= 2022
-        index = CPI.Year .== da.year_assessed
+
+    # from old dollars to current dollars
+    if CPI.Year[1] <= da.year_assessed <= CPI.Year[end-1]
+        index = (CPI.Year .== da.year_assessed)
         CPI_past_year = CPI[index, "Year Avg"][1]
-        index_2023 = CPI.Year .== 2023
-        val_today = CPI[index_2023, "Year Avg"][1] ./ CPI_past_year .* dollars
-    elseif da.year_assessed == 2023
+        val_today = CPI[end, "Year Avg"] ./ CPI_past_year .* dollars
+    elseif da.year_assessed == CPI.Year[end]
         val_today = dollars
     else
         @warn "Inflation data not available for $(da.year_assessed)"
         val_today = dollars
     end
 
+    # what year to inflate to (in most cases, the year of strat of construction)
     if da.inflate_to_start_year
-        if da.construction_start_year < 2023
-            @warn "inflate_to_start_year = true requires that construction_start_year is in the future. Costs will be returned in 2023 dollars."
-            year = 2023
+        if da.construction_start_year < CPI.Year[end]
+            @warn "`inflate_to_start_year = true` requires that `construction_start_year` is in the future. Costs will be returned in $(CPI.Year[end]) dollars."
+            year = CPI.Year[end]
         else
             year = da.construction_start_year
         end
     else
-        year = 2023
+        year = CPI.Year[end]
     end
 
-    n_years = year - 2023
-    future_val = val_today * ((1 + da.future_inflation_rate)^n_years)
+    # inflate
+    n_years = year - CPI.Year[end]
+    future_val = val_today * ((1.0 + da.future_inflation_rate)^n_years)
 
-    da.year_assessed = missing #wipe out year_assessed each time to avoid propogating the wrong year 
+    # wipe out year_assessed each time to force developer to enter of `da.year_assessed` and avoid using the wrong year 
+    da.year_assessed = missing
 
     return future_val
 end
