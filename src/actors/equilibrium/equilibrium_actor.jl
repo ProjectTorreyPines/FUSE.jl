@@ -31,7 +31,14 @@ end
 function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
-    return ActorEquilibrium(dd, par, act, nothing)
+    if par.model == :Solovev
+        eq_actor = ActorSolovev(dd, act.ActorSolovev)
+    elseif par.model == :CHEASE
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
+    else
+        error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
+    end
+    return ActorEquilibrium(dd, par, act, eq_actor)
 end
 
 """
@@ -40,20 +47,7 @@ end
 Runs through the selected equilibrium actor's step
 """
 function _step(actor::ActorEquilibrium)
-    dd = actor.dd
-    par = actor.par
-    act = actor.act
-    
-    if par.model == :Solovev
-        actor.eq_actor = ActorSolovev(dd, act.ActorSolovev)
-    elseif par.model == :CHEASE
-        actor.eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
-    else
-        error("ActorEquilibrium: model = `$(par.model)` can only be :Solovev or :CHEASE")
-    end
-    
     step(actor.eq_actor)
-    
     return actor
 end
 
@@ -74,11 +68,15 @@ end
 """
     prepare_eq(dd::IMAS.dd)
 
-Prepare `dd.equilbrium` to run equilibrium actors
+Prepare `dd.equilbrium` to run equilibrium actors.
 * clear equilibrium__time_slice
 * set Ip, Bt, position control from pulse_schedule
 * Copy pressure from core_profiles to equilibrium
 * Copy j_tor from core_profiles to equilibrium
+
+NOTE: prepare_eq(dd) must be called at the _step() stage
+of all equilibrium actors to ensure that they work properly
+when used in a transport-equilibrium loop.
 """
 function prepare_eq(dd::IMAS.dd)
     ps = dd.pulse_schedule
@@ -109,11 +107,22 @@ function prepare_eq(dd::IMAS.dd)
     eqt.boundary.outline.r = [@ddtime(pcb.r.reference.data) for pcb in pc.boundary_outline]
     eqt.boundary.outline.z = [@ddtime(pcb.z.reference.data) for pcb in pc.boundary_outline]
 
+    # x-points
+    resize!(eqt.boundary.x_point, length(pc.x_point))
+    for k in eachindex(pc.x_point)
+        eqt.boundary.x_point[k].r = @ddtime(pc.x_point[k].r.reference.data)
+        eqt.boundary.x_point[k].z = @ddtime(pc.x_point[k].z.reference.data)
+    end
+
     # set j_tor and pressure
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
-    eq1d.j_tor = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.j_tor).(eq1d.psi_norm)
-    eq1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
+    index = cp1d.grid.psi_norm .> 0.05 # force zero derivative current/pressure on axis
+    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+    j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
+    pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    eq1d.j_tor = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic).(sqrt.(eq1d.psi_norm))
+    eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
 
     return dd
 end

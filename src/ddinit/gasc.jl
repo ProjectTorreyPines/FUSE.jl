@@ -123,7 +123,7 @@ end
 """
     gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
 
-Convert sources (NBI, EC, IC, LH) information in GASC solution to FUSE `ini` and `act` parameters
+Convert sources (NB, EC, IC, LH) information in GASC solution to FUSE `ini` and `act` parameters
 """
 function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
     inputs = gasc.inputs["current drive"]
@@ -360,39 +360,25 @@ end
 """
     gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
 
-Convert coil technology information in GASC solution to FUSE `coil_technology` data structure
+Convert coil technology information in GASC solution to FUSE `coil_technology` Symbol
 """
 function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
     if coil_type ∉ [:OH, :TF, :PF]
         error("Supported coil type are [:OH, :TF, :PF]")
     end
     if gasc.inputs["conductors"]["superConducting"] == "copper"
-        coil_tech = coil_technology(:copper)
+        coil_tech = :copper
     else
         if gasc.inputs["conductors"]["superConducting"] == "LTS"
-            coil_tech = coil_technology(:LTS)
+            coil_tech = :LTS
         elseif gasc.inputs["conductors"]["superConducting"] == "HTS"
-            coil_tech = coil_technology(:HTS)
+            coil_tech = :HTS
         end
         if coil_type == :PF # assume PF coils are always LTS
-            coil_tech = coil_technology(:LTS)
-        end
-        if "thermalStrain$coil_type" ∉ keys(gasc.inputs["conductors"])
-            coil_tech.thermal_strain = 0.0
-            coil_tech.JxB_strain = 0.0
-        else
-            coil_tech.thermal_strain = float(gasc.inputs["conductors"]["thermalStrain$coil_type"])
-            coil_tech.JxB_strain = float(gasc.inputs["conductors"]["structuralStrain$coil_type"])
+            coil_tech = :LTS
         end
     end
-    if "fractionVoid$coil_type" ∉ keys(gasc.inputs["conductors"])
-        coil_tech.fraction_void = float(gasc.inputs["conductors"]["fractionVoidOH"])
-        coil_tech.fraction_stainless = float(gasc.inputs["conductors"]["fractionStainlessOH"])
-    else
-        coil_tech.fraction_void = float(gasc.inputs["conductors"]["fractionVoid$coil_type"])
-        coil_tech.fraction_stainless = float(gasc.inputs["conductors"]["fractionStainless$coil_type"])
-    end
-    return set_new_base!(coil_tech)
+    return coil_tech
 end
 
 function compare(dd::IMAS.dd, gasc::GASC)

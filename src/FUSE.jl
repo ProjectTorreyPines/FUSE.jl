@@ -6,6 +6,7 @@ using IMAS
 import Plots
 using Plots
 using Printf
+using InteractiveUtils
 import SnoopPrecompile
 
 #= ===== =#
@@ -67,7 +68,8 @@ include(joinpath("actors", "hcd", "simple_common.jl"))
 include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
-include(joinpath("actors", "hcd", "nbi_simple_actor.jl"))
+include(joinpath("actors", "hcd", "nb_simple_actor.jl"))
+include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal_actor.jl"))
 
@@ -80,7 +82,8 @@ include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
-include(joinpath("actors", "limits_actor.jl"))
+include(joinpath("actors", "stability", "limits_actor.jl"))
+include(joinpath("actors", "stability", "limit_models.jl"))
 
 include(joinpath("actors", "balance_plant", "heat_transfer_actor.jl"))
 include(joinpath("actors", "balance_plant", "thermal_cycle_actor.jl"))
@@ -88,10 +91,10 @@ include(joinpath("actors", "balance_plant", "power_needs_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_plot.jl"))
 
+include(joinpath("actors", "costing", "costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_ARIES.jl"))
 include(joinpath("actors", "costing", "costing_Sheffield.jl"))
 include(joinpath("actors", "costing", "costing_fuse.jl"))
-include(joinpath("actors", "costing", "costing_actor.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "equilibrium_transport_actor.jl"))

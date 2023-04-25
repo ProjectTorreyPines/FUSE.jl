@@ -8,7 +8,7 @@ Arguments:
 * `init_from`: `:scalars` or `:ods`
 * `STEP`: plasma parameters to match STEP modeling
 """
-function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, STEP::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, STEP::Bool=true)::Tuple{ParametersAllInits,ParametersAllActors}
     if version == :v1
         filename = "FPPv1.0_aspectRatio3.5_PBpR35.json"
         case = 0
@@ -46,9 +46,9 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
 
-    ini.pf_active.n_oh_coils = 6
-    ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 5
+    ini.oh.n_coils = 6
+    ini.pf_active.n_coils_inside = 0
+    ini.pf_active.n_coils_outside = 5
 
     ini.material.shield = "Tungsten"
     ini.material.blanket = "lithium-lead"
@@ -92,17 +92,21 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         ini.equilibrium.ip = 8.0E6
         # higher density
         ini.core_profiles.greenwald_fraction = 1.26
-        act.ActorPlasmaLimits.greenwald_fraction = 0.0
+        # limits (default FPP exceeds βn limits and greenwald density)
+        act.ActorStabilityLimits.models = [:model_201,  :model_401] # :model_301, :beta_troyon_1984
         # scale confinement to roughly match STEP prediction
         act.ActorTauenn.confinement_factor = 0.9
     else
-        act.ActorFluxMatcher.evolve_densities = Dict(
-            :Ar => :match_ne_scale,
-            :DT => :quasi_neutrality,
-            :He => :match_ne_scale,
-            :He_fast => :constant,
-            :electrons => :flux_match)
+        act.ActorStabilityLimits.models = [:model_201,  :model_301, :model_401] # :beta_troyon_1984
     end
+
+    # set density evolution for ActorFluxMatcher
+    act.ActorFluxMatcher.evolve_densities = Dict(
+        :Ar => :match_ne_scale,
+        :DT => :quasi_neutrality,
+        :He => :match_ne_scale,
+        :He_fast => :constant,
+        :electrons => :flux_match)
 
     # add wall layer
     if true

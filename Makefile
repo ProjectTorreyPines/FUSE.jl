@@ -25,7 +25,7 @@ JULIA_DIR ?= $(HOME)/.julia
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
-CURRENTDIR := $(shell pwd)
+CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
@@ -105,7 +105,7 @@ revise:
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
-	@ $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo "\t `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+	@cd $(CURRENTDIR); $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 https_add:
@@ -257,6 +257,15 @@ IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
 
+# Install PyCall
+PyCall:
+	julia -e '\
+ENV["PYTHON"]="";\
+using Pkg;\
+Pkg.add("PyCall");\
+Pkg.build("PyCall");\
+'
+
 # create a docker image with just FUSE
 docker_clean:
 	rm -rf ../Dockerfile
@@ -397,7 +406,7 @@ for dep_name in sort(collect(keys(Manifest_CI["deps"])));\
         println(dep_name);\
         Manifest_CI["deps"][dep_name][1] = dep;\
     elseif "version" ∈ keys(depCI) && dep["version"] != depCI["version"];\
-        println("$dep_name $$(dep["version"]) => $$(depCI["version"])");\
+        println("$$dep_name $$(dep["version"]) => $$(depCI["version"])");\
     end;\
 end;\
 ;\

@@ -66,7 +66,7 @@ function workflow_multiobjective_optimization(
     end
 
     # optimization boundaries
-    bounds = [[optpar.lower for optpar in opt_ini] [optpar.upper for optpar in opt_ini]]'
+    bounds = [[float_bounds(optpar)[1] for optpar in opt_ini] [float_bounds(optpar)[2] for optpar in opt_ini]]'
 
     # # test running function once with nominal parameters useful to catch bugs quickly.
     # # Use Distributed.@everywhere to trigger compilation on all worker nodes.
@@ -82,7 +82,9 @@ function workflow_multiobjective_optimization(
 
     # optimize
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)
-    algorithm = Metaheuristics.NSGA2(; N, options)
+    # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
+    # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
+    algorithm = Metaheuristics.SPEA2(; N, options) # converges and covers well the pareto front! 
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state
