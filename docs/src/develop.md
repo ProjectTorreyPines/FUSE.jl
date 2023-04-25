@@ -218,7 +218,7 @@ FUSE uses the following VSCode settings for formatting the Julia code:
 ```
 
 !!! note
-    To add these settings to VSCode add these lines to: `<Command> + <shift> + p` -> `Preferences: Open Settings (JSON)`
+    To add these settings to VSCode add these lines to: `<Command> + <shift> + p` -> `Preferences: Open User Settings (JSON)`
 
 !!! note
     To format Julia you will need to install `Julia Language Support` under the extensions tab (`<Command> + <shift> + x`)
