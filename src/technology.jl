@@ -118,65 +118,6 @@ function ReBCO_Jcrit(Bext, strain=0.0, temperature=20.0, ag_c=0)
 end
 
 """
-    coil_technology(technology::Symbol)
-
-Return coil parameters depending of technology [:copper, :LTS, :HTS]
-"""
-function coil_technology(technology::Symbol)
-    coil_tech = FUSEparameters__coil_tech{Float64}()
-    if technology == :copper
-        coil_tech.material = "Copper"
-        coil_tech.temperature = 293.0
-        coil_tech.fraction_stainless = 0.0
-        coil_tech.fraction_void = 0.1
-    elseif technology in [:LTS, :HTS]
-        if technology == :LTS
-            coil_tech.temperature = 4.2
-            coil_tech.material = "Nb3Sn"
-        else
-            coil_tech.temperature = 20.0
-            coil_tech.material = "ReBCO"
-        end
-        coil_tech.fraction_stainless = 0.5
-        coil_tech.ratio_SC_to_copper = 1.0
-        coil_tech.fraction_void = 0.1
-    else
-        error("Supported coil tecnologies are [:copper, :LTS, :HTS")
-    end
-    return set_new_base!(coil_tech)
-end
-
-"""
-    coil_technology(machine::Symbol, coil_type::Symbol)
-
-Return coil parameters from machine and coil type [:OH, :TF, :PF]"
-"""
-function coil_technology(machine::Symbol, coil_type::Symbol)
-    if !(coil_type in [:OH, :TF, :PF])
-        error("Supported coil type are [:OH, :TF, :PF]")
-    end
-    if machine == :ITER
-        coil_tech = coil_technology(:LTS)
-        if coil_type == :OH
-            coil_tech.thermal_strain = -0.64
-            coil_tech.JxB_strain = -0.05
-            coil_tech.fraction_stainless = 0.46
-        elseif coil_type == :TF
-            coil_tech.thermal_strain = -0.69
-            coil_tech.JxB_strain = -0.13
-            coil_tech.fraction_stainless = 0.55
-        elseif coil_type == :PF
-            coil_tech.thermal_strain = -0.64
-            coil_tech.JxB_strain = -0.05
-            coil_tech.fraction_stainless = 0.46
-        end
-    else
-        error("Supported coil machines are [:ITER]")
-    end
-    return set_new_base!(coil_tech)
-end
-
-"""
     coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
 
 Returns critical current density and magnetic field given an external magnetic field and coil technology

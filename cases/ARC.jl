@@ -41,15 +41,15 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.material.shield = "Tungsten"
     ini.material.blanket = "FLiBe"
 
-    ini.pf_active.n_oh_coils = 4
-    ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 4
-    ini.pf_active.technology = coil_technology(:HTS)
+    ini.oh.n_coils = 4
+    ini.pf_active.n_coils_inside = 0
+    ini.pf_active.n_coils_outside = 4
+    ini.pf_active.technology = :HTS
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 18
-    ini.tf.technology = coil_technology(:HTS)
-    ini.oh.technology = coil_technology(:HTS)
+    ini.tf.technology = :HTS
+    ini.oh.technology = :HTS
 
     #ini.requirements.power_electric_net = 50E6 ?
     ini.requirements.flattop_duration = 1800.0

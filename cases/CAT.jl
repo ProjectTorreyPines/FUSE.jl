@@ -20,16 +20,16 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.material.shield = "Tungsten"
     ini.material.blanket = "FLiBe"
 
-    ini.pf_active.n_oh_coils = 6
-    ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 6
-    ini.pf_active.technology = coil_technology(:ITER, :PF)
+    ini.oh.n_coils = 6
+    ini.pf_active.n_coils_inside = 0
+    ini.pf_active.n_coils_outside = 6
+    ini.pf_active.technology = :ITER
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
-    ini.tf.technology = coil_technology(:ITER, :TF)
+    ini.tf.technology = :ITER
 
-    ini.oh.technology = coil_technology(:ITER, :OH)
+    ini.oh.technology = :ITER
     ini.core_profiles.greenwald_fraction = 0.8
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.01

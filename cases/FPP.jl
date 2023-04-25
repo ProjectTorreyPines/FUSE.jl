@@ -46,9 +46,9 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
 
-    ini.pf_active.n_oh_coils = 6
-    ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 5
+    ini.oh.n_coils = 6
+    ini.pf_active.n_coils_inside = 0
+    ini.pf_active.n_coils_outside = 5
 
     ini.material.shield = "Tungsten"
     ini.material.blanket = "lithium-lead"
