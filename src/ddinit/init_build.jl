@@ -85,8 +85,8 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
                 blanket=ini.build.blanket,
                 vessel=ini.build.vessel,
                 plasma_gap=ini.build.plasma_gap,
-                pf_inside_tf=(ini.pf_active.n_pf_coils_inside > 0),
-                pf_outside_tf=(ini.pf_active.n_pf_coils_outside > 0))
+                pf_inside_tf=(ini.pf_active.n_coils_inside > 0),
+                pf_outside_tf=(ini.pf_active.n_coils_outside > 0))
         else
             layers = deepcopy(ini.build.layers)
         end
@@ -150,6 +150,9 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         dd.solid_mechanics.center_stack.plug = Int(ini.center_stack.plug)
 
         # assign materials
+        coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+        coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+        coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
         assign_build_layers_materials(dd, ini)
 
         return dd

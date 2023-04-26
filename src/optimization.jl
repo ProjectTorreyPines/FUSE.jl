@@ -172,13 +172,8 @@ function optimization_engine(
     save_folder::AbstractString
 )
     # update ini based on input optimization vector `x`
-    for (optpar, xx) in zip(opt_ini, x)
-        if typeof(optpar.value) <: Integer
-            optpar.value = Int(round(xx))
-        else
-            optpar.value = xx
-        end
-    end
+    parameters_from_opt!(ini, x)
+
     # run the problem
     try
         if typeof(actor_or_workflow) <: DataType

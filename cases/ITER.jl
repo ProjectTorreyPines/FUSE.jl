@@ -74,17 +74,17 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     layers[:cryostat] = 0.30
     ini.build.n_first_wall_conformal_layers = 3
 
-    ini.pf_active.n_oh_coils = 6
-    ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 6
-    ini.pf_active.technology = coil_technology(:ITER, :PF)
+    ini.oh.n_coils = 6
+    ini.pf_active.n_coils_inside = 0
+    ini.pf_active.n_coils_outside = 6
+    ini.pf_active.technology = :ITER
     act.ActorPFcoilsOpt.symmetric = false
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
-    ini.tf.technology = coil_technology(:ITER, :TF)
+    ini.tf.technology = :ITER
 
-    ini.oh.technology = coil_technology(:ITER, :OH)
+    ini.oh.technology = :ITER
     act.ActorFluxSwing.operate_at_j_crit = false
 
     ini.requirements.flattop_duration = 1800.0

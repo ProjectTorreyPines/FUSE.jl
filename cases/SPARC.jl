@@ -37,15 +37,15 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     layers[:gap_cryostat] = 0.7
     #ini.material.shield = "Tungsten"
 
-    ini.pf_active.n_oh_coils = 6
-    ini.pf_active.n_pf_coils_inside = 6
-    ini.pf_active.n_pf_coils_outside = 8
-    ini.pf_active.technology = coil_technology(:HTS)
+    ini.oh.n_coils = 6
+    ini.pf_active.n_coils_inside = 6
+    ini.pf_active.n_coils_outside = 8
+    ini.pf_active.technology = :HTS
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 18 #estimate (from ARC)
-    ini.tf.technology = coil_technology(:HTS)
-    ini.oh.technology = coil_technology(:HTS)
+    ini.tf.technology = :HTS
+    ini.oh.technology = :HTS
 
     ini.requirements.flattop_duration = 10.0
 
