@@ -170,7 +170,22 @@ Start multiprocessing environment
 kw arguments are passed to the Distributed.addprocs
 """
 function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...)
-    if cluster == "saga"
+    if cluster == "omega"
+        if gethostname() in ["omega-a.gat.com", "omega-b.gat.com"]
+            nodes = 1
+            np = 128 * nodes
+            if nprocs_max > 0
+                np = min(np, nprocs_max)
+            end
+            ENV["JULIA_WORKER_TIMEOUT"] = "180"
+            if Distributed.nprocs() < np
+                Distributed.addprocs(ClusterManagers.SlurmManager(np), partition="ga-ird", topology=:master_worker, ntasks_per_core=1, mem_per_cpu="4G", time="99:99:99",)
+            end
+            println("Working with $(Distributed.nprocs()) distributed processes")
+        else
+            error("Not running on omega cluster")
+        end
+    elseif cluster == "saga"
         if gethostname() == "saga.cluster"
             nodes = 4
             np = 30 * nodes
@@ -181,7 +196,7 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
             if Distributed.nprocs() < np
                 Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), exclusive="", topology=:master_worker, kw...)
             end
-            println("Working with $(Distributed.nprocs()) distributed processes on $(gethostname())")
+            println("Working with $(Distributed.nprocs()) distributed processes")
         else
             error("Not running on saga cluster")
         end
