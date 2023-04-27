@@ -372,6 +372,7 @@ function categorize_errors(
         "Could not trace closed flux surface" => :flux_surfaces_A,
         "Flux surface at ψ=" => :flux_surfaces_B,
         "stainless_steel.yield_strength" => :CS_stresses,
+        "dd.build.tf.max_j < dd.build.tf.critical_j" => :TF_critical_j,
         "DomainError with" => :Solovev,
         "BoundsError: attempt to access" => :flux_surfaces_C)
     merge!(error_messages, extra_error_messages)
