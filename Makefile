@@ -262,7 +262,7 @@ using Pkg;\
 Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
 Pkg.build("IJulia");\
 import IJulia;\
-n=string(length(Sys.cpu_info()));\
+n=get(ENV, "JULIA_NUM_THREADS", string(length(Sys.cpu_info())));\
 IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
 '
 	jupyter kernelspec list
