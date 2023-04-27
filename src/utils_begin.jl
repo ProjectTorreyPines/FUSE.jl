@@ -2,6 +2,7 @@ import ForwardDiff
 import Distributed
 import ClusterManagers
 import TimerOutputs
+using Libdl
 
 # ====== #
 # Timing #
@@ -213,5 +214,18 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
 
     else
         error("Cluster $server is unknown. Add it to the FUSE.parallel_environment")
+    end
+end
+
+"""
+    change_julia_process_name(new_name::String)
+
+Renames `julia` process to `new_name`
+"""
+function change_julia_process_name(new_name::String)
+    if Sys.KERNEL == :Linux
+        ccall((:prctl, "libc.so.6"), Cint, (Cint, Cstring), 15, new_name)
+    else
+        error("change_julia_process_name must be run on Linux")
     end
 end
