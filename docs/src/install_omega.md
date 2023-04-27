@@ -46,6 +46,21 @@
 
 8. Follow the FUSE installation instructions from here on
 
+9. Hide your Julia processes on OMEGA
+   ```
+   cd ~/julia_dev/FUSE
+   make hide
+   ```
+   OMEGA is a shared resource and this will rename all your `julia` session into a much more discrete `python3`
+
+10. Setup a multi-threaded Jupyter Julia kernel that does not take the whole login node
+   ```
+   export JULIA_NUM_THREADS=10
+   cd ~/julia_dev/FUSE
+   make IJulia
+   ```
+   OMEGA is a shared resource. Each login node has 40 cores. This will setup a Jupyter Julia kernel with 10 threads.
+
 ## Jupyter on OMEGA cluster
 
 1. Connect to `omega` and launch `screen`
