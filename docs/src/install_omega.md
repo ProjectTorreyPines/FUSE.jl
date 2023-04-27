@@ -44,7 +44,7 @@
    ln -s /fusion/ga/projects/ird/ptp/$USER/julia/dev ~/julia_dev
    ```
 
-8. Follow the FUSE installation instructions from here on
+8. Now follow the standard Julia and FUSE installation instructions
 
 9. Hide your Julia processes on OMEGA
    ```

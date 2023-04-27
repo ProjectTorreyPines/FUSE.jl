@@ -36,7 +36,7 @@
    ln -s /mnt/beegfs/users/$USER/julia/dev ~/julia_dev
    ```
 
-7. Follow the FUSE installation instructions from here on
+8. Now follow the standard Julia and FUSE installation instructions
 
 ## Jupyter on SAGA cluster
 
