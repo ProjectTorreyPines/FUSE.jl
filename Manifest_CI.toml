@@ -719,7 +719,7 @@ version = "0.5.2"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "StaticArrays"]
-git-tree-sha1 = "80468f87a168a1af7f133e37d9d7cc7543890232"
+git-tree-sha1 = "91bde5a594c268cebac7733a114f11d4ea6f1f6e"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
