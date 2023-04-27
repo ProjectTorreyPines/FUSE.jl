@@ -136,15 +136,4 @@ include("precompile.jl")
 #= ====== =#
 export IMAS, @ddtime, constants, ±, ↔, Logging
 
-#= ======== =#
-#= __INIT__ =#
-#= ======== =#
-function __init__()
-    # Rename `julia` process as `python3` on known shared systems where FUSE is run
-    if gethostname() in ["omega-a.gat.com", "omega-b.gat.com"]
-        change_julia_process_name("python3")
-        @warn "Running in a shared cluster environment: FUSE is obfuscating the `julia` executable name as `python3`"
-    end
-end
-
 end
