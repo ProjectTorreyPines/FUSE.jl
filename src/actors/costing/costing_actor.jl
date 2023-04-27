@@ -9,6 +9,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
+    construction_start_year::Entry{Int} = Entry(Int, "year", "Year that plant construction begins"; default = Dates.year(Dates.now()))
+	future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
+	plant_lifetime::Entry{Int} = Entry(Int, "year", "Lifetime of the plant"; default = 40)
+	availability::Entry{T} = Entry(T, "-", "Availability fraction of the plant"; default = 0.8)
 end
 
 mutable struct ActorCosting <: FacilityAbstractActor
@@ -37,6 +41,14 @@ end
 function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCosting)
     par = par(kw...)
+
+    empty!(dd.costing)
+
+    dd.costing.construction_start_year = act.ActorCosting.construction_start_year
+    dd.costing.future_inflation_rate = act.ActorCosting.future_inflation_rate
+    dd.costing.plant_lifetime = act.ActorCosting.plant_lifetime
+    dd.costing.availability = act.ActorCosting.availability
+
     if par.model == :Sheffield
         cst_actor = ActorSheffieldCosting(dd, act.ActorSheffieldCosting)
     elseif par.model == :ARIES

@@ -5,12 +5,6 @@
 Base.@kwdef mutable struct FUSEparameters__ActorARIESCosting{T} <: ParametersActor where {T <: Real}
 	_parent::WeakRef = WeakRef(nothing)
 	_name::Symbol = :not_set
-	construction_start_year::Entry{Int} = Entry(Int, "year", "Year that plant construction begins"; default = Dates.year(Dates.now()))
-	future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
-	plant_lifetime::Entry{Int} = Entry(Int, "year", "Lifetime of the plant"; default = 40)
-	availability::Entry{T} = Entry(T, "-", "Availability fraction of the plant"; default = 0.8)
-
-	#ARIES specific
 	land_space::Entry{T} = Entry(T, "acres", "Plant site space required"; default = 1000.0)
 	building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default = 140.0e3)
 	interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default = 0.05)
@@ -43,13 +37,13 @@ function _step(actor::ActorARIESCosting)
 	par = actor.par
 	cst = dd.costing
 
-	empty!(cst)
+	# empty!(cst)
 
 	cost_direct = cst.cost_direct_capital
 	cost_ops = cst.cost_operations
 	cost_decom = cst.cost_decommissioning
 
-	da = DollarAdjust(par)
+	da = DollarAdjust(dd)
 
 	###### Direct Capital ######
 
@@ -141,16 +135,16 @@ function _step(actor::ActorARIESCosting)
 
 	###### Decomissioning ######
 	sys = resize!(cost_decom.system, "name" => "decommissioning")
-	sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, par.plant_lifetime, da)
+	sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, cst.plant_lifetime, da)
 
 	###### Levelized Cost Of Electricity 
-	capital_cost_rate = par.interest_rate / (1.0 - (1.0 + par.interest_rate)^(-1.0 * par.plant_lifetime))
+	capital_cost_rate = par.interest_rate / (1.0 - (1.0 + par.interest_rate)^(-1.0 * cst.plant_lifetime))
 	cst.cost_lifetime = 0.0
-	for year in 1:par.plant_lifetime
-		yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / par.plant_lifetime)
+	for year in 1:cst.plant_lifetime
+		yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / cst.plant_lifetime)
 		cst.cost_lifetime += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
 	end
-	cst.levelized_CoE = (cst.cost_lifetime * 1E6) / (par.plant_lifetime * 24 * 365 * power_electric_net / 1e3 * par.availability)
+	cst.levelized_CoE = (cst.cost_lifetime * 1E6) / (cst.plant_lifetime * 24 * 365 * power_electric_net / 1e3 * cst.availability)
 
 	return actor
 end
@@ -163,14 +157,6 @@ function _finalize(actor::ActorARIESCosting)
 	end
 
 	return actor
-end
-
-#= ======================= =#
-#  DollarAdjust parameters  #
-#= ======================= =#
-
-function DollarAdjust(par::FUSEparameters__ActorARIESCosting)
-    return DollarAdjust(par.future_inflation_rate, par.construction_start_year, missing, missing)
 end
 
 #= =================== =#

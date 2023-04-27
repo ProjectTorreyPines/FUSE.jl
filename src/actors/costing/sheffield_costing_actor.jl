@@ -5,12 +5,6 @@
 Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: ParametersActor where {T <: Real}
 	_parent::WeakRef = WeakRef(nothing)
 	_name::Symbol = :not_set
-	construction_start_year::Entry{Int} = Entry(Int, "year", "Year that plant construction begins"; default = Dates.year(Dates.now()))
-	future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
-	plant_lifetime::Entry{Int} = Entry(Int, "year", "Lifetime of the plant"; default = 40)
-	availability::Entry{T} = Entry(T, "-", "Availability fraction of the plant"; default = 0.8)
-
-	#Sheffield specific 
 	construction_lead_time::Entry{T} = Entry(T, "year", "Duration of construction"; default = 8.0)
 	fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default = 0.078)
 	initial_cost_blanket::Entry{T} = Entry(T, "\$M", "Cost of initial blanket"; default = 200.0)
@@ -44,19 +38,17 @@ function _step(actor::ActorSheffieldCosting)
 	par = actor.par
 	cst = dd.costing
 
-	empty!(cst)
-
 	cost_direct = cst.cost_direct_capital
 	cost_ops = cst.cost_operations
 	cost_decom = cst.cost_decommissioning
 
 	bd = dd.build
 
-	da = DollarAdjust(par)
+	da = DollarAdjust(dd)
 
 	fixed_charge_rate = par.fixed_charge_rate
-	availability = par.availability
-	plant_lifetime = par.plant_lifetime
+	availability = cst.availability
+	plant_lifetime = cst.plant_lifetime
 	initial_cost_divertor = par.initial_cost_divertor
 	initial_cost_blanket = par.initial_cost_blanket
 	divertor_fluence_lifetime = par.divertor_fluence_lifetime
@@ -211,14 +203,6 @@ function _finalize(actor::ActorSheffieldCosting)
 	end
 
 	return actor
-end
-
-#= ======================= =#
-#  DollarAdjust parameters  #
-#= ======================= =#
-
-function DollarAdjust(par::FUSEparameters__ActorSheffieldCosting)
-    return DollarAdjust(par.future_inflation_rate, par.construction_start_year, missing, missing)
 end
 
 #= =================== =#

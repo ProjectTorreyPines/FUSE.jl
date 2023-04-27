@@ -58,6 +58,10 @@ mutable struct DollarAdjust
     year::Union{Missing,Int}
 end
 
+function DollarAdjust(dd::IMAS.dd)
+    return DollarAdjust(dd.costing.future_inflation_rate, dd.costing.construction_start_year, missing, missing)
+end
+
 Memoize.@memoize function load_inflation_rate()
     csv_loc = abspath(joinpath(@__DIR__, "CPI.csv"))
     CPI = DataFrame(CSV.File(csv_loc))
