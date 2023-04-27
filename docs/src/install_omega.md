@@ -51,7 +51,7 @@
    cd ~/julia_dev/FUSE
    make hide
    ```
-   OMEGA is a shared resource and this will rename all your `julia` session into a much more discrete `python3`
+   OMEGA is a shared resource used by non-GA employees. This will rename all your `julia` session into a much more discrete `python3`.
 
 10. Setup a multi-threaded Jupyter Julia kernel that does not take the whole login node
    ```
