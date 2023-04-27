@@ -29,7 +29,7 @@ CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES_MAKEFILE := CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials Hide IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields
+FUSE_PACKAGES_MAKEFILE := CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -95,7 +95,7 @@ Pkg.develop([["FUSE"] ; fuse_packages]);\
 	make revise
 
 # install Hide and load it when Julia starts up
-hide:
+hide: Hide
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
