@@ -32,6 +32,7 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 pressure_core=dd.equilibrium.time_slice[].profiles_1d.pressure[1],
                 helium_fraction=ini.core_profiles.helium_fraction,
                 T_shaping=ini.core_profiles.T_shaping,
+                n_shaping=getproperty(ini.core_profiles, :n_shaping, missing),
                 w_ped=ini.core_profiles.w_ped,
                 zeff=ini.core_profiles.zeff,
                 rot_core=ini.core_profiles.rot_core,
