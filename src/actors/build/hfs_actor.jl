@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     _name::Symbol = :not_set
     j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the conductor current limits"; default=0.4)
     stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the structural stresses limits"; default=0.2)
-    fixed_aspect_ratio::Entry{Bool} = Entry(Bool, "-", "Raise an error if aspect_ratio changes more than 10%"; default=true)
+    aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.01)
     unconstrained_flattop_duration::Entry{Bool} = Entry(Bool, "-", "Maximize flux_duration without targeting a specific value"; default=true)
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
     verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
@@ -54,7 +54,7 @@ function _step(
     actor::ActorHFSsizing;
     j_tolerance::Real=actor.par.j_tolerance,
     stress_tolerance::Real=actor.par.stress_tolerance,
-    fixed_aspect_ratio::Bool=actor.par.fixed_aspect_ratio,
+    aspect_ratio_tolerance::Real=actor.par.aspect_ratio_tolerance,
     unconstrained_flattop_duration::Bool=actor.par.unconstrained_flattop_duration,
     verbose::Bool=actor.par.verbose,
     debug_plot=false
@@ -70,21 +70,21 @@ function _step(
 
         if what == :oh
             OH.thickness = x0[1]
-            if length(x0) == 2
+            if length(x0) == 2 # assign also the fraction_stainless
                 fraction_stainless, c_extra = mirror_bound_w_cost(x0[2], 0.5, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
                 dd.build.oh.technology.fraction_stainless = fraction_stainless
             end
 
         elseif what == :tf
             TFhfs.thickness = x0[1]
-            if length(x0) == 2
+            if length(x0) == 2 # assign also the fraction_stainless
                 fraction_stainless, c_extra = mirror_bound_w_cost(x0[2], 0.5, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
                 dd.build.tf.technology.fraction_stainless = fraction_stainless
             end
 
         else
-            OH.thickness, TFhfs.thickness = x0
-            if length(x0) == 4
+            OH.thickness, TFhfs.thickness = x0[1:2]
+            if length(x0) == 4 # assign also the fraction_stainless
                 fraction_stainless, c_extra = mirror_bound_w_cost(x0[3], 0.5, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
                 dd.build.oh.technology.fraction_stainless = fraction_stainless
                 fraction_stainless, c_extra = mirror_bound_w_cost(x0[4], 0.5, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
@@ -268,11 +268,9 @@ function _step(
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
     if !unconstrained_flattop_duration
-        @assert rel_error(dd.build.oh.flattop_duration, dd.requirements.flattop_duration) < 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_duration) --> $(dd.requirements.flattop_duration))"
+        @assert rel_error(dd.build.oh.flattop_duration, dd.requirements.flattop_duration) <= 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_duration) --> $(dd.requirements.flattop_duration))"
     end
-    if fixed_aspect_ratio
-        @assert rel_error(ϵ, old_ϵ) < 0.1 "ActorHFSsizing: plasma aspect ratio changed more than 10% ($old_ϵ --> $ϵ)"
-    end
+    @assert rel_error(ϵ, old_ϵ) <= aspect_ratio_tolerance "Plasma aspect ratio changed more than $(aspect_ratio_tolerance) ($old_ϵ --> $ϵ)"
 
     return actor
 end
