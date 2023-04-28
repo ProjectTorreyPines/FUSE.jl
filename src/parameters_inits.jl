@@ -57,6 +57,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     greenwald_fraction_ped::Entry{T} = Entry(T, "-", "Pedestal electron density expressed as fraction of Greenwald density")
     ne_ped::Entry{T} = Entry(T, "m^-3", "Pedestal electron density")
     w_ped::Entry{T} = Entry(T, "-", "Pedestal width expressed in fraction of ψₙ", default=0.05)
+    T_ratio::Entry{T} = Entry(T, "-", "Ratio of Te to Ti")
     T_shaping::Entry{T} = Entry(T, "-", "Temperature shaping factor")
     n_shaping::Entry{T} = Entry(T, "-", "Density shaping factor")
     zeff::Entry{T} = Entry(T, "-", "Effective ion charge")
