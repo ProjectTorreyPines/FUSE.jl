@@ -44,7 +44,22 @@
    ln -s /fusion/ga/projects/ird/ptp/$USER/julia/dev ~/julia_dev
    ```
 
-8. Follow the FUSE installation instructions from here on
+8. Now follow the standard Julia and FUSE installation instructions
+
+9. Hide your Julia processes on OMEGA
+   ```
+   cd ~/julia_dev/FUSE
+   make hide
+   ```
+   OMEGA is a shared resource used by non-GA employees. This will rename all your `julia` session into a much more discrete `python3`.
+
+10. Setup a multi-threaded Jupyter Julia kernel that does not take the whole login node
+   ```
+   export JULIA_NUM_THREADS=10
+   cd ~/julia_dev/FUSE
+   make IJulia
+   ```
+   OMEGA is a shared resource. Each login node has 40 cores. This will setup a Jupyter Julia kernel with 10 threads.
 
 ## Jupyter on OMEGA cluster
 
@@ -81,22 +96,3 @@
        Keep this terminal always open. You may need to re-issue this command whenever you put your laptop to sleep.
 
 5. On your computer open a web browser tab to `localhost:33445` to connect to the Jupyter-lab session on `omega`. Use the token when prompted.
-
-## Parallel Julia on OMEGA cluster
-
-```julia
-nodes = 4
-np = 128 * nodes
-import Distributed
-import ClusterManagers
-Distributed.addprocs(ClusterManagers.SlurmManager(np), partition="ga-ird", topology=:master_worker, ntasks_per_core=1, mem_per_cpu="4G", time="99:99:99",)
-```
-
-```julia
-using Distributed
-using ClusterManagers
-
-np = 500
-ENV["JULIA_WORKER_TIMEOUT"] = "180"
-addprocs(SlurmManager(np-nprocs()+1), partition="preemptable", ntasks_per_core=1, mem_per_cpu="4G", time="99:99:99", topology=:master_worker)
-```

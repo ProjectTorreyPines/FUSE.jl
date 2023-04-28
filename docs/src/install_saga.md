@@ -36,7 +36,7 @@
    ln -s /mnt/beegfs/users/$USER/julia/dev ~/julia_dev
    ```
 
-7. Follow the FUSE installation instructions from here on
+8. Now follow the standard Julia and FUSE installation instructions
 
 ## Jupyter on SAGA cluster
 
@@ -73,13 +73,3 @@
        Keep this terminal always open. You may need to re-issue this command whenever you put your laptop to sleep.
 
 5. On your computer open a web browser tab to `localhost:33445` to connect to the Jupyter-lab session on `saga`. Use the token when prompted.
-
-## Parallel Julia on SAGA cluster
-
-```julia
-nodes = 4
-np = 30 * nodes
-import Distributed
-import ClusterManagers
-Distributed.addprocs(ClusterManagers.SlurmManager(np), exclusive="", topology=:master_worker)
-```
