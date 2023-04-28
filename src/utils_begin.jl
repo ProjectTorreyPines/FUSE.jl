@@ -170,33 +170,48 @@ Start multiprocessing environment
 kw arguments are passed to the Distributed.addprocs
 """
 function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...)
-    if cluster == "saga"
+    if cluster == "omega"
+        if gethostname() in ["omega-a.gat.com", "omega-b.gat.com"]
+            nodes = 4 # omega has 12 ga-ird nodes
+            np = 128 * nodes
+            if nprocs_max > 0
+                np = min(np, nprocs_max)
+            end
+            np += 1
+            ENV["JULIA_WORKER_TIMEOUT"] = "180"
+            if Distributed.nprocs() < np
+                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), partition="ga-ird", topology=:master_worker, ntasks_per_core=1, time="99:99:99", job_name="python3-$(getpid())")
+            end
+        else
+            error("Not running on omega cluster")
+        end
+    elseif cluster == "saga"
         if gethostname() == "saga.cluster"
-            nodes = 4
+            nodes = 4  # saga has 6 nodes
             np = 30 * nodes
             if nprocs_max > 0
                 np = min(np, nprocs_max)
             end
+            np += 1
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if Distributed.nprocs() < np
                 Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), exclusive="", topology=:master_worker, kw...)
             end
-            println("Working with $(Distributed.nprocs()) distributed processes on $(gethostname())")
         else
             error("Not running on saga cluster")
         end
 
     elseif cluster == "localhost"
-        np = length(Sys.cpu_info())
+        np = length(Sys.cpu_info()) + 1
         if nprocs_max > 0
             np = min(np, nprocs_max)
         end
-        if Distributed.nprocs() < np + 1
-            Distributed.addprocs(np - Distributed.nprocs() + 1, topology=:master_worker)
+        if Distributed.nprocs() < np
+            Distributed.addprocs(np - Distributed.nprocs(), topology=:master_worker)
         end
-        println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
 
     else
         error("Cluster $server is unknown. Add it to the FUSE.parallel_environment")
     end
+    println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
 end

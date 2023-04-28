@@ -76,6 +76,7 @@ function workflow_multiobjective_optimization(
     #     actor_or_workflow(ini, act)
     # end
 
+    save_folder = abspath(save_folder)
     if !isempty(save_folder)
         mkpath(save_folder)
     end
