@@ -20,7 +20,6 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.pressure_core = 1.45e6
     ini.equilibrium.xpoints_number = 2
     act.ActorCXbuild.rebuild_wall = false
-    act.ActorHFSsizing.fixed_aspect_ratio = true
 
     # explicitly set thickness of radial build layers
     ini.build.n_first_wall_conformal_layers = 2
