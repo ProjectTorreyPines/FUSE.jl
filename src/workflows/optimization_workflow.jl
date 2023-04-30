@@ -82,7 +82,7 @@ function workflow_multiobjective_optimization(
     end
 
     # optimize
-    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)
+    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1, f_calls_limit=1E9, g_calls_limit=1E9, h_calls_limit=1E9)
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
     algorithm = Metaheuristics.SPEA2(; N, options) # converges and covers well the pareto front! 
@@ -145,13 +145,14 @@ end
 
 @recipe function plot_MultiobjectiveOptimizationResults(
     results::MultiobjectiveOptimizationResults,
-    indexes::AbstractVector{<:Integer}=[1, 2, 3];
+    indexes::AbstractVector{<:Integer}=Int[];
     color_by=0,
     design_space=false,
     pareto=true,
     max_samples=nothing,
     iterations=nothing)
 
+    @assert !isempty(indexes) "Specify indexes to plot"
     @assert length(indexes) <= 3 "plot_MultiobjectiveOptimizationResults: Cannot visualize more than 3 indexes at once"
     @assert typeof(color_by) <: Integer
     @assert typeof(design_space) <: Bool
@@ -320,4 +321,8 @@ end
 
 function Base.convert(::Type{Vector{<:ObjectiveFunction}}, x::Vector{Any})
     return ObjectiveFunction[xx for xx in x]
+end
+
+function Base.convert(::Type{Vector{<:ConstraintFunction}}, x::Vector{Any})
+    return ConstraintFunction[xx for xx in x]
 end
