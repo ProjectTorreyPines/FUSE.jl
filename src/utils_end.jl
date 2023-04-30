@@ -363,7 +363,7 @@ function categorize_errors(
     errors = Dict(:other => String[])
     error_messages = Dict(
         "EQDSK_COCOS_01.OUT" => :chease,
-        "plasma aspect ratio changed" => :aspect_ratio_change,
+        "aspect ratio changed" => :aspect_ratio_change,
         "Unable to blend the core-pedestal" => :blend_core_ped,
         "Bad expression" => :bad_expression,
         "Exceeded limits" => :exceed_lim_A,
@@ -412,6 +412,7 @@ function categorize_errors(
     end
 
     if do_plot
+        display(histogram(findall(x->isfile(joinpath(x,"error.txt")),sort(dirs)),labe="Errors"))
         labels = collect(keys(errors))
         v = collect(map(length,values(errors)))
         index = sortperm(v)[end:-1:1]

@@ -30,7 +30,6 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
-        act.ActorHFSsizing.fixed_aspect_ratio = true
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints_number = 2
         act.ActorEquilibrium.model = :CHEASE

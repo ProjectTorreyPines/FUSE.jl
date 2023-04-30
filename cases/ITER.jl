@@ -20,7 +20,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
-        act.ActorHFSsizing.fixed_aspect_ratio = true
 
         ini.equilibrium.boundary_from = :MXH_params
         ini.equilibrium.xpoints_number = 1
@@ -53,7 +52,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         end
 
         act.ActorCXbuild.rebuild_wall = true
-        act.ActorHFSsizing.fixed_aspect_ratio = true
         # act.ActorEquilibrium.model = :CHEASE
     end
 
