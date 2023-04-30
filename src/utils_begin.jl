@@ -211,7 +211,7 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
         end
 
     else
-        error("Cluster $server is unknown. Add it to the FUSE.parallel_environment")
+        error("Cluster $cluster is unknown. Add it to the FUSE.parallel_environment")
     end
     println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
 end
