@@ -137,6 +137,15 @@ Base.@kwdef mutable struct FUSEparameters__lh_antennas{T} <: ParametersInit wher
     efficiency_coupling::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, IMAS.lh_antennas__antenna___efficiency, :coupling)
 end
 
+Base.@kwdef mutable struct FUSEparameters__pellets{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :lh_antennas
+    pellet_size::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, "mm", "Radius of the pellet launched")
+    pellet_velocity::Entry{Union{T,Vector{<:T}}} = Entry(Union{T,Vector{<:T}}, "m/s", "Pellet velocity")
+    pellet_material::Switch{Symbol} = Switch(Symbol, [:DT], "-", "material of the pellet layers")
+    pellet_frequency::Entry{Union{T,AbstractVector{<:T}}} = Entry(Union{T,AbstractVector{<:T}}, "Hz", "Pellet launch frequency")
+end
+
 Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
@@ -189,6 +198,7 @@ mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     ec_launchers::FUSEparameters__ec_launchers{T}
     ic_antennas::FUSEparameters__ic_antennas{T}
     lh_antennas::FUSEparameters__lh_antennas{T}
+    pellets::FUSEparameters__pellets{T}
     requirements::FUSEparameters__requirements{T}
 end
 
@@ -211,6 +221,7 @@ function ParametersInits{T}() where {T<:Real}
         FUSEparameters__ec_launchers{T}(),
         FUSEparameters__ic_antennas{T}(),
         FUSEparameters__lh_antennas{T}(),
+        FUSEparameters__pellets{T}(),
         FUSEparameters__requirements{T}())
     setup_parameters!(ini)
     return ini
