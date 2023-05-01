@@ -15,7 +15,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.build.blanket = 0.0
     ini.build.shield = 0.5
     ini.build.vessel = 0.125
-    ini.material.shield = "Tungsten"
+
+    ini.material.wall = "Tungsten"
+    ini.material.shield = "Steel, Stainless 316"
 
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")

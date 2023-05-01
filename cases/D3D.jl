@@ -17,6 +17,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.build.shield = 0.0
     ini.build.vessel = 0.0
     ini.build.n_first_wall_conformal_layers = 1
+    ini.material.wall = "Carbon, Graphite (reactor grade)"
 
     ini.oh.n_coils = 10
     ini.pf_active.n_coils_inside = 8

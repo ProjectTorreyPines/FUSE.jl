@@ -37,8 +37,10 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     layers[:lfs_TF] = 0.55
     layers[:gap_cryostat] = 1.119
     layers[:cryostat] = 0.186
-    ini.material.shield = "Tungsten"
+
+    ini.material.wall = "Tungsten"
     ini.material.blanket = "FLiBe"
+    ini.material.shield = "Steel, Stainless 316"
 
     ini.oh.n_coils = 4
     ini.pf_active.n_coils_inside = 0

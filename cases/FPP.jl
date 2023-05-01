@@ -49,8 +49,9 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
 
-    ini.material.shield = "Tungsten"
+    ini.material.wall = "Tungsten"
     ini.material.blanket = "lithium-lead"
+    ini.material.shield = "Steel, Stainless 316"
 
     act.ActorPFcoilsOpt.symmetric = true
 
