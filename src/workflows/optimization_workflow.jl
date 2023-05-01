@@ -6,7 +6,6 @@ mutable struct MultiobjectiveOptimizationResults
     ini::ParametersAllInits
     act::ParametersAllActors
     state::Metaheuristics.State
-    opt_ini::Vector{<:AbstractParameter}
     objectives_functions::Vector{<:ObjectiveFunction}
     constraints_functions::Vector{<:ConstraintFunction}
 end
@@ -66,7 +65,7 @@ function workflow_multiobjective_optimization(
     end
 
     # optimization boundaries
-    bounds = [[optpar.lower for optpar in opt_ini] [optpar.upper for optpar in opt_ini]]'
+    bounds = [[float_bounds(optpar)[1] for optpar in opt_ini] [float_bounds(optpar)[2] for optpar in opt_ini]]'
 
     # # test running function once with nominal parameters useful to catch bugs quickly.
     # # Use Distributed.@everywhere to trigger compilation on all worker nodes.
@@ -76,12 +75,13 @@ function workflow_multiobjective_optimization(
     #     actor_or_workflow(ini, act)
     # end
 
+    save_folder = abspath(save_folder)
     if !isempty(save_folder)
         mkpath(save_folder)
     end
 
     # optimize
-    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)
+    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1, f_calls_limit=1E9, g_calls_limit=1E9, h_calls_limit=1E9)
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
     algorithm = Metaheuristics.SPEA2(; N, options) # converges and covers well the pareto front! 
@@ -91,10 +91,10 @@ function workflow_multiobjective_optimization(
     end
     flush(stdout)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
 
     # fill MultiobjectiveOptimizationResults structure and save
-    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
+    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, objectives_functions, constraints_functions)
     display(state)
     if !isempty(save_folder)
         filename = joinpath(save_folder, "optimization.bson")
@@ -144,13 +144,14 @@ end
 
 @recipe function plot_MultiobjectiveOptimizationResults(
     results::MultiobjectiveOptimizationResults,
-    indexes::AbstractVector{<:Integer}=[1, 2, 3];
+    indexes::AbstractVector{<:Integer}=Int[];
     color_by=0,
     design_space=false,
     pareto=true,
     max_samples=nothing,
     iterations=nothing)
 
+    @assert !isempty(indexes) "Specify indexes to plot"
     @assert length(indexes) <= 3 "plot_MultiobjectiveOptimizationResults: Cannot visualize more than 3 indexes at once"
     @assert typeof(color_by) <: Integer
     @assert typeof(design_space) <: Bool
@@ -161,13 +162,13 @@ end
     if design_space
         arg = :x
         col = :f
-        arg_labels = results.opt_ini
+        arg_labels = opt_parameters(results.ini)
         col_labels = results.objectives_functions
     else
         arg = :f
         col = :x
         arg_labels = results.objectives_functions
-        col_labels = results.opt_ini
+        col_labels = opt_parameters(results.ini)
     end
 
     x = Float64[]
@@ -275,7 +276,7 @@ Convert MultiobjectiveOptimizationResults to DataFrame
 function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol=:all; filter_invalid::Bool=true)
     @assert what in [:inputs, :outputs, :all] "`what` must be either :inputs, :outputs, or :all"
 
-    inputs = [pretty_label(item) for item in results.opt_ini]
+    inputs = [pretty_label(item) for item in opt_parameters(results.ini)]
     outputs = [pretty_label(item) for item in results.objectives_functions]
 
     data = Dict()
@@ -319,4 +320,8 @@ end
 
 function Base.convert(::Type{Vector{<:ObjectiveFunction}}, x::Vector{Any})
     return ObjectiveFunction[xx for xx in x]
+end
+
+function Base.convert(::Type{Vector{<:ConstraintFunction}}, x::Vector{Any})
+    return ConstraintFunction[xx for xx in x]
 end

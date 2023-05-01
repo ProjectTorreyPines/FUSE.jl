@@ -2,6 +2,16 @@ using FusionMaterials: FusionMaterials
 import OrderedCollections
 import SimulationParameters: SwitchOption
 
+const tf_shape_options = OrderedCollections.OrderedDict{Symbol,SwitchOption}(
+    :princeton_D_exact => SwitchOption(_princeton_D_exact_, "princeton_D_exact"),
+    :princeton_D => SwitchOption(_princeton_D_, "princeton_D"),
+    :princeton_D_scaled => SwitchOption(_princeton_D_scaled_, "princeton_D_scaled"),
+    :rectangle => SwitchOption(_rectangle_, "rectangle"),
+    :double_ellipse => SwitchOption(_double_ellipse_, "double_ellipse"),
+    :triple_arc => SwitchOption(_triple_arc_, "triple_arc"),
+    :miller => SwitchOption(_miller_, "miller"),
+    :spline => SwitchOption(_spline_, "spline"))
+
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
@@ -58,36 +68,13 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     polarized_fuel_fraction::Entry{T} = Entry(T, "-", "Spin polarized fuel fraction", default=0.0)
 end
 
-Base.@kwdef mutable struct FUSEparameters__coil_tech{T} <: ParametersInit where {T<:Real}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :coil_tech
-    material = Switch(String, FusionMaterials.available_materials("magnet_materials"), "-", "Technology used for the coil.")
-    temperature::Entry{T} = Entry(T, "K", "Coil temperature")
-    thermal_strain::Entry{T} = Entry(T, "-", "Fraction of thermal expansion strain over maximum total strain on coil")
-    JxB_strain::Entry{T} = Entry(T, "-", "Fraction of maximum JxB strain over maximum total strain on coil")
-    fraction_stainless::Entry{T} = Entry(T, "-", "Fraction of stainless steel in the coil cross-sectional areas")
-    fraction_void::Entry{T} = Entry(T, "-", "Fraction of `void` in the coil cross-sectional area. Void is everything (like coolant) that is not structural nor conductor.")
-    ratio_SC_to_copper::Entry{T} = Entry(T, "-", "Fraction of superconductor to copper cross-sectional areas")
-end
-
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pf_active
-    n_oh_coils::Entry{Int} = Entry(Int, "-", "Number of OH coils")
-    n_pf_coils_inside::Entry{Int} = Entry(Int, "-", "Number of PF coils inside of the TF")
-    n_pf_coils_outside::Entry{Int} = Entry(Int, "-", "Number of PF coils outside of the TF")
-    technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
+    n_coils_inside::Entry{Int} = Entry(Int, "-", "Number of PF coils inside of the TF")
+    n_coils_outside::Entry{Int} = Entry(Int, "-", "Number of PF coils outside of the TF")
+    technology::Switch{Symbol} = Switch(Symbol, supported_coils_techs, "-", "PF coils technology")
 end
-
-tf_shape_options = OrderedCollections.OrderedDict{Symbol,SwitchOption}(
-    :princeton_D_exact => SwitchOption(_princeton_D_exact_, "princeton_D_exact"),
-    :princeton_D => SwitchOption(_princeton_D_, "princeton_D"),
-    :princeton_D_scaled => SwitchOption(_princeton_D_scaled_, "princeton_D_scaled"),
-    :rectangle => SwitchOption(_rectangle_, "rectangle"),
-    :double_ellipse => SwitchOption(_double_ellipse_, "double_ellipse"),
-    :triple_arc => SwitchOption(_triple_arc_, "triple_arc"),
-    :miller => SwitchOption(_miller_, "miller"),
-    :spline => SwitchOption(_spline_, "spline"))
 
 Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
@@ -95,13 +82,14 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
     n_coils::Entry{Int} = Entry(Int, "-", "Number of TF coils")
     shape::Switch{BuildLayerShape} = Switch(BuildLayerShape, tf_shape_options, "-", "Shape of the TF coils"; default=:double_ellipse)
     ripple::Entry{T} = Entry(T, "-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
-    technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
+    technology::Switch{Symbol} = Switch(Symbol, supported_coils_techs, "-", "TF coils technology")
 end
 
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :oh
-    technology::FUSEparameters__coil_tech{T} = FUSEparameters__coil_tech{T}()
+    n_coils::Entry{Int} = Entry(Int, "-", "Number of OH coils")
+    technology::Switch{Symbol} = Switch(Symbol, supported_coils_techs, "-", "OH coils technology")
 end
 
 Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit where {T<:Real}

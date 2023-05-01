@@ -43,11 +43,11 @@ end
     @test ini.core_profiles.zeff == 2.0
     @test typeof(ini.core_profiles.zeff) <: Float64
 
-    ini.equilibrium.ngrid = 200.0 ↔ [129, 257]
+    ini.equilibrium.ngrid = 200 ↔ [129, 257]
     @test ini.equilibrium.ngrid == 200
     @test typeof(ini.equilibrium.ngrid) <: Int
 
-    ini.build.symmetric = 1.0 ↔ [0, 1]
+    ini.build.symmetric = true ↔ (false, true)
     @test ini.build.symmetric == true
     @test typeof(ini.build.symmetric) <: Bool
 end

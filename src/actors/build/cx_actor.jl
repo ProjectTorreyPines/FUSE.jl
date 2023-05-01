@@ -410,11 +410,9 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         elseif layer.type == Int(_gap_)
             layer.material = "Vacuum"
         elseif layer.type == Int(_oh_)
-            layer.material = ini.oh.technology.material
-            assign_coil_technology(dd, ini, :oh)
+            layer.material = dd.build.oh.technology.material
         elseif layer.type == Int(_tf_)
-            layer.material = ini.tf.technology.material
-            assign_coil_technology(dd, ini, :tf)
+            layer.material = dd.build.tf.technology.material
         elseif layer.type == Int(_shield_)
             layer.material = ini.material.shield
         elseif layer.type == Int(_blanket_)
@@ -428,3 +426,4 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         end
     end
 end
+

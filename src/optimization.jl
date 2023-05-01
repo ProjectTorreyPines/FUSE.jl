@@ -161,28 +161,36 @@ end
 # =================== #
 # Optimization engine #
 # =================== #
+"""
+    optimization_engine(
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        actor_or_workflow::Union{DataType,Function},
+        x::AbstractVector,
+        objectives_functions::AbstractVector{<:ObjectiveFunction},
+        constraints_functions::AbstractVector{<:ConstraintFunction},
+        save_folder::AbstractString)
+
+NOTE: This function is run by the worker nodes
+"""
 function optimization_engine(
     ini::ParametersAllInits,
     act::ParametersAllActors,
     actor_or_workflow::Union{DataType,Function},
     x::AbstractVector,
-    opt_ini::Vector{<:AbstractParameter},
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString
 )
     # update ini based on input optimization vector `x`
-    for (optpar, xx) in zip(opt_ini, x)
-        if typeof(optpar.value) <: Integer
-            optpar.value = Int(round(xx))
-        else
-            optpar.value = xx
-        end
-    end
+    #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
+    parameters_from_opt!(ini, x)
+
     # run the problem
     try
         if typeof(actor_or_workflow) <: DataType
-            actor = actor_or_workflow(init(ini, act), act)
+            dd = init(ini, act)
+            actor = actor_or_workflow(dd, act)
             dd = actor.dd
         else
             dd = actor_or_workflow(ini, act)
@@ -221,13 +229,24 @@ function nan2inf(x::Float64)::Float64
         return x
     end
 end
+"""
+    function optimization_engine(
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        actor_or_workflow::Union{DataType,Function},
+        X::AbstractMatrix,
+        objectives_functions::AbstractVector{<:ObjectiveFunction},
+        constraints_functions::AbstractVector{<:ConstraintFunction},
+        save_folder::AbstractString,
+        p::ProgressMeter.Progress)
 
+NOTE: this function is run by the master process
+"""
 function optimization_engine(
     ini::ParametersAllInits,
     act::ParametersAllActors,
     actor_or_workflow::Union{DataType,Function},
     X::AbstractMatrix,
-    opt_ini::Vector{<:AbstractParameter},
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
@@ -235,7 +254,7 @@ function optimization_engine(
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
+    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(tmp[1][1]))
     G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
     H = zeros(size(X)[1], max(length(tmp[1][3]), 1))
