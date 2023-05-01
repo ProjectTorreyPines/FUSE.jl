@@ -6,7 +6,6 @@ mutable struct MultiobjectiveOptimizationResults
     ini::ParametersAllInits
     act::ParametersAllActors
     state::Metaheuristics.State
-    opt_ini::Vector{<:AbstractParameter}
     objectives_functions::Vector{<:ObjectiveFunction}
     constraints_functions::Vector{<:ConstraintFunction}
 end
@@ -92,10 +91,10 @@ function workflow_multiobjective_optimization(
     end
     flush(stdout)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
 
     # fill MultiobjectiveOptimizationResults structure and save
-    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
+    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, objectives_functions, constraints_functions)
     display(state)
     if !isempty(save_folder)
         filename = joinpath(save_folder, "optimization.bson")
@@ -163,13 +162,13 @@ end
     if design_space
         arg = :x
         col = :f
-        arg_labels = results.opt_ini
+        arg_labels = opt_parameters(results.ini)
         col_labels = results.objectives_functions
     else
         arg = :f
         col = :x
         arg_labels = results.objectives_functions
-        col_labels = results.opt_ini
+        col_labels = opt_parameters(results.ini)
     end
 
     x = Float64[]
@@ -277,7 +276,7 @@ Convert MultiobjectiveOptimizationResults to DataFrame
 function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol=:all; filter_invalid::Bool=true)
     @assert what in [:inputs, :outputs, :all] "`what` must be either :inputs, :outputs, or :all"
 
-    inputs = [pretty_label(item) for item in results.opt_ini]
+    inputs = [pretty_label(item) for item in opt_parameters(results.ini)]
     outputs = [pretty_label(item) for item in results.objectives_functions]
 
     data = Dict()
