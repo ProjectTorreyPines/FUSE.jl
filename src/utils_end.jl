@@ -28,6 +28,8 @@ function IMAS.extract(
     xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
     filter_invalid::Symbol=:none)::DataFrames.DataFrame
 
+    @assert !isempty(DD) "No results to extract"
+
     # test filter_invalid
     @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
 
