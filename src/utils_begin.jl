@@ -2,6 +2,7 @@ import ForwardDiff
 import Distributed
 import ClusterManagers
 import TimerOutputs
+import Dates
 
 # ====== #
 # Timing #
@@ -18,6 +19,22 @@ function TimerOutputs.reset_timer!(section::String)
     pop!(timer.inner_timers, section, nothing)
     timer.prev_timer_label = ""
     timer.prev_timer = nothing
+end
+
+# ====== #
+# Memory #
+# ====== #
+const memory = Tuple{Dates.DateTime,String,Int}[]
+
+function memory_time_tag(txt::String)
+    push!(memory, (Dates.now(), txt, get_julia_process_memory_usage()))
+end
+
+function get_julia_process_memory_usage()
+    pid = getpid()
+    mem_info = read(`ps -p $pid -o rss=`, String)
+    mem_usage_kb = parse(Int, strip(mem_info))
+    return mem_usage_kb * 1024
 end
 
 # ==== #
@@ -211,7 +228,7 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
         end
 
     else
-        error("Cluster $server is unknown. Add it to the FUSE.parallel_environment")
+        error("Cluster $cluster is unknown. Add it to the FUSE.parallel_environment")
     end
     println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
 end

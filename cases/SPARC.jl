@@ -34,7 +34,8 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     layers[:gap_lfs_coils] = 0.34
     layers[:lfs_TF] = 0.60
     layers[:gap_cryostat] = 0.7
-    #ini.material.shield = "Tungsten"
+    ini.material.wall = "Tungsten"
+    #ini.material.shield = "Steel, Stainless 316"
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 6
