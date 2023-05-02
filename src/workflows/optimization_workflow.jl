@@ -6,7 +6,6 @@ mutable struct MultiobjectiveOptimizationResults
     ini::ParametersAllInits
     act::ParametersAllActors
     state::Metaheuristics.State
-    opt_ini::Vector{<:AbstractParameter}
     objectives_functions::Vector{<:ObjectiveFunction}
     constraints_functions::Vector{<:ConstraintFunction}
 end
@@ -82,20 +81,21 @@ function workflow_multiobjective_optimization(
     end
 
     # optimize
-    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1)
+    options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1, f_calls_limit=1E9, g_calls_limit=1E9, h_calls_limit=1E9)
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
     algorithm = Metaheuristics.SPEA2(; N, options) # converges and covers well the pareto front! 
+    # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) #
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state
     end
     flush(stdout)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, opt_ini, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
 
     # fill MultiobjectiveOptimizationResults structure and save
-    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, opt_ini, objectives_functions, constraints_functions)
+    results = MultiobjectiveOptimizationResults(actor_or_workflow, ini, act, state, objectives_functions, constraints_functions)
     display(state)
     if !isempty(save_folder)
         filename = joinpath(save_folder, "optimization.bson")
@@ -123,6 +123,40 @@ function load_optimization(filename::AbstractString)
     return BSON.load(filename, FUSE)["results"]
 end
 
+function is_dominated(sol_a::Vector{T}, sol_b::Vector{T}) where T
+    for i in eachindex(sol_a)
+        if sol_a[i] < sol_b[i]
+            return false
+        end
+    end
+    return true
+end
+
+"""
+    pareto_front(solutions::Vector{Vector{T}}) where T
+
+returns indexes of solutions that form the pareto front
+"""
+function pareto_front(solutions::Vector{Vector{T}}) where T
+    pareto = Int[]
+    for i in eachindex(solutions)
+        is_dominated_by_any = false
+        for j in eachindex(solutions)
+            if i != j && is_dominated(solutions[i], solutions[j])
+                is_dominated_by_any = true
+                break
+            end
+        end
+        if !is_dominated_by_any
+            push!(pareto, i)
+        end
+    end
+    return pareto
+end
+
+#= ======== =#
+#  plotting  #
+#= ======== =#
 function pretty_label(objective_function::ObjectiveFunction, units="")
     txt = join(split(string(objective_function.name), "_")[2:end], " ")
     if length(units) > 0
@@ -145,13 +179,14 @@ end
 
 @recipe function plot_MultiobjectiveOptimizationResults(
     results::MultiobjectiveOptimizationResults,
-    indexes::AbstractVector{<:Integer}=[1, 2, 3];
+    indexes::AbstractVector{<:Integer}=Int[];
     color_by=0,
     design_space=false,
     pareto=true,
     max_samples=nothing,
     iterations=nothing)
 
+    @assert !isempty(indexes) "Specify indexes to plot"
     @assert length(indexes) <= 3 "plot_MultiobjectiveOptimizationResults: Cannot visualize more than 3 indexes at once"
     @assert typeof(color_by) <: Integer
     @assert typeof(design_space) <: Bool
@@ -162,13 +197,13 @@ end
     if design_space
         arg = :x
         col = :f
-        arg_labels = results.opt_ini
+        arg_labels = opt_parameters(results.ini)
         col_labels = results.objectives_functions
     else
         arg = :f
         col = :x
         arg_labels = results.objectives_functions
-        col_labels = results.opt_ini
+        col_labels = opt_parameters(results.ini)
     end
 
     x = Float64[]
@@ -276,7 +311,7 @@ Convert MultiobjectiveOptimizationResults to DataFrame
 function DataFrames.DataFrame(results::MultiobjectiveOptimizationResults, what::Symbol=:all; filter_invalid::Bool=true)
     @assert what in [:inputs, :outputs, :all] "`what` must be either :inputs, :outputs, or :all"
 
-    inputs = [pretty_label(item) for item in results.opt_ini]
+    inputs = [pretty_label(item) for item in opt_parameters(results.ini)]
     outputs = [pretty_label(item) for item in results.objectives_functions]
 
     data = Dict()
@@ -320,4 +355,8 @@ end
 
 function Base.convert(::Type{Vector{<:ObjectiveFunction}}, x::Vector{Any})
     return ObjectiveFunction[xx for xx in x]
+end
+
+function Base.convert(::Type{Vector{<:ConstraintFunction}}, x::Vector{Any})
+    return ConstraintFunction[xx for xx in x]
 end

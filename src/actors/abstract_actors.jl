@@ -27,6 +27,7 @@ Calls `_step(actor)`
 This is where the calculation is done.
 """
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
+    memory_time_tag("$(name(actor)) - @step IN")
     logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
     timer_name = name(actor)
     TimerOutputs.reset_timer!(timer_name)
@@ -41,6 +42,7 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
             exit_workflow(actor)
         end
     end
+    memory_time_tag("$(name(actor)) - @step OUT")
     return actor
 end
 
@@ -59,7 +61,8 @@ Calls `_finalize(actor)`
 This is typically used to update `dd` to whatever the actor has calculated at the `step` function.
 """
 function finalize(actor::T) where {T<:AbstractActor}
-    logging(Logging.Debug, :actors, "$(name(actor)) @finalize")
+    memory_time_tag("$(name(actor)) - finalize IN")
+    logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
     f_actor = _finalize(actor)
     @assert f_actor === actor "_finalize should return the same actor (check if it is actor at all)"
 
@@ -71,6 +74,7 @@ function finalize(actor::T) where {T<:AbstractActor}
             IMAS.freeze!(idsw.value)
         end
     end
+    memory_time_tag("$(name(actor)) - finalize OUT")
     return actor
 end
 
