@@ -85,7 +85,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.tf.technology = :ITER
 
     ini.oh.technology = :ITER
-    act.ActorFluxSwing.operate_at_j_crit = false
+    act.ActorFluxSwing.operate_oh_at_j_crit = false
 
     ini.requirements.flattop_duration = 1800.0
 
