@@ -15,12 +15,13 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.build.blanket = 0.0
     ini.build.shield = 0.5
     ini.build.vessel = 0.125
-    ini.material.shield = "Tungsten"
+
+    ini.material.wall = "Tungsten"
+    ini.material.shield = "Steel, Stainless 316"
 
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
-        act.ActorHFSsizing.fixed_aspect_ratio = true
 
         ini.equilibrium.boundary_from = :MXH_params
         ini.equilibrium.xpoints_number = 1
@@ -53,7 +54,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         end
 
         act.ActorCXbuild.rebuild_wall = true
-        act.ActorHFSsizing.fixed_aspect_ratio = true
         # act.ActorEquilibrium.model = :CHEASE
     end
 

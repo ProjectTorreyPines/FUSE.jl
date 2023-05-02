@@ -25,7 +25,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__material{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :material
-    wall::Switch{String} = Switch(String, FusionMaterials.available_materials("wall_materials"), "-", "Material used for the wall"; default="Steel, Stainless 316")
+    wall::Switch{String} = Switch(String, FusionMaterials.available_materials("wall_materials"), "-", "Material used for the wall")
     blanket::Switch{String} = Switch(String, FusionMaterials.available_materials("blanket_materials"), "-", "Material used for blanket coils")
     shield::Switch{String} = Switch(String, FusionMaterials.available_materials("shield_materials"), "-", "Material used for the shield")
 end
