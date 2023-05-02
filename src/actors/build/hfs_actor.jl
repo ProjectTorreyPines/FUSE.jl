@@ -189,9 +189,11 @@ function _step(
         @show target_B0
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0_of_B0
         println()
-        @show dd.build.oh.flattop_duration
-        @show dd.requirements.flattop_duration
-        println()
+        if !operate_at_j_crit
+            @show dd.build.oh.flattop_duration
+            @show dd.requirements.flattop_duration
+            println()
+        end
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
         println()
