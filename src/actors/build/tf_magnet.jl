@@ -29,15 +29,14 @@ function tf_maximum_J_B!(bd::IMAS.build; j_tolerance)
 end
 
 """
-    tf_required_J_B!(bd::IMAS.build)
+    tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
 
-Evaluate TF current density given a B_field
+Evaluate TF current density needed to obtain the maximum required B0 at R0
 """
 function tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
     hfsTF = IMAS.get_build(bd, type=_tf_, fs=_hfs_)
-    lfsTF = IMAS.get_build(bd, type=_tf_, fs=_lfs_)
-    B0 = abs(maximum(eq.vacuum_toroidal_field.b0))
-    R0 = (hfsTF.end_radius + lfsTF.start_radius) / 2.0
+    B0 = maximum(abs.(eq.vacuum_toroidal_field.b0))
+    R0 = eq.vacuum_toroidal_field.r0
 
     # current in the TF coils
     current_TF = B0 * R0 * 2pi / constants.μ_0 / bd.tf.coils_n

@@ -149,6 +149,9 @@ function _step(
     iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true)
     plasma = dd.build.layer[iplasma]
 
+    target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
+    R0_of_B0 = dd.equilibrium.vacuum_toroidal_field.r0
+
     old_R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
     old_plasma_start_radius = plasma.start_radius
     old_a = plasma.thickness / 2.0
@@ -233,25 +236,24 @@ function _step(
     end
 
     if verbose
-        R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
         @show target_B0
-        @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
-
+        @show dd.build.tf.max_b_field * TFhfs.end_radius / R0_of_B0
+        println()
         @show dd.build.oh.flattop_duration
         @show dd.requirements.flattop_duration
-
+        println()
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
-
+        println()
         @show dd.build.tf.max_j
         @show dd.build.tf.critical_j
-
+        println()
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh)
         @show stainless_steel.yield_strength
-
+        println()
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf)
         @show stainless_steel.yield_strength
-
+        println()
         @show ϵ
         @show old_ϵ
     end
