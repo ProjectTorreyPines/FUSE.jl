@@ -116,8 +116,7 @@ revise:
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	echo "using Revise" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
-	rm -f "$(JULIA_CONF).tmp"
+	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
