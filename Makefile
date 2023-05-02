@@ -107,8 +107,7 @@ rm_hide:
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
-	rm -f "$(JULIA_CONF).tmp"
+	mv "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
 
 # install Revise and load it when Julia starts up
 revise:
@@ -116,7 +115,8 @@ revise:
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
+	echo "using Revise" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
+	rm -f "$(JULIA_CONF).tmp"
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
