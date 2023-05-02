@@ -17,8 +17,11 @@ end
 mutable struct ActorFluxSwing <: ReactorAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorFluxSwing
-    operate_at_j_crit::Bool
-    j_tolerance::Real
+    function ActorFluxSwing(dd::IMAS.dd, par::FUSEparameters__ActorFluxSwing; kw...)
+        logging_actor_init(ActorFluxSwing)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 """
@@ -45,23 +48,15 @@ function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorFluxSwing(dd::IMAS.dd, par::FUSEparameters__ActorFluxSwing; kw...)
-    logging_actor_init(ActorFluxSwing)
-    par = par(kw...)
-    return ActorFluxSwing(dd, par, par.operate_at_j_crit, par.j_tolerance)
-end
-
 """
-    step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
+    step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.par.operate_at_j_crit, j_tolerance::Real=actor.par.j_tolerance)
 
 `operate_at_j_crit=true`` makes the OH and TF operate at their current limit (within specified `j_tolerance`).
 The flattop duration and toroidal magnetic field follow from that.
 Otherwise we evaluate what is the currents needed for a given flattop duration and toroidal magnetic field.
 These currents may or may not exceed the OH and TF current limits.
-
-The `only` parameter controls if :tf, :oh, or :all (both) should be calculated
 """
-function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j_crit, j_tolerance::Real=actor.j_tolerance, only=:all)
+function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.par.operate_at_j_crit, j_tolerance::Real=actor.par.j_tolerance)
     bd = actor.dd.build
     requirements = actor.dd.requirements
     eq = actor.dd.equilibrium
@@ -69,25 +64,22 @@ function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.operate_at_j
     cp = actor.dd.core_profiles
     cp1d = cp.profiles_1d[]
 
-    if only ∈ [:all, :oh]
-        bd.flux_swing.rampup = rampup_flux_estimates(eqt, cp)
-        bd.flux_swing.pf = pf_flux_estimates(eqt)
-
-        if operate_at_j_crit
-            oh_maximum_J_B!(bd; j_tolerance)
-            bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
-        else
-            bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
-            oh_required_J_B!(bd)
-        end
-
-        # flattop duration
-        flattop_duration!(bd, eqt, cp1d)
+    # oh
+    bd.flux_swing.rampup = rampup_flux_estimates(eqt, cp)
+    bd.flux_swing.pf = pf_flux_estimates(eqt)
+    if operate_at_j_crit
+        oh_maximum_J_B!(bd; j_tolerance)
+        bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
+    else
+        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
+        oh_required_J_B!(bd)
     end
 
-    if only ∈ [:all, :tf]
-        tf_required_J_B!(bd, eq)
-    end
+    # flattop duration
+    flattop_duration!(bd, eqt, cp1d)
+
+    # tf
+    tf_required_J_B!(bd, eq)
 
     return actor
 end
