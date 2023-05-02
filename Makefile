@@ -102,6 +102,14 @@ hide: Hide
 	echo "using Hide" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
 	rm -f "$(JULIA_CONF).tmp"
 
+# remove from Julia starts up
+rm_hide:
+	mkdir -p $(JULIA_DIR)/config
+	touch $(JULIA_CONF)
+	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
+	cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
+	rm -f "$(JULIA_CONF).tmp"
+
 # install Revise and load it when Julia starts up
 revise:
 	julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0")); Pkg.compat("Revise", "< 3.4.1")'
@@ -200,6 +208,7 @@ FUSE:
 
 Hide:
 	$(call clone_pull_repo,$@)
+	julia -e 'using Pkg; Pkg.develop("Hide")'
 
 IMAS:
 	$(call clone_pull_repo,$@)
