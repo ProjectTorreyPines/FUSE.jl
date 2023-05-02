@@ -7,7 +7,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the conductor current limits"; default=0.4)
     stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the structural stresses limits"; default=0.2)
     aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.01)
-    unconstrained_flattop_duration::Entry{Bool} = Entry(Bool, "-", "Maximize flux_duration without targeting a specific value"; default=true)
+    operate_at_j_crit::Entry{Bool} = Entry(Bool, "-", "Maximize flux_duration without targeting a specific value"; default=true)
     do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
     verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
 end
@@ -55,7 +55,7 @@ function _step(
     j_tolerance::Real=actor.par.j_tolerance,
     stress_tolerance::Real=actor.par.stress_tolerance,
     aspect_ratio_tolerance::Real=actor.par.aspect_ratio_tolerance,
-    unconstrained_flattop_duration::Bool=actor.par.unconstrained_flattop_duration,
+    operate_at_j_crit::Bool=actor.par.operate_at_j_crit,
     verbose::Bool=actor.par.verbose,
     debug_plot=false
 )
@@ -102,7 +102,7 @@ function _step(
     function cost(x0, what)
         # assign optimization arguments and evaluate coils currents and stresses
         c_extra = assign_PL_OH_TF_thicknesses(x0, what)
-        _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=what)
+        _step(actor.fluxswing_actor; operate_at_j_crit, j_tolerance, only=what)
         _step(actor.stresses_actor)
 
         # OH and plug sizing based on stresses
@@ -139,7 +139,6 @@ function _step(
 
     @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
     dd = actor.stresses_actor.dd
-    target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
 
     # init
     plug = dd.build.layer[1]
@@ -165,7 +164,7 @@ function _step(
     end
 
     # initialize all dd fields
-    step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance)
+    step(actor.fluxswing_actor; operate_at_j_crit, j_tolerance)
     step(actor.stresses_actor)
 
     dd.build.oh.technology.fraction_stainless = 0.5
@@ -181,7 +180,7 @@ function _step(
         autodiff=:forward
     )
     assign_PL_OH_TF_thicknesses(res.minimizer, :oh)
-    _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:oh)
+    _step(actor.fluxswing_actor; operate_at_j_crit, j_tolerance, only=:oh)
     _step(actor.stresses_actor)
     if verbose
         display(res)
@@ -197,7 +196,7 @@ function _step(
         autodiff=:forward
     )
     assign_PL_OH_TF_thicknesses(res.minimizer, :tf)
-    _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance, only=:tf)
+    _step(actor.fluxswing_actor; operate_at_j_crit, j_tolerance, only=:tf)
     _step(actor.stresses_actor)
     if verbose
         display(res)
@@ -215,7 +214,7 @@ function _step(
             autodiff=:forward
         )
         assign_PL_OH_TF_thicknesses(res.minimizer, :all)
-        _step(actor.fluxswing_actor; operate_at_j_crit=unconstrained_flattop_duration, j_tolerance)
+        _step(actor.fluxswing_actor; operate_at_j_crit, j_tolerance)
         _step(actor.stresses_actor)
         if verbose
             display(res)
@@ -269,7 +268,7 @@ function _step(
     @assert dd.build.tf.max_j < dd.build.tf.critical_j
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
-    if !unconstrained_flattop_duration
+    if !operate_at_j_crit
         @assert rel_error(dd.build.oh.flattop_duration, dd.requirements.flattop_duration) <= 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_duration) --> $(dd.requirements.flattop_duration))"
     end
     @assert rel_error(ϵ, old_ϵ) <= aspect_ratio_tolerance "Plasma aspect ratio changed more than $(aspect_ratio_tolerance) ($old_ϵ --> $ϵ)"
