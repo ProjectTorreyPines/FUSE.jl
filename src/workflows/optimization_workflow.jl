@@ -85,6 +85,7 @@ function workflow_multiobjective_optimization(
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
     algorithm = Metaheuristics.SPEA2(; N, options) # converges and covers well the pareto front! 
+    # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) #
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state
@@ -122,6 +123,40 @@ function load_optimization(filename::AbstractString)
     return BSON.load(filename, FUSE)["results"]
 end
 
+function is_dominated(sol_a::Vector{T}, sol_b::Vector{T}) where T
+    for i in eachindex(sol_a)
+        if sol_a[i] < sol_b[i]
+            return false
+        end
+    end
+    return true
+end
+
+"""
+    pareto_front(solutions::Vector{Vector{T}}) where T
+
+returns indexes of solutions that form the pareto front
+"""
+function pareto_front(solutions::Vector{Vector{T}}) where T
+    pareto = Int[]
+    for i in eachindex(solutions)
+        is_dominated_by_any = false
+        for j in eachindex(solutions)
+            if i != j && is_dominated(solutions[i], solutions[j])
+                is_dominated_by_any = true
+                break
+            end
+        end
+        if !is_dominated_by_any
+            push!(pareto, i)
+        end
+    end
+    return pareto
+end
+
+#= ======== =#
+#  plotting  #
+#= ======== =#
 function pretty_label(objective_function::ObjectiveFunction, units="")
     txt = join(split(string(objective_function.name), "_")[2:end], " ")
     if length(units) > 0
