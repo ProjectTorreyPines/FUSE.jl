@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T} <: ParametersActor
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO, :FUSE], "-", "Power plant electrical needs model"; default=:FUSE)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorPowerNeeds <: FacilityAbstractActor
@@ -17,11 +17,8 @@ end
     ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Power needs actor that calculates the needed power to operate the plant
-
 * `model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
-
 * `model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
-
 * `model = :FUSE` subdivides power plant needs into subsystems and calculates their power needs.
 
 !!! note 

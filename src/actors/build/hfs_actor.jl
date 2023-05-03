@@ -7,8 +7,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
     stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
     aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.01)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorHFSsizing <: ReactorAbstractActor

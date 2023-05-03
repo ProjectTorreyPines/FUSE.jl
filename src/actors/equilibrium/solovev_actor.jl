@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     alpha::Entry{T} = Entry(T, "-", "Initial guess of constant relating to pressure"; default=0.0)
     volume::Entry{T} = Entry(T, "m³", "Scalar volume to match (optional)"; default=missing)
     area::Entry{T} = Entry(T, "m²", "Scalar area to match (optional)"; default=missing)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorSolovev <: PlasmaAbstractActor
