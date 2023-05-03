@@ -84,8 +84,8 @@ function workflow_multiobjective_optimization(
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1, f_calls_limit=1E9, g_calls_limit=1E9, h_calls_limit=1E9)
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
+    # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2
     algorithm = Metaheuristics.SPEA2(; N, options) # converges and covers well the pareto front! 
-    # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) #
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state
@@ -124,12 +124,7 @@ function load_optimization(filename::AbstractString)
 end
 
 function is_dominated(sol_a::Vector{T}, sol_b::Vector{T}) where T
-    for i in eachindex(sol_a)
-        if sol_a[i] < sol_b[i]
-            return false
-        end
-    end
-    return true
+    return all(sol_a .> sol_b)
 end
 
 """

@@ -218,18 +218,6 @@ function optimization_engine(
 end
 
 """
-    nan2inf(x::Float64)::Float64
-
-Turn NaNs into Inf
-"""
-function nan2inf(x::Float64)::Float64
-    if isnan(x)
-        return Inf
-    else
-        return x
-    end
-end
-"""
     function optimization_engine(
         ini::ParametersAllInits,
         act::ParametersAllActors,
@@ -269,4 +257,17 @@ function optimization_engine(
         end
     end
     return F, G, H
+end
+
+"""
+    nan2inf(x::Float64)::Float64
+
+Turn NaNs into Inf
+"""
+function nan2inf(x::Float64)::Float64
+    if isnan(x)
+        return Inf
+    else
+        return x
+    end
 end
