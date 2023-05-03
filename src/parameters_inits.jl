@@ -140,7 +140,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
-    layers::Entry{OrderedCollections.OrderedDict} = Entry(OrderedCollections.OrderedDict, "m", "Sorted dictionary of layers thicknesses in radial build")
+    layers::Entry{OrderedCollections.OrderedDict{Symbol,Float64}} = Entry(OrderedCollections.OrderedDict{Symbol,Float64}, "m", "Sorted dictionary of layers thicknesses in radial build")
     blanket::Entry{T} = Entry(T, "-", "Fraction of blanket in radial build")
     shield::Entry{T} = Entry(T, "-", "Fraction of shield in radial build")
     vessel::Entry{T} = Entry(T, "-", "Fraction of vessel in radial build")

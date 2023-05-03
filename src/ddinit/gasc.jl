@@ -233,7 +233,7 @@ Convert GASC ["OUTPUTS"]["radial build"] to FUSE build layers dictionary
 function gasc_2_layers(gasc::GASC)
     gascrb = gasc.outputs["radial build"]
 
-    layers = OrderedCollections.OrderedDict()
+    layers = OrderedCollections.OrderedDict{String,Float64}()
     mapper = Dict(
         "OH" => "OH",
         "TF" => "TF",
@@ -306,7 +306,13 @@ function gasc_2_layers(gasc::GASC)
         end
     end
 
-    return layers
+    # convert keys from string to symbols
+    sym_layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    for k in keys(layers)
+        sym_layers[Symbol(k)] = layers[k]
+    end
+
+    return sym_layers
 end
 
 """

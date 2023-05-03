@@ -92,7 +92,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         end
 
         # scale radial build layers based on equilibrium R0 and ϵ
-        iplasma = findfirst(key -> key in ["plasma", :plasma], collect(keys(layers)))
+        iplasma = findfirst(key -> key == :plasma, collect(keys(layers)))
         R_hfs_build = sum(d for (k, d) in enumerate(values(layers)) if k < iplasma)
         if ismissing(ini.equilibrium, :R0)
             R0 = R_hfs_build + collect(values(layers))[iplasma] / 2.0
@@ -106,7 +106,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         end
         R_hfs = R0 - a_gap
         for key in keys(layers)
-            if key in ["plasma", :plasma]
+            if key == :plasma
                 layers[key] = a_gap * 2.0
             else
                 layers[key] = layers[key] * R_hfs / R_hfs_build
