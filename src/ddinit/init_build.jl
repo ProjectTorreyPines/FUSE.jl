@@ -193,7 +193,7 @@ function init_build(bd::IMAS.build; layers...)
         k += 1
         layer = bd.layer[k]
         layer.thickness = layer_thickness
-        layer.name = replace(String(layer_name), "_" => " ")
+        layer.name = replace(string(layer_name), "_" => " ")
         if occursin("gap ", lowercase(layer.name))
             layer.type = Int(_gap_)
         elseif lowercase(layer.name) == "plasma"
