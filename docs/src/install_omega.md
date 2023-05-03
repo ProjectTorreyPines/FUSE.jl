@@ -44,14 +44,12 @@
    ln -s /fusion/ga/projects/ird/ptp/$USER/julia/dev ~/julia_dev
    ```
 
-8. Now follow the standard Julia and FUSE installation instructions
+8. Remove `module load defaults` from your `~/.bashrc`
+   This module is used to run experimental tools like review+, efit_veiwer, etc...
+   but it does not play well with the Julia executable.
+   (alternatively you'll have to `module purge` or `module unload defaults`)
 
-9. Hide your Julia processes on OMEGA
-   ```
-   cd ~/julia_dev/FUSE
-   make hide
-   ```
-   OMEGA is a shared resource used by non-GA employees. This will rename all your `julia` session into a much more discrete `python3`.
+9. Now follow the standard Julia and FUSE installation instructions
 
 10. Setup a multi-threaded Jupyter Julia kernel that does not take the whole login node
    ```
