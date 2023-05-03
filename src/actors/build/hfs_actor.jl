@@ -68,6 +68,7 @@ function _step(actor::ActorHFSsizing)
         # assign optimization arguments
         OH.thickness, c_extra1 = mirror_bound_w_cost(x0[1], 0.0, 100.0)
         TFhfs.thickness, c_extra2 = mirror_bound_w_cost(x0[2], 0.0, 100.0)
+        TFlfs.thickness = TFhfs.thickness
         dd.build.oh.technology.fraction_stainless, c_extra3 = mirror_bound_w_cost(x0[3], 0.45, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
         dd.build.tf.technology.fraction_stainless, c_extra4 = mirror_bound_w_cost(x0[4], 0.45, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
 
