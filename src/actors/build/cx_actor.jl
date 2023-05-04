@@ -42,10 +42,12 @@ function _step(actor::ActorCXbuild)
     dd = actor.dd
     par = actor.par
 
+    eqt = dd.equilibrium.time_slice[]
+
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
     wall = IMAS.first_wall(dd.wall)
     if wall === missing || par.rebuild_wall
-        pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
+        pr, pz = wall_from_eq(dd.build, eqt)
     else
         pr = wall.r
         pz = wall.z
@@ -59,9 +61,9 @@ function _step(actor::ActorCXbuild)
 
     build_cx!(dd.build, pr, pz)
 
-    divertor_regions!(dd.build, dd.equilibrium.time_slice[])
+    divertor_regions!(dd.build, eqt)
 
-    blanket_regions!(dd.build, dd.equilibrium.time_slice[])
+    blanket_regions!(dd.build, eqt)
 
     if wall === missing || par.rebuild_wall
         plasma = IMAS.get_build(dd.build, type=_plasma_)
@@ -70,6 +72,8 @@ function _step(actor::ActorCXbuild)
         dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
         dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
     end
+
+    IMAS.find_strike_points!(eqt, dd.wall)
 
     return actor
 end
