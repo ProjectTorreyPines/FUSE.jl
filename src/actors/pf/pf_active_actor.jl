@@ -7,11 +7,11 @@ using LinearAlgebra
 #  ActorPFcoilsOpt  #
 #= =============== =#
 options_green_model = [
-        :point => "one filament per coil",
-        :simple => "like :point, but OH coils have three filaments",
-        :corners => "like :simple, but PF coils have filaments at the four corners",
-        :realistic => "possibly hundreds of filaments per coil (very slow!)",
-    ]
+    :point => "one filament per coil",
+    :simple => "like :point, but OH coils have three filaments",
+    :corners => "like :simple, but PF coils have filaments at the four corners",
+    :realistic => "possibly hundreds of filaments per coil (very slow!)",
+]
 
 options_optimization_scheme = [
     :none => "Do not optimize",
@@ -27,7 +27,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor
     weight_currents::Entry{T} = Entry(T, "-", "Weight of current limit constraint"; default=2.0)
     weight_strike::Entry{T} = Entry(T, "-", "Weight given to matching the strike-points"; default=0.1)
     weight_lcfs::Entry{T} = Entry(T, "-", "Weight given to matching last closed flux surface"; default=1.0)
-    weight_null::Entry{T} = Entry(T, "-", "Weight given to get field null for plasma breakdown"; default=1E-3)
+    weight_null::Entry{T} = Entry(T, "-", "Weight given to get field null for plasma breakdown"; default=1.0)
     maxiter::Entry{Int} = Entry(Int, "-", "Maximum number of optimizer iterations"; default=1000)
     optimization_scheme::Switch{Symbol} = Switch(Symbol, options_optimization_scheme, "-", "Type of PF coil optimization to carry out"; default=:rail)
     update_equilibrium::Entry{Bool} = Entry(Bool, "-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
@@ -166,9 +166,10 @@ function _step(actor::ActorPFcoilsOpt;
     end
 
     bd = actor.bd
+    pc = actor.dd.pulse_schedule.position_control
     # run rail type optimizer
     if optimization_scheme in [:rail, :currents]
-        (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, maxiter, verbose)
+        (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, pc, maxiter, verbose)
     else
         error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
     end
@@ -214,7 +215,7 @@ function _finalize(actor::ActorPFcoilsOpt)
         EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
         # update ψ map
-        scale_eq_domain_size=1.0
+        scale_eq_domain_size = 1.0
         R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length=length(EQfixed.r))
         Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length=length(EQfixed.z))
         ψ_f2f = transpose(VacuumFields.fixed2free(EQfixed, coils, R, Z))
@@ -279,7 +280,9 @@ end
 
 function Base.getproperty(coil::GS_IMAS_pf_active__coil, field::Symbol)
     if field == :current
-        return getfield(coil, :current_data)[coil.time_index]
+        tmp = getfield(coil, :current_data)[coil.time_index]
+        @assert typeof(tmp) <: Real
+        return tmp
     else
         return getfield(coil, field)
     end
@@ -504,6 +507,10 @@ function coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
     end
 end
 
+function do_field_null(weight_null::Float64, pc::IMAS.pulse_schedule__position_control)
+    return weight_null > 0.0 && !isempty(pc.boundary_outline) && pc.boundary_outline[1].r.reference.time[1] == -Inf
+end
+
 function optimize_coils_rail(
     eq::IMAS.equilibrium;
     pinned_coils::Vector{GS_IMAS_pf_active__coil},
@@ -516,6 +523,7 @@ function optimize_coils_rail(
     weight_currents::Real,
     weight_strike::Real,
     bd::IMAS.build,
+    pc::IMAS.pulse_schedule__position_control,
     maxiter::Integer,
     verbose::Bool)
 
@@ -527,9 +535,11 @@ function optimize_coils_rail(
         # field nulls
         if ismissing(eqt.global_quantities, :ip)
             # find ψp
-            Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(eqt.global_quantities.psi_boundary,
-                eqt.boundary.outline.r,
-                eqt.boundary.outline.z,
+            ψp_constant = eqt.global_quantities.psi_boundary
+            Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(
+                ψp_constant,
+                [pcb.r.reference.data[1] for pcb in pc.boundary_outline],
+                [pcb.z.reference.data[1] for pcb in pc.boundary_outline],
                 fixed_coils)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             push!(weights, Float64[])
@@ -829,7 +839,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 seriestype --> :contour
                 colorbar_entry --> false
                 levels --> [ψbound]
-                linecolor --> :black
+                linecolor --> :gray
                 R, Z, transpose(ψ)
             end
         end
@@ -844,11 +854,12 @@ Plot ActorPFcoilsOpt optimization cross-section
     # plot equilibrium
     if equilibrium
         if field_null
+            pc = actor.dd.pulse_schedule.position_control
             @series begin
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                actor.eq_out.time_slice[time_index].boundary
+                [pcb.r.reference.data[1] for pcb in pc.boundary_outline], [pcb.z.reference.data[1] for pcb in pc.boundary_outline]
             end
         else
             @series begin

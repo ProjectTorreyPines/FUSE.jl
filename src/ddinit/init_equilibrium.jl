@@ -49,7 +49,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
 
                 if ini.equilibrium.boundary_from == :MXH_params
                     mxh = IMAS.MXH(pr, pz, 2)
-                
+
                 elseif boundary_from == :scalars
                     mxh = IMAS.MXH(
                         ini.equilibrium.R0,
@@ -142,10 +142,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
 
         # field null surface
         if ini.equilibrium.field_null_surface > 0.0
-            pushfirst!(dd.equilibrium.time_slice, field_null_surface(dd.equilibrium.time_slice[], ini.equilibrium.field_null_surface))
-            pushfirst!(dd.equilibrium.vacuum_toroidal_field.b0, @ddtime(dd.equilibrium.vacuum_toroidal_field.b0))
-            pushfirst!(dd.equilibrium.time, -Inf)
-            dd.equilibrium.time_slice[1].time = -Inf
+            field_null_surface!(dd.pulse_schedule.position_control, dd.equilibrium, ini.equilibrium.field_null_surface)
         end
 
         return dd
@@ -173,7 +170,7 @@ function init_pulse_schedule_postion_control(
 
         # x-point information
         resize!(pc.x_point, length(mxhb.RX))
-        for (k,(rx,zx)) in enumerate(zip(mxhb.RX,mxhb.ZX))
+        for (k, (rx, zx)) in enumerate(zip(mxhb.RX, mxhb.ZX))
             @ddtime(pc.x_point[k].r.reference.data = rx)
             @ddtime(pc.x_point[k].r.reference.data = zx)
         end
@@ -181,7 +178,7 @@ function init_pulse_schedule_postion_control(
         # boundary with x-points parametrized with MXH
         mxh = IMAS.MXH(pr, pz, 5)
     end
-    pr, pz = mxh()
+    pr, pz = mxh(100; adaptive=false)
 
     # scalars
     @ddtime(pc.minor_radius.reference.data = mxh.ϵ * mxh.R0)
@@ -212,7 +209,7 @@ function init_pulse_schedule_postion_control(
 
     # boundary
     resize!(pc.boundary_outline, length(pr))
-    for (k,(r,z)) in enumerate(zip(pr,pz))
+    for (k, (r, z)) in enumerate(zip(pr, pz))
         @ddtime(pc.boundary_outline[k].r.reference.data = r)
         @ddtime(pc.boundary_outline[k].z.reference.data = z)
     end
@@ -221,22 +218,44 @@ function init_pulse_schedule_postion_control(
 end
 
 """
-    field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real=0.5, abs_psi_boundary::Real=0.1)
+    field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS.equilibrium, scale::Real=0.5, ψp_constant::Real=0.1)
 
-Return field null surface by scaling an existing equilibrium time_slice
+Setup field null surface as pulse_schedule.position_control.boundary_outline and insert equilibrium time slice at time=-Inf
 """
-function field_null_surface(eqt::IMAS.equilibrium__time_slice, scale::Real=0.5, abs_psi_boundary::Real=0.1)
-    eqb = IMAS.equilibrium__time_slice()
-
-    pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101, method=:linear)
-    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-    mxh = IMAS.MXH(pr, pz, 2)
+function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS.equilibrium, scale::Real=0.75, ψp_constant::Real=0.1)
+    eqt = eq.time_slice[]
+    mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 0)
+    mxh.κ = 1.0
+    mxh.c0 = 0.0
     mxh.ϵ *= scale
-    eqb.boundary.outline.r, eqb.boundary.outline.z = mxh()
+    pr, pz = mxh(length(pc.boundary_outline); adaptive=false)
 
-    eqb.global_quantities.psi_boundary = abs_psi_boundary
-    eqb.profiles_1d.psi = [eqb.global_quantities.psi_boundary]
-    eqb.profiles_1d.f = [eqt.profiles_1d.f[end]]
-    return eqb
+    if !isempty(pc.boundary_outline) && pc.boundary_outline[1].r.reference.time[1] == -Inf
+        for (k, (r, z)) in enumerate(zip(pr, pz))
+            pc.boundary_outline[k].r.reference.data[1] = r
+            pc.boundary_outline[k].z.reference.data[1] = z
+        end
+    else
+        for (k, (r, z)) in enumerate(zip(pr, pz))
+            pushfirst!(pc.boundary_outline[k].r.reference.time, -Inf)
+            pushfirst!(pc.boundary_outline[k].r.reference.data, r)
+            pushfirst!(pc.boundary_outline[k].z.reference.time, -Inf)
+            pushfirst!(pc.boundary_outline[k].z.reference.data, z)
+        end
+    end
+
+    if !isempty(eq.time_slice) && eq.time[1] == -Inf
+        eqb=empty!(eq.time_slice[1])
+    else
+        eqb = IMAS.equilibrium__time_slice()
+        pushfirst!(eq.time_slice, eqb)
+        pushfirst!(eq.time, -Inf)
+        pushfirst!(eq.vacuum_toroidal_field.b0, 0.0)
+    end
+    eq.vacuum_toroidal_field.b0[1] = @ddtime(eq.vacuum_toroidal_field.b0)
+    eqb.time = -Inf
+    eqb.global_quantities.psi_boundary = ψp_constant
+    eqb.profiles_1d.psi = [ψp_constant]
+
+    return pr, pz
 end
