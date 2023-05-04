@@ -7,8 +7,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
     stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
     aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.01)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorHFSsizing <: ReactorAbstractActor
@@ -50,6 +50,7 @@ function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::P
 end
 
 function _step(actor::ActorHFSsizing)
+    dd = actor.dd
     j_tolerance = actor.par.j_tolerance
     stress_tolerance = actor.par.stress_tolerance
     aspect_ratio_tolerance = actor.par.aspect_ratio_tolerance
@@ -68,6 +69,7 @@ function _step(actor::ActorHFSsizing)
         # assign optimization arguments
         OH.thickness, c_extra1 = mirror_bound_w_cost(x0[1], 0.0, 100.0)
         TFhfs.thickness, c_extra2 = mirror_bound_w_cost(x0[2], 0.0, 100.0)
+        TFlfs.thickness = TFhfs.thickness
         dd.build.oh.technology.fraction_stainless, c_extra3 = mirror_bound_w_cost(x0[3], 0.45, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
         dd.build.tf.technology.fraction_stainless, c_extra4 = mirror_bound_w_cost(x0[4], 0.45, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
 
@@ -115,9 +117,6 @@ function _step(actor::ActorHFSsizing)
         # total cost
         return norm([c_joh; c_jtf; c_spl; c_soh; c_stf; c_extra])
     end
-
-    @assert actor.stresses_actor.dd === actor.fluxswing_actor.dd
-    dd = actor.stresses_actor.dd
 
     # initialize
     plug = dd.build.layer[1]
@@ -214,13 +213,15 @@ function _step(actor::ActorHFSsizing)
     end
 
     max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0_of_B0
-    @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 --> $max_B0)"
-    @assert dd.build.oh.max_j < dd.build.oh.critical_j
-    @assert dd.build.tf.max_j < dd.build.tf.critical_j
-    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) < stainless_steel.yield_strength
-    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) < stainless_steel.yield_strength
-    if !actor.fluxswing_actor.par.operate_oh_at_j_crit
-        @assert rel_error(dd.build.oh.flattop_duration, dd.requirements.flattop_duration) <= 0.1 "Relative error on flattop duration is more than 10% ($(dd.build.oh.flattop_duration) --> $(dd.requirements.flattop_duration))"
+    @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
+    @assert dd.build.oh.max_j .* (1.0 .+ j_tolerance * 0.9) < dd.build.oh.critical_j
+    @assert dd.build.tf.max_j .* (1.0 .+ j_tolerance * 0.9) < dd.build.tf.critical_j
+    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ stress_tolerance * 0.9) < stainless_steel.yield_strength
+    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ stress_tolerance * 0.9) < stainless_steel.yield_strength
+    if actor.fluxswing_actor.par.operate_oh_at_j_crit
+        @assert dd.build.oh.flattop_duration > 0.0 "The OH flux is insufficient to have any flattop duration"
+    else
+        @assert dd.build.oh.flattop_duration > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
     end
     @assert rel_error(ϵ, old_ϵ) <= aspect_ratio_tolerance "Plasma aspect ratio changed more than $(aspect_ratio_tolerance) ($old_ϵ --> $ϵ)"
 

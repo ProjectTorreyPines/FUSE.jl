@@ -28,8 +28,8 @@ end
     ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Depending on `operate_oh_at_j_crit`
-* true => Evaluate the OH and TF current limits, and evaluate flattop duration and maximum toroidal magnetic field from that.
-* false => Evaluate what are the currents needed for a given flattop duration and toroidal magnetic field, which may or may not exceed the OH and TF current limits.
+* true => Evaluate the OH current limits, and evaluate flattop duration from that.
+* false => Evaluate what are the currents needed for a given flattop duration. This may or may not exceed the OH current limits.
 
 OH flux consumption based on:
 * rampup estimate based on Ejima coefficient
@@ -67,7 +67,7 @@ function _step(actor::ActorFluxSwing)
         oh_maximum_J_B!(bd; par.j_tolerance)
         bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
     else
-        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
+        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d; par.j_tolerance) # flattop flux based on requirements duration
         oh_required_J_B!(bd)
     end
 
@@ -83,9 +83,8 @@ end
 """
     rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
 
-Estimate OH flux requirement during rampup, where
-eqt is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
-and core_profiles is only used to get core_profiles.global_quantities.ejima
+Estimate OH flux requirement during rampup, where eqt is supposed to be the equilibrium right at the end of the rampup phase,
+beginning of flattop and core_profiles is only used to get core_profiles.global_quantities.ejima
 """
 function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_profiles)
     ###### what equilibrium time-slice should we use to evaluate rampup flux requirements?
@@ -110,18 +109,22 @@ function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_
 end
 
 """
-    flattop_flux_estimates(target::IMAS.target, cp1d::IMAS.core_profiles__profiles_1d)
+    flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d; j_tolerance::Float64)
 
-Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
+Estimate OH flux requirement during flattop
+
+NOTES:
+* If j_ohmic profile is missing then steady state ohmic profile is assumed
+* j_tolerance is used as a tolerance factor on the required flattop_duration
 """
-function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
-    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * requirements.flattop_duration # V*s
+function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d; j_tolerance::Float64)
+    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * (requirements.flattop_duration * (1.0 + j_tolerance)) # V*s
 end
 
 """
     flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
 
-OH flux given its max_b_field and geometry
+OH flux given its bd.oh.max_b_field and radial build
 """
 function flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
     OH = IMAS.get_build(bd, type=_oh_)
@@ -136,8 +139,8 @@ end
 """
     pf_flux_estimates(eqt::IMAS.equilibrium__time_slice)
 
-Estimate vertical field from PF coils and its contribution to flux swing, where
-`eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
+Estimate vertical field from PF coils and its contribution to flux swing,
+where `eqt` is supposed to be the equilibrium right at the end of the rampup phase, beginning of flattop
 """
 function pf_flux_estimates(eqt::IMAS.equilibrium__time_slice)
     # from IMAS dd to local variables

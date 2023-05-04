@@ -63,7 +63,10 @@ end
 """
     flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
 
-Estimate OH flux requirement during flattop (if j_ohmic profile is missing then steady state ohmic profile is assumed)
+Estimate OH flux requirement during flattop
+
+NOTE:
+* if j_ohmic profile is missing then steady state ohmic profile is assumed
 """
 function flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
     OH = IMAS.get_build(bd, type=_oh_)
