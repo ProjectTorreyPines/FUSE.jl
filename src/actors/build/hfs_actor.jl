@@ -30,14 +30,13 @@ Actor that resizes the High Field Side of the tokamak radial build
     Manipulates radial build information in `dd.build.layer`
 """
 function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorHFSsizing
-    actor = ActorHFSsizing(dd, par, act; kw...)
-    if par.do_plot
+    actor = ActorHFSsizing(dd, act.ActorHFSsizing, act; kw...)
+    if actor.par.do_plot
         p = plot(dd.build)
     end
     step(actor)
     finalize(actor)
-    if par.do_plot
+    if actor.par.do_plot
         display(plot!(p, dd.build; cx=false))
     end
     return actor
@@ -88,7 +87,7 @@ function _step(actor::ActorHFSsizing)
         _step(actor.stresses_actor)
 
         # OH sizing
-        if actor.fluxswing_actor.operate_oh_at_j_crit
+        if actor.fluxswing_actor.par.operate_oh_at_j_crit
             c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
         else
             c_joh = 0.0
@@ -217,10 +216,10 @@ function _step(actor::ActorHFSsizing)
 
     max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0_of_B0
     @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
-    @assert dd.build.oh.max_j .* (1.0 .+ j_tolerance * 0.9) < dd.build.oh.critical_j
-    @assert dd.build.tf.max_j .* (1.0 .+ j_tolerance * 0.9) < dd.build.tf.critical_j
-    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ stress_tolerance * 0.9) < stainless_steel.yield_strength
-    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ stress_tolerance * 0.9) < stainless_steel.yield_strength
+    @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j
+    @assert dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j
+    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < stainless_steel.yield_strength
+    @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < stainless_steel.yield_strength
     if actor.fluxswing_actor.par.operate_oh_at_j_crit
         @assert dd.build.oh.flattop_duration > 0.0 "The OH flux is insufficient to have any flattop duration"
     else

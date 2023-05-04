@@ -24,8 +24,7 @@ end
 Runs all the limit actors
 """
 function ActorStabilityLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorStabilityLimits
-    actor = ActorStabilityLimits(dd, par; kw...)
+    actor = ActorStabilityLimits(dd, act.ActorStabilityLimits; kw...)
     step(actor)
     finalize(actor)
     return actor

@@ -68,44 +68,45 @@ to match the equilibrium boundary shape and obtain a field-null region at plasma
     Manupulates data in `dd.pf_active`
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPFcoilsOpt
-    actor = ActorPFcoilsOpt(dd, par; kw...)
+    actor = ActorPFcoilsOpt(dd, act.ActorPFcoilsOpt; kw...)
 
-    if par.optimization_scheme == :none
-        if par.do_plot
+    if actor.par.optimization_scheme == :none
+        if actor.par.do_plot
             plot(actor.eq_in; cx=true)
             plot!(actor.bd)
             display(plot!(actor.pf_active))
         end
 
     else
-        old_update_equilibrium = par.update_equilibrium
-        par.update_equilibrium = false
+        old_update_equilibrium = actor.par.update_equilibrium
+        actor.par.update_equilibrium = false
 
-        if par.optimization_scheme == :currents
+        if actor.par.optimization_scheme == :currents
             # find coil currents
             finalize(step(actor))
 
-        elseif par.optimization_scheme == :rail
+        elseif actor.par.optimization_scheme == :rail
             # optimize coil location and currents
             finalize(step(actor))
 
-            if par.do_plot
+            if actor.par.do_plot
                 display(plot(actor.trace, :cost, title="Evolution of cost"))
                 display(plot(actor.trace, :params, title="Evolution of optimized parameters"))
             end
         end
 
-        if par.do_plot
-            # field null time slice
-            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[1], title="Current limits at t=$(dd.equilibrium.time[1]) s"))
-            display(plot(actor, equilibrium=true, rail=true, time_index=1))
+        if actor.par.do_plot
             # final time slice
-            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[end], title="Current limits at t=$(dd.equilibrium.time[end]) s"))
-            display(plot(actor, equilibrium=true, time_index=length(dd.equilibrium.time)))
+            time_index = length(dd.equilibrium.time)
+            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[time_index], title="Current limits at t=$(dd.equilibrium.time[time_index]) s"))
+            display(plot(actor, equilibrium=true; time_index))
+            # field null time slice
+            if actor.par.weight_null > 0.0
+                display(plot(actor, equilibrium=true, rail=true, time_index=1))
+            end
         end
 
-        par.update_equilibrium = old_update_equilibrium
+        actor.par.update_equilibrium = old_update_equilibrium
         finalize(actor)
     end
 

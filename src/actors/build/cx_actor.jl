@@ -27,11 +27,10 @@ Generates the 2D cross section of the tokamak build
     Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCXbuild
-    actor = ActorCXbuild(dd, par; kw...)
+    actor = ActorCXbuild(dd, act.ActorCXbuild; kw...)
     step(actor)
     finalize(actor)
-    if par.do_plot
+    if actor.par.do_plot
         plot(dd.build)
         display(plot!(dd.build; cx=false))
     end

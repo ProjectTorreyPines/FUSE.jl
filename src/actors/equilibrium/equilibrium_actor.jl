@@ -21,8 +21,7 @@ end
 Provides a common interface to run multiple equilibrium actors
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibrium
-    actor = ActorEquilibrium(dd, par, act; kw...)
+    actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw...)
     step(actor)
     finalize(actor)
     return actor

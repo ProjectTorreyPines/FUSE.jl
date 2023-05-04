@@ -23,11 +23,10 @@ end
 Populates `pf_passive` structures
 """
 function ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPassiveStructures
-    actor = ActorPassiveStructures(dd, par; kw...)
+    actor = ActorPassiveStructures(dd, act.ActorPassiveStructures; kw...)
     step(actor)
     finalize(actor)
-    if par.do_plot
+    if actor.par.do_plot
         display(plot(dd.pf_passive))
     end
     return actor

@@ -27,8 +27,7 @@ Estimates the neutron wall loading
     Stores data in `dd.neutronics`
 """
 function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorNeutronics
-    actor = ActorNeutronics(dd, par; kw...)
+    actor = ActorNeutronics(dd, act.ActorNeutronics; kw...)
     step(actor)
     finalize(actor)
     return actor

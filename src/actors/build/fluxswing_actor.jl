@@ -40,8 +40,7 @@ OH flux consumption based on:
     Stores data in `dd.build.flux_swing`, `dd.build.tf`, and `dd.build.oh`
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorFluxSwing
-    actor = ActorFluxSwing(dd, par; kw...)
+    actor = ActorFluxSwing(dd, act.ActorFluxSwing; kw...)
     step(actor)
     finalize(actor)
     return actor
