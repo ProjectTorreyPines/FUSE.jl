@@ -15,8 +15,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor whe
     warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "Warn if EPED-NN / TGLF-NN training bounds are exceeded"; default=false)
     update_pedestal::Entry{Bool} = Entry(Bool, "-","update pedestal with eped_nn inside TAUENN" ;default=true)
     confinement_factor::Entry{T} = Entry(T, "-", "Confinement multiplier"; default=1.0)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorTauenn <: PlasmaAbstractActor

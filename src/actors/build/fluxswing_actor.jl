@@ -28,8 +28,8 @@ end
     ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Depending on `operate_oh_at_j_crit`
-* true => Evaluate the OH and TF current limits, and evaluate flattop duration and maximum toroidal magnetic field from that.
-* false => Evaluate what are the currents needed for a given flattop duration and toroidal magnetic field, which may or may not exceed the OH and TF current limits.
+* true => Evaluate the OH current limits, and evaluate flattop duration from that.
+* false => Evaluate what are the currents needed for a given flattop duration. This may or may not exceed the OH current limits.
 
 OH flux consumption based on:
 * rampup estimate based on Ejima coefficient

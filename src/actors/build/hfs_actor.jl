@@ -7,8 +7,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
     stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
     aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.01)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorHFSsizing <: ReactorAbstractActor
@@ -68,6 +68,7 @@ function _step(actor::ActorHFSsizing)
         # assign optimization arguments
         OH.thickness, c_extra1 = mirror_bound_w_cost(x0[1], 0.0, 100.0)
         TFhfs.thickness, c_extra2 = mirror_bound_w_cost(x0[2], 0.0, 100.0)
+        TFlfs.thickness = TFhfs.thickness
         dd.build.oh.technology.fraction_stainless, c_extra3 = mirror_bound_w_cost(x0[3], 0.45, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
         dd.build.tf.technology.fraction_stainless, c_extra4 = mirror_bound_w_cost(x0[4], 0.45, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
 

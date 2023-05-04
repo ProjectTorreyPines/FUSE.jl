@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor wh
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     rebuild_wall::Entry{Bool} = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=false)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorCXbuild <: ReactorAbstractActor

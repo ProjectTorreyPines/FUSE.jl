@@ -31,8 +31,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor
     maxiter::Entry{Int} = Entry(Int, "-", "Maximum number of optimizer iterations"; default=1000)
     optimization_scheme::Switch{Symbol} = Switch(Symbol, options_optimization_scheme, "-", "Type of PF coil optimization to carry out"; default=:rail)
     update_equilibrium::Entry{Bool} = Entry(Bool, "-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 Base.@kwdef mutable struct PFcoilsOptTrace
