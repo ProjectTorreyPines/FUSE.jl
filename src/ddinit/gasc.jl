@@ -233,7 +233,7 @@ Convert GASC ["OUTPUTS"]["radial build"] to FUSE build layers dictionary
 function gasc_2_layers(gasc::GASC)
     gascrb = gasc.outputs["radial build"]
 
-    layers = OrderedCollections.OrderedDict()
+    layers = OrderedCollections.OrderedDict{String,Float64}()
     mapper = Dict(
         "OH" => "OH",
         "TF" => "TF",
@@ -306,18 +306,24 @@ function gasc_2_layers(gasc::GASC)
         end
     end
 
-    return layers
+    # convert keys from string to symbols
+    sym_layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    for k in keys(layers)
+        sym_layers[Symbol(k)] = layers[k]
+    end
+
+    return sym_layers
 end
 
 """
-    gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
+    gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict{Symbol,Float64})
 
 Remove gap between OH and TF to allow bucking (gap gets added to OH thickness)
 """
-function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
-    for k in collect(keys(layers))
-        if k == "gap_TF_OH"
-            layers["OH"] += layers["gap_TF_OH"]
+function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict{Symbol,Float64})
+    for layer in collect(keys(layers))
+        if layer == :gap_TF_OH
+            layers[:OH] += layers[:gap_TF_OH]
             delete!(layers, k)
         end
     end
@@ -325,27 +331,27 @@ function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
 end
 
 """
-    gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict, thickness::Float64)
+    gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}; thickness::Float64)
 
 Add wall layer of given thickness expressed [meters] (gets subtracted from blanket layer)
 """
-function gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict; thickness::Float64)
-    tmp = OrderedCollections.OrderedDict()
+function gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}; thickness::Float64)
+    tmp = OrderedCollections.OrderedDict{Symbol,Float64}()
     for layer in keys(layers)
-        if layer == "hfs_blanket"
+        if layer == :hfs_blanket
             tmp[layer] = layers[layer] - thickness
-            tmp["hfs_first_wall"] = thickness
-        elseif layer == "lfs_blanket"
-            tmp["lfs_first_wall"] = thickness
+            tmp[:hfs_first_wall] = thickness
+        elseif layer == :lfs_blanket
+            tmp[:lfs_first_wall] = thickness
             tmp[layer] = layers[layer] - thickness
-        elseif layer == "hfs_vacuum_vessel"
-            tmp["hfs_vacuum_vessel_wall_outer"] = thickness
+        elseif layer == :hfs_vacuum_vessel
+            tmp[:hfs_vacuum_vessel_wall_outer] = thickness
             tmp[layer] = layers[layer] - 2 * thickness
-            tmp["hfs_vacuum_vessel_wall_inner"] = thickness
-        elseif layer == "lfs_vacuum_vessel"
-            tmp["lfs_vacuum_vessel_wall_inner"] = thickness
+            tmp[:hfs_vacuum_vessel_wall_inner] = thickness
+        elseif layer == :lfs_vacuum_vessel
+            tmp[:lfs_vacuum_vessel_wall_inner] = thickness
             tmp[layer] = layers[layer] - 2 * thickness
-            tmp["lfs_vacuum_vessel_wall_outer"] = thickness
+            tmp[:lfs_vacuum_vessel_wall_outer] = thickness
         else
             tmp[layer] = layers[layer]
         end

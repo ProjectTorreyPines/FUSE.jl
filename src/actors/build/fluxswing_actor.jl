@@ -4,14 +4,14 @@
 Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    operate_at_j_crit::Entry{Bool} = Entry(Bool, "-", """
-Makes the OH and TF operate at their current limit (within specified `j_tolerance`).
+    operate_oh_at_j_crit::Entry{Bool} = Entry(Bool, "-", """
+If `true` it makes the OH operate at its current limit (within specified `j_tolerance`).
 The flattop duration and maximum toroidal magnetic field follow from that.
-Otherwise we evaluate what are the currents needed for a given flattop duration and toroidal magnetic field.
-These currents may or may not exceed the OH and TF current limits.""";
+Otherwise we evaluate what is the current needed for a given flattop duration,
+which may or may not exceed the OH critical current limit.""";
         default=true
     )
-    j_tolerance::Entry{T} = Entry(T, "-", "Tolerance fraction below current limit at which OH and TF operate at"; default=0.4)
+    j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH current limit"; default=0.4)
 end
 
 mutable struct ActorFluxSwing <: ReactorAbstractActor
@@ -27,9 +27,9 @@ end
 """
     ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Depending on `operate_at_j_crit`
-* true => Evaluate the OH and TF current limits, and evaluate flattop duration and maximum toroidal magnetic field from that.
-* false => Evaluate what are the currents needed for a given flattop duration and toroidal magnetic field, which may or may not exceed the OH and TF current limits.
+Depending on `operate_oh_at_j_crit`
+* true => Evaluate the OH current limits, and evaluate flattop duration from that.
+* false => Evaluate what are the currents needed for a given flattop duration. This may or may not exceed the OH current limits.
 
 OH flux consumption based on:
 * rampup estimate based on Ejima coefficient
@@ -38,7 +38,6 @@ OH flux consumption based on:
 
 !!! note
     Stores data in `dd.build.flux_swing`, `dd.build.tf`, and `dd.build.oh`
-
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorFluxSwing
@@ -49,15 +48,12 @@ function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 """
-    step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.par.operate_at_j_crit, j_tolerance::Real=actor.par.j_tolerance)
-
-`operate_at_j_crit=true`` makes the OH and TF operate at their current limit (within specified `j_tolerance`).
-The flattop duration and toroidal magnetic field follow from that.
-Otherwise we evaluate what is the currents needed for a given flattop duration and toroidal magnetic field.
-These currents may or may not exceed the OH and TF current limits.
+    _step(actor::ActorFluxSwing)
 """
-function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.par.operate_at_j_crit, j_tolerance::Real=actor.par.j_tolerance)
+function _step(actor::ActorFluxSwing)
     bd = actor.dd.build
+    par = actor.par
+
     requirements = actor.dd.requirements
     eq = actor.dd.equilibrium
     eqt = eq.time_slice[]
@@ -67,8 +63,8 @@ function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.par.operate_
     # oh
     bd.flux_swing.rampup = rampup_flux_estimates(eqt, cp)
     bd.flux_swing.pf = pf_flux_estimates(eqt)
-    if operate_at_j_crit
-        oh_maximum_J_B!(bd; j_tolerance)
+    if par.operate_oh_at_j_crit
+        oh_maximum_J_B!(bd; par.j_tolerance)
         bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
     else
         bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
@@ -76,7 +72,7 @@ function _step(actor::ActorFluxSwing; operate_at_j_crit::Bool=actor.par.operate_
     end
 
     # flattop duration
-    flattop_duration!(bd, eqt, cp1d)
+    flattop_duration!(bd, cp1d)
 
     # tf
     tf_required_J_B!(bd, eq)
