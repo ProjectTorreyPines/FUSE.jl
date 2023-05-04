@@ -82,14 +82,18 @@ function _step(actor::ActorWholeFacility)
     act = actor.act
     if par.update_plasma
         actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
-        actor.StabilityLimits == ActorStabilityLimits(dd, act)
+        actor.StabilityLimits = ActorStabilityLimits(dd, act)
     end
     actor.HFSsizing = ActorHFSsizing(dd, act)
     actor.LFSsizing = ActorLFSsizing(dd, act)
     actor.CXbuild = ActorCXbuild(dd, act)
-    if par.update_plasma
-        # depending on act.ActorHFSsizing.aspect_ratio_tolerance setting the wall may shift slightly with respect to the equilibrium
-        ActorEquilibrium(dd, act)
+    if actor.HFSsizing.aspect_ratio_has_changed
+        if par.update_plasma
+            actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
+            actor.StabilityLimits = ActorStabilityLimits(dd, act)
+        else
+            error("HFSsizing has changed aspect ratio. You must allow for `act.ActorWholeFacility.update_plasma=true`.")
+        end
     end
     actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
     if act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
