@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     _name::Symbol = :not_set
     j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
     stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
-    aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.01)
+    aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.0)
     do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
     verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
@@ -16,6 +16,7 @@ mutable struct ActorHFSsizing <: ReactorAbstractActor
     par::FUSEparameters__ActorHFSsizing
     stresses_actor::ActorStresses
     fluxswing_actor::ActorFluxSwing
+    aspect_ratio_has_changed::Bool
 end
 
 """
@@ -46,18 +47,15 @@ function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::P
     par = act.ActorHFSsizing(kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing)
     stresses_actor = ActorStresses(dd, act.ActorStresses)
-    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor)
+    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor, false)
 end
 
 function _step(actor::ActorHFSsizing)
     dd = actor.dd
-    j_tolerance = actor.par.j_tolerance
-    stress_tolerance = actor.par.stress_tolerance
-    aspect_ratio_tolerance = actor.par.aspect_ratio_tolerance
-    verbose = actor.par.verbose
+    par = actor.par
 
     # modify j_tolerance in fluxswing_actor (since actor.fluxswing_actor.par is a copy, this does not affect act.ActorFluxSwing)
-    actor.fluxswing_actor.par.j_tolerance = j_tolerance
+    actor.fluxswing_actor.par.j_tolerance = par.j_tolerance
 
     #Relative error with tolerance
     #NOTE: we divide by (abs(target) + 1.0) because critical currents can drop to 0.0!
@@ -90,22 +88,26 @@ function _step(actor::ActorHFSsizing)
         _step(actor.stresses_actor)
 
         # OH sizing
-        c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, j_tolerance) # we want max_j to be j_tolerance% below critical_j
-        c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), stainless_steel.yield_strength, stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        if actor.fluxswing_actor.operate_oh_at_j_crit
+            c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
+        else
+            c_joh = 0.0
+        end
+        c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), stainless_steel.yield_strength, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
 
         # plug sizing
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-            c_spl = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), stainless_steel.yield_strength, stress_tolerance)
+            c_spl = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), stainless_steel.yield_strength, par.stress_tolerance)
         else
             c_spl = 0.0
         end
 
         # TF sizing
         c_jtf = c_stf = 0.0
-        c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, j_tolerance) # we want max_j to be j_tolerance% below critical_j
-        c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, stress_tolerance)  # we want stress to be stress_tolerance% below yield_strength
+        c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
+        c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
 
-        if verbose
+        if par.verbose
             push!(C_JOH, c_joh)
             push!(C_SOH, c_soh)
             push!(C_JTF, c_jtf)
@@ -126,6 +128,8 @@ function _step(actor::ActorHFSsizing)
     iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true)
     plasma = dd.build.layer[iplasma]
 
+    target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
+    R0_of_B0 = dd.equilibrium.vacuum_toroidal_field.r0
     old_R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
     old_plasma_start_radius = plasma.start_radius
     old_a = plasma.thickness / 2.0
@@ -134,7 +138,7 @@ function _step(actor::ActorHFSsizing)
     dd.build.oh.technology.fraction_stainless = 0.5
     dd.build.tf.technology.fraction_stainless = 0.5
 
-    if verbose
+    if par.verbose
         C_JOH = Float64[]
         C_SOH = Float64[]
         C_JTF = Float64[]
@@ -154,7 +158,7 @@ function _step(actor::ActorHFSsizing)
     assign_PL_OH_TF(res.minimizer)
     step(actor.fluxswing_actor)
     step(actor.stresses_actor)
-    if verbose
+    if par.verbose
         display(res)
     end
 
@@ -162,7 +166,9 @@ function _step(actor::ActorHFSsizing)
     a = plasma.thickness / 2.0
     ϵ = R0 / a
 
-    if verbose
+    actor.aspect_ratio_has_changed = !isapprox(ϵ, old_ϵ; rtol = 1E-6)
+
+    if par.verbose
         p = plot(yscale=:log10, legend=:topright)
         plot!(p, C_JOH, label="cost Jcrit OH")
         plot!(p, C_JTF, label="cost Jcrit TF")
@@ -177,10 +183,7 @@ function _step(actor::ActorHFSsizing)
         display(p)
     end
 
-    target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
-    R0_of_B0 = dd.equilibrium.vacuum_toroidal_field.r0
-
-    if verbose
+    if par.verbose
         @show [OH.thickness, dd.build.oh.technology.fraction_stainless]
         @show [TFhfs.thickness, dd.build.tf.technology.fraction_stainless]
         println()
@@ -208,7 +211,7 @@ function _step(actor::ActorHFSsizing)
         @show old_ϵ
     end
 
-    function rel_error(value, target) # relative error with tolerance
+    function rel_error(value, target)
         return abs((value .- target) ./ target)
     end
 
@@ -223,7 +226,9 @@ function _step(actor::ActorHFSsizing)
     else
         @assert dd.build.oh.flattop_duration > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
     end
-    @assert rel_error(ϵ, old_ϵ) <= aspect_ratio_tolerance "Plasma aspect ratio changed more than $(aspect_ratio_tolerance) ($old_ϵ --> $ϵ)"
+    if actor.aspect_ratio_has_changed
+        @assert rel_error(ϵ, old_ϵ) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance) ($old_ϵ --> $ϵ)"
+    end
 
     return actor
 end
