@@ -507,10 +507,6 @@ function coil_selfB(coil::GS_IMAS_pf_active__coil, time_index::Int=0)
     end
 end
 
-function do_field_null(weight_null::Float64, pc::IMAS.pulse_schedule__position_control)
-    return weight_null > 0.0 && !isempty(pc.boundary_outline) && pc.boundary_outline[1].r.reference.time[1] == -Inf
-end
-
 function optimize_coils_rail(
     eq::IMAS.equilibrium;
     pinned_coils::Vector{GS_IMAS_pf_active__coil},
@@ -536,11 +532,8 @@ function optimize_coils_rail(
         if ismissing(eqt.global_quantities, :ip)
             # find ψp
             ψp_constant = eqt.global_quantities.psi_boundary
-            Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(
-                ψp_constant,
-                [pcb.r.reference.data[1] for pcb in pc.boundary_outline],
-                [pcb.z.reference.data[1] for pcb in pc.boundary_outline],
-                fixed_coils)
+            rb, zb = IMAS.boundary(pc, time_index = 1)
+            Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(ψp_constant, rb, zb, fixed_coils)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             push!(weights, Float64[])
             # solutions with plasma
@@ -859,7 +852,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                [pcb.r.reference.data[1] for pcb in pc.boundary_outline], [pcb.z.reference.data[1] for pcb in pc.boundary_outline]
+                IMAS.boudary(pc, time_index=1)
             end
         else
             @series begin

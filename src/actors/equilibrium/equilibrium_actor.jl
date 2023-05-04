@@ -103,8 +103,7 @@ function prepare_eq(dd::IMAS.dd)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
 
     # boundary
-    eqt.boundary.outline.r = [@ddtime(pcb.r.reference.data) for pcb in pc.boundary_outline]
-    eqt.boundary.outline.z = [@ddtime(pcb.z.reference.data) for pcb in pc.boundary_outline]
+    eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
 
     # x-points
     resize!(eqt.boundary.x_point, length(pc.x_point))

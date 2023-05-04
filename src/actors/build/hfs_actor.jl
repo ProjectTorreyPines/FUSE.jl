@@ -16,7 +16,7 @@ mutable struct ActorHFSsizing <: ReactorAbstractActor
     par::FUSEparameters__ActorHFSsizing
     stresses_actor::ActorStresses
     fluxswing_actor::ActorFluxSwing
-    aspect_ratio_has_changed::Bool
+    aspect_ratio_scale::Float64
 end
 
 """
@@ -165,7 +165,7 @@ function _step(actor::ActorHFSsizing)
     a = plasma.thickness / 2.0
     ϵ = R0 / a
 
-    actor.aspect_ratio_has_changed = !isapprox(ϵ, old_ϵ; rtol = 1E-6)
+    actor.aspect_ratio_scale = ϵ / old_ϵ
 
     if par.verbose
         p = plot(yscale=:log10, legend=:topright)
@@ -210,10 +210,6 @@ function _step(actor::ActorHFSsizing)
         @show old_ϵ
     end
 
-    function rel_error(value, target)
-        return abs((value .- target) ./ target)
-    end
-
     max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0_of_B0
     @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
     @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j
@@ -225,8 +221,8 @@ function _step(actor::ActorHFSsizing)
     else
         @assert dd.build.oh.flattop_duration > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
     end
-    if actor.aspect_ratio_has_changed
-        @assert rel_error(ϵ, old_ϵ) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance) ($old_ϵ --> $ϵ)"
+    if abs(actor.aspect_ratio_scale - 1.0) > 1E-6
+        @assert abs(actor.aspect_ratio_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($old_ϵ --> $ϵ)"
     end
 
     return actor
