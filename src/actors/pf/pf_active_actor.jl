@@ -632,17 +632,17 @@ function optimize_coils_rail(
         cost_lcfs = norm(all_cost_lcfs) / length(all_cost_lcfs)
         cost_currents = norm(all_cost_currents) / length(all_cost_currents)
         cost_oh = norm(all_cost_oh) / length(all_cost_oh)
-        #spacing
+        # Spacing between PF coils
         cost_spacing = 0.0
         if length(optim_coils) > 0
             for (k1, c1) in enumerate(optim_coils)
                 for (k2, c2) in enumerate(optim_coils)
-                    if k1 < k2
-                        cost_spacing += 1.0 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
+                    if k1 < k2 && c1.pf_active__coil.name != "OH" && c2.pf_active__coil.name != "OH"
+                        cost_spacing += exp(sqrt((c1.width + c2.width)^2 + (c1.height + c2.height)^2) / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2))
                     end
                 end
             end
-            cost_spacing = cost_spacing / length(optim_coils)^2 / R0
+            cost_spacing = cost_spacing / length(optim_coils)^2
         end
 
         cost_lcfs_2 = cost_lcfs^2 * 10000.0
