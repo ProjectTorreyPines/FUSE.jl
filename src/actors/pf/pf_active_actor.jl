@@ -852,7 +852,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                IMAS.boudary(pc, time_index=1)
+                IMAS.boundary(pc, time_index=1)
             end
         else
             @series begin
