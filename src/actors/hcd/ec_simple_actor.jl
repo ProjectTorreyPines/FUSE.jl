@@ -30,8 +30,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
     Reads data in `dd.ec_launchers` and stores data in `dd.core_sources`
 """
 function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorECsimple
-    actor = ActorECsimple(dd, par; kw...)
+    actor = ActorECsimple(dd, act.ActorECsimple; kw...)
     step(actor)
     finalize(actor)
     return actor

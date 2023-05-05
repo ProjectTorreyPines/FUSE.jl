@@ -37,8 +37,7 @@ Evaluates the thermal cycle based on the heat loads of the divertor and the wall
     Stores data in `dd.balance_of_plant`
 """
 function ActorThermalCycle(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorThermalCycle
-    actor = ActorThermalCycle(dd, par, act; kw...)
+    actor = ActorThermalCycle(dd, act.ActorThermalCycle, act; kw...)
     step(actor)
     finalize(actor)
     return actor

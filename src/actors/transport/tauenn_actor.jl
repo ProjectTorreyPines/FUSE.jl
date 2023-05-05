@@ -37,8 +37,7 @@ The pedestal is evolved using the EPED-NN model
     Stores data in `dd.core_profiles`
 """
 function ActorTauenn(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorTauenn
-    actor = ActorTauenn(dd, par; kw...)
+    actor = ActorTauenn(dd, act.ActorTauenn; kw...)
     step(actor)
     finalize(actor)
     return actor

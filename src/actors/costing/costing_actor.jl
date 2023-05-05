@@ -110,8 +110,7 @@ Estimates the cost of building, operating, and recommission the fusion power pla
     Stores data in `dd.costing`
 """
 function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCosting
-    actor = ActorCosting(dd, par; kw...)
+    actor = ActorCosting(dd, act.ActorCosting; kw...)
     step(actor)
     finalize(actor)
     return actor

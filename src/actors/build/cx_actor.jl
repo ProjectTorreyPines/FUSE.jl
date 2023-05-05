@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    rebuild_wall::Entry{Bool} = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=false)
+    rebuild_wall::Entry{Bool} = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=true)
     do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
@@ -27,11 +27,10 @@ Generates the 2D cross section of the tokamak build
     Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCXbuild
-    actor = ActorCXbuild(dd, par; kw...)
+    actor = ActorCXbuild(dd, act.ActorCXbuild; kw...)
     step(actor)
     finalize(actor)
-    if par.do_plot
+    if actor.par.do_plot
         plot(dd.build)
         display(plot!(dd.build; cx=false))
     end
@@ -42,10 +41,12 @@ function _step(actor::ActorCXbuild)
     dd = actor.dd
     par = actor.par
 
+    eqt = dd.equilibrium.time_slice[]
+
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
     wall = IMAS.first_wall(dd.wall)
     if wall === missing || par.rebuild_wall
-        pr, pz = wall_from_eq(dd.build, dd.equilibrium.time_slice[])
+        pr, pz = wall_from_eq(dd.build, eqt)
     else
         pr = wall.r
         pz = wall.z
@@ -59,9 +60,9 @@ function _step(actor::ActorCXbuild)
 
     build_cx!(dd.build, pr, pz)
 
-    divertor_regions!(dd.build, dd.equilibrium.time_slice[])
+    divertor_regions!(dd.build, eqt)
 
-    blanket_regions!(dd.build, dd.equilibrium.time_slice[])
+    blanket_regions!(dd.build, eqt)
 
     if wall === missing || par.rebuild_wall
         plasma = IMAS.get_build(dd.build, type=_plasma_)
@@ -70,6 +71,8 @@ function _step(actor::ActorCXbuild)
         dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
         dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
     end
+
+    IMAS.find_strike_points!(eqt, dd.wall)
 
     return actor
 end
@@ -90,7 +93,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     # Set the radial build thickness of the plasma
     plasma = IMAS.get_build(bd, type=_plasma_)
     a = (minimum(rlcfs) - plasma.start_radius)
-    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2 * a
+    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2.0 * a
     R_hfs_plasma = plasma.start_radius
     R_lfs_plasma = plasma.end_radius
 
