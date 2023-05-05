@@ -377,10 +377,12 @@ function categorize_errors(
         "TF cannot achieve requested B0" => :TF_limit,
         "The OH flux is insufficient to have any flattop duration" => :OH_flux,
         "OH cannot achieve requested flattop" => :OH_flattop,
-        "dd.build.tf.max_j < dd.build.tf.critical_j" => :TF_critical_j,
+        "< dd.build.tf.critical_j" => :TF_critical_j,
         "DomainError with" => :Solovev,
         "BoundsError: attempt to access" => :flux_surfaces_C)
     merge!(error_messages, extra_error_messages)
+
+    other_errors = Dict{String,Vector{String}}()
 
     # go through directories
     for dir in dirs
@@ -407,12 +409,10 @@ function categorize_errors(
         end
         if !found
             push!(errors[:other], dir)
-            if show_first_line
-                println(first_line)
-                println(second_line)
-                println(dir)
-                println()
+            if "$(first_line)\n$(second_line)" ∉ keys(other_errors)
+                other_errors["$(first_line)\n$(second_line)"] = String[]
             end
+            push!(other_errors["$(first_line)\n$(second_line)"], dir)
         end
     end
 
@@ -422,6 +422,14 @@ function categorize_errors(
         v = collect(map(length,values(errors)))
         index = sortperm(v)[end:-1:1]
         display(pie(["$(rpad(string(length(errors[cat])),8))   $(string(cat))" for cat in labels[index]], v[index], legend=:outerright))
+    end
+
+    if show_first_line
+        for (k,v) in other_errors
+            println(k)
+            println(v)
+            println()
+        end
     end
 
     return errors
