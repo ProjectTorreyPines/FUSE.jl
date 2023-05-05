@@ -91,27 +91,8 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
             layers = deepcopy(ini.build.layers)
         end
 
-        # scale radial build layers based on equilibrium R0 and ϵ
-        iplasma = findfirst(key -> key == :plasma, collect(keys(layers)))
-        R_hfs_build = sum(d for (k, d) in enumerate(values(layers)) if k < iplasma)
-        if ismissing(ini.equilibrium, :R0)
-            R0 = R_hfs_build + collect(values(layers))[iplasma] / 2.0
-        else
-            R0 = ini.equilibrium.R0
-        end
-        if ismissing(ini.equilibrium, :ϵ)
-            a_gap = collect(values(layers))[iplasma] / 2.0
-        else
-            a_gap = ini.equilibrium.ϵ * R0 * (1.0 + ini.build.plasma_gap)
-        end
-        R_hfs = R0 - a_gap
-        for key in keys(layers)
-            if key == :plasma
-                layers[key] = a_gap * 2.0
-            else
-                layers[key] = layers[key] * R_hfs / R_hfs_build
-            end
-        end
+        # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
+        scale_build_layers(layers, dd.equilibrium.vacuum_toroidal_field.r0, dd.equilibrium.time_slice[].boundary.minor_radius, ini.build.plasma_gap)
 
         # populate dd.build with radial build layers
         init_build(dd.build, layers)
@@ -329,4 +310,24 @@ function layers_meters_from_fractions(
     end
 
     return layers
+end
+
+function scale_build_layers(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
+    gap = a * gap_fraction
+    plasma_start = R0 - a - gap
+    layer_plasma_start = 0.0
+    for (layer, thickness) in layers
+        if layer == :plasma
+            break
+        end
+        layer_plasma_start += thickness
+    end
+    factor = plasma_start / layer_plasma_start
+    for (layer, thickness) in layers
+        if layer == :plasma
+            layers[layer] = a + 2 * gap
+        else
+            layers[layer] = thickness * factor
+        end
+    end
 end
