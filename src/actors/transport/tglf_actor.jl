@@ -26,8 +26,7 @@ end
 Evaluates the TGLF predicted turbulence
 """
 function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorTGLF
-    actor = ActorTGLF(dd, par; kw...)
+    actor = ActorTGLF(dd, act.ActorTGLF; kw...)
     step(actor)
     finalize(actor)
     return actor

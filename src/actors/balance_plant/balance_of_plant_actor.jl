@@ -25,8 +25,7 @@ Balance of plant actor that estimates the net electrical power output by compari
     Stores data in `dd.balance_of_plant`
 """
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorBalanceOfPlant
-    actor = ActorBalanceOfPlant(dd, par, act; kw...)
+    actor = ActorBalanceOfPlant(dd, act.ActorBalanceOfPlant, act; kw...)
     step(actor)
     finalize(actor)
     return actor

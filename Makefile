@@ -57,6 +57,7 @@ endef
 
 # simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
 threads:
+	@echo "set the JULIA_NUM_THREADS environment variable"
 	julia -e "println(Threads.nthreads())"
 
 # remove everything under $HOME/.julia besides $HOME/.julia/dev

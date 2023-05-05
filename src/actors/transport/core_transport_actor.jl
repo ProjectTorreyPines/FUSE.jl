@@ -19,8 +19,7 @@ end
 Provides a common interface to run multiple core transport actors
 """
 function ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCoreTransport
-    actor = ActorCoreTransport(dd, par, act; kw...)
+    actor = ActorCoreTransport(dd, act.ActorCoreTransport, act; kw...)
     step(actor)
     finalize(actor)
     return actor
