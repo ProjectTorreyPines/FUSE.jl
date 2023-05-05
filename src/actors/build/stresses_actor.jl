@@ -41,7 +41,8 @@ function _step(actor::ActorStresses; n_points::Integer=5)
     bd = actor.dd.build
     sm = actor.dd.solid_mechanics
 
-    R0 = eq.vacuum_toroidal_field.r0
+    plasma = IMAS.get_build(bd, type=_plasma_)
+    R0 = (plasma.end_radius + plasma.start_radius) / 2.0
     B0 = maximum(abs.(eq.vacuum_toroidal_field.b0))
 
     R_tf_in = IMAS.get_build(bd, type=_tf_, fs=_hfs_).start_radius

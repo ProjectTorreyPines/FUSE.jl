@@ -88,12 +88,12 @@ function same_length_vectors(args...)
 end
 
 """
-    mirror_bound(x, l, u)
+    mirror_bound(x::T, l::T, u::T) where {T<:Real}
 
 Return tuple with value of x bounded between l and u
 The bounding is done by mirroring the value at the bound limits.
 """
-function mirror_bound(x, l, u)
+function mirror_bound(x::T, l::T, u::T) where {T<:Real}
     d = (u - l) / 2.0
     c = (u + l) / 2.0
     x0 = (x .- c) / d
@@ -105,17 +105,6 @@ function mirror_bound(x, l, u)
         end
     end
     return x0 * d + c
-end
-
-"""
-    mirror_bound(x, l, u)
-
-Return tuple with value of x bounded between l and u and error (cost) for going out of bounds
-The bounding is done by mirroring the value at the bound limits.
-"""
-function mirror_bound_w_cost(x, l, u)
-    y = mirror_bound.(x, l, u)
-    return y, abs.((x .- l) .* (x .< l) .+ (x .- u) .* (x .> u))
 end
 
 # =========== #

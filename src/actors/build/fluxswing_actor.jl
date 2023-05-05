@@ -66,7 +66,7 @@ function _step(actor::ActorFluxSwing)
         oh_maximum_J_B!(bd; par.j_tolerance)
         bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
     else
-        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d; par.j_tolerance) # flattop flux based on requirements duration
+        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
         oh_required_J_B!(bd)
     end
 
@@ -108,16 +108,15 @@ function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_
 end
 
 """
-    flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d; j_tolerance::Float64)
+    flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
 
 Estimate OH flux requirement during flattop
 
 NOTES:
 * If j_ohmic profile is missing then steady state ohmic profile is assumed
-* j_tolerance is used as a tolerance factor on the required flattop_duration
 """
-function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d; j_tolerance::Float64)
-    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * (requirements.flattop_duration * (1.0 + j_tolerance)) # V*s
+function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
+    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * (requirements.flattop_duration) # V*s
 end
 
 """

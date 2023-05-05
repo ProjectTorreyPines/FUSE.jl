@@ -59,34 +59,41 @@ function _step(actor::ActorHFSsizing)
     #Relative error with tolerance
     #NOTE: we divide by (abs(target) + 1.0) because critical currents can drop to 0.0!
     function target_value(value, target, tolerance)
-        return abs((value .* (1.0 .+ tolerance) .- target) ./ (abs(target) + 1.0))
+        tmp = (value .* (1.0 .+ tolerance) .- target) ./ (abs(target) + 1.0)
+        if tmp > 0
+            return exp(tmp) - 1.0
+        else
+            return -tmp
+        end
     end
 
     function assign_PL_OH_TF(x0)
         # assign optimization arguments
-        OH.thickness, c_extra1 = mirror_bound_w_cost(x0[1], 0.0, 100.0)
-        TFhfs.thickness, c_extra2 = mirror_bound_w_cost(x0[2], 0.0, 100.0)
+        OH.thickness = mirror_bound(x0[1], 0.0, 100.0)
+        TFhfs.thickness = mirror_bound(x0[2], 0.0, 100.0)
         TFlfs.thickness = TFhfs.thickness
-        dd.build.oh.technology.fraction_stainless, c_extra3 = mirror_bound_w_cost(x0[3], 0.45, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
-        dd.build.tf.technology.fraction_stainless, c_extra4 = mirror_bound_w_cost(x0[4], 0.45, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
+        dd.build.oh.technology.fraction_stainless = mirror_bound(x0[3], 0.45, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
+        dd.build.tf.technology.fraction_stainless = mirror_bound(x0[4], 0.45, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
+        PL.thickness = mirror_bound(x0[5], 0.0, 100.0)
+        if par.aspect_ratio_tolerance == 0.0
+            # NOTE: the blanket expands to keep original plasma major radius constant
+            R0 = (plasma.end_radius + plasma.start_radius) / 2.0
+            BL.thickness += old_R0 - R0
+            BL.thickness = max(BL.thickness, old_BL_thickness)
+        end
 
-        # NOTE: the plug expands/contracts to keep original plasma radius constant
-        #       but it does not contract more than 1/4 of the OH thickness
-        plug.thickness += old_plasma_start_radius - plasma.start_radius
-        plug.thickness = max(OH.thickness / 4.0, plug.thickness)
-
-        return c_extra1 + c_extra2 + c_extra3 + c_extra4
+        return nothing
     end
 
     function cost(x0)
         # assign optimization arguments
-        c_extra = assign_PL_OH_TF(x0)
+        assign_PL_OH_TF(x0)
 
         # evaluate coils currents and stresses
         _step(actor.fluxswing_actor)
         _step(actor.stresses_actor)
 
-        # OH sizing
+        # OH currents and stresses
         if actor.fluxswing_actor.par.operate_oh_at_j_crit
             c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
         else
@@ -94,17 +101,26 @@ function _step(actor::ActorHFSsizing)
         end
         c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), stainless_steel.yield_strength, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
 
-        # plug sizing
+        # TF currents and stresses
+        c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
+        c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+
+        # plug stresses
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
             c_spl = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), stainless_steel.yield_strength, par.stress_tolerance)
         else
             c_spl = 0.0
         end
 
-        # TF sizing
-        c_jtf = c_stf = 0.0
-        c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
-        c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), stainless_steel.yield_strength, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        # flattop
+        if actor.fluxswing_actor.par.operate_oh_at_j_crit
+            c_flt = abs((dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / dd.requirements.flattop_duration)
+        else
+            c_flt = 0.0
+        end
+
+        # smallest size center stack
+        c_siz = norm([OH.thickness + PL.thickness, TFhfs.thickness]) / old_R0 * 1E-3
 
         if par.verbose
             push!(C_JOH, c_joh)
@@ -112,28 +128,29 @@ function _step(actor::ActorHFSsizing)
             push!(C_JTF, c_jtf)
             push!(C_STF, c_stf)
             push!(C_SPL, c_spl)
-            push!(C_XTR, c_extra)
+            push!(C_FLT, c_flt)
+            push!(C_SIZ, c_siz)
         end
 
         # total cost
-        return norm([c_joh; c_jtf; c_spl; c_soh; c_stf; c_extra])
+        return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt, c_siz])
     end
 
     # initialize
-    plug = dd.build.layer[1]
+    PL = dd.build.layer[1]
     OH = IMAS.get_build(dd.build, type=_oh_)
+    BL = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
+    if BL === missing
+        BL = PL
+    end
+    old_BL_thickness = BL.thickness
     TFhfs = IMAS.get_build(dd.build, type=_tf_, fs=_hfs_)
     TFlfs = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_)
-    iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true)
-    plasma = dd.build.layer[iplasma]
+    plasma = IMAS.get_build(dd.build, type=_plasma_)
 
     target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
-    R0_of_B0 = dd.equilibrium.vacuum_toroidal_field.r0
-    old_plasma_start_radius = plasma.start_radius
+    a = (plasma.end_radius - plasma.start_radius) / 2.0
     old_R0 = (plasma.end_radius + plasma.start_radius) / 2.0
-
-    dd.build.oh.technology.fraction_stainless = 0.5
-    dd.build.tf.technology.fraction_stainless = 0.5
 
     if par.verbose
         C_JOH = Float64[]
@@ -141,13 +158,14 @@ function _step(actor::ActorHFSsizing)
         C_JTF = Float64[]
         C_STF = Float64[]
         C_SPL = Float64[]
-        C_XTR = Float64[]
+        C_FLT = Float64[]
+        C_SIZ = Float64[]
     end
 
     # optimization
     res = Optim.optimize(
         x0 -> cost(x0),
-        [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_stainless, dd.build.tf.technology.fraction_stainless],
+        [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_stainless, dd.build.tf.technology.fraction_stainless, PL.thickness],
         Optim.NelderMead(),
         Optim.Options(iterations=1000);
         autodiff=:forward
@@ -164,15 +182,20 @@ function _step(actor::ActorHFSsizing)
 
     if par.verbose
         p = plot(yscale=:log10, legend=:topright)
-        plot!(p, C_JOH, label="cost Jcrit OH")
+        if sum(C_JOH) > 0.0
+            plot!(p, C_JOH, label="cost Jcrit OH")
+        end
         plot!(p, C_JTF, label="cost Jcrit TF")
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
             plot!(p, C_SPL, label="cost stresses PL")
         end
         plot!(p, C_SOH, label="cost stresses OH")
         plot!(p, C_STF, label="cost stresses TF")
-        if sum(C_XTR) > 0.0
-            plot!(p, C_XTR ./ (C_XTR .> 0.0), label="cost optimizer penalty")
+        if sum(C_FLT) > 0.0
+            plot!(p, C_FLT, label="cost flattop")
+        end
+        if sum(C_SIZ) > 0.0
+            plot!(p, C_SIZ, label="cost cs size")
         end
         display(p)
     end
@@ -182,12 +205,10 @@ function _step(actor::ActorHFSsizing)
         @show [TFhfs.thickness, dd.build.tf.technology.fraction_stainless]
         println()
         @show target_B0
-        @show dd.build.tf.max_b_field * TFhfs.end_radius / R0_of_B0
+        @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
         println()
         @show dd.build.oh.flattop_duration
-        if !actor.fluxswing_actor.par.operate_oh_at_j_crit
-            @show dd.requirements.flattop_duration
-        end
+        @show dd.requirements.flattop_duration
         println()
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
@@ -201,24 +222,20 @@ function _step(actor::ActorHFSsizing)
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf)
         @show stainless_steel.yield_strength
         println()
-        @show ϵ
-        @show old_ϵ
+        @show old_R0 / a
+        @show R0 / a
     end
 
-    max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0_of_B0
+    max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
+    if abs(actor.R0_scale - 1.0) > 1E-6
+        @assert abs(actor.R0_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($((R0/old_R0-1.0)*100)%)"
+    end
     @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
     @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j
     @assert dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < stainless_steel.yield_strength
     @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < stainless_steel.yield_strength
-    if actor.fluxswing_actor.par.operate_oh_at_j_crit
-        @assert dd.build.oh.flattop_duration > 0.0 "The OH flux is insufficient to have any flattop duration"
-    else
-        @assert dd.build.oh.flattop_duration > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
-    end
-    if abs(actor.R0_scale - 1.0) > 1E-6
-        @assert abs(actor.R0_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($old_ϵ --> $ϵ)"
-    end
+    @assert dd.build.oh.flattop_duration .* (1.0 .+ par.j_tolerance * 0.9) > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
 
     return actor
 end
