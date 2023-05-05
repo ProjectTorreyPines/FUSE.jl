@@ -64,7 +64,7 @@ function case_parameters(gasc::GASC)
 
     gasc_2_build(gasc, ini, act)
 
-    gasc_2_target(gasc, ini, act)
+    gasc_2_requirement(gasc, ini, act)
 
     gasc_2_equilibrium(gasc, ini, act)
 
@@ -215,11 +215,11 @@ function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllAct
 end
 
 """
-    gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+    gasc_2_requirement(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
 
-Convert nominal target design information in GASC solution to FUSE `ini` and `act` parameters
+Convert requirements of GASC solution to FUSE `ini` and `act` parameters
 """
-function gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+function gasc_2_requirement(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
     ini.requirements.flattop_duration = float(gasc.inputs["plasma parameters"]["flattopDuration"])
     ini.requirements.power_electric_net = gasc.constraints["lowerOutputConstraints"]["powerNet"] * 1E6
     return ini
