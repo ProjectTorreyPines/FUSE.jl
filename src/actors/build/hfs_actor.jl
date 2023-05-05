@@ -16,7 +16,7 @@ mutable struct ActorHFSsizing <: ReactorAbstractActor
     par::FUSEparameters__ActorHFSsizing
     stresses_actor::ActorStresses
     fluxswing_actor::ActorFluxSwing
-    aspect_ratio_scale::Float64
+    R0_scale::Float64
 end
 
 """
@@ -129,10 +129,8 @@ function _step(actor::ActorHFSsizing)
 
     target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
     R0_of_B0 = dd.equilibrium.vacuum_toroidal_field.r0
-    old_R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
     old_plasma_start_radius = plasma.start_radius
-    old_a = plasma.thickness / 2.0
-    old_ϵ = old_R0 / old_a
+    old_R0 = (plasma.end_radius + plasma.start_radius) / 2.0
 
     dd.build.oh.technology.fraction_stainless = 0.5
     dd.build.tf.technology.fraction_stainless = 0.5
@@ -161,11 +159,8 @@ function _step(actor::ActorHFSsizing)
         display(res)
     end
 
-    R0 = (TFhfs.end_radius + TFlfs.start_radius) / 2.0
-    a = plasma.thickness / 2.0
-    ϵ = R0 / a
-
-    actor.aspect_ratio_scale = ϵ / old_ϵ
+    R0 = (plasma.start_radius + plasma.end_radius) / 2.0
+    actor.R0_scale = R0 / old_R0
 
     if par.verbose
         p = plot(yscale=:log10, legend=:topright)
@@ -221,8 +216,8 @@ function _step(actor::ActorHFSsizing)
     else
         @assert dd.build.oh.flattop_duration > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
     end
-    if abs(actor.aspect_ratio_scale - 1.0) > 1E-6
-        @assert abs(actor.aspect_ratio_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($old_ϵ --> $ϵ)"
+    if abs(actor.R0_scale - 1.0) > 1E-6
+        @assert abs(actor.R0_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($old_ϵ --> $ϵ)"
     end
 
     return actor

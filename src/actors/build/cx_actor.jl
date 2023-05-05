@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    rebuild_wall::Entry{Bool} = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=false)
+    rebuild_wall::Entry{Bool} = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=true)
     do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
@@ -93,7 +93,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     # Set the radial build thickness of the plasma
     plasma = IMAS.get_build(bd, type=_plasma_)
     a = (minimum(rlcfs) - plasma.start_radius)
-    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2 * a
+    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2.0 * a
     R_hfs_plasma = plasma.start_radius
     R_lfs_plasma = plasma.end_radius
 
