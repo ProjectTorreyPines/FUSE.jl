@@ -3,6 +3,16 @@ using DataFrames
 import Memoize
 import Dates
 
+#= ================================= =#
+#  Learning rate for HTS - from GASC  #
+#= ================================= =#
+#assumes that production volume of HTS has increased by a factor of 10 and that there is a 15% decrease in cost for every doubling of production volume
+
+production_increase = 10 
+learning_rate = 0.85 
+
+cost_multiplier = production_increase^(log(learning_rate)/log(2))
+
 #= ============== =#
 #  materials cost  #
 #= ============== =#
@@ -12,7 +22,7 @@ function unit_cost(material::AbstractString)
     if material == "Vacuum"
         return 0.0 # $M/m^3
     elseif material == "ReBCO"
-        return 87.5 / 2 # $M/m^3
+        return (87.5 / 2) * cost_multiplier # $M/m^3
     elseif material == "Nb3Sn"
         return 1.66 # $M/m^3
     elseif contains(lowercase(material), "steel")

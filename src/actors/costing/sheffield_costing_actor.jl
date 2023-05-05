@@ -220,7 +220,7 @@ end
 function cost_direct_capital_Sheffield(::Type{Val{:primary_coils}}, bd::IMAS.build, da::DollarAdjust)
 	da.year_assessed = 2016   # Year the materials costs were assessed 
 	primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
-	cost = 1.5 * primary_coils_hfs.volume * unit_cost(primary_coils_hfs.material)
+    cost = 1.5 * primary_coils_hfs.volume * unit_cost(bd.tf.technology)
 	return future_dollars(cost, da)
 end
 
