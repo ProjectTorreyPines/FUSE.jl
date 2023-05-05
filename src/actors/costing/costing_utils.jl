@@ -7,22 +7,25 @@ import Dates
 #  Learning rate for HTS - from GASC  #
 #= ================================= =#
 #assumes that production volume of HTS has increased by a factor of 10 and that there is a 15% decrease in cost for every doubling of production volume
+function cost_multiplier(production_increase::Real, learning_rate::Real)
+    return production_increase^(log(learning_rate)/log(2))
+end
+    
+# production_increase = 10 
+# learning_rate = 0.85 
 
-production_increase = 10 
-learning_rate = 0.85 
-
-cost_multiplier = production_increase^(log(learning_rate)/log(2))
+# cost_multiplier = production_increase^(log(learning_rate)/log(2))
 
 #= ============== =#
 #  materials cost  #
 #= ============== =#
 #NOTE: material should be priced by Kg
 #NOTE: if something is priced by m^3 then it is for a specific part already
-function unit_cost(material::AbstractString)
+function unit_cost(material::AbstractString, production_increase::Real, learning_rate::Real)
     if material == "Vacuum"
         return 0.0 # $M/m^3
     elseif material == "ReBCO"
-        return (87.5 / 2) * cost_multiplier # $M/m^3
+        return (87.5 / 2) * cost_multiplier(production_increase, learning_rate) # $M/m^3
     elseif material == "Nb3Sn"
         return 1.66 # $M/m^3
     elseif contains(lowercase(material), "steel")
@@ -47,14 +50,14 @@ end
 #= ====================== =#
 #  materials cost - coils  #
 #= ====================== =#
-function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
+function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, production_increase::Real, learning_rate::Real)
     if coil_tech.material == "Copper"
-        return unit_cost("Copper")
+        return unit_cost("Copper", production_increase, learning_rate)
     else
         fraction_cable = 1 - coil_tech.fraction_stainless - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper
         fraction_copper = fraction_cable - fraction_SC
-        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316") + fraction_copper * unit_cost("Copper") + fraction_SC * unit_cost(coil_tech.material))
+        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316", production_increase, learning_rate) + fraction_copper * unit_cost("Copper", production_increase, learning_rate) + fraction_SC * unit_cost(coil_tech.material, production_increase, learning_rate))
     end
 end
 

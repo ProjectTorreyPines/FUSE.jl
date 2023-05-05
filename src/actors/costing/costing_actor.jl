@@ -13,6 +13,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
 	future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
 	plant_lifetime::Entry{Int} = Entry(Int, "year", "Lifetime of the plant"; default = 40)
 	availability::Entry{T} = Entry(T, "-", "Availability fraction of the plant"; default = 0.8)
+    production_increase::Entry{T} = Entry(T, "-", "Factor by which production of ReBCO multiplies"; default = 10)
+    learning_rate::Entry{T} = Entry(T, "-", "Learning rate for ReBCO technology production"; default = 0.85)
 end
 
 mutable struct ActorCosting <: FacilityAbstractActor
@@ -48,6 +50,8 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
     dd.costing.future_inflation_rate = act.ActorCosting.future_inflation_rate
     dd.costing.plant_lifetime = act.ActorCosting.plant_lifetime
     dd.costing.availability = act.ActorCosting.availability
+    dd.costing.production_increase = act.ActorCosting.production_increase
+    dd.costing.learning_rate = act.ActorCosting.learning_rate
 
     if par.model == :Sheffield
         cst_actor = ActorSheffieldCosting(dd, act.ActorSheffieldCosting)
