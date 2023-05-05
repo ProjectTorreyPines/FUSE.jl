@@ -490,9 +490,9 @@ version = "1.0.0"
 
 [[deps.FiniteDiff]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "Setfield", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "03fcb1c42ec905d15b305359603888ec3e65f886"
+git-tree-sha1 = "6604e18a0220650dbbea7854938768f15955dd8e"
 uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
-version = "2.19.0"
+version = "2.20.0"
 
 [[deps.FiniteElementHermite]]
 deps = ["BandedMatrices", "FastGaussQuadrature", "QuadGK", "StaticArrays", "Test"]
@@ -725,7 +725,7 @@ version = "0.5.2"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "StaticArrays"]
-git-tree-sha1 = "4e65bc38c0c621f04d4718a3b0f60f5a0732b793"
+git-tree-sha1 = "c618c892657e4656e391e99afc5e8f7872c9e464"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -733,7 +733,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "JSON", "Memoize", "OrderedCollections", "Printf"]
-git-tree-sha1 = "0e72fbfcbeb92fb935a8f1977616d9d419ee4f7e"
+git-tree-sha1 = "0659cc05344a8cd5d465fce76fa3716cf5413c12"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1401,9 +1401,9 @@ version = "0.2.4"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
-git-tree-sha1 = "0c265aa64283740b9b885348ee52463084de0748"
+git-tree-sha1 = "d0984cc886c48e5a165705ce65236dc2ec467b91"
 uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
-version = "1.0.3"
+version = "1.1.0"
 
 [[deps.Preferences]]
 deps = ["TOML"]
@@ -1602,7 +1602,7 @@ version = "0.9.4"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections"]
-git-tree-sha1 = "156cdcc1529bb5746417f2384e8c1f87c9ae7756"
+git-tree-sha1 = "09565f7a414dd7ba757433d3845bc370424e501e"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
@@ -1831,7 +1831,7 @@ version = "0.2.0"
 
 [[deps.VacuumFields]]
 deps = ["Contour", "EFIT", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "Plots", "SpecialFunctions", "Trapz"]
-git-tree-sha1 = "a06c95382c2d11facbfb857349a1fc231d62ced7"
+git-tree-sha1 = "d03408f67ae9b940f75da2fa915a86467e3bc1b0"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
