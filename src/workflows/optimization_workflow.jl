@@ -85,7 +85,26 @@ function workflow_multiobjective_optimization(
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
     # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2
-    algorithm = Metaheuristics.SPEA2(; N, options) # converges and covers well the pareto front! 
+    
+    # nominal
+    η_cr = 20
+    p_cr = 0.9
+    η_m = 20
+    p_m = 1.0 / length(objectives_functions)
+
+    # increased exploration
+    η_cr = 30  # Increase the crossover distribution index
+    p_cr = 0.6  # Decrease the crossover probability
+    η_m = 30  # Increase the mutation distribution index
+    p_m = 2.0 / length(objectives_functions)  # Increase the mutation probability
+
+    # very increased exploration
+    η_cr = 40  # Increase the crossover distribution index
+    p_cr = 0.5  # Decrease the crossover probability
+    η_m = 50  # Increase the mutation distribution index
+    p_m = 4.0 / length(objectives_functions)  # Increase the mutation probability
+
+    algorithm = Metaheuristics.SPEA2(; N, η_cr, p_cr, η_m, p_m, options) # converges and covers well the pareto front! 
     if continue_results !== missing
         println("Restarting simulation")
         algorithm.status = continue_results.state

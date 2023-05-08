@@ -30,9 +30,14 @@ function init_missing_from_ods(dd::IMAS.dd, ini::ParametersAllInits, act::Parame
         end
 
         # requirements
-        for field in [:power_electric_net, :flattop_duration, :tritium_breeding_ratio, :cost]
+        # NOTE: `log10_flattop_duration` (used when running optimizations) wins over `flattop_duration`
+        for field in [:power_electric_net, :flattop_duration, :log10_flattop_duration, :tritium_breeding_ratio]
             value = getproperty(ini.requirements, field, missing)
             if value !== missing
+                if startswith(string(field), "log10_")
+                    field = Symbol(replace(string(field), "log10_" => ""))
+                    value = 10.0.^value
+                end
                 setproperty!(dd.requirements, field, value)
             end
         end
