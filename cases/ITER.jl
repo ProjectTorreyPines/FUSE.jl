@@ -23,8 +23,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
 
-        ini.equilibrium.boundary_from = :MXH_params
+        ini.equilibrium.boundary_from = :ods
         ini.equilibrium.xpoints_number = 1
+        act.ActorEquilibrium.model = :CHEASE
     else
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.ip = 15e6
@@ -78,7 +79,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
     ini.pf_active.technology = :ITER
-    act.ActorPFcoilsOpt.symmetric = false
+    act.ActorPFcoilsOpt.symmetric = true
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
@@ -98,15 +99,17 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
+    ini.core_profiles.ejima = 0.4
+
     ini.nbi.power_launched = 2 * 16.7e6
     ini.nbi.beam_energy = 1e6
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
 
     act.ActorFluxMatcher.evolve_densities = Dict(
-        :Ne        => :match_ne_scale,
-        :DT        => :quasi_neutrality,
-        :He        => :match_ne_scale,
+        :Ne => :match_ne_scale,
+        :DT => :quasi_neutrality,
+        :He => :match_ne_scale,
         :He_fast => :fixed,
         :electrons => :flux_match)
 

@@ -1,4 +1,5 @@
 import Weave
+import DelimitedFiles
 
 # ===================================== #
 # extract data from FUSE save folder(s) #
@@ -17,25 +18,45 @@ end
     IMAS.extract(
         DD::Vector{<:Union{AbstractString,IMAS.dd}},
         xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
-        filter_invalid::Symbol=:none)::DataFrames.DataFrame
+        filter_invalid::Symbol=:none,
+        cache::AbstractString="",
+        read_cache::Bool=true,
+        write_cache::Bool=true)::DataFrames.DataFrame
 
-Extract data from multiple folders or `dd`s and return results in DataFrame format.
+Extract data from multiple FUSE results folders or `dd`s and return results in DataFrame format.
 
 Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
+
+Specifying a `cache` file allows caching of extraction results and not having to parse data.
 """
 function IMAS.extract(
     DD::Vector{<:Union{AbstractString,IMAS.dd}},
     xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
-    filter_invalid::Symbol=:none)::DataFrames.DataFrame
+    filter_invalid::Symbol=:none,
+    cache::AbstractString="",
+    read_cache::Bool=true,
+    write_cache::Bool=true)::DataFrames.DataFrame
 
     @assert !isempty(DD) "No results to extract"
 
     # test filter_invalid
     @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
 
+    if length(cache) > 0 
+        @assert typeof(DD[1]) <: AbstractString "cache is only meant to work when extracting data from FUSE results folders"
+    end
+
+    # load in cache
+    cached_dirs = []
+    if length(cache) > 0 && read_cache && isfile(cache)
+        df_cache = DataFrames.DataFrame(CSV.File(cache));
+        cached_dirs = df_cache[:, :dir]
+        @info "Loaded cache file with $(length(cached_dirs)) results"
+    end
+    
     # allocate memory
     tmp = Dict(extract(DD[1], xtract))
-    tmp[:dir] = DD[1]
+    tmp[:dir] = abspath(DD[1])
     df = DataFrames.DataFrame(tmp)
     for k in 2:length(DD)
         push!(df, df[1, :])
@@ -44,16 +65,28 @@ function IMAS.extract(
     # load the data
     p = ProgressMeter.Progress(length(DD); showspeed=true)
     Threads.@threads for k in eachindex(DD)
+        aDDk = abspath(DD[k])
         try
-            tmp = Dict(extract(DD[k], xtract))
-            tmp[:dir] = DD[k]
-            df[k, :] = tmp
-       catch
-           continue
-       end
+            if aDDk in cached_dirs
+                kcashe = findfirst(dir -> dir == aDDk, cached_dirs)
+                df[k, :] = df_cache[kcashe, :]
+            else
+                tmp = Dict(extract(aDDk, xtract))
+                tmp[:dir] = aDDk
+                df[k, :] = tmp
+            end
+    catch
+        continue
+    end
         ProgressMeter.next!(p)
     end
     ProgressMeter.finish!(p)
+
+    # cache extrated information to CSV file
+    if length(cache) > 0 && write_cache
+        DelimitedFiles.writedlm(cache, Iterators.flatten(([names(df)], eachrow(df))), ',')
+        @info "Written cache file with $(length(cached_dirs)) results"
+    end
 
     # filter
     if filter_invalid ∈ [:cols, :all]

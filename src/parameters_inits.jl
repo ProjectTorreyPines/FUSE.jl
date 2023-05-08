@@ -37,7 +37,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     R0::Entry{T} = Entry(T, "m", "Geometric genter of the plasma. NOTE: This also scales the radial build layers.")
     Z0::Entry{T} = Entry(T, "m", "Z offset of the machine midplane"; default=0.0)
     ϵ::Entry{T} = Entry(T, "-", "Plasma inverse aspect ratio. NOTE: This also scales the radial build layers.")
-    κ::Entry{T} = Entry(T, "-", "Plasma elongation. NOTE: If not set, this is set to 95% of maximum controllable elongation estimate.")
+    κ::Entry{T} = Entry(T, "-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
     δ::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___boundary, :triangularity)
     ζ::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
     pressure_core::Entry{T} = Entry(T, "Pa", "On axis pressure")
