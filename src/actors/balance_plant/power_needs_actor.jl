@@ -87,10 +87,14 @@ function _step(actor::ActorPowerNeeds)
     return actor
 end
 
-function heating_and_current_drive_calc(system_unit)
+function heating_and_current_drive_calc(system_unit::Any)
     power_electric_total = 0.0
     for item_unit in system_unit
-        efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
+        if length(keys(item_unit.efficiency)) > 0
+            efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
+        else
+            efficiency = 1.0
+        end
         power_electric_total += @ddtime(item_unit.power_launched.data) / efficiency
     end
     return power_electric_total
