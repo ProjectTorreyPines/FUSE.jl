@@ -23,7 +23,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
 
-        ini.equilibrium.boundary_from = :MXH_params
+        ini.equilibrium.boundary_from = :ods
         ini.equilibrium.xpoints_number = 1
     else
         ini.equilibrium.B0 = -5.3
