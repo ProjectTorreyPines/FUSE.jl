@@ -8,7 +8,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
 	construction_lead_time::Entry{T} = Entry(T, "year", "Duration of construction"; default = 8.0)
 	fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default = 0.078)
 	initial_cost_blanket::Entry{T} = Entry(T, "\$M", "Cost of initial blanket"; default = 200.0)
-	initial_cost_divertor::Entry{T} = Entry(T, "\$M", "Cost of initial divertor"; default = 8.0)
 	divertor_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
 	blanket_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
 
@@ -49,7 +48,6 @@ function _step(actor::ActorSheffieldCosting)
 	fixed_charge_rate = par.fixed_charge_rate
 	availability = cst.availability
 	plant_lifetime = cst.plant_lifetime
-	initial_cost_divertor = par.initial_cost_divertor
 	initial_cost_blanket = par.initial_cost_blanket
 	divertor_fluence_lifetime = par.divertor_fluence_lifetime
 	blanket_fluence_lifetime = par.blanket_fluence_lifetime
@@ -159,11 +157,11 @@ function _step(actor::ActorSheffieldCosting)
 
 	if power_electric_net > 0.0
 		sys = resize!(cost_ops.system, "name" => "divertor")
-		sys.yearly_cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, plant_lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
+		sys.yearly_cost = cost_fuel_Sheffield(:divertor, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
 		total_fuel_cost += sys.yearly_cost
 	else
 		sub = resize!(sys_fi.subsystem, "name" => "divertor")
-		sub.cost = cost_fuel_Sheffield(:divertor, fixed_charge_rate, initial_cost_divertor, availability, plant_lifetime, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
+		sub.cost = cost_fuel_Sheffield(:divertor, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
 		total_direct_capital_cost += sub.cost
 	end
 
@@ -316,10 +314,12 @@ function cost_fuel_Sheffield(::Type{Val{:blanket}}, fixed_charge_rate::Real, ini
 end
 
 #Equation 24
-function cost_fuel_Sheffield(::Type{Val{:divertor}}, fixed_charge_rate::Real, initial_cost_divertor::Real, availability::Real, plant_lifetime::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
+function cost_fuel_Sheffield(::Type{Val{:divertor}}, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
 	da.year_assessed = Dates.year(Dates.now()) # assume the user will give you the initial cost of the divertor in dollars of their present year 
 
 	# If electric power is generated then add in the divertor replacement cost; if it's not, just return the divertor capital cost
+    initial_cost_divertor = 0.1 * 0.114 * 0.8 * ((IMAS.fusion_power(dd) /1e6) / neutron_flux)
+
 	divertor_capital_cost = 1.1 * initial_cost_divertor * fixed_charge_rate
 	divertor_replacement_cost = (availability * plant_lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / plant_lifetime #divertor fluence lifetime in MW*yr/m^2
 
