@@ -325,7 +325,7 @@ function scale_build_layers(layers::OrderedCollections.OrderedDict{Symbol,Float6
     factor = plasma_start / layer_plasma_start
     for (layer, thickness) in layers
         if layer == :plasma
-            layers[layer] = a + 2 * gap
+            layers[layer] = 2.0 * (a + gap)
         else
             layers[layer] = thickness * factor
         end
