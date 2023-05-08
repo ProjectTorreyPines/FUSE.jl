@@ -76,7 +76,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
             end
         end
 
-        # if layers are not filled explicitly, then generate them from fractions in ini.build.
+        # if layers are not filled explicitly, then generate them from fractions in ini.build
         if ismissing(ini.build, :layers)
             layers = layers_meters_from_fractions(
                 dd.equilibrium.time_slice[],
@@ -89,10 +89,9 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
                 pf_outside_tf=(ini.pf_active.n_coils_outside > 0))
         else
             layers = deepcopy(ini.build.layers)
+            # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
+            scale_build_layers(layers, dd.equilibrium.vacuum_toroidal_field.r0, dd.equilibrium.time_slice[].boundary.minor_radius, ini.build.plasma_gap)
         end
-
-        # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
-        scale_build_layers(layers, dd.equilibrium.vacuum_toroidal_field.r0, dd.equilibrium.time_slice[].boundary.minor_radius, ini.build.plasma_gap)
 
         # populate dd.build with radial build layers
         init_build(dd.build, layers)
@@ -255,7 +254,7 @@ function layers_meters_from_fractions(
     end
 
     # express layer thicknesses as fractions
-    layers = OrderedCollections.OrderedDict()
+    layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 2.0
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
@@ -272,7 +271,7 @@ function layers_meters_from_fractions(
         layers[:hfs_blanket] = blanket
     end
     layers[:hfs_wall] = 0.5
-    layers[:plasma] = rmax - rmin
+    layers[:plasma] = 0.0 # this number does not matter
     layers[:lfs_wall] = 0.5
     if blanket > 0.0
         layers[:lfs_blanket] = blanket * 2.0
@@ -293,21 +292,7 @@ function layers_meters_from_fractions(
     end
 
     # from fractions to meters
-    n_hfs_layers = 0.0
-    for layer in keys(layers)
-        if layer == :plasma
-            break
-        end
-        if layers[layer] > 0
-            n_hfs_layers += layers[layer]
-        end
-    end
-    dr = rmin / n_hfs_layers
-    for layer in keys(layers)
-        if layer != :plasma
-            layers[layer] = layers[layer] * dr
-        end
-    end
+    scale_build_layers(layers, (rmax+rmin)/2.0, (rmax-rmin)/2.0, 0.0)
 
     return layers
 end
@@ -320,12 +305,14 @@ function scale_build_layers(layers::OrderedCollections.OrderedDict{Symbol,Float6
         if layer == :plasma
             break
         end
-        layer_plasma_start += thickness
+        if thickness > 0.0
+            layer_plasma_start += thickness
+        end
     end
     factor = plasma_start / layer_plasma_start
     for (layer, thickness) in layers
         if layer == :plasma
-            layers[layer] = a + 2 * gap
+            layers[layer] = 2.0 * (a + gap)
         else
             layers[layer] = thickness * factor
         end
