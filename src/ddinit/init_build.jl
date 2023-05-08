@@ -117,11 +117,9 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         # 2D build cross-section
         ActorCXbuild(dd, act)
 
-        # TF coils
+        # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
-        # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-        dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type=_tf_, fs=_hfs_).start_radius / dd.build.tf.coils_n
-        # ripple
+        # target TF ripple
         dd.build.tf.ripple = ini.tf.ripple
 
         # center stack solid mechanics
