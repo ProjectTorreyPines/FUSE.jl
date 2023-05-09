@@ -10,11 +10,6 @@ import Dates
 function cost_multiplier(production_increase::Real, learning_rate::Real)
     return production_increase^(log(learning_rate)/log(2))
 end
-    
-# production_increase = 10 
-# learning_rate = 0.85 
-
-# cost_multiplier = production_increase^(log(learning_rate)/log(2))
 
 #= ============== =#
 #  materials cost  #
@@ -55,7 +50,7 @@ function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__t
         return unit_cost("Copper", production_increase, learning_rate)
     else
         fraction_cable = 1 - coil_tech.fraction_stainless - coil_tech.fraction_void
-        fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper
+        fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)
         fraction_copper = fraction_cable - fraction_SC
         return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316", production_increase, learning_rate) + fraction_copper * unit_cost("Copper", production_increase, learning_rate) + fraction_SC * unit_cost(coil_tech.material, production_increase, learning_rate))
     end
