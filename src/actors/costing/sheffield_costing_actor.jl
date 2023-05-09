@@ -287,7 +287,7 @@ end
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
 function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_rate::Real, initial_cost_blanket::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
 	da.year_assessed = 2016
-    
+
     bd = dd.build
     cst = dd.costing
 
@@ -297,7 +297,6 @@ function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_ra
         cost = 0 
     else 
         initial_cost_blanket = blanket.volume * unit_cost(blanket.material, cst.production_increase, cst.learning_rate)
-        println(blanket.material)
 
         blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
         blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m^2
