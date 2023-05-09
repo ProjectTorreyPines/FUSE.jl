@@ -25,116 +25,104 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
 
         boundary_from = ini.equilibrium.boundary_from
 
-        if init_from == :scalars || (init_from == :ods && ini.equilibrium.boundary_from != :ods)
+        # we make a copy because we overwrite some parameters
+        # locally to this functions so that things work from
+        # different entry points
+        ini = deepcopy(ini)
 
-            # we make a copy because we overwrite some parameters
-            # locally to this functions so that things work from
-            # different entry points
-            ini = deepcopy(ini)
+        # if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
+        if !ismissing(ini.equilibrium, :κ) && ini.equilibrium.κ < 1.0 && !ismissing(ini.equilibrium, :ϵ)
+            ini.equilibrium.κ = IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * ini.equilibrium.κ
+        end
 
-            # if elongation is not defined, then set it to 95% of maximum controllable elongation estimate
-            if ismissing(ini.equilibrium, :κ) && !ismissing(ini.equilibrium, :ϵ)
-                ini.equilibrium.κ = IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * 0.95
+        if init_from == :ods
+            ini.equilibrium.ip = eqt.global_quantities.ip
+            ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
+            ini.equilibrium.B0 = @ddtime dd.equilibrium.vacuum_toroidal_field.b0
+            ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
+
+            pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
+            pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
+            pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+
+            if boundary_from == :ods
+                mxh = IMAS.MXH(pr, pz, 4)
             end
 
+            if ismissing(ini.equilibrium, :xpoints_number)
+                # if number of x-points is not set explicitly, get it from the ODS
+                ini.equilibrium.xpoints_number = length(eqt.boundary.x_point)
+            end
+        end
+
+        if boundary_from == :rz_points
+            # R,Z boundary from points
+            if ismissing(ini.equilibrium, :rz_points)
+                error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
+            end
+            pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
+            pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
+            pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+            mxh = IMAS.MXH(pr, pz, 4)
+
+        elseif boundary_from == :MXH_params
+            # R,Z boundary from MXH
+            if ismissing(ini.equilibrium, :MXH_params)
+                error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
+            end
+            mxh = IMAS.MXH(ini.equilibrium.MXH_params)
+
+        elseif boundary_from == :scalars
+            # R,Z boundary from scalars
+            mxh = IMAS.MXH(
+                ini.equilibrium.R0,
+                ini.equilibrium.Z0,
+                ini.equilibrium.ϵ,
+                ini.equilibrium.κ,
+                0.0,
+                [0.0, 0.0],
+                [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
+        end
+
+        # scalars consistent with MXH parametrization
+        ini.equilibrium.ϵ = mxh.ϵ
+        ini.equilibrium.R0 = mxh.R0
+        ini.equilibrium.Z0 = mxh.Z0
+        ini.equilibrium.κ = mxh.κ
+        ini.equilibrium.δ = sin(mxh.s[1])
+        ini.equilibrium.ζ = -mxh.s[2]
+
+        # initialize dd.pulse_schedule.position_control from mxh
+        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints_number)
+
+        # scalar quantities
+        @ddtime(dd.pulse_schedule.flux_control.i_plasma.reference.data = ini.equilibrium.ip)
+        @ddtime(dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = ini.equilibrium.B0 * ini.equilibrium.R0)
+        dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
+
+        # the pressure and j_tor to be used by equilibrium solver will need to be set in dd.core_profiles
+        if isempty(dd.core_profiles.profiles_1d)
+            cp1d = resize!(dd.core_profiles.profiles_1d)
             if init_from == :ods
-                ini.equilibrium.ip = eqt.global_quantities.ip
-                ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
-                ini.equilibrium.B0 = @ddtime dd.equilibrium.vacuum_toroidal_field.b0
-                ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
-
-                pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-                pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
-                pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-
-                if ini.equilibrium.boundary_from == :MXH_params
-                    mxh = IMAS.MXH(pr, pz, 2)
-
-                elseif boundary_from == :scalars
-                    mxh = IMAS.MXH(
-                        ini.equilibrium.R0,
-                        ini.equilibrium.Z0,
-                        ini.equilibrium.ϵ,
-                        ini.equilibrium.κ,
-                        0.0,
-                        [0.0, 0.0],
-                        [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
-                end
-
-                if ismissing(ini.equilibrium, :xpoints_number)
-                    # if number of x-points is not set explicitly, get it from the ODS
-                    ini.equilibrium.xpoints_number = length(eqt.boundary.x_point)
-                end
+                # take p and j from input equilibrium ods
+                eqt1 = dd1.equilibrium.time_slice[]
+                cp1d.grid.rho_tor_norm = eqt1.profiles_1d.rho_tor_norm
+                cp1d.grid.psi = eqt1.profiles_1d.psi
+                cp1d.j_tor = eqt1.profiles_1d.j_tor
+                cp1d.pressure = eqt1.profiles_1d.pressure
 
             else
-                if boundary_from == :rz_points
-                    # R,Z boundary from points
-                    if ismissing(ini.equilibrium, :rz_points)
-                        error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
-                    end
-                    pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
-                    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
-                    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-                    mxh = IMAS.MXH(pr, pz, 4)
-
-                elseif boundary_from == :MXH_params
-                    # R,Z boundary from MXH
-                    if ismissing(ini.equilibrium, :MXH_params)
-                        error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
-                    end
-                    mxh = IMAS.MXH(ini.equilibrium.MXH_params)
-
-                elseif boundary_from == :scalars
-                    # R,Z boundary from scalars
-                    mxh = IMAS.MXH(
-                        ini.equilibrium.R0,
-                        ini.equilibrium.Z0,
-                        ini.equilibrium.ϵ,
-                        ini.equilibrium.κ,
-                        0.0,
-                        [0.0, 0.0],
-                        [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
-                end
-
-                # scalars consistent with MXH parametrization
-                ini.equilibrium.ϵ = mxh.ϵ
-                ini.equilibrium.R0 = mxh.R0
-                ini.equilibrium.Z0 = mxh.Z0
-                ini.equilibrium.κ = mxh.κ
-                ini.equilibrium.δ = sin(mxh.s[1])
-                ini.equilibrium.ζ = -mxh.s[2]
+                # guess pressure and j_tor from input current and peak pressure
+                psin = LinRange(0, 1, 129)
+                cp1d.grid.rho_tor_norm = psin
+                cp1d.grid.psi = psin
+                cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference.data)
+                cp1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
             end
+        end
 
-            # initialize dd.pulse_schedule.position_control from mxh
-            init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints_number)
-
-            # scalar quantities
-            @ddtime(dd.pulse_schedule.flux_control.i_plasma.reference.data = ini.equilibrium.ip)
-            @ddtime(dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = ini.equilibrium.B0 * ini.equilibrium.R0)
-            dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
-
-            # the pressure and j_tor to be used by equilibrium solver will need to be set in dd.core_profiles
-            if isempty(dd.core_profiles.profiles_1d)
-                cp1d = resize!(dd.core_profiles.profiles_1d)
-                if init_from == :ods
-                    # take p and j from input equilibrium ods
-                    eqt1 = dd1.equilibrium.time_slice[]
-                    cp1d.grid.rho_tor_norm = eqt1.profiles_1d.rho_tor_norm
-                    cp1d.grid.psi = eqt1.profiles_1d.psi
-                    cp1d.j_tor = eqt1.profiles_1d.j_tor
-                    cp1d.pressure = eqt1.profiles_1d.pressure
-
-                else
-                    # guess pressure and j_tor from input current and peak pressure
-                    psin = LinRange(0, 1, 129)
-                    cp1d.grid.rho_tor_norm = psin
-                    cp1d.grid.psi = psin
-                    cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference.data)
-                    cp1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
-                end
-            end
-
-            # solve equilibrium
+        # solve equilibrium
+        if init_from != :ods
             act_copy = deepcopy(act)
             act_copy.ActorCHEASE.rescale_eq_to_ip = true
             ActorEquilibrium(dd, act_copy)
