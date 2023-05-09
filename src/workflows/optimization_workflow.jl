@@ -143,7 +143,7 @@ function load_optimization(filename::AbstractString)
 end
 
 function is_dominated(sol_a::Vector{T}, sol_b::Vector{T}) where T
-    return all(sol_a .> sol_b)
+    return all(sol_b .<= sol_a) .&& any(sol_b .< sol_a)
 end
 
 """
