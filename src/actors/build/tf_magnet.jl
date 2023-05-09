@@ -38,8 +38,9 @@ Evaluate TF current density needed to obtain the maximum required B0 at R0
 """
 function tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
     hfsTF = IMAS.get_build(bd, type=_tf_, fs=_hfs_)
-    B0 = maximum(abs.(eq.vacuum_toroidal_field.b0))
-    R0 = eq.vacuum_toroidal_field.r0
+    plasma = IMAS.get_build(bd, type=_plasma_)
+    R0 = (plasma.end_radius + plasma.start_radius) / 2.0
+    B0 = maximum(abs.(eq.vacuum_toroidal_field.b0))    
 
     # current in the TF coils
     current_TF = B0 * R0 * 2π / constants.μ_0 / bd.tf.coils_n

@@ -19,7 +19,6 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.ip = 8.7e6
     ini.equilibrium.pressure_core = 2.22e6
     ini.equilibrium.xpoints_number = 2
-    act.ActorCXbuild.rebuild_wall = false
 
     # explicitly set thickness of 
     ini.build.n_first_wall_conformal_layers = 3

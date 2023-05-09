@@ -29,8 +29,7 @@ end
 Evaluates the pedestal boundary condition (height and width)
 """
 function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPedestal
-    actor = ActorPedestal(dd, par; kw...)
+    actor = ActorPedestal(dd, act.ActorPedestal; kw...)
     step(actor)
     finalize(actor)
     return actor

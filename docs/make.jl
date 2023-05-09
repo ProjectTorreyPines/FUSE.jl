@@ -49,13 +49,23 @@ function AbstractTrees.printnode(io::IO, node_value::SimulationParameters.ParsNo
     end
 end
 
+function AbstractTrees.printnode(io::IO, @nospecialize(ids::Type{<:IMAS.IDS}); kwargs...)
+    txt = replace(split(split("$ids", "___")[end], "__")[end], r"\{.*\}" => "")
+    return printstyled(io, txt; bold=true)
+end
+
+function AbstractTrees.printnode(io::IO, @nospecialize(ids::Type{<:IMAS.IDSvector}); kwargs...)
+    txt = replace(split(split("$(eltype(ids))", "___")[end], "__")[end] * "[:]", r"\{.*\}" => "")
+    return printstyled(io, txt; bold=true)
+end
+
 function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASstructRepr; kwargs...)
     info = IMAS.info(leaf.location)
     units = get(info, "units", "-")
     if units == "-"
         units = ""
     else
-        units = "  [$(pretty_units(units))]"
+        units = " [$(pretty_units(units))]"
     end
     printstyled(io, "$(html_link_repr(leaf.key, leaf.location))$units")
 end

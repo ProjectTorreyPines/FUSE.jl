@@ -76,7 +76,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
             end
         end
 
-        # if layers are not filled explicitly, then generate them from fractions in ini.build.
+        # if layers are not filled explicitly, then generate them from fractions in ini.build
         if ismissing(ini.build, :layers)
             layers = layers_meters_from_fractions(
                 dd.equilibrium.time_slice[],
@@ -89,28 +89,8 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
                 pf_outside_tf=(ini.pf_active.n_coils_outside > 0))
         else
             layers = deepcopy(ini.build.layers)
-        end
-
-        # scale radial build layers based on equilibrium R0 and ϵ
-        iplasma = findfirst(key -> key == :plasma, collect(keys(layers)))
-        R_hfs_build = sum(d for (k, d) in enumerate(values(layers)) if k < iplasma)
-        if ismissing(ini.equilibrium, :R0)
-            R0 = R_hfs_build + collect(values(layers))[iplasma] / 2.0
-        else
-            R0 = ini.equilibrium.R0
-        end
-        if ismissing(ini.equilibrium, :ϵ)
-            a_gap = collect(values(layers))[iplasma] / 2.0
-        else
-            a_gap = ini.equilibrium.ϵ * R0 * (1.0 + ini.build.plasma_gap)
-        end
-        R_hfs = R0 - a_gap
-        for key in keys(layers)
-            if key == :plasma
-                layers[key] = a_gap * 2.0
-            else
-                layers[key] = layers[key] * R_hfs / R_hfs_build
-            end
+            # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
+            scale_build_layers(layers, dd.equilibrium.vacuum_toroidal_field.r0, dd.equilibrium.time_slice[].boundary.minor_radius, ini.build.plasma_gap)
         end
 
         # populate dd.build with radial build layers
@@ -137,11 +117,9 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         # 2D build cross-section
         ActorCXbuild(dd, act)
 
-        # TF coils
+        # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
-        # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-        dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type=_tf_, fs=_hfs_).start_radius / dd.build.tf.coils_n
-        # ripple
+        # target TF ripple
         dd.build.tf.ripple = ini.tf.ripple
 
         # center stack solid mechanics
@@ -274,7 +252,7 @@ function layers_meters_from_fractions(
     end
 
     # express layer thicknesses as fractions
-    layers = OrderedCollections.OrderedDict()
+    layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 2.0
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
@@ -291,7 +269,7 @@ function layers_meters_from_fractions(
         layers[:hfs_blanket] = blanket
     end
     layers[:hfs_wall] = 0.5
-    layers[:plasma] = rmax - rmin
+    layers[:plasma] = 0.0 # this number does not matter
     layers[:lfs_wall] = 0.5
     if blanket > 0.0
         layers[:lfs_blanket] = blanket * 2.0
@@ -312,21 +290,29 @@ function layers_meters_from_fractions(
     end
 
     # from fractions to meters
-    n_hfs_layers = 0.0
-    for layer in keys(layers)
+    scale_build_layers(layers, (rmax+rmin)/2.0, (rmax-rmin)/2.0, 0.0)
+
+    return layers
+end
+
+function scale_build_layers(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
+    gap = a * gap_fraction
+    plasma_start = R0 - a - gap
+    layer_plasma_start = 0.0
+    for (layer, thickness) in layers
         if layer == :plasma
             break
         end
-        if layers[layer] > 0
-            n_hfs_layers += layers[layer]
+        if thickness > 0.0
+            layer_plasma_start += thickness
         end
     end
-    dr = rmin / n_hfs_layers
-    for layer in keys(layers)
-        if layer != :plasma
-            layers[layer] = layers[layer] * dr
+    factor = plasma_start / layer_plasma_start
+    for (layer, thickness) in layers
+        if layer == :plasma
+            layers[layer] = 2.0 * (a + gap)
+        else
+            layers[layer] = thickness * factor
         end
     end
-
-    return layers
 end

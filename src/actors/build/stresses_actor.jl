@@ -27,11 +27,10 @@ Estimates mechanical stresses on the center stack
     Stores data in `dd.solid_mechanics`
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorStresses
-    actor = ActorStresses(dd, par; kw...)
+    actor = ActorStresses(dd, act.ActorStresses; kw...)
     step(actor; par.n_points)
     finalize(actor)
-    if par.do_plot
+    if actor.par.do_plot
         display(plot(actor.dd.solid_mechanics.center_stack.stress))
     end
     return actor
@@ -42,7 +41,8 @@ function _step(actor::ActorStresses; n_points::Integer=5)
     bd = actor.dd.build
     sm = actor.dd.solid_mechanics
 
-    R0 = eq.vacuum_toroidal_field.r0
+    plasma = IMAS.get_build(bd, type=_plasma_)
+    R0 = (plasma.end_radius + plasma.start_radius) / 2.0
     B0 = maximum(abs.(eq.vacuum_toroidal_field.b0))
 
     R_tf_in = IMAS.get_build(bd, type=_tf_, fs=_hfs_).start_radius
