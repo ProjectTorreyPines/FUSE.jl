@@ -4,8 +4,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorLFSsizing <: ReactorAbstractActor
@@ -29,21 +29,21 @@ Actor that resizes the Low Field Side of the tokamak radial build
     Manipulates radial build information in `dd.build.layer`
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorLFSsizing
-    actor = ActorLFSsizing(dd, par; kw...)
-    if par.do_plot
+    actor = ActorLFSsizing(dd, act.ActorLFSsizing; kw...)
+    if actor.par.do_plot
         plot(dd.build)
     end
-    step(actor; par.verbose)
+    step(actor)
     finalize(actor)
-    if par.do_plot
+    if actor.par.do_plot
         display(plot!(dd.build; cx=false))
     end
     return actor
 end
 
-function _step(actor::ActorLFSsizing; verbose::Bool=false)
+function _step(actor::ActorLFSsizing)
     dd = actor.dd
+    par = actor.par
 
     new_TF_radius = IMAS.R_tf_ripple(IMAS.get_build(dd.build, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
 
@@ -55,8 +55,8 @@ function _step(actor::ActorLFSsizing; verbose::Bool=false)
     for vac in [true, false]
         old_TF_radius = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_).start_radius
         delta = new_TF_radius - old_TF_radius
-        if verbose
-            println("TF radius changed by $delta [m]")
+        if par.verbose
+            println("TF outer leg radius changed by $delta [m]")
         end
         thicknesses = [dd.build.layer[k].thickness for k in iplasma:itf if !vac || lowercase(dd.build.layer[k].material) == "vacuum"]
         for k in iplasma:itf

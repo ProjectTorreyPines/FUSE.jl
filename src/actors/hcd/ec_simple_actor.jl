@@ -30,8 +30,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
     Reads data in `dd.ec_launchers` and stores data in `dd.core_sources`
 """
 function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorECsimple
-    actor = ActorECsimple(dd, par; kw...)
+    actor = ActorECsimple(dd, act.ActorECsimple; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -60,18 +59,17 @@ function _step(actor::ActorECsimple)
         R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
-        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx]) / 1E3
+        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx])
 
         eta = TekeV * 0.09 / (5.0 + zeff)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        source_index = IMAS.name_2_index(cs.source)[:ec]
-        source = resize!(cs.source, "identifier.index" => source_index; allow_multiple_matches=true)
+        source = resize!(cs.source, :ec; allow_multiple_matches=true)
         gaussian_source(
             source,
             ecl.name,
-            source_index,
+            source.identifier.index,
             rho_cp,
             volume_cp,
             area_cp,

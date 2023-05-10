@@ -30,8 +30,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
     Reads data in `dd.lh_antennas` and stores data in `dd.core_sources`
 """
 function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorLHsimple
-    actor = ActorLHsimple(dd, par; kw...)
+    actor = ActorLHsimple(dd, act.ActorLHsimple; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -60,18 +59,17 @@ function _step(actor::ActorLHsimple)
         R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
-        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx]) / 1E3
+        zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx])
 
         eta = TekeV * 0.037 * B0 / (5.0 + zeff) / ne20^0.33
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        source_index = IMAS.name_2_index(cs.source)[:lh]
-        source = resize!(cs.source, "identifier.index" => source_index; allow_multiple_matches=true)
+        source = resize!(cs.source, :lh; allow_multiple_matches=true)
         gaussian_source(
             source,
             lha.name,
-            source_index,
+            source.identifier.index,
             rho_cp,
             volume_cp,
             area_cp,

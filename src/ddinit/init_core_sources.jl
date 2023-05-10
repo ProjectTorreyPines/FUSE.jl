@@ -13,7 +13,6 @@ function init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         ini.nbi.toroidal_angle,
         getproperty(ini.nbi, :efficiency_conversion, missing),
         getproperty(ini.nbi, :efficiency_transmission, missing))
-    ActorNBIsimple(dd, act)
 end
 
 function init_nbi(
@@ -59,7 +58,6 @@ function init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         ini.ec_launchers.power_launched,
         getproperty(ini.ec_launchers, :efficiency_conversion, missing),
         getproperty(ini.ec_launchers, :efficiency_transmission, missing))
-    ActorECsimple(dd, act)
 end
 
 function init_ec_launchers(
@@ -94,7 +92,6 @@ function init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         getproperty(ini.ic_antennas, :efficiency_conversion, missing),
         getproperty(ini.ic_antennas, :efficiency_transmission, missing),
         getproperty(ini.ic_antennas, :efficiency_coupling, missing))
-    ActorICsimple(dd, act)
 end
 
 function init_ic_antennas(
@@ -133,7 +130,6 @@ function init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         getproperty(ini.lh_antennas, :efficiency_conversion, missing),
         getproperty(ini.lh_antennas, :efficiency_transmission, missing),
         getproperty(ini.lh_antennas, :efficiency_coupling, missing))
-    ActorLHsimple(dd, act)
 end
 
 function init_lh_antennas(
@@ -201,6 +197,8 @@ function init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
             end
         end
 
+        ActorHCD(dd, act)
+        
         IMAS.sources!(dd)
 
         return dd

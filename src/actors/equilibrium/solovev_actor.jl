@@ -13,14 +13,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     alpha::Entry{T} = Entry(T, "-", "Initial guess of constant relating to pressure"; default=0.0)
     volume::Entry{T} = Entry(T, "m³", "Scalar volume to match (optional)"; default=missing)
     area::Entry{T} = Entry(T, "m²", "Scalar area to match (optional)"; default=missing)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorSolovev <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorSolovev
-    mxh::IMAS.MXH
-    S::MXHEquilibrium.SolovevEquilibrium
+    S::Union{Nothing,MXHEquilibrium.SolovevEquilibrium}
 end
 
 """
@@ -31,28 +30,39 @@ Solovev equilibrium actor, based on:
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
 function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorSolovev
-    actor = ActorSolovev(dd, par; kw...)
+    actor = ActorSolovev(dd, act.ActorSolovev; kw...)
     step(actor)
     finalize(actor)
     # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
-    par.qstar = actor.S.qstar
-    par.alpha = actor.S.alpha
+    act.ActorSolovev.qstar = actor.S.qstar
+    act.ActorSolovev.alpha = actor.S.alpha
     return actor
 end
 
 function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; kw...)
     logging_actor_init(ActorSolovev)
     par = par(kw...)
+    return ActorSolovev(dd, par, nothing)
+end
 
+"""
+    _step(actor::ActorSolovev)
+
+Non-linear optimization to obtain a target `ip` and `pressure_core`
+"""
+function _step(actor::ActorSolovev)
+    dd = actor.dd
+    par = actor.par
+
+    # initialize eqt from pulse_schedule and core_profiles
     prepare_eq(dd)
-
-    # extract info from dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
 
     # magnetic field
     B0 = @ddtime eq.vacuum_toroidal_field.b0
+    target_ip = abs(eqt.global_quantities.ip)
+    target_pressure_core = eqt.profiles_1d.pressure[1]
 
     # plasma shape as MXH
     pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
@@ -76,46 +86,24 @@ function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; kw...)
         x_point = nothing
     end
 
-    # run Solovev
-    S = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar; B0_dir=Int64(sign(B0)), Ip_dir=1, x_point=x_point, symmetric=symmetric)
+    # first run of Solovev
+    S0 = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar; B0_dir=Int64(sign(B0)), Ip_dir=1, x_point, symmetric)
 
-    return ActorSolovev(dd, par, mxh, S)
-end
-
-"""
-    _step(actor::ActorSolovev)
-
-Non-linear optimization to obtain a target `ip` and `pressure_core`
-"""
-function _step(actor::ActorSolovev)
-    S0 = actor.S
-    par = actor.par
-
-    eqt = actor.dd.equilibrium.time_slice[]
-    target_ip = abs(eqt.global_quantities.ip)
-    target_pressure_core = eqt.profiles_1d.pressure[1]
-
-    plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(actor.mxh.R0, actor.mxh.Z0, actor.mxh.ϵ, actor.mxh.κ, actor.mxh.c0, actor.mxh.c, actor.mxh.s)
-
-    B0 = S0.B0
-    alpha = S0.alpha
-    qstar = S0.qstar
-
+    # optimize `alpha` and `qstar` to get target_ip and target_pressure_core
     function cost(x)
-        S = MXHEquilibrium.solovev(abs(B0), plasma_shape, x[1], x[2]; B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
+        S = MXHEquilibrium.solovev(abs(B0), plasma_shape, x[1], x[2]; B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric, x_point)
         psimag, psibry = MXHEquilibrium.psi_limits(S)
         pressure_cost = (MXHEquilibrium.pressure(S, psimag) - target_pressure_core) / target_pressure_core
         ip_cost = (MXHEquilibrium.plasma_current(S) - target_ip) / target_ip
         return sqrt(pressure_cost^2 + 100.0 * ip_cost^2)
     end
-
-    res = Optim.optimize(cost, [alpha, qstar], Optim.NelderMead(), Optim.Options(g_tol=1E-3))
-
+    res = Optim.optimize(cost, [S0.alpha, S0.qstar], Optim.NelderMead(), Optim.Options(g_tol=1E-3))
     if par.verbose
         println(res)
     end
 
-    actor.S = MXHEquilibrium.solovev(abs(B0), plasma_shape, res.minimizer[1], res.minimizer[2]; B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric=S0.symmetric, x_point=S0.x_point)
+    # final Solovev solution
+    actor.S = MXHEquilibrium.solovev(abs(B0), plasma_shape, res.minimizer[1], res.minimizer[2]; B0_dir=Int64(sign(B0)), Ip_dir=1, symmetric, x_point)
 
     return actor
 end
@@ -126,17 +114,23 @@ end
 Store ActorSolovev data in IMAS.equilibrium format
 """
 function _finalize(actor::ActorSolovev)
+    dd = actor.dd
+    par = actor.par
+
     rlims = MXHEquilibrium.limits(actor.S.S; pad=0.3)[1]
     zlims = MXHEquilibrium.limits(actor.S.S; pad=0.3)[2]
 
-    ngrid = actor.par.ngrid
+    ngrid = par.ngrid
     tc = MXHEquilibrium.transform_cocos(3, 11)
 
-    eq = actor.dd.equilibrium
+    eq = dd.equilibrium
     eqt = eq.time_slice[]
     target_ip = eqt.global_quantities.ip
     sign_Ip = sign(target_ip)
     sign_Bt = sign(eqt.profiles_1d.f[end])
+    target_psi_norm = getproperty(eqt.profiles_1d, :psi_norm, missing)
+    target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
+    target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
 
     Z0 = eqt.boundary.geometric_axis.z
     flip_z = 1.0
@@ -173,25 +167,36 @@ function _finalize(actor::ActorSolovev)
         # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
         eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
         eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+        # match entry target_pressure and target_j_tor as if Solovev could do this
+        if !ismissing(target_pressure)
+            eqt.profiles_1d.pressure = IMAS.interp1d(target_psi_norm, target_pressure).(eqt.profiles_1d.psi_norm)
+        end
+        if !ismissing(target_j_tor)
+            eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
+        end
+        IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, actor.S.S.R0, actor.S.B0)
         IMAS.flux_surfaces(eqt)
     end
 
     # this is to fix the boundary back to its original input
     # since Solovev will not satisfy the original boundary
-    eqt.boundary.outline.r, eqt.boundary.outline.z = actor.mxh()
-    eqt.boundary.elongation = actor.mxh.κ
-    eqt.boundary.triangularity = sin(actor.mxh.s[1])
-    eqt.boundary.squareness = -actor.mxh.s[2]
-    eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
-    eqt.boundary.geometric_axis.r = actor.mxh.R0
-    eqt.boundary.geometric_axis.z = actor.mxh.Z0
+    # this is not needed since we the boundary info is now stored in pulse_schedule
+    if false
+        eqt.boundary.outline.r, eqt.boundary.outline.z = actor.mxh()
+        eqt.boundary.elongation = actor.mxh.κ
+        eqt.boundary.triangularity = sin(actor.mxh.s[1])
+        eqt.boundary.squareness = -actor.mxh.s[2]
+        eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
+        eqt.boundary.geometric_axis.r = actor.mxh.R0
+        eqt.boundary.geometric_axis.z = actor.mxh.Z0
+    end
 
     # correct equilibrium volume and area
-    if !ismissing(actor.par, :volume)
-        eqt.profiles_1d.volume .*= actor.par.volume / eqt.profiles_1d.volume[end]
+    if !ismissing(par, :volume)
+        eqt.profiles_1d.volume .*= par.volume / eqt.profiles_1d.volume[end]
     end
-    if !ismissing(actor.par, :area)
-        eqt.profiles_1d.area .*= actor.par.area / eqt.profiles_1d.area[end]
+    if !ismissing(par, :area)
+        eqt.profiles_1d.area .*= par.area / eqt.profiles_1d.area[end]
     end
 
     return actor

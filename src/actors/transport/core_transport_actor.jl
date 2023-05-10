@@ -10,7 +10,7 @@ end
 mutable struct ActorCoreTransport <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorCoreTransport
-    tr_actor::Union{ActorFluxMatcher, ActorTauenn}
+    tr_actor::Union{ActorFluxMatcher,ActorTauenn}
 end
 
 """
@@ -19,8 +19,7 @@ end
 Provides a common interface to run multiple core transport actors
 """
 function ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCoreTransport
-    actor = ActorCoreTransport(dd, par, act; kw...)
+    actor = ActorCoreTransport(dd, act.ActorCoreTransport, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -37,11 +36,10 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     return ActorCoreTransport(dd, par, tr_actor)
 end
 
-
 """
     _step(actor::ActorCoreTransport)
 
-Runs through the selected core transport actor's step
+Runs through the selected core transport actor step
 """
 function _step(actor::ActorCoreTransport)
     step(actor.tr_actor)
@@ -51,7 +49,7 @@ end
 """
     finalize(actor::ActorCoreTransport)
 
-Finalizes the selected core transport actor
+Finalizes the selected core transport actor finalize
 """
 function _finalize(actor::ActorCoreTransport)
     finalize(actor.tr_actor)

@@ -4,18 +4,17 @@
 Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    rebuild_wall::Entry{Bool} = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=false)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    rebuild_wall::Entry{Bool} = Entry(Bool, "-", "Rebuild wall based on equilibrium"; default=true)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorCXbuild <: ReactorAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorCXbuild
-    act::ParametersAllActors
-    function ActorCXbuild(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild, act::ParametersAllActors; kw...)
+    function ActorCXbuild(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild; kw...)
         logging_actor_init(ActorCXbuild)
         par = par(kw...)
-        return new(dd, par, act)
+        return new(dd, par)
     end
 end
 
@@ -28,11 +27,10 @@ Generates the 2D cross section of the tokamak build
     Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCXbuild(kw...)
-    actor = ActorCXbuild(dd, par, act)
+    actor = ActorCXbuild(dd, act.ActorCXbuild; kw...)
     step(actor)
     finalize(actor)
-    if par.do_plot
+    if actor.par.do_plot
         plot(dd.build)
         display(plot!(dd.build; cx=false))
     end
@@ -42,44 +40,275 @@ end
 function _step(actor::ActorCXbuild)
     dd = actor.dd
     par = actor.par
-    act = actor.act
 
-    # empty layer outlines and structures
-    for layer in dd.build.layer
-        empty!(layer.outline)
-    end
-    empty!(dd.build.structure)
-    actor_pfs = nothing
-    wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
+    bd = dd.build
+    eqt = dd.equilibrium.time_slice[]
+
+    # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
+    wall = IMAS.first_wall(dd.wall)
     if wall === missing || par.rebuild_wall
-        actor_pfs = ActorPlasmaFacingSurfaces(dd, act)
-        wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
-    end
-    pr = wall.r
-    pz = wall.z
-
-    build_cx!(dd.build, pr, pz)
-
-    #divertor_regions!(dd.build, dd.equilibrium.time_slice[])
-
-    blanket_regions!(dd.build, dd.equilibrium.time_slice[])
-    
-    #JG: redo to adjust the pfs to current build. Not sure where to set a switch to call adjust2build procedure. probabbly in cx_build?
-    if actor_pfs !==nothing 
-        PlasmaFacingSurfaces.adjust2build(actor_pfs.pfs,dd)
-        actor_pfs.pfs()
-        finalize(actor_pfs)
-        wall = PlasmaFacingSurfaces.get_merged_wall_outline(dd.wall)
+        pr, pz = wall_from_eq(bd, eqt)
+    else
         pr = wall.r
         pz = wall.z
-        build_cx!(dd.build, pr, pz)
-
-    #divertor_regions!(dd.build, dd.equilibrium.time_slice[])
-
-        blanket_regions!(dd.build, dd.equilibrium.time_slice[])
     end
 
+    # empty layer outlines and structures
+    for layer in bd.layer
+        empty!(layer.outline)
+    end
+    empty!(bd.structure)
+
+    build_cx!(bd, pr, pz)
+
+    divertor_regions!(bd, dd.divertors, dd.pulse_schedule.position_control)
+
+    blanket_regions!(bd, eqt)
+
+    if wall === missing || par.rebuild_wall
+        plasma = IMAS.get_build(bd, type=_plasma_)
+        resize!(dd.wall.description_2d, 1)
+        resize!(dd.wall.description_2d[1].limiter.unit, 1)
+        dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
+        dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
+    end
+
+    IMAS.find_strike_points!(eqt, dd.divertors)
+
     return actor
+end
+
+"""
+    wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_fraction::Real=0.2)
+
+Generate first wall outline starting from an equilibrium
+"""
+function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_fraction::Real=0.2)
+    R0 = eqt.global_quantities.magnetic_axis.r
+    Z0 = eqt.global_quantities.magnetic_axis.z
+
+    # lcfs
+    ψb = IMAS.find_psi_boundary(eqt)
+    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
+
+    # Set the radial build thickness of the plasma
+    plasma = IMAS.get_build(bd, type=_plasma_)
+    a = (minimum(rlcfs) - plasma.start_radius)
+    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2.0 * a
+    R_hfs_plasma = plasma.start_radius
+    R_lfs_plasma = plasma.end_radius
+
+    # main chamber (clip elements that go beyond plasma radial build thickness)
+    plasma_poly = xy_polygon(rlcfs, zlcfs)
+    wall_poly = LibGEOS.buffer(plasma_poly, a)
+    R = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
+    Z = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
+    R[R.<R_hfs_plasma] .= R_hfs_plasma
+    R[R.>R_lfs_plasma] .= R_lfs_plasma
+    Z = (Z .- Z0) .* 1.05 .+ Z0
+    wall_poly = xy_polygon(R, Z)
+
+    t = LinRange(0, 2π, 31)
+
+    # divertor lengths
+    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
+    max_divertor_length = linear_plasma_size * divertor_length_fraction
+
+    # private flux regions
+    private = IMAS.flux_surface(eqt, ψb, false)
+    for (pr, pz) in private
+        if sign(pz[1] - Z0) != sign(pz[end] - Z0)
+            # open flux surface does not encicle the plasma
+            continue
+        elseif IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs) > (linear_plasma_size / 20)
+            # secondary Xpoint far away
+            continue
+        end
+
+        # xpoint at location of maximum curvature
+        index = argmax(abs.(IMAS.curvature(pr, pz)))
+        Rx = pr[index]
+        Zx = pz[index]
+
+        max_d = maximum(sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0))
+        divertor_length = min(max_d * 0.8, max_divertor_length)
+
+        # limit extent of private flux regions
+        circle = collect(zip(divertor_length .* cos.(t) .+ Rx, sign(Zx) .* divertor_length .* sin.(t) .+ Zx))
+        circle[1] = circle[end]
+        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && rr >= R_hfs_plasma && rr <= R_lfs_plasma]
+        pr = [rr for (rr, zz) in slot]
+        pz = [zz for (rr, zz) in slot]
+
+        # remove private flux region from wall (necessary because of Z expansion)
+        # this may fail if the private region is small or weirdly shaped
+        try
+            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
+        catch e
+            if !(typeof(e) <: LibGEOS.GEOSError)
+                rethrow(e)
+            end
+        end
+
+        # add the divertor slots
+        α = 0.2
+        pr = vcat(pr, R0 * α + Rx * (1 - α))
+        pz = vcat(pz, Z0 * α + Zx * (1 - α))
+        slot = LibGEOS.buffer(xy_polygon(pr, pz), a)
+        wall_poly = LibGEOS.union(wall_poly, slot)
+    end
+
+    # vertical clip
+    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(0.0, R_hfs_plasma, 100.0)...))
+    wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100.0)...))
+
+    # round corners
+    wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
+    wall_poly = LibGEOS.buffer(wall_poly, a / 4)
+
+    pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
+    pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
+
+    pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1)
+
+    return pr, pz
+end
+
+function divertor_regions!(bd::IMAS.build, divertors::IMAS.divertors, pc::IMAS.pulse_schedule__position_control)
+    R0 = @ddtime(pc.geometric_axis.r.reference.data)
+    Z0 = @ddtime(pc.geometric_axis.z.reference.data)
+
+    # plasma poly (this sets the divertor's pfs)
+    ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
+    plasma_poly = xy_polygon(bd.layer[ipl])
+    pl_r = bd.layer[ipl].outline.r
+    pl_z = bd.layer[ipl].outline.z
+    pl_r[1] = pl_r[end]
+    pl_z[1] = pl_z[end]
+    IMAS.reorder_flux_surface!(pl_r, pl_z, R0, Z0)
+
+    # wall poly (this sets how back the divertor structure goes)
+    wall_poly = xy_polygon(bd.layer[ipl-1])
+    for ltype in [_blanket_, _shield_, _wall_,]
+        iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
+        if iwl !== missing
+            wall_poly = xy_polygon(bd.layer[iwl])
+            break
+        end
+    end
+
+    for (k_div, x_point) in enumerate(pc.x_point)
+        Rx = @ddtime(x_point.r.reference.data)
+        Zx = @ddtime(x_point.z.reference.data)
+        if Zx > Z0
+            ul_name = "upper"
+        else
+            ul_name = "lower"
+        end
+
+        # Define divertor region by tracing a line going through X-point
+        # and perpendicular to line connecting X-point to magnetic axis
+        m = (Zx - Z0) / (Rx - R0)
+        xx = [0.0, R0 * 2.0]
+        yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)
+        domain_r = vcat(xx, reverse(xx), xx[1])
+        domain_z = vcat(yy, [Zx * 5.0, Zx * 5.0], yy[1])
+        domain_poly = xy_polygon(domain_r, domain_z)
+        divertor_poly = LibGEOS.intersection(wall_poly, domain_poly)
+        divertor_poly = LibGEOS.difference(divertor_poly, plasma_poly)
+
+        # Assign to build structure
+        coords = GeoInterface.coordinates(divertor_poly)
+        structure = resize!(bd.structure, "type" => Int(_divertor_), "name" => "$ul_name divertor")
+        structure.material = "Tungsten"
+        structure.outline.r = [v[1] for v in coords[1]]
+        structure.outline.z = [v[2] for v in coords[1]]
+        structure.toroidal_extent = 2pi
+
+        # now find divertor plasma facing surfaces
+        indexes, crossings = IMAS.intersection(xx, yy, pl_r, pl_z; return_indexes=true)
+        divertor_r = [crossings[1][1]; pl_r[indexes[1][2]+1:indexes[2][2]+1]; crossings[2][1]]
+        divertor_z = [crossings[1][2]; pl_z[indexes[1][2]+1:indexes[2][2]+1]; crossings[2][2]]
+
+        # split inner/outer based on line connecting X-point to magnetic axis
+        m = (Zx - Z0) / (Rx - R0)
+        xx = [0.0, R0 * 2.0]
+        yy = line_through_point(m, Rx, Zx, xx)
+        indexes, crossings = IMAS.intersection(xx, yy, divertor_r, divertor_z; return_indexes=true)
+
+        # add target info
+        divertor = resize!(divertors.divertor, k_div)[k_div]
+        for io_name in ("inner", "outer")
+            target = resize!(divertor.target, "name" => "$ul_name $io_name target")
+            tile = resize!(target.tile, "name" => "$ul_name $io_name tile")
+            if ul_name == "upper"
+                if io_name == "outer"
+                    divertor_pfs_r = divertor_r[indexes[1][2]:end]
+                    divertor_pfs_z = divertor_z[indexes[1][2]:end]
+                else
+                    divertor_pfs_r = divertor_r[1:indexes[1][2]]
+                    divertor_pfs_z = divertor_z[1:indexes[1][2]]
+                end
+            else
+                if io_name == "outer"
+                    divertor_pfs_r = divertor_r[1:indexes[1][2]]
+                    divertor_pfs_z = divertor_z[1:indexes[1][2]]
+                else
+                    divertor_pfs_r = divertor_r[indexes[1][2]:end]
+                    divertor_pfs_z = divertor_z[indexes[1][2]:end]
+                end
+            end
+            tile.surface_outline.r = divertor_pfs_r
+            tile.surface_outline.z = divertor_pfs_z
+        end
+    end
+
+    return nothing
+end
+
+function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
+    R0 = eqt.global_quantities.magnetic_axis.r
+
+    layers = bd.layer
+    iblanket = IMAS.get_build(bd; type=_blanket_, fs=_lfs_, return_index=true, raise_error_on_missing=false)
+    if iblanket === missing
+        return IMAS.IDSvectorElement[]
+    end
+    layer = layers[iblanket]
+    layer_in = layers[iblanket-1]
+
+    layer_poly = xy_polygon(layer)
+    layer_in_poly = xy_polygon(layer_in)
+    ring_poly = LibGEOS.difference(layer_poly, layer_in_poly)
+    for structure in [structure for structure in bd.structure if structure.type == Int(_divertor_)]
+        structure_poly = xy_polygon(structure)
+        ring_poly = LibGEOS.difference(ring_poly, structure_poly)
+    end
+
+    geometries = LibGEOS.getGeometries(ring_poly)
+    for poly in geometries
+        coords = GeoInterface.coordinates(poly)
+        pr = [v[1] for v in coords[1]]
+        pz = [v[2] for v in coords[1]]
+
+        # assign to build structure
+        if length(geometries) == 2
+            if sum(pr) / length(pr) > R0
+                name = "LFS blanket"
+            else
+                name = "HFS blanket"
+            end
+        else
+            name = "blanket"
+        end
+
+        structure = resize!(bd.structure, "type" => Int(_blanket_), "name" => name)
+        structure.outline.r = pr
+        structure.outline.z = pz
+        structure.toroidal_extent = 2pi
+    end
+
+    return nothing
 end
 
 """
@@ -91,14 +320,14 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
     itf = IMAS.get_build(bd, type=_tf_, fs=_hfs_, return_index=true)
 
-    # rescale _plasma_ outline to match 1D radial build
-    # start_radius = bd.layer[ipl].start_radius
-    # end_radius = bd.layer[ipl].end_radius
-    # pr1 = minimum(pr)
-    # pr2 = maximum(pr)
-    # fact = (end_radius - start_radius) / (pr2 - pr1)
-    # pz .= pz .* fact
-    # pr .= (pr .- pr1) .* fact .+ start_radius
+    # _plasma_ outline scaled to match 1D radial build
+    start_radius = bd.layer[ipl].start_radius
+    end_radius = bd.layer[ipl].end_radius
+    pr1 = minimum(pr)
+    pr2 = maximum(pr)
+    fact = (end_radius - start_radius) / (pr2 - pr1)
+    pz .= pz .* fact
+    pr .= (pr .- pr1) .* fact .+ start_radius
     bd.layer[ipl].outline.r = pr
     bd.layer[ipl].outline.z = pz
 
@@ -175,113 +404,6 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     return bd
 end
 
-function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
-    R0 = eqt.global_quantities.magnetic_axis.r
-    Z0 = eqt.global_quantities.magnetic_axis.z
-
-    ipl = IMAS.get_build(bd, type=_plasma_, return_index=true)
-    plasma_poly = xy_polygon(bd.layer[ipl])
-    ψb = IMAS.find_psi_boundary(eqt)
-    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
-    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
-
-    wall_poly = xy_polygon(bd.layer[ipl-1])
-    for ltype in [_blanket_, _shield_, _wall_,]
-        iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
-        if iwl !== missing
-            wall_poly = xy_polygon(bd.layer[iwl])
-            break
-        end
-    end
-
-    divertors = IMAS.IDSvectorElement[]
-    for x_point in eqt.boundary.x_point
-        Rx = x_point.r
-        Zx = x_point.z
-        if IMAS.minimum_distance_two_shapes(rlcfs, zlcfs, [Rx], [Zx]) > (linear_plasma_size / 20)
-            # secondary Xpoint far away
-            continue
-        end
-
-        m = (Zx - Z0) / (Rx - R0)
-        xx = [0, R0 * 2.0]
-        yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)
-        pr = vcat(xx, reverse(xx), xx[1])
-        pz = vcat(yy, [Zx * 5, Zx * 5], yy[1])
-
-        domain = xy_polygon(pr, pz)
-        divertor_poly = LibGEOS.intersection(wall_poly, domain)
-        divertor_poly = LibGEOS.difference(divertor_poly, plasma_poly)
-
-        pr = [v[1] for v in GeoInterface.coordinates(divertor_poly)[1]]
-        pz = [v[2] for v in GeoInterface.coordinates(divertor_poly)[1]]
-
-        # assign to build structure
-        if Zx > Z0
-            name = "Upper divertor"
-        else
-            name = "Lower divertor"
-        end
-        structure = resize!(bd.structure, "type" => Int(_divertor_), "name" => name)
-        structure.material = "Tungsten"
-        structure.outline.r = pr
-        structure.outline.z = pz
-        structure.toroidal_extent = 2pi
-
-        push!(divertors, structure)
-    end
-
-    return divertors
-end
-
-function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
-    R0 = eqt.global_quantities.magnetic_axis.r
-
-    layers = bd.layer
-    iblanket = IMAS.get_build(bd; type=_blanket_, fs=_lfs_, return_index=true, raise_error_on_missing=false)
-    if iblanket === missing
-        return IMAS.IDSvectorElement[]
-    end
-    layer = layers[iblanket]
-    layer_in = layers[iblanket-1]
-
-    layer_poly = xy_polygon(layer)
-    layer_in_poly = xy_polygon(layer_in)
-    ring_poly = LibGEOS.difference(layer_poly, layer_in_poly)
-    for structure in [structure for structure in bd.structure if structure.type == Int(_divertor_)]
-        structure_poly = xy_polygon(structure)
-        ring_poly = LibGEOS.difference(ring_poly, structure_poly)
-    end
-
-    geometries = LibGEOS.getGeometries(ring_poly)
-    blankets = IMAS.IDSvectorElement[]
-    for poly in geometries
-        coords = GeoInterface.coordinates(poly)
-        pr = [v[1] for v in coords[1]]
-        pz = [v[2] for v in coords[1]]
-
-        # assign to build structure
-        if length(geometries) == 2
-            if sum(pr) / length(pr) > R0
-                name = "LFS blanket"
-            else
-                name = "HFS blanket"
-            end
-        else
-            name = "blanket"
-        end
-
-        structure = resize!(bd.structure, "type" => Int(_blanket_), "name" => name)
-        structure.outline.r = pr
-        structure.outline.z = pz
-        structure.toroidal_extent = 2pi
-
-        push!(blankets, structure)
-    end
-
-    return blankets
-end
-
 """
     optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape)
 
@@ -316,7 +438,6 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     lfs_thickness = l_end - o_end
     oR = obstr.outline.r
     oZ = obstr.outline.z
-
     if layer.fs == Int(_out_)
         target_minimum_distance = lfs_thickness
     else
@@ -410,11 +531,9 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         elseif layer.type == Int(_gap_)
             layer.material = "Vacuum"
         elseif layer.type == Int(_oh_)
-            layer.material = ini.oh.technology.material
-            assign_coil_technology(dd, ini, :oh)
+            layer.material = dd.build.oh.technology.material
         elseif layer.type == Int(_tf_)
-            layer.material = ini.tf.technology.material
-            assign_coil_technology(dd, ini, :tf)
+            layer.material = dd.build.tf.technology.material
         elseif layer.type == Int(_shield_)
             layer.material = ini.material.shield
         elseif layer.type == Int(_blanket_)

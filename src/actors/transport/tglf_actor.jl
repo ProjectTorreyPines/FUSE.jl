@@ -26,8 +26,7 @@ end
 Evaluates the TGLF predicted turbulence
 """
 function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorTGLF
-    actor = ActorTGLF(dd, par; kw...)
+    actor = ActorTGLF(dd, act.ActorTGLF; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -58,8 +57,7 @@ function _step(actor::ActorTGLF)
 
     model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
 
-    anomalous_index = IMAS.name_2_index(dd.core_transport.model)[:anomalous]
-    model = resize!(dd.core_transport.model, "identifier.index" => anomalous_index)
+    model = resize!(dd.core_transport.model, :anomalous)
     model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
