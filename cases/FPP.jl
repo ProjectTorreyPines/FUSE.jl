@@ -30,7 +30,6 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
-        act.ActorHFSsizing.fixed_aspect_ratio = true
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints_number = 2
         act.ActorEquilibrium.model = :CHEASE
@@ -38,20 +37,22 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         STEP = true
     end
 
+    ini.requirements.power_electric_net = 200e6 #W
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.cost = 5000.0 # M$
+    ini.requirements.flattop_duration = 12 * 3600 # s
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
 
-    ini.pf_active.n_oh_coils = 6
-    ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 5
+    ini.oh.n_coils = 6
+    ini.pf_active.n_coils_inside = 0
+    ini.pf_active.n_coils_outside = 5
 
-    ini.material.shield = "Tungsten"
+    ini.material.wall = "Tungsten"
     ini.material.blanket = "lithium-lead"
+    ini.material.shield = "Steel, Stainless 316"
 
     act.ActorPFcoilsOpt.symmetric = true
 
@@ -69,8 +70,8 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.greenwald_fraction_ped = 0.75
 
-    # set κ to 95% of maximum controllable elongation estimate
-    ini.equilibrium.κ = missing
+    # κ<1.0 sets elongation as fraction of maximum controllable elongation estimate
+    ini.equilibrium.κ = 0.95
 
     # negative triangularity
     # ini.equilibrium.δ *= -1

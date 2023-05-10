@@ -1,7 +1,7 @@
-import Metaheuristics
-import ProgressMeter
-import Distributed
-import Dates
+using Metaheuristics: Metaheuristics
+using ProgressMeter: ProgressMeter
+using Distributed: Distributed
+using Dates: Dates
 ProgressMeter.ijulia_behavior(:clear)
 
 # ==================== #
@@ -20,7 +20,7 @@ mutable struct ObjectiveFunction
     end
 end
 
-const ObjectiveFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
+const ObjectiveFunctionsLibrary = Dict{Symbol, ObjectiveFunction}()
 function update_ObjectiveFunctionsLibrary!()
     empty!(ObjectiveFunctionsLibrary)
     ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
@@ -28,7 +28,9 @@ function update_ObjectiveFunctionsLibrary!()
     ObjectiveFunction(:min_capital_cost, "\$B", dd -> dd.costing.cost_direct_capital.cost / 1E3, -Inf)
     ObjectiveFunction(:max_fusion, "MW", dd -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6, Inf)
     ObjectiveFunction(:max_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, Inf)
+    ObjectiveFunction(:req_power_electric_net, "ΔMW", dd -> abs(@ddtime(dd.balance_of_plant.power_electric_net) - dd.requirements.power_electric_net) / 1E6, 0.0)
     ObjectiveFunction(:max_flattop, "hours", dd -> dd.build.oh.flattop_duration / 3600.0, Inf)
+    ObjectiveFunction(:req_flattop, "Δhours", dd -> abs(dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / 3600.0, 0.0)
     ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), Inf)
     ObjectiveFunction(:min_βn, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, -Inf)
     return ObjectiveFunctionsLibrary
@@ -74,13 +76,13 @@ function (objf::ObjectiveFunction)(x::Float64)
 end
 
 function Base.show(io::IO, f::ObjectiveFunction)
-    printstyled(io, f.name; bold=true, color=:blue)
+    printstyled(io, f.name; bold = true, color = :blue)
     print(io, " →")
     print(io, " $(f.target)")
     print(io, " [$(f.units)]")
 end
 
-function Base.show(io::IO, x::MIME"text/plain", objfs::AbstractDict{Symbol,ObjectiveFunction})
+function Base.show(io::IO, x::MIME"text/plain", objfs::AbstractDict{Symbol, ObjectiveFunction})
     for objf in objfs
         show(io, x, objf)
         println(io, "")
@@ -112,13 +114,14 @@ mutable struct ConstraintFunction
     end
 end
 
-const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
+const ConstraintFunctionsLibrary = Dict{Symbol, ConstraintFunction}() #s
 function update_ConstraintFunctionsLibrary!()
     empty!(ConstraintFunctionsLibrary)
-    ConstraintFunction(:target_Beta_n, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, ==, NaN, 1e-2)
-    ConstraintFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6, ==, NaN, 1e-2)
-    ConstraintFunction(:steady_state, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), >, log10(10.0))
-    ConstraintFunction(:zero_ohmic, "MA", dd -> abs(sum(integrate(dd.core_profiles.profiles_1d[].grid.area, dd.core_profiles.profiles_1d[].j_ohmic))) / 1E6, ==, 0.0, 1E-2)
+    ConstraintFunction(:required_power_electric_net, "%", dd -> abs(@ddtime(dd.balance_of_plant.power_electric_net) - dd.requirements.power_electric_net) / dd.requirements.power_electric_net, ==, 0.0, 0.01) # relative tolerance
+    ConstraintFunction(:min_required_power_electric_net, "%", dd -> (@ddtime(dd.balance_of_plant.power_electric_net) - dd.requirements.power_electric_net) / dd.requirements.power_electric_net, >, 0.0)
+    ConstraintFunction(:required_flattop, "%", dd -> abs(dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / dd.requirements.flattop_duration, ==, 0.0, 0.01) # relative tolerance
+    ConstraintFunction(:min_required_flattop, "%", dd -> (dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / dd.requirements.flattop_duration, >, 0.0)
+    ConstraintFunction(:zero_ohmic, "MA", dd -> abs(sum(integrate(dd.core_profiles.profiles_1d[].grid.area, dd.core_profiles.profiles_1d[].j_ohmic))) / 1E6, ==, 0.0, 0.1) # absolute tolerance
     return ConstraintFunctionsLibrary
 end
 update_ConstraintFunctionsLibrary!()
@@ -126,7 +129,7 @@ update_ConstraintFunctionsLibrary!()
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
     if ===(cnst.operation, ==)
         if cnst.limit === 0.0
-            return abs((cnst.func(dd) - cnst.limit))# - cnst.tolerance
+            return abs((cnst.func(dd) - cnst.limit)) - cnst.tolerance
         else
             return abs((cnst.func(dd) - cnst.limit) / cnst.limit) - cnst.tolerance
         end
@@ -138,7 +141,7 @@ function (cnst::ConstraintFunction)(dd::IMAS.dd)
 end
 
 function Base.show(io::IO, cnst::ConstraintFunction)
-    printstyled(io, cnst.name; bold=true, color=:blue)
+    printstyled(io, cnst.name; bold = true, color = :blue)
     print(io, " $(cnst.operation)")
     print(io, " $(cnst.limit)")
     if ===(cnst.operation, ==)
@@ -151,7 +154,7 @@ function Base.show(io::IO, cnst::ConstraintFunction)
     print(io, " [$(cnst.units)]")
 end
 
-function Base.show(io::IO, x::MIME"text/plain", cnsts::AbstractDict{Symbol,ConstraintFunction})
+function Base.show(io::IO, x::MIME"text/plain", cnsts::AbstractDict{Symbol, ConstraintFunction})
     for cnst in cnsts
         show(io, x, cnst)
         println(io, "")
@@ -161,28 +164,36 @@ end
 # =================== #
 # Optimization engine #
 # =================== #
+"""
+    optimization_engine(
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        actor_or_workflow::Union{DataType,Function},
+        x::AbstractVector,
+        objectives_functions::AbstractVector{<:ObjectiveFunction},
+        constraints_functions::AbstractVector{<:ConstraintFunction},
+        save_folder::AbstractString)
+
+NOTE: This function is run by the worker nodes
+"""
 function optimization_engine(
     ini::ParametersAllInits,
     act::ParametersAllActors,
-    actor_or_workflow::Union{DataType,Function},
+    actor_or_workflow::Union{DataType, Function},
     x::AbstractVector,
-    opt_ini::Vector{<:AbstractParameter},
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
-    save_folder::AbstractString
+    save_folder::AbstractString,
 )
     # update ini based on input optimization vector `x`
-    for (optpar, xx) in zip(opt_ini, x)
-        if typeof(optpar.value) <: Integer
-            optpar.value = Int(round(xx))
-        else
-            optpar.value = xx
-        end
-    end
+    #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
+    parameters_from_opt!(ini, x)
+
     # run the problem
     try
         if typeof(actor_or_workflow) <: DataType
-            actor = actor_or_workflow(init(ini, act), act)
+            dd = init(ini, act)
+            actor = actor_or_workflow(dd, act)
             dd = actor.dd
         else
             dd = actor_or_workflow(ini, act)
@@ -190,7 +201,7 @@ function optimization_engine(
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(savedir, dd, ini, act; freeze=true)
+            save(savedir, dd, ini, act; freeze = true)
         end
         # evaluate multiple objectives
         return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
@@ -199,7 +210,7 @@ function optimization_engine(
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
                 savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-                save(savedir, IMAS.dd(), ini, act, e; freeze=true)
+                save(savedir, IMAS.dd(), ini, act, e; freeze = true)
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
             end
@@ -210,24 +221,23 @@ function optimization_engine(
 end
 
 """
-    nan2inf(x::Float64)::Float64
+    function optimization_engine(
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        actor_or_workflow::Union{DataType,Function},
+        X::AbstractMatrix,
+        objectives_functions::AbstractVector{<:ObjectiveFunction},
+        constraints_functions::AbstractVector{<:ConstraintFunction},
+        save_folder::AbstractString,
+        p::ProgressMeter.Progress)
 
-Turn NaNs into Inf
+NOTE: this function is run by the master process
 """
-function nan2inf(x::Float64)::Float64
-    if isnan(x)
-        return Inf
-    else
-        return x
-    end
-end
-
 function optimization_engine(
     ini::ParametersAllInits,
     act::ParametersAllActors,
-    actor_or_workflow::Union{DataType,Function},
+    actor_or_workflow::Union{DataType, Function},
     X::AbstractMatrix,
-    opt_ini::Vector{<:AbstractParameter},
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
@@ -235,7 +245,7 @@ function optimization_engine(
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, opt_ini, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
+    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(tmp[1][1]))
     G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
     H = zeros(size(X)[1], max(length(tmp[1][3]), 1))
@@ -250,4 +260,17 @@ function optimization_engine(
         end
     end
     return F, G, H
+end
+
+"""
+    nan2inf(x::Float64)::Float64
+
+Turn NaNs into Inf
+"""
+function nan2inf(x::Float64)::Float64
+    if isnan(x)
+        return Inf
+    else
+        return x
+    end
 end

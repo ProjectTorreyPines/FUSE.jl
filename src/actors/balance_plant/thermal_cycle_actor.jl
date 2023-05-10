@@ -7,13 +7,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersAct
     _name::Symbol = :not_set
     power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only)
     rp::Entry{T} = Entry(T, "-", "Overall compression ratio"; default=3.0)
-    Pmax::Entry{T} = Entry(T, "-", "Max system pressure (MPa)"; default=8e6)
-    Tmax::Entry{T} = Entry(T, "-", "Max cycle temperature K"; default=950.0 + 273.15)
-    Tmin::Entry{T} = Entry(T, "-", "Min cycle temperature K"; default=35.0 + 273.15)
+    Pmax::Entry{T} = Entry(T, "Pa", "Max system pressure"; default=8e6)
+    Tmax::Entry{T} = Entry(T, "K", "Max cycle temperature"; default=950.0 + 273.15)
+    Tmin::Entry{T} = Entry(T, "K", "Min cycle temperature"; default=35.0 + 273.15)
     Nt::Entry{Int} = Entry(Int, "-", "Number of turbine stages"; default=1)
     Nc::Entry{Int} = Entry(Int, "-", "Number of compression stages"; default=3)
     regen::Entry{T} = Entry(T, "-", "Regeneration fraction")
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorThermalCycle <: FacilityAbstractActor
@@ -37,8 +37,7 @@ Evaluates the thermal cycle based on the heat loads of the divertor and the wall
     Stores data in `dd.balance_of_plant`
 """
 function ActorThermalCycle(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorThermalCycle
-    actor = ActorThermalCycle(dd, par, act; kw...)
+    actor = ActorThermalCycle(dd, act.ActorThermalCycle, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -231,8 +230,8 @@ Brayton evaluates the thermal performance for a specified brayton cycle
       
     ===================================================================
     INPUTS        UNIT        DESCRIPTION
-      rp          Scalar,     Total Compression Ratio
-      Pmax        [kPa],      Specified pressure, maximum
+      rp          Scalar      Total Compression Ratio
+      Pmax        [Pa]        Specified pressure, maximum
       Tmin        [K]         Lowest Cycle Temp
       Tmax        [K]         Highest Cycle Temp
       Nc,Nt       Scalars     Number of compression (Nc) and Turbine (Nt) stages

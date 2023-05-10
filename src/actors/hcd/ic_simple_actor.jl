@@ -30,8 +30,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
     Reads data in `dd.ic_antennas` and stores data in `dd.core_sources`
 """
 function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorICsimple
-    actor = ActorICsimple(dd, par; kw...)
+    actor = ActorICsimple(dd, act.ActorICsimple; kw...)
     step(actor)
     finalize(actor)
     return actor

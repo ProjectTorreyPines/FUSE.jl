@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
     max_iter::Entry{Int} = Entry(Int, "-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry(T, "-", "Convergence error threshold (relative change in current and pressure profiles)"; default=1E-2)
 end
@@ -32,8 +32,7 @@ Compound actor that runs the following actors in succesion:
     Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibriumTransport
-    actor = ActorEquilibriumTransport(dd, par, act; kw...)
+    actor = ActorEquilibriumTransport(dd, act.ActorEquilibriumTransport, act; kw...)
     step(actor)
     finalize(actor)
     return actor

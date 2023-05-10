@@ -64,7 +64,7 @@ function case_parameters(gasc::GASC)
 
     gasc_2_build(gasc, ini, act)
 
-    gasc_2_target(gasc, ini, act)
+    gasc_2_requirement(gasc, ini, act)
 
     gasc_2_equilibrium(gasc, ini, act)
 
@@ -215,11 +215,11 @@ function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllAct
 end
 
 """
-    gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+    gasc_2_requirement(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
 
-Convert nominal target design information in GASC solution to FUSE `ini` and `act` parameters
+Convert requirements of GASC solution to FUSE `ini` and `act` parameters
 """
-function gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+function gasc_2_requirement(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
     ini.requirements.flattop_duration = float(gasc.inputs["plasma parameters"]["flattopDuration"])
     ini.requirements.power_electric_net = gasc.constraints["lowerOutputConstraints"]["powerNet"] * 1E6
     return ini
@@ -233,7 +233,7 @@ Convert GASC ["OUTPUTS"]["radial build"] to FUSE build layers dictionary
 function gasc_2_layers(gasc::GASC)
     gascrb = gasc.outputs["radial build"]
 
-    layers = OrderedCollections.OrderedDict()
+    layers = OrderedCollections.OrderedDict{String,Float64}()
     mapper = Dict(
         "OH" => "OH",
         "TF" => "TF",
@@ -306,18 +306,24 @@ function gasc_2_layers(gasc::GASC)
         end
     end
 
-    return layers
+    # convert keys from string to symbols
+    sym_layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    for k in keys(layers)
+        sym_layers[Symbol(k)] = layers[k]
+    end
+
+    return sym_layers
 end
 
 """
-    gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
+    gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict{Symbol,Float64})
 
 Remove gap between OH and TF to allow bucking (gap gets added to OH thickness)
 """
-function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
-    for k in collect(keys(layers))
-        if k == "gap_TF_OH"
-            layers["OH"] += layers["gap_TF_OH"]
+function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict{Symbol,Float64})
+    for layer in collect(keys(layers))
+        if layer == :gap_TF_OH
+            layers[:OH] += layers[:gap_TF_OH]
             delete!(layers, k)
         end
     end
@@ -325,27 +331,27 @@ function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
 end
 
 """
-    gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict, thickness::Float64)
+    gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}; thickness::Float64)
 
 Add wall layer of given thickness expressed [meters] (gets subtracted from blanket layer)
 """
-function gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict; thickness::Float64)
-    tmp = OrderedCollections.OrderedDict()
+function gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}; thickness::Float64)
+    tmp = OrderedCollections.OrderedDict{Symbol,Float64}()
     for layer in keys(layers)
-        if layer == "hfs_blanket"
+        if layer == :hfs_blanket
             tmp[layer] = layers[layer] - thickness
-            tmp["hfs_first_wall"] = thickness
-        elseif layer == "lfs_blanket"
-            tmp["lfs_first_wall"] = thickness
+            tmp[:hfs_first_wall] = thickness
+        elseif layer == :lfs_blanket
+            tmp[:lfs_first_wall] = thickness
             tmp[layer] = layers[layer] - thickness
-        elseif layer == "hfs_vacuum_vessel"
-            tmp["hfs_vacuum_vessel_wall_outer"] = thickness
+        elseif layer == :hfs_vacuum_vessel
+            tmp[:hfs_vacuum_vessel_wall_outer] = thickness
             tmp[layer] = layers[layer] - 2 * thickness
-            tmp["hfs_vacuum_vessel_wall_inner"] = thickness
-        elseif layer == "lfs_vacuum_vessel"
-            tmp["lfs_vacuum_vessel_wall_inner"] = thickness
+            tmp[:hfs_vacuum_vessel_wall_inner] = thickness
+        elseif layer == :lfs_vacuum_vessel
+            tmp[:lfs_vacuum_vessel_wall_inner] = thickness
             tmp[layer] = layers[layer] - 2 * thickness
-            tmp["lfs_vacuum_vessel_wall_outer"] = thickness
+            tmp[:lfs_vacuum_vessel_wall_outer] = thickness
         else
             tmp[layer] = layers[layer]
         end
@@ -360,39 +366,25 @@ end
 """
     gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
 
-Convert coil technology information in GASC solution to FUSE `coil_technology` data structure
+Convert coil technology information in GASC solution to FUSE `coil_technology` Symbol
 """
 function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
     if coil_type ∉ [:OH, :TF, :PF]
         error("Supported coil type are [:OH, :TF, :PF]")
     end
     if gasc.inputs["conductors"]["superConducting"] == "copper"
-        coil_tech = coil_technology(:copper)
+        coil_tech = :copper
     else
         if gasc.inputs["conductors"]["superConducting"] == "LTS"
-            coil_tech = coil_technology(:LTS)
+            coil_tech = :LTS
         elseif gasc.inputs["conductors"]["superConducting"] == "HTS"
-            coil_tech = coil_technology(:HTS)
+            coil_tech = :HTS
         end
         if coil_type == :PF # assume PF coils are always LTS
-            coil_tech = coil_technology(:LTS)
-        end
-        if "thermalStrain$coil_type" ∉ keys(gasc.inputs["conductors"])
-            coil_tech.thermal_strain = 0.0
-            coil_tech.JxB_strain = 0.0
-        else
-            coil_tech.thermal_strain = float(gasc.inputs["conductors"]["thermalStrain$coil_type"])
-            coil_tech.JxB_strain = float(gasc.inputs["conductors"]["structuralStrain$coil_type"])
+            coil_tech = :LTS
         end
     end
-    if "fractionVoid$coil_type" ∉ keys(gasc.inputs["conductors"])
-        coil_tech.fraction_void = float(gasc.inputs["conductors"]["fractionVoidOH"])
-        coil_tech.fraction_stainless = float(gasc.inputs["conductors"]["fractionStainlessOH"])
-    else
-        coil_tech.fraction_void = float(gasc.inputs["conductors"]["fractionVoid$coil_type"])
-        coil_tech.fraction_stainless = float(gasc.inputs["conductors"]["fractionStainless$coil_type"])
-    end
-    return set_new_base!(coil_tech)
+    return coil_tech
 end
 
 function compare(dd::IMAS.dd, gasc::GASC)

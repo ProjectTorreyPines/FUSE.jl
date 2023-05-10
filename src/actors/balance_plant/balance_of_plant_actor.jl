@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersA
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     generator_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
@@ -25,8 +25,7 @@ Balance of plant actor that estimates the net electrical power output by compari
     Stores data in `dd.balance_of_plant`
 """
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorBalanceOfPlant
-    actor = ActorBalanceOfPlant(dd, par, act; kw...)
+    actor = ActorBalanceOfPlant(dd, act.ActorBalanceOfPlant, act; kw...)
     step(actor)
     finalize(actor)
     return actor

@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T} <: ParametersActor
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch(Symbol, [:gasc, :EU_DEMO, :FUSE], "-", "Power plant electrical needs model"; default=:FUSE)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorPowerNeeds <: FacilityAbstractActor
@@ -17,19 +17,15 @@ end
     ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Power needs actor that calculates the needed power to operate the plant
-
 * `model = :gasc` simply assumes that the power to balance a plant is 7% of the electricity generated.
-
 * `model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
-
 * `model = :FUSE` subdivides power plant needs into subsystems and calculates their power needs.
 
 !!! note 
     Stores data in `dd.balance_of_plant.power_electric_plant_operation`
 """
 function ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPowerNeeds
-    actor = ActorPowerNeeds(dd, par, act; kw...)
+    actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -91,10 +87,14 @@ function _step(actor::ActorPowerNeeds)
     return actor
 end
 
-function heating_and_current_drive_calc(system_unit)
+function heating_and_current_drive_calc(system_unit::Any)
     power_electric_total = 0.0
     for item_unit in system_unit
-        efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
+        if length(keys(item_unit.efficiency)) > 0
+            efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
+        else
+            efficiency = 1.0
+        end
         power_electric_total += @ddtime(item_unit.power_launched.data) / efficiency
     end
     return power_electric_total

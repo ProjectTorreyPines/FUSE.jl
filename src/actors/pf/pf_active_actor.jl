@@ -7,11 +7,11 @@ using LinearAlgebra
 #  ActorPFcoilsOpt  #
 #= =============== =#
 options_green_model = [
-        :point => "one filament per coil",
-        :simple => "like :point, but OH coils have three filaments",
-        :corners => "like :simple, but PF coils have filaments at the four corners",
-        :realistic => "possibly hundreds of filaments per coil (very slow!)",
-    ]
+    :point => "one filament per coil",
+    :simple => "like :point, but OH coils have three filaments",
+    :corners => "like :simple, but PF coils have filaments at the four corners",
+    :realistic => "possibly hundreds of filaments per coil (very slow!)",
+]
 
 options_optimization_scheme = [
     :none => "Do not optimize",
@@ -27,12 +27,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor
     weight_currents::Entry{T} = Entry(T, "-", "Weight of current limit constraint"; default=2.0)
     weight_strike::Entry{T} = Entry(T, "-", "Weight given to matching the strike-points"; default=0.1)
     weight_lcfs::Entry{T} = Entry(T, "-", "Weight given to matching last closed flux surface"; default=1.0)
-    weight_null::Entry{T} = Entry(T, "-", "Weight given to get field null for plasma breakdown"; default=1E-3)
+    weight_null::Entry{T} = Entry(T, "-", "Weight given to get field null for plasma breakdown"; default=1.0)
     maxiter::Entry{Int} = Entry(Int, "-", "Maximum number of optimizer iterations"; default=1000)
     optimization_scheme::Switch{Symbol} = Switch(Symbol, options_optimization_scheme, "-", "Type of PF coil optimization to carry out"; default=:rail)
     update_equilibrium::Entry{Bool} = Entry(Bool, "-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 Base.@kwdef mutable struct PFcoilsOptTrace
@@ -68,44 +68,45 @@ to match the equilibrium boundary shape and obtain a field-null region at plasma
     Manupulates data in `dd.pf_active`
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPFcoilsOpt
-    actor = ActorPFcoilsOpt(dd, par; kw...)
+    actor = ActorPFcoilsOpt(dd, act.ActorPFcoilsOpt; kw...)
 
-    if par.optimization_scheme == :none
-        if par.do_plot
+    if actor.par.optimization_scheme == :none
+        if actor.par.do_plot
             plot(actor.eq_in; cx=true)
             plot!(actor.bd)
             display(plot!(actor.pf_active))
         end
 
     else
-        old_update_equilibrium = par.update_equilibrium
-        par.update_equilibrium = false
+        old_update_equilibrium = actor.par.update_equilibrium
+        actor.par.update_equilibrium = false
 
-        if par.optimization_scheme == :currents
+        if actor.par.optimization_scheme == :currents
             # find coil currents
             finalize(step(actor))
 
-        elseif par.optimization_scheme == :rail
+        elseif actor.par.optimization_scheme == :rail
             # optimize coil location and currents
             finalize(step(actor))
 
-            if par.do_plot
+            if actor.par.do_plot
                 display(plot(actor.trace, :cost, title="Evolution of cost"))
                 display(plot(actor.trace, :params, title="Evolution of optimized parameters"))
             end
         end
 
-        if par.do_plot
-            # field null time slice
-            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[1], title="Current limits at t=$(dd.equilibrium.time[1]) s"))
-            display(plot(actor, equilibrium=true, rail=true, time_index=1))
+        if actor.par.do_plot
             # final time slice
-            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[end], title="Current limits at t=$(dd.equilibrium.time[end]) s"))
-            display(plot(actor, equilibrium=true, time_index=length(dd.equilibrium.time)))
+            time_index = length(dd.equilibrium.time)
+            display(plot(actor.pf_active, :currents, time=dd.equilibrium.time[time_index], title="Current limits at t=$(dd.equilibrium.time[time_index]) s"))
+            display(plot(actor, equilibrium=true; time_index))
+            # field null time slice
+            if actor.par.weight_null > 0.0
+                display(plot(actor, equilibrium=true, rail=true, time_index=1))
+            end
         end
 
-        par.update_equilibrium = old_update_equilibrium
+        actor.par.update_equilibrium = old_update_equilibrium
         finalize(actor)
     end
 
@@ -165,9 +166,10 @@ function _step(actor::ActorPFcoilsOpt;
     end
 
     bd = actor.bd
+    pc = actor.dd.pulse_schedule.position_control
     # run rail type optimizer
     if optimization_scheme in [:rail, :currents]
-        (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, maxiter, verbose)
+        (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, pc, maxiter, verbose)
     else
         error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
     end
@@ -213,7 +215,7 @@ function _finalize(actor::ActorPFcoilsOpt)
         EQfixed = IMAS2Equilibrium(actor.eq_in.time_slice[time_index])
 
         # update ψ map
-        scale_eq_domain_size=1.0
+        scale_eq_domain_size = 1.0
         R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length=length(EQfixed.r))
         Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length=length(EQfixed.z))
         ψ_f2f = transpose(VacuumFields.fixed2free(EQfixed, coils, R, Z))
@@ -278,7 +280,9 @@ end
 
 function Base.getproperty(coil::GS_IMAS_pf_active__coil, field::Symbol)
     if field == :current
-        return getfield(coil, :current_data)[coil.time_index]
+        tmp = getfield(coil, :current_data)[coil.time_index]
+        @assert typeof(tmp) <: Real
+        return tmp
     else
         return getfield(coil, field)
     end
@@ -515,6 +519,7 @@ function optimize_coils_rail(
     weight_currents::Real,
     weight_strike::Real,
     bd::IMAS.build,
+    pc::IMAS.pulse_schedule__position_control,
     maxiter::Integer,
     verbose::Bool)
 
@@ -526,10 +531,9 @@ function optimize_coils_rail(
         # field nulls
         if ismissing(eqt.global_quantities, :ip)
             # find ψp
-            Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(eqt.global_quantities.psi_boundary,
-                eqt.boundary.outline.r,
-                eqt.boundary.outline.z,
-                fixed_coils)
+            ψp_constant = eqt.global_quantities.psi_boundary
+            rb, zb = IMAS.boundary(pc, time_index = 1)
+            Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(ψp_constant, rb, zb, fixed_coils)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             push!(weights, Float64[])
             # solutions with plasma
@@ -621,17 +625,17 @@ function optimize_coils_rail(
         cost_lcfs = norm(all_cost_lcfs) / length(all_cost_lcfs)
         cost_currents = norm(all_cost_currents) / length(all_cost_currents)
         cost_oh = norm(all_cost_oh) / length(all_cost_oh)
-        #spacing
+        # Spacing between PF coils
         cost_spacing = 0.0
         if length(optim_coils) > 0
             for (k1, c1) in enumerate(optim_coils)
                 for (k2, c2) in enumerate(optim_coils)
-                    if k1 < k2
-                        cost_spacing += 1.0 / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
+                    if k1 < k2 && c1.pf_active__coil.name != "OH" && c2.pf_active__coil.name != "OH"
+                        cost_spacing += exp(sqrt((c1.width + c2.width)^2 + (c1.height + c2.height)^2) / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2))
                     end
                 end
             end
-            cost_spacing = cost_spacing / length(optim_coils)^2 / R0
+            cost_spacing = cost_spacing / length(optim_coils)^2
         end
 
         cost_lcfs_2 = cost_lcfs^2 * 10000.0
@@ -828,7 +832,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 seriestype --> :contour
                 colorbar_entry --> false
                 levels --> [ψbound]
-                linecolor --> :black
+                linecolor --> :gray
                 R, Z, transpose(ψ)
             end
         end
@@ -843,11 +847,12 @@ Plot ActorPFcoilsOpt optimization cross-section
     # plot equilibrium
     if equilibrium
         if field_null
+            pc = actor.dd.pulse_schedule.position_control
             @series begin
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                actor.eq_out.time_slice[time_index].boundary
+                IMAS.boundary(pc, time_index=1)
             end
         else
             @series begin
