@@ -73,7 +73,7 @@ function _step(actor::ActorCXbuild)
         dd.wall.description_2d[1].limiter.unit[1].outline.z = plasma.outline.z
     end
 
-    IMAS.find_strike_points!(eqt, dd.wall)
+    IMAS.find_strike_points!(eqt, dd.divertors)
 
     return actor
 end
