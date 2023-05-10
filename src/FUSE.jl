@@ -57,7 +57,6 @@ include(joinpath("actors", "build", "stresses_actor.jl"))
 include(joinpath("actors", "build", "fluxswing_actor.jl"))
 include(joinpath("actors", "build", "lfs_actor.jl"))
 include(joinpath("actors", "build", "hfs_actor.jl"))
-include(joinpath("actors", "build", "pfs_actor.jl"))
 include(joinpath("actors", "build", "cx_actor.jl"))
 
 include(joinpath("actors", "nuclear", "blanket_actor.jl"))
