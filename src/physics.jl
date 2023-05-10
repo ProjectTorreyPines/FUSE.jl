@@ -238,10 +238,10 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         @warn "optimize_shape function could not avoid polygon crossings! Perhaps try changing shape?"
     end
 
-        R, Z = func(r_start, r_end, shape_parameters...; resample=false)
-        plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
-        plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
-        display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
+    # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
+    # plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
+    # plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
+    # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
 
     return shape_parameters
 end
