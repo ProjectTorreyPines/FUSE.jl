@@ -4,6 +4,7 @@ authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.1.2"
 
 [deps]
+ADAS = "f4a0d185-1024-41e7-8ef7-3196bb2f6549"
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 BoundaryPlasmaModels = "2da5b0d0-c5e5-4f14-9caf-62d0020df410"
