@@ -218,16 +218,15 @@ end
 
 Provides concise and informative summary of `dd`, including several plots
 
-NOTE: `section` is used internally to produce digest PDFs
+NOTES:
+* `section` is used internally to produce digest PDFs
+* this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
 """
 function digest(
     dd::IMAS.dd;
     terminal_width::Int=136,
     line_char::Char='─',
     section::Int=0)
-
-    #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
-    #      also it references ini and act
 
     sec = 1
     if section ∈ [0, sec]
