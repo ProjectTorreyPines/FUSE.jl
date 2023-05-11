@@ -6,7 +6,6 @@ import Dates
 #= ================================= =#
 #  Learning rate for HTS - from GASC  #
 #= ================================= =#
-#assumes that production volume of HTS has increased by a factor of 10 and that there is a 15% decrease in cost for every doubling of production volume
 function cost_multiplier(production_increase::Real, learning_rate::Real)
     return production_increase^(log(learning_rate)/log(2))
 end
@@ -16,10 +15,14 @@ end
 #= ============== =#
 #NOTE: material should be priced by Kg
 #NOTE: if something is priced by m^3 then it is for a specific part already
-function unit_cost(material::AbstractString, production_increase::Real, learning_rate::Real)
+function unit_cost(material::AbstractString, dd::IMAS.dd)
+    cst = dd.costing
+
     if material == "Vacuum"
         return 0.0 # $M/m^3
     elseif material == "ReBCO"
+        production_increase = cst.future.learning.hts.production_increase
+        learning_rate = cst.future.learning.hts.learning_rate
         return (87.5 / 2) * cost_multiplier(production_increase, learning_rate) # $M/m^3
     elseif material == "Nb3Sn"
         return 1.66 # $M/m^3
@@ -45,14 +48,14 @@ end
 #= ====================== =#
 #  materials cost - coils  #
 #= ====================== =#
-function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, production_increase::Real, learning_rate::Real)
+function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, dd::IMAS.dd)
     if coil_tech.material == "Copper"
-        return unit_cost("Copper", production_increase, learning_rate)
+        return unit_cost("Copper", dd)
     else
         fraction_cable = 1 - coil_tech.fraction_stainless - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)
         fraction_copper = fraction_cable - fraction_SC
-        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316", production_increase, learning_rate) + fraction_copper * unit_cost("Copper", production_increase, learning_rate) + fraction_SC * unit_cost(coil_tech.material, production_increase, learning_rate))
+        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316", dd) + fraction_copper * unit_cost("Copper", dd) + fraction_SC * unit_cost(coil_tech.material, dd))
     end
 end
 
@@ -67,7 +70,7 @@ mutable struct DollarAdjust
 end
 
 function DollarAdjust(dd::IMAS.dd)
-    return DollarAdjust(dd.costing.future_inflation_rate, dd.costing.construction_start_year, missing, missing)
+    return DollarAdjust(dd.costing.future.inflation_rate, dd.costing.construction_start_year, missing, missing)
 end
 
 Memoize.@memoize function load_inflation_rate()

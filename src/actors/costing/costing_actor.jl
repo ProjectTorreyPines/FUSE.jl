@@ -47,11 +47,11 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
     empty!(dd.costing)
 
     dd.costing.construction_start_year = act.ActorCosting.construction_start_year
-    dd.costing.future_inflation_rate = act.ActorCosting.future_inflation_rate
+    dd.costing.future.inflation_rate = act.ActorCosting.future_inflation_rate
     dd.costing.plant_lifetime = act.ActorCosting.plant_lifetime
     dd.costing.availability = act.ActorCosting.availability
-    dd.costing.production_increase = act.ActorCosting.production_increase
-    dd.costing.learning_rate = act.ActorCosting.learning_rate
+    dd.costing.future.learning.hts.production_increase = act.ActorCosting.production_increase
+    dd.costing.future.learning.hts.learning_rate = act.ActorCosting.learning_rate
 
     if par.model == :Sheffield
         cst_actor = ActorSheffieldCosting(dd, act.ActorSheffieldCosting)

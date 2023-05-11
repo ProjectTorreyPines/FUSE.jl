@@ -168,13 +168,12 @@ end
 Capital cost for each layer in the build
 """
 function cost_direct_capital_ARIES(layer::IMAS.build__layer, da::DollarAdjust, dd::IMAS.dd)
-	cst = dd.costing
     da.year_assessed = 2016
 	if layer.type == Int(_oh_)
 		return 0.0
 	elseif layer.type == Int(_tf_)
 		build = IMAS.parent(IMAS.parent(layer))
-		cost = layer.volume * unit_cost(build.tf.technology, cst.production_increase, cst.learning_rate)
+		cost = layer.volume * unit_cost(build.tf.technology, dd)
 		return future_dollars(cost, da)
 	elseif layer.type == Int(_shield_)
 		cost = layer.volume * 0.29  # $M/m^3
@@ -186,7 +185,7 @@ function cost_direct_capital_ARIES(layer::IMAS.build__layer, da::DollarAdjust, d
 		cost = layer.volume * 0.36  # $M/m^3
 		return future_dollars(cost, da)
 	else
-		cost = layer.volume * unit_cost(layer.material, cst.production_increase, cst.learning_rate)
+		cost = layer.volume * unit_cost(layer.material, dd)
 		return future_dollars(cost, da)
 	end
 end
@@ -268,9 +267,8 @@ end
 
 """
 function cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology, IMAS.build__oh__technology, IMAS.build__pf_active__technology}, da::DollarAdjust, dd::IMAS.dd)
-	cst = dd.costing
     da.year_assessed = 2016
-	cost = IMAS.volume(coil) * unit_cost(technology, cst.production_increase, cst.learning_rate)
+	cost = IMAS.volume(coil) * unit_cost(technology, dd)
 	return future_dollars(cost, da)
 end
 
