@@ -93,7 +93,6 @@ function _step(actor::ActorSheffieldCosting)
 		power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net)
 		power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
 		power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
-
 	end
 
 	###### Direct Capital ######
