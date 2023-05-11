@@ -59,7 +59,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     w_ped::Entry{T} = Entry(T, "-", "Pedestal width expressed in fraction of ψₙ", default=0.05)
     T_ratio::Entry{T} = Entry(T, "-", "Ratio of Te to Ti"; default=1.0)
     T_shaping::Entry{T} = Entry(T, "-", "Temperature shaping factor")
-    n_shaping::Entry{T} = Entry(T, "-", "Density shaping factor")
+    n_shaping::Entry{T} = Entry(T, "-", "Density shaping factor"; default=0.9)
     zeff::Entry{T} = Entry(T, "-", "Effective ion charge")
     rot_core::Entry{T} = Entry(T, IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry(Int, "-", "Resolution of the core_profiles grid"; default=101)
