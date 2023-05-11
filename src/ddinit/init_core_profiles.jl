@@ -33,7 +33,7 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 helium_fraction=ini.core_profiles.helium_fraction,
                 T_ratio=ini.core_profiles.T_ratio,
                 T_shaping=ini.core_profiles.T_shaping,
-                n_shaping=getproperty(ini.core_profiles, :n_shaping, 0.9),
+                n_shaping=ini.core_profiles.n_shaping,
                 w_ped=ini.core_profiles.w_ped,
                 zeff=ini.core_profiles.zeff,
                 rot_core=ini.core_profiles.rot_core,
