@@ -41,14 +41,22 @@ end
 function _step(actor::ActorDivertorHeatFlux)
     dd = actor.dd
     par = actor.par
-    actor.boundary_plasma_model = BoundaryPlasmaModels.DivertorHeatFluxModel(par.model) #create instance of divertor heat flux model 
-    BoundaryPlasmaModels.setup_model(actor.boundary_plasma_model, dd) # load model parameters from dd into dhf
-    actor.boundary_plasma_model() #execute model
+
+    # Create instance of divertor heat flux model 
+    actor.boundary_plasma_model = BoundaryPlasmaModels.DivertorHeatFluxModel(par.model)
+
+    # Setup model based on dd
+    BoundaryPlasmaModels.setup_model(actor.boundary_plasma_model, dd)
+
+    # run the model
+    actor.boundary_plasma_model()
     return actor
 end
 
 function _finalize(actor::ActorDivertorHeatFlux)
-    dd = actor.dd
-    BoundaryPlasmaModels.export2dd(dd, actor.boundary_plasma_model) # export to dd structures
+    BoundaryPlasmaModels.show_summary(actor.boundary_plasma_model)
+
+    # still need to export BoundaryPlasmaModels results to  dd
+
     return actor
 end
