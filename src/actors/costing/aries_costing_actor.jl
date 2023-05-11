@@ -57,7 +57,7 @@ function _step(actor::ActorARIESCosting)
 		elseif layer.type == Int(_oh_)
 			continue # avoid double counting of oh
 		end
-		c = cost_direct_capital_ARIES(layer, da, dd)
+		c = cost_direct_capital_ARIES(layer, cst, da)
 		if c > 0
 			sub = resize!(tokamak.subsystem, "name" => replace(layer.name, r"^hfs " => ""))
 			sub.cost = c
@@ -65,7 +65,7 @@ function _step(actor::ActorARIESCosting)
 	end
 
 	# PF coils
-	for (name, c) in cost_direct_capital_ARIES(dd.pf_active, da)
+	for (name, c) in cost_direct_capital_ARIES(dd.pf_active, da, cst)
 		sub = resize!(tokamak.subsystem, "name" => name)
 		sub.cost = c
 	end
@@ -167,13 +167,13 @@ end
 
 Capital cost for each layer in the build
 """
-function cost_direct_capital_ARIES(layer::IMAS.build__layer, da::DollarAdjust, dd::IMAS.dd)
+function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, da::DollarAdjust)
     da.year_assessed = 2016
 	if layer.type == Int(_oh_)
 		return 0.0
 	elseif layer.type == Int(_tf_)
 		build = IMAS.parent(IMAS.parent(layer))
-		cost = layer.volume * unit_cost(build.tf.technology, dd)
+		cost = layer.volume * unit_cost(build.tf.technology, cst)
 		return future_dollars(cost, da)
 	elseif layer.type == Int(_shield_)
 		cost = layer.volume * 0.29  # $M/m^3
@@ -185,7 +185,7 @@ function cost_direct_capital_ARIES(layer::IMAS.build__layer, da::DollarAdjust, d
 		cost = layer.volume * 0.36  # $M/m^3
 		return future_dollars(cost, da)
 	else
-		cost = layer.volume * unit_cost(layer.material, dd)
+		cost = layer.volume * unit_cost(layer.material, cst)
 		return future_dollars(cost, da)
 	end
 end
@@ -249,14 +249,14 @@ end
 """
 	cost_direct_capital_ARIES(pf_active::IMAS.pf_active)
 """
-function cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust)
+function cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust, cst::IMAS.costing)
 	dd = IMAS.top_dd(pf_active)
 	c = Dict("OH" => 0.0, "PF" => 0.0)
 	for coil in pf_active.coil
 		if coil.name == "OH"
-			c["OH"] += cost_direct_capital_ARIES(coil, dd.build.oh.technology, da, dd)
+			c["OH"] += cost_direct_capital_ARIES(coil, dd.build.oh.technology, da, cst)
 		else
-			c["PF"] += cost_direct_capital_ARIES(coil, dd.build.pf_active.technology, da, dd)
+			c["PF"] += cost_direct_capital_ARIES(coil, dd.build.pf_active.technology, da, cst)
 		end
 	end
 	return c
@@ -266,9 +266,9 @@ end
 	cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology})
 
 """
-function cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology, IMAS.build__oh__technology, IMAS.build__pf_active__technology}, da::DollarAdjust, dd::IMAS.dd)
+function cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology, IMAS.build__oh__technology, IMAS.build__pf_active__technology}, da::DollarAdjust, cst::IMAS.costing)
     da.year_assessed = 2016
-	cost = IMAS.volume(coil) * unit_cost(technology, dd)
+	cost = IMAS.volume(coil) * unit_cost(technology, cst)
 	return future_dollars(cost, da)
 end
 

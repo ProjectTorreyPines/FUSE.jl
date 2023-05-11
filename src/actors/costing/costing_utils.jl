@@ -15,9 +15,7 @@ end
 #= ============== =#
 #NOTE: material should be priced by Kg
 #NOTE: if something is priced by m^3 then it is for a specific part already
-function unit_cost(material::AbstractString, dd::IMAS.dd)
-    cst = dd.costing
-
+function unit_cost(material::AbstractString, cst::IMAS.costing)
     if material == "Vacuum"
         return 0.0 # $M/m^3
     elseif material == "ReBCO"
@@ -48,14 +46,14 @@ end
 #= ====================== =#
 #  materials cost - coils  #
 #= ====================== =#
-function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, dd::IMAS.dd)
+function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, cst::IMAS.costing)
     if coil_tech.material == "Copper"
-        return unit_cost("Copper", dd)
+        return unit_cost("Copper", cst)
     else
         fraction_cable = 1 - coil_tech.fraction_stainless - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)
         fraction_copper = fraction_cable - fraction_SC
-        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316", dd) + fraction_copper * unit_cost("Copper", dd) + fraction_SC * unit_cost(coil_tech.material, dd))
+        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316", cst) + fraction_copper * unit_cost("Copper", cst) + fraction_SC * unit_cost(coil_tech.material, cst))
     end
 end
 

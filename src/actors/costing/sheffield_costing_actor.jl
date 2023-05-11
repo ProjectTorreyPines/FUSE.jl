@@ -111,17 +111,17 @@ function _step(actor::ActorSheffieldCosting)
 
 	#primary coils 
 	sub = resize!(sys_fi.subsystem, "name" => "primary coils")
-	sub.cost = cost_direct_capital_Sheffield(:primary_coils, dd, bd, da)
+	sub.cost = cost_direct_capital_Sheffield(:primary_coils, cst, bd, da)
 	total_direct_capital_cost += sub.cost
 
 	#shielding gaps 
 	sub = resize!(sys_fi.subsystem, "name" => "shielding gaps")
-	sub.cost = cost_direct_capital_Sheffield(:shielding_gaps, dd, bd, da)
+	sub.cost = cost_direct_capital_Sheffield(:shielding_gaps, cst, bd, da)
 	total_direct_capital_cost += sub.cost
 
 	#structure 
 	sub = resize!(sys_fi.subsystem, "name" => "structure")
-	sub.cost = cost_direct_capital_Sheffield(:structure, dd, bd, da)
+	sub.cost = cost_direct_capital_Sheffield(:structure, cst, bd, da)
 	total_direct_capital_cost += sub.cost
 
 	#aux power 
@@ -203,15 +203,14 @@ function cost_direct_capital_Sheffield(::Type{Val{:main_heat_transfer_system}}, 
 	return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Type{Val{:primary_coils}}, dd::IMAS.dd, bd::IMAS.build, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Type{Val{:primary_coils}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
 	da.year_assessed = 2016   # Year the materials costs were assessed 
 	primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
-    cost = 1.5 * primary_coils_hfs.volume * unit_cost(bd.tf.technology, dd)
+    cost = 1.5 * primary_coils_hfs.volume * unit_cost(bd.tf.technology, cst)
 	return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, dd::IMAS.dd, bd::IMAS.build, da::DollarAdjust)
-	lrn = dd.costing.future.learning
+function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
 	shield_hfs = IMAS.get_build(bd, type = IMAS._shield_, fs = _hfs_, return_only_one = false, raise_error_on_missing = false)
 	gaps_hfs = IMAS.get_build(bd, type = IMAS._gap_, fs = _hfs_, return_only_one = false, raise_error_on_missing = false)
@@ -222,7 +221,7 @@ function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, dd::IMAS.dd
 		for layer in shield_hfs
 			vol_shield_hfs = layer.volume
 			material_shield_hfs = layer.material
-			cost += vol_shield_hfs * unit_cost(material_shield_hfs, dd)
+			cost += vol_shield_hfs * unit_cost(material_shield_hfs, cst)
 		end
 	end
 
@@ -237,10 +236,10 @@ function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, dd::IMAS.dd
 
 end
 
-function cost_direct_capital_Sheffield(::Type{Val{:structure}}, dd::IMAS.dd, bd::IMAS.build, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Type{Val{:structure}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
 	primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
-	cost = 0.75 * primary_coils_hfs.volume * unit_cost("steel", dd)
+	cost = 0.75 * primary_coils_hfs.volume * unit_cost("steel", cst)
 	return future_dollars(cost, da)
 end
 
@@ -287,13 +286,14 @@ function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_ra
 	da.year_assessed = 2016
 
     bd = dd.build
+    cst = dd.costing
 
     blanket = IMAS.get_build(bd, type = IMAS._blanket_, fs = _lfs_, raise_error_on_missing=false)
 
     if ismissing(blanket)
         cost = 0 
     else 
-        initial_cost_blanket = blanket.volume * unit_cost(blanket.material, dd)
+        initial_cost_blanket = blanket.volume * unit_cost(blanket.material, cst)
 
         blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
         blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m^2
