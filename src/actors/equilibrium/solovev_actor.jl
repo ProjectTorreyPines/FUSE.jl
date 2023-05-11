@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     alpha::Entry{T} = Entry(T, "-", "Initial guess of constant relating to pressure"; default=0.0)
     volume::Entry{T} = Entry(T, "m³", "Scalar volume to match (optional)"; default=missing)
     area::Entry{T} = Entry(T, "m²", "Scalar area to match (optional)"; default=missing)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorSolovev <: PlasmaAbstractActor
@@ -30,13 +30,12 @@ Solovev equilibrium actor, based on:
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
 function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorSolovev
-    actor = ActorSolovev(dd, par; kw...)
+    actor = ActorSolovev(dd, act.ActorSolovev; kw...)
     step(actor)
     finalize(actor)
     # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
-    par.qstar = actor.S.qstar
-    par.alpha = actor.S.alpha
+    act.ActorSolovev.qstar = actor.S.qstar
+    act.ActorSolovev.alpha = actor.S.alpha
     return actor
 end
 

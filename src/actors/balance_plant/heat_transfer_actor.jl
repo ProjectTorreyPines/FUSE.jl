@@ -42,8 +42,7 @@ end
     Stores data in `dd.balance_of_plant`
 """
 function ActorHeatTransfer(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorHeatTransfer
-    actor = ActorHeatTransfer(dd, par; kw...)
+    actor = ActorHeatTransfer(dd, act.ActorHeatTransfer; kw...)
     step(actor)
     finalize(actor)
     return actor

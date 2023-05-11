@@ -17,7 +17,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize equilibrium
-        if !ismissing(ini.equilibrium, :B0) || :equilibrium ∈ ods_items
+        if !ismissing(ini.equilibrium, :B0) || (:equilibrium ∈ ods_items)
             init_equilibrium(dd, ini, act)
             if do_plot
                 display(plot(dd.equilibrium.time_slice[end]))
@@ -27,7 +27,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize core profiles
-        if !ismissing(ini.core_profiles, :bulk) || :core_profiles ∈ ods_items
+        if !ismissing(ini.core_profiles, :bulk) || (:core_profiles ∈ ods_items)
             init_core_profiles(dd, ini, act)
             if do_plot
                 display(plot(dd.core_profiles, legend=:bottomleft))
@@ -35,7 +35,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize core sources
-        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || :core_sources ∈ ods_items
+        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || (:core_sources ∈ ods_items)
             init_core_sources(dd, ini, act)
             if do_plot
                 display(plot(dd.core_sources, legend=:topright))
@@ -47,7 +47,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         init_currents(dd, ini, act)
         
         # initialize build
-        if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || :build ∈ ods_items
+        if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || (:build ∈ ods_items)
             init_build(dd, ini, act)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
@@ -58,7 +58,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize oh and pf coils
-        if !ismissing(ini.pf_active, :n_oh_coils) || :pf_active ∈ ods_items
+        if !ismissing(ini.oh, :n_coils) || (:pf_active ∈ ods_items)
             init_pf_active(dd, ini, act)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)

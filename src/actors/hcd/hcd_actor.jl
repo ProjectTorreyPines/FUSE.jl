@@ -25,8 +25,7 @@ end
 Provides a common interface to run HCD actors
 """
 function ActorHCD(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorHCD
-    actor = ActorHCD(dd, par, act; kw...)
+    actor = ActorHCD(dd, act.ActorHCD, act; kw...)
     step(actor)
     finalize(actor)
     return actor

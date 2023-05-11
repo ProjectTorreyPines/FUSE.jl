@@ -57,6 +57,7 @@ endef
 
 # simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
 threads:
+	@echo "set the JULIA_NUM_THREADS environment variable"
 	julia -e "println(Threads.nthreads())"
 
 # remove everything under $HOME/.julia besides $HOME/.julia/dev
@@ -94,7 +95,22 @@ Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
 	make revise
 
-# install revise and load it when Julia starts up
+# install Hide and load it when Julia starts up
+hide: Hide
+	mkdir -p $(JULIA_DIR)/config
+	touch $(JULIA_CONF)
+	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
+	echo "using Hide" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
+	rm -f "$(JULIA_CONF).tmp"
+
+# remove from Julia starts up
+rm_hide:
+	mkdir -p $(JULIA_DIR)/config
+	touch $(JULIA_CONF)
+	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
+	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
+
+# install Revise and load it when Julia starts up
 revise:
 	julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0")); Pkg.compat("Revise", "< 3.4.1")'
 	mkdir -p $(JULIA_DIR)/config
@@ -190,6 +206,10 @@ WarmupFUSE:
 FUSE:
 	$(call clone_pull_repo,$@)
 
+Hide:
+	$(call clone_pull_repo,$@)
+	julia -e 'using Pkg; Pkg.develop("Hide")'
+
 IMAS:
 	$(call clone_pull_repo,$@)
 
@@ -251,7 +271,7 @@ using Pkg;\
 Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
 Pkg.build("IJulia");\
 import IJulia;\
-n=string(length(Sys.cpu_info()));\
+n=get(ENV, "JULIA_NUM_THREADS", string(length(Sys.cpu_info())));\
 IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
 '
 	jupyter kernelspec list

@@ -20,11 +20,10 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.pressure_core = 1.45e6
     ini.equilibrium.xpoints_number = 2
     act.ActorCXbuild.rebuild_wall = false
-    act.ActorHFSsizing.fixed_aspect_ratio = true
 
     # explicitly set thickness of radial build layers
     ini.build.n_first_wall_conformal_layers = 2
-    ini.build.layers = layers = OrderedCollections.OrderedDict()
+    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.82
     layers[:OH] = 0.3
     layers[:hfs_TF] = 0.55
@@ -38,18 +37,20 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     layers[:lfs_TF] = 0.55
     layers[:gap_cryostat] = 1.119
     layers[:cryostat] = 0.186
-    ini.material.shield = "Tungsten"
-    ini.material.blanket = "FLiBe"
 
-    ini.pf_active.n_oh_coils = 4
-    ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 4
-    ini.pf_active.technology = coil_technology(:HTS)
+    ini.material.wall = "Tungsten"
+    ini.material.blanket = "FLiBe"
+    ini.material.shield = "Steel, Stainless 316"
+
+    ini.oh.n_coils = 4
+    ini.pf_active.n_coils_inside = 0
+    ini.pf_active.n_coils_outside = 4
+    ini.pf_active.technology = :HTS
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 18
-    ini.tf.technology = coil_technology(:HTS)
-    ini.oh.technology = coil_technology(:HTS)
+    ini.tf.technology = :HTS
+    ini.oh.technology = :HTS
 
     #ini.requirements.power_electric_net = 50E6 ?
     ini.requirements.flattop_duration = 1800.0

@@ -30,8 +30,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
     Reads data in `dd.nbi` and stores data in `dd.core_sources`
 """
 function ActorNBsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorNBsimple
-    actor = ActorNBsimple(dd, par; kw...)
+    actor = ActorNBsimple(dd, act.ActorNBsimple; kw...)
     step(actor)
     finalize(actor)
     return actor

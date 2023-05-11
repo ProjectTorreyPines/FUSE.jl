@@ -15,15 +15,17 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.build.blanket = 0.0
     ini.build.shield = 0.5
     ini.build.vessel = 0.125
-    ini.material.shield = "Tungsten"
+
+    ini.material.wall = "Tungsten"
+    ini.material.shield = "Steel, Stainless 316"
 
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
-        act.ActorHFSsizing.fixed_aspect_ratio = true
 
-        ini.equilibrium.boundary_from = :MXH_params
+        ini.equilibrium.boundary_from = :ods
         ini.equilibrium.xpoints_number = 1
+        act.ActorEquilibrium.model = :CHEASE
     else
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.ip = 15e6
@@ -53,12 +55,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         end
 
         act.ActorCXbuild.rebuild_wall = true
-        act.ActorHFSsizing.fixed_aspect_ratio = true
         # act.ActorEquilibrium.model = :CHEASE
     end
 
     # explicitly set thickness of radial build layers
-    ini.build.layers = layers = OrderedCollections.OrderedDict()
+    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.80
     layers[:OH] = 1.30
     layers[:hfs_TF] = 1.10
@@ -74,18 +75,18 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     layers[:cryostat] = 0.30
     ini.build.n_first_wall_conformal_layers = 3
 
-    ini.pf_active.n_oh_coils = 6
-    ini.pf_active.n_pf_coils_inside = 0
-    ini.pf_active.n_pf_coils_outside = 6
-    ini.pf_active.technology = coil_technology(:ITER, :PF)
-    act.ActorPFcoilsOpt.symmetric = false
+    ini.oh.n_coils = 6
+    ini.pf_active.n_coils_inside = 0
+    ini.pf_active.n_coils_outside = 6
+    ini.pf_active.technology = :ITER
+    act.ActorPFcoilsOpt.symmetric = true
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
-    ini.tf.technology = coil_technology(:ITER, :TF)
+    ini.tf.technology = :ITER
 
-    ini.oh.technology = coil_technology(:ITER, :OH)
-    act.ActorFluxSwing.operate_at_j_crit = false
+    ini.oh.technology = :ITER
+    act.ActorFluxSwing.operate_oh_at_j_crit = false
 
     ini.requirements.flattop_duration = 1800.0
 
@@ -98,15 +99,17 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
+    ini.core_profiles.ejima = 0.4
+
     ini.nbi.power_launched = 2 * 16.7e6
     ini.nbi.beam_energy = 1e6
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
 
     act.ActorFluxMatcher.evolve_densities = Dict(
-        :Ne        => :match_ne_scale,
-        :DT        => :quasi_neutrality,
-        :He        => :match_ne_scale,
+        :Ne => :match_ne_scale,
+        :DT => :quasi_neutrality,
+        :He => :match_ne_scale,
         :He_fast => :fixed,
         :electrons => :flux_match)
 

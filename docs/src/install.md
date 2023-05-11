@@ -5,14 +5,19 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
 * Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
 * Windows: `winget install julia -s msstore`
 
-## Install FUSE packages
-1. Clone the FUSE repository under the `~/.julia/dev` folder (note that the repository ends with `.jl` but the install folder does not):
+Once installed, restart your termninal to pick-up the `julia` executable
+
+## FUSE installation
+1. Clone the FUSE repository under the `~/.julia/dev` folder ():
 
    ```bash
    mkdir -p ~/.julia/dev
    cd ~/.julia/dev
    git clone git@github.com:ProjectTorreyPines/FUSE.jl.git FUSE
    ```
+
+   !!! note
+       Julia repositories end with `.jl` but their install folders do not
 
    !!! note
        To clone the FUSE repository you will need to [setup your public key on git GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
@@ -64,6 +69,14 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
    jupyter-lab
    ```
 
+## Install CHEASE
+```
+mamba install -c conda-forge gfortran
+git clone https://gitlab.epfl.ch/spc/chease.git
+cd chease/src-f90
+make chease
+```
+
 ## Troubleshooting
 When using the ProjectTorreyPines private Julia [GA registry](https://github.com/ProjectTorreyPines/GAregistry), one may get `SSH host verification` errors when installing and updating Julia packages:
 
@@ -76,3 +89,4 @@ this can be resolved by telling Julia to use the git command line interface, via
 ```julia
 export JULIA_PKG_USE_CLI_GIT=true
 ```
+
