@@ -10,13 +10,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
 	initial_cost_blanket::Entry{T} = Entry(T, "\$M", "Cost of initial blanket"; default = 200.0)
 	divertor_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
 	blanket_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
-
 end
 
 mutable struct ActorSheffieldCosting <: FacilityAbstractActor
 	dd::IMAS.dd
 	par::FUSEparameters__ActorSheffieldCosting
-
 	function ActorSheffieldCosting(dd::IMAS.dd, par::FUSEparameters__ActorSheffieldCosting; kw...)
 		logging_actor_init(ActorSheffieldCosting)
 		par = par(kw...)
@@ -39,7 +37,6 @@ function _step(actor::ActorSheffieldCosting)
 
 	cost_direct = cst.cost_direct_capital
 	cost_ops = cst.cost_operations
-	cost_decom = cst.cost_decommissioning
 
 	bd = dd.build
 

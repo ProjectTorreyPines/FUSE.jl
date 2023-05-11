@@ -16,7 +16,6 @@ end
 mutable struct ActorARIESCosting <: FacilityAbstractActor
 	dd::IMAS.dd
 	par::FUSEparameters__ActorARIESCosting
-
 	function ActorARIESCosting(dd::IMAS.dd, par::FUSEparameters__ActorARIESCosting; kw...)
 		logging_actor_init(ActorARIESCosting)
 		par = par(kw...)
@@ -36,8 +35,6 @@ function _step(actor::ActorARIESCosting)
 	dd = actor.dd
 	par = actor.par
 	cst = dd.costing
-
-	# empty!(cst)
 
 	cost_direct = cst.cost_direct_capital
 	cost_ops = cst.cost_operations
