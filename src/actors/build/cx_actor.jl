@@ -452,8 +452,20 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # update shape
     layer.shape = Int(shape)
 
-    # handle offset, negative offset, negative offset, and convex-hull
-    if layer.shape in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
+    # _elliptical_offset_
+    if layer.shape == Int(_elliptical_offset_)
+        oR0 = (o_start + o_end) / 2.0
+        oZ0 = (maximum(oZ) + minimum(oZ)) / 2.0
+        oRn = (oR .- oR0) ./ (maximum(oR) - minimum(oR)) * 2.0
+        oZn = (oZ .- oZ0) ./ (maximum(oZ) - minimum(oZ)) * 2.0
+        oRc = oRn .* (lfs_thickness .+ hfs_thickness) / 2.0
+        oZc = oZn .* sqrt(lfs_thickness .* hfs_thickness) .* sign(lfs_thickness)
+        R = oR .+ oRc .+ r_offset
+        Z = oZ .+ oZc
+        layer.outline.r, layer.outline.z = R, Z
+
+        # handle offset, negative offset, and convex-hull
+    elseif layer.shape in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
         poly = LibGEOS.buffer(xy_polygon(oR, oZ), (hfs_thickness + lfs_thickness) / 2.0)
         R = [v[1] .+ r_offset for v in GeoInterface.coordinates(poly)[1]]
         Z = [v[2] for v in GeoInterface.coordinates(poly)[1]]
