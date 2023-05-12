@@ -42,7 +42,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     ζ::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
     pressure_core::Entry{T} = Entry(T, "Pa", "On axis pressure")
     ip::Entry{T} = Entry(T, IMAS.equilibrium__time_slice___global_quantities, :ip)
-    xpoints_number::Entry{Int} = Entry(Int, "-", "Number of x-points")
+    xpoints::Switch{Symbol} = Switch(Symbol, [:lower, :upper, :double, :none], "-", "X-points configuration")
     ngrid::Entry{Int} = Entry(Int, "-", "Resolution of the equilibrium grid"; default=129)
     field_null_surface::Entry{T} = Entry(T, "-", "ψn value of the field_null_surface. Disable with 0.0"; default=0.75)
     boundary_from::Switch{Symbol} = Switch(Symbol, [:scalars, :MXH_params, :rz_points, :ods], "-", "The starting r, z boundary taken from")
@@ -146,6 +146,7 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:
     vessel::Entry{T} = Entry(T, "-", "Fraction of vessel in radial build")
     plasma_gap::Entry{T} = Entry(T, "-", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1)
     symmetric::Entry{Bool} = Entry(Bool, "-", "Is the build up-down symmetric")
+    divertors::Switch{Symbol} = Switch(Symbol, [:lower, :upper, :double, :none, :from_x_points], "-", "Divertors configuration"; default=:from_x_points)
     n_first_wall_conformal_layers::Entry{Int} = Entry(Int, "-", "Number of layers that are conformal to the first wall"; default=1)
 end
 

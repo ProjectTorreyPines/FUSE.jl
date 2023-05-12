@@ -116,7 +116,17 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     ini.equilibrium.pressure_core = Pavg / P1
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
-    ini.equilibrium.xpoints_number = Int(round(gasc.inputs["divertor metrics"]["numberDivertors"]))
+    n_xpoints = Int(gasc.inputs["divertor metrics"]["numberDivertors"])
+    if n_xpoints == 0
+        ini.equilibrium.xpoints = :none
+    elseif n_xpoints == 1
+        ini.equilibrium.xpoints = :lower
+    elseif n_xpoints == 2
+        ini.equilibrium.xpoints = :double
+    else
+        error("Invalid GASC numberDivertors")
+    end
+
     return ini
 end
 

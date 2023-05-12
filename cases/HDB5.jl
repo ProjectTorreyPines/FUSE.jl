@@ -39,16 +39,16 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     # Determine x-points
     if data_row[:CONFIG] == "SN"
         # upper single null
-        ini.equilibrium.xpoints_number = 1
+        ini.equilibrium.xpoints = :upper
     elseif data_row[:CONFIG] == "SN(L)"
         # lower single null
-        ini.equilibrium.xpoints_number = 1
+        ini.equilibrium.xpoints = :lower
     elseif data_row[:CONFIG] == "DN"
         # double null
-        ini.equilibrium.xpoints_number = 2
+        ini.equilibrium.xpoints = :double
     else
         # no x-points
-        ini.equilibrium.xpoints_number = 0
+        ini.equilibrium.xpoints = :none
     end
 
     # Core_profiles parameters
