@@ -50,7 +50,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            centerpost_height = height * 0.75
+            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction))
             shape_parameters = [centerpost_height, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
@@ -188,7 +188,7 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
             R, Z = func(r_start, r_end, shape_parameters...)
 
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            index = abs.((R .- r_start) .* (R .- r_end)) .> (target_clearance / 1000)
+            index = abs.((R .- r_start) .* (R .- r_end)) .> (target_clearance / 1000.0)
             R = R[index]
             Z = Z[index]
 
@@ -198,7 +198,11 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
 
             # target clearance  O(1)
             minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
-            cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
+            if minimum_distance < target_clearance
+                cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
+            else
+                cost_min_clearance = 0.0
+            end
             mean_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance)
             cost_mean_distance = mean_distance_error / target_clearance
 
@@ -338,6 +342,8 @@ circle ellipse shape (parametrization of TF coils used in GATM)
 Special case of the double ellipse shape, where the inner ellipse is actually a circle
 """
 function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    centerpost_height = abs(centerpost_height)
+    height = abs(height)
     r_center = r_start + (height - centerpost_height) / 2.0
     return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points)
 end
