@@ -15,6 +15,7 @@ function warmup(dd::IMAS.dd)
             ini, act = case_parameters(:FPP; version=:v1_demount, init_from=:scalars, STEP=:true)
             init(dd, ini, act)
         end
+        act.ActorEquilibriumTransport.max_iter = 1
         ActorWholeFacility(dd, act)
         return IMAS.freeze(dd)
     end

@@ -237,7 +237,6 @@ function model_401(dd::IMAS.dd)
     target_value = IMAS.elongation_limit(eqt)
 
     @ddtime(model.fraction = model_value / target_value)
-
 end
 
 ##### QUESTIONS #####

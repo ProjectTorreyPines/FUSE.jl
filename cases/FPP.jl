@@ -23,15 +23,11 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.general.casename = "FPP_$(version)_$(init_from)"
     ini.general.init_from = init_from
 
-    if version == :v1
-        ini.build.n_first_wall_conformal_layers = 100
-    end
-
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         ini.equilibrium.boundary_from = :scalars
-        ini.equilibrium.xpoints_number = 2
+        ini.equilibrium.xpoints = :double
         act.ActorEquilibrium.model = :CHEASE
         act.ActorWholeFacility.update_plasma = false
         STEP = true
@@ -112,9 +108,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     # add wall layer
     if true
         gasc_add_wall_layers!(ini.build.layers; thickness=0.02)
-        if version != :v1
-            ini.build.n_first_wall_conformal_layers = 2
-        end
+        ini.build.n_first_wall_conformal_layers = 2
     end
 
     # bucking

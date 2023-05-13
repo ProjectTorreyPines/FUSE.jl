@@ -22,17 +22,15 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
-
         ini.equilibrium.boundary_from = :ods
-        ini.equilibrium.xpoints_number = 1
         act.ActorEquilibrium.model = :CHEASE
     else
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.ip = 15e6
         ini.equilibrium.pressure_core = 0.643e6
 
+        ini.equilibrium.xpoints = :lower
         ini.equilibrium.boundary_from = :MXH_params
-        ini.equilibrium.xpoints_number = 1
 
         R0 = 6.2
         Z0 = 0.0
