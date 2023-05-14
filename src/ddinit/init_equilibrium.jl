@@ -49,9 +49,22 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 mxh = IMAS.MXH(pr, pz, 4)
             end
 
-            if ismissing(ini.equilibrium, :xpoints_number)
+            if ismissing(ini.equilibrium, :xpoints)
                 # if number of x-points is not set explicitly, get it from the ODS
-                ini.equilibrium.xpoints_number = length(eqt.boundary.x_point)
+                n_xpoints = length(eqt.boundary.x_point)
+                if n_xpoints == 0
+                    ini.equilibrium.xpoints = :none
+                elseif n_xpoints == 1
+                    if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
+                        ini.equilibrium.xpoints = :upper
+                    else
+                        ini.equilibrium.xpoints = :lower
+                    end
+                elseif n_xpoints == 2
+                    ini.equilibrium.xpoints = :double
+                else
+                    error("cannot handle $n_xpoints x-points")
+                end
             end
         end
 
@@ -93,7 +106,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         ini.equilibrium.ζ = -mxh.s[2]
 
         # initialize dd.pulse_schedule.position_control from mxh
-        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints_number)
+        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints)
 
         # scalar quantities
         @ddtime(dd.pulse_schedule.flux_control.i_plasma.reference.data = ini.equilibrium.ip)
@@ -141,18 +154,18 @@ end
     init_pulse_schedule_postion_control(
         pc::IMAS.pulse_schedule__position_control,
         mxh::IMAS.MXH,
-        xpoints_number::Integer)
+        xpoints::Symbol)
 
 Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
 function init_pulse_schedule_postion_control(
     pc::IMAS.pulse_schedule__position_control,
     mxh::IMAS.MXH,
-    xpoints_number::Integer)
+    xpoints::Symbol)
 
-    if xpoints_number > 0
+    if xpoints in [:lower, :upper, :double]
         # MXHboundary adds x-points
-        mxhb = fitMXHboundary(mxh; lower_x_point=(xpoints_number >= 1), upper_x_point=(xpoints_number == 2))
+        mxhb = fitMXHboundary(mxh; lower_x_point=(xpoints in [:lower, :double]), upper_x_point=(xpoints in [:upper, :double]))
         pr = mxhb.r_boundary
         pz = mxhb.z_boundary
 
@@ -179,11 +192,11 @@ function init_pulse_schedule_postion_control(
     # x points at maximum curvature
     Z0 = mxh.Z0
     x_points = []
-    if xpoints_number >= 1
+    if xpoints in [:lower, :double]
         i1 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .< Z0))
         push!(x_points, (pr[i1], pz[i1]))
     end
-    if xpoints_number == 2
+    if xpoints in [:upper, :double]
         i2 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .> Z0))
         push!(x_points, (pr[i2], pz[i2]))
     end
@@ -233,7 +246,7 @@ function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS
     end
 
     if !isempty(eq.time_slice) && eq.time[1] == -Inf
-        eqb=empty!(eq.time_slice[1])
+        eqb = empty!(eq.time_slice[1])
     else
         eqb = IMAS.equilibrium__time_slice()
         pushfirst!(eq.time_slice, eqb)

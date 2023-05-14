@@ -5,7 +5,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:brayton_only, :rankine_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only)
+    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:fixed_cycle_efficiency, :brayton_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only)
     rp::Entry{T} = Entry(T, "-", "Overall compression ratio"; default=3.0)
     Pmax::Entry{T} = Entry(T, "Pa", "Max system pressure"; default=8e6)
     Tmax::Entry{T} = Entry(T, "K", "Max cycle temperature"; default=950.0 + 273.15)
@@ -13,6 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersAct
     Nt::Entry{Int} = Entry(Int, "-", "Number of turbine stages"; default=1)
     Nc::Entry{Int} = Entry(Int, "-", "Number of compression stages"; default=3)
     regen::Entry{T} = Entry(T, "-", "Regeneration fraction")
+    fixed_cycle_efficiency::Entry{T} = Entry(T, "-", "Overall thermal cycle efficiency (if `power_cycle_type=:fixed_cycle_efficiency`)")
     do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
@@ -30,9 +31,8 @@ end
 """
     ActorThermalCycle(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the thermal cycle based on the heat loads of the divertor and the wall
-* `model = :brayton` evaluates the brayton cycle
-* `model = :rankine evaluates the rankine cycle
+Evaluates the thermal cycle based using the heat from the divertors, first wall, and blanket breeder
+
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
@@ -54,12 +54,15 @@ function _step(actor::ActorThermalCycle)
     bop = dd.balance_of_plant
     bop.power_cycle_type = string(par.power_cycle_type)
 
-    bop_thermal = bop.thermal_cycle
-    ihts_par = actor.act.ActorHeatTransfer
-
     blanket_power = @ddtime(bop.heat_transfer.wall.heat_load)
     breeder_power = @ddtime(bop.heat_transfer.breeder.heat_load)
     divertor_power = @ddtime(bop.heat_transfer.divertor.heat_load)
+
+    if bop.power_cycle_type == "fixed_cycle_efficiency"
+        @ddtime(bop.thermal_cycle.thermal_efficiency = par.fixed_cycle_efficiency)
+        @ddtime(bop.thermal_cycle.power_electric_generated = @ddtime(bop.thermal_cycle.total_useful_heat_power) * par.fixed_cycle_efficiency)
+        return actor
+    end
 
     if ismissing(par, :regen)
         ϵr = 0.0
@@ -72,11 +75,8 @@ function _step(actor::ActorThermalCycle)
     @assert (ϵr == 0 || (ϵr >= 0.0 && ϵr <= 1.0 && bop.power_cycle_type ∈ ["brayton_only"])) "Regeneration between 0.0 and 1.0 is only possible for `:brayton_only` cycles"
 
     mflow_cycle = @ddtime(bop.thermal_cycle.flow_rate)
-
-    if bop.power_cycle_type == "rankine_only"
-        return actor
-
-    elseif bop.power_cycle_type == "complex_brayton"
+    ihts_par = actor.act.ActorHeatTransfer
+    if bop.power_cycle_type == "complex_brayton"
         cp_cycle = 5.1926e3
         cv_cycle = 3.1156e3
         k_cycle = cp_cycle / cv_cycle
@@ -95,7 +95,7 @@ function _step(actor::ActorThermalCycle)
 
         pc = compressor_stages(par)
 
-        @ddtime(bop_thermal.input_work = mflow_cycle * pc.work)
+        @ddtime(bop.thermal_cycle.input_work = mflow_cycle * pc.work)
 
         blanket_coolant_heat_exchanger = ihts_heat_exchanger(ihts_par.blanket_η_pump, ihts_par.blanket_HX_ϵ, Niter, pc.T_out, @ddtime(bop.thermal_cycle.flow_rate), cp_he, mratio, blanket_power, rp_blanket, cp_blk, kcoeff_blk)
 
@@ -194,7 +194,7 @@ function _step(actor::ActorThermalCycle)
         @ddtime(bop.heat_transfer.breeder.heat_delivered = Q_breeder)
         @ddtime(bop.heat_transfer.breeder.heat_waste = breeder_power + bpump - Q_breeder)
         @ddtime(bop.thermal_cycle.net_work = mflow_cycle * (pt.work - pc.work))
-        @ddtime(bop_thermal.thermal_efficiency = mflow_cycle * (pt.work - pc.work) / (divertor_coolant_heat_exchanger.HX_q + blanket_coolant_heat_exchanger.HX_q + Q_breeder))
+        @ddtime(bop.thermal_cycle.thermal_efficiency = mflow_cycle * (pt.work - pc.work) / (divertor_coolant_heat_exchanger.HX_q + blanket_coolant_heat_exchanger.HX_q + Q_breeder))
         return actor
 
     elseif bop.power_cycle_type == "brayton_only"
@@ -202,10 +202,10 @@ function _step(actor::ActorThermalCycle)
         par.Tmax = evalBrayton(braytonT, ihts_par, dd)
         cp_cycle = 5.1926e3
         braytonOut = braytonCycle(actor.par.rp, actor.par.Pmax, actor.par.Tmin, actor.par.Tmax, actor.par.Nt, actor.par.Nc; ϵr)
-        @ddtime(bop_thermal.turbine_work = mflow_cycle .* braytonOut.w_out)
-        @ddtime(bop_thermal.input_work = mflow_cycle .* braytonOut.w_in)
-        @ddtime(bop_thermal.net_work = mflow_cycle .* (braytonOut.w_out - braytonOut.w_in))
-        @ddtime(bop_thermal.thermal_efficiency = braytonOut.η_th)
+        @ddtime(bop.thermal_cycle.turbine_work = mflow_cycle .* braytonOut.w_out)
+        @ddtime(bop.thermal_cycle.input_work = mflow_cycle .* braytonOut.w_in)
+        @ddtime(bop.thermal_cycle.net_work = mflow_cycle .* (braytonOut.w_out - braytonOut.w_in))
+        @ddtime(bop.thermal_cycle.thermal_efficiency = braytonOut.η_th)
         return actor
     else
         error("Power cycle type `$(bop.power_cycle_type)` not recognized")

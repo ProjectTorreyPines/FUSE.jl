@@ -93,10 +93,10 @@ include(joinpath("actors", "balance_plant", "power_needs_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_plot.jl"))
 
+include(joinpath("actors", "costing", "costing_utils.jl"))
+include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
+include(joinpath("actors", "costing", "aries_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
-include(joinpath("actors", "costing", "costing_ARIES.jl"))
-include(joinpath("actors", "costing", "costing_Sheffield.jl"))
-include(joinpath("actors", "costing", "costing_fuse.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "equilibrium_transport_actor.jl"))
