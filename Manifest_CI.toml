@@ -773,9 +773,9 @@ version = "1.12.2+2"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "877b7bc42729aa2c90bbbf5cb0d4294bd6d42e5a"
+git-tree-sha1 = "c0cf3ea4d41bc4227b20b6c0cc40c9ad7c16e811"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.9.1"
+version = "1.9.3"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
