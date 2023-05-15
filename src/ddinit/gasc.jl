@@ -64,7 +64,7 @@ function case_parameters(gasc::GASC)
 
     gasc_2_build(gasc, ini, act)
 
-    gasc_2_target(gasc, ini, act)
+    gasc_2_requirement(gasc, ini, act)
 
     gasc_2_equilibrium(gasc, ini, act)
 
@@ -116,7 +116,17 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     ini.equilibrium.pressure_core = Pavg / P1
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
-    ini.equilibrium.xpoints_number = Int(round(gasc.inputs["divertor metrics"]["numberDivertors"]))
+    n_xpoints = Int(gasc.inputs["divertor metrics"]["numberDivertors"])
+    if n_xpoints == 0
+        ini.equilibrium.xpoints = :none
+    elseif n_xpoints == 1
+        ini.equilibrium.xpoints = :lower
+    elseif n_xpoints == 2
+        ini.equilibrium.xpoints = :double
+    else
+        error("Invalid GASC numberDivertors")
+    end
+
     return ini
 end
 
@@ -215,11 +225,11 @@ function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllAct
 end
 
 """
-    gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+    gasc_2_requirement(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
 
-Convert nominal target design information in GASC solution to FUSE `ini` and `act` parameters
+Convert requirements of GASC solution to FUSE `ini` and `act` parameters
 """
-function gasc_2_target(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
+function gasc_2_requirement(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
     ini.requirements.flattop_duration = float(gasc.inputs["plasma parameters"]["flattopDuration"])
     ini.requirements.power_electric_net = gasc.constraints["lowerOutputConstraints"]["powerNet"] * 1E6
     return ini
@@ -233,7 +243,7 @@ Convert GASC ["OUTPUTS"]["radial build"] to FUSE build layers dictionary
 function gasc_2_layers(gasc::GASC)
     gascrb = gasc.outputs["radial build"]
 
-    layers = OrderedCollections.OrderedDict()
+    layers = OrderedCollections.OrderedDict{String,Float64}()
     mapper = Dict(
         "OH" => "OH",
         "TF" => "TF",
@@ -306,18 +316,24 @@ function gasc_2_layers(gasc::GASC)
         end
     end
 
-    return layers
+    # convert keys from string to symbols
+    sym_layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    for k in keys(layers)
+        sym_layers[Symbol(k)] = layers[k]
+    end
+
+    return sym_layers
 end
 
 """
-    gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
+    gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict{Symbol,Float64})
 
 Remove gap between OH and TF to allow bucking (gap gets added to OH thickness)
 """
-function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
-    for k in collect(keys(layers))
-        if k == "gap_TF_OH"
-            layers["OH"] += layers["gap_TF_OH"]
+function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict{Symbol,Float64})
+    for layer in collect(keys(layers))
+        if layer == :gap_TF_OH
+            layers[:OH] += layers[:gap_TF_OH]
             delete!(layers, k)
         end
     end
@@ -325,27 +341,27 @@ function gasc_buck_OH_TF!(layers::OrderedCollections.OrderedDict)
 end
 
 """
-    gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict, thickness::Float64)
+    gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}; thickness::Float64)
 
 Add wall layer of given thickness expressed [meters] (gets subtracted from blanket layer)
 """
-function gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict; thickness::Float64)
-    tmp = OrderedCollections.OrderedDict()
+function gasc_add_wall_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}; thickness::Float64)
+    tmp = OrderedCollections.OrderedDict{Symbol,Float64}()
     for layer in keys(layers)
-        if layer == "hfs_blanket"
+        if layer == :hfs_blanket
             tmp[layer] = layers[layer] - thickness
-            tmp["hfs_first_wall"] = thickness
-        elseif layer == "lfs_blanket"
-            tmp["lfs_first_wall"] = thickness
+            tmp[:hfs_first_wall] = thickness
+        elseif layer == :lfs_blanket
+            tmp[:lfs_first_wall] = thickness
             tmp[layer] = layers[layer] - thickness
-        elseif layer == "hfs_vacuum_vessel"
-            tmp["hfs_vacuum_vessel_wall_outer"] = thickness
+        elseif layer == :hfs_vacuum_vessel
+            tmp[:hfs_vacuum_vessel_wall_outer] = thickness
             tmp[layer] = layers[layer] - 2 * thickness
-            tmp["hfs_vacuum_vessel_wall_inner"] = thickness
-        elseif layer == "lfs_vacuum_vessel"
-            tmp["lfs_vacuum_vessel_wall_inner"] = thickness
+            tmp[:hfs_vacuum_vessel_wall_inner] = thickness
+        elseif layer == :lfs_vacuum_vessel
+            tmp[:lfs_vacuum_vessel_wall_inner] = thickness
             tmp[layer] = layers[layer] - 2 * thickness
-            tmp["lfs_vacuum_vessel_wall_outer"] = thickness
+            tmp[:lfs_vacuum_vessel_wall_outer] = thickness
         else
             tmp[layer] = layers[layer]
         end

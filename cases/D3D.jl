@@ -16,7 +16,10 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.build.blanket = 0.0
     ini.build.shield = 0.0
     ini.build.vessel = 0.0
-    ini.build.n_first_wall_conformal_layers = 1
+    ini.build.n_first_wall_conformal_layers = 2
+    ini.material.wall = "Carbon, Graphite (reactor grade)"
+    act.ActorCXbuild.rebuild_wall = false
+    ini.build.divertors = :double
 
     ini.oh.n_coils = 10
     ini.pf_active.n_coils_inside = 8
@@ -47,9 +50,9 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorPFcoilsOpt.symmetric = true
     act.ActorFluxMatcher.evolve_densities = Dict(
-        :D         => :quasi_neutrality,
+        :D => :quasi_neutrality,
         :electrons => :flux_match,
-        :C         => :match_ne_scale)
+        :C => :match_ne_scale)
 
     set_new_base!(ini)
     set_new_base!(act)

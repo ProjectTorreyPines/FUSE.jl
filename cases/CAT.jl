@@ -17,8 +17,10 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.build.shield = 0.5
     ini.build.vessel = 0.125
     ini.build.n_first_wall_conformal_layers = 2
-    ini.material.shield = "Tungsten"
-    ini.material.blanket = "FLiBe"
+
+    ini.material.wall = "Tungsten"
+    ini.material.blanket = "lithium-lead"
+    ini.material.shield = "Steel, Stainless 316"
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0

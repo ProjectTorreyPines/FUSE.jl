@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T} <: ParametersActor
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     N::Entry{Int} = Entry(Int, "-", "Number of particles"; default=100000)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorNeutronics <: PlasmaAbstractActor
@@ -27,8 +27,7 @@ Estimates the neutron wall loading
     Stores data in `dd.neutronics`
 """
 function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorNeutronics
-    actor = ActorNeutronics(dd, par; kw...)
+    actor = ActorNeutronics(dd, act.ActorNeutronics; kw...)
     step(actor)
     finalize(actor)
     return actor

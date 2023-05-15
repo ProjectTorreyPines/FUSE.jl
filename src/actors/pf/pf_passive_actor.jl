@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorPassiveStructures <: ReactorAbstractActor
@@ -23,11 +23,10 @@ end
 Populates `pf_passive` structures
 """
 function ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPassiveStructures
-    actor = ActorPassiveStructures(dd, par; kw...)
+    actor = ActorPassiveStructures(dd, act.ActorPassiveStructures; kw...)
     step(actor)
     finalize(actor)
-    if par.do_plot
+    if actor.par.do_plot
         display(plot(dd.pf_passive))
     end
     return actor

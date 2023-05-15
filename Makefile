@@ -57,6 +57,7 @@ endef
 
 # simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
 threads:
+	@echo "set the JULIA_NUM_THREADS environment variable"
 	julia -e "println(Threads.nthreads())"
 
 # remove everything under $HOME/.julia besides $HOME/.julia/dev
@@ -101,6 +102,13 @@ hide: Hide
 	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
 	echo "using Hide" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
 	rm -f "$(JULIA_CONF).tmp"
+
+# remove from Julia starts up
+rm_hide:
+	mkdir -p $(JULIA_DIR)/config
+	touch $(JULIA_CONF)
+	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
+	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
 
 # install Revise and load it when Julia starts up
 revise:
@@ -200,6 +208,7 @@ FUSE:
 
 Hide:
 	$(call clone_pull_repo,$@)
+	julia -e 'using Pkg; Pkg.develop("Hide")'
 
 IMAS:
 	$(call clone_pull_repo,$@)

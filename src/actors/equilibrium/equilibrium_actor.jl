@@ -21,8 +21,7 @@ end
 Provides a common interface to run multiple equilibrium actors
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibrium
-    actor = ActorEquilibrium(dd, par, act; kw...)
+    actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -58,7 +57,7 @@ Finalizes the selected equilibrium actor
 """
 function _finalize(actor::ActorEquilibrium)
     finalize(actor.eq_actor)
-    if actor.par.symmetrize
+    if actor.par.symmetrize && mod(length(actor.dd.pulse_schedule.position_control.x_point), 2) != 1
         IMAS.symmetrize_equilibrium!(actor.dd.equilibrium.time_slice[])
         IMAS.flux_surfaces(actor.dd.equilibrium.time_slice[])
     end
@@ -104,8 +103,7 @@ function prepare_eq(dd::IMAS.dd)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
 
     # boundary
-    eqt.boundary.outline.r = [@ddtime(pcb.r.reference.data) for pcb in pc.boundary_outline]
-    eqt.boundary.outline.z = [@ddtime(pcb.z.reference.data) for pcb in pc.boundary_outline]
+    eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
 
     # x-points
     resize!(eqt.boundary.x_point, length(pc.x_point))

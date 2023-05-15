@@ -4,9 +4,9 @@
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
     max_iter::Entry{Int} = Entry(Int, "-", "max number of transport-equilibrium iterations"; default=5)
-    convergence_error::Entry{T} = Entry(T, "-", "Convergence error threshold (relative change in current and pressure profiles)"; default=1E-2)
+    convergence_error::Entry{T} = Entry(T, "-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
 end
 
 mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
@@ -32,8 +32,7 @@ Compound actor that runs the following actors in succesion:
     Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
 """
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorEquilibriumTransport
-    actor = ActorEquilibriumTransport(dd, par, act; kw...)
+    actor = ActorEquilibriumTransport(dd, act.ActorEquilibriumTransport, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -103,7 +102,7 @@ function _step(actor::ActorEquilibriumTransport)
             end
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iter)
-                @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(round(total_error[end],digits = 3)) compared to threshold of $(par.convergence_error)"
+                @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(collect(map(x->round(x,digits = 3),total_error))) compared to threshold of $(par.convergence_error)"
                 break
             end
         end

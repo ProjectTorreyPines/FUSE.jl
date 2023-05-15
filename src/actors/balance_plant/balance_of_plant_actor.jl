@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersA
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     generator_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
-    do_plot::Entry{Bool} = Entry(Bool, "-", "plot"; default=false)
+    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
 end
 
 mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
@@ -25,8 +25,7 @@ Balance of plant actor that estimates the net electrical power output by compari
     Stores data in `dd.balance_of_plant`
 """
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorBalanceOfPlant
-    actor = ActorBalanceOfPlant(dd, par, act; kw...)
+    actor = ActorBalanceOfPlant(dd, act.ActorBalanceOfPlant, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -45,23 +44,6 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     thermal_cycle_actor = ActorThermalCycle(dd, act.ActorThermalCycle, act)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act)
     return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor, power_needs_actor)
-end
-
-
-"""
-    initial_temperatures(power_cycle_type::Symbol)
-
-    intializes initial temperatures of the coolant loops based on cycle type
-"""
-function initial_temperatures(power_cycle_type::Symbol)
-    breeder_tmax = 1100.0 + 273.15
-    breeder_tmin = 550.0 + 273.15
-    if power_cycle_type == :rankine_only
-        breeder_tmax = 650.0 + 273.15
-        breeder_tmin = 185.0 + 273.15
-    end
-    cycle_tmax = breeder_tmax - 50.0
-    return breeder_tmax, breeder_tmin, cycle_tmax
 end
 
 function _step(actor::ActorBalanceOfPlant)
@@ -152,4 +134,16 @@ function _step(actor::ActorBalanceOfPlant)
     end
 
     return actor
+end
+
+"""
+    initial_temperatures(power_cycle_type::Symbol)
+
+    intializes initial temperatures of the coolant loops based on cycle type
+"""
+function initial_temperatures(power_cycle_type::Symbol)
+    breeder_tmax = 1100.0 + 273.15
+    breeder_tmin = 550.0 + 273.15
+    cycle_tmax = breeder_tmax - 50.0
+    return breeder_tmax, breeder_tmin, cycle_tmax
 end

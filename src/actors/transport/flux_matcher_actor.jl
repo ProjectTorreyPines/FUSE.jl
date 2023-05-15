@@ -32,8 +32,7 @@ end
 Evalutes the transport fluxes and source fluxes and minimizes the flux_match error
 """
 function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorFluxMatcher
-    actor = ActorFluxMatcher(dd, par, act; kw...)
+    actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; kw...)
     step(actor)
     finalize(actor)
     return actor

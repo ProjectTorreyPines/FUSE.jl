@@ -23,22 +23,19 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.general.casename = "FPP_$(version)_$(init_from)"
     ini.general.init_from = init_from
 
-    if version == :v1
-        ini.build.n_first_wall_conformal_layers = 100
-    end
-
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         ini.equilibrium.boundary_from = :scalars
-        ini.equilibrium.xpoints_number = 2
+        ini.equilibrium.xpoints = :double
         act.ActorEquilibrium.model = :CHEASE
         act.ActorWholeFacility.update_plasma = false
         STEP = true
     end
 
+    ini.requirements.power_electric_net = 200e6 #W
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.cost = 5000.0 # M$
+    ini.requirements.flattop_duration = 12 * 3600 # s
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
@@ -49,8 +46,9 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
 
-    ini.material.shield = "Tungsten"
+    ini.material.wall = "Tungsten"
     ini.material.blanket = "lithium-lead"
+    ini.material.shield = "Steel, Stainless 316"
 
     act.ActorPFcoilsOpt.symmetric = true
 
@@ -68,8 +66,8 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.greenwald_fraction_ped = 0.75
 
-    # set κ to 95% of maximum controllable elongation estimate
-    ini.equilibrium.κ = missing
+    # κ<1.0 sets elongation as fraction of maximum controllable elongation estimate
+    ini.equilibrium.κ = 0.95
 
     # negative triangularity
     # ini.equilibrium.δ *= -1
@@ -110,9 +108,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     # add wall layer
     if true
         gasc_add_wall_layers!(ini.build.layers; thickness=0.02)
-        if version != :v1
-            ini.build.n_first_wall_conformal_layers = 2
-        end
+        ini.build.n_first_wall_conformal_layers = 2
     end
 
     # bucking

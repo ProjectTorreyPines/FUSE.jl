@@ -18,12 +18,11 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 8.7e6
     ini.equilibrium.pressure_core = 2.22e6
-    ini.equilibrium.xpoints_number = 2
-    act.ActorCXbuild.rebuild_wall = false
+    ini.equilibrium.xpoints = :double
 
     # explicitly set thickness of 
     ini.build.n_first_wall_conformal_layers = 3
-    ini.build.layers = layers = OrderedCollections.OrderedDict()
+    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.38
     layers[:OH] = 0.30
     layers[:hfs_TF] = 0.40
@@ -34,7 +33,8 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     layers[:gap_lfs_coils] = 0.34
     layers[:lfs_TF] = 0.60
     layers[:gap_cryostat] = 0.7
-    #ini.material.shield = "Tungsten"
+    ini.material.wall = "Tungsten"
+    #ini.material.shield = "Steel, Stainless 316"
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 6

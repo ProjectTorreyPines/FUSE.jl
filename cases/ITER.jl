@@ -15,21 +15,22 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.build.blanket = 0.0
     ini.build.shield = 0.5
     ini.build.vessel = 0.125
-    ini.material.shield = "Tungsten"
+
+    ini.material.wall = "Tungsten"
+    ini.material.shield = "Steel, Stainless 316"
 
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
-
-        ini.equilibrium.boundary_from = :MXH_params
-        ini.equilibrium.xpoints_number = 1
+        ini.equilibrium.boundary_from = :ods
+        act.ActorEquilibrium.model = :CHEASE
     else
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.ip = 15e6
         ini.equilibrium.pressure_core = 0.643e6
 
+        ini.equilibrium.xpoints = :lower
         ini.equilibrium.boundary_from = :MXH_params
-        ini.equilibrium.xpoints_number = 1
 
         R0 = 6.2
         Z0 = 0.0
@@ -56,7 +57,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     end
 
     # explicitly set thickness of radial build layers
-    ini.build.layers = layers = OrderedCollections.OrderedDict()
+    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.80
     layers[:OH] = 1.30
     layers[:hfs_TF] = 1.10
@@ -76,14 +77,14 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
     ini.pf_active.technology = :ITER
-    act.ActorPFcoilsOpt.symmetric = false
+    act.ActorPFcoilsOpt.symmetric = true
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
     ini.tf.technology = :ITER
 
     ini.oh.technology = :ITER
-    act.ActorFluxSwing.operate_at_j_crit = false
+    act.ActorFluxSwing.operate_oh_at_j_crit = false
 
     ini.requirements.flattop_duration = 1800.0
 
@@ -96,15 +97,17 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
+    ini.core_profiles.ejima = 0.4
+
     ini.nbi.power_launched = 2 * 16.7e6
     ini.nbi.beam_energy = 1e6
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
 
     act.ActorFluxMatcher.evolve_densities = Dict(
-        :Ne        => :match_ne_scale,
-        :DT        => :quasi_neutrality,
-        :He        => :match_ne_scale,
+        :Ne => :match_ne_scale,
+        :DT => :quasi_neutrality,
+        :He => :match_ne_scale,
         :He_fast => :fixed,
         :electrons => :flux_match)
 

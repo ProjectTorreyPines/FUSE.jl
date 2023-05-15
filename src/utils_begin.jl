@@ -88,12 +88,12 @@ function same_length_vectors(args...)
 end
 
 """
-    mirror_bound(x, l, u)
+    mirror_bound(x::T, l::T, u::T) where {T<:Real}
 
 Return tuple with value of x bounded between l and u
 The bounding is done by mirroring the value at the bound limits.
 """
-function mirror_bound(x, l, u)
+function mirror_bound(x::T, l::T, u::T) where {T<:Real}
     d = (u - l) / 2.0
     c = (u + l) / 2.0
     x0 = (x .- c) / d
@@ -105,17 +105,6 @@ function mirror_bound(x, l, u)
         end
     end
     return x0 * d + c
-end
-
-"""
-    mirror_bound(x, l, u)
-
-Return tuple with value of x bounded between l and u and error (cost) for going out of bounds
-The bounding is done by mirroring the value at the bound limits.
-"""
-function mirror_bound_w_cost(x, l, u)
-    y = mirror_bound.(x, l, u)
-    return y, abs.((x .- l) .* (x .< l) .+ (x .- u) .* (x .> u))
 end
 
 # =========== #
@@ -131,7 +120,7 @@ import FileIO, JpegTurbo
 """
     dd_build_layers_to_ini(dd::IMAS.dd)
 
-Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = OrderedCollections.OrderedDict()`
+Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()`
 """
 function dd_build_layers_to_ini(dd::IMAS.dd)
     for layer in dd.build.layer
@@ -197,7 +186,7 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
             np += 1
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if Distributed.nprocs() < np
-                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), partition="ga-ird", exclusive="", topology=:master_worker, time="99:99:99", job_name="python3-$(getpid())")
+                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), partition="ga-ird", exclusive="", topology=:master_worker, cpus_per_task=2, time="99:99:99", job_name="python3-$(getpid())")
             end
         else
             error("Not running on omega cluster")

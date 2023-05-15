@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor wh
     thermal_power_extraction_efficiency::Entry{T} = Entry(T, "-",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
-    verbose::Entry{Bool} = Entry(Bool, "-", "verbose"; default=false)
+    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
 end
 
 mutable struct ActorBlanket <: ReactorAbstractActor
@@ -35,8 +35,7 @@ Evaluates blankets tritium breeding ratio (TBR), heat deposition, and neutron le
     Stores data in `dd.blanket`
 """
 function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorBlanket
-    actor = ActorBlanket(dd, par, act; kw...)
+    actor = ActorBlanket(dd, act.ActorBlanket, act; kw...)
     step(actor)
     finalize(actor)
     return actor
