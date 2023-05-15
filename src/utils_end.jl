@@ -244,6 +244,9 @@ function digest(
         if !isempty(dd.pf_active.coil)
             plot!(p[1], dd.pf_active, legend=false, colorbar=false)
         end
+        if !isempty(dd.divertors.divertor)
+            plot!(p[1], dd.divertors, legend=false)
+        end
         display(p)
     end
 

@@ -50,7 +50,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            centerpost_height = height * 0.75
+            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction))
             shape_parameters = [centerpost_height, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
@@ -172,11 +172,11 @@ function shape_function(shape_function_index)
 end
 
 """
-    optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
+    optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
-function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
+function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Float64}, target_clearance::Float64, func::Function, r_start::Float64, r_end::Float64, shape_parameters::Vector{Float64}; use_curvature::Bool=true, verbose::Bool=false)
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
 
@@ -184,11 +184,13 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
         func(r_start, r_end, shape_parameters...)
 
     else
-        function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
+        function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature::Bool, verbose=false)
             R, Z = func(r_start, r_end, shape_parameters...)
 
+            cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
+
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            index = abs.((R .- r_start) .* (R .- r_end)) .> (target_clearance / 1000)
+            index = .!(isapprox.(R, r_start) .|| isapprox.(R, r_end))
             R = R[index]
             Z = Z[index]
 
@@ -198,32 +200,46 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
 
             # target clearance  O(1)
             minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
-            cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
-            mean_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance)
-            cost_mean_distance = mean_distance_error / target_clearance
+            if minimum_distance < target_clearance
+                cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
+            else
+                cost_min_clearance = 0.0
+            end
+            mean_above_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance; above_target=true)
+            cost_mean_above_distance = mean_above_distance_error / target_clearance
+
+            # curvature
+            if use_curvature
+                curvature = abs.(IMAS.curvature(R, Z))
+                cost_max_curvature = exp(maximum(curvature)^2.5)
+            else
+                cost_max_curvature = 0.0
+            end
 
             # favor up/down symmetric solutions
             cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
 
             if verbose
                 @show minimum_distance
-                @show mean_distance_error
+                @show mean_above_distance_error
                 @show target_clearance
                 @show cost_min_clearance^2
-                @show cost_mean_distance^2
+                @show cost_mean_above_distance^2
                 @show cost_inside^2
                 @show cost_up_down_symmetry^2
+                @show cost_max_curvature^2
             end
 
             # return cost
-            return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2
+            return cost_min_clearance^2 + cost_mean_above_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2 + cost_area + cost_max_curvature
         end
 
+        r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
+        target_area = IMAS.area(r_obstruction_buffered, z_obstruction_buffered)
+
         initial_guess = copy(shape_parameters)
-        # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-        #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
-        res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit))
+        res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature),
+            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
         if verbose
             println(res)
         end
@@ -307,10 +323,6 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
 end
 
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
-    centerpost_height = abs(centerpost_height)
-    outerpost_height = abs(outerpost_height)
-    height = abs(height)
-
     # inner
     r_e1 = r_center
     z_e1 = centerpost_height / 2.0
@@ -338,13 +350,11 @@ circle ellipse shape (parametrization of TF coils used in GATM)
 Special case of the double ellipse shape, where the inner ellipse is actually a circle
 """
 function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    centerpost_height = abs(centerpost_height)
+    height = abs(height)
+    centerpost_height = mirror_bound(centerpost_height, 0.0, height)
     r_center = r_start + (height - centerpost_height) / 2.0
     return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points)
-end
-
-function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
-    r_center = r_start + (height - centerpost_height) / 2.0
-    return double_ellipse(r_start, r_end, r_center, centerpost_height, outerpost_height, height; n_points)
 end
 
 """
@@ -566,6 +576,19 @@ end
 
 function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
     return xy_polygon(layer.outline.r, layer.outline.z)
+end
+
+"""
+    buffer(x::T, y::T, b::Float64) where {T<:AbstractVector{<:Real}} 
+
+Buffer polygon defined by x,y arrays by a quantity b
+"""
+function buffer(x::T, y::T, b::Float64) where {T<:AbstractVector{<:Real}}
+    poly = xy_polygon(x, y)
+    poly_b = LibGEOS.buffer(poly, b)
+    x_b = [v[1] for v in GeoInterface.coordinates(poly_b)[1]]
+    y_b = [v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    return x_b, y_b
 end
 
 """

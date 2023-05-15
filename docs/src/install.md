@@ -69,6 +69,41 @@ Once installed, restart your termninal to pick-up the `julia` executable
    jupyter-lab
    ```
 
+## Update Julia version
+Juliaup will inform you when a new release of Julia is available. For example:
+   ```
+   The latest version of Julia in the `release` channel is 1.9.0+0.aarch64.apple.darwin14. You currently have `1.8.5+0.aarch64.apple.darwin14` installed. Run:
+
+   juliaup update
+
+   to install Julia 1.9.0+0.aarch64.apple.darwin14 and update the `release` channel to that version.
+   ```
+To update Julia and make FUSE work under the new environment do as follows:
+
+1. Update Julia
+   ```bash
+   juliaup update
+   ```
+
+1. Start julia and add Revise (this is necessary if Revise is imported in your `~/.julia/config/startup.jl`)
+   ```julia
+   import Pkg
+   Pkg.add("Revise")
+   ```
+
+1. Remove all old `Manifest.toml` files in the FUSE and related packages (these files are specific to a given Julia version)
+   ```bash
+   cd FUSE
+   make rm_manifests
+   ```
+
+1. Install all FUSE dependencies and Jupyter
+   ```bash
+   cd FUSE
+   make install
+   make IJulia
+   ```
+
 ## Install CHEASE
 ```
 mamba install -c conda-forge gfortran
