@@ -640,7 +640,7 @@ function optimize_coils_rail(
 
         cost_lcfs_2 = cost_lcfs^2 * 10000.0
         cost_currents_2 = cost_currents^2
-        cost_oh_2 = cost_oh^2 * 0.1
+        cost_oh_2 = cost_oh^2
         cost_1to1_2 = cost_1to1^2
         cost_spacing_2 = cost_spacing^2
 
