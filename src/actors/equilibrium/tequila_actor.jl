@@ -18,7 +18,8 @@ end
 mutable struct ActorTEQUILA <: PlasmaAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorTEQUILA
-    shot::Union{Nothing,TEQUILA.Shot}
+    shot::Union{Nothing, TEQUILA.Shot}
+    psib::Real
 end
 
 """
@@ -37,7 +38,7 @@ end
 function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; kw...)
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
-    ActorTEQUILA(dd, par, nothing)
+    ActorTEQUILA(dd, par, nothing, 0.0)
 end
 
 """
@@ -63,49 +64,25 @@ function _step(actor::ActorTEQUILA)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
-    eq2d = eqt.profiles_2d
     par = actor.par
 
     psin = eq1d.psi_norm
-    psib = IMAS.interp1d(psin, eq1d.psi)(par.psi_norm_boundary_cutoff)
-    r_bound, z_bound, _ = IMAS.flux_surface(eqt, psib, true)
-
-    # To be used in next update:
-
-    j_tor = eq1d.j_tor
-    pressure = eq1d.pressure
-    rho_pol = sqrt.(psin)
-    pressure_sep = pressure[end]
+    actor.psib = IMAS.interp1d(psin, eq1d.psi)(par.psi_norm_boundary_cutoff)
+    r_bound, z_bound, _ = IMAS.flux_surface(eqt, actor.psib, true)
 
     mxh = IMAS.MXH(r_bound, z_bound, par.number_of_MXH_harmonics; optimize_fit=true)
 
+    rho_pol = sqrt.(psin)
+    rho_pol[1] = 0.0
+    dp_dψ = TEQUILA.FE(rho_pol, eq1d.dpressure_dpsi)
+    Jt_R = TEQUILA.FE(rho_pol, eq1d.j_tor .* eq1d.gm9)
+    pbnd = eq1d.pressure[end]
+    fbnd = eq1d.f[end]
+
     # TEQUILA shot
-    shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh)
-
-
-    # Will have to be done correctly
-    # Could either passing j_tor and pressure array on rho_pol grid and TEQUILA interpolates
-    # or make interpolation here and pass to TEQUILA
-    dp_dψ = eq1d.dpressure_dpsi # should be changed to pressure and j_tor passing 
-    f_df_dψ = eq1d.f_df_dpsi
-    dp(x) = sum(eq1d.dpressure_dpsi) / length(eq1d.dpressure_dpsi) #eq1d.dpressure_dpsi
-    fdf(x) = sum(eq1d.f_df_dpsi) / length(eq1d.f_df_dpsi)
-
-    actor.shot = TEQUILA.solve(shot, dp, fdf, par.number_of_iterations)
-
-    # convert from fixed to free boundary equilibrium (this is from chease but similar for teq)
-    if par.free_boundary
-        """
-        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound)/2)))
-        actor.chease.gfile.psirz = psi_free_rz
-        # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
-        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
-        psi_a = EQ.psi_rz(EQ.axis...)
-        actor.chease.gfile.psirz = (psi_free_rz .- psi_a) * ((actor.chease.gfile.psi[end] - actor.chease.gfile.psi[1]) / (psi_b - psi_a)) .+ actor.chease.gfile.psi[1]
-        """
-    end
+    shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh;
+                        dp_dψ, Jt_R, pbnd, fbnd)
+    actor.shot = TEQUILA.solve(shot, par.number_of_iterations)
 
     if par.do_plot
         p=plot(dd.equilibrium;cx=true, label="before")
@@ -125,57 +102,73 @@ end
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
     try
-        tequila2imas(actor.shot, actor.dd.equilibrium)
+        tequila2imas(actor.shot, actor.dd.equilibrium;
+                     psib=actor.psib, free_boundary=actor.par.free_boundary)
     catch e
-        display(TEQUILA.plot_shot(actor.shot))
+        display(plot(actor.shot))
         rethrow(e)
     end
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium)
-    # New rho-psi map
-    # Flux surface trace and put important quantities back to imas
-
-    # IMAS.flux_surfaces(eq.time_slice[])
-end
-
-
-
-# SAMPLE FUNCTION AS FOR CHEASE FOR INSPRIATON
-"""
-    gEQDSK2IMAS(GEQDSKFile::GEQDSKFile,eq::IMAS.equilibrium)
-
-Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
-function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
-    tc = MXHEquilibrium.transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
+function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_boundary=false)
 
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
+
+    R0 = shot.R0fe(1.0)
+    Z0 = shot.Z0fe(1.0)
+    eq.vacuum_toroidal_field.r0 = R0
+    @ddtime(eq.vacuum_toroidal_field.b0 = shot.fbnd / R0)
+    eqt.boundary.geometric_axis.r = R0
+    eqt.boundary.geometric_axis.z = Z0
+
+    Rax = shot.R0fe(0.0)
+    Zax = shot.Z0fe(0.0)
+    eqt.global_quantities.magnetic_axis.r = Rax
+    eqt.global_quantities.magnetic_axis.z = Zax
+
+    n_grid = 10 * length(shot.ρ)
+
+    psit = shot.C[2:2:end, 1]
+    psii = range(psit[1], psit[end], n_grid)
+    eq1d.psi = psii .+ psib
+    eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), psii)
+    eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), psii)
+    eq1d.f = TEQUILA.Fpol.(Ref(shot), psii)
+    eq1d.f_df_dpsi = TEQUILA.dFpol_dψ.(Ref(shot), psii)
+
     resize!(eqt.profiles_2d, 1)
     eq2d = eqt.profiles_2d[1]
 
-    @ddtime(eq.vacuum_toroidal_field.b0 = g.bcentr)
-    eq.vacuum_toroidal_field.r0 = g.rcentr
+    R0 = shot.surfaces[1, end]
+    Z0 = shot.surfaces[2, end]
+    ϵ  = shot.surfaces[3, end]
+    κ  = shot.surfaces[4, end]
+    a = min(1.2 * R0 * ϵ, R0) # 20% bigger than plasma, but a no bigger than R0
+    b = κ * a
+    Rgrid = range(R0 - a, R0 + a, n_grid)
+    Zgrid = range(Z0 - b, Z0 + b, n_grid)
 
-    eqt.global_quantities.magnetic_axis.r = g.rmaxis
-    eqt.boundary.geometric_axis.r = g.rcentr
-    eqt.boundary.geometric_axis.z = g.zmid
-    eqt.global_quantities.magnetic_axis.z = g.zmaxis
-    eqt.global_quantities.ip = g.current
-
-    eq1d.psi = g.psi .* tc["PSI"]
-    eq1d.q = g.qpsi
-    eq1d.pressure = g.pres
-    eq1d.dpressure_dpsi = g.pprime .* tc["PPRIME"]
-    eq1d.f = g.fpol .* tc["F"]
-    eq1d.f_df_dpsi = g.ffprim .* tc["F_FPRIME"]
+    psirz = zeros(n_grid, n_grid)
 
     eq2d.grid_type.index = 1
-    eq2d.grid.dim1 = g.r
-    eq2d.grid.dim2 = g.z
-    eq2d.psi = g.psirz .* tc["PSI"]
+    eq2d.grid.dim1 = Rgrid
+    eq2d.grid.dim2 = Zgrid
+
+    if free_boundary
+        # convert from fixed to free boundary equilibrium
+        bnd = TEQUILA.MXH(shot.surfaces[:,end])
+        Rb, _ = bnd()
+        psirz .= VacuumFields.fixed2free(shot, Int(ceil(length(Rb)/2)), Rgrid, Zgrid; ψbound=psib)
+    else
+        for (i, r) in enumerate(Rgrid)
+            for (j, z) in enumerate(Zgrid)
+                psirz[i, j] = shot(r, z)
+            end
+        end
+    end
+    eq2d.psi = psirz .+ psib
 
     IMAS.flux_surfaces(eqt)
 end
-"""
