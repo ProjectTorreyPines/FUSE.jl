@@ -694,7 +694,23 @@ end
     @series begin
         aspect_ratio --> :equal
         label --> ""
+        lw --> 2
+        color --> :black
         mxhb.r_boundary, mxhb.z_boundary
+    end
+    @series begin
+        primary := false
+        aspect_ratio --> :equal
+        label --> ""
+        mxhb.mxh
+    end
+    @series begin
+        seriestype := :scatter
+        primary := false
+        aspect_ratio --> :equal
+        label --> ""
+        marker := :cross
+        mxhb.RX, mxhb.ZX
     end
 end
 
@@ -769,7 +785,7 @@ function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_
     return MXHboundary!(mxhb; upper_x_point, lower_x_point, n_points)
 end
 
-function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0, RU::Real=0.0, RL::Real=0.0)
     mr, mz = mxhb.mxh()
 
     if ~upper_x_point && ~lower_x_point && n_points === 0
@@ -782,16 +798,22 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
 
     R0 = mxhb.mxh.R0
     Z0 = mxhb.mxh.Z0
+    if RU == 0.0
+        RU = R0
+    end
+    if RL == 0.0
+        RL = R0
+    end
 
     RX = Float64[]
     ZX = Float64[]
     if upper_x_point
-        RXU, ZXU, _ = add_xpoint(mr, mz, R0, Z0; upper=true)
+        RXU, ZXU, _ = add_xpoint(mr, mz, RU, Z0; upper=true)
         push!(RX, RXU)
         push!(ZX, ZXU)
     end
     if lower_x_point
-        RXL, ZXL, _ = add_xpoint(mr, mz, R0, Z0; upper=false)
+        RXL, ZXL, _ = add_xpoint(mr, mz, RL, Z0; upper=false)
         push!(RX, RXL)
         push!(ZX, ZXL)
     end
@@ -856,27 +878,66 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     end
 
+    pr, pz = mxh()
+    i = argmax(pz)
+    RXU = pr[i]
+    ZXU = pz[i]
+    i = argmin(pz)
+    RXL = pr[i]
+    ZXL = pz[i]
+
+    M = 12
+    N = min(M, length(mxh.s))
+
     # change mxh parameters so that the boundary with x-points has the desired elongation, triangularity, squareness
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
-    mxh0 = deepcopy(mxh)
-    function mxhb_from_params!(params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
-        mxhb0.mxh.κ = params[1]
-        mxhb0.mxh.c0 = params[2]
-        mxhb0.mxh.s = params[3:2+Integer((end - 2) / 2)]
-        mxhb0.mxh.c = params[2+Integer((end - 2) / 2)+1:end]
+    mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
+
+    function mxhb_from_params!(mxhb0, params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
+        L = 1
+        mxhb0.mxh.Z0 = params[L]
+        L += 1
+        mxhb0.mxh.κ = params[L]
+        L += 1
+        mxhb0.mxh.c0 = params[L]
+        mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
+        mxhb0.mxh.c = params[L+Integer((end - L) / 2)+1:end]
         return MXHboundary!(mxhb0; upper_x_point, lower_x_point, n_points)
     end
 
     function cost(params::AbstractVector{<:Real}; mxh, upper_x_point, lower_x_point, n_points)
-        mxhb1 = mxhb_from_params!(params; upper_x_point, lower_x_point, n_points)
-        IMAS.MXH!(mxh0, mxhb1.r_boundary, mxhb1.z_boundary)
-        return norm(vcat(mxh0.κ - mxh.κ, mxh0.c0 - mxh.c0, mxh0.s .- mxh.s, mxh0.c .- mxh.c))
+        mxhb_from_params!(mxhb0, params; upper_x_point, lower_x_point, n_points)
+        IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
+
+        tmp = Float64[]
+        if upper_x_point
+            i = argmax(mxhb0.ZX)
+            push!(tmp, mxhb0.RX[i] - RXU)
+            push!(tmp, mxhb0.ZX[i] - ZXU)
+        end
+        if lower_x_point
+            i = argmin(mxhb0.ZX)
+            push!(tmp, mxhb0.RX[i] - RXL)
+            push!(tmp, mxhb0.ZX[i] - ZXL)
+        end
+        push!(tmp, mxh0.R0 - mxh.R0)
+        push!(tmp, mxh0.Z0 - mxh.Z0)
+        push!(tmp, mxh0.ϵ - mxh.ϵ)
+        push!(tmp, mxh0.κ - mxh.κ)
+        push!(tmp, mxh0.c0 - mxh.c0)
+        append!(tmp, mxh0.s[1:N] .- mxh.s[1:N])
+        append!(tmp, mxh0.c[1:N] .- mxh.c[1:N])
+        return norm(tmp)
     end
 
-    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(g_tol=1E-3))
-    mxhb = mxhb_from_params!(res.minimizer; upper_x_point, lower_x_point, n_points)
-
-    return mxhb
+    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(iterations=1000))
+    mxhb_from_params!(mxhb0, res.minimizer; upper_x_point, lower_x_point, n_points)
+    IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
+    # println(res)
+    # println(mxh)
+    # println(mxh0)
+    # println(mxhb0.mxh)
+    return mxhb0
 end
 
 function boundary_shape(R0::Real; p=nothing)
@@ -890,15 +951,14 @@ end
         elongation::T,
         triangularity::T,
         squareness::T;
-        x_points::Bool,
+        upper_x_point::Bool=false,
+        lower_x_point::Bool=false,
         exact::Bool=false,
         n_points::Integer=401) where {T<:Real}
 
 Miller contour with squareness (via MXH parametrization)
 
-`exact=true` optimizes elongation/triangularity to match true Miller parametrization
-since MXH and Miller deviate at high triangularities, and addition of X-points will
-also alter measured elongation and triangularity.
+`exact=true` optimizes diverted shape to match desired Miller elongation, triangularity, squareness
 """
 function square_miller(
     R0::T,
@@ -906,7 +966,8 @@ function square_miller(
     elongation::T,
     triangularity::T,
     squareness::T;
-    x_points::Bool,
+    upper_x_point::Bool=false,
+    lower_x_point::Bool=false,
     exact::Bool=false,
     n_points::Integer=401) where {T<:Real}
 
@@ -921,7 +982,7 @@ function square_miller(
     else
         func = MXHboundary
     end
-    mxhb = func(mxh; upper_x_point=x_points, lower_x_point=x_points, n_points)
+    mxhb = func(mxh; upper_x_point, lower_x_point, n_points)
 
     return mxhb.r_boundary, mxhb.z_boundary
 end
