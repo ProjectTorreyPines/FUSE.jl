@@ -71,13 +71,15 @@ Once installed, restart your termninal to pick-up the `julia` executable
 
 ## Update Julia version
 Juliaup will inform you when a new release of Julia is available. For example:
-   ```
-   The latest version of Julia in the `release` channel is 1.9.0+0.aarch64.apple.darwin14. You currently have `1.8.5+0.aarch64.apple.darwin14` installed. Run:
 
-   juliaup update
+```
+The latest version of Julia in the `release` channel is 1.9.0+0.aarch64.apple.darwin14. You currently have `1.8.5+0.aarch64.apple.darwin14` installed. Run:
 
-   to install Julia 1.9.0+0.aarch64.apple.darwin14 and update the `release` channel to that version.
-   ```
+juliaup update
+
+to install Julia 1.9.0+0.aarch64.apple.darwin14 and update the `release` channel to that version.
+```
+
 To update Julia and make FUSE work under the new environment do as follows:
 
 1. Update Julia
