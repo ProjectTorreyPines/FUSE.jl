@@ -132,11 +132,12 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_b
 
     psit = shot.C[2:2:end, 1]
     psii = range(psit[1], psit[end], n_grid)
+    rhoi = TEQUILA.ρ.(Ref(shot), psii)
     eq1d.psi = psii .+ psib
     eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), psii)
     eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), psii)
-    eq1d.f = TEQUILA.Fpol.(Ref(shot), psii)
-    eq1d.f_df_dpsi = TEQUILA.dFpol_dψ.(Ref(shot), psii)
+    eq1d.f = TEQUILA.Fpol.(Ref(shot), rhoi)
+    eq1d.f_df_dpsi = TEQUILA.Fpol_dFpol_dψ.(Ref(shot), rhoi)
 
     resize!(eqt.profiles_2d, 1)
     eq2d = eqt.profiles_2d[1]
