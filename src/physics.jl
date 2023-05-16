@@ -909,24 +909,41 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mxhb_from_params!(mxhb0, params; upper_x_point, lower_x_point, n_points)
         IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
+        # X-points and elongation
         tmp = Float64[]
         if upper_x_point
             i = argmax(mxhb0.ZX)
-            push!(tmp, mxhb0.RX[i] - RXU)
-            push!(tmp, mxhb0.ZX[i] - ZXU)
+            push!(tmp, sqrt((mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2))
+        else
+            i = argmax(mxhb0.z_boundary)
+            j = argmax(pz)
+            push!(tmp, sqrt((mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2))
         end
         if lower_x_point
             i = argmin(mxhb0.ZX)
-            push!(tmp, mxhb0.RX[i] - RXL)
-            push!(tmp, mxhb0.ZX[i] - ZXL)
+            push!(tmp, sqrt((mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2))
+        else
+            i = argmin(mxhb0.z_boundary)
+            j = argmin(pz)
+            push!(tmp, sqrt((mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2))
         end
-        push!(tmp, mxh0.R0 - mxh.R0)
-        push!(tmp, mxh0.Z0 - mxh.Z0)
-        push!(tmp, mxh0.ϵ - mxh.ϵ)
-        push!(tmp, mxh0.κ - mxh.κ)
-        push!(tmp, mxh0.c0 - mxh.c0)
-        append!(tmp, mxh0.s[1:N] .- mxh.s[1:N])
-        append!(tmp, mxh0.c[1:N] .- mxh.c[1:N])
+
+        # other shape parameters
+        push!(tmp, (mxh0.R0 - mxh.R0))
+        push!(tmp, (mxh0.ϵ - mxh.ϵ))
+        push!(tmp, (mxh0.c0 - mxh.c0))
+        append!(tmp, (mxh0.s[1:N] .- mxh.s[1:N]))
+        append!(tmp, (mxh0.c[1:N] .- mxh.c[1:N]))
+
+        # To avoid MXH solutions with kinks force area and convex_hull area to match
+        mr, mz = mxhb0.mxh()
+        hull = convex_hull(mr, mz; closed_polygon=true)
+        mrch = [r for (r, z) in hull]
+        mzch = [z for (r, z) in hull]
+        marea = IMAS.area(mr, mz)
+        mareach = IMAS.area(mrch, mzch)
+        push!(tmp, (abs(mareach - marea) / mareach) * 1E3)
+
         return norm(tmp)
     end
 
