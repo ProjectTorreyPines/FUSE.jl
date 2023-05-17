@@ -86,13 +86,21 @@ function _step(actor::ActorARIESCosting)
 	if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || isnan(@ddtime(dd.balance_of_plant.power_electric_net)) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
 		@warn("The plant doesn't generate net electricity therefore costing excludes facility estimates")
 		power_electric_net = 0.0
-		power_thermal = 0.0
-		power_electric_generated = 0.0
 	else
 		power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net) # should be pulse average
-		power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
-		power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
 	end
+
+    if isnan(@ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power))
+        power_thermal = 0.0
+    else 
+        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
+    end 
+
+    if isnan(@ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated))
+        power_electric_generated = 0.0
+    else 
+        power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
+    end
 
 	for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
 		sub = resize!(sys.subsystem, "name" => replace(string(item), "_" => " "))
@@ -358,12 +366,11 @@ function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, pow
 	if contains(lowercase(bop.power_cycle_type), "rankine")
 		cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
 	elseif contains(lowercase(bop.power_cycle_type), "brayton")
-		cost = 360.0 * (power_thermal / 2000.0)^0.8#* (bop.thermal_cycle.thermal_efficiency[1] / 0.6)
+		cost = 360.0 * (power_thermal / 2000.0)^0.8
 		if !isnan(bop.thermal_cycle.thermal_efficiency[1])
 			cost *= bop.thermal_cycle.thermal_efficiency[1] / 0.6
 		end
 	end
-
 
 	cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
 	cost += 87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
@@ -383,11 +390,7 @@ function cost_direct_capital_ARIES(::Type{Val{:fuel_cycle_rad_handling}}, power_
 	cost = 15.0 * (power_thermal / 1758.0)^0.85 # radioactive material treatment and management
 	cost += 70.0 * (power_thermal / 1758.0)^0.8 # Fuel handling and storage
 	cost += 100.0 * (power_electric_net / 2000.0)^0.55 # Hot cell maintenance
-	if power_thermal > 0.0
-		cost += 60.0 # Instrumentation and Control
-	else
-		cost += 0.0
-	end
+    cost += 60.0 # Instrumentation and Control
 	cost += 8.0 * (power_thermal / 1000.0)^0.8 # Misc power core equipment
 	return future_dollars(cost, da)
 end
