@@ -64,9 +64,9 @@ version = "1.1.1"
 
 [[deps.ArrayInterface]]
 deps = ["Adapt", "LinearAlgebra", "Requires", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "c4d9efe93662757bca4cc24df50df5f75e659a2d"
+git-tree-sha1 = "917286faa2abb288796e75b88ca67edc016f3219"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.4.4"
+version = "7.4.5"
 
     [deps.ArrayInterface.extensions]
     ArrayInterfaceBandedMatricesExt = "BandedMatrices"
@@ -805,7 +805,7 @@ version = "0.5.2"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "85fbc4f82a1a431f3b533523668ecc06a554c4c0"
+git-tree-sha1 = "cacc5569a10fdc4edf3286c820ea58185d11448d"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1436,9 +1436,9 @@ version = "0.12.3"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
-git-tree-sha1 = "7302075e5e06da7d000d9bfa055013e3e85578ca"
+git-tree-sha1 = "a5aef8d4a6e8d81f171b2bd4be5265b01384c74c"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.5.9"
+version = "2.5.10"
 
 [[deps.PeriodicTable]]
 deps = ["Base64", "Test", "Unitful"]
@@ -1665,9 +1665,9 @@ version = "1.3.0"
 
 [[deps.Roots]]
 deps = ["ChainRulesCore", "CommonSolve", "Printf", "Setfield"]
-git-tree-sha1 = "e19c09f5cc868785766f86435ba40576cf751257"
+git-tree-sha1 = "e961f57a7d5b1d46059b62a8fb7223d6497a5bc4"
 uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "2.0.14"
+version = "2.0.15"
 
     [deps.Roots.extensions]
     RootsForwardDiffExt = "ForwardDiff"
@@ -1853,8 +1853,8 @@ uuid = "4f5ffc88-c87f-11eb-142e-4d2ba0394a67"
 version = "0.1.0"
 
 [[deps.TEQUILA]]
-deps = ["Contour", "FFTW", "FiniteElementHermite", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "Optim", "PlotUtils", "RecipesBase", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "c68ecb7b53cfdc15d03fe270a88d5ce06959fb74"
+deps = ["Contour", "FFTW", "FiniteElementHermite", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "Optim", "PlotUtils", "QuadGK", "RecipesBase", "SparseArrays", "StaticArrays"]
+git-tree-sha1 = "0f4abd7f86c0bfcce2ca9b29651ddfd02cbc185f"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TEQUILA.jl.git"
 uuid = "a60c9cbd-e72f-4185-96b6-b8fc312c4d37"
@@ -1984,8 +1984,8 @@ uuid = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
 version = "0.2.0"
 
 [[deps.VacuumFields]]
-deps = ["Contour", "EFIT", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "Plots", "SpecialFunctions", "Trapz"]
-git-tree-sha1 = "d03408f67ae9b940f75da2fa915a86467e3bc1b0"
+deps = ["Contour", "EFIT", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "Plots", "SpecialFunctions", "TEQUILA", "Trapz"]
+git-tree-sha1 = "7e685c7d91dddc0674150876505627254d8ad5d0"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
