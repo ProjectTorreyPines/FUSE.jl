@@ -78,6 +78,7 @@ Juliaup will inform you when a new release of Julia is available. For example:
 
    to install Julia 1.9.0+0.aarch64.apple.darwin14 and update the `release` channel to that version.
    ```
+
 To update Julia and make FUSE work under the new environment do as follows:
 
 1. Update Julia
