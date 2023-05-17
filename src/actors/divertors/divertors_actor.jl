@@ -45,54 +45,26 @@ function _step(actor::ActorDivertors)
     resize!(dd.divertors.divertor, length(divertors))
 
     total_power_incident = IMAS.total_power_source(IMAS.total_sources(dd.core_sources, dd.core_profiles.profiles_1d[]))
-    dd.divertors.time = div_time = dd.core_sources.time
+    dd.divertors.time = dd.core_sources.time
     for (k, structure) in enumerate(divertors)
 
         div = dd.divertors.divertor[k]
         div.name = structure.name
 
-        div.power_incident.time = dd.divertors.time
-        div.power_incident.data = ones(length(div_time)) .* total_power_incident ./ length(dd.divertors.divertor)
+        power_incident = @ddtime(div.power_incident.data = total_power_incident ./ length(dd.divertors.divertor))
 
-        div.power_neutrals.time = div_time
-        div.power_neutrals.data = zeros(length(div_time))
+        power_neutrals = @ddtime(div.power_neutrals.data = 0.0)
 
-        div.power_radiated.time = div_time
-        div.power_radiated.data = divertor_radiated(dd)
+        power_radiated = @ddtime(div.power_radiated.data = 0.0)
 
-        div.power_recombination_neutrals.time = div_time
-        div.power_recombination_neutrals.data = divertor_recombination_neutrals(dd)
+        power_recombination_neutrals = @ddtime(div.power_recombination_neutrals.data = 0.0)
 
-        div.power_thermal_extracted.time = div_time
-        div.power_thermal_extracted.data = actor.thermal_power_extraction_efficiency .* (
-            div.power_incident.data .+
-            div.power_radiated.data .+
-            div.power_recombination_neutrals.data)
+        @ddtime(div.power_thermal_extracted.data = actor.thermal_power_extraction_efficiency * (
+            power_incident +
+            power_radiated +
+            power_neutrals +
+            power_recombination_neutrals))
     end
 
     return actor
-end
-
-"""
-    divertor_radiated(dd::IMAS.dd)
-
-dummy divertor_radiated now assumed at zero"""
-function divertor_radiated(dd)
-    return zeros(length(dd.divertors.time))
-end
-
-"""
-    divertor_reflection(dd::IMAS.dd)
-
-dummy divertor_reflection now assumed at zero"""
-function divertor_reflection(dd)
-    return zeros(length(dd.divertors.time))
-end
-
-"""
-    divertor_recombination_neutrals(dd::IMAS.dd)
-
-dummy divertor_recombination_neutrals power calculation now assumed at zero"""
-function divertor_recombination_neutrals(dd)
-    return zeros(length(dd.divertors.time))
 end
