@@ -85,22 +85,20 @@ function _step(actor::ActorSheffieldCosting)
 	flux_z = dd.neutronics.time_slice[].wall_loading.flux_z
 	neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
 
-	if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || isnan(@ddtime(dd.balance_of_plant.power_electric_net)) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
-		power_electric_net = 0.0
-	else
-		power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net)
-	end
+    power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net)
+    power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
+    power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
 
-    if isnan(@ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power))
-        power_thermal = 0.0
-    else 
-        power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
+    if ismissing(power_electric_generated) || isnan(power_electric_net) || power_electric_net < 0
+        power_electric_net = 0.0
     end 
 
-    if isnan(@ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated))
+    if isnan(power_thermal)
+        power_thermal = 0.0
+    end 
+
+    if isnan(power_electric_generated)
         power_electric_generated = 0.0
-    else 
-        power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
     end
 
 	###### Direct Capital ######
