@@ -85,7 +85,9 @@ function gasc_2_core_profiles(gasc::GASC, ini::ParametersAllInits, act::Paramete
     # ini.core_profiles.ne_ped = gasc.outputs["plasma parameters"]["neped"] * 1e20
     # i_ped = argmin(abs.(gasc.outputs["numerical profiles"]["neProf"] .- gasc.outputs["plasma parameters"]["neped"] / gasc.outputs["plasma parameters"]["ne0"]))
     # ini.core_profiles.w_ped = 1 - gasc.outputs["numerical profiles"]["rProf"][i_ped]
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = gasc.outputs["impurities"]["effectiveZ"]
     ini.core_profiles.rot_core = 0.0  # Not in GASC
     ini.core_profiles.bulk = :DT

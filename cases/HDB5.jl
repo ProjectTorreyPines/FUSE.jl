@@ -55,7 +55,9 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.core_profiles.greenwald_fraction = data_row[:NEL] * 1e-20 / (data_row[:IP] / 1e6 / (pi * data_row[:AMIN]^2))
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.0
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = data_row[:ZEFF]
     ini.core_profiles.rot_core = 50e3
     ini.core_profiles.ngrid = 201
@@ -82,6 +84,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         ini.ic_antennas.power_launched = data_row[:PICRH]
     end
 
+    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

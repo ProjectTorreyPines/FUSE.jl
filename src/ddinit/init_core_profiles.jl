@@ -31,7 +31,9 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
                 pressure_core=dd.equilibrium.time_slice[].profiles_1d.pressure[1],
                 helium_fraction=ini.core_profiles.helium_fraction,
+                T_ratio=ini.core_profiles.T_ratio,
                 T_shaping=ini.core_profiles.T_shaping,
+                n_shaping=ini.core_profiles.n_shaping,
                 w_ped=ini.core_profiles.w_ped,
                 zeff=ini.core_profiles.zeff,
                 rot_core=ini.core_profiles.rot_core,
@@ -142,7 +144,7 @@ function init_core_profiles(
 
     cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cp1d.ion)
-        cp1d.ion[i].temperature = cp1d.electrons.temperature ./ T_ratio
+        cp1d.ion[i].temperature = cp1d.electrons.temperature .* T_ratio
     end
 
     # remove He if not present
