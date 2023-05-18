@@ -42,33 +42,24 @@ function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; kw...)
 end
 
 """
-    prepare(dd::IMAS.dd, :ActorTEQUILA, act::ParametersAllActors; kw...)
-
-Prepare dd to run ActorTEQUILA
-* Copy pressure from core_profiles to equilibrium
-* Copy j_parallel from core_profiles to equilibrium
-"""
-function prepare(dd::IMAS.dd, ::Type{Val{:ActorTEQUILA}}, act::ParametersAllActors; kw...)
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
-    cp1d = dd.core_profiles.profiles_1d[]
-    eq1d.j_tor = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.j_tor).(eq1d.psi_norm)
-    eq1d.pressure = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.pressure).(eq1d.psi_norm)
-end
-
-"""
     step(actor::ActorTEQUILA)
 
 Runs TEQUILA on the r_z boundary, equilibrium pressure and equilibrium j_tor
 """
 function _step(actor::ActorTEQUILA)
     dd = actor.dd
+    par = actor.par
+
+    prepare_eq(dd)
+
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
-    par = actor.par
 
     psin = eq1d.psi_norm
     actor.psib = IMAS.interp1d(psin, eq1d.psi)(par.psi_norm_boundary_cutoff)
-    r_bound, z_bound, _ = IMAS.flux_surface(eqt, actor.psib, true)
+
+    r_bound = eqt.boundary.outline.r
+    z_bound = eqt.boundary.outline.z
 
     mxh = IMAS.MXH(r_bound, z_bound, par.number_of_MXH_harmonics; optimize_fit=true)
 
