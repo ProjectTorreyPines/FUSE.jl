@@ -45,7 +45,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
 
         # initialize currents
         init_currents(dd, ini, act)
-        
+
         # initialize build
         if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || (:build ∈ ods_items)
             init_build(dd, ini, act)
@@ -99,4 +99,18 @@ function init(case::Symbol; do_plot::Bool=false, kw...)
     dd = IMAS.dd()
     init(dd, ini, act; do_plot=do_plot)
     return dd, ini, act
+end
+
+"""
+    consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
+
+Checks and makes `ini` and `act` consistent with one another
+"""
+function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
+    if !ismissing(ini.core_profiles, :T_shaping)
+        act.ActorTauenn.T_shaping = ini.core_profiles.T_shaping
+    end
+    if !ismissing(ini.core_profiles, :T_ratio)
+        act.ActorTauenn.T_ratio_pedestal = ini.core_profiles.T_ratio
+    end
 end

@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     _name::Symbol = :not_set
     update_core_profiles::Entry{Bool} = Entry(Bool, "-", "Update core_profiles"; default=true)
     edge_bound::Entry{T} = Entry(T, "-", "Defines rho at which edge starts"; default=0.8)
-    temp_pedestal_ratio::Entry{T} = Entry(T, "-", "Ratio of ion to electron temperatures"; default=1.0)
+    T_ratio_pedestal::Entry{T} = Entry(T, "-", "Ratio of ion to electron temperatures"; default=1.0)
     ped_factor::Entry{T} = Entry(T, "-", "Pedestal height multiplier"; default=1.0)
     warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
     only_powerlaw::Entry{Bool} = Entry(Bool, "-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
@@ -112,7 +112,7 @@ function _finalize(actor::ActorPedestal)
     dd = actor.dd
     par = actor.par
 
-    temp_pedestal_ratio = par.temp_pedestal_ratio
+    T_ratio_pedestal = par.T_ratio_pedestal
     ped_factor = par.ped_factor
     edge_bound = par.edge_bound
     update_core_profiles = par.update_core_profiles
@@ -126,8 +126,8 @@ function _finalize(actor::ActorPedestal)
     tped = (actor.pped * 1e6) / nsum / constants.e
 
     dd_ped = dd.summary.local.pedestal
-    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + temp_pedestal_ratio) * ped_factor
-    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * temp_pedestal_ratio
+    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + T_ratio_pedestal) * ped_factor
+    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * T_ratio_pedestal
     @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(ped_factor))
 
     if update_core_profiles

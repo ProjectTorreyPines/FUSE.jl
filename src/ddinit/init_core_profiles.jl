@@ -144,7 +144,7 @@ function init_core_profiles(
 
     cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cp1d.ion)
-        cp1d.ion[i].temperature = cp1d.electrons.temperature ./ T_ratio
+        cp1d.ion[i].temperature = cp1d.electrons.temperature .* T_ratio
     end
 
     # remove He if not present

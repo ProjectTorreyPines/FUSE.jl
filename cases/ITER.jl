@@ -91,7 +91,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.01
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
@@ -111,6 +113,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         :He_fast => :fixed,
         :electrons => :flux_match)
 
+    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 
