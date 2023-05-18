@@ -4,8 +4,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    generator_conversion_efficiency::Entry{T} = Entry(T, "-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    generator_conversion_efficiency::Entry{T} = Entry{T}("-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
 mutable struct ActorBalanceOfPlant <: FacilityAbstractActor

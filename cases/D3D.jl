@@ -35,7 +35,9 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.greenwald_fraction = 0.7
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.0
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 5E3
     ini.core_profiles.bulk = :D
@@ -54,6 +56,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
         :electrons => :flux_match,
         :C => :match_ne_scale)
 
+    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

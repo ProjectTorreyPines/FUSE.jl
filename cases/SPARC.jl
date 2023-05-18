@@ -51,7 +51,9 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.greenwald_fraction = 0.37
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.1 #estimate
-    ini.core_profiles.T_shaping = 1.8 #estimate (from ITER)
+    ini.core_profiles.T_ratio = 1.0
+    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 1.5
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
@@ -62,6 +64,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     act.ActorPFcoilsOpt.symmetric = true
     # act.ActorEquilibrium.model = :CHEASE
 
+    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 
