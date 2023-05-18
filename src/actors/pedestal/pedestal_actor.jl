@@ -60,6 +60,10 @@ function _step(actor::ActorPedestal;
     cp1d = dd.core_profiles.profiles_1d[]
 
     m = IMAS.A_effective(cp1d)
+    
+    if !(m == 2.0 || m == 2.5)
+        @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
+    end
 
     neped = @ddtime dd.summary.local.pedestal.n_e.value
     zeffped = @ddtime dd.summary.local.pedestal.zeff.value
