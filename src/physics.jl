@@ -179,6 +179,7 @@ Find shape parameters that generate smallest shape and target clearance from an 
 function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Float64}, target_clearance::Float64, func::Function, r_start::Float64, r_end::Float64, shape_parameters::Vector{Float64}; use_curvature::Bool=true, verbose::Bool=false)
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
+    initial_guess = deepcopy(shape_parameters)
 
     if length(shape_parameters) in [0, 1]
         func(r_start, r_end, shape_parameters...)
@@ -258,7 +259,6 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
     # plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
     # plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
     # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
-    # cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
 
     return shape_parameters
 end

@@ -556,4 +556,3 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         end
     end
 end
-
