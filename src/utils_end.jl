@@ -1,5 +1,5 @@
-import Weave
-import DelimitedFiles
+using Weave: Weave
+using DelimitedFiles: DelimitedFiles
 
 # ===================================== #
 # extract data from FUSE save folder(s) #
@@ -16,83 +16,88 @@ end
 
 """
     IMAS.extract(
-        DD::Vector{<:Union{AbstractString,IMAS.dd}},
-        xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
-        filter_invalid::Symbol=:none,
-        cache::AbstractString="",
-        read_cache::Bool=true,
-        write_cache::Bool=true)::DataFrames.DataFrame
+        DD::Union{Nothing,Vector{<:Union{AbstractString, IMAS.dd}}},
+        xtract::AbstractDict{Symbol, IMAS.ExtractFunction} = IMAS.ExtractFunctionsLibrary;
+        filter_invalid::Symbol = :none,
+        cache::AbstractString = "",
+        read_cache::Bool = true,
+        write_cache::Bool = true)::DataFrames.DataFrame
 
 Extract data from multiple FUSE results folders or `dd`s and return results in DataFrame format.
 
 Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
 
 Specifying a `cache` file allows caching of extraction results and not having to parse data.
+
+if DD is nothing and cache file is specified, then data is loaded from cachefile alone.
 """
 function IMAS.extract(
-    DD::Vector{<:Union{AbstractString,IMAS.dd}},
+    DD::Union{Nothing,Vector{<:Union{AbstractString,IMAS.dd}}},
     xtract::AbstractDict{Symbol,IMAS.ExtractFunction}=IMAS.ExtractFunctionsLibrary;
     filter_invalid::Symbol=:none,
     cache::AbstractString="",
     read_cache::Bool=true,
     write_cache::Bool=true)::DataFrames.DataFrame
 
-    @assert !isempty(DD) "No results to extract"
-
     # test filter_invalid
     @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
 
-    if length(cache) > 0 
+    if DD !== nothing && length(cache) > 0
         @assert typeof(DD[1]) <: AbstractString "cache is only meant to work when extracting data from FUSE results folders"
     end
 
     # load in cache
     cached_dirs = []
     if length(cache) > 0 && read_cache && isfile(cache)
-        df_cache = DataFrames.DataFrame(CSV.File(cache));
+        df_cache = DataFrames.DataFrame(CSV.File(cache))
         cached_dirs = df_cache[:, :dir]
         @info "Loaded cache file with $(length(cached_dirs)) results"
     end
-    
-    # allocate memory
-    tmp = Dict(extract(DD[1], xtract))
-    tmp[:dir] = abspath(DD[1])
-    df = DataFrames.DataFrame(tmp)
-    for k in 2:length(DD)
-        push!(df, df[1, :])
-    end
 
-    # load the data
-    p = ProgressMeter.Progress(length(DD); showspeed=true)
-    Threads.@threads for k in eachindex(DD)
-        aDDk = abspath(DD[k])
-        try
-            if aDDk in cached_dirs
-                kcashe = findfirst(dir -> dir == aDDk, cached_dirs)
-                df[k, :] = df_cache[kcashe, :]
-            else
-                tmp = Dict(extract(aDDk, xtract))
-                tmp[:dir] = aDDk
-                df[k, :] = tmp
+    if DD === nothing
+        df = df_cache
+
+    else
+        # allocate memory
+        tmp = Dict(extract(DD[1], xtract))
+        tmp[:dir] = abspath(DD[1])
+        df = DataFrames.DataFrame(tmp)
+        for k in 2:length(DD)
+            push!(df, df[1, :])
+        end
+
+        # load the data
+        p = ProgressMeter.Progress(length(DD); showspeed=true)
+        Threads.@threads for k in eachindex(DD)
+            aDDk = abspath(DD[k])
+            try
+                if aDDk in cached_dirs
+                    kcashe = findfirst(dir -> dir == aDDk, cached_dirs)
+                    df[k, :] = df_cache[kcashe, :]
+                else
+                    tmp = Dict(extract(aDDk, xtract))
+                    tmp[:dir] = aDDk
+                    df[k, :] = tmp
+                end
+            catch
+                continue
             end
-    catch
-        continue
-    end
-        ProgressMeter.next!(p)
-    end
-    ProgressMeter.finish!(p)
+            ProgressMeter.next!(p)
+        end
+        ProgressMeter.finish!(p)
 
-    # cache extrated information to CSV file
-    if length(cache) > 0 && write_cache
-        DelimitedFiles.writedlm(cache, Iterators.flatten(([names(df)], eachrow(df))), ',')
-        @info "Written cache file with $(length(cached_dirs)) results"
+        # cache extrated information to CSV file
+        if length(cache) > 0 && write_cache
+            DelimitedFiles.writedlm(cache, Iterators.flatten(([names(df)], eachrow(df))), ',')
+            @info "Written cache file with $(length(df.dir)) results"
+        end
     end
 
     # filter
     if filter_invalid ∈ [:cols, :all]
         # drop columns that have all NaNs
         isnan_nostring(x::Any) = (typeof(x) <: Number) ? isnan(x) : false
-        visnan(x::Vector) = isnan_nostring.(x)
+        visnan(x::AbstractVector) = isnan_nostring.(x)
         df = df[:, .!all.(visnan.(eachcol(df)))]
     end
     if filter_invalid ∈ [:rows, :all]
@@ -130,44 +135,13 @@ end
 # ==================== #
 """
     save(
-        dd::IMAS.dd,
-        ini::ParametersAllInits,
-        act::ParametersAllActors,
-        savedir::AbstractString;
-        freeze::Bool=true,
-        format::Symbol=:json)
-
-Save FUSE (dd, ini, act) to dd.json/h5, ini.json, and act.json files
-"""
-function save(
-    savedir::AbstractString,
-    dd::IMAS.dd,
-    ini::ParametersAllInits,
-    act::ParametersAllActors;
-    freeze::Bool=true,
-    format::Symbol=:json)
-
-    @assert format in [:hdf, :json] "format must be either `:hdf` or `:json`"
-    mkdir(savedir) # purposely error if directory exists or path does not exist
-    if format == :hdf
-        IMAS.imas2hdf(dd, joinpath(savedir, "dd.h5"); freeze)
-    elseif format == :json
-        IMAS.imas2json(dd, joinpath(savedir, "dd.json"); freeze)
-    end
-    ini2json(ini, joinpath(savedir, "ini.json"))
-    act2json(act, joinpath(savedir, "act.json"))
-    return savedir
-end
-
-"""
-    save(
         savedir::AbstractString,
         dd::IMAS.dd,
         ini::ParametersAllInits,
         act::ParametersAllActors,
-        e::Exception;
-        freeze::Bool=true,
-        format::Symbol=:json)
+        e::Union{Nothing, Exception} = nothing;
+        freeze::Bool = true,
+        format::Symbol = :json)
 
 Save FUSE (dd, ini, act) to dd.json/h5, ini.json, and act.json files and exception stacktrace to "error.txt"
 """
@@ -176,15 +150,30 @@ function save(
     dd::IMAS.dd,
     ini::ParametersAllInits,
     act::ParametersAllActors,
-    e::Exception;
+    e::Union{Nothing,Exception}=nothing;
     freeze::Bool=true,
     format::Symbol=:json)
 
-    save(savedir, dd, ini, act; freeze, format)
+    @assert format in [:hdf, :json] "format must be either `:hdf` or `:json`"
+    mkdir(savedir) # purposely error if directory exists or path does not exist
 
-    open(joinpath(savedir, "error.txt"), "w") do file
-        showerror(file, e, catch_backtrace())
+    # first write error.txt so that if we are parsing while running optimizer,
+    # the parser can immediately see if this is a failing case
+    if e !== nothing
+        open(joinpath(savedir, "error.txt"), "w") do file
+            showerror(file, e, catch_backtrace())
+        end
     end
+
+    if format == :hdf
+        IMAS.imas2hdf(dd, joinpath(savedir, "dd.h5"); freeze)
+    elseif format == :json
+        IMAS.imas2json(dd, joinpath(savedir, "dd.json"); freeze)
+    end
+
+    ini2json(ini, joinpath(savedir, "ini.json"))
+
+    act2json(act, joinpath(savedir, "act.json"))
 
     return savedir
 end
@@ -229,16 +218,15 @@ end
 
 Provides concise and informative summary of `dd`, including several plots
 
-NOTE: `section` is used internally to produce digest PDFs
+NOTES:
+* `section` is used internally to produce digest PDFs
+* this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
 """
 function digest(
     dd::IMAS.dd;
     terminal_width::Int=136,
     line_char::Char='─',
     section::Int=0)
-
-    #NOTE: this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
-    #      also it references ini and act
 
     sec = 1
     if section ∈ [0, sec]
@@ -255,6 +243,9 @@ function digest(
         end
         if !isempty(dd.pf_active.coil)
             plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+        end
+        if !isempty(dd.divertors.divertor)
+            plot!(p[1], dd.divertors, legend=false)
         end
         display(p)
     end
@@ -421,13 +412,13 @@ function categorize_errors(
     for dir in dirs
         filename = joinpath([dir, "error.txt"])
         if !isfile(filename)
-           continue
+            continue
         end
-        first_line,second_line = open(filename, "r") do f
-           (readline(f),readline(f))
+        first_line, second_line = open(filename, "r") do f
+            (readline(f), readline(f))
         end
         found = false
-        for (err,cat) in error_messages
+        for (err, cat) in error_messages
             if occursin(err, first_line)
                 found = true
                 if cat == :exceed_lim_B
@@ -450,15 +441,15 @@ function categorize_errors(
     end
 
     if do_plot
-        display(histogram(findall(x->isfile(joinpath(x,"error.txt")),sort(dirs)),labe="Errors"))
+        display(histogram(findall(x -> isfile(joinpath(x, "error.txt")), sort(dirs)), labe="Errors"))
         labels = collect(keys(errors))
-        v = collect(map(length,values(errors)))
+        v = collect(map(length, values(errors)))
         index = sortperm(v)[end:-1:1]
         display(pie(["$(rpad(string(length(errors[cat])),8))   $(string(cat))" for cat in labels[index]], v[index], legend=:outerright))
     end
 
     if show_first_line
-        for (k,v) in other_errors
+        for (k, v) in other_errors
             println(k)
             println(v)
             println()

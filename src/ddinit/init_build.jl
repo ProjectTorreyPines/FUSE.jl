@@ -76,10 +76,17 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
             end
         end
 
+        # we make a copy because we overwrite some parameters
+        # locally to this functions so that things work from
+        # different entry points
+        ini = deepcopy(ini)
+
+        eqt = dd.equilibrium.time_slice[]
+
         # if layers are not filled explicitly, then generate them from fractions in ini.build
         if ismissing(ini.build, :layers)
             layers = layers_meters_from_fractions(
-                dd.equilibrium.time_slice[],
+                eqt,
                 IMAS.first_wall(dd.wall);
                 shield=ini.build.shield,
                 blanket=ini.build.blanket,
@@ -90,38 +97,76 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         else
             layers = deepcopy(ini.build.layers)
             # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
-            scale_build_layers(layers, dd.equilibrium.vacuum_toroidal_field.r0, dd.equilibrium.time_slice[].boundary.minor_radius, ini.build.plasma_gap)
+            scale_build_layers(layers, dd.equilibrium.vacuum_toroidal_field.r0, eqt.boundary.minor_radius, ini.build.plasma_gap)
         end
 
         # populate dd.build with radial build layers
         init_build(dd.build, layers)
 
+        # divertors
+        if ini.build.divertors == :from_x_points
+            if ismissing(ini.equilibrium, :xpoints)
+                # if number of divertors is not set explicitly, get it from the ODS
+                n_divertors = length(eqt.boundary.x_point)
+                if n_divertors == 0
+                    ini.equilibrium.xpoints = :none
+                elseif n_divertors == 1
+                    if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
+                        ini.equilibrium.xpoints = :upper
+                    else
+                        ini.equilibrium.xpoints = :lower
+                    end
+                elseif n_divertors == 2
+                    ini.equilibrium.xpoints = :double
+                end
+            end
+            ini.build.divertors = ini.equilibrium.xpoints
+        end
+        if ini.build.divertors in [:upper, :double]
+            dd.build.divertors.upper.installed = 1
+        else
+            dd.build.divertors.upper.installed = 0
+        end
+        if ini.build.divertors in [:lower, :double]
+            dd.build.divertors.lower.installed = 1
+        else
+            dd.build.divertors.lower.installed = 0
+        end
+
         # set the TF shape
         tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
-        dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
-        dd.build.layer[tf_to_plasma[2]].shape = Int(ini.tf.shape)
-        # set all other shapes
-        for k in tf_to_plasma[2:end]
-            dd.build.layer[k+1].shape = Int(_convex_hull_)
+        plama_to_tf = collect(reverse(tf_to_plasma))
+        # set all shapes to convex hull by default
+        for k in tf_to_plasma
+            dd.build.layer[k].shape = Int(_convex_hull_)
         end
-        k = tf_to_plasma[end]
+        # set TF (shape is set by inner)
+        dd.build.layer[tf_to_plasma[2]].shape = Int(ini.tf.shape)
+        # first layer is a offset
+        k = plama_to_tf[1]
         if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k-1].type == Int(_blanket_)) || (dd.build.layer[k-1].type == Int(_shield_)))
             dd.build.layer[k].shape = Int(_offset_)
         end
+
         if ini.build.n_first_wall_conformal_layers >= 0
-            for k in tf_to_plasma[2:end-ini.build.n_first_wall_conformal_layers]
-                dd.build.layer[k+1].shape = Int(_negative_offset_)
-            end
+            # for k in plama_to_tf[ini.build.n_first_wall_conformal_layers:end-1]
+            #     dd.build.layer[k+1].shape = Int(_offset_)
+            # end
+            dd.build.layer[plama_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
         end
+
+        # if ini.build.n_first_wall_conformal_layers >= 0
+        #     dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
+        #     dd.build.layer[tf_to_plasma[2]].shape = Int(_offset_)
+        #     dd.build.layer[plama_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
+        # end
 
         # 2D build cross-section
         ActorCXbuild(dd, act)
 
-        # TF coils
+        # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
-        # set the toroidal thickness of the TF coils based on the innermost radius and the number of coils
-        dd.build.tf.wedge_thickness = 2 * π * IMAS.get_build(dd.build, type=_tf_, fs=_hfs_).start_radius / dd.build.tf.coils_n
-        # ripple
+        # target TF ripple
         dd.build.tf.ripple = ini.tf.ripple
 
         # center stack solid mechanics
@@ -292,7 +337,7 @@ function layers_meters_from_fractions(
     end
 
     # from fractions to meters
-    scale_build_layers(layers, (rmax+rmin)/2.0, (rmax-rmin)/2.0, 0.0)
+    scale_build_layers(layers, (rmax + rmin) / 2.0, (rmax - rmin) / 2.0, 0.0)
 
     return layers
 end
