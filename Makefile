@@ -268,7 +268,7 @@ SimulationParameters:
 	$(call clone_pull_repo,$@)
 
 BoundaryPlasmaModels:
-	$(call clone_update_repo,$@)
+	$(call clone_pull_repo,$@)
 
 # Install IJulia
 IJulia:
