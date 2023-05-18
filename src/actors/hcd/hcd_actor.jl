@@ -4,10 +4,10 @@
 Base.@kwdef mutable struct FUSEparameters__ActorHCD{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    ec_model::Switch{Symbol} = Switch(Symbol, [:ECsimple], "-", "EC source actor to run"; default=:ECsimple)
-    ic_model::Switch{Symbol} = Switch(Symbol, [:ICsimple], "-", "IC source actor to run"; default=:ICsimple)
-    lh_model::Switch{Symbol} = Switch(Symbol, [:LHsimple], "-", "LH source actor to run"; default=:LHsimple)
-    nb_model::Switch{Symbol} = Switch(Symbol, [:NBsimple], "-", "NB source actor to run"; default=:NBsimple)
+    ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple], "-", "EC source actor to run"; default=:ECsimple)
+    ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple], "-", "IC source actor to run"; default=:ICsimple)
+    lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple], "-", "LH source actor to run"; default=:LHsimple)
+    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple], "-", "NB source actor to run"; default=:NBsimple)
 end
 
 mutable struct ActorHCD <: PlasmaAbstractActor

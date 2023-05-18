@@ -9,25 +9,25 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersAct
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     #  BREEDER INFO
-    breeder_pressure::Entry{T} = Entry(T, "Pa", "Pressure across pump in breeder fluid circuit"; default=1e6)
-    breeder_ΔP::Entry{T} = Entry(T, "Pa", "Pressure drop during cooling and heat exchanger"; default=0.25 * 10^6)
-    breeder_low_temp::Entry{T} = Entry(T, "K", "Minimum breeder fluid temperature after primary heat exchange"; default=700 + 273.15)
-    breeder_hi_temp::Entry{T} = Entry(T, "K", "Maximum breeder fluid temperature at Wall Outlet"; default=1100 + 273.15)
-    breeder_η_pump::Entry{T} = Entry(T, "-", "Breeder pump effeciency"; default=0.7)
+    breeder_pressure::Entry{T} = Entry{T}("Pa", "Pressure across pump in breeder fluid circuit"; default=1e6)
+    breeder_ΔP::Entry{T} = Entry{T}("Pa", "Pressure drop during cooling and heat exchanger"; default=0.25 * 10^6)
+    breeder_low_temp::Entry{T} = Entry{T}("K", "Minimum breeder fluid temperature after primary heat exchange"; default=700 + 273.15)
+    breeder_hi_temp::Entry{T} = Entry{T}("K", "Maximum breeder fluid temperature at Wall Outlet"; default=1100 + 273.15)
+    breeder_η_pump::Entry{T} = Entry{T}("-", "Breeder pump effeciency"; default=0.7)
     #  WALL COOLING INFO
-    coolant_pressure::Entry{T} = Entry(T, "Pa", "Pressure across pump in coolant fluid ciruit"; default=10e6)
-    coolant_ΔP::Entry{T} = Entry(T, "Pa", "Pressure drop during cooling and heat exchanger"; default=0.3 * 10^6)
-    divertor_η_pump::Entry{T} = Entry(T, "-", "Divertor pump effeciency"; default=0.89)
-    divertor_max_temp::Entry{T} = Entry(T, "K", "Divertor maximum coolant outlet temperature"; default=650 + 273.15)
-    blanket_η_pump::Entry{T} = Entry(T, "-", "Wall pump effeciency"; default=0.89)
-    blanket_max_temp::Entry{T} = Entry(T, "K", "Wall maximum coolant outlet temperature"; default=450 + 273.15)
+    coolant_pressure::Entry{T} = Entry{T}("Pa", "Pressure across pump in coolant fluid ciruit"; default=10e6)
+    coolant_ΔP::Entry{T} = Entry{T}("Pa", "Pressure drop during cooling and heat exchanger"; default=0.3 * 10^6)
+    divertor_η_pump::Entry{T} = Entry{T}("-", "Divertor pump effeciency"; default=0.89)
+    divertor_max_temp::Entry{T} = Entry{T}("K", "Divertor maximum coolant outlet temperature"; default=650 + 273.15)
+    blanket_η_pump::Entry{T} = Entry{T}("-", "Wall pump effeciency"; default=0.89)
+    blanket_max_temp::Entry{T} = Entry{T}("K", "Wall maximum coolant outlet temperature"; default=450 + 273.15)
     # ASSUMED 
-    breeder_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the breeder - cycle heat exchanger"; default=0.9)
-    divertor_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the divertor - cycle heat exchanger"; default=0.9)
-    blanket_HX_ϵ::Entry{T} = Entry(T, "-", "Effectiveness of the wall - cycle heat exchanger"; default=0.9)
-    breeder_fluid::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:PbLi)
-    blanket_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
-    divertor_coolant::Switch{Symbol} = Switch(Symbol, coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
+    breeder_HX_ϵ::Entry{T} = Entry{T}("-", "Effectiveness of the breeder - cycle heat exchanger"; default=0.9)
+    divertor_HX_ϵ::Entry{T} = Entry{T}("-", "Effectiveness of the divertor - cycle heat exchanger"; default=0.9)
+    blanket_HX_ϵ::Entry{T} = Entry{T}("-", "Effectiveness of the wall - cycle heat exchanger"; default=0.9)
+    breeder_fluid::Switch{Symbol} = Switch{Symbol}(coolant_fluid, "-", "Breeder coolant fluid"; default=:PbLi)
+    blanket_coolant::Switch{Symbol} = Switch{Symbol}(coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
+    divertor_coolant::Switch{Symbol} = Switch{Symbol}(coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
 end
 
 mutable struct ActorHeatTransfer <: FacilityAbstractActor

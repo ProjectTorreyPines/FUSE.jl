@@ -6,12 +6,12 @@ import EPEDNN
 Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    update_core_profiles::Entry{Bool} = Entry(Bool, "-", "Update core_profiles"; default=true)
-    edge_bound::Entry{T} = Entry(T, "-", "Defines rho at which edge starts"; default=0.8)
-    T_ratio_pedestal::Entry{T} = Entry(T, "-", "Ratio of ion to electron temperatures"; default=1.0)
-    ped_factor::Entry{T} = Entry(T, "-", "Pedestal height multiplier"; default=1.0)
-    warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
-    only_powerlaw::Entry{Bool} = Entry(Bool, "-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
+    update_core_profiles::Entry{Bool} = Entry{Bool}("-", "Update core_profiles"; default=true)
+    edge_bound::Entry{T} = Entry{T}("-", "Defines rho at which edge starts"; default=0.8)
+    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ratio of ion to electron temperatures"; default=1.0)
+    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
+    warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
+    only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
 end
 
 mutable struct ActorPedestal <: PlasmaAbstractActor

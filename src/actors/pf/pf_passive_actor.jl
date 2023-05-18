@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
 mutable struct ActorPassiveStructures <: ReactorAbstractActor

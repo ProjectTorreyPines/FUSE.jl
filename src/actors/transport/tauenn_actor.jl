@@ -6,18 +6,18 @@ import TAUENN
 Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    error::Entry{T} = Entry(T, "-", "Target convergence error"; default=1E-2)
-    eped_factor::Entry{T} = Entry(T, "-", "Scaling parameter for EPED-NN prediction"; default=1.0)
-    rho_fluxmatch::Entry{T} = Entry(T, "-", "Radial location where flux-macthing is done"; default=0.6)
-    T_shaping::Entry{T} = Entry(T, "-", "Shaping coefficient for the temperature profile"; default=1.8)
-    T_ratio_pedestal::Entry{T} = Entry(T, "-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
-    transport_model::Switch{Symbol} = Switch(Symbol, [:tglfnn, :tglf, :h98y2, :ds03], "-", "Transport model"; default=:tglfnn)
-    warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "Warn if EPED-NN / TGLF-NN training bounds are exceeded"; default=false)
-    eped_only_powerlaw::Entry{Bool} = Entry(Bool, "-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
-    update_pedestal::Entry{Bool} = Entry(Bool, "-","update pedestal with eped_nn inside TAUENN" ;default=true)
-    confinement_factor::Entry{T} = Entry(T, "-", "Confinement multiplier"; default=1.0)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
+    error::Entry{T} = Entry{T}("-", "Target convergence error"; default=1E-2)
+    eped_factor::Entry{T} = Entry{T}("-", "Scaling parameter for EPED-NN prediction"; default=1.0)
+    rho_fluxmatch::Entry{T} = Entry{T}("-", "Radial location where flux-macthing is done"; default=0.6)
+    T_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the temperature profile"; default=1.8)
+    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
+    transport_model::Switch{Symbol} = Switch{Symbol}([:tglfnn, :tglf, :h98y2, :ds03], "-", "Transport model"; default=:tglfnn)
+    warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Warn if EPED-NN / TGLF-NN training bounds are exceeded"; default=false)
+    eped_only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
+    update_pedestal::Entry{Bool} = Entry{Bool}("-","update pedestal with eped_nn inside TAUENN" ;default=true)
+    confinement_factor::Entry{T} = Entry{T}("-", "Confinement multiplier"; default=1.0)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
 mutable struct ActorTauenn <: PlasmaAbstractActor

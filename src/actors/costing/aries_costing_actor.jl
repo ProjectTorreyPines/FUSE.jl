@@ -5,12 +5,12 @@
 Base.@kwdef mutable struct FUSEparameters__ActorARIESCosting{T} <: ParametersActor where {T <: Real}
 	_parent::WeakRef = WeakRef(nothing)
 	_name::Symbol = :not_set
-	land_space::Entry{T} = Entry(T, "acres", "Plant site space required"; default = 1000.0)
-	building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default = 140.0e3)
-	interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default = 0.05)
-	indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default = 0.4)
-	escalation_fraction::Entry{T} = Entry(T, "-", "Yearly escalation fraction based on risk assessment"; default = 0.05)
-	blanket_lifetime::Entry{T} = Entry(T, "year", "Lifetime of the blanket"; default = 6.8)
+	land_space::Entry{T} = Entry{T}("acres", "Plant site space required"; default = 1000.0)
+	building_volume::Entry{T} = Entry{T}("m^3", "Volume of the tokmak building"; default = 140.0e3)
+	interest_rate::Entry{T} = Entry{T}("-", "Annual interest rate fraction of direct capital cost"; default = 0.05)
+	indirect_cost_rate::Entry{T} = Entry{T}("-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default = 0.4)
+	escalation_fraction::Entry{T} = Entry{T}("-", "Yearly escalation fraction based on risk assessment"; default = 0.05)
+	blanket_lifetime::Entry{T} = Entry{T}("year", "Lifetime of the blanket"; default = 6.8)
 end
 
 mutable struct ActorARIESCosting <: FacilityAbstractActor

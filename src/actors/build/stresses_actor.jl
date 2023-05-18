@@ -4,8 +4,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
-    n_points::Entry{Int} = Entry(Int, "-", "Number of grid points"; default=5)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=5)
 end
 
 mutable struct ActorStresses <: ReactorAbstractActor
