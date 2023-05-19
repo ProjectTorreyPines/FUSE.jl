@@ -48,7 +48,11 @@ function _step(actor::ActorDivertors)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    hfs_sol, lfs_sol = IMAS.sol(eqt, dd.wall, levels=2)
+    # NOTE: sol levels cannot be too small,
+    # otherwise any small variation from up-down equilibrium asymmetry
+    # may result in configuration (double/upper/lower) which totall screws
+    # up the flux expansion calculation
+    hfs_sol, lfs_sol = IMAS.sol(eqt, dd.wall; levels=[1E-2, 1.1E-2])
     Psol = IMAS.power_sol(dd.core_sources, cp1d)
     λ_omp = IMAS.widthSOL_eich(eqt, Psol)
     flux_expansion = IMAS.flux_expansion(lfs_sol)
