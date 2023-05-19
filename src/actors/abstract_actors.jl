@@ -110,8 +110,7 @@ function enter_workflow(actor::AbstractActor)
 end
 
 function exit_workflow(actor::AbstractActor)
-    aux = getfield(actor.dd, :_aux)
-    aux[:fuse_workflow_depth] -= 1
+    _aux_workflow(actor.dd)[:fuse_workflow_depth] -= 1
 end
 
 function goto_worflow_depth(workflow::Workflow, depth::Int)
