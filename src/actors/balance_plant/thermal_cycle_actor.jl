@@ -60,6 +60,9 @@ function _step(actor::ActorThermalCycle)
 
     if bop.power_cycle_type == "fixed_cycle_efficiency"
         @ddtime(bop.thermal_cycle.thermal_efficiency = par.fixed_cycle_efficiency)
+        @ddtime(wall.heat_delivered = wall.heat_load)
+        @ddtime(divertor.heat_delivered = divertor.heat_load)
+        @ddtime(breeder.heat_delivered = breeder.heat_load)
         @ddtime(bop.thermal_cycle.power_electric_generated = @ddtime(bop.thermal_cycle.total_useful_heat_power) * par.fixed_cycle_efficiency)
         return actor
     end
