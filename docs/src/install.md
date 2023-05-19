@@ -71,13 +71,15 @@ Once installed, restart your termninal to pick-up the `julia` executable
 
 ## Update Julia version
 Juliaup will inform you when a new release of Julia is available. For example:
-   ```
-   The latest version of Julia in the `release` channel is 1.9.0+0.aarch64.apple.darwin14. You currently have `1.8.5+0.aarch64.apple.darwin14` installed. Run:
 
-   juliaup update
+```
+The latest version of Julia in the `release` channel is 1.9.0+0.aarch64.apple.darwin14. You currently have `1.8.5+0.aarch64.apple.darwin14` installed. Run:
 
-   to install Julia 1.9.0+0.aarch64.apple.darwin14 and update the `release` channel to that version.
-   ```
+juliaup update
+
+to install Julia 1.9.0+0.aarch64.apple.darwin14 and update the `release` channel to that version.
+```
+
 To update Julia and make FUSE work under the new environment do as follows:
 
 1. Update Julia
@@ -110,6 +112,54 @@ mamba install -c conda-forge gfortran
 git clone https://gitlab.epfl.ch/spc/chease.git
 cd chease/src-f90
 make chease
+```
+
+## Install GACODE
+
+1. Download and Install Xquartz: https://www.xquartz.org/
+2. Download and Install Xcode: https://developer.apple.com/xcode/
+   This will have git: check with `git --version`
+   Typing this will prompt installing of Xcode command line tools
+3. Download and Install Macports: https://www.macports.org/install.php
+4. Install EMACS, GCC, MPICH, FFTW, NETCDF:
+```bash
+sudo port install emacs +x11
+sudo port install gcc12
+sudo port select --set gcc mp-gcc12
+sudo port install mpich-gcc12
+sudo port select --set mpi mpich-gcc12-fortran   
+sudo port install fftw-3
+sudo port install fftw-3-long
+sudo port install fftw-3-single
+sudo port install netcdf
+sudo port install netcdf-fortran
+```
+5. Clone gacode:
+```bash
+git clone git@github.com:gafusion/gacode.git
+```
+6. Set-up gacode settings in $HOME/.zshrc:
+```bash
+export GACODE_PLATFORM=OSX_MONTEREY
+export GACODE_ROOT=$HOME/gacode
+. ${GACODE_ROOT}/shared/bin/gacode_setup
+```
+For Mac with Apple Silicon:
+```bash
+conda install -c conda-forge micromamba
+micromamba  install -c smithsp -c conda-forge gacode
+```
+8. Compile:
+```bash
+cd $GACODE_ROOT
+cd make
+```
+9. To test that the build is successful, you can run regression tests:
+```bash
+neo -r
+tglf -r
+cgyro -g reg01
+cgyro -e ./reg01
 ```
 
 ## Troubleshooting

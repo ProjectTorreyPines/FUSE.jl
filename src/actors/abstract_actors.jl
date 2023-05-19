@@ -67,8 +67,8 @@ function finalize(actor::T) where {T<:AbstractActor}
     @assert f_actor === actor "_finalize should return the same actor (check if it is actor at all)"
 
     # freeze onetime expressions (ie. grids)
-    while !isempty(IMASDD.expression_onetime_weakref)
-        idsw = pop!(IMASDD.expression_onetime_weakref, first(keys(IMASDD.expression_onetime_weakref)))
+    while !isempty(IMAS.expression_onetime_weakref)
+        idsw = pop!(IMAS.expression_onetime_weakref, first(keys(IMAS.expression_onetime_weakref)))
         if idsw.value !== nothing
             # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
             IMAS.freeze!(idsw.value)

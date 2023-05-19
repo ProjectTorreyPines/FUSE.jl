@@ -72,9 +72,9 @@ include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nb_simple_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
-include(joinpath("actors", "pedestal_actor.jl"))
+include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 
-include(joinpath("actors", "divertors_actor.jl"))
+include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
 include(joinpath("actors", "transport", "tauenn_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))

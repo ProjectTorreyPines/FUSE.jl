@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    update_plasma::Entry{Bool} = Entry(Bool, "-", "Run plasma related actors"; default=true)
+    update_plasma::Entry{Bool} = Entry{Bool}("-", "Run plasma related actors"; default=true)
 end
 
 mutable struct ActorWholeFacility <: FacilityAbstractActor

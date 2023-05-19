@@ -4,11 +4,11 @@
 Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
-    stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
-    aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.0)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
+    j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
+    stress_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
+    aspect_ratio_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the aspect_ratio change"; default=0.0)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
 mutable struct ActorHFSsizing <: ReactorAbstractActor
@@ -228,7 +228,7 @@ function _step(actor::ActorHFSsizing)
 
     max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
     if abs(actor.R0_scale - 1.0) > 1E-6
-        @assert abs(actor.R0_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($((R0/old_R0-1.0)*100)%)"
+        @assert abs(actor.R0_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($((R0/old_R0-1.0)*100)%). If this is acceptable to you, you can change `act.ActorHFSsizing.aspect_ratio_tolerance` accordingly."
     end
     @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
     @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j

@@ -29,7 +29,7 @@ CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES_MAKEFILE := CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields 
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -200,6 +200,9 @@ clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
 
+ADAS:
+	$(call clone_pull_repo,$@)
+
 WarmupFUSE:
 	$(call clone_pull_repo,$@)
 
@@ -262,6 +265,9 @@ NNeutronics:
 	$(call clone_pull_repo,$@)
 
 SimulationParameters:
+	$(call clone_pull_repo,$@)
+
+BoundaryPlasmaModels:
 	$(call clone_pull_repo,$@)
 
 # Install IJulia

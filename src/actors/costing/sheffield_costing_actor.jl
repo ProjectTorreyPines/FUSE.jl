@@ -5,11 +5,11 @@
 Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: ParametersActor where {T <: Real}
 	_parent::WeakRef = WeakRef(nothing)
 	_name::Symbol = :not_set
-	construction_lead_time::Entry{T} = Entry(T, "year", "Duration of construction"; default = 8.0)
-	fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default = 0.078)
-	initial_cost_blanket::Entry{T} = Entry(T, "\$M", "Cost of initial blanket"; default = 200.0)
-	divertor_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
-	blanket_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
+	construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default = 8.0)
+	fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default = 0.078)
+	initial_cost_blanket::Entry{T} = Entry{T}("\$M", "Cost of initial blanket"; default = 200.0)
+	divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
+	blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
 end
 
 mutable struct ActorSheffieldCosting <: FacilityAbstractActor

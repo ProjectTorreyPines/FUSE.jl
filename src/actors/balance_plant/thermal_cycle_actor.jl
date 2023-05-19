@@ -5,16 +5,16 @@
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
-    power_cycle_type::Switch{Symbol} = Switch(Symbol, [:fixed_cycle_efficiency, :brayton_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only)
-    rp::Entry{T} = Entry(T, "-", "Overall compression ratio"; default=3.0)
-    Pmax::Entry{T} = Entry(T, "Pa", "Max system pressure"; default=8e6)
-    Tmax::Entry{T} = Entry(T, "K", "Max cycle temperature"; default=950.0 + 273.15)
-    Tmin::Entry{T} = Entry(T, "K", "Min cycle temperature"; default=35.0 + 273.15)
-    Nt::Entry{Int} = Entry(Int, "-", "Number of turbine stages"; default=1)
-    Nc::Entry{Int} = Entry(Int, "-", "Number of compression stages"; default=3)
-    regen::Entry{T} = Entry(T, "-", "Regeneration fraction")
-    fixed_cycle_efficiency::Entry{T} = Entry(T, "-", "Overall thermal cycle efficiency (if `power_cycle_type=:fixed_cycle_efficiency`)")
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
+    power_cycle_type::Switch{Symbol} = Switch{Symbol}([:fixed_cycle_efficiency, :brayton_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only)
+    rp::Entry{T} = Entry{T}("-", "Overall compression ratio"; default=3.0)
+    Pmax::Entry{T} = Entry{T}("Pa", "Max system pressure"; default=8e6)
+    Tmax::Entry{T} = Entry{T}("K", "Max cycle temperature"; default=950.0 + 273.15)
+    Tmin::Entry{T} = Entry{T}("K", "Min cycle temperature"; default=35.0 + 273.15)
+    Nt::Entry{Int} = Entry{Int}("-", "Number of turbine stages"; default=1)
+    Nc::Entry{Int} = Entry{Int}("-", "Number of compression stages"; default=3)
+    regen::Entry{T} = Entry{T}("-", "Regeneration fraction")
+    fixed_cycle_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `power_cycle_type=:fixed_cycle_efficiency`)")
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
 mutable struct ActorThermalCycle <: FacilityAbstractActor
