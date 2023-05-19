@@ -60,12 +60,16 @@ function _step(actor::ActorDivertors)
     for (k_divertor, divertor) in enumerate(dd.divertors.divertor)
         for (k_target, target) in enumerate(divertor.target)
 
+            # identify which end of the field line strikes the divertor/target that we are considering
             id = (k_divertor, k_target)
             if id == identifiers[1]
                 strike_index = 1
             elseif id == identifiers[2]
                 strike_index = length(sol1.r)
             else
+                @ddtime(target.power_conducted.data = 0.0)
+                @ddtime(target.power_convected.data = 0.0)
+                @ddtime(target.power_incident.data = 0.0)
                 continue
             end
 
