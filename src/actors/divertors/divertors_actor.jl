@@ -48,7 +48,11 @@ function _step(actor::ActorDivertors)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    hfs_sol, lfs_sol = IMAS.sol(eqt, dd.wall, levels=2)
+    # NOTE: sol levels cannot be too small,
+    # otherwise any small variation from up-down equilibrium asymmetry
+    # may result in configuration (double/upper/lower) which totall screws
+    # up the flux expansion calculation
+    hfs_sol, lfs_sol = IMAS.sol(eqt, dd.wall; levels=[1E-2, 1.1E-2])
     Psol = IMAS.power_sol(dd.core_sources, cp1d)
     λ_omp = IMAS.widthSOL_eich(eqt, Psol)
     flux_expansion = IMAS.flux_expansion(lfs_sol)
@@ -60,12 +64,16 @@ function _step(actor::ActorDivertors)
     for (k_divertor, divertor) in enumerate(dd.divertors.divertor)
         for (k_target, target) in enumerate(divertor.target)
 
+            # identify which end of the field line strikes the divertor/target that we are considering
             id = (k_divertor, k_target)
             if id == identifiers[1]
                 strike_index = 1
             elseif id == identifiers[2]
                 strike_index = length(sol1.r)
             else
+                @ddtime(target.power_conducted.data = 0.0)
+                @ddtime(target.power_convected.data = 0.0)
+                @ddtime(target.power_incident.data = 0.0)
                 continue
             end
 

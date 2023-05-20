@@ -69,7 +69,7 @@ Once installed, restart your termninal to pick-up the `julia` executable
    jupyter-lab
    ```
 
-## Update Julia version
+# Update Julia version
 Juliaup will inform you when a new release of Julia is available. For example:
 
 ```
@@ -106,7 +106,7 @@ To update Julia and make FUSE work under the new environment do as follows:
    make IJulia
    ```
 
-## Install CHEASE
+# Install CHEASE
 ```
 mamba install -c conda-forge gfortran
 git clone https://gitlab.epfl.ch/spc/chease.git
@@ -114,64 +114,57 @@ cd chease/src-f90
 make chease
 ```
 
-## Install GACODE
+# Install GACODE
+1. Download and Install Xquartz: https://www.xquartz.org
 
-1. Download and Install Xquartz: https://www.xquartz.org/
-2. Download and Install Xcode: https://developer.apple.com/xcode/
+1. Download and Install Xcode: https://developer.apple.com/xcode
    This will have git: check with `git --version`
    Typing this will prompt installing of Xcode command line tools
-3. Download and Install Macports: https://www.macports.org/install.php
-4. Install EMACS, GCC, MPICH, FFTW, NETCDF:
-```bash
-sudo port install emacs +x11
-sudo port install gcc12
-sudo port select --set gcc mp-gcc12
-sudo port install mpich-gcc12
-sudo port select --set mpi mpich-gcc12-fortran   
-sudo port install fftw-3
-sudo port install fftw-3-long
-sudo port install fftw-3-single
-sudo port install netcdf
-sudo port install netcdf-fortran
-```
-5. Clone gacode:
-```bash
-git clone git@github.com:gafusion/gacode.git
-```
-6. Set-up gacode settings in $HOME/.zshrc:
-```bash
-export GACODE_PLATFORM=OSX_MONTEREY
-export GACODE_ROOT=$HOME/gacode
-. ${GACODE_ROOT}/shared/bin/gacode_setup
-```
-For Mac with Apple Silicon:
-```bash
-conda install -c conda-forge micromamba
-micromamba  install -c smithsp -c conda-forge gacode
-```
-8. Compile:
-```bash
-cd $GACODE_ROOT
-cd make
-```
-9. To test that the build is successful, you can run regression tests:
-```bash
-neo -r
-tglf -r
-cgyro -g reg01
-cgyro -e ./reg01
-```
 
-## Troubleshooting
-When using the ProjectTorreyPines private Julia [GA registry](https://github.com/ProjectTorreyPines/GAregistry), one may get `SSH host verification` errors when installing and updating Julia packages:
+1. Download and Install Macports: https://www.macports.org/install.php
 
-```
-SSH host verification: the identity of the server `github.com:22` does not match its known hosts record. Someone could be trying to man-in-the-middle your connection. It is also possible that the server has changed its key, in which case you should check with the server administrator and if they confirm that the key has been changed, update your known hosts file.
-```
+1. Install `Emacs`, `gcc`, `mpich`, `fftw`, `netcdf`:
+   ```bash
+   sudo port install emacs +x11
+   sudo port install gcc12
+   sudo port select --set gcc mp-gcc12
+   sudo port install mpich-gcc12
+   sudo port select --set mpi mpich-gcc12-fortran   
+   sudo port install fftw-3
+   sudo port install fftw-3-long
+   sudo port install fftw-3-single
+   sudo port install netcdf
+   sudo port install netcdf-fortran
+   ```
 
-this can be resolved by telling Julia to use the git command line interface, via the environmental variable:
+1. Clone gacode:
+   ```bash
+   git clone git@github.com:gafusion/gacode.git
+   ```
 
-```julia
-export JULIA_PKG_USE_CLI_GIT=true
-```
+1. Set-up gacode settings in $HOME/.zshrc:
+   ```bash
+   export GACODE_PLATFORM=OSX_MONTEREY
+   export GACODE_ROOT=$HOME/gacode
+   . ${GACODE_ROOT}/shared/bin/gacode_setup
+   ```
 
+1. For Mac with Apple Silicon:
+   ```bash
+   conda install -c conda-forge micromamba
+   micromamba  install -c smithsp -c conda-forge gacode
+   ```
+
+1. Compile:
+   ```bash
+   cd $GACODE_ROOT
+   cd make
+   ```
+
+1. To test that the build is successful, you can run regression tests:
+   ```bash
+   neo -r
+   tglf -r
+   cgyro -g reg01
+   cgyro -e ./reg01
+   ```
