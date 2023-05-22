@@ -59,12 +59,10 @@ function _step(actor::ActorPedestal;
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    m = [ion.element[1].a for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) == 1]
-    m = sum(m) / length(m)
-    if m < 2
-        m = 2
-    elseif m > 2
-        m = 2.5
+    m = IMAS.A_effective(cp1d)
+    
+    if !(m == 2.0 || m == 2.5)
+        @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
     neped = @ddtime dd.summary.local.pedestal.n_e.value
