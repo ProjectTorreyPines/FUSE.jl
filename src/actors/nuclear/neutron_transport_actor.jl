@@ -1,0 +1,212 @@
+using HDF5
+using NeutronTransport
+using GridapGmsh
+using GridapGmsh: gmsh, GmshDiscreteModel
+using Gridap
+import NeutronTransport: MoCSolution
+
+const XSs = CrossSections
+
+function get_xss_from_hdf5(
+    filename::String,
+    material::String;
+    )
+    file = h5open(filename, "r")
+    νΣf = read(file["material"][material]["nu-fission"]["average"])
+    Σt = read(file["material"][material]["nu-transport"]["average"])
+    Σs0 = permutedims(read(file["material"][material]["consistent nu-scatter matrix"]["average"]))
+    return CrossSections(material, length(νΣf); νΣf, Σt, Σs0)
+end
+
+function get_xss_from_hdf5(filename::String, material::String, xs_type::Vector{String})
+    xs_dict = Dict{String,Vector{Float64}}()
+    file = h5open(filename, "r")
+    for xs_name in xs_type
+        xs = read(file["material"][material][xs_name]["average"])
+        xs_dict[xs_name] = xs
+    end
+    close(file)
+    return xs_dict
+end
+
+function get_xss_from_hdf5(filename::String, materials::Vector{String}, xs_type::Vector{String})
+    xs_dict=Dict{String, Dict{String,Vector{Float64}}}()
+    for mat in materials
+        mat_xs_dict = get_xss_from_hdf5(filename, mat, xs_type)
+        xs_dict[mat]=mat_xs_dict
+    end
+    return xs_dict
+end
+
+function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector{String}, data_path::String, data_filename::String, save_path::String=@__DIR__, save_filename::String="concentric_circles") where T
+    gmsh.initialize()
+    r0 = 100.0
+    model_bound = sum(layer_thicknesses) + r0 + 1
+
+    mats = deepcopy(material_names)
+    thicknesses = deepcopy(layer_thicknesses)
+    pushfirst!(mats, "DT_plasma")
+    push!(mats, "Air-(dry,-near-sea-level)")
+
+    pushfirst!(thicknesses, r0)
+    append!(thicknesses, 1.0)
+    factory = gmsh.model.geo
+    lc = model_bound*2
+
+    radius=0.0
+
+    xss = Vector{NeutronTransport.CrossSections}()
+    data_filename=joinpath(data_path, data_filename)
+
+    for (idx, thickness) in enumerate(thicknesses)
+        radius+=thickness
+        material = factory.addPhysicalGroup(2, [idx], idx)
+        GridapGmsh.gmsh.model.setPhysicalName(2, idx, mats[idx])
+
+        if idx == length(mats)
+            # square cell
+            top_right = factory.addPoint(radius, radius, 0, lc, 5*(idx-1)+1)
+            bottom_right = factory.addPoint(radius, -radius, 0, lc, 5*(idx-1)+2)
+            bottom_left = factory.addPoint(-radius, -radius, 0, lc, 5*(idx-1)+3)
+            top_left = factory.addPoint(-radius, radius, 0, lc, 5*(idx-1)+4)
+            right = factory.addLine(top_right, bottom_right,  4*(idx-1)+1)
+            bottom = factory.addLine(bottom_right, bottom_left, 4*(idx-1)+2)
+            left = factory.addLine(bottom_left, top_left, 4*(idx-1)+3)
+            top = factory.addLine(top_left, top_right, 4*(idx-1)+4)
+            boundary = factory.addCurveLoop([right, bottom, left, top], idx)
+
+            # boundaries
+            right_bound = factory.addPhysicalGroup(1,  [right], material+1)
+            bottom_bound = factory.addPhysicalGroup(1, [bottom], material+2)
+            left_bound = factory.addPhysicalGroup(1, [left], material+3)
+            top_bound = factory.addPhysicalGroup(1, [top], material+4)
+            GridapGmsh.gmsh.model.setPhysicalName(1, right_bound, "right")
+            GridapGmsh.gmsh.model.setPhysicalName(1, bottom_bound, "bottom")
+            GridapGmsh.gmsh.model.setPhysicalName(1, left_bound, "left")
+            GridapGmsh.gmsh.model.setPhysicalName(1, top_bound, "top")
+        else
+            # make inner circle points
+            center = factory.addPoint(0, 0, 0, lc, 5*(idx-1)+1)
+            right = factory.addPoint(radius, 0, 0, lc, 5*(idx-1)+2)
+            top = factory.addPoint(0, radius, 0, lc, 5*(idx-1)+3)
+            left = factory.addPoint(-radius, 0, 0, lc, 5*(idx-1)+4)
+            bottom = factory.addPoint(0, -radius, 0, lc, 5*(idx-1)+5)
+
+            # make arcs and circle
+            right_top = factory.addCircleArc(right, center, top, 4*(idx-1)+1)
+            top_left = factory.addCircleArc(top, center, left, 4*(idx-1)+2)
+            left_bottom = factory.addCircleArc(left, center, bottom, 4*(idx-1)+3)
+            bottom_right = factory.addCircleArc(bottom, center, right, 4*(idx-1)+4)
+            circle = factory.addCurveLoop([right_top, top_left, left_bottom, bottom_right], idx)
+        end
+        # make surfaces and materials
+        if idx==1
+            surface = factory.addPlaneSurface([idx], idx)
+        else
+            surface = factory.addPlaneSurface([idx, idx-1], idx)
+        end
+        
+        # materials
+        xs = get_xss_from_hdf5(data_filename, mats[idx])
+        push!(xss, xs)
+    end
+    println(thicknesses)
+    factory.synchronize()
+
+    gmsh.model.mesh.generate(2)
+
+    gmsh.write("concentric_circles.msh")
+
+    gmsh.fltk.run()
+
+    gmsh.finalize()
+
+    mshfile = joinpath(save_path, save_filename * ".msh")
+    model = GmshDiscreteModel(mshfile; renumber=true)
+    jsonfile = joinpath(save_path, save_filename * ".json")
+    Gridap.Io.to_json_file(model, jsonfile)
+
+    jsonfile = joinpath(save_path, save_filename * ".json")
+    geometry = DiscreteModelFromFile(jsonfile)
+
+    # number of azimuthal angles
+    nφ = 16
+
+    # azimuthal spacing
+    δ = 1.0 
+
+    # boundary conditions
+    bcs = BoundaryConditions(top=Vaccum, left=Vaccum, bottom=Vaccum, right=Vaccum)
+
+    # initialize track generator
+    tg = TrackGenerator(geometry, nφ, δ, bcs=bcs)
+    
+    # perform ray tracing
+    trace!(tg)
+
+    # proceed to segmentation
+    segmentize!(tg)
+
+    # polar quadrature
+    pq = NeutronTransport.TabuchiYamamoto(6)
+
+    # define the problem
+    prob = MoCProblem(tg, pq, xss)
+
+    # define fixed source material
+    fixed_sources = set_fixed_source_material(prob, "DT_plasma", 8 , 1)
+
+    # solve
+    sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=1e-7, max_iterations=300)
+
+    return sol
+end
+
+"""
+    get_cell_φ(sol, cell, g)
+
+Returns the average φ in a given cell and energy group.
+"""
+function get_cell_φ(sol::MoCSolution{T}, cell::Int, g::Int) where T
+    φs = sol(g)[findall(c -> c == cell, sol.prob.fsr_tag)]
+    # vols = sol.prob.trackgenerator.volumes[findall(c -> c == cell, sol.prob.fsr_tag)]
+    
+    # vol_integrated_φ = sum(φs .* vols / 31415)
+    # return vol_integrated_φ
+
+    mean_φ = sum(φs)/length(φs)
+    return mean_φ
+end
+
+function get_cell_φ(sol::MoCSolution{T}, cell::Int, gs::UnitRange{Int64}) where T
+    φs = Float64[]
+    for g in gs
+        append!(φs, get_cell_φ(sol, cell, g))
+    end
+    return φs
+end
+
+function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) where T
+    @unpack φ, prob = sol
+    @unpack trackgenerator, fsr_tag, xss = prob
+    @unpack volumes = trackgenerator
+    NGroups = NeutronTransport.ngroups(prob)
+    NRegions = NeutronTransport.nregions(prob)
+
+    vol_integrated_φ = Vector{Float64}()
+    tbr=0.0
+    plasma_vol = sum(volumes[findall(t -> t == 1, fsr_tag)])
+    print(plasma_vol)
+
+    for i in 1:NRegions
+        tbr_xs_dict = NeutronTransportExtension.get_xss_from_hdf5(joinpath(data_path,data_filename), xss[fsr_tag[i]].name, ["(n,Xt)"])
+        for g in 1:NGroups
+            ig = NeutronTransport.@region_index(i, g)
+            push!(vol_integrated_φ, sol.φ[ig] * volumes[i] / plasma_vol)
+            tbr+=vol_integrated_φ[ig]*tbr_xs_dict["(n,Xt)"][g]
+        end        
+    end
+
+
+    return tbr
+end
