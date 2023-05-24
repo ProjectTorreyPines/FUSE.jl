@@ -79,7 +79,7 @@ function _step(actor::ActorNeutronics)
             (vz < 0 && zn < zw1) && continue
             (rw1 < rmin && rw2 < rmin) && continue
 
-            t = intersection(rw1, zw1, rw2, zw2, xn, yn, zn, vx, vy, vz, v2, vz2)
+            t = toroidal_intersection(rw1, zw1, rw2, zw2, xn, yn, zn, vx, vy, vz, v2, vz2)
             t < ti && (ti = t)
         end
         n.x += vx * ti
@@ -239,11 +239,11 @@ function define_wall(actor::ActorNeutronics)
     return rwall, zwall
 end
 
-function intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, z::Real, vx::Real, vy::Real, vz::Real)
-    return intersection(r1, z1, r2, z2, x, y, z, vx, vy, vz, vx^2 + vy^2, vz^2)
+function toroidal_intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, z::Real, vx::Real, vy::Real, vz::Real)
+    return toroidal_intersection(r1, z1, r2, z2, x, y, z, vx, vy, vz, vx^2 + vy^2, vz^2)
 end
 
-function intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, z::Real, vx::Real, vy::Real, vz::Real, v2::Real, vz2::Real)
+function toroidal_intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, z::Real, vx::Real, vy::Real, vz::Real, v2::Real, vz2::Real)
     m = (z2 - z1) / (r2 - r1)
     z0 = z1 - m * r1
     m2 = m^2

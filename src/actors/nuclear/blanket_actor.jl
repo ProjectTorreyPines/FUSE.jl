@@ -145,7 +145,7 @@ function _step(actor::ActorBlanket)
                 if layer === missing
                     hit = []
                 else
-                    hit = IMAS.intersection([r0, fr / fn * 1000 + r0], [z0, fz / fn * 1000 + z0], layer.outline.r, layer.outline.z)
+                    _, hit = IMAS.intersection([r0, fr / fn * 1000 + r0], [z0, fz / fn * 1000 + z0], layer.outline.r, layer.outline.z)
                 end
                 if isempty(hit)
                     r_coords[ilayer+1] = r_coords[ilayer]
