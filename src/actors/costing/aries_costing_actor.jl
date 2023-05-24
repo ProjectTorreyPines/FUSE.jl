@@ -120,7 +120,7 @@ function _step(actor::ActorARIESCosting)
 	sys.yearly_cost = cost_operations_ARIES(:operation_maintenance, power_electric_generated, da)
 
 	sys = resize!(cost_ops.system, "name" => "replacements")
-	for item in [:blanket_replacement]
+	for item in (:blanket_replacement,)
 		sub = resize!(sys.subsystem, "name" => string(item))
 		if item == :blanket_replacement
 			blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
@@ -178,7 +178,7 @@ function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, 
 	elseif layer.type == Int(_blanket_)
 		cost = layer.volume * 0.75  # $M/m^3
 		return future_dollars(cost, da)
-	elseif layer.type ∈ [Int(_wall_), Int(_vessel_), Int(_cryostat_)]
+	elseif layer.type ∈ (Int(_wall_), Int(_vessel_), Int(_cryostat_))
 		cost = layer.volume * 0.36  # $M/m^3
 		return future_dollars(cost, da)
 	else

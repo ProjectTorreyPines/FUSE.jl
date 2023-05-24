@@ -177,7 +177,7 @@ kw arguments are passed to the Distributed.addprocs
 """
 function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...)
     if cluster == "omega"
-        if gethostname() in ["omega-a.gat.com", "omega-b.gat.com"]
+        if gethostname() ∈ ("omega-a.gat.com", "omega-b.gat.com")
             nodes = 4 # omega has 12 ga-ird nodes
             np = 128 * nodes
             if nprocs_max > 0

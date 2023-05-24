@@ -122,12 +122,12 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
             end
             ini.build.divertors = ini.equilibrium.xpoints
         end
-        if ini.build.divertors in [:upper, :double]
+        if ini.build.divertors ∈ (:upper, :double)
             dd.build.divertors.upper.installed = 1
         else
             dd.build.divertors.upper.installed = 0
         end
-        if ini.build.divertors in [:lower, :double]
+        if ini.build.divertors ∈ (:lower, :double)
             dd.build.divertors.lower.installed = 1
         else
             dd.build.divertors.lower.installed = 0

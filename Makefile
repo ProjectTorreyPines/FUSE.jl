@@ -189,7 +189,7 @@ update: clone_pull_all develop
 forward_compatibility:
 	julia -e '\
 using Pkg;\
-for package in ["Equilibrium", "Broker", "ZMQ"];\
+for package in ("Equilibrium", "Broker", "ZMQ");\
 	try; Pkg.activate();    Pkg.rm(package); catch; end;\
 	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
 end;\

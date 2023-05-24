@@ -52,7 +52,7 @@ function _step(actor::ActorLFSsizing)
 
     # resize layers proportionally
     # start from the vacuum gaps before resizing the material layers
-    for vac in [true, false]
+    for vac in (true, false)
         old_TF_radius = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_).start_radius
         delta = new_TF_radius - old_TF_radius
         if par.verbose

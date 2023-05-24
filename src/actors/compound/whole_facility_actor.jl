@@ -134,9 +134,9 @@ function scale_aspect_ratio!(dd::IMAS.dd, R0_scale::Float64)
 
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data *= R0_scale
 
-    for leaf in [collect(IMAS.leaves(dd.pulse_schedule)); collect(IMAS.leaves(dd.wall))]
+    for leaf in (collect(IMAS.leaves(dd.pulse_schedule)); collect(IMAS.leaves(dd.wall)))
         uloc = IMAS.ulocation(leaf.ids, leaf.field)
-        if occursin(".r.", uloc) && IMAS.info(uloc)["units"] in ["mixed", "m"]
+        if occursin(".r.", uloc) && IMAS.info(uloc)["units"] ∈ ("mixed", "m")
             old_value = getproperty(leaf.ids, leaf.field)
             setproperty!(leaf.ids, leaf.field, old_value .+ ΔR0)
         end
