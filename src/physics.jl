@@ -181,7 +181,7 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
     initial_guess = deepcopy(shape_parameters)
 
-    if length(shape_parameters) in [0, 1]
+    if length(shape_parameters) in (0, 1)
         func(r_start, r_end, shape_parameters...)
 
     else
@@ -190,14 +190,26 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
 
             cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
 
+            length(R) == length(Z) || error("R and Z have different length")
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            index = .!(isapprox.(R, r_start) .|| isapprox.(R, r_end))
-            R = R[index]
-            Z = Z[index]
+            new_length = 0
+            for i in eachindex(Z)
+                index = !(isapprox(R[i], r_start) || isapprox(R[i], r_end))
+                @inbounds if index
+                    R[new_length+1] = R[i]
+                    Z[new_length+1] = Z[i]
+                    new_length += 1
+                end
+            end
+            resize!(R, new_length)
+            resize!(Z, new_length)
 
             # no polygon crossings  O(N)
-            inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
-            cost_inside = sum(inpoly)
+            cost_inside = 0
+            for (r, z) in zip(R, Z)
+                inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
+                cost_inside += inpoly
+            end
 
             # target clearance  O(1)
             minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
@@ -249,8 +261,12 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
 
     # check no polygon crossings
     R, Z = func(r_start, r_end, shape_parameters...)
-    inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
-    cost_inside = sum(inpoly)
+    cost_inside = 0
+    for (r, z) in zip(R, Z)
+        inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
+        cost_inside += inpoly
+    end
+
     if cost_inside > 0
         @warn "optimize_shape function could not avoid polygon crossings! Perhaps try changing shape?"
     end
