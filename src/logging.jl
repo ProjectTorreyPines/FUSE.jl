@@ -9,7 +9,7 @@ function uwanted_warnings_filter(log_args)
 end
 
 const log_topics = Dict{Symbol,Logging.LogLevel}()
-for topic in [:actors]
+for topic in (:actors,)
     log_topics[topic] = Logging.Error
 end
 

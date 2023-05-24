@@ -29,7 +29,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
     height = maximum(z_obstruction) - minimum(z_obstruction) + target_clearance * 2.0
     z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
     shape_parameters = nothing
-    if shape_function_index in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
+    if shape_function_index ∈ (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         return nothing
     else
         shape_index_mod = shape_function_index
@@ -56,7 +56,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
             shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
-        elseif shape_index_mod in [Int(_miller_), Int(_square_miller_)]
+        elseif shape_index_mod ∈ (Int(_miller_), Int(_square_miller_))
             _, imaxr = findmax(r_obstruction)
             _, iminr = findmin(r_obstruction)
             _, imaxz = findmax(z_obstruction)
@@ -99,7 +99,7 @@ end
 
 function shape_function(shape_function_index)
     func = nothing
-    if shape_function_index in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
+    if shape_function_index ∈ (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         return nothing
     else
         shape_index_mod = shape_function_index
@@ -630,11 +630,11 @@ IMAS.dynamic_expressions["build.layer[:].volume_no_structures"] =
 Returns volume of the intersection between build layer volume and structure volume
 """
 function layer_structure_intersect_volume(layer::IMAS.build__layer, structure::IMAS.build__structure)
-    if layer.type in [Int(_in_), Int(_out_)]
+    if layer.type ∈ (Int(_in_), Int(_out_))
         return layer.volume
-    elseif layer.type in [Int(_tf_), Int(_plasma_)]
+    elseif layer.type ∈ (Int(_tf_), Int(_plasma_))
         return layer.volume
-    elseif layer.fs ∈ [Int(_hfs_), Int(_lfs_)]
+    elseif layer.fs ∈ (Int(_hfs_), Int(_lfs_))
         i = IMAS.index(layer)
         if layer.fs == Int(_hfs_)
             layer_in = IMAS.parent(layer)[i+1]

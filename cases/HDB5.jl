@@ -111,7 +111,7 @@ function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::F
     # Filter cases where the ohmic power is dominating
     run_df[:, "Paux"] = run_df[:, "PNBI"] .+ run_df[:, "PECRH"] .+ run_df[:, "PICRH"] .+ run_df[:, "POHM"]
     run_df = run_df[run_df[:, "POHM"].<maximum_ohmic_fraction.*(run_df[:, "Paux"].-run_df[:, "POHM"]), :]
-    if !(Symbol(tokamak) in [:all, :any])
+    if Symbol(tokamak) ∉ (:all, :any)
         run_df = run_df[run_df.TOK.==String(tokamak), :]
     end
     return run_df
