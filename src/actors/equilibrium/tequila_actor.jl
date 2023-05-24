@@ -13,6 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=5)
     psi_norm_boundary_cutoff::Entry{Float64} = Entry{Float64}("-", "Cutoff psi_norm for determining boundary"; default=0.999)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
+    debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
 
 mutable struct ActorTEQUILA <: PlasmaAbstractActor
@@ -50,6 +51,8 @@ function _step(actor::ActorTEQUILA)
     dd = actor.dd
     par = actor.par
 
+    par.do_plot && (p=plot(dd.equilibrium;cx=true, label="before"))
+
     prepare_eq(dd)
 
     eqt = dd.equilibrium.time_slice[]
@@ -65,18 +68,17 @@ function _step(actor::ActorTEQUILA)
 
     rho_pol = sqrt.(psin)
     rho_pol[1] = 0.0
-    dp_dψ = TEQUILA.FE(rho_pol, eq1d.dpressure_dpsi)
-    Jt_R = TEQUILA.FE(rho_pol, eq1d.j_tor .* eq1d.gm9)
-    pbnd = eq1d.pressure[end]
-    fbnd = eq1d.f[end]
+    P = TEQUILA.FE(rho_pol, eq1d.pressure)
+    Jt = TEQUILA.FE(rho_pol, eq1d.j_tor)
+    Pbnd = eq1d.pressure[end]
+    Fbnd = eq1d.f[end]
 
     # TEQUILA shot
     shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh;
-                        dp_dψ, Jt_R, pbnd, fbnd)
-    actor.shot = TEQUILA.solve(shot, par.number_of_iterations)
+                        P, Jt, Pbnd, Fbnd)
+    actor.shot = TEQUILA.solve(shot, par.number_of_iterations; debug=par.debug)
 
     if par.do_plot
-        p=plot(dd.equilibrium;cx=true, label="before")
         for (idx,s) in enumerate(eachcol(actor.shot.surfaces[:,2:end]))
             if idx == length(actor.shot.surfaces[1,2:end])
                 plot!(p,IMAS.MXH(s), color=:red,label="after TEQUILA")
@@ -110,7 +112,7 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_b
     R0 = shot.R0fe(1.0)
     Z0 = shot.Z0fe(1.0)
     eq.vacuum_toroidal_field.r0 = R0
-    @ddtime(eq.vacuum_toroidal_field.b0 = shot.fbnd / R0)
+    @ddtime(eq.vacuum_toroidal_field.b0 = shot.Fbnd / R0)
     eqt.boundary.geometric_axis.r = R0
     eqt.boundary.geometric_axis.z = Z0
 
@@ -137,7 +139,7 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_b
     Z0 = shot.surfaces[2, end]
     ϵ  = shot.surfaces[3, end]
     κ  = shot.surfaces[4, end]
-    a = min(1.2 * R0 * ϵ, R0) # 20% bigger than plasma, but a no bigger than R0
+    a = min(1.5 * R0 * ϵ, R0) # 20% bigger than plasma, but a no bigger than R0
     b = κ * a
     Rgrid = range(R0 - a, R0 + a, n_grid)
     Zgrid = range(Z0 - b, Z0 + b, n_grid)
