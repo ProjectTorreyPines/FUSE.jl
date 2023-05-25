@@ -546,9 +546,11 @@ function optimize_coils_rail(
                 private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
                 vessel = IMAS.get_build(bd, type=_plasma_)
                 for (pr, pz) in private
-                    pvx, pvy = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz; as_list_of_points=false)
-                    append!(Rx, pvx)
-                    append!(Zx, pvy)
+                    indexes, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
+                    for cr in crossings
+                        push!(Rx, cr[1])
+                        push!(Zx, cr[2])
+                    end
                 end
                 if isempty(Rx)
                     @warn "weight_strike>0 but no strike point found"

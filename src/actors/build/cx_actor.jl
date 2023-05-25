@@ -257,7 +257,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         structure.toroidal_extent = 2pi
 
         # now find divertor plasma facing surfaces
-        indexes, crossings = IMAS.intersection(xx, yy, pl_r, pl_z; return_indexes=true)
+        indexes, crossings = IMAS.intersection(xx, yy, pl_r, pl_z)
         divertor_r = [crossings[1][1]; pl_r[indexes[1][2]+1:indexes[2][2]+1]; crossings[2][1]]
         divertor_z = [crossings[1][2]; pl_z[indexes[1][2]+1:indexes[2][2]+1]; crossings[2][2]]
 
@@ -265,7 +265,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         m = (Zx - Z0) / (Rx - R0)
         xx = [0.0, R0 * 2.0]
         yy = line_through_point(m, Rx, Zx, xx)
-        indexes, crossings = IMAS.intersection(xx, yy, divertor_r, divertor_z; return_indexes=true)
+        indexes, crossings = IMAS.intersection(xx, yy, divertor_r, divertor_z)
 
         # add target info
         divertor = resize!(divertors.divertor, length(divertors.divertor) + 1)[end]
