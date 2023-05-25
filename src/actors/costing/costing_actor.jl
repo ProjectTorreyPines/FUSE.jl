@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
 	construction_start_year::Entry{Int} = Entry(Int, "year", "Year that plant construction begins"; default = Dates.year(Dates.now()))
 	future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
 	plant_lifetime::Entry{Int} = Entry(Int, "year", "Lifetime of the plant"; default = 40)
-	availability::Entry{T} = Entry(T, "-", "Availability fraction of the plant"; default = 0.8)
+	scheduled_maintenance_fraction::Entry{T} = Entry(T, "-", "Fraction of plant lifetime dedicated to scheduled maintenance"; default = 0.134)
 	production_increase::Entry{T} = Entry(T, "-", "Factor by which production of ReBCO multiplies"; default = 10)
 	learning_rate::Entry{T} = Entry(T, "-", "Learning rate for ReBCO technology production"; default = 0.85)
 end
@@ -48,7 +48,7 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 	dd.costing.construction_start_year = act.ActorCosting.construction_start_year
 	dd.costing.future.inflation_rate = act.ActorCosting.future_inflation_rate
 	dd.costing.plant_lifetime = act.ActorCosting.plant_lifetime
-	dd.costing.availability = act.ActorCosting.availability
+	dd.costing.scheduled_maintenance_fraction = act.ActorCosting.scheduled_maintenance_fraction
 	dd.costing.future.learning.hts.production_increase = act.ActorCosting.production_increase
 	dd.costing.future.learning.hts.learning_rate = act.ActorCosting.learning_rate
 

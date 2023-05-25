@@ -149,6 +149,12 @@ function _step(actor::ActorARIESCosting)
 		yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / cst.plant_lifetime)
 		cst.cost_lifetime += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
 	end
+
+    unscheduled_unavailability = (20.56 + 9.37)/365 
+    #20.56 + 9.37 days per year, assuming that half of reactor plant equipment unavailability and half of BOP unavailability are due to unscheduled maintenance
+    #see Table 12 "ARIES-AT maintenance system definition and analysis", L.M. Waganer, Fus. Eng. & Des. 80, 1-4 (2006)
+
+    cst.availability = (1 - cst.scheduled_maintenance_fraction) * (1 - unscheduled_unavailability)
 	cst.levelized_CoE = (cst.cost_lifetime * 1E6) / (cst.plant_lifetime * 24 * 365 * power_electric_net / 1e3 * cst.availability)
 
 	return actor

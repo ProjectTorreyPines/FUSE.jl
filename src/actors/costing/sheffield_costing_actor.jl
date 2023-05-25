@@ -9,6 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
 	fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default = 0.078)
 	divertor_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
 	blanket_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
+    coil_redundancy::Entry{T} = Entry(T, "-", "Number of spare TF coils"; default = 0)
 
 end
 
@@ -45,11 +46,13 @@ function _step(actor::ActorSheffieldCosting)
 	da = DollarAdjust(dd)
 
 	fixed_charge_rate = par.fixed_charge_rate
-	availability = cst.availability
+    scheduled_maintenance_fraction = cst.scheduled_maintenance_fraction
 	plant_lifetime = cst.plant_lifetime
 	divertor_fluence_lifetime = par.divertor_fluence_lifetime
 	blanket_fluence_lifetime = par.blanket_fluence_lifetime
 	construction_lead_time = par.construction_lead_time
+    coil_redundancy = par.coil_redundancy
+
 
 	thermal_flux = 10 # placeholder value for thermal flux on the divertor 
 
@@ -103,6 +106,17 @@ function _step(actor::ActorSheffieldCosting)
 
 	###### Direct Capital ######
 	total_direct_capital_cost = 0
+
+    #availability calculation as shown on pg. 228, Sheffield et al. Fusion Tech. 9 (1986)
+    required_components = bd.tf.coils_n 
+    total_components = required_components + coil_redundancy 
+
+    unscheduled_unavailability = unscheduled(time_to_failure(6e-6,required_components,total_components), 1e4, 240, fraction_major_failure(0.1,required_components,total_components)) + .2342
+
+    cst.availability = (1 - scheduled_maintenance_fraction) * (1 - unscheduled_unavailability)
+
+    total_direct_capital_cost += cost_redundant_coils(cst, bd, da, required_components, total_components)
+   
 	##### fusion island
 	sys_fi = resize!(cost_direct.system, "name" => "tokamak")
 
@@ -148,11 +162,11 @@ function _step(actor::ActorSheffieldCosting)
 	total_fuel_cost = 0
 
 	sys = resize!(cost_ops.system, "name" => "blanket")
-	sys.yearly_cost = cost_fuel_Sheffield(:blanket, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
+	sys.yearly_cost = cost_fuel_Sheffield(:blanket, dd, fixed_charge_rate, cst.availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
 	total_fuel_cost += sys.yearly_cost
 
 	sys = resize!(cost_ops.system, "name" => "divertor")
-	sys.yearly_cost = cost_fuel_Sheffield(:divertor, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
+	sys.yearly_cost = cost_fuel_Sheffield(:divertor, dd, fixed_charge_rate, cst.availability, plant_lifetime, neutron_flux, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
 	total_fuel_cost += sys.yearly_cost
 
 	sys = resize!(cost_ops.system, "name" => "aux power")
@@ -178,7 +192,7 @@ function _step(actor::ActorSheffieldCosting)
 
 	total_capital_cost = total_direct_capital_cost * capitalization_factor(construction_lead_time) * indirect_charges(construction_lead_time)
 
-	cst.levelized_CoE = 1e3 * (total_capital_cost * fixed_charge_rate + total_fuel_cost + cost_operations_maintenance_Sheffield(power_electric_net, da)) / (power_electric_net * 1e-6 * 8760 * availability) + 0.5e-3
+	cst.levelized_CoE = 1e3 * (total_capital_cost * fixed_charge_rate + total_fuel_cost + cost_operations_maintenance_Sheffield(power_electric_net, da)) / (power_electric_net * 1e-6 * 8760 * cst.availability) + 0.5e-3
 
 	return actor
 end
@@ -341,3 +355,45 @@ function cost_operations_maintenance_Sheffield(power_electric_net::Real, da::Dol
 	end
 	return future_dollars(cost, da)
 end
+
+#= ============= =#
+#  availability   #
+#= ============= =#
+
+function fraction_major_failure(Fm0, required_components, total_components)
+    denom = 0 
+    for j in required_components:total_components
+        denom += 1/j 
+    end 
+    
+    denom = required_components*denom 
+    
+    Fm = Fm0/denom
+    return Fm
+end
+
+function time_to_failure(Fra, required_components, total_components)
+    Tf1 = 1/Fra 
+    num = 0 
+    
+    for j in required_components:total_components 
+        num += 1/j
+    end
+    
+    Tfs = Tf1 * num 
+    return Tfs
+end
+
+function unscheduled(Tfs, Mr0, Mr1, Fm)
+    Pdt = (Mr0*Fm + Mr1*(1-Fm))/Tfs
+    return Pdt 
+end
+
+function cost_redundant_coils(cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust, required_components, total_components)
+	da.year_assessed = 2016   # Year the materials costs were assessed 
+	primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
+    volume_single_coil = primary_coils_hfs.volume/bd.tf.coils_n
+	cost = 1.5 * volume_single_coil * (total_components - required_components) * unit_cost(bd.tf.technology, cst)
+	return future_dollars(cost, da)
+end
+
