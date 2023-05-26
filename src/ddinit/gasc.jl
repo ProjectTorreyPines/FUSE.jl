@@ -41,7 +41,7 @@ function GASC(filename::String, case::Int)
     gasc = GASC(filename, data, case, version)
     # convert list of floats to arrays
     for item in keys(gasc.outputs["numerical profiles"])
-        if item ∉ ["boundaryInnerTF", "boundaryOuterTF"]
+        if item ∉ ("boundaryInnerTF", "boundaryOuterTF")
             gasc.outputs["numerical profiles"][item] = Vector{Float64}(gasc.outputs["numerical profiles"][item])
         end
     end
@@ -381,7 +381,7 @@ end
 Convert coil technology information in GASC solution to FUSE `coil_technology` Symbol
 """
 function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
-    if coil_type ∉ [:OH, :TF, :PF]
+    if coil_type ∉ (:OH, :TF, :PF)
         error("Supported coil type are [:OH, :TF, :PF]")
     end
     if gasc.inputs["conductors"]["superConducting"] == "copper"

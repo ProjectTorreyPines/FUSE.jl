@@ -163,9 +163,9 @@ function init_pulse_schedule_postion_control(
     mxh::IMAS.MXH,
     xpoints::Symbol)
 
-    if xpoints in [:lower, :upper, :double]
+    if xpoints ∈ (:lower, :upper, :double)
         # MXHboundary adds x-points
-        mxhb = fitMXHboundary(mxh; lower_x_point=(xpoints in [:lower, :double]), upper_x_point=(xpoints in [:upper, :double]))
+        mxhb = fitMXHboundary(mxh; lower_x_point=(xpoints ∈ (:lower, :double)), upper_x_point=(xpoints ∈ (:upper, :double)))
         pr = mxhb.r_boundary
         pz = mxhb.z_boundary
 
@@ -192,11 +192,11 @@ function init_pulse_schedule_postion_control(
     # x points at maximum curvature
     Z0 = mxh.Z0
     x_points = []
-    if xpoints in [:lower, :double]
+    if xpoints ∈ (:lower, :double)
         i1 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .< Z0))
         push!(x_points, (pr[i1], pz[i1]))
     end
-    if xpoints in [:upper, :double]
+    if xpoints ∈ (:upper, :double)
         i2 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .> Z0))
         push!(x_points, (pr[i2], pz[i2]))
     end
