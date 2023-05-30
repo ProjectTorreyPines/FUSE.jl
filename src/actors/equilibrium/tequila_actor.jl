@@ -59,7 +59,10 @@ function _step(actor::ActorTEQUILA)
     eq1d = eqt.profiles_1d
 
     psin = eq1d.psi_norm
-    actor.psib = IMAS.interp1d(psin, eq1d.psi)(par.psi_norm_boundary_cutoff)
+
+    # BCL 5/30/23: psib should be set time dependently, related to the flux swing of the OH coils
+    #              For now setting to zero as initial eq1d.psi profile from prepare_eq can be nonsense
+    actor.psib = 0.0 #IMAS.interp1d(psin, eq1d.psi)(par.psi_norm_boundary_cutoff)
 
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
@@ -72,10 +75,11 @@ function _step(actor::ActorTEQUILA)
     Jt = TEQUILA.FE(rho_pol, eq1d.j_tor)
     Pbnd = eq1d.pressure[end]
     Fbnd = eq1d.f[end]
+    Ip = eqt.global_quantities.ip
 
     # TEQUILA shot
     shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh;
-                        P, Jt, Pbnd, Fbnd)
+                        P, Jt, Pbnd, Fbnd, Ip_target=Ip)
     actor.shot = TEQUILA.solve(shot, par.number_of_iterations; debug=par.debug)
 
     if par.do_plot
