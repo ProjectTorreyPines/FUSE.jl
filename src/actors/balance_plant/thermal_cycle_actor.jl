@@ -69,13 +69,13 @@ function _step(actor::ActorThermalCycle)
 
     if ismissing(par, :regen)
         ϵr = 0.0
-        if bop.power_cycle_type ∈ ["brayton_only"]
+        if bop.power_cycle_type ∈ ("brayton_only",)
             ϵr = 0.9
         end
     else
         ϵr = par.regen
     end
-    @assert (ϵr == 0 || (ϵr >= 0.0 && ϵr <= 1.0 && bop.power_cycle_type ∈ ["brayton_only"])) "Regeneration between 0.0 and 1.0 is only possible for `:brayton_only` cycles"
+    @assert (ϵr == 0 || (ϵr >= 0.0 && ϵr <= 1.0 && bop.power_cycle_type ∈ ("brayton_only",))) "Regeneration between 0.0 and 1.0 is only possible for `:brayton_only` cycles"
 
     mflow_cycle = @ddtime(bop.thermal_cycle.flow_rate)
     ihts_par = actor.act.ActorHeatTransfer

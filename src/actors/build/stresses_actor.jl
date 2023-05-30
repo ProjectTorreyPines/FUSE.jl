@@ -60,9 +60,7 @@ function _step(actor::ActorStresses; n_points::Integer=5)
     noslip = sm.center_stack.noslip == 1
     plug = sm.center_stack.plug == 1
     
-    empty!(sm.center_stack)
-
-    for oh_on in [true, false]
+    for oh_on in (true, false)
         solve_1D_solid_mechanics!(
             sm.center_stack,
             R0,
@@ -79,6 +77,7 @@ function _step(actor::ActorStresses; n_points::Integer=5)
             f_struct_oh=f_struct_oh,
             f_struct_pl=1.0,
             n_points=n_points,
+            empty_smcs=oh_on,
             verbose=false
         )
     end

@@ -256,7 +256,7 @@ const supported_coils_techs = [:copper, :LTS, :ITER, :HTS]
 Return coil parameters from technology $(supported_coils_techs) and coil type [:oh, :tf, :pf_active]"
 """
 function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology}, technology::Symbol, coil_type::Symbol)
-    if coil_type ∉ [:oh, :tf, :pf_active]
+    if coil_type ∉ (:oh, :tf, :pf_active)
         error("Supported coil type are [:oh, :tf, :pf_active]")
     end
     if technology ∉ supported_coils_techs
@@ -269,8 +269,8 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
         coil_tech.fraction_stainless = 0.0
         coil_tech.fraction_void = 0.1
     
-    elseif technology in [:LTS, :ITER, :HTS]
-        if technology in [:LTS, :ITER]
+    elseif technology ∈ (:LTS, :ITER, :HTS)
+        if technology ∈ (:LTS, :ITER)
             coil_tech.temperature = 4.2
             coil_tech.material = "Nb3Sn"
         else

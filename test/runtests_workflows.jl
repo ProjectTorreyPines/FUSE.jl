@@ -2,7 +2,7 @@ using FUSE
 using Test
 
 @testset "warmup" begin
-    for round in [1, 2]
+    for round in (1, 2)
         FUSE.warmup()
     end
 end

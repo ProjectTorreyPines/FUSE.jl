@@ -166,7 +166,7 @@ makedocs(;
 
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
 @info "Converting links"
-for (file, parfile) in [("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd", "dd")]
+for (file, parfile) in (("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd", "dd"))
     local txt = open("$(@__DIR__)/build/$file.html", "r") do io
         read(io, String)
     end
@@ -183,7 +183,7 @@ end
 
 # distinguish between input/output cells
 @info "Styling examples"
-for css in ["light", "dark"]
+for css in ("light", "dark")
     open("$(@__DIR__)/build/assets/themes/documenter-$css.css", "a") do io
         write(
             io,

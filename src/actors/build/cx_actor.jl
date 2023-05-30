@@ -194,7 +194,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
 
     # wall poly (this sets how back the divertor structure goes)
     wall_poly = xy_polygon(bd.layer[ipl-1])
-    for ltype in [_blanket_, _shield_, _wall_,]
+    for ltype in (_blanket_, _shield_, _wall_)
         iwl = IMAS.get_build(bd, type=ltype, fs=_hfs_, return_index=true, raise_error_on_missing=false)
         if iwl !== missing
             wall_poly = xy_polygon(bd.layer[iwl])
@@ -257,7 +257,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         structure.toroidal_extent = 2pi
 
         # now find divertor plasma facing surfaces
-        indexes, crossings = IMAS.intersection(xx, yy, pl_r, pl_z; return_indexes=true)
+        indexes, crossings = IMAS.intersection(xx, yy, pl_r, pl_z)
         divertor_r = [crossings[1][1]; pl_r[indexes[1][2]+1:indexes[2][2]+1]; crossings[2][1]]
         divertor_z = [crossings[1][2]; pl_z[indexes[1][2]+1:indexes[2][2]+1]; crossings[2][2]]
 
@@ -265,7 +265,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         m = (Zx - Z0) / (Rx - R0)
         xx = [0.0, R0 * 2.0]
         yy = line_through_point(m, Rx, Zx, xx)
-        indexes, crossings = IMAS.intersection(xx, yy, divertor_r, divertor_z; return_indexes=true)
+        indexes, crossings = IMAS.intersection(xx, yy, divertor_r, divertor_z)
 
         # add target info
         divertor = resize!(divertors.divertor, length(divertors.divertor) + 1)[end]
@@ -311,7 +311,7 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     layer_poly = xy_polygon(layer)
     layer_in_poly = xy_polygon(layer_in)
     ring_poly = LibGEOS.difference(layer_poly, layer_in_poly)
-    for structure in [structure for structure in bd.structure if structure.type == Int(_divertor_)]
+    for structure in (structure for structure in bd.structure if structure.type == Int(_divertor_))
         structure_poly = xy_polygon(structure)
         ring_poly = LibGEOS.difference(ring_poly, structure_poly)
     end
@@ -428,7 +428,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         o_start = 0.0
         o_end = obstr.end_radius
     else
-        if obstr.fs in [Int(_lhfs_), Int(_out_)]
+        if obstr.fs in (Int(_lhfs_), Int(_out_))
             o_start = obstr.start_radius
             o_end = obstr.end_radius
         else
@@ -463,7 +463,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     layer.shape = Int(shape)
 
     # handle offset, negative offset, and convex-hull
-    if layer.shape in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
+    if layer.shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         R, Z = buffer(oR, oZ, (hfs_thickness + lfs_thickness) / 2.0)
         R .+= r_offset
         if layer.shape == Int(_convex_hull_)
@@ -536,7 +536,7 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         if k == 1 && ini.center_stack.plug
             layer.material = ini.material.wall
         elseif layer.type == Int(_plasma_)
-            layer.material = any([layer.type in [Int(_blanket_), Int(_shield_)] for layer in dd.build.layer]) ? "DT_plasma" : "DD_plasma"
+            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in dd.build.layer)) ? "DT_plasma" : "DD_plasma"
         elseif layer.type == Int(_gap_)
             layer.material = "Vacuum"
         elseif layer.type == Int(_oh_)
