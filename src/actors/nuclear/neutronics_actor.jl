@@ -196,7 +196,7 @@ function define_neutrons(actor::ActorNeutronics; p=nothing)
     CDF = cumsum(neutron_source_2d[:])
     W_per_trace = CDF[end] / N
     CDF .= (CDF .- CDF[1]) ./ (CDF[end] - CDF[1])
-    ICDF = IMAS.interp1d(CDF, 1:length(CDF), :linear)
+    ICDF = IMAS.interp1d(CDF, Float64.(1:length(CDF)), :linear)
 
     # neutron structures
     neutrons = Vector{neutron_particle{Float64}}(undef, N)
