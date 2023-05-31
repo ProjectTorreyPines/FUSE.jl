@@ -44,8 +44,8 @@ end
 function _step(actor::ActorBlanket)
     dd = actor.dd
     empty!(dd.blanket)
-    blanket = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
-    if blanket === missing
+    blankets = IMAS.get_build_layer(dd.build.layer, type=_blanket_, fs=_hfs_)
+    if isempty(blankets)
         @warn "No blanket present for ActorBlanket to do anything"
         return actor
     end
@@ -85,8 +85,8 @@ function _step(actor::ActorBlanket)
         else
             fs = _lfs_
         end
-        d1 = IMAS.get_build(dd.build, type=_wall_, fs=fs, return_only_one=false, raise_error_on_missing=false)
-        if d1 !== missing
+        d1 = IMAS.get_build_layers(dd.build.layer, type=_wall_, fs=fs)
+        if !isempty(d1)
             # if there are multiple walls we choose the one closest to the plasma
             if fs == _hfs_
                 d1 = d1[end]
@@ -94,9 +94,9 @@ function _step(actor::ActorBlanket)
                 d1 = d1[1]
             end
         end
-        d2 = IMAS.get_build(dd.build, type=_blanket_, fs=fs)
-        d3 = IMAS.get_build(dd.build, type=_shield_, fs=fs, return_only_one=false, raise_error_on_missing=false)
-        if d3 !== missing
+        d2 = IMAS.get_build_layer(dd.build.layer, type=_blanket_, fs=fs)
+        d3 = IMAS.get_build_layers(dd.build.layer, type=_shield_, fs=fs)
+        if !isempty(d3)
             # if there are multiple shields we choose the one closest to the plasma
             if fs == _hfs_
                 d3 = d3[end]
@@ -142,7 +142,7 @@ function _step(actor::ActorBlanket)
             r_coords[1] = r0
             z_coords[1] = z0
             for (ilayer, layer) in enumerate([d1, d2, d3])
-                if layer === missing
+                if isempty(layer)
                     hit = []
                 else
                     _, hit = IMAS.intersection([r0, fr / fn * 1000 + r0], [z0, fz / fn * 1000 + z0], layer.outline.r, layer.outline.z)
