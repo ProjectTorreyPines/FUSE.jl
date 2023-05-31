@@ -38,7 +38,7 @@ function _step(actor::ActorPassiveStructures)
     empty!(dd.pf_passive)
 
     # all LFS layers that do not intersect with structures
-    ilayers = IMAS.get_build(dd.build, fs=IMAS._lfs_, return_only_one=false, return_index=true)
+    ilayers = IMAS.get_build_indexes(dd.build.layer, fs=IMAS._lfs_)
     ilayers = vcat(ilayers[1] - 1, ilayers)
     for k in ilayers
         l = dd.build.layer[k]

@@ -9,7 +9,7 @@ Evaluate maxium TF current density and magnetic field for given geometry and tec
 NOTE: This function is here but it's not really used for machine desing, since generally the maximum B0 is a input design parameter.
 """
 function tf_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
-    hfsTF = IMAS.get_build(bd, type=_tf_, fs=_hfs_)
+    hfsTF = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_)
     TF_cx_area = π * (hfsTF.end_radius^2 - hfsTF.start_radius^2) / bd.tf.coils_n
 
     # find maximum superconductor critical_j given self-field
@@ -37,8 +37,8 @@ end
 Evaluate TF current density needed to obtain the maximum required B0 at R0
 """
 function tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
-    hfsTF = IMAS.get_build(bd, type=_tf_, fs=_hfs_)
-    plasma = IMAS.get_build(bd, type=_plasma_)
+    hfsTF = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_)
+    plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
     R0 = (plasma.end_radius + plasma.start_radius) / 2.0
     B0 = maximum(abs.(eq.vacuum_toroidal_field.b0))
 
