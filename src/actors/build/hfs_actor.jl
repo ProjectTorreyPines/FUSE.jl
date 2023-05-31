@@ -138,15 +138,17 @@ function _step(actor::ActorHFSsizing)
 
     # initialize
     PL = dd.build.layer[1]
-    OH = IMAS.get_build(dd.build, type=_oh_)
-    BL = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
-    if BL === missing
+    OH = IMAS.get_build_layer(dd.build.layer, type=_oh_)
+    BLs = IMAS.get_build_layers(dd.build.layer, type=_blanket_, fs=_hfs_)
+    if isempty(BLs)
         BL = PL
+    else
+        BL = BLs[1]
     end
     old_BL_thickness = BL.thickness
-    TFhfs = IMAS.get_build(dd.build, type=_tf_, fs=_hfs_)
-    TFlfs = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_)
-    plasma = IMAS.get_build(dd.build, type=_plasma_)
+    TFhfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_hfs_)
+    TFlfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_)
+    plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
 
     target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
     a = (plasma.end_radius - plasma.start_radius) / 2.0

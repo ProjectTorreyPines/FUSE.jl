@@ -125,7 +125,7 @@ end
 OH flux given its bd.oh.max_b_field and radial build
 """
 function flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
-    OH = IMAS.get_build(bd, type=_oh_)
+    OH = IMAS.get_build_layer(bd.layer, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
     magneticFieldSolenoidBore = bd.oh.max_b_field
