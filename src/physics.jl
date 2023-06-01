@@ -192,38 +192,30 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
 
             length(R) == length(Z) || error("R and Z have different length")
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            new_length = 0
-            for i in eachindex(Z)
-                index = !(isapprox(R[i], r_start) || isapprox(R[i], r_end))
-                @inbounds if index
-                    R[new_length+1] = R[i]
-                    Z[new_length+1] = Z[i]
-                    new_length += 1
-                end
-            end
-            resize!(R, new_length)
-            resize!(Z, new_length)
+            index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
+            Rv = view(R, index)
+            Zv = view(Z, index)
 
             # no polygon crossings  O(N)
-            cost_inside = 0
-            for (r, z) in zip(R, Z)
+            cost_inside = 0.0
+            for (r, z) in zip(Rv, Zv)
                 inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
                 cost_inside += inpoly
             end
 
             # target clearance  O(1)
-            minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
+            minimum_distance = IMAS.minimum_distance_two_shapes(Rv, Zv, r_obstruction, z_obstruction)
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
                 cost_min_clearance = 0.0
             end
-            mean_above_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance; above_target=true)
+            mean_above_distance_error = IMAS.mean_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance; above_target=true)
             cost_mean_above_distance = mean_above_distance_error / target_clearance
 
             # curvature
             if use_curvature
-                curvature = abs.(IMAS.curvature(R, Z))
+                curvature = abs.(IMAS.curvature(Rv, Zv))
                 cost_max_curvature = exp(maximum(curvature)^2.5)
             else
                 cost_max_curvature = 0.0
@@ -595,15 +587,15 @@ function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
 end
 
 """
-    buffer(x::T, y::T, b::Float64) where {T<:AbstractVector{<:Real}} 
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b
 """
-function buffer(x::T, y::T, b::Float64) where {T<:AbstractVector{<:Real}}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(poly, b)
-    x_b = [v[1] for v in GeoInterface.coordinates(poly_b)[1]]
-    y_b = [v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
+    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
     return x_b, y_b
 end
 
