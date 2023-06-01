@@ -64,7 +64,6 @@ function _step(actor::ActorNeutronics)
         rmin = sqrt(c - b^2 / (4a))
 
         @inbounds for k in eachindex(rz_wall)
-            t = Inf
             rw1, zw1 = rz_wall[k]
             rw2, zw2 = k == Nw ? rz_wall[1] : rz_wall[k+1]
 
@@ -80,7 +79,9 @@ function _step(actor::ActorNeutronics)
             (rw1 < rmin && rw2 < rmin) && continue
 
             t = toroidal_intersection(rw1, zw1, rw2, zw2, xn, yn, zn, vx, vy, vz, v2, vz2)
-            t < ti && (ti = t)
+            if t < ti
+                ti = t
+            end
         end
         n.x += vx * ti
         n.y += vy * ti
@@ -120,13 +121,13 @@ function _step(actor::ActorNeutronics)
 
         @views cumsum!(ll, d[index])
         ll .-= ll[ns+1]
-        window .= exp.(.-(ll ./ (l[end] / length(l)) ./ (2ns + 1) .* 5) .^ 2)
+        window .= exp.(.-(ll ./ (l[end] / length(l)) ./ (2ns + 1.0) .* 5.0) .^ 2)
         window ./= sum(window)
         unit_vector = sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
 
-        for (k, i) in enumerate(index)
-            nflux_r[i] += (new_r - old_r) ./ unit_vector .* window[k] .* W_per_trace ./ wall_s[i]
-            nflux_z[i] += (new_z - old_z) ./ unit_vector .* window[k] .* W_per_trace ./ wall_s[i]
+        @inbounds for (k, i) in enumerate(index)
+            nflux_r[i] += @. (new_r - old_r) / unit_vector * window[k] * W_per_trace / wall_s[i]
+            nflux_z[i] += @. (new_z - old_z) / unit_vector * window[k] * W_per_trace / wall_s[i]
         end
     end
 
