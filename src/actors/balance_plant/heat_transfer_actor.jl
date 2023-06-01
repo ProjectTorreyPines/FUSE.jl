@@ -33,6 +33,11 @@ end
 mutable struct ActorHeatTransfer <: FacilityAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorHeatTransfer
+    function ActorHeatTransfer(dd::IMAS.dd, par::FUSEparameters__ActorHeatTransfer; kw...)
+        logging_actor_init(ActorHeatTransfer)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 """
@@ -46,12 +51,6 @@ function ActorHeatTransfer(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorHeatTransfer(dd::IMAS.dd, par::FUSEparameters__ActorHeatTransfer, act::ParametersAllActors; kw...)
-    logging_actor_init(ActorHeatTransfer)
-    par = par(kw...)
-    return ActorHeatTransfer(dd, par)
 end
 
 function _step(actor::ActorHeatTransfer)

@@ -12,6 +12,11 @@ end
 mutable struct ActorPowerNeeds <: FacilityAbstractActor
     dd::IMAS.dd
     par::FUSEparameters__ActorPowerNeeds
+    function ActorPowerNeeds(dd::IMAS.dd, par::FUSEparameters__ActorPowerNeeds; kw...)
+        logging_actor_init(ActorPowerNeeds)
+        par = par(kw...)
+        return new(dd, par)
+    end
 end
 
 """
@@ -30,12 +35,6 @@ function ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorPowerNeeds(dd::IMAS.dd, par::FUSEparameters__ActorPowerNeeds, act::ParametersAllActors; kw...)
-    logging_actor_init(ActorPowerNeeds)
-    par = par(kw...)
-    return ActorPowerNeeds(dd, par)
 end
 
 function _step(actor::ActorPowerNeeds)
