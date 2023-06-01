@@ -30,13 +30,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersAct
     divertor_coolant::Switch{Symbol} = Switch{Symbol}(coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
 end
 
-mutable struct ActorHeatTransfer <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorHeatTransfer
-    function ActorHeatTransfer(dd::IMAS.dd, par::FUSEparameters__ActorHeatTransfer; kw...)
+mutable struct ActorHeatTransfer{D,P} <: FacilityAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorHeatTransfer{P}
+    function ActorHeatTransfer(dd::IMAS.dd{D}, par::FUSEparameters__ActorHeatTransfer{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorHeatTransfer)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 

@@ -8,14 +8,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor w
     rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Radial location of the deposition profile"; default=0.0)
 end
 
-mutable struct ActorICsimple <: HCDAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorICsimple
-
-    function ActorICsimple(dd::IMAS.dd, par::FUSEparameters__ActorICsimple; kw...)
+mutable struct ActorICsimple{D,P} <: HCDAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorICsimple{P}
+    function ActorICsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorICsimple{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorICsimple)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 

@@ -11,9 +11,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor whe
     rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
 end
 
-mutable struct ActorCHEASE <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorCHEASE
+mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
 

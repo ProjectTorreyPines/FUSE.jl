@@ -8,9 +8,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorQEDcurrent{T} <: ParametersActor
     _name::Symbol = :not_set
 end
 
-mutable struct ActorQEDcurrent <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorQEDcurrent
+mutable struct ActorQEDcurrent{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorQEDcurrent{P}
     QI::QED.QED_state
     η#::Base.Callable
     QO::Union{QED.QED_state,Missing}

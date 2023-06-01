@@ -8,13 +8,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersA
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorBalanceOfPlant <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorBalanceOfPlant
+mutable struct ActorBalanceOfPlant{D,P} <: FacilityAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorBalanceOfPlant{P}
     act::ParametersAllActors
-    thermal_cycle_actor::ActorThermalCycle
-    IHTS_actor::ActorHeatTransfer
-    power_needs_actor::ActorPowerNeeds
+    thermal_cycle_actor::ActorThermalCycle{D}
+    IHTS_actor::ActorHeatTransfer{D}
+    power_needs_actor::ActorPowerNeeds{D}
 end
 
 """
@@ -40,9 +40,9 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
 
     breeder_hi_temp, breeder_low_temp, cycle_tmax = initial_temperatures(act.ActorThermalCycle.power_cycle_type)
 
-    IHTS_actor = ActorHeatTransfer(dd, act.ActorHeatTransfer, act; breeder_hi_temp, breeder_low_temp)
+    IHTS_actor = ActorHeatTransfer(dd, act.ActorHeatTransfer; breeder_hi_temp, breeder_low_temp)
     thermal_cycle_actor = ActorThermalCycle(dd, act.ActorThermalCycle, act)
-    power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act)
+    power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
     return ActorBalanceOfPlant(dd, par, act, thermal_cycle_actor, IHTS_actor, power_needs_actor)
 end
 
