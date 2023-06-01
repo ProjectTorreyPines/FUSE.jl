@@ -63,6 +63,28 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
         material = factory.addPhysicalGroup(2, [idx], idx)
         GridapGmsh.gmsh.model.setPhysicalName(2, idx, mats[idx])
 
+        if idx == length(mats)
+            # square cell
+            top_right = factory.addPoint(radius, radius, 0, lc, 5*(idx-1)+1)
+            bottom_right = factory.addPoint(radius, -radius, 0, lc, 5*(idx-1)+2)
+            bottom_left = factory.addPoint(-radius, -radius, 0, lc, 5*(idx-1)+3)
+            top_left = factory.addPoint(-radius, radius, 0, lc, 5*(idx-1)+4)
+            right = factory.addLine(top_right, bottom_right,  4*(idx-1)+1)
+            bottom = factory.addLine(bottom_right, bottom_left, 4*(idx-1)+2)
+            left = factory.addLine(bottom_left, top_left, 4*(idx-1)+3)
+            top = factory.addLine(top_left, top_right, 4*(idx-1)+4)
+            boundary = factory.addCurveLoop([right, bottom, left, top], idx)
+
+            # boundaries
+            right_bound = factory.addPhysicalGroup(1,  [right], material+1)
+            bottom_bound = factory.addPhysicalGroup(1, [bottom], material+2)
+            left_bound = factory.addPhysicalGroup(1, [left], material+3)
+            top_bound = factory.addPhysicalGroup(1, [top], material+4)
+            GridapGmsh.gmsh.model.setPhysicalName(1, right_bound, "right")
+            GridapGmsh.gmsh.model.setPhysicalName(1, bottom_bound, "bottom")
+            GridapGmsh.gmsh.model.setPhysicalName(1, left_bound, "left")
+            GridapGmsh.gmsh.model.setPhysicalName(1, top_bound, "top")
+        else
             # make inner circle points
             center = factory.addPoint(0, 0, 0, lc, 5*(idx-1)+1)
             right = factory.addPoint(radius, 0, 0, lc, 5*(idx-1)+2)
@@ -76,7 +98,8 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
             left_bottom = factory.addCircleArc(left, center, bottom, 4*(idx-1)+3)
             bottom_right = factory.addCircleArc(bottom, center, right, 4*(idx-1)+4)
             circle = factory.addCurveLoop([right_top, top_left, left_bottom, bottom_right], idx)
-            
+        end
+
         # make surfaces and materials
         if idx==1
             surface = factory.addPlaneSurface([idx], idx)
