@@ -51,7 +51,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     pushfirst!(thicknesses, r0)
     append!(thicknesses, 1.0)
     factory = gmsh.model.geo
-    lc = model_bound*2
+    lc = model_bound/5
 
     radius=0.0
 
@@ -63,28 +63,6 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
         material = factory.addPhysicalGroup(2, [idx], idx)
         GridapGmsh.gmsh.model.setPhysicalName(2, idx, mats[idx])
 
-        if idx == length(mats)
-            # square cell
-            top_right = factory.addPoint(radius, radius, 0, lc, 5*(idx-1)+1)
-            bottom_right = factory.addPoint(radius, -radius, 0, lc, 5*(idx-1)+2)
-            bottom_left = factory.addPoint(-radius, -radius, 0, lc, 5*(idx-1)+3)
-            top_left = factory.addPoint(-radius, radius, 0, lc, 5*(idx-1)+4)
-            right = factory.addLine(top_right, bottom_right,  4*(idx-1)+1)
-            bottom = factory.addLine(bottom_right, bottom_left, 4*(idx-1)+2)
-            left = factory.addLine(bottom_left, top_left, 4*(idx-1)+3)
-            top = factory.addLine(top_left, top_right, 4*(idx-1)+4)
-            boundary = factory.addCurveLoop([right, bottom, left, top], idx)
-
-            # boundaries
-            right_bound = factory.addPhysicalGroup(1,  [right], material+1)
-            bottom_bound = factory.addPhysicalGroup(1, [bottom], material+2)
-            left_bound = factory.addPhysicalGroup(1, [left], material+3)
-            top_bound = factory.addPhysicalGroup(1, [top], material+4)
-            GridapGmsh.gmsh.model.setPhysicalName(1, right_bound, "right")
-            GridapGmsh.gmsh.model.setPhysicalName(1, bottom_bound, "bottom")
-            GridapGmsh.gmsh.model.setPhysicalName(1, left_bound, "left")
-            GridapGmsh.gmsh.model.setPhysicalName(1, top_bound, "top")
-        else
             # make inner circle points
             center = factory.addPoint(0, 0, 0, lc, 5*(idx-1)+1)
             right = factory.addPoint(radius, 0, 0, lc, 5*(idx-1)+2)
@@ -98,7 +76,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
             left_bottom = factory.addCircleArc(left, center, bottom, 4*(idx-1)+3)
             bottom_right = factory.addCircleArc(bottom, center, right, 4*(idx-1)+4)
             circle = factory.addCurveLoop([right_top, top_left, left_bottom, bottom_right], idx)
-        end
+            
         # make surfaces and materials
         if idx==1
             surface = factory.addPlaneSurface([idx], idx)
@@ -110,7 +88,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
         xs = get_xss_from_hdf5(data_filename, mats[idx])
         push!(xss, xs)
     end
-    println(thicknesses)
+
     factory.synchronize()
 
     gmsh.model.mesh.generate(2)
@@ -130,10 +108,10 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     geometry = DiscreteModelFromFile(jsonfile)
 
     # number of azimuthal angles
-    nφ = 16
+    nφ = 4
 
     # azimuthal spacing
-    δ = 1.0 
+    δ = 4.0 
 
     # boundary conditions
     bcs = BoundaryConditions(top=Vaccum, left=Vaccum, bottom=Vaccum, right=Vaccum)
@@ -148,7 +126,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     segmentize!(tg)
 
     # polar quadrature
-    pq = NeutronTransport.TabuchiYamamoto(6)
+    pq = NeutronTransport.TabuchiYamamoto(2)
 
     # define the problem
     prob = MoCProblem(tg, pq, xss)
@@ -157,7 +135,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     fixed_sources = set_fixed_source_material(prob, "DT_plasma", 8 , 1)
 
     # solve
-    sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=1e-7, max_iterations=300)
+    @time sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.1, max_iterations=750)
 
     return sol
 end
@@ -187,9 +165,9 @@ function get_cell_φ(sol::MoCSolution{T}, cell::Int, gs::UnitRange{Int64}) where
 end
 
 function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) where T
-    @unpack φ, prob = sol
-    @unpack trackgenerator, fsr_tag, xss = prob
-    @unpack volumes = trackgenerator
+    NeutronTransport.@unpack φ, prob = sol
+    NeutronTransport.@unpack trackgenerator, fsr_tag, xss = prob
+    NeutronTransport.@unpack volumes = trackgenerator
     NGroups = NeutronTransport.ngroups(prob)
     NRegions = NeutronTransport.nregions(prob)
 
@@ -199,7 +177,7 @@ function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) 
     print(plasma_vol)
 
     for i in 1:NRegions
-        tbr_xs_dict = NeutronTransportExtension.get_xss_from_hdf5(joinpath(data_path,data_filename), xss[fsr_tag[i]].name, ["(n,Xt)"])
+        tbr_xs_dict = get_xss_from_hdf5(joinpath(data_path,data_filename), xss[fsr_tag[i]].name, ["(n,Xt)"])
         for g in 1:NGroups
             ig = NeutronTransport.@region_index(i, g)
             push!(vol_integrated_φ, sol.φ[ig] * volumes[i] / plasma_vol)
