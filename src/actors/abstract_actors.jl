@@ -17,7 +17,7 @@ function name(actor::AbstractActor)
 end
 
 function name(typeof_actor::Type{<:AbstractActor})
-    return replace(string(typeof_actor), r"^FUSE\.Actor" => "")
+    return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
 end
 
 #= ==== =#
