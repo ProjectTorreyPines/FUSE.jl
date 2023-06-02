@@ -219,7 +219,7 @@ function _step(actor::ActorBlanket)
             @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
         else
             cost = [sqrt(abs(total_tritium_breeding_ratio - target)); maximum(modules_neutron_shine_through); extra_cost] .^ 2
-            return sum(cost) * (1.0 + (Li6 / 100.0).^2)
+            return sum(cost) * (1.0 + (Li6 / 100.0) .^ 2)
         end
     end
 
