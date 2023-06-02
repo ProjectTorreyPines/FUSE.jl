@@ -14,15 +14,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor wh
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorBlanket <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorBlanket
+mutable struct ActorBlanket{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorBlanket{P}
     act::ParametersAllActors
-
-    function ActorBlanket(dd::IMAS.dd, par::FUSEparameters__ActorBlanket, act::ParametersAllActors; kw...)
+    function ActorBlanket(dd::IMAS.dd{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorBlanket)
         par = par(kw...)
-        return new(dd, par, act)
+        return new{D,P}(dd, par, act)
     end
 end
 

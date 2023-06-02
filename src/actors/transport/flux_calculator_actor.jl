@@ -9,11 +9,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T} <: ParametersA
     neoclassical_model::Switch{Symbol} = Switch{Symbol}([:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
 end
 
-mutable struct ActorFluxCalculator <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorFluxCalculator
-    turb_actor::PlasmaAbstractActor
-    neoc_actor::PlasmaAbstractActor
+mutable struct ActorFluxCalculator{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorFluxCalculator{P}
+    turb_actor::ActorTGLF{D,P}
+    neoc_actor::ActorNeoclassical{D,P}
 end
 
 """

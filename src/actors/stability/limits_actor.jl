@@ -8,13 +8,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T} <: Parameters
     raise_on_breach::Entry{Bool} = Entry{Bool}("-", "Raise an error when one or more stability limits are breached"; default=true)
 end
 
-mutable struct ActorStabilityLimits <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorStabilityLimits
-    function ActorStabilityLimits(dd::IMAS.dd, par::FUSEparameters__ActorStabilityLimits; kw...)
+mutable struct ActorStabilityLimits{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorStabilityLimits{P}
+    function ActorStabilityLimits(dd::IMAS.dd{D}, par::FUSEparameters__ActorStabilityLimits{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorStabilityLimits)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 

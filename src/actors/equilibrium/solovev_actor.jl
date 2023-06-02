@@ -16,9 +16,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorSolovev <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorSolovev
+mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorSolovev{P}
     S::Union{Nothing,MXHEquilibrium.SolovevEquilibrium}
 end
 

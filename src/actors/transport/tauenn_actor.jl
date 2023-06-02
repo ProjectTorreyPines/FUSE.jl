@@ -20,9 +20,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor whe
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorTauenn <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorTauenn
+mutable struct ActorTauenn{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorTauenn{P}
     tauenn_parameters::TAUENN.TauennParameters
     tauenn_outputs::TAUENN.TauennOutputs
 end

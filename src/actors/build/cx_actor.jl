@@ -8,13 +8,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor wh
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorCXbuild <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorCXbuild
-    function ActorCXbuild(dd::IMAS.dd, par::FUSEparameters__ActorCXbuild; kw...)
+mutable struct ActorCXbuild{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorCXbuild{P}
+    function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCXbuild)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 

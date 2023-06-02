@@ -45,15 +45,15 @@ Base.@kwdef mutable struct PFcoilsOptTrace
     cost_total::Vector{Float64} = Float64[]
 end
 
-mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPFcoilsOpt
-    eq_in::IMAS.equilibrium
-    eq_out::IMAS.equilibrium
-    pf_active::IMAS.pf_active
-    bd::IMAS.build
+mutable struct ActorPFcoilsOpt{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorPFcoilsOpt{P}
+    eq_in::IMAS.equilibrium{D}
+    eq_out::IMAS.equilibrium{D}
+    pf_active::IMAS.pf_active{D}
+    bd::IMAS.build{D}
     symmetric::Bool
-    λ_regularize::Real
+    λ_regularize::Float64
     trace::PFcoilsOptTrace
     green_model::Symbol
 end

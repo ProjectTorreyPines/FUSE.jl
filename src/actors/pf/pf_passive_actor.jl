@@ -7,13 +7,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T} <: Paramete
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorPassiveStructures <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPassiveStructures
-    function ActorPassiveStructures(dd::IMAS.dd, par::FUSEparameters__ActorPassiveStructures; kw...)
+mutable struct ActorPassiveStructures{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorPassiveStructures{P}
+    function ActorPassiveStructures(dd::IMAS.dd{D}, par::FUSEparameters__ActorPassiveStructures{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPassiveStructures)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 

@@ -11,11 +11,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorHFSsizing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorHFSsizing
-    stresses_actor::ActorStresses
-    fluxswing_actor::ActorFluxSwing
+mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorHFSsizing{P}
+    stresses_actor::ActorStresses{D,P}
+    fluxswing_actor::ActorFluxSwing{D,P}
     R0_scale::Float64
 end
 
@@ -46,7 +46,7 @@ function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::P
     par = act.ActorHFSsizing(kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing)
     stresses_actor = ActorStresses(dd, act.ActorStresses)
-    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor, false)
+    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor, 1.0)
 end
 
 function _step(actor::ActorHFSsizing)

@@ -148,6 +148,53 @@ function _finalize(actor::ActorNAME)
     return actor # _finalize() should always return the actor
 end
 ```
+## Profiling and writing fast Julia code
+
+First let's do some profiling to identify problemetic functions:
+
+1. Run FUSE from the VScode Julia REPL (`<Command-Shift-p>` and then `Julia: Start REPL`)
+   ```julia
+   using FUSE
+   FUSE.logging(Logging.Info; actors=Logging.Info);
+   ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars, STEP=true);
+   dd = IMAS.dd()
+   FUSE.init(dd, ini, act)
+   FUSE.ActorWholeFacility(dd, act); # call this once to precompile
+   ```
+
+1. Start with profiling execution time
+   ```julia
+   @profview FUSE.ActorWholeFacility(dd, act);
+   ```
+   where `FUSE.ActorWholeFacility(dd, act);` can really be any function that we care about
+
+1. Look at allocations
+   ```julia
+   @profview_alloc FUSE.ActorWholeFacility(dd, act);
+   ```
+
+1. We can decide how finely to comb for bottlenecks by setting `sample_rate` in `@profview` and `@profview_allocs`:
+   ```
+   @profview_allocs f(args...) [sample_rate=0.0001] [C=false]
+   ```
+
+!!! note
+    To move forward we have to [understand how to write performant Julia code](https://docs.julialang.org/en/v1/manual/performance-tips).
+
+Let's now investigate where the issue is with the function that we have identified. For this we have several tools at our disposal:
+
+* [`@code_warntype`](https://docs.julialang.org/en/v1/manual/performance-tips/#man-code-warntype): static analyzer built-in with Julia
+  * only looks at types that are inferred at runtime
+  `@code_warntype function()`
+
+* [JET](https://github.com/aviatesk/JET.jl): static analyzer integrated with VScode
+  * can detect different possible issues, including types inferred at runtime
+  * `JET.@report_opt function()` reports dynamic dispatch
+  * `JET.@report_call function()` reports type errors
+  * `JET.@report_call target_modules=(FUSE,IMAS,IMAS.IMASDD, ) FUSE.ActorNeutronics(dd,act);`
+
+* [Cthulhu](https://github.com/JuliaDebug/Cthulhu.jl): interactive static analyzer
+  * `Cthulhu.@descend function()`
 
 ## How to build the documentation
 
@@ -166,7 +213,7 @@ end
    ```
 
 !!! note
-    Documentation files (PDF, DOC, XLS, PPT, ...) can be committed and pushed to the [FUSE_extra_files](https://github.com/ProjectTorreyPines/FUSE_extra_files) repository, and then linked directly from within the FUSE documentation, like this:
+    Documentation files (PDF, DOC, XLS, PPT, ...) can be committed and pushed to the [FUSE\_extra\_files](https://github.com/ProjectTorreyPines/FUSE_extra_files) repository, and then linked directly from within the FUSE documentation, like this:
 
     ```markdown
     [video recording of the first FUSE tutorial](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/FUSE_tutorial_1_6Jul22.mp4)
@@ -180,9 +227,7 @@ The `FUSE/examples` folder contains jupyter notebook that showcase some possible
     When pushing changes to in a jupyter notebook, make sure that all the output cells are cleared 
 
 
-## Tips and more
-
-### Revise.jl
+## Using Revise.jl
 
 Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
 We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions.
@@ -192,11 +237,11 @@ All this can be done by running in the `FUSE` folder:
 make revise
 ```
 
-### Development in VSCode
+## Development in VScode
 
-[VSCode](https://code.visualstudio.com) is an excellent development environment for Julia.
+[VScode](https://code.visualstudio.com) is an excellent development environment for Julia.
 
-FUSE uses the following VSCode settings for formatting the Julia code:
+FUSE uses the following VScode settings for formatting the Julia code:
 
 ```json
 {
@@ -218,12 +263,12 @@ FUSE uses the following VSCode settings for formatting the Julia code:
 ```
 
 !!! note
-    To add these settings to VSCode add these lines to: `<Command> + <shift> + p` -> `Preferences: Open User Settings (JSON)`
+    To add these settings to VScode add these lines to: `<Command> + <shift> + p` -> `Preferences: Open User Settings (JSON)`
 
 !!! note
     To format Julia you will need to install `Julia Language Support` under the extensions tab (`<Command> + <shift> + x`)
 
-### Tracking Julia precompilation
+## Tracking Julia precompilation
 
 To see what is precompiled at runtime, you can add a Julia kernel with the `trace-compile` option to Jupyter
 

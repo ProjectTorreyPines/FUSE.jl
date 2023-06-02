@@ -12,13 +12,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
 	blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
 end
 
-mutable struct ActorSheffieldCosting <: FacilityAbstractActor
-	dd::IMAS.dd
-	par::FUSEparameters__ActorSheffieldCosting
-	function ActorSheffieldCosting(dd::IMAS.dd, par::FUSEparameters__ActorSheffieldCosting; kw...)
+mutable struct ActorSheffieldCosting{D,P} <: FacilityAbstractActor
+	dd::IMAS.dd{D}
+	par::FUSEparameters__ActorSheffieldCosting{P}
+	function ActorSheffieldCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorSheffieldCosting{P}; kw...) where {D<:Real,P<:Real}
 		logging_actor_init(ActorSheffieldCosting)
 		par = par(kw...)
-		return new(dd, par)
+		return new{D,P}(dd, par)
 	end
 end
 
@@ -50,30 +50,30 @@ function _step(actor::ActorSheffieldCosting)
 	blanket_fluence_lifetime = par.blanket_fluence_lifetime
 	construction_lead_time = par.construction_lead_time
 
-	thermal_flux = 10 # placeholder value for thermal flux on the divertor 
+	thermal_flux = 10.0 # placeholder value for thermal flux on the divertor 
 
-	ec_power = 0
+	ec_power = 0.0
 	if !isempty(dd.ec_launchers.beam)
 		for num in length(dd.ec_launchers.beam[:])
 			ec_power += dd.ec_launchers.beam[num].available_launch_power
 		end
 	end
 
-	ic_power = 0
+	ic_power = 0.0
 	if !isempty(dd.ic_antennas.antenna)
 		for num in length(dd.ic_antennas.antenna[:])
 			ic_power += dd.ic_antennas.antenna[num].available_launch_power
 		end
 	end
 
-	lh_power = 0
+	lh_power = 0.0
 	if !isempty(dd.lh_antennas.antenna)
 		for num in length(dd.lh_antennas.antenna[:])
 			lh_power += dd.lh_antennas.antenna[num].available_launch_power
 		end
 	end
 
-	nb_power = 0
+	nb_power = 0.0
 	if !isempty(dd.nbi.unit)
 		for num in length(dd.nbi.unit[:])
 			nb_power += dd.nbi.unit[num].available_launch_power
@@ -96,7 +96,7 @@ function _step(actor::ActorSheffieldCosting)
 	end
 
 	###### Direct Capital ######
-	total_direct_capital_cost = 0
+	total_direct_capital_cost = 0.0
 	##### fusion island
 	sys_fi = resize!(cost_direct.system, "name" => "tokamak")
 
