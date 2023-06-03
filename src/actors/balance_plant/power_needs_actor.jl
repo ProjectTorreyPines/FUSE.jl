@@ -9,9 +9,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T} <: ParametersActor
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorPowerNeeds <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPowerNeeds
+mutable struct ActorPowerNeeds{D,P} <: FacilityAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorPowerNeeds{P}
+    function ActorPowerNeeds(dd::IMAS.dd{D}, par::FUSEparameters__ActorPowerNeeds{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorPowerNeeds)
+        par = par(kw...)
+        return new{D,P}(dd, par)
+    end
 end
 
 """
@@ -30,12 +35,6 @@ function ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorPowerNeeds(dd::IMAS.dd, par::FUSEparameters__ActorPowerNeeds, act::ParametersAllActors; kw...)
-    logging_actor_init(ActorPowerNeeds)
-    par = par(kw...)
-    return ActorPowerNeeds(dd, par)
 end
 
 function _step(actor::ActorPowerNeeds)

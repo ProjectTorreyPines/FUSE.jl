@@ -8,12 +8,16 @@ function logging_actor_init(typeof_actor::DataType, args...; kw...)
     logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
 end
 
+function logging_actor_init(typeof_actor::UnionAll, args...; kw...)
+    logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
+end
+
 function name(actor::AbstractActor)
     return name(typeof(actor))
 end
 
 function name(typeof_actor::Type{<:AbstractActor})
-    return replace(string(typeof_actor.name.name), r"^Actor" => "")
+    return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
 end
 
 #= ==== =#

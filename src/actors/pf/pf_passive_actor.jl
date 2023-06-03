@@ -7,13 +7,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T} <: Paramete
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorPassiveStructures <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPassiveStructures
-    function ActorPassiveStructures(dd::IMAS.dd, par::FUSEparameters__ActorPassiveStructures; kw...)
+mutable struct ActorPassiveStructures{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorPassiveStructures{P}
+    function ActorPassiveStructures(dd::IMAS.dd{D}, par::FUSEparameters__ActorPassiveStructures{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPassiveStructures)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 
@@ -38,7 +38,7 @@ function _step(actor::ActorPassiveStructures)
     empty!(dd.pf_passive)
 
     # all LFS layers that do not intersect with structures
-    ilayers = IMAS.get_build(dd.build, fs=IMAS._lfs_, return_only_one=false, return_index=true)
+    ilayers = IMAS.get_build_indexes(dd.build.layer, fs=IMAS._lfs_)
     ilayers = vcat(ilayers[1] - 1, ilayers)
     for k in ilayers
         l = dd.build.layer[k]

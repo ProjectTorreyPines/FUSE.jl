@@ -9,14 +9,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: Param
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
 end
 
-mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorEquilibriumTransport
+mutable struct ActorEquilibriumTransport{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorEquilibriumTransport{P}
     act::ParametersAllActors
-    actor_tr::ActorCoreTransport
-    actor_hc::ActorHCD
-    actor_jt::ActorSteadyStateCurrent
-    actor_eq::ActorEquilibrium
+    actor_tr::ActorCoreTransport{D,P}
+    actor_hc::ActorHCD{D,P}
+    actor_jt::ActorSteadyStateCurrent{D,P}
+    actor_eq::ActorEquilibrium{D,P}
 end
 
 """

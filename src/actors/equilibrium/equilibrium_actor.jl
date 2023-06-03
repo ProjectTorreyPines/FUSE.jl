@@ -4,15 +4,15 @@
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE], "-", "Equilibrium actor to run"; default=:Solovev)
+    model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:Solovev)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
 end
 
-mutable struct ActorEquilibrium <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorEquilibrium
+mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
-    eq_actor::Union{Nothing,ActorSolovev,ActorCHEASE}
+    eq_actor::Union{Nothing,ActorSolovev{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
 end
 
 """
@@ -34,6 +34,8 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
         eq_actor = ActorSolovev(dd, act.ActorSolovev)
     elseif par.model == :CHEASE
         eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
+    elseif par.model == :TEQUILA
+        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA)
     else
         error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
     end
@@ -86,6 +88,7 @@ function prepare_eq(dd::IMAS.dd)
 
     # add/clear time-slice
     eqt = resize!(dd.equilibrium.time_slice)
+    resize!(eqt.profiles_2d, 1)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
 
     # scalar quantities

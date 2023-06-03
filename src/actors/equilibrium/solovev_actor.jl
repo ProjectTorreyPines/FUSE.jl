@@ -16,9 +16,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorSolovev <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorSolovev
+mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorSolovev{P}
     S::Union{Nothing,MXHEquilibrium.SolovevEquilibrium}
 end
 
@@ -116,80 +116,29 @@ Store ActorSolovev data in IMAS.equilibrium format
 function _finalize(actor::ActorSolovev)
     dd = actor.dd
     par = actor.par
+    mxh_eq = actor.S
 
-    rlims = MXHEquilibrium.limits(actor.S.S; pad=0.3)[1]
-    zlims = MXHEquilibrium.limits(actor.S.S; pad=0.3)[2]
+    eqt = dd.equilibrium.time_slice[]
 
-    ngrid = par.ngrid
-    tc = MXHEquilibrium.transform_cocos(3, 11)
-
-    eq = dd.equilibrium
-    eqt = eq.time_slice[]
     target_ip = eqt.global_quantities.ip
-    sign_Ip = sign(target_ip)
-    sign_Bt = sign(eqt.profiles_1d.f[end])
     target_psi_norm = getproperty(eqt.profiles_1d, :psi_norm, missing)
     target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
     target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
 
-    Z0 = eqt.boundary.geometric_axis.z
-    flip_z = 1.0
-    if mod(length(eqt.boundary.x_point), 2) == 1 && eqt.boundary.x_point[1].z > Z0
-        flip_z = -1.0
+    MXHEquilibrium_to_dd!(dd, mxh_eq, par.ngrid, cocos_in=3)
+
+    # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
+    eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+    eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+    # match entry target_pressure and target_j_tor as if Solovev could do this
+    if !ismissing(target_pressure)
+        eqt.profiles_1d.pressure = IMAS.interp1d(target_psi_norm, target_pressure).(eqt.profiles_1d.psi_norm)
     end
-
-    eq.vacuum_toroidal_field.r0 = actor.S.S.R0
-    @ddtime eq.vacuum_toroidal_field.b0 = actor.S.B0 * sign_Bt
-
-    empty!(eqt)
-
-    eqt.global_quantities.ip = target_ip
-    eqt.boundary.geometric_axis.r = actor.S.S.R0
-    eqt.boundary.geometric_axis.z = Z0
-    orig_psi = collect(range(MXHEquilibrium.psi_limits(actor.S)..., length=ngrid))
-    eqt.profiles_1d.psi = orig_psi * (tc["PSI"] * sign_Ip)
-
-    eqt.profiles_1d.pressure = MXHEquilibrium.pressure.(actor.S, orig_psi)
-    eqt.profiles_1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(actor.S, orig_psi) ./ (tc["PSI"] * sign_Ip)
-
-    eqt.profiles_1d.f = MXHEquilibrium.poloidal_current.(actor.S, orig_psi) .* (tc["F"] * sign_Bt)
-    eqt.profiles_1d.f_df_dpsi = MXHEquilibrium.poloidal_current.(actor.S, orig_psi) .* MXHEquilibrium.poloidal_current_gradient.(actor.S, orig_psi) .* (tc["F_FPRIME"] * sign_Bt * sign_Ip)
-
-    resize!(eqt.profiles_2d, 1)
-    eqt.profiles_2d[1].grid_type.index = 1
-    eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * actor.S.S.κ)))
-    eqt.profiles_2d[1].psi = [actor.S(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
-
+    if !ismissing(target_j_tor)
+        eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
+    end
+    IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, mxh_eq.S.R0, mxh_eq.B0)
     IMAS.flux_surfaces(eqt)
-
-    if true
-        # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
-        eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
-        eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
-        # match entry target_pressure and target_j_tor as if Solovev could do this
-        if !ismissing(target_pressure)
-            eqt.profiles_1d.pressure = IMAS.interp1d(target_psi_norm, target_pressure).(eqt.profiles_1d.psi_norm)
-        end
-        if !ismissing(target_j_tor)
-            eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
-        end
-        IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, actor.S.S.R0, actor.S.B0)
-        IMAS.flux_surfaces(eqt)
-    end
-
-    # this is to fix the boundary back to its original input
-    # since Solovev will not satisfy the original boundary
-    # this is not needed since we the boundary info is now stored in pulse_schedule
-    if false
-        eqt.boundary.outline.r, eqt.boundary.outline.z = actor.mxh()
-        eqt.boundary.elongation = actor.mxh.κ
-        eqt.boundary.triangularity = sin(actor.mxh.s[1])
-        eqt.boundary.squareness = -actor.mxh.s[2]
-        eqt.boundary.minor_radius = actor.mxh.ϵ * actor.mxh.R0
-        eqt.boundary.geometric_axis.r = actor.mxh.R0
-        eqt.boundary.geometric_axis.z = actor.mxh.Z0
-    end
 
     # correct equilibrium volume and area
     if !ismissing(par, :volume)
@@ -200,4 +149,52 @@ function _finalize(actor::ActorSolovev)
     end
 
     return actor
+end
+
+function MXHEquilibrium_to_dd!(dd::IMAS.dd, mxh_eq::MXHEquilibrium.AbstractEquilibrium, ngrid::Int; cocos_in::Int=11)
+
+    tc = MXHEquilibrium.transform_cocos(cocos_in, 11)
+
+    rlims = MXHEquilibrium.limits(mxh_eq.S; pad=0.3)[1]
+    zlims = MXHEquilibrium.limits(mxh_eq.S; pad=0.3)[2]
+
+    eq = dd.equilibrium
+    eqt = eq.time_slice[]
+    Ip = eqt.global_quantities.ip
+    sign_Ip = sign(Ip)
+    sign_Bt = sign(eqt.profiles_1d.f[end])
+
+    Z0 = eqt.boundary.geometric_axis.z
+    flip_z = 1.0
+    if mod(length(eqt.boundary.x_point), 2) == 1 && eqt.boundary.x_point[1].z > Z0
+        flip_z = -1.0
+    end
+
+    eq.vacuum_toroidal_field.r0 = mxh_eq.S.R0
+    @ddtime eq.vacuum_toroidal_field.b0 = mxh_eq.B0 * sign_Bt
+
+    empty!(eqt)
+
+    eqt.global_quantities.ip = Ip
+    eqt.boundary.geometric_axis.r = mxh_eq.S.R0
+    eqt.boundary.geometric_axis.z = Z0
+    orig_psi = collect(range(MXHEquilibrium.psi_limits(mxh_eq)..., length=ngrid))
+    eqt.profiles_1d.psi = orig_psi * (tc["PSI"] * sign_Ip)
+
+    eqt.profiles_1d.pressure = MXHEquilibrium.pressure.(mxh_eq, orig_psi)
+    eqt.profiles_1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(mxh_eq, orig_psi) ./ (tc["PSI"] * sign_Ip)
+
+    eqt.profiles_1d.f = MXHEquilibrium.poloidal_current.(mxh_eq, orig_psi) .* (tc["F"] * sign_Bt)
+    eqt.profiles_1d.f_df_dpsi = MXHEquilibrium.poloidal_current.(mxh_eq, orig_psi) .* MXHEquilibrium.poloidal_current_gradient.(mxh_eq, orig_psi) .* (tc["F_FPRIME"] * sign_Bt * sign_Ip)
+
+    resize!(eqt.profiles_2d, 1)
+    eqt.profiles_2d[1].grid_type.index = 1
+    eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
+    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * mxh_eq.S.κ)))
+    eqt.profiles_2d[1].psi = [mxh_eq(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
+
+    IMAS.flux_surfaces(eqt)
+
+    return dd
+
 end

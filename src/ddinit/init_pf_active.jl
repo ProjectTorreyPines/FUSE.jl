@@ -64,7 +64,7 @@ function init_pf_active(
     coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing,
     coils_elements_area::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
 
-    OH_layer = IMAS.get_build(bd, type=_oh_)
+    OH_layer = IMAS.get_build_layer(bd.layer, type=_oh_)
 
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))
@@ -119,11 +119,11 @@ function init_pf_active(
     end
 
     # Now add actual PF coils to regions of vacuum
-    gap_cryostat_index = [k for k in IMAS.get_build(bd, fs=_out_, return_only_one=false, return_index=true) if bd.layer[k].material == "Vacuum"][1]
-    lfs_out_indexes = IMAS.get_build(bd, fs=[_lfs_, _out_], return_only_one=false, return_index=true)
+    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer, fs=_out_) if bd.layer[k].material == "Vacuum"][1]
+    lfs_out_indexes = IMAS.get_build_indexes(bd.layer, fs=[_lfs_, _out_])
     krail = 1
     ngrid = 257
-    rmask, zmask, mask = IMAS.structures_mask(bd, ngrid=ngrid)
+    rmask, zmask, mask = IMAS.structures_mask(bd; ngrid)
     dr = (rmask[2] - rmask[1])
     for k in lfs_out_indexes
         layer = bd.layer[k]
@@ -150,7 +150,7 @@ function init_pf_active(
         # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
         coil_size = pf_coils_size[krail]
         dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
-        inner_layer = IMAS.get_build(bd, identifier=bd.layer[k-1].identifier, fs=_hfs_)
+        inner_layer = IMAS.get_build_layer(bd.layer, identifier=bd.layer[k-1].identifier, fs=_hfs_)
         rail_r, rail_z = buffer(inner_layer.outline.r, inner_layer.outline.z, dcoil)
         rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3)
 
