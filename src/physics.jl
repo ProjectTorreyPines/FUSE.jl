@@ -185,7 +185,7 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
         func(r_start, r_end, shape_parameters...)
 
     else
-        function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature::Bool, verbose=false)
+        function cost_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Float64}, rz_obstruction::Vector{Tuple{Float64,Float64}}, target_clearance::Float64, target_area::Float64, func::Function, r_start::Float64, r_end::Float64, shape_parameters::Vector{Float64}; use_curvature::Bool, verbose::Bool=false)
             R, Z = func(r_start, r_end, shape_parameters...)
 
             cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
@@ -887,7 +887,7 @@ end
 
 Find boundary such that the output MXH parametrization (with x-points) matches the input MXH parametrization (without x-points)
 """
-function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0)
 
     if ~upper_x_point && ~lower_x_point
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
@@ -908,7 +908,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
 
-    function mxhb_from_params!(mxhb0, params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
+    function mxhb_from_params!(mxhb0::MXHboundary, params::AbstractVector{<:Real}; upper_x_point::Bool, lower_x_point::Bool, n_points::Int)
         L = 1
         mxhb0.mxh.Z0 = params[L]
         L += 1
@@ -925,30 +925,30 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
         # X-points and elongation
-        tmp = Float64[]
+        c = 0.0
         if upper_x_point
             i = argmax(mxhb0.ZX)
-            push!(tmp, sqrt((mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2))
+            c += (mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2
         else
             i = argmax(mxhb0.z_boundary)
             j = argmax(pz)
-            push!(tmp, sqrt((mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2))
+            c += (mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2
         end
         if lower_x_point
             i = argmin(mxhb0.ZX)
-            push!(tmp, sqrt((mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2))
+            c += (mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2
         else
             i = argmin(mxhb0.z_boundary)
             j = argmin(pz)
-            push!(tmp, sqrt((mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2))
+            c += (mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2
         end
 
         # other shape parameters
-        push!(tmp, (mxh0.R0 - mxh.R0))
-        push!(tmp, (mxh0.ϵ - mxh.ϵ))
-        push!(tmp, (mxh0.c0 - mxh.c0))
-        append!(tmp, (mxh0.s[1:N] .- mxh.s[1:N]))
-        append!(tmp, (mxh0.c[1:N] .- mxh.c[1:N]))
+        c += (mxh0.R0 - mxh.R0)^2
+        c += (mxh0.ϵ - mxh.ϵ)^2
+        c += (mxh0.c0 - mxh.c0)^2
+        c += sum((mxh0.s[1:N] .- mxh.s[1:N]).^2)
+        c += sum((mxh0.c[1:N] .- mxh.c[1:N]).^2)
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
@@ -957,9 +957,9 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mzch = [z for (r, z) in hull]
         marea = IMAS.area(mr, mz)
         mareach = IMAS.area(mrch, mzch)
-        push!(tmp, (abs(mareach - marea) / mareach) * 1E3)
+        c += (abs(mareach - marea) / mareach) * 1E3
 
-        return norm(tmp)
+        return sqrt(c)
     end
 
     res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(iterations=1000))
