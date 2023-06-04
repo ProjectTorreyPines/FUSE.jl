@@ -54,34 +54,35 @@ function _step(actor::ActorSheffieldCosting)
 
 	ec_power = 0.0
 	if !isempty(dd.ec_launchers.beam)
-		for num in length(dd.ec_launchers.beam[:])
+		for num in eachindex(dd.ec_launchers.beam)
 			ec_power += dd.ec_launchers.beam[num].available_launch_power
 		end
 	end
 
 	ic_power = 0.0
 	if !isempty(dd.ic_antennas.antenna)
-		for num in length(dd.ic_antennas.antenna[:])
+		for num in eachindex(dd.ic_antennas.antenna)
 			ic_power += dd.ic_antennas.antenna[num].available_launch_power
 		end
 	end
 
 	lh_power = 0.0
 	if !isempty(dd.lh_antennas.antenna)
-		for num in length(dd.lh_antennas.antenna[:])
+		for num in eachindex(dd.lh_antennas.antenna)
 			lh_power += dd.lh_antennas.antenna[num].available_launch_power
 		end
 	end
 
 	nb_power = 0.0
 	if !isempty(dd.nbi.unit)
-		for num in length(dd.nbi.unit[:])
+		for num in eachindex(dd.nbi.unit)
 			nb_power += dd.nbi.unit[num].available_launch_power
 		end
 	end
 
-	flux_r = dd.neutronics.time_slice[].wall_loading.flux_r
-	flux_z = dd.neutronics.time_slice[].wall_loading.flux_z
+    wall_loading = dd.neutronics.time_slice[].wall_loading
+	flux_r = wall_loading.flux_r
+	flux_z = wall_loading.flux_z
 	neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
 
 	if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
