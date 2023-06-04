@@ -735,13 +735,14 @@ Control of the X-point location can be achieved by modifying R0, Z0.
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
-    function cost(mri::AbstractVector{T}, mzi::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::Float64)
+    function cost(points0::Vector, points::Vector, i::Integer, R0::T, Z0::T, α::Float64)
+        points .= points0
         if upper
-            RX, ZX, R, Z = add_xpoint(mri, mzi, i, R0, Z0, α)
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .> (Z0 + ZX) / 2.0))))^2.0
+            RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z .> (Z0 + ZX) / 2.0)])))^2.0
         else
-            RX, ZX, R, Z = add_xpoint(mri, mzi, i, R0, Z0, α)
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .< (Z0 + ZX) / 2.0))))^2.0
+            RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z .< (Z0 + ZX) / 2.0)])))^2.0
         end
     end
 
@@ -767,16 +768,22 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
         R0 = mri[i]
     end
 
-    res = Optim.optimize(α -> cost(mri, mzi, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
-    RX, ZX, R, Z = add_xpoint(mr, mz, k, R0, Z0, res.minimizer[1])
+    points = collect(zip([mri; mri[1]], [mzi; mzi[1]]))
+    points0 = deepcopy(points)
 
+    res = Optim.optimize(α -> cost(points0, points, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
+
+    points = collect(zip([mr; mr[1]], [mz; mz[1]]))
+    RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, res.minimizer[1])
+    
     return RX, ZX, R, Z
 end
 
-function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
-    RX = mr[i] .* α .+ R0 .* (1.0 .- α)
-    ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
+function add_xpoint(points::Vector, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
+    RX = points[i][1] .* α .+ R0 .* (1.0 .- α)
+    ZX = points[i][2] .* α .+ Z0 .* (1.0 .- α)
+    points[end] = (RX, ZX)
+    RZ = convex_hull!(points; closed_polygon=true)
     R = T[r for (r, z) in RZ]
     Z = T[z for (r, z) in RZ]
     return RX, ZX, R, Z
