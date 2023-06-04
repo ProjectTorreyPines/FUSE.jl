@@ -204,13 +204,12 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
             end
 
             # target clearance  O(1)
-            minimum_distance = IMAS.minimum_distance_two_shapes(Rv, Zv, r_obstruction, z_obstruction)
+            minimum_distance, mean_above_distance_error = IMAS.min_mean_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance; above_target=true)
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
                 cost_min_clearance = 0.0
             end
-            mean_above_distance_error = IMAS.mean_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance; above_target=true)
             cost_mean_above_distance = mean_above_distance_error / target_clearance
 
             # curvature
