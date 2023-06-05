@@ -109,8 +109,8 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     act.ActorFluxMatcher.evolve_densities = Dict(
         :Ne => :match_ne_scale,
         :DT => :quasi_neutrality,
-        :He => :match_ne_scale,
-        :He_fast => :fixed,
+        :He4 => :match_ne_scale,
+        :He4_fast => :fixed,
         :electrons => :flux_match)
 
     consistent_ini_act!(ini, act)
