@@ -71,8 +71,8 @@ function _step(actor::ActorBlanket)
     # - minimize leakage
     # - while fitting in current blanket thickness
     modules_relative_thickness13 = Float64[]
-    modules_effective_thickness = []
-    modules_wall_loading_power = []
+    modules_effective_thickness = Matrix{Float64}[]
+    modules_wall_loading_power = Vector{Float64}[]
     blanket_model_1d = NNeutronics.Blanket()
     for (istructure, structure) in enumerate(blankets)
         bm = dd.blanket.module[istructure]
@@ -175,11 +175,11 @@ function _step(actor::ActorBlanket)
 
     # Optimize layers thicknesses and minimize Li6 enrichment needed to match
     # target TBR and minimize neutron leakage (realistic geometry and wall loading)
-    function target_TBR2D(blanket_model::NNeutronics.Blanket, modules_relative_thickness13::Vector{<:Real}, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{<:Any}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real, min_d1::Float64=0.02, target::Float64=0.0)
+    function target_TBR2D(blanket_model::NNeutronics.Blanket, modules_relative_thickness13::Vector{<:Real}, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{Matrix{Float64}}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real, min_d1::Float64=0.02, target::Float64=0.0)
         energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
         Li6 = min(max(abs(Li6), 0.0), 100.0)
-        modules_neutron_shine_through = []
+        modules_neutron_shine_through = Vector{typeof(Li6)}(undef, length(dd.blanket.module))
         extra_cost = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
             bmt = bm.time_slice[]
@@ -194,15 +194,16 @@ function _step(actor::ActorBlanket)
             x1 = d1 / dtot
             x2 = d2 / dtot
             x3 = d3 / dtot
-            for k in 1:length(modules_wall_loading_power[ibm])
+            for k in eachindex(modules_wall_loading_power[ibm])
                 ed1 = modules_effective_thickness[ibm][k, 1] * x1
                 ed2 = modules_effective_thickness[ibm][k, 2] * x2
                 ed3 = modules_effective_thickness[ibm][k, 3] * x3
                 module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
                 #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
-                module_neutron_shine_through += sum(NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)) * modules_wall_loading_power[ibm][k] / total_power_neutrons
+                LE = NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)::Vector{Float64}
+                module_neutron_shine_through += (sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons)
             end
-            push!(modules_neutron_shine_through, module_neutron_shine_through)
+            modules_neutron_shine_through[ibm] = module_neutron_shine_through
             total_tritium_breeding_ratio += module_tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
             if d1 < min_d1
                 extra_cost += (min_d1 - d1) * 100.0
