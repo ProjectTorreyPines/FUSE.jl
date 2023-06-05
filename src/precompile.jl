@@ -1,14 +1,12 @@
 """
-    warmup()
+    warmup(dd::IMAS.dd)
 
 Function used to precompile the majority of FUSE
-"""
-function warmup()
-    dd = IMAS.dd()
-    return warmup(dd)
-end
 
+This function is also useful for profiling
+"""
 function warmup(dd::IMAS.dd)
+    empty!(dd)
     TimerOutputs.reset_timer!("warmup")
     return TimerOutputs.@timeit timer "warmup" begin
         TimerOutputs.@timeit timer "init" begin

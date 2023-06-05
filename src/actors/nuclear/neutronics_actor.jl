@@ -8,13 +8,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T} <: ParametersActor
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorNeutronics <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorNeutronics
-    function ActorNeutronics(dd::IMAS.dd, par::FUSEparameters__ActorNeutronics; kw...)
+mutable struct ActorNeutronics{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorNeutronics{P}
+    function ActorNeutronics(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeutronics{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNeutronics)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 
@@ -64,7 +64,6 @@ function _step(actor::ActorNeutronics)
         rmin = sqrt(c - b^2 / (4a))
 
         @inbounds for k in eachindex(rz_wall)
-            t = Inf
             rw1, zw1 = rz_wall[k]
             rw2, zw2 = k == Nw ? rz_wall[1] : rz_wall[k+1]
 
@@ -80,7 +79,9 @@ function _step(actor::ActorNeutronics)
             (rw1 < rmin && rw2 < rmin) && continue
 
             t = toroidal_intersection(rw1, zw1, rw2, zw2, xn, yn, zn, vx, vy, vz, v2, vz2)
-            t < ti && (ti = t)
+            if t < ti
+                ti = t
+            end
         end
         n.x += vx * ti
         n.y += vy * ti
@@ -120,13 +121,13 @@ function _step(actor::ActorNeutronics)
 
         @views cumsum!(ll, d[index])
         ll .-= ll[ns+1]
-        window .= exp.(.-(ll ./ (l[end] / length(l)) ./ (2ns + 1) .* 5) .^ 2)
+        window .= exp.(.-(ll ./ (l[end] / length(l)) ./ (2ns + 1.0) .* 5.0) .^ 2)
         window ./= sum(window)
         unit_vector = sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
 
-        for (k, i) in enumerate(index)
-            nflux_r[i] += (new_r - old_r) ./ unit_vector .* window[k] .* W_per_trace ./ wall_s[i]
-            nflux_z[i] += (new_z - old_z) ./ unit_vector .* window[k] .* W_per_trace ./ wall_s[i]
+        @inbounds for (k, i) in enumerate(index)
+            nflux_r[i] += @. (new_r - old_r) / unit_vector * window[k] * W_per_trace / wall_s[i]
+            nflux_z[i] += @. (new_z - old_z) / unit_vector * window[k] * W_per_trace / wall_s[i]
         end
     end
 
@@ -140,7 +141,7 @@ function _step(actor::ActorNeutronics)
     ntt.wall_loading.power = sqrt.(nflux_r .^ 2.0 .+ nflux_z .^ 2.0) .* wall_s
 
     # renormalize to ensure perfect power match
-    norm = (IMAS.fusion_power(dd.core_profiles) .* 4 ./ 5) / sum(ntt.wall_loading.power)
+    norm = IMAS.fusion_neutron_power(dd.core_profiles.profiles_1d[]) / sum(ntt.wall_loading.power)
     ntt.wall_loading.flux_r .*= norm
     ntt.wall_loading.flux_z .*= norm
     ntt.wall_loading.power .*= norm
@@ -179,7 +180,11 @@ function define_neutrons(actor::ActorNeutronics; p=nothing)
     eqt = actor.dd.equilibrium.time_slice[]
 
     # 2D neutron source
-    neutron_source_1d = IMAS.alpha_heating(cp1d) * 4 # W/m^3
+    # NOTE: we add power of neutrons coming from (D+D→He3+n) as if they were from (D+D→He4+n)
+    # D+T   -> He4 (3.518 MeV)  + n (14.072 MeV) + 17.59MeV
+    # D+D   -> He3 (0.8175 MeV) + n (2.4525 MeV) + 3.27MeV
+    # This is OK for calculating wall loading but blanket will need to distinguish between these two
+    neutron_source_1d = IMAS.D_T_to_He4_heating(cp1d) .* 4.0 .+ IMAS.D_D_to_He3_heating(cp1d) .* 3.0
     neutron_source_2d = transpose(IMAS.interp1d(cp1d.grid.psi, neutron_source_1d).(eqt.profiles_2d[1].psi)) # W/m^3
 
     # 2D neutron source (masked)
@@ -196,7 +201,7 @@ function define_neutrons(actor::ActorNeutronics; p=nothing)
     CDF = cumsum(neutron_source_2d[:])
     W_per_trace = CDF[end] / N
     CDF .= (CDF .- CDF[1]) ./ (CDF[end] - CDF[1])
-    ICDF = IMAS.interp1d(CDF, 1:length(CDF), :linear)
+    ICDF = IMAS.interp1d(CDF, Float64.(1:length(CDF)), :linear)
 
     # neutron structures
     neutrons = Vector{neutron_particle{Float64}}(undef, N)

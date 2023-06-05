@@ -45,15 +45,15 @@ Base.@kwdef mutable struct PFcoilsOptTrace
     cost_total::Vector{Float64} = Float64[]
 end
 
-mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPFcoilsOpt
-    eq_in::IMAS.equilibrium
-    eq_out::IMAS.equilibrium
-    pf_active::IMAS.pf_active
-    bd::IMAS.build
+mutable struct ActorPFcoilsOpt{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorPFcoilsOpt{P}
+    eq_in::IMAS.equilibrium{D}
+    eq_out::IMAS.equilibrium{D}
+    pf_active::IMAS.pf_active{D}
+    bd::IMAS.build{D}
     symmetric::Bool
-    λ_regularize::Real
+    λ_regularize::Float64
     trace::PFcoilsOptTrace
     green_model::Symbol
 end
@@ -544,7 +544,7 @@ function optimize_coils_rail(
             Zx = Float64[]
             if weight_strike > 0.0
                 private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-                vessel = IMAS.get_build(bd, type=_plasma_)
+                vessel = IMAS.get_build_layer(bd.layer, type=_plasma_)
                 for (pr, pz) in private
                     indexes, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
                     for cr in crossings

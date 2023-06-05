@@ -14,13 +14,13 @@ which may or may not exceed the OH critical current limit.""";
     j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH current limit"; default=0.4)
 end
 
-mutable struct ActorFluxSwing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorFluxSwing
-    function ActorFluxSwing(dd::IMAS.dd, par::FUSEparameters__ActorFluxSwing; kw...)
+mutable struct ActorFluxSwing{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorFluxSwing{P}
+    function ActorFluxSwing(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxSwing{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorFluxSwing)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 
@@ -125,7 +125,7 @@ end
 OH flux given its bd.oh.max_b_field and radial build
 """
 function flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
-    OH = IMAS.get_build(bd, type=_oh_)
+    OH = IMAS.get_build_layer(bd.layer, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
     magneticFieldSolenoidBore = bd.oh.max_b_field

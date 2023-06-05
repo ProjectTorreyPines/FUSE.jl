@@ -17,14 +17,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersAct
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorThermalCycle <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorThermalCycle
+mutable struct ActorThermalCycle{D,P} <: FacilityAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorThermalCycle{P}
     act::ParametersAllActors
-    function ActorThermalCycle(dd::IMAS.dd, par::FUSEparameters__ActorThermalCycle, act::ParametersAllActors; kw...)
+    function ActorThermalCycle(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalCycle{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorThermalCycle)
         par = par(kw...)
-        return new(dd, par, act)
+        return new{D,P}(dd, par, act)
     end
 end
 

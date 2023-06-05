@@ -110,7 +110,7 @@ end
 # =========== #
 # Convex Hull #
 # =========== #
-import VacuumFields: convex_hull
+import VacuumFields: convex_hull!, convex_hull
 
 # ======== #
 # TraceCAD #

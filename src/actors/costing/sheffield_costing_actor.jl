@@ -12,13 +12,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
 	blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
 end
 
-mutable struct ActorSheffieldCosting <: FacilityAbstractActor
-	dd::IMAS.dd
-	par::FUSEparameters__ActorSheffieldCosting
-	function ActorSheffieldCosting(dd::IMAS.dd, par::FUSEparameters__ActorSheffieldCosting; kw...)
+mutable struct ActorSheffieldCosting{D,P} <: FacilityAbstractActor
+	dd::IMAS.dd{D}
+	par::FUSEparameters__ActorSheffieldCosting{P}
+	function ActorSheffieldCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorSheffieldCosting{P}; kw...) where {D<:Real,P<:Real}
 		logging_actor_init(ActorSheffieldCosting)
 		par = par(kw...)
-		return new(dd, par)
+		return new{D,P}(dd, par)
 	end
 end
 
@@ -50,38 +50,39 @@ function _step(actor::ActorSheffieldCosting)
 	blanket_fluence_lifetime = par.blanket_fluence_lifetime
 	construction_lead_time = par.construction_lead_time
 
-	thermal_flux = 10 # placeholder value for thermal flux on the divertor 
+	thermal_flux = 10.0 # placeholder value for thermal flux on the divertor 
 
-	ec_power = 0
+	ec_power = 0.0
 	if !isempty(dd.ec_launchers.beam)
-		for num in length(dd.ec_launchers.beam[:])
+		for num in eachindex(dd.ec_launchers.beam)
 			ec_power += dd.ec_launchers.beam[num].available_launch_power
 		end
 	end
 
-	ic_power = 0
+	ic_power = 0.0
 	if !isempty(dd.ic_antennas.antenna)
-		for num in length(dd.ic_antennas.antenna[:])
+		for num in eachindex(dd.ic_antennas.antenna)
 			ic_power += dd.ic_antennas.antenna[num].available_launch_power
 		end
 	end
 
-	lh_power = 0
+	lh_power = 0.0
 	if !isempty(dd.lh_antennas.antenna)
-		for num in length(dd.lh_antennas.antenna[:])
+		for num in eachindex(dd.lh_antennas.antenna)
 			lh_power += dd.lh_antennas.antenna[num].available_launch_power
 		end
 	end
 
-	nb_power = 0
+	nb_power = 0.0
 	if !isempty(dd.nbi.unit)
-		for num in length(dd.nbi.unit[:])
+		for num in eachindex(dd.nbi.unit)
 			nb_power += dd.nbi.unit[num].available_launch_power
 		end
 	end
 
-	flux_r = dd.neutronics.time_slice[].wall_loading.flux_r
-	flux_z = dd.neutronics.time_slice[].wall_loading.flux_z
+    wall_loading = dd.neutronics.time_slice[].wall_loading
+	flux_r = wall_loading.flux_r
+	flux_z = wall_loading.flux_z
 	neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
 
 	if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
@@ -96,7 +97,7 @@ function _step(actor::ActorSheffieldCosting)
 	end
 
 	###### Direct Capital ######
-	total_direct_capital_cost = 0
+	total_direct_capital_cost = 0.0
 	##### fusion island
 	sys_fi = resize!(cost_direct.system, "name" => "tokamak")
 
@@ -201,32 +202,28 @@ end
 
 function cost_direct_capital_Sheffield(::Type{Val{:primary_coils}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
 	da.year_assessed = 2016   # Year the materials costs were assessed 
-	primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
+	primary_coils_hfs = IMAS.get_build_layer(bd.layer, type = IMAS._tf_, fs = _hfs_)
 	cost = 1.5 * primary_coils_hfs.volume * unit_cost(bd.tf.technology, cst)
 	return future_dollars(cost, da)
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
 	da.year_assessed = 2016
-	shield_hfs = IMAS.get_build(bd, type = IMAS._shield_, fs = _hfs_, return_only_one = false, raise_error_on_missing = false)
-	gaps_hfs = IMAS.get_build(bd, type = IMAS._gap_, fs = _hfs_, return_only_one = false, raise_error_on_missing = false)
+	shields_hfs = IMAS.get_build_layers(bd.layer, type = IMAS._shield_, fs = _hfs_)
+	gaps_hfs = IMAS.get_build_layers(bd.layer, type = IMAS._gap_, fs = _hfs_)
 
 	cost = 0
 
-	if !ismissing(shield_hfs)
-		for layer in shield_hfs
-			vol_shield_hfs = layer.volume
-			material_shield_hfs = layer.material
-			cost += vol_shield_hfs * unit_cost(material_shield_hfs, cst)
-		end
-	end
+    for layer in shields_hfs
+        vol_shield_hfs = layer.volume
+        material_shield_hfs = layer.material
+        cost += vol_shield_hfs * unit_cost(material_shield_hfs, cst)
+    end
 
-	if !ismissing(gaps_hfs)
-		for layer in gaps_hfs
-			vol_gaps_hfs = layer.volume
-			cost += vol_gaps_hfs * 0.29 # $M/m^3 from Table A.VII 
-		end
-	end
+    for layer in gaps_hfs
+        vol_gaps_hfs = layer.volume
+        cost += vol_gaps_hfs * 0.29 # $M/m^3 from Table A.VII 
+    end
 
 	return future_dollars(1.25 * cost, da)
 
@@ -234,7 +231,7 @@ end
 
 function cost_direct_capital_Sheffield(::Type{Val{:structure}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
 	da.year_assessed = 2016
-	primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
+	primary_coils_hfs = IMAS.get_build_layer(bd.layer, type = IMAS._tf_, fs = _hfs_)
 	cost = 0.75 * primary_coils_hfs.volume * unit_cost("steel", cst)
 	return future_dollars(cost, da)
 end
@@ -261,14 +258,13 @@ end
 
 function cost_direct_capital_Sheffield(::Type{Val{:buildings}}, bd::IMAS.build, da::DollarAdjust)
 	da.year_assessed = 2016
-	layers = IMAS.get_build(bd, return_only_one = false)
-	vol_fusion_island = 0
 
-	for layer in layers
+    vol_fusion_island = 0.0
+	for layer in bd.layer
 		vol_fusion_island += layer.volume
 	end
 
-	cost = 839 * (vol_fusion_island / 5100)^0.67
+	cost = 839.0 * (vol_fusion_island / 5100)^0.67
 	return future_dollars(cost, da)
 end
 
@@ -284,11 +280,12 @@ function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_ra
 	bd = dd.build
 	cst = dd.costing
 
-	blanket = IMAS.get_build(bd, type = IMAS._blanket_, fs = _lfs_, raise_error_on_missing = false)
+	blankets = IMAS.get_build_layers(bd.layer, type = IMAS._blanket_, fs = _lfs_)
 
-	if ismissing(blanket)
+	if isempty(blankets)
 		cost = 0
 	else
+        blanket = blankets[1]
 		initial_cost_blanket = blanket.volume * unit_cost(blanket.material, cst)
 
 		blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
