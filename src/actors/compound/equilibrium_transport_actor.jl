@@ -15,7 +15,7 @@ mutable struct ActorEquilibriumTransport{D,P} <: PlasmaAbstractActor
     act::ParametersAllActors
     actor_tr::ActorCoreTransport{D,P}
     actor_hc::ActorHCD{D,P}
-    actor_jt::ActorSteadyStateCurrent{D,P}
+    actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
 end
 
@@ -23,7 +23,7 @@ end
     ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs the following actors in succesion:
-* ActorSteadyStateCurrent
+* ActorCurrent
 * ActorHCD
 * ActorCoreTransport
 * ActorEquilibrium
@@ -43,7 +43,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquili
     par = par(kw...)
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
-    actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
     return ActorEquilibriumTransport(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq)
 end
@@ -61,7 +61,7 @@ function _step(actor::ActorEquilibriumTransport)
     # run HCD to get updated current drive
     finalize(step(actor.actor_hc))
 
-    # set j_ohmic to steady state
+    # evolve j_ohmic
     finalize(step(actor.actor_jt))
 
     # set actors switches specific to this workflow
@@ -84,7 +84,7 @@ function _step(actor::ActorEquilibriumTransport)
             # run HCD to get updated current drive
             finalize(step(actor.actor_hc))
 
-            # set j_ohmic to steady state
+            # evolve j_ohmic
             finalize(step(actor.actor_jt))
 
             # run equilibrium actor with the updated beta
