@@ -50,6 +50,7 @@ function _step(actor::ActorThermalCycle)
     ihts = bop.heat_transfer
     wall = ihts.wall
     divertor = ihts.divertor
+    breeder = ihts.breeder
 
     bop = dd.balance_of_plant
     bop.power_cycle_type = string(par.power_cycle_type)
