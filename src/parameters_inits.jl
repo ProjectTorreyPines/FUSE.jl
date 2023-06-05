@@ -172,6 +172,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     flattop_duration::Entry{T} = Entry{T}("s", "Target duration of the flattop (use Inf for steady-state)")
     log10_flattop_duration::Entry{T} = Entry{T}("log10(s)", "Log10 value of the target duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
     tritium_breeding_ratio::Entry{T} = Entry{T}("-", "Target tritium breeding ratio of the whole plant")
+    ne_peaking::Entry{T} = Entry{T}("-", "Target profile peaking of electron density, ne0/<ne>")
 end
 
 mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
