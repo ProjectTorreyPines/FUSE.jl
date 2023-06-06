@@ -31,7 +31,7 @@ function init_missing_from_ods(dd::IMAS.dd, ini::ParametersAllInits, act::Parame
 
         # requirements
         # NOTE: `log10_flattop_duration` (used when running optimizations) wins over `flattop_duration`
-        for field in (:power_electric_net, :flattop_duration, :log10_flattop_duration, :tritium_breeding_ratio, :ne_peaking)
+        for field in sort([string(field) for field in fieldnames(typeof(ini.requirements)) if string(field)[1]!='_'], by=x->startswith(x,"log10_"))
             value = getproperty(ini.requirements, field, missing)
             if value !== missing
                 if startswith(string(field), "log10_")
