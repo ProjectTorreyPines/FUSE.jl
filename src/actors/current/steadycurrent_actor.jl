@@ -24,7 +24,7 @@ Evolves the current to steady state using the conductivity from `dd.core_profile
 Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_profiles`
 
 !!! note 
-    Stores data in `dd.core_profiles, dd.equilbrium`
+    Stores data in `dd.core_profiles`, `dd.equilbrium`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)

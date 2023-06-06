@@ -162,6 +162,9 @@ First let's do some profiling to identify problemetic functions:
    FUSE.ActorWholeFacility(dd, act); # call this once to precompile
    ```
 
+   !!! note
+   Alternatively one can create a `profile.jl` file in the `FUSE/playground` folder, write Julia code in that file, select the code to execute and run it with `<Control-Return>`.
+
 1. Use `@time` to monitor execution time and allocations
 
 1. For functions that return very quickly one can use `BenchmarkTooks.@benchmark`

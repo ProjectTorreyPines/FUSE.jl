@@ -101,8 +101,8 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     act.ActorFluxMatcher.evolve_densities = Dict(
         :Ar => :match_ne_scale,
         :DT => :quasi_neutrality,
-        :He => :match_ne_scale,
-        :He_fast => :constant,
+        :He4 => :match_ne_scale,
+        :He4_fast => :constant,
         :electrons => :flux_match)
 
     # add wall layer
