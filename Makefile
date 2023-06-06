@@ -444,7 +444,7 @@ end;\
 
 # remove all Manifest.toml files
 rm_manifests:
-	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
+	find ..  -maxdepth 3 -type f -name "Manifest.toml" -exec rm -rf \{\} \;
 
 # update dd from the json files
 dd:
