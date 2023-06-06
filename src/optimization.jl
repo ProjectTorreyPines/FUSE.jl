@@ -123,7 +123,7 @@ function update_ConstraintFunctionsLibrary!()
     ConstraintFunction(:min_required_flattop, "%", dd -> (dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / dd.requirements.flattop_duration, >, 0.0)
     ConstraintFunction(:zero_ohmic, "MA", dd -> abs(sum(integrate(dd.core_profiles.profiles_1d[].grid.area, dd.core_profiles.profiles_1d[].j_ohmic))) / 1E6, ==, 0.0, 0.1) # absolute tolerance
     ConstraintFunction(:max_ne_peaking, "%", dd -> ((@ddtime(dd.summary.local.magnetic_axis.n_e.value) / @ddtime(dd.summary.volume_average.n_e.value)) - dd.requirements.ne_peaking) / dd.requirements.ne_peaking, <, 0.0)
-    ConstraintFunction(:min_fLH, "%", dd -> (IMAS.power_sol(dd.core_sources,dd.core_profiles.profiles_1d[]) / IMAS.scaling_L_to_H_power(dd)) - 1, >, 0.0)
+    ConstraintFunction(:min_fLH, "%", dd -> (IMAS.power_sol(dd.core_sources,dd.core_profiles.profiles_1d[]) / IMAS.scaling_L_to_H_power(dd)), >, 1.0)
     ConstraintFunction(:max_ωce_ωpe, "%", dd -> IMAS.ω_pe(@ddtime(dd.summary.local.magnetic_axis.n_e.value)) / IMAS.ω_ce(@ddtime(dd.summary.global_quantities.b0.value)), <, 1.0)
     ConstraintFunction(:max_qpol, "%", dd -> ((IMAS.power_sol(dd.core_sources,dd.core_profiles.profiles_1d[])/1E6)/(2*π*(dd.equilibrium.time_slice[].boundary.geometric_axis.r+dd.equilibrium.time_slice[].boundary.minor_radius)*IMAS.widthSOL_eich(dd)) - 2.5e3) / 2.5e3, < , 0.0)
     return ConstraintFunctionsLibrary
