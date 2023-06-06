@@ -197,9 +197,9 @@ version = "0.1.0"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
-git-tree-sha1 = "ed28c86cbde3dc3f53cf76643c2e9bc11d56acc7"
+git-tree-sha1 = "44dbf560808d49041989b8a96cae4cffbeb7966a"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-version = "0.10.10"
+version = "0.10.11"
 
 [[deps.CUDA]]
 deps = ["AbstractFFTs", "Adapt", "BFloat16s", "CEnum", "CUDA_Driver_jll", "CUDA_Runtime_Discovery", "CUDA_Runtime_jll", "CompilerSupportLibraries_jll", "ExprTools", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "LazyArtifacts", "Libdl", "LinearAlgebra", "Logging", "Preferences", "Printf", "Random", "Random123", "RandomNumbers", "Reexport", "Requires", "SparseArrays", "SpecialFunctions", "UnsafeAtomicsLLVM"]
@@ -443,9 +443,9 @@ version = "1.1.0"
 
 [[deps.DiffRules]]
 deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
-git-tree-sha1 = "3d6d95e5f728741d74f121b9d0948c7372eee4b7"
+git-tree-sha1 = "23163d55f885173722d1e4cf0f6110cdbaf7e272"
 uuid = "b552c78f-8df3-52c6-915a-8e097449b14b"
-version = "1.15.0"
+version = "1.15.1"
 
 [[deps.DiskArrays]]
 deps = ["OffsetArrays"]
@@ -861,7 +861,7 @@ version = "0.3.16"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "4c33e49df16f3be1f403c449f24009f14d33210a"
+git-tree-sha1 = "20a92d1d906a2d9401485ee60606c11597110ddf"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1277,9 +1277,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "IterTools", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "4cd2d69d6ceae26d5748aaa2b492ee14691dce5b"
+git-tree-sha1 = "4bc735cdf85617891e1b1b7a1b0495236c2ab6a6"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.30.2"
+version = "0.30.3"
 
 [[deps.Metaheuristics]]
 deps = ["Distances", "JMcDM", "LinearAlgebra", "Pkg", "Printf", "Random", "Reexport", "Requires", "SearchSpaces", "SnoopPrecompile", "Statistics"]
@@ -1626,7 +1626,7 @@ version = "1.7.2"
 
 [[deps.QED]]
 deps = ["ArgParse", "BandedMatrices", "FiniteElementHermite", "ForwardDiff", "JSON", "LinearAlgebra", "Requires"]
-git-tree-sha1 = "624ae02c7151ec68c3df4909c60cfd008df661b8"
+git-tree-sha1 = "8a17edd7effee971a30eb485f9f2740baf60d26d"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/QED.jl.git"
 uuid = "8bcbec86-48c7-11ec-16a6-c1bc83299373"
@@ -2095,7 +2095,7 @@ version = "0.2.0"
 
 [[deps.VacuumFields]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "FiniteElementHermite", "LinearAlgebra", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic", "Plots", "SpecialFunctions", "TEQUILA", "Trapz"]
-git-tree-sha1 = "e62d19deaf995ddf089c6037d2a772af33dd5127"
+git-tree-sha1 = "0a9657dc1e2d27a1ad638506b2ac5dbe07b899e1"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
