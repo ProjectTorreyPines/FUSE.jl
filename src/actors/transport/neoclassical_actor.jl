@@ -51,6 +51,12 @@ function _step(actor::ActorNeoclassical)
         eqt = dd.equilibrium.time_slice[]
         cp1d = dd.core_profiles.profiles_1d[]
         actor.flux_solutions = [TAUENN.neoclassical_changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
+
+    elseif par.neoclassical_model == :hirshmansigmar
+        model.identifier.name = "Hirshman-Sigmar"
+        eqt = dd.equilibrium.time_slice[]
+        cp1d = dd.core_profiles.profiles_1d[]
+        actor.flux_solutions = [TAUENN.neoclassical_changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
     else
         error("$(par.neoclassical_model) is not implemented")
     end
