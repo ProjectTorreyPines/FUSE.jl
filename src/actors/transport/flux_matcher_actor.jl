@@ -316,7 +316,7 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
     # Check if evolve_densities contains all of dd species
     @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Not all species are accounted for in the evolve_densities dict : $(sort([i for (i,j) in evolve_densities])) , dd_species : $(sort(dd_species)) ,"
     # Check if there is 1 quasi_neutrality specie
-    @assert length([i for (i, evolve) in evolve_densities if evolve == ::quasi_neutrality]) < 2 "Only one specie can be used for quasi neutality matching (or 0 when everything matches ne_scale)"
+    @assert length([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]) < 2 "Only one specie can be used for quasi neutality matching (or 0 when everything matches ne_scale)"
     # Check if there is a source for the flux_match specie(s)
     # isnt' there yet 
 end
