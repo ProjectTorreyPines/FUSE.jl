@@ -315,8 +315,8 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
     dd_species = vcat(dd_species, [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if sum(ion.density_fast) > 0.0])
     # Check if evolve_densities contains all of dd species
     @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Not all species are accounted for in the evolve_densities dict : $(sort([i for (i,j) in evolve_densities])) , dd_species : $(sort(dd_species)) ,"
-    # Check if there is 1 quasi_neutality specie
-    @assert length([i for (i, evolve) in evolve_densities if evolve == :quasi_neutality]) < 2 "Only one specie can be used for quasi neutality matching (or 0 when everything matches ne_scale)"
+    # Check if there is 1 quasi_neutrality specie
+    @assert length([i for (i, evolve) in evolve_densities if evolve == ::quasi_neutrality]) < 2 "Only one specie can be used for quasi neutality matching (or 0 when everything matches ne_scale)"
     # Check if there is a source for the flux_match specie(s)
     # isnt' there yet 
 end
@@ -333,14 +333,14 @@ function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
 end
 
 """
-    evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector; quasi_neutality_specie::Union{Symbol,Bool}=false)
+    evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector; quasi_neutrality_specie::Union{Symbol,Bool}=false)
 
-Create the density_evolution dict based on input vectors: flux_match_species, fixed_species, match_ne_scale_species, quasi_neutality_specie
+Create the density_evolution dict based on input vectors: flux_match_species, fixed_species, match_ne_scale_species, quasi_neutrality_specie
 """
-function evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector; quasi_neutality_specie::Union{Symbol,Bool}=false)
+function evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector; quasi_neutrality_specie::Union{Symbol,Bool}=false)
     parse_list = vcat([[sym, :flux_match] for sym in flux_match_species], [[sym, :match_ne_scale] for sym in match_ne_scale_species], [[sym, :fixed] for sym in fixed_species])
-    if isa(quasi_neutality_specie, Symbol)
-        parse_list = vcat(parse_list, [[quasi_neutality_specie, :quasi_neutality]])
+    if isa(quasi_neutrality_specie, Symbol)
+        parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
     end
     return Dict(sym => evolve for (sym, evolve) in parse_list)
 end
