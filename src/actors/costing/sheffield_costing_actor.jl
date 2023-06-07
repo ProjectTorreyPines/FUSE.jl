@@ -111,8 +111,11 @@ function _step(actor::ActorSheffieldCosting)
     required_components = bd.tf.coils_n 
     total_components = required_components + coil_redundancy 
 
+    #0.2342 is the total unscheduled unavailability of all other systems except primary coils (= sum of all Unavailability in Table B.II of Sheffield 1986 except Primary coils)
+    # Fra = 6e-6, Mr0 = 1e4, Mr1 = 240 all come from Table B.II of Sheffield 1986 in Primary coils row 
     unscheduled_unavailability = unscheduled(time_to_failure(6e-6,required_components,total_components), 1e4, 240, fraction_major_failure(0.1,required_components,total_components)) + .2342
 
+    #Equation B.9 in Sheffield 1986
     cst.availability = (1 - scheduled_maintenance_fraction) * (1 - unscheduled_unavailability)
 
     total_direct_capital_cost += cost_redundant_coils(cst, bd, da, required_components, total_components)
@@ -360,6 +363,7 @@ end
 #  availability   #
 #= ============= =#
 
+#Equation B.10 in Sheffield 1986
 function fraction_major_failure(Fm0, required_components, total_components)
     denom = 0 
     for j in required_components:total_components
@@ -372,6 +376,7 @@ function fraction_major_failure(Fm0, required_components, total_components)
     return Fm
 end
 
+#Equation B.8 in Sheffield 1986
 function time_to_failure(Fra, required_components, total_components)
     Tf1 = 1/Fra 
     num = 0 
@@ -384,6 +389,7 @@ function time_to_failure(Fra, required_components, total_components)
     return Tfs
 end
 
+#Equation B.4 in Sheffield 1986
 function unscheduled(Tfs, Mr0, Mr1, Fm)
     Pdt = (Mr0*Fm + Mr1*(1-Fm))/Tfs
     return Pdt 
