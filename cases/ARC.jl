@@ -18,8 +18,6 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 9.9e6
     ini.equilibrium.pressure_core = 1.45e6
-    ini.equilibrium.xpoints_number = 2
-    act.ActorCXbuild.rebuild_wall = false
 
     # explicitly set thickness of radial build layers
     ini.build.n_first_wall_conformal_layers = 2
@@ -37,6 +35,9 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     layers[:lfs_TF] = 0.55
     layers[:gap_cryostat] = 1.119
     layers[:cryostat] = 0.186
+    act.ActorCXbuild.rebuild_wall = false
+
+    ini.equilibrium.xpoints = :double
 
     ini.material.wall = "Tungsten"
     ini.material.blanket = "FLiBe"
@@ -59,7 +60,9 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.greenwald_fraction = 0.49
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.10 #estimate
-    ini.core_profiles.T_shaping = 1.8 #estimate (from ITER)
+    ini.core_profiles.T_ratio = 1.0
+    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 1.5
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
@@ -70,6 +73,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
     # act.ActorEquilibrium.model = :CHEASE
 
+    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
     

@@ -4,18 +4,17 @@
 Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.3)
-    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.0)
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Width of the deposition profile"; default=0.3)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Radial location of the deposition profile"; default=0.0)
 end
 
-mutable struct ActorNBsimple <: HCDAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorNBsimple
-
-    function ActorNBsimple(dd::IMAS.dd, par::FUSEparameters__ActorNBsimple; kw...)
+mutable struct ActorNBsimple{D,P} <: HCDAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorNBsimple{P}
+    function ActorNBsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorNBsimple{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNBsimple)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 
@@ -87,6 +86,13 @@ function _step(actor::ActorNBsimple)
             momentum_tor=momentum_source,
             j_parallel=j_parallel
         )
+
+        # add nbi fast ion particles source
+        ion = resize!(source.profiles_1d[].ion, 1)[1]
+        IMAS.ion_element!(ion, "H$(Int(floor(nbu.species.a)))"; fast=true)
+        ion.particles = source.profiles_1d[].electrons.particles
+        ion.fast_particles_energy = beam_energy
+
     end
     return actor
 end

@@ -4,19 +4,19 @@
 Base.@kwdef mutable struct FUSEparameters__ActorHCD{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    ec_model::Switch{Symbol} = Switch(Symbol, [:ECsimple], "-", "EC source actor to run"; default=:ECsimple)
-    ic_model::Switch{Symbol} = Switch(Symbol, [:ICsimple], "-", "IC source actor to run"; default=:ICsimple)
-    lh_model::Switch{Symbol} = Switch(Symbol, [:LHsimple], "-", "LH source actor to run"; default=:LHsimple)
-    nb_model::Switch{Symbol} = Switch(Symbol, [:NBsimple], "-", "NB source actor to run"; default=:NBsimple)
+    ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple], "-", "EC source actor to run"; default=:ECsimple)
+    ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple], "-", "IC source actor to run"; default=:ICsimple)
+    lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple], "-", "LH source actor to run"; default=:LHsimple)
+    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple], "-", "NB source actor to run"; default=:NBsimple)
 end
 
-mutable struct ActorHCD <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorHCD
-    ec_actor::Union{ActorECsimple}
-    ic_actor::Union{ActorICsimple}
-    lh_actor::Union{ActorLHsimple}
-    nb_actor::Union{ActorNBsimple}
+mutable struct ActorHCD{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorHCD{P}
+    ec_actor::ActorECsimple{D,P}
+    ic_actor::ActorICsimple{D,P}
+    lh_actor::ActorLHsimple{D,P}
+    nb_actor::ActorNBsimple{D,P}
 end
 
 """

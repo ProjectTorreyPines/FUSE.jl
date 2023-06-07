@@ -6,14 +6,14 @@ import CHEASE
 Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    free_boundary::Entry{Bool} = Entry(Bool, "-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
-    clear_workdir::Entry{Bool} = Entry(Bool, "-", "Clean the temporary workdir for CHEASE"; default=true)
-    rescale_eq_to_ip::Entry{Bool} = Entry(Bool, "-", "Scale equilibrium to match Ip"; default=true)
+    free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
+    clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
+    rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
 end
 
-mutable struct ActorCHEASE <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorCHEASE
+mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
 

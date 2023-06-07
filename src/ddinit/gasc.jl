@@ -41,7 +41,7 @@ function GASC(filename::String, case::Int)
     gasc = GASC(filename, data, case, version)
     # convert list of floats to arrays
     for item in keys(gasc.outputs["numerical profiles"])
-        if item ∉ ["boundaryInnerTF", "boundaryOuterTF"]
+        if item ∉ ("boundaryInnerTF", "boundaryOuterTF")
             gasc.outputs["numerical profiles"][item] = Vector{Float64}(gasc.outputs["numerical profiles"][item])
         end
     end
@@ -85,7 +85,9 @@ function gasc_2_core_profiles(gasc::GASC, ini::ParametersAllInits, act::Paramete
     # ini.core_profiles.ne_ped = gasc.outputs["plasma parameters"]["neped"] * 1e20
     # i_ped = argmin(abs.(gasc.outputs["numerical profiles"]["neProf"] .- gasc.outputs["plasma parameters"]["neped"] / gasc.outputs["plasma parameters"]["ne0"]))
     # ini.core_profiles.w_ped = 1 - gasc.outputs["numerical profiles"]["rProf"][i_ped]
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = gasc.outputs["impurities"]["effectiveZ"]
     ini.core_profiles.rot_core = 0.0  # Not in GASC
     ini.core_profiles.bulk = :DT
@@ -116,7 +118,17 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     ini.equilibrium.pressure_core = Pavg / P1
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
-    ini.equilibrium.xpoints_number = Int(round(gasc.inputs["divertor metrics"]["numberDivertors"]))
+    n_xpoints = Int(gasc.inputs["divertor metrics"]["numberDivertors"])
+    if n_xpoints == 0
+        ini.equilibrium.xpoints = :none
+    elseif n_xpoints == 1
+        ini.equilibrium.xpoints = :lower
+    elseif n_xpoints == 2
+        ini.equilibrium.xpoints = :double
+    else
+        error("Invalid GASC numberDivertors")
+    end
+
     return ini
 end
 
@@ -369,7 +381,7 @@ end
 Convert coil technology information in GASC solution to FUSE `coil_technology` Symbol
 """
 function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
-    if coil_type ∉ [:OH, :TF, :PF]
+    if coil_type ∉ (:OH, :TF, :PF)
         error("Supported coil type are [:OH, :TF, :PF]")
     end
     if gasc.inputs["conductors"]["superConducting"] == "copper"
@@ -385,20 +397,4 @@ function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
         end
     end
     return coil_tech
-end
-
-function compare(dd::IMAS.dd, gasc::GASC)
-    df = DataFrames.DataFrame(code=["FUSE", "GASC"])
-
-    # collisionless bootstrap coefficient
-    FUSE = IMAS.collisionless_bootstrap_coefficient(dd)
-    GASC = gasc.inputs["plasma parameters"]["user_bootstrapCoefficient"]
-    df.Cbs = [FUSE, GASC]
-
-    # fusion power [MW]
-    FUSE = IMAS.fusion_power(dd.core_profiles) / 1E6
-    GASC = gasc.outputs["power balance"]["powerFusion"]
-    df.Pfusion = [FUSE, GASC]
-
-    df
 end

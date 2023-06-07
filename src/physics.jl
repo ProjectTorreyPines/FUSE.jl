@@ -29,7 +29,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
     height = maximum(z_obstruction) - minimum(z_obstruction) + target_clearance * 2.0
     z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
     shape_parameters = nothing
-    if shape_function_index in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
+    if shape_function_index ∈ (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         return nothing
     else
         shape_index_mod = shape_function_index
@@ -50,13 +50,13 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            centerpost_height = height * 0.75
+            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction))
             shape_parameters = [centerpost_height, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
             shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
-        elseif shape_index_mod in [Int(_miller_), Int(_square_miller_)]
+        elseif shape_index_mod ∈ (Int(_miller_), Int(_square_miller_))
             _, imaxr = findmax(r_obstruction)
             _, iminr = findmin(r_obstruction)
             _, imaxz = findmax(z_obstruction)
@@ -99,7 +99,7 @@ end
 
 function shape_function(shape_function_index)
     func = nothing
-    if shape_function_index in [Int(_offset_), Int(_negative_offset_), Int(_convex_hull_)]
+    if shape_function_index ∈ (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         return nothing
     else
         shape_index_mod = shape_function_index
@@ -172,58 +172,78 @@ function shape_function(shape_function_index)
 end
 
 """
-    optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
+    optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
-function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false, time_limit=60)
+function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Float64}, target_clearance::Float64, func::Function, r_start::Float64, r_end::Float64, shape_parameters::Vector{Float64}; use_curvature::Bool=true, verbose::Bool=false)
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
+    initial_guess = deepcopy(shape_parameters)
 
-    if length(shape_parameters) in [0, 1]
+    if length(shape_parameters) in (0, 1)
         func(r_start, r_end, shape_parameters...)
 
     else
-        function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
+        function cost_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Float64}, rz_obstruction::Vector{Tuple{Float64,Float64}}, target_clearance::Float64, target_area::Float64, func::Function, r_start::Float64, r_end::Float64, shape_parameters::Vector{Float64}; use_curvature::Bool, verbose::Bool=false)
             R, Z = func(r_start, r_end, shape_parameters...)
 
+            cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
+
+            length(R) == length(Z) || error("R and Z have different length")
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            index = abs.((R .- r_start) .* (R .- r_end)) .> (target_clearance / 1000)
-            R = R[index]
-            Z = Z[index]
+            index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
+            Rv = view(R, index)
+            Zv = view(Z, index)
 
             # no polygon crossings  O(N)
-            inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
-            cost_inside = sum(inpoly)
+            cost_inside = 0.0
+            for (r, z) in zip(Rv, Zv)
+                inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
+                cost_inside += inpoly
+            end
 
             # target clearance  O(1)
-            minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
-            cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
-            mean_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance)
-            cost_mean_distance = mean_distance_error / target_clearance
+            minimum_distance, mean_above_distance_error = IMAS.min_mean_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance; above_target=true)
+            if minimum_distance < target_clearance
+                cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
+            else
+                cost_min_clearance = 0.0
+            end
+            cost_mean_above_distance = mean_above_distance_error / target_clearance
+
+            # curvature
+            if use_curvature
+                curvature = abs.(IMAS.curvature(Rv, Zv))
+                cost_max_curvature = exp(maximum(curvature)^2.5)
+            else
+                cost_max_curvature = 0.0
+            end
 
             # favor up/down symmetric solutions
             cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
 
             if verbose
                 @show minimum_distance
-                @show mean_distance_error
+                @show mean_above_distance_error
                 @show target_clearance
                 @show cost_min_clearance^2
-                @show cost_mean_distance^2
+                @show cost_mean_above_distance^2
                 @show cost_inside^2
                 @show cost_up_down_symmetry^2
+                @show cost_max_curvature^2
             end
 
             # return cost
-            return cost_min_clearance^2 + cost_mean_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2
+            return cost_min_clearance^2 + cost_mean_above_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2 + cost_area + cost_max_curvature
         end
 
+        r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
+        target_area = IMAS.area(r_obstruction_buffered, z_obstruction_buffered)
+
         initial_guess = copy(shape_parameters)
-        # res = optimize(shape_parameters-> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-        #                initial_guess, Newton(), Optim.Options(time_limit=time_limit); autodiff=:forward)
-        res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters),
-            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(time_limit=time_limit))
+        res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature),
+            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
         if verbose
             println(res)
         end
@@ -232,8 +252,12 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
 
     # check no polygon crossings
     R, Z = func(r_start, r_end, shape_parameters...)
-    inpoly = [PolygonOps.inpolygon((r, z), rz_obstruction) for (r, z) in zip(R, Z)]
-    cost_inside = sum(inpoly)
+    cost_inside = 0
+    for (r, z) in zip(R, Z)
+        inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
+        cost_inside += inpoly
+    end
+
     if cost_inside > 0
         @warn "optimize_shape function could not avoid polygon crossings! Perhaps try changing shape?"
     end
@@ -242,7 +266,6 @@ function optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_
     # plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
     # plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
     # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
-    # cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=true)
 
     return shape_parameters
 end
@@ -307,10 +330,6 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
 end
 
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
-    centerpost_height = abs(centerpost_height)
-    outerpost_height = abs(outerpost_height)
-    height = abs(height)
-
     # inner
     r_e1 = r_center
     z_e1 = centerpost_height / 2.0
@@ -338,13 +357,11 @@ circle ellipse shape (parametrization of TF coils used in GATM)
 Special case of the double ellipse shape, where the inner ellipse is actually a circle
 """
 function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
+    centerpost_height = abs(centerpost_height)
+    height = abs(height)
+    centerpost_height = mirror_bound(centerpost_height, 0.0, height)
     r_center = r_start + (height - centerpost_height) / 2.0
     return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points)
-end
-
-function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100) where {T<:Real}
-    r_center = r_start + (height - centerpost_height) / 2.0
-    return double_ellipse(r_start, r_end, r_center, centerpost_height, outerpost_height, height; n_points)
 end
 
 """
@@ -569,6 +586,19 @@ function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
 end
 
 """
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+
+Buffer polygon defined by x,y arrays by a quantity b
+"""
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    poly = xy_polygon(x, y)
+    poly_b = LibGEOS.buffer(poly, b)
+    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
+    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    return x_b, y_b
+end
+
+"""
     volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{<:IMAS.build__structure})
 
 Returns volume of the layer without structures
@@ -591,11 +621,11 @@ IMAS.dynamic_expressions["build.layer[:].volume_no_structures"] =
 Returns volume of the intersection between build layer volume and structure volume
 """
 function layer_structure_intersect_volume(layer::IMAS.build__layer, structure::IMAS.build__structure)
-    if layer.type in [Int(_in_), Int(_out_)]
+    if layer.type ∈ (Int(_in_), Int(_out_))
         return layer.volume
-    elseif layer.type in [Int(_tf_), Int(_plasma_)]
+    elseif layer.type ∈ (Int(_tf_), Int(_plasma_))
         return layer.volume
-    elseif layer.fs ∈ [Int(_hfs_), Int(_lfs_)]
+    elseif layer.fs ∈ (Int(_hfs_), Int(_lfs_))
         i = IMAS.index(layer)
         if layer.fs == Int(_hfs_)
             layer_in = IMAS.parent(layer)[i+1]
@@ -671,7 +701,23 @@ end
     @series begin
         aspect_ratio --> :equal
         label --> ""
+        lw --> 2
+        color --> :black
         mxhb.r_boundary, mxhb.z_boundary
+    end
+    @series begin
+        primary := false
+        aspect_ratio --> :equal
+        label --> ""
+        mxhb.mxh
+    end
+    @series begin
+        seriestype := :scatter
+        primary := false
+        aspect_ratio --> :equal
+        label --> ""
+        marker := :cross
+        mxhb.RX, mxhb.ZX
     end
 end
 
@@ -688,13 +734,14 @@ Control of the X-point location can be achieved by modifying R0, Z0.
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
-    function cost(mri::AbstractVector{T}, mzi::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::Float64)
+    function cost(points0::Vector, points::Vector, i::Integer, R0::T, Z0::T, α::Float64)
+        points .= points0
         if upper
-            RX, ZX, R, Z = add_xpoint(mri, mzi, i, R0, Z0, α)
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .> (Z0 + ZX) / 2.0))))^2.0
+            RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z .> (Z0 + ZX) / 2.0)])))^2.0
         else
-            RX, ZX, R, Z = add_xpoint(mri, mzi, i, R0, Z0, α)
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .< (Z0 + ZX) / 2.0))))^2.0
+            RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z .< (Z0 + ZX) / 2.0)])))^2.0
         end
     end
 
@@ -720,16 +767,22 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
         R0 = mri[i]
     end
 
-    res = Optim.optimize(α -> cost(mri, mzi, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
-    RX, ZX, R, Z = add_xpoint(mr, mz, k, R0, Z0, res.minimizer[1])
+    points = collect(zip([mri; mri[1]], [mzi; mzi[1]]))
+    points0 = deepcopy(points)
 
+    res = Optim.optimize(α -> cost(points0, points, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
+
+    points = collect(zip([mr; mr[1]], [mz; mz[1]]))
+    RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, res.minimizer[1])
+    
     return RX, ZX, R, Z
 end
 
-function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
-    RX = mr[i] .* α .+ R0 .* (1.0 .- α)
-    ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
+function add_xpoint(points::Vector, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
+    RX = points[i][1] .* α .+ R0 .* (1.0 .- α)
+    ZX = points[i][2] .* α .+ Z0 .* (1.0 .- α)
+    points[end] = (RX, ZX)
+    RZ = convex_hull!(points; closed_polygon=true)
     R = T[r for (r, z) in RZ]
     Z = T[z for (r, z) in RZ]
     return RX, ZX, R, Z
@@ -746,7 +799,7 @@ function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_
     return MXHboundary!(mxhb; upper_x_point, lower_x_point, n_points)
 end
 
-function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0, RU::Real=0.0, RL::Real=0.0)
     mr, mz = mxhb.mxh()
 
     if ~upper_x_point && ~lower_x_point && n_points === 0
@@ -759,16 +812,22 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
 
     R0 = mxhb.mxh.R0
     Z0 = mxhb.mxh.Z0
+    if RU == 0.0
+        RU = R0
+    end
+    if RL == 0.0
+        RL = R0
+    end
 
     RX = Float64[]
     ZX = Float64[]
     if upper_x_point
-        RXU, ZXU, _ = add_xpoint(mr, mz, R0, Z0; upper=true)
+        RXU, ZXU, _ = add_xpoint(mr, mz, RU, Z0; upper=true)
         push!(RX, RXU)
         push!(ZX, ZXU)
     end
     if lower_x_point
-        RXL, ZXL, _ = add_xpoint(mr, mz, R0, Z0; upper=false)
+        RXL, ZXL, _ = add_xpoint(mr, mz, RL, Z0; upper=false)
         push!(RX, RXL)
         push!(ZX, ZXL)
     end
@@ -827,33 +886,89 @@ end
 
 Find boundary such that the output MXH parametrization (with x-points) matches the input MXH parametrization (without x-points)
 """
-function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0)
 
     if ~upper_x_point && ~lower_x_point
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     end
 
+    pr, pz = mxh()
+    i = argmax(pz)
+    RXU = pr[i]
+    ZXU = pz[i]
+    i = argmin(pz)
+    RXL = pr[i]
+    ZXL = pz[i]
+
+    M = 12
+    N = min(M, length(mxh.s))
+
     # change mxh parameters so that the boundary with x-points has the desired elongation, triangularity, squareness
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
-    mxh0 = deepcopy(mxh)
-    function mxhb_from_params!(params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
-        mxhb0.mxh.κ = params[1]
-        mxhb0.mxh.c0 = params[2]
-        mxhb0.mxh.s = params[3:2+Integer((end - 2) / 2)]
-        mxhb0.mxh.c = params[2+Integer((end - 2) / 2)+1:end]
+    mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
+
+    function mxhb_from_params!(mxhb0::MXHboundary, params::AbstractVector{<:Real}; upper_x_point::Bool, lower_x_point::Bool, n_points::Int)
+        L = 1
+        mxhb0.mxh.Z0 = params[L]
+        L += 1
+        mxhb0.mxh.κ = params[L]
+        L += 1
+        mxhb0.mxh.c0 = params[L]
+        mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
+        mxhb0.mxh.c = params[L+Integer((end - L) / 2)+1:end]
         return MXHboundary!(mxhb0; upper_x_point, lower_x_point, n_points)
     end
 
     function cost(params::AbstractVector{<:Real}; mxh, upper_x_point, lower_x_point, n_points)
-        mxhb1 = mxhb_from_params!(params; upper_x_point, lower_x_point, n_points)
-        IMAS.MXH!(mxh0, mxhb1.r_boundary, mxhb1.z_boundary)
-        return norm(vcat(mxh0.κ - mxh.κ, mxh0.c0 - mxh.c0, mxh0.s .- mxh.s, mxh0.c .- mxh.c))
+        mxhb_from_params!(mxhb0, params; upper_x_point, lower_x_point, n_points)
+        IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
+
+        # X-points and elongation
+        c = 0.0
+        if upper_x_point
+            i = argmax(mxhb0.ZX)
+            c += (mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2
+        else
+            i = argmax(mxhb0.z_boundary)
+            j = argmax(pz)
+            c += (mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2
+        end
+        if lower_x_point
+            i = argmin(mxhb0.ZX)
+            c += (mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2
+        else
+            i = argmin(mxhb0.z_boundary)
+            j = argmin(pz)
+            c += (mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2
+        end
+
+        # other shape parameters
+        c += (mxh0.R0 - mxh.R0)^2
+        c += (mxh0.ϵ - mxh.ϵ)^2
+        c += (mxh0.c0 - mxh.c0)^2
+        c += sum((mxh0.s[1:N] .- mxh.s[1:N]).^2)
+        c += sum((mxh0.c[1:N] .- mxh.c[1:N]).^2)
+
+        # To avoid MXH solutions with kinks force area and convex_hull area to match
+        mr, mz = mxhb0.mxh()
+        hull = convex_hull(mr, mz; closed_polygon=true)
+        mrch = [r for (r, z) in hull]
+        mzch = [z for (r, z) in hull]
+        marea = IMAS.area(mr, mz)
+        mareach = IMAS.area(mrch, mzch)
+        c += (abs(mareach - marea) / mareach) * 1E3
+
+        return sqrt(c)
     end
 
-    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(g_tol=1E-3))
-    mxhb = mxhb_from_params!(res.minimizer; upper_x_point, lower_x_point, n_points)
-
-    return mxhb
+    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(iterations=1000))
+    mxhb_from_params!(mxhb0, res.minimizer; upper_x_point, lower_x_point, n_points)
+    IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
+    # println(res)
+    # println(mxh)
+    # println(mxh0)
+    # println(mxhb0.mxh)
+    return mxhb0
 end
 
 function boundary_shape(R0::Real; p=nothing)
@@ -867,15 +982,14 @@ end
         elongation::T,
         triangularity::T,
         squareness::T;
-        x_points::Bool,
+        upper_x_point::Bool=false,
+        lower_x_point::Bool=false,
         exact::Bool=false,
         n_points::Integer=401) where {T<:Real}
 
 Miller contour with squareness (via MXH parametrization)
 
-`exact=true` optimizes elongation/triangularity to match true Miller parametrization
-since MXH and Miller deviate at high triangularities, and addition of X-points will
-also alter measured elongation and triangularity.
+`exact=true` optimizes diverted shape to match desired Miller elongation, triangularity, squareness
 """
 function square_miller(
     R0::T,
@@ -883,7 +997,8 @@ function square_miller(
     elongation::T,
     triangularity::T,
     squareness::T;
-    x_points::Bool,
+    upper_x_point::Bool=false,
+    lower_x_point::Bool=false,
     exact::Bool=false,
     n_points::Integer=401) where {T<:Real}
 
@@ -898,7 +1013,7 @@ function square_miller(
     else
         func = MXHboundary
     end
-    mxhb = func(mxh; upper_x_point=x_points, lower_x_point=x_points, n_points)
+    mxhb = func(mxh; upper_x_point, lower_x_point, n_points)
 
     return mxhb.r_boundary, mxhb.z_boundary
 end

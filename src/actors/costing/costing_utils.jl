@@ -13,8 +13,6 @@ end
 #= ============== =#
 #  materials cost  #
 #= ============== =#
-#NOTE: material should be priced by Kg
-#NOTE: if something is priced by m^3 then it is for a specific part already
 function unit_cost(material::AbstractString, cst::IMAS.costing)
 	if material == "Vacuum"
 		return 0.0 # $M/m^3

@@ -4,16 +4,16 @@
 Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "rho core transport grid"; default=0.2:0.1:0.8)
-    turbulence_model::Switch{Symbol} = Switch(Symbol, [:TGLF, :none], "-", "Turbulence model to use"; default=:TGLF)
-    neoclassical_model::Switch{Symbol} = Switch(Symbol, [:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
+    rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "rho core transport grid"; default=0.2:0.1:0.8)
+    turbulence_model::Switch{Symbol} = Switch{Symbol}([:TGLF, :none], "-", "Turbulence model to use"; default=:TGLF)
+    neoclassical_model::Switch{Symbol} = Switch{Symbol}([:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
 end
 
-mutable struct ActorFluxCalculator <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorFluxCalculator
-    turb_actor::PlasmaAbstractActor
-    neoc_actor::PlasmaAbstractActor
+mutable struct ActorFluxCalculator{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorFluxCalculator{P}
+    turb_actor::ActorTGLF{D,P}
+    neoc_actor::ActorNeoclassical{D,P}
 end
 
 """

@@ -4,18 +4,18 @@
 Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
-    stress_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
-    aspect_ratio_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the aspect_ratio change"; default=0.0)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
+    j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
+    stress_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
+    aspect_ratio_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the aspect_ratio change"; default=0.0)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorHFSsizing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorHFSsizing
-    stresses_actor::ActorStresses
-    fluxswing_actor::ActorFluxSwing
+mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorHFSsizing{P}
+    stresses_actor::ActorStresses{D,P}
+    fluxswing_actor::ActorFluxSwing{D,P}
     R0_scale::Float64
 end
 
@@ -46,7 +46,7 @@ function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::P
     par = act.ActorHFSsizing(kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing)
     stresses_actor = ActorStresses(dd, act.ActorStresses)
-    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor, false)
+    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor, 1.0)
 end
 
 function _step(actor::ActorHFSsizing)
@@ -138,15 +138,17 @@ function _step(actor::ActorHFSsizing)
 
     # initialize
     PL = dd.build.layer[1]
-    OH = IMAS.get_build(dd.build, type=_oh_)
-    BL = IMAS.get_build(dd.build, type=_blanket_, fs=_hfs_, raise_error_on_missing=false)
-    if BL === missing
+    OH = IMAS.get_build_layer(dd.build.layer, type=_oh_)
+    BLs = IMAS.get_build_layers(dd.build.layer, type=_blanket_, fs=_hfs_)
+    if isempty(BLs)
         BL = PL
+    else
+        BL = BLs[1]
     end
     old_BL_thickness = BL.thickness
-    TFhfs = IMAS.get_build(dd.build, type=_tf_, fs=_hfs_)
-    TFlfs = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_)
-    plasma = IMAS.get_build(dd.build, type=_plasma_)
+    TFhfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_hfs_)
+    TFlfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_)
+    plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
 
     target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
     a = (plasma.end_radius - plasma.start_radius) / 2.0
@@ -228,7 +230,7 @@ function _step(actor::ActorHFSsizing)
 
     max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
     if abs(actor.R0_scale - 1.0) > 1E-6
-        @assert abs(actor.R0_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($((R0/old_R0-1.0)*100)%)"
+        @assert abs(actor.R0_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($((R0/old_R0-1.0)*100)%). If this is acceptable to you, you can change `act.ActorHFSsizing.aspect_ratio_tolerance` accordingly."
     end
     @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
     @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j

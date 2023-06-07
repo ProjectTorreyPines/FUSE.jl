@@ -4,25 +4,25 @@
 Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    update_plasma::Entry{Bool} = Entry(Bool, "-", "Run plasma related actors"; default=true)
+    update_plasma::Entry{Bool} = Entry{Bool}("-", "Run plasma related actors"; default=true)
 end
 
-mutable struct ActorWholeFacility <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorWholeFacility
+mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
-    EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport}
-    StabilityLimits::Union{Nothing,ActorStabilityLimits}
-    HFSsizing::Union{Nothing,ActorHFSsizing}
-    LFSsizing::Union{Nothing,ActorLFSsizing}
-    CXbuild::Union{Nothing,ActorCXbuild}
-    PFcoilsOpt::Union{Nothing,ActorPFcoilsOpt}
-    PassiveStructures::Union{Nothing,ActorPassiveStructures}
-    Neutronics::Union{Nothing,ActorNeutronics}
-    Blanket::Union{Nothing,ActorBlanket}
-    Divertors::Union{Nothing,ActorDivertors}
-    BalanceOfPlant::Union{Nothing,ActorBalanceOfPlant}
-    Costing::Union{Nothing,ActorCosting}
+    EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport{D,P}}
+    StabilityLimits::Union{Nothing,ActorStabilityLimits{D,P}}
+    HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
+    LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
+    CXbuild::Union{Nothing,ActorCXbuild{D,P}}
+    PFcoilsOpt::Union{Nothing,ActorPFcoilsOpt{D,P}}
+    PassiveStructures::Union{Nothing,ActorPassiveStructures{D,P}}
+    Neutronics::Union{Nothing,ActorNeutronics{D,P}}
+    Blanket::Union{Nothing,ActorBlanket{D,P}}
+    Divertors::Union{Nothing,ActorDivertors{D,P}}
+    BalanceOfPlant::Union{Nothing,ActorBalanceOfPlant{D,P}}
+    Costing::Union{Nothing,ActorCosting{D,P}}
 end
 
 """
@@ -134,9 +134,9 @@ function scale_aspect_ratio!(dd::IMAS.dd, R0_scale::Float64)
 
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data *= R0_scale
 
-    for leaf in [collect(IMAS.leaves(dd.pulse_schedule)); collect(IMAS.leaves(dd.wall))]
+    for leaf in (collect(IMAS.leaves(dd.pulse_schedule)); collect(IMAS.leaves(dd.wall)))
         uloc = IMAS.ulocation(leaf.ids, leaf.field)
-        if occursin(".r.", uloc) && IMAS.info(uloc)["units"] in ["mixed", "m"]
+        if occursin(".r.", uloc) && IMAS.info(uloc)["units"] ∈ ("mixed", "m")
             old_value = getproperty(leaf.ids, leaf.field)
             setproperty!(leaf.ids, leaf.field, old_value .+ ΔR0)
         end

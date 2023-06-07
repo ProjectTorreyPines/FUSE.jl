@@ -4,18 +4,17 @@
 Base.@kwdef mutable struct FUSEparameters__ActorECsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Width of the deposition profile"; default=0.05)
-    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry(Union{Real,AbstractVector{<:T}}, "-", "Radial location of the deposition profile"; default=0.5)
+    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Width of the deposition profile"; default=0.05)
+    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Radial location of the deposition profile"; default=0.5)
 end
 
-mutable struct ActorECsimple <: HCDAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorECsimple
-
-    function ActorECsimple(dd::IMAS.dd, par::FUSEparameters__ActorECsimple; kw...)
+mutable struct ActorECsimple{D,P} <: HCDAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorECsimple{P}
+    function ActorECsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorECsimple{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorECsimple)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 

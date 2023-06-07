@@ -31,7 +31,9 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
                 pressure_core=dd.equilibrium.time_slice[].profiles_1d.pressure[1],
                 helium_fraction=ini.core_profiles.helium_fraction,
+                T_ratio=ini.core_profiles.T_ratio,
                 T_shaping=ini.core_profiles.T_shaping,
+                n_shaping=ini.core_profiles.n_shaping,
                 w_ped=ini.core_profiles.w_ped,
                 zeff=ini.core_profiles.zeff,
                 rot_core=ini.core_profiles.rot_core,
@@ -88,18 +90,14 @@ function init_core_profiles(
     end
 
     # Set ions:
+    bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
     # 1. DT
-    ion = resize!(cp1d.ion, "label" => String(bulk))
-    fill!(ion, IMAS.ion_element(ion_symbol=bulk))
-    @assert ion.element[1].z_n == 1.0 "Bulk ion must be a Hydrogenic isotope [:H, :D, :DT, :T]"
-
+    IMAS.ion_element!(bulk_ion, bulk)
+    @assert bulk_ion.element[1].z_n == 1.0 "Bulk ion `$bulk` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
     # 2. Impurity
-    ion = resize!(cp1d.ion, "label" => String(impurity))
-    fill!(ion, IMAS.ion_element(ion_symbol=impurity))
-
+    IMAS.ion_element!(imp_ion, impurity)
     # 3. He
-    ion = resize!(cp1d.ion, "label" => "He")
-    fill!(ion, IMAS.ion_element(ion_symbol=:He))
+    IMAS.ion_element!(he_ion, :He4)
 
     # pedestal
     @ddtime summary.local.pedestal.n_e.value = ne_ped
@@ -124,7 +122,7 @@ function init_core_profiles(
     # DT == 1
     # Imp == 2
     # He == 3
-    zimp = IMAS.ion_element(ion_symbol=impurity).element[1].z_n
+    zimp = imp_ion.element[1].z_n
     niFraction[3] = helium_fraction
     niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
     niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
@@ -142,7 +140,7 @@ function init_core_profiles(
 
     cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     for i = 1:length(cp1d.ion)
-        cp1d.ion[i].temperature = cp1d.electrons.temperature ./ T_ratio
+        cp1d.ion[i].temperature = cp1d.electrons.temperature .* T_ratio
     end
 
     # remove He if not present

@@ -7,14 +7,14 @@ import TAUENN
 Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    neoclassical_model::Switch{Symbol} = Switch(Symbol, [:changhinton], "-", "Neoclassical model to run"; default=:changhinton)
-    rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
+    neoclassical_model::Switch{Symbol} = Switch{Symbol}([:changhinton], "-", "Neoclassical model to run"; default=:changhinton)
+    rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
 end
 
-mutable struct ActorNeoclassical <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorNeoclassical
-    flux_solutions::AbstractVector{<:TGLFNN.flux_solution}
+mutable struct ActorNeoclassical{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorNeoclassical{P}
+    flux_solutions::Vector{<:TGLFNN.flux_solution}
 end
 
 """

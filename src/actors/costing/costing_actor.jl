@@ -17,11 +17,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
 	learning_rate::Entry{T} = Entry(T, "-", "Learning rate for ReBCO technology production"; default = 0.85)
 end
 
-mutable struct ActorCosting <: FacilityAbstractActor
-	dd::IMAS.dd
-	par::FUSEparameters__ActorCosting
+mutable struct ActorCosting{D,P} <: FacilityAbstractActor
+	dd::IMAS.dd{D}
+	par::FUSEparameters__ActorCosting{P}
 	act::ParametersAllActors
-	cst_actor::Union{ActorSheffieldCosting, ActorARIESCosting}
+	cst_actor::Union{ActorSheffieldCosting{D,P}, ActorARIESCosting{D,P}}
 end
 
 """
@@ -54,9 +54,11 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
 	if par.model == :Sheffield
 		cst_actor = ActorSheffieldCosting(dd, act.ActorSheffieldCosting)
-	elseif par.model == :ARIES
+
+    elseif par.model == :ARIES
 		cst_actor = ActorARIESCosting(dd, act.ActorARIESCosting)
-	else
+
+    else
 		error("ActorCosting: model = '$(par.model)' can only be ':Sheffield' or ':ARIES'")
 	end
 

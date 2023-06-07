@@ -26,7 +26,7 @@ function init_nbi(
 
     power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission = same_length_vectors(power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission)
 
-    for idx in 1:length(power_launched)
+    for idx in eachindex(power_launched)
         nbu = resize!(dd.nbi.unit, idx)[idx]
         nbu.name = length(power_launched) > 1 ? "nbi_$idx" : "nbi"
         @ddtime(nbu.energy.data = beam_energy[idx])
@@ -67,7 +67,7 @@ function init_ec_launchers(
     efficiency_transmission::Union{Real,AbstractVector{<:Real},Missing})
 
     (power_launched, efficiency_conversion, efficiency_transmission) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission)
-    for idx in 1:length(power_launched)
+    for idx in eachindex(power_launched)
         ecl = resize!(dd.ec_launchers.beam, idx)[idx]
         ecl.name = length(power_launched) > 1 ? "ec_$idx" : "ec"
         @ddtime(ecl.power_launched.data = power_launched[idx])
@@ -102,7 +102,7 @@ function init_ic_antennas(
     efficiency_coupling::Union{Real,AbstractVector{<:Real},Missing})
 
     (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
-    for idx in 1:length(power_launched)
+    for idx in eachindex(power_launched)
         ica = resize!(dd.ic_antennas.antenna, idx)[idx]
         ica.name = length(power_launched) > 1 ? "ic_$idx" : "ic"
         @ddtime(ica.power_launched.data = power_launched[idx])
@@ -139,7 +139,7 @@ function init_lh_antennas(
     efficiency_transmission::Union{Real,AbstractVector{<:Real},Missing},
     efficiency_coupling::Union{Real,AbstractVector{<:Real},Missing})
     (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
-    for idx in 1:length(power_launched)
+    for idx in eachindex(power_launched)
         lha = resize!(dd.lh_antennas.antenna, idx)[idx]
         lha.name = length(power_launched) > 1 ? "lh_$idx" : "lh"
         @ddtime(lha.power_launched.data = power_launched[idx])
