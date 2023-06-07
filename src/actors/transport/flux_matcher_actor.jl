@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.1)
+    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the flux matching"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Print trace and optimization result"; default=false)
 end
@@ -56,7 +56,7 @@ function _step(actor::ActorFluxMatcher)
     par = actor.par
 
     if par.do_plot
-        p = plot(dd.core_profiles, label="before")
+        p = plot(dd.core_profiles, label="  before")
     end
 
     z_init = pack_z_profiles(dd, par) .* 100
@@ -66,9 +66,9 @@ function _step(actor::ActorFluxMatcher)
     res = try
         log_topics[:actors] = Logging.Warn
         if par.optimizer_algorithm == :anderson
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=0, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=0, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init * 1.5, show_trace=par.verbose, store_trace=par.verbose, method=:newton, iterations=par.max_iterations, ftol=1E-3)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init,factor=1e-2, show_trace=par.verbose, store_trace=par.verbose, iterations=par.max_iterations, ftol=1E-3)
         end
         res
     finally
@@ -93,7 +93,7 @@ function _step(actor::ActorFluxMatcher)
 
     if par.do_plot
         display(plot(dd.core_transport))
-        display(plot!(p, dd.core_profiles, label="after"))
+        display(plot!(p, dd.core_profiles, label="  after"))
     end
 
     return actor
@@ -174,7 +174,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     if par.evolve_rotation == :flux_match
-        norm = 0.01 #[kg / m s^2]
+        norm = 1E-2 #[kg / m s^2]
         target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.momentum_tor.flux[cf_gridpoints]
         append!(error, error_transformation!(target, output, norm))
