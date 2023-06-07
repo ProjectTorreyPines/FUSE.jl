@@ -1,16 +1,16 @@
 import QED
 
-#= =============== =#
-#  ActorQEDcurrent  #
-#= =============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorQEDcurrent{T} <: ParametersActor where {T<:Real}
+#= ======== =#
+#  ActorQED  #
+#= ======== =#
+Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
 end
 
-mutable struct ActorQEDcurrent{D,P} <: PlasmaAbstractActor
+mutable struct ActorQED{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorQEDcurrent{P}
+    par::FUSEparameters__ActorQED{P}
     QI::QED.QED_state
     η#::Base.Callable
     QO::Union{QED.QED_state,Missing}
@@ -19,27 +19,27 @@ mutable struct ActorQEDcurrent{D,P} <: PlasmaAbstractActor
 end
 
 """
-    ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Evolves the plasma current using the QED current diffusion solver
 
 !!! note 
-    Stores data in `dd.equilibrium`
+    Stores data in `dd.core_profiles`, `dd.equilbrium`
 """
-function ActorQEDcurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorQEDcurrent(dd, act.ActorQEDcurrent; kw...)
+function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorQED(dd, act.ActorQED; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorQEDcurrent(dd::IMAS.dd, par::FUSEparameters__ActorQEDcurrent; kw...)
-    logging_actor_init(ActorQEDcurrent)
+function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED; kw...)
+    logging_actor_init(ActorQED)
     par = par(kw...)
-    return ActorQEDcurrent(dd, par, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), dd.global_time)
+    return ActorQED(dd, par, from_imas(dd), η_imas(dd), missing, @ddtime(dd.equilibrium.time), dd.global_time)
 end
 
-function _step(actor::ActorQEDcurrent, tmax, Nt, Vedge=nothing, Ip=nothing; resume=false)
+function _step(actor::ActorQED, tmax, Nt, Vedge=nothing, Ip=nothing; resume=false)
     if resume
         if actor.QO !== missing
             actor.QI = actor.QO
@@ -52,7 +52,7 @@ function _step(actor::ActorQEDcurrent, tmax, Nt, Vedge=nothing, Ip=nothing; resu
     actor.QO = QED.diffuse(actor.QI, actor.η, tmax, Nt; Vedge, Ip)
 end
 
-function _finalize(actor::ActorQEDcurrent)
+function _finalize(actor::ActorQED)
     dd = actor.dd
 
     eqt = dd.equilibrium.time_slice[]

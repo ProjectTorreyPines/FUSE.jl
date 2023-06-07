@@ -58,7 +58,7 @@ end
 #     file_0 = joinpath(dirname(dirname(@__DIR__)), "QED", "sample", "ods_163303Z29-2910.json")
 #     dd = IMAS.json2imas(file_0; verbose=false)
 #     # initialize actor
-#     actor = FUSE.ActorQEDcurrent(dd)
+#     actor = FUSE.ActorQED(dd)
 #     # evolve current
 #     for k in 1:3
 #         FUSE.step(actor, 0.1, 100, resume=true)
