@@ -5,11 +5,11 @@
 Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: ParametersActor where {T <: Real}
 	_parent::WeakRef = WeakRef(nothing)
 	_name::Symbol = :not_set
-	construction_lead_time::Entry{T} = Entry(T, "year", "Duration of construction"; default = 8.0)
-	fixed_charge_rate::Entry{T} = Entry(T, "-", "Constant dollar fixed charge rate"; default = 0.078)
-	divertor_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
-	blanket_fluence_lifetime::Entry{T} = Entry(T, "MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
-    coil_redundancy::Entry{T} = Entry(T, "-", "Number of spare TF coils"; default = 0)
+	construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default = 8.0)
+	fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default = 0.078)
+	divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
+	blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
+    coil_redundancy::Entry{T} = Entry{T}("-", "Number of spare TF coils"; default = 0.0)
 
 end
 
@@ -392,7 +392,7 @@ end
 
 function cost_redundant_coils(cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust, required_components, total_components)
 	da.year_assessed = 2016   # Year the materials costs were assessed 
-	primary_coils_hfs = IMAS.get_build(bd, type = IMAS._tf_, fs = _hfs_)
+	primary_coils_hfs = IMAS.get_build_layer(bd.layer, type = IMAS._tf_, fs = _hfs_)
     volume_single_coil = primary_coils_hfs.volume/bd.tf.coils_n
 	cost = 1.5 * volume_single_coil * (total_components - required_components) * unit_cost(bd.tf.technology, cst)
 	return future_dollars(cost, da)
