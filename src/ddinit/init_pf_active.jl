@@ -274,7 +274,7 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
             coil_tech.temperature = 4.2
             coil_tech.material = "Nb3Sn"
         else
-            coil_tech.temperature = 20.0
+            coil_tech.temperature = 4.2
             coil_tech.material = "ReBCO"
         end
         coil_tech.fraction_stainless = 0.5

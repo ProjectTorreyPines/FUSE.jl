@@ -42,6 +42,7 @@ function _step(actor::ActorCXbuild)
     par = actor.par
 
     bd = dd.build
+    div = dd.divertors
     eqt = dd.equilibrium.time_slice[]
 
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
@@ -142,24 +143,29 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         circle = collect(zip(divertor_length .* cos.(t) .+ Rx, sign(Zx) .* divertor_length .* sin.(t) .+ Zx))
         circle[1] = circle[end]
         slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && rr >= R_hfs_plasma && rr <= R_lfs_plasma]
-        pr = [rr for (rr, zz) in slot]
-        pz = [zz for (rr, zz) in slot]
+        pr1 = [rr for (rr, zz) in slot]
+        pz1 = [zz for (rr, zz) in slot]
+        if isempty(pr1)
+            continue
+        end
 
         # remove private flux region from wall (necessary because of Z expansion)
         # this may fail if the private region is small or weirdly shaped
         try
-            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr, pz))
+            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr1, pz1))
         catch e
-            if !(typeof(e) <: LibGEOS.GEOSError)
+            if typeof(e) <: LibGEOS.GEOSError
+                continue
+            else
                 rethrow(e)
             end
         end
 
         # add the divertor slots
         α = 0.2
-        pr = vcat(pr, R0 * α + Rx * (1 - α))
-        pz = vcat(pz, Z0 * α + Zx * (1 - α))
-        slot = LibGEOS.buffer(xy_polygon(pr, pz), a)
+        pr2 = vcat(pr1, R0 * α + Rx * (1 - α))
+        pz2 = vcat(pz1, Z0 * α + Zx * (1 - α))
+        slot = LibGEOS.buffer(xy_polygon(pr2, pz2), a)
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
 
@@ -201,6 +207,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
             break
         end
     end
+    wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
     ψb = IMAS.find_psi_boundary(eqt)
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
@@ -228,6 +235,14 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         if Zx > Z0 && (ismissing(bd.divertors.upper, :installed) || bd.divertors.upper.installed != 1)
             continue
         elseif Zx < Z0 && (ismissing(bd.divertors.lower, :installed) || bd.divertors.lower.installed != 1)
+            continue
+        end
+
+        # private flux region must be in the wall
+        prz = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), wall_rz) == 1]
+        pr = [rr for (rr, zz) in prz]
+        pz = [zz for (rr, zz) in prz]
+        if length(pr) < 5
             continue
         end
 
