@@ -149,6 +149,9 @@ make chease
    . ${GACODE_ROOT}/shared/bin/gacode_setup
    ```
 
+   !!! note
+       You may need to replace `mpif90-openmpi-mp` with `mpif90-openmpi-gcc12` in `$GACODE_ROOT/platform/build/make.inc.OSX_MONTEREY`, and `mpirun-openmpi-mp` with `mpirun-openmpi-gcc12` in `$GACODE_ROOT/platform/exec/exec.OSX_MONTEREY`
+
 1. For Mac with Apple Silicon:
    ```bash
    conda install -c conda-forge micromamba
