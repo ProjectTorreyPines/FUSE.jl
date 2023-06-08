@@ -112,9 +112,13 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
     max_divertor_length = linear_plasma_size * divertor_length_fraction
 
+    detected_upper = bd.divertors.upper.installed
+    detected_lower = bd.divertors.lower.installed
+
     # private flux regions
     private = IMAS.flux_surface(eqt, ψb, false)
     for (pr, pz) in private
+
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
             # open flux surface does not encicle the plasma
             continue
@@ -161,12 +165,22 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
             end
         end
 
+        if Zx > Z0
+            detected_upper -= 1
+        else
+            detected_lower -= 1
+        end
+
         # add the divertor slots
         α = 0.2
         pr2 = vcat(pr1, R0 * α + Rx * (1 - α))
         pz2 = vcat(pz1, Z0 * α + Zx * (1 - α))
         slot = LibGEOS.buffer(xy_polygon(pr2, pz2), a)
         wall_poly = LibGEOS.union(wall_poly, slot)
+    end
+
+    if detected_upper != 0 || detected_lower != 0
+        error("Equilibrium does not allow building the right number of upper ($(bd.divertors.upper.installed)) and lower ($(bd.divertors.lower.installed)) divertors.")
     end
 
     # vertical clip
