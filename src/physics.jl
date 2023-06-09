@@ -974,12 +974,11 @@ end
 """
     free_boundary_private_flux_constraint(R::AbstractVector{T}, Z::AbstractVector{T}; upper_x_point::Bool, lower_x_point::Bool, fraction::Float64=0.25, n_points::Int=10) where {T<:Real}
 
-Given a closed boundary R,Z returns Rx Zx constraint points on plausible private flux regions
+Given a closed boundary R,Z returns Rp,Zp constraint points on plausible private flux regions
 """
 function free_boundary_private_flux_constraint(R::AbstractVector{T}, Z::AbstractVector{T}; upper_x_point::Bool, lower_x_point::Bool, fraction::Float64=0.25, n_points::Int=10) where {T<:Real}
-    Rx = T[]
-    Zx = T[]
-
+    Rp = T[]
+    Zp = T[]
     for x_point in [-1, 1]
 
         if x_point == -1 && !lower_x_point
@@ -993,37 +992,31 @@ function free_boundary_private_flux_constraint(R::AbstractVector{T}, Z::Abstract
 
         # up-down and left-right mirror of lcfs with respect to the X-point
         if x_point == 1
-            pr, pz = IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
-        else
             pr, pz = IMAS.reorder_flux_surface!(pr, pz, argmin(pz))
+            Rx = pr[argmax(pz)]
+            Zx = pz[argmax(pz)]
+        else
+            pr, pz = IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
+            Rx = pr[argmin(pz)]
+            Zx = pz[argmin(pz)]
         end
-        pr = -(pr .- pr[1]) .+ pr[1]
-        pz = -(pz .- pz[1]) .+ pz[1]
+        pr = -(pr .- Rx) .+ Rx
+        pz = -(pz .- Zx) .+ Zx
 
         # select points withing a given radius
-        index = sqrt.((pr .- pr[1]) .^ 2 .+ (pz .- pz[1]) .^ 2) .< abs(maximum(pz) - minimum(pz)) * fraction
-
-        # sort points
+        d = sqrt.((pr .- Rx) .^ 2 .+ (pz .- Zx) .^ 2)
+        index = d .< abs(maximum(pz) - minimum(pz)) * fraction
         pr = pr[index]
         pz = pz[index]
-        if x_point == 1
-            istart = argmax(pr)
-            pr = circshift(pr, 1 - istart)
-            pz = circshift(pz, 1 - istart)
-        else
-            istart = argmin(pr)
-            pr = circshift(pr, 1 - istart)
-            pz = circshift(pz, 1 - istart)
-        end
 
         # resample to give requested number of points
         pr, pz = IMAS.resample_2d_path(pr, pz; n_points, method=:linear)
 
-        append!(Rx, pr)
-        append!(Zx, pz)
+        append!(Rp, pr)
+        append!(Zp, pz)
     end
 
-    return Rx, Zx
+    return Rp, Zp
 end
 
 function boundary_shape(R0::Real; p=nothing)
