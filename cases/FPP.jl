@@ -28,7 +28,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints = :double
-        act.ActorEquilibrium.model = :CHEASE
+        act.ActorEquilibrium.model = :TEQUILA
         act.ActorWholeFacility.update_plasma = false
         STEP = true
     end

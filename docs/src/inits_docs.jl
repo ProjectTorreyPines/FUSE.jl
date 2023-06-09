@@ -39,7 +39,7 @@ Below are the initialization functions specific to IDSs in the `dd` data structu
 These can be called for a fine control on what IDSs are initialized and how.
 
 """]
-for name in sort(collect(names(FUSE; all=true, imported=false)))
+for name in sort!(collect(names(FUSE; all=true, imported=false)))
     if startswith("$name", "init_")
         nname = replace("$name", "init_" => "")
         basename = replace(nname, "_" => " ")

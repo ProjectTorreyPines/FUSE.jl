@@ -738,10 +738,10 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
         points .= points0
         if upper
             RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z .> (Z0 + ZX) / 2.0)])))^2.0
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z.>(Z0+ZX)/2.0)])))^2.0
         else
             RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z .< (Z0 + ZX) / 2.0)])))^2.0
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z.<(Z0+ZX)/2.0)])))^2.0
         end
     end
 
@@ -774,7 +774,7 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
 
     points = collect(zip([mr; mr[1]], [mz; mz[1]]))
     RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, res.minimizer[1])
-    
+
     return RX, ZX, R, Z
 end
 
@@ -946,8 +946,8 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         c += (mxh0.R0 - mxh.R0)^2
         c += (mxh0.ϵ - mxh.ϵ)^2
         c += (mxh0.c0 - mxh.c0)^2
-        c += sum((mxh0.s[1:N] .- mxh.s[1:N]).^2)
-        c += sum((mxh0.c[1:N] .- mxh.c[1:N]).^2)
+        c += sum((mxh0.s[1:N] .- mxh.s[1:N]) .^ 2)
+        c += sum((mxh0.c[1:N] .- mxh.c[1:N]) .^ 2)
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
@@ -969,6 +969,61 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     # println(mxh0)
     # println(mxhb0.mxh)
     return mxhb0
+end
+
+"""
+    free_boundary_private_flux_constraint(R::AbstractVector{T}, Z::AbstractVector{T}; upper_x_point::Bool, lower_x_point::Bool, fraction::Float64=0.25, n_points::Int=10) where {T<:Real}
+
+Given a closed boundary R,Z returns Rx Zx constraint points on plausible private flux regions
+"""
+function free_boundary_private_flux_constraint(R::AbstractVector{T}, Z::AbstractVector{T}; upper_x_point::Bool, lower_x_point::Bool, fraction::Float64=0.25, n_points::Int=10) where {T<:Real}
+    Rx = T[]
+    Zx = T[]
+
+    for x_point in [-1, 1]
+
+        if x_point == -1 && !lower_x_point
+            continue
+        elseif x_point == 1 && !upper_x_point
+            continue
+        end
+
+        pr = deepcopy(R)
+        pz = deepcopy(Z)
+
+        # up-down and left-right mirror of lcfs with respect to the X-point
+        if x_point == 1
+            pr, pz = IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
+        else
+            pr, pz = IMAS.reorder_flux_surface!(pr, pz, argmin(pz))
+        end
+        pr = -(pr .- pr[1]) .+ pr[1]
+        pz = -(pz .- pz[1]) .+ pz[1]
+
+        # select points withing a given radius
+        index = sqrt.((pr .- pr[1]) .^ 2 .+ (pz .- pz[1]) .^ 2) .< abs(maximum(pz) - minimum(pz)) * fraction
+
+        # sort points
+        pr = pr[index]
+        pz = pz[index]
+        if x_point == 1
+            istart = argmax(pr)
+            pr = circshift(pr, 1 - istart)
+            pz = circshift(pz, 1 - istart)
+        else
+            istart = argmin(pr)
+            pr = circshift(pr, 1 - istart)
+            pz = circshift(pz, 1 - istart)
+        end
+
+        # resample to give requested number of points
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points, method=:linear)
+
+        append!(Rx, pr)
+        append!(Zx, pz)
+    end
+
+    return Rx, Zx
 end
 
 function boundary_shape(R0::Real; p=nothing)

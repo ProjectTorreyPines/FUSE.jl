@@ -19,7 +19,7 @@ end
 mutable struct ActorTEQUILA{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTEQUILA{P}
-    shot::Union{Nothing, TEQUILA.Shot}
+    shot::Union{Nothing,TEQUILA.Shot}
     psib::Real
 end
 
@@ -51,7 +51,7 @@ function _step(actor::ActorTEQUILA)
     dd = actor.dd
     par = actor.par
 
-    par.do_plot && (p=plot(dd.equilibrium;cx=true, label="before"))
+    par.do_plot && (p = plot(dd.equilibrium; cx=true, label="before"))
 
     prepare_eq(dd)
 
@@ -79,15 +79,15 @@ function _step(actor::ActorTEQUILA)
 
     # TEQUILA shot
     shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh;
-                        P, Jt, Pbnd, Fbnd, Ip_target=Ip)
+        P, Jt, Pbnd, Fbnd, Ip_target=Ip)
     actor.shot = TEQUILA.solve(shot, par.number_of_iterations; debug=par.debug)
 
     if par.do_plot
-        for (idx,s) in enumerate(eachcol(actor.shot.surfaces[:,2:end]))
-            if idx == length(actor.shot.surfaces[1,2:end])
-                plot!(p,IMAS.MXH(s), color=:red,label="after TEQUILA")
+        for (idx, s) in enumerate(eachcol(actor.shot.surfaces[:, 2:end]))
+            if idx == length(actor.shot.surfaces[1, 2:end])
+                plot!(p, IMAS.MXH(s), color=:red, label="after TEQUILA")
             else
-                plot!(p,IMAS.MXH(s), color=:red)
+                plot!(p, IMAS.MXH(s), color=:red)
             end
         end
         display(p)
@@ -100,7 +100,7 @@ end
 function _finalize(actor::ActorTEQUILA)
     try
         tequila2imas(actor.shot, actor.dd.equilibrium;
-                     psib=actor.psib, free_boundary=actor.par.free_boundary)
+            psib=actor.psib, free_boundary=actor.par.free_boundary)
     catch e
         display(plot(actor.shot))
         rethrow(e)
@@ -109,7 +109,6 @@ function _finalize(actor::ActorTEQUILA)
 end
 
 function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_boundary=false)
-
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
 
@@ -141,8 +140,8 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_b
 
     R0 = shot.surfaces[1, end]
     Z0 = shot.surfaces[2, end]
-    ϵ  = shot.surfaces[3, end]
-    κ  = shot.surfaces[4, end]
+    ϵ = shot.surfaces[3, end]
+    κ = shot.surfaces[4, end]
     a = min(1.5 * R0 * ϵ, R0) # 20% bigger than plasma, but a no bigger than R0
     b = κ * a
     Rgrid = range(R0 - a, R0 + a, n_grid)
@@ -155,10 +154,13 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_b
     eq2d.grid.dim2 = Zgrid
 
     if free_boundary
+        # constraints for the private flux region
+        Rb, Zb = TEQUILA.MXH(shot.surfaces[:, end])()
+        upper_x_point = any(x_point.z > Z0 for x_point in eqt.boundary.x_point)
+        lower_x_point = any(x_point.z < Z0 for x_point in eqt.boundary.x_point)
+        Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction=0.25, n_points=10)
         # convert from fixed to free boundary equilibrium
-        bnd = TEQUILA.MXH(shot.surfaces[:,end])
-        Rb, _ = bnd()
-        psirz .= VacuumFields.fixed2free(shot, Int(ceil(length(Rb)/2)), Rgrid, Zgrid; ψbound=psib)
+        psirz .= VacuumFields.fixed2free(shot, Int(ceil(length(Rb) / 2)), Rgrid, Zgrid; Rx, Zx, ψbound=psib)
     else
         for (i, r) in enumerate(Rgrid)
             for (j, z) in enumerate(Zgrid)
