@@ -180,6 +180,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     end
 
     if detected_upper != 0 || detected_lower != 0
+        display(plot(eqt))
         error("Equilibrium does not allow building the right number of upper ($(bd.divertors.upper.installed)) and lower ($(bd.divertors.lower.installed)) divertors.")
     end
 
