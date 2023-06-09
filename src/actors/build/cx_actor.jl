@@ -115,8 +115,10 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     detected_upper = bd.divertors.upper.installed
     detected_lower = bd.divertors.lower.installed
 
-    # private flux regions
+    # private flux regions sorted by distance from lcfs
     private = IMAS.flux_surface(eqt, ψb, false)
+    sort!(private; by=p -> IMAS.minimum_distance_two_shapes(p..., rlcfs, zlcfs))
+
     for (pr, pz) in private
 
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
@@ -153,6 +155,19 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
             continue
         end
 
+        # do not add more than one private flux region for each of the x-points
+        if Zx > Z0
+            if detected_upper == 0
+                continue
+            end
+            detected_upper -= 1
+        else
+            if detected_lower == 0
+                continue
+            end
+            detected_lower -= 1
+        end
+
         # remove private flux region from wall (necessary because of Z expansion)
         # this may fail if the private region is small or weirdly shaped
         try
@@ -165,12 +180,6 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
             end
         end
 
-        if Zx > Z0
-            detected_upper -= 1
-        else
-            detected_lower -= 1
-        end
-
         # add the divertor slots
         α = 0.2
         pr2 = vcat(pr1, R0 * α + Rx * (1 - α))
@@ -179,9 +188,10 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
 
+    # detect if equilibrium has x-points to define build of divertors
     if detected_upper != 0 || detected_lower != 0
         display(plot(eqt))
-        error("Equilibrium does not allow building the right number of upper ($(bd.divertors.upper.installed)) and lower ($(bd.divertors.lower.installed)) divertors.")
+        error("Equilibrium does not allow building the right number of upper ($(bd.divertors.upper.installed)→$(-detected_upper+bd.divertors.upper.installed)) and lower ($(bd.divertors.lower.installed)→$(-detected_lower+bd.divertors.lower.installed)) divertors.")
     end
 
     # vertical clip
@@ -230,7 +240,11 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
 
     empty!(divertors)
 
+    detected_upper = bd.divertors.upper.installed
+    detected_lower = bd.divertors.lower.installed
+
     private = IMAS.flux_surface(eqt, ψb, false)
+    sort!(private; by=p -> IMAS.minimum_distance_two_shapes(p..., rlcfs, zlcfs))
     for (pr, pz) in private
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
             # open flux surface does not encicle the plasma
@@ -259,6 +273,18 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         pz = [zz for (rr, zz) in prz]
         if length(pr) < 5
             continue
+        end
+
+        if Zx > Z0
+            if detected_upper == 0
+                continue
+            end
+            detected_upper -= 1
+        else
+            if detected_lower == 0
+                continue
+            end
+            detected_lower -= 1
         end
 
         if Zx > Z0
