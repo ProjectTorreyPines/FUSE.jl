@@ -135,7 +135,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         end
 
         # solve equilibrium
-        if init_from != :ods
+        if !(init_from == :ods && boundary_from == :ods)
             act_copy = deepcopy(act)
             act_copy.ActorCHEASE.rescale_eq_to_ip = true
             ActorEquilibrium(dd, act_copy)

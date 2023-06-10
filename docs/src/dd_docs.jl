@@ -14,7 +14,7 @@ to hold data that does not (yet?) fit into IMAS. Notable examples are the `build
 
 """]
 
-for name in sort(collect(fieldnames(IMAS.dd)))
+for name in sort!(collect(fieldnames(IMAS.dd)))
     if name == :global_time || startswith(string(name), "_")
         continue
     else

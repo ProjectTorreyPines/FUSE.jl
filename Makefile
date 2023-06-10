@@ -422,7 +422,7 @@ Manifest = TOML.parse(read(Manifest_path, String));\
 Manifest_CI_path = "$(CURRENTDIR)/Manifest_CI.toml";\
 Manifest_CI = TOML.parse(read(Manifest_CI_path, String));\
 ;\
-for dep_name in sort(collect(keys(Manifest_CI["deps"])));\
+for dep_name in sort!(collect(keys(Manifest_CI["deps"])));\
     depCI = Manifest_CI["deps"][dep_name][1];\
     if dep_name ∉ keys(Manifest["deps"]);\
         continue;\
