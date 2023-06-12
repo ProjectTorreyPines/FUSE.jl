@@ -49,7 +49,7 @@ function _step(actor::ActorCHEASE)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
-    # remove points at high curvature points (ie. X-points)
+    # uniformely distribute points on the boundary
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
     r_bound, z_bound = IMAS.resample_2d_path(r_bound, z_bound; n_points=201)

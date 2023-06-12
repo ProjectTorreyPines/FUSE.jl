@@ -4,11 +4,7 @@ abstract type ReactorAbstractActor <: AbstractActor end
 abstract type HCDAbstractActor <: AbstractActor end
 abstract type PlasmaAbstractActor <: AbstractActor end
 
-function logging_actor_init(typeof_actor::DataType, args...; kw...)
-    logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
-end
-
-function logging_actor_init(typeof_actor::UnionAll, args...; kw...)
+function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
     logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
 end
 
