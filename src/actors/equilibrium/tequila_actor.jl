@@ -9,8 +9,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=20)
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=20)
-    number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=7)
-    number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=5)
+    number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=10)
+    number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=20)
+    tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-6)
     psi_norm_boundary_cutoff::Entry{Float64} = Entry{Float64}("-", "Cutoff psi_norm for determining boundary"; default=0.999)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
@@ -80,7 +81,7 @@ function _step(actor::ActorTEQUILA)
     # TEQUILA shot
     shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh;
         P, Jt, Pbnd, Fbnd, Ip_target=Ip)
-    actor.shot = TEQUILA.solve(shot, par.number_of_iterations; debug=par.debug)
+    actor.shot = TEQUILA.solve(shot, par.number_of_iterations; tol=par.tolerance, debug=par.debug)
 
     if par.do_plot
         for (idx, s) in enumerate(eachcol(actor.shot.surfaces[:, 2:end]))

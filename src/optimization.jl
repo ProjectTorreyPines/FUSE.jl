@@ -172,7 +172,7 @@ end
     optimization_engine(
         ini::ParametersAllInits,
         act::ParametersAllActors,
-        actor_or_workflow::Union{DataType,Function},
+        actor_or_workflow::Union{Type{<:AbstractActor},Function},
         x::AbstractVector,
         objectives_functions::AbstractVector{<:ObjectiveFunction},
         constraints_functions::AbstractVector{<:ConstraintFunction},
@@ -183,7 +183,7 @@ NOTE: This function is run by the worker nodes
 function optimization_engine(
     ini::ParametersAllInits,
     act::ParametersAllActors,
-    actor_or_workflow::Union{DataType,Function},
+    actor_or_workflow::Union{Type{<:AbstractActor},Function},
     x::AbstractVector,
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
@@ -195,12 +195,12 @@ function optimization_engine(
 
     # run the problem
     try
-        if typeof(actor_or_workflow) <: DataType
+        if typeof(actor_or_workflow) <: Function
+            dd = actor_or_workflow(ini, act)
+        else
             dd = init(ini, act)
             actor = actor_or_workflow(dd, act)
             dd = actor.dd
-        else
-            dd = actor_or_workflow(ini, act)
         end
         # save simulation data to directory
         if !isempty(save_folder)
@@ -228,7 +228,7 @@ end
     function optimization_engine(
         ini::ParametersAllInits,
         act::ParametersAllActors,
-        actor_or_workflow::Union{DataType,Function},
+        actor_or_workflow::Union{Type{<:AbstractActor},Function},
         X::AbstractMatrix,
         objectives_functions::AbstractVector{<:ObjectiveFunction},
         constraints_functions::AbstractVector{<:ConstraintFunction},
@@ -240,7 +240,7 @@ NOTE: this function is run by the master process
 function optimization_engine(
     ini::ParametersAllInits,
     act::ParametersAllActors,
-    actor_or_workflow::Union{DataType,Function},
+    actor_or_workflow::Union{Type{<:AbstractActor},Function},
     X::AbstractMatrix,
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},

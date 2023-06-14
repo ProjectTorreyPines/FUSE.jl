@@ -4,7 +4,7 @@ import Distributed
     workflow_multiobjective_optimization(
         ini::ParametersAllInits,
         act::ParametersAllActors,
-        actor_or_workflow::Union{DataType,Function},
+        actor_or_workflow::Union{Type{<:AbstractActor},Function},
         objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
         constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[],
         N::Int=10,
@@ -17,7 +17,7 @@ Multi-objective optimization of either an `actor(dd, act)` or a `workflow(ini, a
 function workflow_multiobjective_optimization(
     ini::ParametersAllInits,
     act::ParametersAllActors,
-    actor_or_workflow::Union{DataType,Function},
+    actor_or_workflow::Union{Type{<:AbstractActor},Function},
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
     constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
     N::Int=10,
@@ -59,10 +59,10 @@ function workflow_multiobjective_optimization(
 
     # # test running function once with nominal parameters useful to catch bugs quickly.
     # # Use Distributed.@everywhere to trigger compilation on all worker nodes.
-    # if typeof(actor_or_workflow) <: DataType
-    #     actor_or_workflow(init(ini, act), act)
-    # else
+    # if typeof(actor_or_workflow) <: Function
     #     actor_or_workflow(ini, act)
+    # else
+    #     actor_or_workflow(init(ini, act), act)
     # end
 
     save_folder = abspath(save_folder)
