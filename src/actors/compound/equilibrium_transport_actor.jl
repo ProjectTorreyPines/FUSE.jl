@@ -5,6 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: Param
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    update_pedestal::Entry{Bool} = Entry{Bool}("-", "Updates the pedestal before and after the transport step"; default=false)
     max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
 end
@@ -17,6 +18,7 @@ mutable struct ActorEquilibriumTransport{D,P} <: PlasmaAbstractActor
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
+    actor_ped::ActorPedestal{D,P}
 end
 
 """
@@ -45,7 +47,8 @@ function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquili
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
-    return ActorEquilibriumTransport(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal)
+    return ActorEquilibriumTransport(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
 
 function _step(actor::ActorEquilibriumTransport)
@@ -78,8 +81,14 @@ function _step(actor::ActorEquilibriumTransport)
             j_tor_before = dd.core_profiles.profiles_1d[].j_tor
             pressure_before = dd.core_profiles.profiles_1d[].pressure
 
-            # run transport actor
-            finalize(step(actor.actor_tr))
+            # run transport actor with or without pedestal
+            if par.update_pedestal
+                finalize(step(actor.actor_ped))
+                finalize(step(actor.actor_tr))
+                finalize(step(actor.actor_ped))
+            else
+                finalize(step(actor.actor_tr))
+            end
 
             # run HCD to get updated current drive
             finalize(step(actor.actor_hc))
