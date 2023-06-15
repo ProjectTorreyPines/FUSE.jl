@@ -122,19 +122,19 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
             end
             ini.build.divertors = ini.equilibrium.xpoints
         end
-        if ini.build.divertors in [:upper, :double]
+        if ini.build.divertors ∈ (:upper, :double)
             dd.build.divertors.upper.installed = 1
         else
             dd.build.divertors.upper.installed = 0
         end
-        if ini.build.divertors in [:lower, :double]
+        if ini.build.divertors ∈ (:lower, :double)
             dd.build.divertors.lower.installed = 1
         else
             dd.build.divertors.lower.installed = 0
         end
 
         # set the TF shape
-        tf_to_plasma = IMAS.get_build(dd.build, fs=_hfs_, return_only_one=false, return_index=true)
+        tf_to_plasma = IMAS.get_build_indexes(dd.build.layer, fs=_hfs_)
         plama_to_tf = collect(reverse(tf_to_plasma))
         # set all shapes to convex hull by default
         for k in tf_to_plasma

@@ -45,15 +45,15 @@ function _step(actor::ActorLFSsizing)
     dd = actor.dd
     par = actor.par
 
-    new_TF_radius = IMAS.R_tf_ripple(IMAS.get_build(dd.build, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
+    new_TF_radius = IMAS.R_tf_ripple(IMAS.get_build_layer(dd.build.layer, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
 
-    itf = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_, return_index=true) - 1
-    iplasma = IMAS.get_build(dd.build, type=_plasma_, return_index=true) + 1
+    itf = IMAS.get_build_index(dd.build.layer, type=_tf_, fs=_lfs_) - 1
+    iplasma = IMAS.get_build_index(dd.build.layer, type=_plasma_) + 1
 
     # resize layers proportionally
     # start from the vacuum gaps before resizing the material layers
-    for vac in [true, false]
-        old_TF_radius = IMAS.get_build(dd.build, type=_tf_, fs=_lfs_).start_radius
+    for vac in (true, false)
+        old_TF_radius = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_).start_radius
         delta = new_TF_radius - old_TF_radius
         if par.verbose
             println("TF outer leg radius changed by $delta [m]")
@@ -62,7 +62,7 @@ function _step(actor::ActorLFSsizing)
         for k in iplasma:itf
             if !vac || lowercase(dd.build.layer[k].material) == "vacuum"
                 dd.build.layer[k].thickness *= (1 + delta / sum(thicknesses))
-                hfs_thickness = IMAS.get_build(dd.build, identifier=dd.build.layer[k].identifier, fs=_hfs_).thickness
+                hfs_thickness = IMAS.get_build_layer(dd.build.layer, identifier=dd.build.layer[k].identifier, fs=_hfs_).thickness
                 if dd.build.layer[k].thickness < hfs_thickness
                     dd.build.layer[k].thickness = hfs_thickness
                 end

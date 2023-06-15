@@ -2,8 +2,9 @@ using FUSE
 using Test
 
 @testset "warmup" begin
-    for round in [1, 2]
-        FUSE.warmup()
+    for round in (1, 2)
+        dd = IMAS.dd()
+        FUSE.warmup(dd)
     end
 end
 

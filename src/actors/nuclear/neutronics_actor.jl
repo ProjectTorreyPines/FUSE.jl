@@ -64,7 +64,6 @@ function _step(actor::ActorNeutronics)
         rmin = sqrt(c - b^2 / (4a))
 
         @inbounds for k in eachindex(rz_wall)
-            t = Inf
             rw1, zw1 = rz_wall[k]
             rw2, zw2 = k == Nw ? rz_wall[1] : rz_wall[k+1]
 
@@ -79,8 +78,10 @@ function _step(actor::ActorNeutronics)
             (vz < 0 && zn < zw1) && continue
             (rw1 < rmin && rw2 < rmin) && continue
 
-            t = intersection(rw1, zw1, rw2, zw2, xn, yn, zn, vx, vy, vz, v2, vz2)
-            t < ti && (ti = t)
+            t = toroidal_intersection(rw1, zw1, rw2, zw2, xn, yn, zn, vx, vy, vz, v2, vz2)
+            if t < ti
+                ti = t
+            end
         end
         n.x += vx * ti
         n.y += vy * ti
@@ -120,13 +121,13 @@ function _step(actor::ActorNeutronics)
 
         @views cumsum!(ll, d[index])
         ll .-= ll[ns+1]
-        window .= exp.(.-(ll ./ (l[end] / length(l)) ./ (2ns + 1) .* 5) .^ 2)
+        window .= exp.(.-(ll ./ (l[end] / length(l)) ./ (2ns + 1.0) .* 5.0) .^ 2)
         window ./= sum(window)
         unit_vector = sqrt((new_r - old_r)^2 + (new_z - old_z)^2)
 
-        for (k, i) in enumerate(index)
-            nflux_r[i] += (new_r - old_r) ./ unit_vector .* window[k] .* W_per_trace ./ wall_s[i]
-            nflux_z[i] += (new_z - old_z) ./ unit_vector .* window[k] .* W_per_trace ./ wall_s[i]
+        @inbounds for (k, i) in enumerate(index)
+            nflux_r[i] += @. (new_r - old_r) / unit_vector * window[k] * W_per_trace / wall_s[i]
+            nflux_z[i] += @. (new_z - old_z) / unit_vector * window[k] * W_per_trace / wall_s[i]
         end
     end
 
@@ -196,7 +197,7 @@ function define_neutrons(actor::ActorNeutronics; p=nothing)
     CDF = cumsum(neutron_source_2d[:])
     W_per_trace = CDF[end] / N
     CDF .= (CDF .- CDF[1]) ./ (CDF[end] - CDF[1])
-    ICDF = IMAS.interp1d(CDF, 1:length(CDF), :linear)
+    ICDF = IMAS.interp1d(CDF, Float64.(1:length(CDF)), :linear)
 
     # neutron structures
     neutrons = Vector{neutron_particle{Float64}}(undef, N)
@@ -239,11 +240,11 @@ function define_wall(actor::ActorNeutronics)
     return rwall, zwall
 end
 
-function intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, z::Real, vx::Real, vy::Real, vz::Real)
-    return intersection(r1, z1, r2, z2, x, y, z, vx, vy, vz, vx^2 + vy^2, vz^2)
+function toroidal_intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, z::Real, vx::Real, vy::Real, vz::Real)
+    return toroidal_intersection(r1, z1, r2, z2, x, y, z, vx, vy, vz, vx^2 + vy^2, vz^2)
 end
 
-function intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, z::Real, vx::Real, vy::Real, vz::Real, v2::Real, vz2::Real)
+function toroidal_intersection(r1::Real, z1::Real, r2::Real, z2::Real, x::Real, y::Real, z::Real, vx::Real, vy::Real, vz::Real, v2::Real, vz2::Real)
     m = (z2 - z1) / (r2 - r1)
     z0 = z1 - m * r1
     m2 = m^2

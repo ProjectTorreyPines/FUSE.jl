@@ -40,7 +40,7 @@ function IMAS.extract(
     write_cache::Bool=true)::DataFrames.DataFrame
 
     # test filter_invalid
-    @assert filter_invalid in [:none, :cols, :rows, :all] "filter_invalid can only be one of [:none, :cols, :rows, :all]"
+    @assert filter_invalid ∈ (:none, :cols, :rows, :all) "filter_invalid can only be one of [:none, :cols, :rows, :all]"
 
     if DD !== nothing && length(cache) > 0
         @assert typeof(DD[1]) <: AbstractString "cache is only meant to work when extracting data from FUSE results folders"
@@ -94,13 +94,13 @@ function IMAS.extract(
     end
 
     # filter
-    if filter_invalid ∈ [:cols, :all]
+    if filter_invalid ∈ (:cols, :all)
         # drop columns that have all NaNs
         isnan_nostring(x::Any) = (typeof(x) <: Number) ? isnan(x) : false
         visnan(x::AbstractVector) = isnan_nostring.(x)
         df = df[:, .!all.(visnan.(eachcol(df)))]
     end
-    if filter_invalid ∈ [:rows, :all]
+    if filter_invalid ∈ (:rows, :all)
         # drop rows that have any NaNs
         df = filter(row -> all(x -> !(x isa Number && (isnan(x) || isinf(x))), row), df)
     end
@@ -154,7 +154,7 @@ function save(
     freeze::Bool=true,
     format::Symbol=:json)
 
-    @assert format in [:hdf, :json] "format must be either `:hdf` or `:json`"
+    @assert format ∈ (:hdf, :json) "format must be either `:hdf` or `:json`"
     mkdir(savedir) # purposely error if directory exists or path does not exist
 
     # first write error.txt so that if we are parsing while running optimizer,
@@ -229,13 +229,13 @@ function digest(
     section::Int=0)
 
     sec = 1
-    if section ∈ [0, sec]
+    if section ∈ (0, sec)
         IMAS.print_tiled(extract(dd); terminal_width, line_char)
     end
 
     # equilibrium with build and PFs
     sec += 1
-    if !isempty(dd.equilibrium.time_slice) && section ∈ [0, sec]
+    if !isempty(dd.equilibrium.time_slice) && section ∈ (0, sec)
         println('\u200B')
         p = plot(dd.equilibrium, legend=false)
         if !isempty(dd.build.layer)
@@ -252,53 +252,53 @@ function digest(
 
     # build layers
     sec += 1
-    if !isempty(dd.build.layer) && section ∈ [0, sec]
+    if !isempty(dd.build.layer) && section ∈ (0, sec)
         println('\u200B')
         display(dd.build.layer)
     end
 
     # core profiles
     sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles, only=1))
     end
     sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles, only=2))
     end
     sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ [0, sec]
+    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles, only=3))
     end
 
     # core sources
     sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources, only=1))
     end
     sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources, only=2))
     end
     sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources, only=3))
     end
     sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ [0, sec]
+    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources, only=4))
     end
 
     # neutron wall loading
     sec += 1
-    if !isempty(dd.neutronics.time_slice) && section ∈ [0, sec]
+    if !isempty(dd.neutronics.time_slice) && section ∈ (0, sec)
         println('\u200B')
         xlim = extrema(dd.neutronics.first_wall.r)
         xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
@@ -307,21 +307,21 @@ function digest(
 
     # center stack stresses
     sec += 1
-    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh) && section ∈ [0, sec]
+    if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.solid_mechanics.center_stack.stress))
     end
 
     # balance of plant (cannot be plotted right now plotting can only be done when running actor and not from data in dd)
     # sec += 1
-    # if !missing(dd.balance_of_plant, :Q_plant) && section ∈ [0, sec]
+    # if !missing(dd.balance_of_plant, :Q_plant) && section ∈ (0, sec)
     # println('\u200B')
     #     display(plot(dd.balance_of_plant))
     # end
 
     # costing
     sec += 1
-    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0) && section ∈ [0, sec]
+    if !ismissing(dd.costing.cost_direct_capital, :cost) && (dd.costing.cost_direct_capital.cost != 0) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.costing.cost_direct_capital))
     end

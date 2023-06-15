@@ -168,7 +168,7 @@ function _step(actor::ActorPFcoilsOpt;
     bd = actor.bd
     pc = actor.dd.pulse_schedule.position_control
     # run rail type optimizer
-    if optimization_scheme in [:rail, :currents]
+    if optimization_scheme in (:rail, :currents)
         (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, pc, maxiter, verbose)
     else
         error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
@@ -294,7 +294,7 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value)
     else
         setfield!(coil, field, value)
     end
-    if field in [:width, :height, :spacing]
+    if field in (:width, :height, :spacing)
         s = sign(getfield(coil, :turns_with_sign))
         turns = Int(ceil(coil.width .* coil.height ./ coil.spacing .^ 2))
         setfield!(coil, :turns_with_sign, s * turns)
@@ -357,7 +357,7 @@ function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
     if coil.green_model == :point # fastest
         return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
-    elseif coil.green_model in [:corners, :simple] # medium
+    elseif coil.green_model ∈ (:corners, :simple) # medium
         if coil.pf_active__coil.name == "OH"
             n = 3
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length=n)
@@ -544,11 +544,13 @@ function optimize_coils_rail(
             Zx = Float64[]
             if weight_strike > 0.0
                 private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-                vessel = IMAS.get_build(bd, type=_plasma_)
+                vessel = IMAS.get_build_layer(bd.layer, type=_plasma_)
                 for (pr, pz) in private
-                    pvx, pvy = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz; as_list_of_points=false)
-                    append!(Rx, pvx)
-                    append!(Zx, pvy)
+                    indexes, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
+                    for cr in crossings
+                        push!(Rx, cr[1])
+                        push!(Zx, cr[2])
+                    end
                 end
                 if isempty(Rx)
                     @warn "weight_strike>0 but no strike point found"
