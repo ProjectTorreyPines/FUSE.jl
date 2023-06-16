@@ -4,6 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "allows the plasma current to increase or decrease based on the non-inductive current"; default=false)
 end
 
 mutable struct ActorSteadyStateCurrent{D,P} <: PlasmaAbstractActor
@@ -36,10 +37,11 @@ end
 function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
-    cp1d = dd.core_profiles.profiles_1d[]
+
     # update j_ohmic (this also restores j_tor, j_total as expressions)
-    IMAS.j_ohmic_steady_state!(eqt, cp1d)
+    IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles, actor.par.allow_floating_plasma_current)
     # update core_sources related to current
+
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
     return actor
