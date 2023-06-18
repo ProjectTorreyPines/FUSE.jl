@@ -80,21 +80,7 @@ function _step(actor::ActorARIESCosting)
 
 	sys = resize!(cost_direct.system, "name" => "facility")
 
-	power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net)
-    power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
-    power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
-
-    if ismissing(power_electric_generated) || isnan(power_electric_net) || power_electric_net < 0
-        power_electric_net = 0.0
-    end 
-
-    if isnan(power_thermal)
-        power_thermal = 0.0
-    end 
-
-    if isnan(power_electric_generated)
-        power_electric_generated = 0.0
-    end
+    power_thermal, power_electric_generated, power_electric_net = bop_powers(dd.balance_of_plant)
 
 	for item in vcat(:land, :buildings, :hot_cell, :heat_transfer_loop_materials, :balance_of_plant_equipment, :fuel_cycle_rad_handling)
 		sub = resize!(sys.subsystem, "name" => replace(string(item), "_" => " "))
