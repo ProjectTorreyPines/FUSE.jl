@@ -154,34 +154,31 @@ function cost_decomissioning_ARIES(item::Symbol, args...; kw...)
 	return cost_decomissioning_ARIES(Val{item}, args...; kw...)
 end
 
-#= =================== =#
-#  Sanitize BOP powers  #
-#= =================== =#
+#= ========== =#
+#  BOP powers  #
+#= ========== =#
 """
     bop_powers(bop::IMAS.balance_of_plant)
 
-returns total_useful_heat_power, power_electric_generated, power_electric_net setting them to 0.0 if negative, Nan or missing
+Returns maximum total_useful_heat_power, power_electric_generated, power_electric_net over time, setting them to 0.0 if negative, Nan or missing
 """
 function bop_powers(bop::IMAS.balance_of_plant)
-    if  ismissing(bop.thermal_cycle, :total_useful_heat_power) || isnan(@ddtime(bop.total_useful_heat_power)) || @ddtime(bop.total_useful_heat_power) < 0
-        @warn("The plant doesn't generate thermal power")
+    if ismissing(bop.thermal_cycle, :total_useful_heat_power)
         total_useful_heat_power = 0.0
     else
-        total_useful_heat_power = @ddtime(bop.thermal_cycle.total_useful_heat_power)
+        total_useful_heat_power = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.thermal_cycle.total_useful_heat_power))
     end
 
-    if ismissing(bop.thermal_cycle, :power_electric_generated) || isnan(@ddtime(bop.power_electric_generated)) || @ddtime(bop.power_electric_generated) < 0
-        @warn("The plant doesn't generate net electric power")
+    if ismissing(bop.thermal_cycle, :power_electric_generated)
         power_electric_generated = 0.0
     else
-        power_electric_generated = @ddtime(bop.thermal_cycle.power_electric_generated)
+        power_electric_generated = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.thermal_cycle.power_electric_generated))
     end
 
-    if ismissing(bop.thermal_cycle, :power_electric_net) || isnan(@ddtime(bop.power_electric_net)) || @ddtime(bop.power_electric_net) < 0
-        @warn("The plant doesn't generate net electricity")
+    if ismissing(bop, :power_electric_net)
         power_electric_net = 0.0
     else
-        power_electric_net = @ddtime(bop.power_electric_net) # should be pulse average
+        power_electric_net = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.power_electric_net))
     end
 
     return total_useful_heat_power, power_electric_generated, power_electric_net
