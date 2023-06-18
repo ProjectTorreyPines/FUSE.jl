@@ -638,15 +638,17 @@ version = "0.8.4"
 
 [[deps.Flux]]
 deps = ["Adapt", "CUDA", "ChainRulesCore", "Functors", "LinearAlgebra", "MLUtils", "MacroTools", "NNlib", "NNlibCUDA", "OneHotArrays", "Optimisers", "Preferences", "ProgressLogging", "Random", "Reexport", "SparseArrays", "SpecialFunctions", "Statistics", "Zygote", "cuDNN"]
-git-tree-sha1 = "64005071944bae14fc145661f617eb68b339189c"
+git-tree-sha1 = "3e2c3704c2173ab4b1935362384ca878b53d4c34"
 uuid = "587475ba-b771-5e3f-ad9e-33799f191a9c"
-version = "0.13.16"
+version = "0.13.17"
 
     [deps.Flux.extensions]
     AMDGPUExt = "AMDGPU"
+    FluxMetalExt = "Metal"
 
     [deps.Flux.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
 
 [[deps.Fontconfig_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Expat_jll", "FreeType2_jll", "JLLWrappers", "Libdl", "Libuuid_jll", "Pkg", "Zlib_jll"]
