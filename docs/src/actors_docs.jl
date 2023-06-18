@@ -28,7 +28,7 @@ Fidelity hierarchy is enabled by concept of *abstract* Vs *concrete* actors
 
 for actor_abstract_type in subtypes(FUSE.AbstractActor)
     push!(txt, """## $(replace(replace("$actor_abstract_type","AbstractActor"=>""),"FUSE." => "")) actors\n""")
-    for name in sort(collect(names(FUSE; all=true, imported=false)))
+    for name in sort!(collect(names(FUSE; all=true, imported=false)))
         if startswith("$name", "Actor") && supertype(@eval(FUSE, $name)) == actor_abstract_type
             nname = replace("$name", "Actor" => "")
             basename = replace(nname, "_" => " ")

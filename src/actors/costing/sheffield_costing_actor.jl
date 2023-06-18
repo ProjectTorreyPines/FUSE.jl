@@ -10,7 +10,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
 	divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
 	blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
     coil_redundancy::Entry{T} = Entry{T}("-", "Number of spare TF coils"; default = 0.0)
-
 end
 
 mutable struct ActorSheffieldCosting{D,P} <: FacilityAbstractActor
@@ -87,21 +86,7 @@ function _step(actor::ActorSheffieldCosting)
 	flux_z = wall_loading.flux_z
 	neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
 
-    power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net)
-    power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
-    power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
-
-    if ismissing(power_electric_generated) || isnan(power_electric_net) || power_electric_net < 0
-        power_electric_net = 0.0
-    end 
-
-    if isnan(power_thermal)
-        power_thermal = 0.0
-    end 
-
-    if isnan(power_electric_generated)
-        power_electric_generated = 0.0
-    end
+    power_thermal, power_electric_generated, power_electric_net = bop_powers(dd.balance_of_plant)
 
 	###### Direct Capital ######
 	total_direct_capital_cost = 0
