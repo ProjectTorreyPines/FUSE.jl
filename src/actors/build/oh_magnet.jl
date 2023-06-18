@@ -11,7 +11,7 @@ NOTES:
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
 function oh_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
-    OH = IMAS.get_build(bd, type=_oh_)
+    OH = IMAS.get_build_layer(bd.layer, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
 
@@ -42,7 +42,7 @@ NOTES:
 * Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
 function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
-    OH = IMAS.get_build(bd, type=_oh_)
+    OH = IMAS.get_build_layer(bd.layer, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
 
@@ -69,7 +69,7 @@ NOTE:
 * if j_ohmic profile is missing then steady state ohmic profile is assumed
 """
 function flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d; double_swing::Bool=true)
-    OH = IMAS.get_build(bd, type=_oh_)
+    OH = IMAS.get_build_layer(bd.layer, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
 

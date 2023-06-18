@@ -22,17 +22,17 @@ options_optimization_scheme = [
 Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    green_model::Switch{Symbol} = Switch(Symbol, options_green_model, "-", "Model used for the coils Green function calculations"; default=:simple)
-    symmetric::Entry{Bool} = Entry(Bool, "-", "Force PF coils location to be up-down symmetric"; default=true)
-    weight_currents::Entry{T} = Entry(T, "-", "Weight of current limit constraint"; default=2.0)
-    weight_strike::Entry{T} = Entry(T, "-", "Weight given to matching the strike-points"; default=0.1)
-    weight_lcfs::Entry{T} = Entry(T, "-", "Weight given to matching last closed flux surface"; default=1.0)
-    weight_null::Entry{T} = Entry(T, "-", "Weight given to get field null for plasma breakdown"; default=1.0)
-    maxiter::Entry{Int} = Entry(Int, "-", "Maximum number of optimizer iterations"; default=1000)
-    optimization_scheme::Switch{Symbol} = Switch(Symbol, options_optimization_scheme, "-", "Type of PF coil optimization to carry out"; default=:rail)
-    update_equilibrium::Entry{Bool} = Entry(Bool, "-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry(Bool, "-", "Verbose"; default=false)
+    green_model::Switch{Symbol} = Switch{Symbol}(options_green_model, "-", "Model used for the coils Green function calculations"; default=:simple)
+    symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
+    weight_currents::Entry{T} = Entry{T}("-", "Weight of current limit constraint"; default=2.0)
+    weight_strike::Entry{T} = Entry{T}("-", "Weight given to matching the strike-points"; default=0.1)
+    weight_lcfs::Entry{T} = Entry{T}("-", "Weight given to matching last closed flux surface"; default=1.0)
+    weight_null::Entry{T} = Entry{T}("-", "Weight given to get field null for plasma breakdown"; default=1.0)
+    maxiter::Entry{Int} = Entry{Int}("-", "Maximum number of optimizer iterations"; default=1000)
+    optimization_scheme::Switch{Symbol} = Switch{Symbol}(options_optimization_scheme, "-", "Type of PF coil optimization to carry out"; default=:rail)
+    update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
 Base.@kwdef mutable struct PFcoilsOptTrace
@@ -45,15 +45,15 @@ Base.@kwdef mutable struct PFcoilsOptTrace
     cost_total::Vector{Float64} = Float64[]
 end
 
-mutable struct ActorPFcoilsOpt <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPFcoilsOpt
-    eq_in::IMAS.equilibrium
-    eq_out::IMAS.equilibrium
-    pf_active::IMAS.pf_active
-    bd::IMAS.build
+mutable struct ActorPFcoilsOpt{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorPFcoilsOpt{P}
+    eq_in::IMAS.equilibrium{D}
+    eq_out::IMAS.equilibrium{D}
+    pf_active::IMAS.pf_active{D}
+    bd::IMAS.build{D}
     symmetric::Bool
-    λ_regularize::Real
+    λ_regularize::Float64
     trace::PFcoilsOptTrace
     green_model::Symbol
 end
@@ -168,7 +168,7 @@ function _step(actor::ActorPFcoilsOpt;
     bd = actor.bd
     pc = actor.dd.pulse_schedule.position_control
     # run rail type optimizer
-    if optimization_scheme in [:rail, :currents]
+    if optimization_scheme in (:rail, :currents)
         (λ_regularize, trace) = optimize_coils_rail(actor.eq_in; pinned_coils, optim_coils, fixed_coils, symmetric, λ_regularize, weight_lcfs, weight_null, weight_currents, weight_strike, bd, pc, maxiter, verbose)
     else
         error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
@@ -294,7 +294,7 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value)
     else
         setfield!(coil, field, value)
     end
-    if field in [:width, :height, :spacing]
+    if field in (:width, :height, :spacing)
         s = sign(getfield(coil, :turns_with_sign))
         turns = Int(ceil(coil.width .* coil.height ./ coil.spacing .^ 2))
         setfield!(coil, :turns_with_sign, s * turns)
@@ -357,7 +357,7 @@ function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
     if coil.green_model == :point # fastest
         return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
-    elseif coil.green_model in [:corners, :simple] # medium
+    elseif coil.green_model ∈ (:corners, :simple) # medium
         if coil.pf_active__coil.name == "OH"
             n = 3
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length=n)
@@ -544,11 +544,13 @@ function optimize_coils_rail(
             Zx = Float64[]
             if weight_strike > 0.0
                 private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-                vessel = IMAS.get_build(bd, type=_plasma_)
+                vessel = IMAS.get_build_layer(bd.layer, type=_plasma_)
                 for (pr, pz) in private
-                    pvx, pvy = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz; as_list_of_points=false)
-                    append!(Rx, pvx)
-                    append!(Zx, pvy)
+                    indexes, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
+                    for cr in crossings
+                        push!(Rx, cr[1])
+                        push!(Zx, cr[2])
+                    end
                 end
                 if isempty(Rx)
                     @warn "weight_strike>0 but no strike point found"
@@ -640,7 +642,7 @@ function optimize_coils_rail(
 
         cost_lcfs_2 = cost_lcfs^2 * 10000.0
         cost_currents_2 = cost_currents^2
-        cost_oh_2 = cost_oh^2 * 0.1
+        cost_oh_2 = cost_oh^2
         cost_1to1_2 = cost_1to1^2
         cost_spacing_2 = cost_spacing^2
 

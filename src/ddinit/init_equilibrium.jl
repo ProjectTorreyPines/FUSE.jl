@@ -49,9 +49,22 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 mxh = IMAS.MXH(pr, pz, 4)
             end
 
-            if ismissing(ini.equilibrium, :xpoints_number)
+            if ismissing(ini.equilibrium, :xpoints)
                 # if number of x-points is not set explicitly, get it from the ODS
-                ini.equilibrium.xpoints_number = length(eqt.boundary.x_point)
+                n_xpoints = length(eqt.boundary.x_point)
+                if n_xpoints == 0
+                    ini.equilibrium.xpoints = :none
+                elseif n_xpoints == 1
+                    if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
+                        ini.equilibrium.xpoints = :upper
+                    else
+                        ini.equilibrium.xpoints = :lower
+                    end
+                elseif n_xpoints == 2
+                    ini.equilibrium.xpoints = :double
+                else
+                    error("cannot handle $n_xpoints x-points")
+                end
             end
         end
 
@@ -92,12 +105,13 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         ini.equilibrium.δ = sin(mxh.s[1])
         ini.equilibrium.ζ = -mxh.s[2]
 
-        # initialize dd.pulse_schedule.position_control from mxh
-        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints_number)
-
-        # scalar quantities
-        @ddtime(dd.pulse_schedule.flux_control.i_plasma.reference.data = ini.equilibrium.ip)
-        @ddtime(dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = ini.equilibrium.B0 * ini.equilibrium.R0)
+        # initialize dd.pulse_schedule.position_control from mxh and scalar quantities
+        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, dd.global_time)
+        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, Inf)
+        IMAS.set_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, dd.global_time, ini.equilibrium.ip)
+        IMAS.set_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, Inf, ini.equilibrium.ip)
+        IMAS.set_time_array(dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference, :data, dd.global_time, ini.equilibrium.B0 * ini.equilibrium.R0)
+        IMAS.set_time_array(dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference, :data, Inf, ini.equilibrium.B0 * ini.equilibrium.R0)
         dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
 
         # the pressure and j_tor to be used by equilibrium solver will need to be set in dd.core_profiles
@@ -113,7 +127,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
 
             else
                 # guess pressure and j_tor from input current and peak pressure
-                psin = LinRange(0, 1, 129)
+                psin = LinRange(0.0, 1.0, 129)
                 cp1d.grid.rho_tor_norm = psin
                 cp1d.grid.psi = psin
                 cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference.data)
@@ -122,7 +136,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         end
 
         # solve equilibrium
-        if init_from != :ods
+        if !(init_from == :ods && boundary_from == :ods)
             act_copy = deepcopy(act)
             act_copy.ActorCHEASE.rescale_eq_to_ip = true
             ActorEquilibrium(dd, act_copy)
@@ -141,26 +155,28 @@ end
     init_pulse_schedule_postion_control(
         pc::IMAS.pulse_schedule__position_control,
         mxh::IMAS.MXH,
-        xpoints_number::Integer)
+        xpoints::Symbol,
+        time0::Float64)
 
 Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
 function init_pulse_schedule_postion_control(
     pc::IMAS.pulse_schedule__position_control,
     mxh::IMAS.MXH,
-    xpoints_number::Integer)
+    xpoints::Symbol,
+    time0::Float64)
 
-    if xpoints_number > 0
+    if xpoints ∈ (:lower, :upper, :double)
         # MXHboundary adds x-points
-        mxhb = fitMXHboundary(mxh; lower_x_point=(xpoints_number >= 1), upper_x_point=(xpoints_number == 2))
+        mxhb = fitMXHboundary(mxh; lower_x_point=(xpoints ∈ (:lower, :double)), upper_x_point=(xpoints ∈ (:upper, :double)))
         pr = mxhb.r_boundary
         pz = mxhb.z_boundary
 
         # x-point information
-        resize!(pc.x_point, length(mxhb.RX))
+        resize!(pc.x_point, length(mxhb.RX); wipe=false)
         for (k, (rx, zx)) in enumerate(zip(mxhb.RX, mxhb.ZX))
-            @ddtime(pc.x_point[k].r.reference.data = rx)
-            @ddtime(pc.x_point[k].r.reference.data = zx)
+            IMAS.set_time_array(pc.x_point[k].r.reference, :data, time0, rx)
+            IMAS.set_time_array(pc.x_point[k].z.reference, :data, time0, zx)
         end
 
         # boundary with x-points parametrized with MXH
@@ -169,37 +185,18 @@ function init_pulse_schedule_postion_control(
     pr, pz = mxh(100; adaptive=false)
 
     # scalars
-    @ddtime(pc.minor_radius.reference.data = mxh.ϵ * mxh.R0)
-    @ddtime(pc.geometric_axis.r.reference.data = mxh.R0)
-    @ddtime(pc.geometric_axis.z.reference.data = mxh.Z0)
-    @ddtime(pc.elongation.reference.data = mxh.κ)
-    @ddtime(pc.triangularity.reference.data = sin(mxh.s[1]))
-    @ddtime(pc.squareness.reference.data = -mxh.s[2])
-
-    # x points at maximum curvature
-    Z0 = mxh.Z0
-    x_points = []
-    if xpoints_number >= 1
-        i1 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .< Z0))
-        push!(x_points, (pr[i1], pz[i1]))
-    end
-    if xpoints_number == 2
-        i2 = argmax(abs.(IMAS.curvature(pr, pz)) .* (pz .> Z0))
-        push!(x_points, (pr[i2], pz[i2]))
-    end
-    if length(x_points) > 0
-        resize!(pc.x_point, length(x_points))
-        for (k, xp_rz) in enumerate(x_points)
-            @ddtime(pc.x_point[k].r.reference.data = xp_rz[1])
-            @ddtime(pc.x_point[k].z.reference.data = xp_rz[2])
-        end
-    end
+    IMAS.set_time_array(pc.minor_radius.reference, :data, time0, mxh.ϵ * mxh.R0)
+    IMAS.set_time_array(pc.geometric_axis.r.reference, :data, time0, mxh.R0)
+    IMAS.set_time_array(pc.geometric_axis.z.reference, :data, time0, mxh.Z0)
+    IMAS.set_time_array(pc.elongation.reference, :data, time0, mxh.κ)
+    IMAS.set_time_array(pc.triangularity.reference, :data, time0, sin(mxh.s[1]))
+    IMAS.set_time_array(pc.squareness.reference, :data, time0, -mxh.s[2])
 
     # boundary
-    resize!(pc.boundary_outline, length(pr))
+    resize!(pc.boundary_outline, length(pr); wipe=false)
     for (k, (r, z)) in enumerate(zip(pr, pz))
-        @ddtime(pc.boundary_outline[k].r.reference.data = r)
-        @ddtime(pc.boundary_outline[k].z.reference.data = z)
+        IMAS.set_time_array(pc.boundary_outline[k].r.reference, :data, time0, r)
+        IMAS.set_time_array(pc.boundary_outline[k].z.reference, :data, time0, z)
     end
 
     return pc
@@ -212,12 +209,15 @@ Setup field null surface as pulse_schedule.position_control.boundary_outline and
 """
 function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS.equilibrium, scale::Real=0.75, ψp_constant::Real=0.1)
     eqt = eq.time_slice[]
+
+    # get coordinates for flux-null boundary at t=-Inf
     mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 0)
     mxh.κ = 1.0
     mxh.c0 = 0.0
     mxh.ϵ *= scale
     pr, pz = mxh(length(pc.boundary_outline); adaptive=false)
 
+    # insert flux-null boundary at t=-Inf
     if !isempty(pc.boundary_outline) && pc.boundary_outline[1].r.reference.time[1] == -Inf
         for (k, (r, z)) in enumerate(zip(pr, pz))
             pc.boundary_outline[k].r.reference.data[1] = r
@@ -232,18 +232,21 @@ function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS
         end
     end
 
+    # insert an equilibrium time slice at t=-Inf
     if !isempty(eq.time_slice) && eq.time[1] == -Inf
-        eqb=empty!(eq.time_slice[1])
+        eqb = empty!(eq.time_slice[1])
     else
         eqb = IMAS.equilibrium__time_slice()
         pushfirst!(eq.time_slice, eqb)
         pushfirst!(eq.time, -Inf)
         pushfirst!(eq.vacuum_toroidal_field.b0, 0.0)
     end
-    eq.vacuum_toroidal_field.b0[1] = @ddtime(eq.vacuum_toroidal_field.b0)
     eqb.time = -Inf
+
+    # set B0 and psi_boundary for equilibrium time slice at t=-Inf
+    eq.vacuum_toroidal_field.b0[1] = @ddtime(eq.vacuum_toroidal_field.b0)
     eqb.global_quantities.psi_boundary = ψp_constant
     eqb.profiles_1d.psi = [ψp_constant]
 
-    return pr, pz
+    return nothing
 end

@@ -6,18 +6,18 @@ import TGLFNN
 Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    nn::Entry{Bool} = Entry(Bool, "-", "Use TGLF-NN"; default=true)
-    sat_rule::Switch{Symbol} = Switch(Symbol, [:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "-", "Saturation rule"; default=:sat1)
-    electromagnetic::Entry{Bool} = Entry(Bool, "-", "Electromagnetic or electrostatic"; default=true)
-    rho_transport::Entry{AbstractVector{<:T}} = Entry(AbstractVector{<:T}, "-", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
-    warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
+    nn::Entry{Bool} = Entry{Bool}("-", "Use TGLF-NN"; default=true)
+    sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "-", "Saturation rule"; default=:sat1)
+    electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
+    rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
+    warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
 end
 
-mutable struct ActorTGLF <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorTGLF
-    input_tglfs::AbstractVector{<:TGLFNN.InputTGLF}
-    flux_solutions::AbstractVector{<:TGLFNN.flux_solution}
+mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorTGLF{P}
+    input_tglfs::Vector{<:TGLFNN.InputTGLF}
+    flux_solutions::Vector{<:TGLFNN.flux_solution}
 end
 
 """
@@ -87,13 +87,18 @@ function _finalize(actor::ActorTGLF)
     m1d.total_ion_energy.flux = zeros(length(par.rho_transport))
     m1d.electrons.particles.flux = zeros(length(par.rho_transport))
     m1d.momentum_tor.flux = zeros(length(par.rho_transport))
+
+    # TGLF's grid is V` based so we modify the output to the "classical" flux
+    a_minor = (eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard) ./ 2.0
+    volume_prime_miller_correction = IMAS.gradient(a_minor, eqt.profiles_1d.volume) ./ eqt.profiles_1d.surface 
     for (tglf_idx, rho) in enumerate(par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
-        m1d.electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
-        m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
-        m1d.electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx] # 1 / m^2 / s
-        m1d.momentum_tor.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].STRESS_TOR_i * IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx] #
+        rho_eq_idx = argmin(abs.(eqt.profiles_1d.rho_tor_norm .- rho))
+        m1d.electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] * volume_prime_miller_correction[rho_eq_idx] # W / m^2
+        m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] * volume_prime_miller_correction[rho_eq_idx] # W / m^2
+        m1d.electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx] * volume_prime_miller_correction[rho_eq_idx] # 1 / m^2 / s
+        m1d.momentum_tor.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].STRESS_TOR_i * IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx] * volume_prime_miller_correction[rho_eq_idx] #
     end
     return actor
 end

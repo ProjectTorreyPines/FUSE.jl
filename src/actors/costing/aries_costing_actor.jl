@@ -5,22 +5,21 @@
 Base.@kwdef mutable struct FUSEparameters__ActorARIESCosting{T} <: ParametersActor where {T <: Real}
 	_parent::WeakRef = WeakRef(nothing)
 	_name::Symbol = :not_set
-	land_space::Entry{T} = Entry(T, "acres", "Plant site space required"; default = 1000.0)
-	building_volume::Entry{T} = Entry(T, "m^3", "Volume of the tokmak building"; default = 140.0e3)
-	interest_rate::Entry{T} = Entry(T, "-", "Annual interest rate fraction of direct capital cost"; default = 0.05)
-	indirect_cost_rate::Entry{T} = Entry(T, "-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default = 0.4)
-	escalation_fraction::Entry{T} = Entry(T, "-", "Yearly escalation fraction based on risk assessment"; default = 0.05)
-	blanket_lifetime::Entry{T} = Entry(T, "year", "Lifetime of the blanket"; default = 6.8)
+	land_space::Entry{T} = Entry{T}("acres", "Plant site space required"; default = 1000.0)
+	building_volume::Entry{T} = Entry{T}("m^3", "Volume of the tokmak building"; default = 140.0e3)
+	interest_rate::Entry{T} = Entry{T}("-", "Annual interest rate fraction of direct capital cost"; default = 0.05)
+	indirect_cost_rate::Entry{T} = Entry{T}("-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default = 0.4)
+	escalation_fraction::Entry{T} = Entry{T}("-", "Yearly escalation fraction based on risk assessment"; default = 0.05)
+	blanket_lifetime::Entry{T} = Entry{T}("year", "Lifetime of the blanket"; default = 6.8)
 end
 
-mutable struct ActorARIESCosting <: FacilityAbstractActor
-	dd::IMAS.dd
-	par::FUSEparameters__ActorARIESCosting
-
-	function ActorARIESCosting(dd::IMAS.dd, par::FUSEparameters__ActorARIESCosting; kw...)
+mutable struct ActorARIESCosting{D,P} <: FacilityAbstractActor
+	dd::IMAS.dd{D}
+	par::FUSEparameters__ActorARIESCosting{P}
+	function ActorARIESCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorARIESCosting{P}; kw...) where {D<:Real,P<:Real}
 		logging_actor_init(ActorARIESCosting)
 		par = par(kw...)
-		return new(dd, par)
+		return new{D,P}(dd, par)
 	end
 end
 
@@ -36,8 +35,6 @@ function _step(actor::ActorARIESCosting)
 	dd = actor.dd
 	par = actor.par
 	cst = dd.costing
-
-	# empty!(cst)
 
 	cost_direct = cst.cost_direct_capital
 	cost_ops = cst.cost_operations
@@ -128,7 +125,7 @@ function _step(actor::ActorARIESCosting)
 	sys.yearly_cost = cost_operations_ARIES(:operation_maintenance, power_electric_generated, da)
 
 	sys = resize!(cost_ops.system, "name" => "replacements")
-	for item in [:blanket_replacement]
+	for item in (:blanket_replacement,)
 		sub = resize!(sys.subsystem, "name" => string(item))
 		if item == :blanket_replacement
 			blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
@@ -186,7 +183,7 @@ function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, 
 	elseif layer.type == Int(_blanket_)
 		cost = layer.volume * 0.75  # $M/m^3
 		return future_dollars(cost, da)
-	elseif layer.type ∈ [Int(_wall_), Int(_vessel_), Int(_cryostat_)]
+	elseif layer.type ∈ (Int(_wall_), Int(_vessel_), Int(_cryostat_))
 		cost = layer.volume * 0.36  # $M/m^3
 		return future_dollars(cost, da)
 	else

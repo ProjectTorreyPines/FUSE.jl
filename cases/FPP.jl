@@ -23,19 +23,16 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     ini.general.casename = "FPP_$(version)_$(init_from)"
     ini.general.init_from = init_from
 
-    if version == :v1
-        ini.build.n_first_wall_conformal_layers = 100
-    end
-
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         ini.equilibrium.boundary_from = :scalars
-        ini.equilibrium.xpoints_number = 2
-        act.ActorEquilibrium.model = :CHEASE
+        ini.equilibrium.xpoints = :double
+        act.ActorEquilibrium.model = :TEQUILA
         act.ActorWholeFacility.update_plasma = false
         STEP = true
     end
+    act.ActorTEQUILA.relax = 0.25
 
     ini.requirements.power_electric_net = 200e6 #W
     ini.requirements.tritium_breeding_ratio = 1.1
@@ -105,16 +102,14 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     act.ActorFluxMatcher.evolve_densities = Dict(
         :Ar => :match_ne_scale,
         :DT => :quasi_neutrality,
-        :He => :match_ne_scale,
-        :He_fast => :constant,
+        :He4 => :match_ne_scale,
+        :He4_fast => :constant,
         :electrons => :flux_match)
 
     # add wall layer
     if true
         gasc_add_wall_layers!(ini.build.layers; thickness=0.02)
-        if version != :v1
-            ini.build.n_first_wall_conformal_layers = 2
-        end
+        ini.build.n_first_wall_conformal_layers = 2
     end
 
     # bucking
@@ -123,6 +118,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         gasc_buck_OH_TF!(ini.build.layers)
     end
 
+    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

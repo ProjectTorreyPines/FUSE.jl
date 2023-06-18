@@ -4,23 +4,23 @@
 Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    operate_oh_at_j_crit::Entry{Bool} = Entry(Bool, "-", """
+    operate_oh_at_j_crit::Entry{Bool} = Entry{Bool}("-", """
 If `true` it makes the OH operate at its current limit (within specified `j_tolerance`).
 The flattop duration and maximum toroidal magnetic field follow from that.
 Otherwise we evaluate what is the current needed for a given flattop duration,
 which may or may not exceed the OH critical current limit.""";
         default=true
     )
-    j_tolerance::Entry{T} = Entry(T, "-", "Tolerance on the OH current limit"; default=0.4)
+    j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH current limit"; default=0.4)
 end
 
-mutable struct ActorFluxSwing <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorFluxSwing
-    function ActorFluxSwing(dd::IMAS.dd, par::FUSEparameters__ActorFluxSwing; kw...)
+mutable struct ActorFluxSwing{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorFluxSwing{P}
+    function ActorFluxSwing(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxSwing{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorFluxSwing)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 
@@ -125,7 +125,7 @@ end
 OH flux given its bd.oh.max_b_field and radial build
 """
 function flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
-    OH = IMAS.get_build(bd, type=_oh_)
+    OH = IMAS.get_build_layer(bd.layer, type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
     magneticFieldSolenoidBore = bd.oh.max_b_field

@@ -22,17 +22,15 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
-
         ini.equilibrium.boundary_from = :ods
-        ini.equilibrium.xpoints_number = 1
         act.ActorEquilibrium.model = :CHEASE
     else
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.ip = 15e6
         ini.equilibrium.pressure_core = 0.643e6
 
+        ini.equilibrium.xpoints = :lower
         ini.equilibrium.boundary_from = :MXH_params
-        ini.equilibrium.xpoints_number = 1
 
         R0 = 6.2
         Z0 = 0.0
@@ -93,7 +91,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.01
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
@@ -109,10 +109,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     act.ActorFluxMatcher.evolve_densities = Dict(
         :Ne => :match_ne_scale,
         :DT => :quasi_neutrality,
-        :He => :match_ne_scale,
-        :He_fast => :fixed,
+        :He4 => :match_ne_scale,
+        :He4_fast => :fixed,
         :electrons => :flux_match)
 
+    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

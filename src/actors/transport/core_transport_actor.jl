@@ -4,13 +4,13 @@
 Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch(Symbol, [:Tauenn, :FluxMatcher], "-", "Transport actor to run"; default=:Tauenn)
+    model::Switch{Symbol} = Switch{Symbol}([:Tauenn, :FluxMatcher], "-", "Transport actor to run"; default=:Tauenn)
 end
 
-mutable struct ActorCoreTransport <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorCoreTransport
-    tr_actor::Union{ActorFluxMatcher,ActorTauenn}
+mutable struct ActorCoreTransport{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorCoreTransport{P}
+    tr_actor::Union{ActorFluxMatcher{D,P},ActorTauenn{D,P}}
 end
 
 """

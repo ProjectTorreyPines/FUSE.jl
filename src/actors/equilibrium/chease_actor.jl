@@ -6,14 +6,14 @@ import CHEASE
 Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    free_boundary::Entry{Bool} = Entry(Bool, "-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
-    clear_workdir::Entry{Bool} = Entry(Bool, "-", "Clean the temporary workdir for CHEASE"; default=true)
-    rescale_eq_to_ip::Entry{Bool} = Entry(Bool, "-", "Scale equilibrium to match Ip"; default=true)
+    free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
+    clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
+    rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
 end
 
-mutable struct ActorCHEASE <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorCHEASE
+mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
 
@@ -49,7 +49,7 @@ function _step(actor::ActorCHEASE)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
-    # remove points at high curvature points (ie. X-points)
+    # uniformely distribute points on the boundary
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
     r_bound, z_bound = IMAS.resample_2d_path(r_bound, z_bound; n_points=201)
@@ -87,8 +87,13 @@ function _step(actor::ActorCHEASE)
 
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
+        # constraints for the private flux region
+        upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
+        lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
+        Rx, Zx = free_boundary_private_flux_constraint(r_bound, z_bound; upper_x_point, lower_x_point, fraction=0.25, n_points=10)
+        # convert from fixed to free boundary equilibrium
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = Float64.(VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound) / 2))))
+        psi_free_rz = Float64.(VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound) / 2)); Rx, Zx))
         actor.chease.gfile.psirz = psi_free_rz
         # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)

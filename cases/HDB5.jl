@@ -39,23 +39,25 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     # Determine x-points
     if data_row[:CONFIG] == "SN"
         # upper single null
-        ini.equilibrium.xpoints_number = 1
+        ini.equilibrium.xpoints = :upper
     elseif data_row[:CONFIG] == "SN(L)"
         # lower single null
-        ini.equilibrium.xpoints_number = 1
+        ini.equilibrium.xpoints = :lower
     elseif data_row[:CONFIG] == "DN"
         # double null
-        ini.equilibrium.xpoints_number = 2
+        ini.equilibrium.xpoints = :double
     else
         # no x-points
-        ini.equilibrium.xpoints_number = 0
+        ini.equilibrium.xpoints = :none
     end
 
     # Core_profiles parameters
     ini.core_profiles.greenwald_fraction = data_row[:NEL] * 1e-20 / (data_row[:IP] / 1e6 / (pi * data_row[:AMIN]^2))
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.0
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = data_row[:ZEFF]
     ini.core_profiles.rot_core = 50e3
     ini.core_profiles.ngrid = 201
@@ -82,6 +84,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         ini.ic_antennas.power_launched = data_row[:PICRH]
     end
 
+    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 
@@ -108,7 +111,7 @@ function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::F
     # Filter cases where the ohmic power is dominating
     run_df[:, "Paux"] = run_df[:, "PNBI"] .+ run_df[:, "PECRH"] .+ run_df[:, "PICRH"] .+ run_df[:, "POHM"]
     run_df = run_df[run_df[:, "POHM"].<maximum_ohmic_fraction.*(run_df[:, "Paux"].-run_df[:, "POHM"]), :]
-    if !(Symbol(tokamak) in [:all, :any])
+    if Symbol(tokamak) ∉ (:all, :any)
         run_df = run_df[run_df.TOK.==String(tokamak), :]
     end
     return run_df

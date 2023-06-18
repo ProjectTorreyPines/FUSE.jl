@@ -29,7 +29,7 @@ CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES_MAKEFILE := CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields 
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -189,7 +189,7 @@ update: clone_pull_all develop
 forward_compatibility:
 	julia -e '\
 using Pkg;\
-for package in ["Equilibrium", "Broker", "ZMQ"];\
+for package in ("Equilibrium", "Broker", "ZMQ");\
 	try; Pkg.activate();    Pkg.rm(package); catch; end;\
 	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
 end;\
@@ -199,6 +199,9 @@ end;\
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
+
+ADAS:
+	$(call clone_pull_repo,$@)
 
 WarmupFUSE:
 	$(call clone_pull_repo,$@)
@@ -262,6 +265,9 @@ NNeutronics:
 	$(call clone_pull_repo,$@)
 
 SimulationParameters:
+	$(call clone_pull_repo,$@)
+
+BoundaryPlasmaModels:
 	$(call clone_pull_repo,$@)
 
 # Install IJulia
@@ -416,7 +422,7 @@ Manifest = TOML.parse(read(Manifest_path, String));\
 Manifest_CI_path = "$(CURRENTDIR)/Manifest_CI.toml";\
 Manifest_CI = TOML.parse(read(Manifest_CI_path, String));\
 ;\
-for dep_name in sort(collect(keys(Manifest_CI["deps"])));\
+for dep_name in sort!(collect(keys(Manifest_CI["deps"])));\
     depCI = Manifest_CI["deps"][dep_name][1];\
     if dep_name ∉ keys(Manifest["deps"]);\
         continue;\
@@ -438,7 +444,7 @@ end;\
 
 # remove all Manifest.toml files
 rm_manifests:
-	find .. -name "Manifest.toml" -exec rm -rf \{\} \;
+	find ..  -maxdepth 3 -type f -name "Manifest.toml" -exec rm -f \{\} \;
 
 # update dd from the json files
 dd:

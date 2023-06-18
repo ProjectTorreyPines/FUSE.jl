@@ -4,7 +4,7 @@ abstract type ReactorAbstractActor <: AbstractActor end
 abstract type HCDAbstractActor <: AbstractActor end
 abstract type PlasmaAbstractActor <: AbstractActor end
 
-function logging_actor_init(typeof_actor::DataType, args...; kw...)
+function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
     logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
 end
 
@@ -13,7 +13,7 @@ function name(actor::AbstractActor)
 end
 
 function name(typeof_actor::Type{<:AbstractActor})
-    return replace(string(typeof_actor.name.name), r"^Actor" => "")
+    return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
 end
 
 #= ==== =#
@@ -67,8 +67,8 @@ function finalize(actor::T) where {T<:AbstractActor}
     @assert f_actor === actor "_finalize should return the same actor (check if it is actor at all)"
 
     # freeze onetime expressions (ie. grids)
-    while !isempty(IMASDD.expression_onetime_weakref)
-        idsw = pop!(IMASDD.expression_onetime_weakref, first(keys(IMASDD.expression_onetime_weakref)))
+    while !isempty(IMAS.expression_onetime_weakref)
+        idsw = pop!(IMAS.expression_onetime_weakref, first(keys(IMAS.expression_onetime_weakref)))
         if idsw.value !== nothing
             # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
             IMAS.freeze!(idsw.value)
@@ -110,8 +110,7 @@ function enter_workflow(actor::AbstractActor)
 end
 
 function exit_workflow(actor::AbstractActor)
-    aux = getfield(actor.dd, :_aux)
-    aux[:fuse_workflow_depth] -= 1
+    _aux_workflow(actor.dd)[:fuse_workflow_depth] -= 1
 end
 
 function goto_worflow_depth(workflow::Workflow, depth::Int)

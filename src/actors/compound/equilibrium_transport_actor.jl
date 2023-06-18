@@ -4,26 +4,26 @@
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry(Bool, "-", "Plot"; default=false)
-    max_iter::Entry{Int} = Entry(Int, "-", "max number of transport-equilibrium iterations"; default=5)
-    convergence_error::Entry{T} = Entry(T, "-", "Convergence error threshold (relative change in current and pressure profiles)"; default=1E-2)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
+    convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
 end
 
-mutable struct ActorEquilibriumTransport <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorEquilibriumTransport
+mutable struct ActorEquilibriumTransport{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorEquilibriumTransport{P}
     act::ParametersAllActors
-    actor_tr::ActorCoreTransport
-    actor_hc::ActorHCD
-    actor_jt::ActorSteadyStateCurrent
-    actor_eq::ActorEquilibrium
+    actor_tr::ActorCoreTransport{D,P}
+    actor_hc::ActorHCD{D,P}
+    actor_jt::ActorCurrent{D,P}
+    actor_eq::ActorEquilibrium{D,P}
 end
 
 """
     ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs the following actors in succesion:
-* ActorSteadyStateCurrent
+* ActorCurrent
 * ActorHCD
 * ActorCoreTransport
 * ActorEquilibrium
@@ -43,7 +43,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquili
     par = par(kw...)
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
-    actor_jt = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
     return ActorEquilibriumTransport(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq)
 end
@@ -61,7 +61,7 @@ function _step(actor::ActorEquilibriumTransport)
     # run HCD to get updated current drive
     finalize(step(actor.actor_hc))
 
-    # set j_ohmic to steady state
+    # evolve j_ohmic
     finalize(step(actor.actor_jt))
 
     # set actors switches specific to this workflow
@@ -84,7 +84,7 @@ function _step(actor::ActorEquilibriumTransport)
             # run HCD to get updated current drive
             finalize(step(actor.actor_hc))
 
-            # set j_ohmic to steady state
+            # evolve j_ohmic
             finalize(step(actor.actor_jt))
 
             # run equilibrium actor with the updated beta
@@ -102,7 +102,7 @@ function _step(actor::ActorEquilibriumTransport)
             end
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iter)
-                @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(round(total_error[end],digits = 3)) compared to threshold of $(par.convergence_error)"
+                @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(collect(map(x->round(x,digits = 3),total_error))) compared to threshold of $(par.convergence_error)"
                 break
             end
         end

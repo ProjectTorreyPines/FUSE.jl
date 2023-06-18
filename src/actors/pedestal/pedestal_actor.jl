@@ -6,17 +6,17 @@ import EPEDNN
 Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    update_core_profiles::Entry{Bool} = Entry(Bool, "-", "Update core_profiles"; default=true)
-    edge_bound::Entry{T} = Entry(T, "-", "Defines rho at which edge starts"; default=0.8)
-    temp_pedestal_ratio::Entry{T} = Entry(T, "-", "Ratio of ion to electron temperatures"; default=1.0)
-    ped_factor::Entry{T} = Entry(T, "-", "Pedestal height multiplier"; default=1.0)
-    warn_nn_train_bounds::Entry{Bool} = Entry(Bool, "-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
-    only_powerlaw::Entry{Bool} = Entry(Bool, "-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
+    update_core_profiles::Entry{Bool} = Entry{Bool}("-", "Update core_profiles"; default=true)
+    edge_bound::Entry{T} = Entry{T}("-", "Defines rho at which edge starts"; default=0.8)
+    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ratio of ion to electron temperatures"; default=1.0)
+    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
+    warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
+    only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
 end
 
-mutable struct ActorPedestal <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPedestal
+mutable struct ActorPedestal{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorPedestal{P}
     epedmod::EPEDNN.EPEDmodel
     inputs::Union{Missing,EPEDNN.InputEPED}
     wped::Union{Missing,Real}
@@ -59,12 +59,10 @@ function _step(actor::ActorPedestal;
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    m = [ion.element[1].a for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) == 1]
-    m = sum(m) / length(m)
-    if m < 2
-        m = 2
-    elseif m > 2
-        m = 2.5
+    m = IMAS.A_effective(cp1d)
+    
+    if !(m == 2.0 || m == 2.5)
+        @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
     neped = @ddtime dd.summary.local.pedestal.n_e.value
@@ -112,7 +110,7 @@ function _finalize(actor::ActorPedestal)
     dd = actor.dd
     par = actor.par
 
-    temp_pedestal_ratio = par.temp_pedestal_ratio
+    T_ratio_pedestal = par.T_ratio_pedestal
     ped_factor = par.ped_factor
     edge_bound = par.edge_bound
     update_core_profiles = par.update_core_profiles
@@ -126,8 +124,8 @@ function _finalize(actor::ActorPedestal)
     tped = (actor.pped * 1e6) / nsum / constants.e
 
     dd_ped = dd.summary.local.pedestal
-    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + temp_pedestal_ratio) * ped_factor
-    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * temp_pedestal_ratio
+    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + T_ratio_pedestal) * ped_factor
+    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * T_ratio_pedestal
     @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(ped_factor))
 
     if update_core_profiles

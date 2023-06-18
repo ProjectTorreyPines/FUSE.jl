@@ -8,20 +8,20 @@ using Memoize: Memoize
 Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor where {T <: Real}
 	_parent::WeakRef = WeakRef(nothing)
 	_name::Symbol = :not_set
-	model::Switch{Symbol} = Switch(Symbol, [:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default = :ARIES)
-	construction_start_year::Entry{Int} = Entry(Int, "year", "Year that plant construction begins"; default = Dates.year(Dates.now()))
-	future_inflation_rate::Entry{T} = Entry(T, "-", "Predicted average rate of future inflation"; default = 0.025)
-	plant_lifetime::Entry{Int} = Entry(Int, "year", "Lifetime of the plant"; default = 40)
-	availability::Entry{T} = Entry(T, "-", "Availability fraction of the plant"; default = 0.8)
-	production_increase::Entry{T} = Entry(T, "-", "Factor by which production of ReBCO multiplies"; default = 10)
-	learning_rate::Entry{T} = Entry(T, "-", "Learning rate for ReBCO technology production"; default = 0.85)
+	model::Switch{Symbol} = Switch{Symbol}([:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default = :ARIES)
+	construction_start_year::Entry{Int} = Entry{Int}("year", "Year that plant construction begins"; default = Dates.year(Dates.now()))
+	future_inflation_rate::Entry{T} = Entry{T}("-", "Predicted average rate of future inflation"; default = 0.025)
+	plant_lifetime::Entry{Int} = Entry{Int}("year", "Lifetime of the plant"; default = 40)
+	availability::Entry{T} = Entry{T}("-", "Availability fraction of the plant"; default = 0.8)
+	production_increase::Entry{T} = Entry{T}("-", "Factor by which production of ReBCO multiplies"; default = 1.0)
+	learning_rate::Entry{T} = Entry{T}("-", "Learning rate for ReBCO technology production"; default = 0.85)
 end
 
-mutable struct ActorCosting <: FacilityAbstractActor
-	dd::IMAS.dd
-	par::FUSEparameters__ActorCosting
+mutable struct ActorCosting{D,P} <: FacilityAbstractActor
+	dd::IMAS.dd{D}
+	par::FUSEparameters__ActorCosting{P}
 	act::ParametersAllActors
-	cst_actor::Union{ActorSheffieldCosting, ActorARIESCosting}
+	cst_actor::Union{ActorSheffieldCosting{D,P}, ActorARIESCosting{D,P}}
 end
 
 """
@@ -54,9 +54,11 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
 	if par.model == :Sheffield
 		cst_actor = ActorSheffieldCosting(dd, act.ActorSheffieldCosting)
-	elseif par.model == :ARIES
+
+    elseif par.model == :ARIES
 		cst_actor = ActorARIESCosting(dd, act.ActorARIESCosting)
-	else
+
+    else
 		error("ActorCosting: model = '$(par.model)' can only be ':Sheffield' or ':ARIES'")
 	end
 
