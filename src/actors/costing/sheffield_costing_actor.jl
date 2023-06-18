@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
 	fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default = 0.078)
 	divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
 	blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
-    coil_redundancy::Entry{T} = Entry{T}("-", "Number of spare TF coils"; default = 0.0)
+    coil_redundancy::Entry{Int} = Entry{Int}("-", "Number of spare TF coils"; default = 0)
 end
 
 mutable struct ActorSheffieldCosting{D,P} <: FacilityAbstractActor
@@ -89,20 +89,7 @@ function _step(actor::ActorSheffieldCosting)
     power_thermal, power_electric_generated, power_electric_net = bop_powers(dd.balance_of_plant)
 
 	###### Direct Capital ######
-	total_direct_capital_cost = 0
-
-    #availability calculation as shown on pg. 228, Sheffield et al. Fusion Tech. 9 (1986)
-    required_components = bd.tf.coils_n 
-    total_components = required_components + coil_redundancy 
-
-    #0.2342 is the total unscheduled unavailability of all other systems except primary coils (= sum of all Unavailability in Table B.II of Sheffield 1986 except Primary coils)
-    # Fra = 6e-6, Mr0 = 1e4, Mr1 = 240 all come from Table B.II of Sheffield 1986 in Primary coils row 
-    unscheduled_unavailability = unscheduled(time_to_failure(6e-6,required_components,total_components), 1e4, 240, fraction_major_failure(0.1,required_components,total_components)) + .2342
-
-    #Equation B.9 in Sheffield 1986
-    cst.availability = (1 - scheduled_maintenance_fraction) * (1 - unscheduled_unavailability)
-
-    total_direct_capital_cost += cost_redundant_coils(cst, bd, da, required_components, total_components)
+	total_direct_capital_cost = 0.0
    
 	##### fusion island
 	sys_fi = resize!(cost_direct.system, "name" => "tokamak")
@@ -131,6 +118,22 @@ function _step(actor::ActorSheffieldCosting)
 	sub = resize!(sys_fi.subsystem, "name" => "aux power")
 	sub.cost = cost_direct_capital_Sheffield(:aux_power, ec_power, ic_power, lh_power, nb_power, da)
 	total_direct_capital_cost += sub.cost
+
+    #redundant components
+    if coil_redundancy > 0
+        #availability calculation as shown on pg. 228, Sheffield et al. Fusion Tech. 9 (1986)
+        required_components = bd.tf.coils_n 
+        total_components = required_components + coil_redundancy 
+
+        #0.2342 is the total unscheduled unavailability of all other systems except primary coils (= sum of all Unavailability in Table B.II of Sheffield 1986 except Primary coils)
+        # Fra = 6e-6, Mr0 = 1e4, Mr1 = 240 all come from Table B.II of Sheffield 1986 in Primary coils row 
+        unscheduled_unavailability = unscheduled(time_to_failure(6e-6,required_components,total_components), 1e4, 240, fraction_major_failure(0.1,required_components,total_components)) + .2342
+
+        #Equation B.9 in Sheffield 1986
+        cst.availability = (1.0 - scheduled_maintenance_fraction) * (1.0 - unscheduled_unavailability)
+
+        total_direct_capital_cost += cost_redundant_coils(cst, bd, da, required_components, total_components)
+    end
 
 	##### Facility structures, buildings and site 
 	sys_bld = resize!(cost_direct.system, "name" => "facility")
@@ -232,7 +235,6 @@ function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, cst::IMAS.c
     end
 
 	return future_dollars(1.25 * cost, da)
-
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:structure}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
@@ -271,10 +273,9 @@ function cost_direct_capital_Sheffield(::Type{Val{:buildings}}, bd::IMAS.build, 
 	return future_dollars(cost, da)
 end
 
-
-#= ====================== =#
-#      yearly fuel cost    #
-#= ====================== =#
+#= ================ =#
+#  yearly fuel cost  #
+#= ================ =#
 
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
 function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
@@ -339,9 +340,9 @@ function cost_operations_maintenance_Sheffield(power_electric_net::Real, da::Dol
 	return future_dollars(cost, da)
 end
 
-#= ============= =#
-#  availability   #
-#= ============= =#
+#= ============ =#
+#  availability  #
+#= ============ =#
 
 #Equation B.10 in Sheffield 1986
 function fraction_major_failure(Fm0, required_components, total_components)
