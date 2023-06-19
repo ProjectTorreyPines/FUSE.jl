@@ -7,7 +7,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
 	_name::Symbol = :not_set
 	construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default = 8.0)
 	fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default = 0.078)
-	initial_cost_blanket::Entry{T} = Entry{T}("\$M", "Cost of initial blanket"; default = 200.0)
 	divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
 	blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
 end
@@ -45,7 +44,6 @@ function _step(actor::ActorSheffieldCosting)
 	fixed_charge_rate = par.fixed_charge_rate
 	availability = cst.availability
 	plant_lifetime = cst.plant_lifetime
-	initial_cost_blanket = par.initial_cost_blanket
 	divertor_fluence_lifetime = par.divertor_fluence_lifetime
 	blanket_fluence_lifetime = par.blanket_fluence_lifetime
 	construction_lead_time = par.construction_lead_time
@@ -85,16 +83,7 @@ function _step(actor::ActorSheffieldCosting)
 	flux_z = wall_loading.flux_z
 	neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
 
-	if ismissing(dd.balance_of_plant.thermal_cycle, :power_electric_generated) || @ddtime(dd.balance_of_plant.power_electric_net) < 0
-		@warn("The plant doesn't generate net electricity therefore costing excludes heat transfer and balance of plant estimates")
-		power_electric_net = 0.0
-		power_thermal = 0.0
-		power_electric_generated = 0.0
-	else
-		power_electric_net = @ddtime(dd.balance_of_plant.power_electric_net)
-		power_electric_generated = @ddtime(dd.balance_of_plant.thermal_cycle.power_electric_generated)
-		power_thermal = @ddtime(dd.balance_of_plant.thermal_cycle.total_useful_heat_power)
-	end
+    power_thermal, power_electric_generated, power_electric_net = bop_powers(dd.balance_of_plant)
 
 	###### Direct Capital ######
 	total_direct_capital_cost = 0.0
@@ -143,7 +132,7 @@ function _step(actor::ActorSheffieldCosting)
 	total_fuel_cost = 0
 
 	sys = resize!(cost_ops.system, "name" => "blanket")
-	sys.yearly_cost = cost_fuel_Sheffield(:blanket, dd, fixed_charge_rate, initial_cost_blanket, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
+	sys.yearly_cost = cost_fuel_Sheffield(:blanket, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
 	total_fuel_cost += sys.yearly_cost
 
 	sys = resize!(cost_ops.system, "name" => "divertor")
@@ -246,14 +235,11 @@ end
 #Equation 19
 function cost_direct_capital_Sheffield(::Type{Val{:balance_of_plant}}, power_electric_net::Real, power_thermal::Real, da::DollarAdjust)
 	da.year_assessed = 2010  # pg. 19 of Generic magnetic fusion reactor revisited 
-	if power_electric_net <= 0
-		return 0.0
-	else
-		power_electric_net = power_electric_net / 1e6 #want input for power electric net, power_thermal in megawatts
-		power_thermal = power_thermal / 1e6
-		cost = 900 + 900 * (power_electric_net / 1200) * (power_thermal / 4150) * 0.6
-		return future_dollars(cost, da)
-	end
+
+    power_electric_net = power_electric_net / 1e6 #want input for power electric net, power_thermal in megawatts
+    power_thermal = power_thermal / 1e6
+    cost = 900 + 900 * (power_electric_net / 1200) * (power_thermal / 4150)^0.6
+    return future_dollars(cost, da)
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:buildings}}, bd::IMAS.build, da::DollarAdjust)
@@ -274,7 +260,7 @@ end
 #= ====================== =#
 
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
-function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_rate::Real, initial_cost_blanket::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
+function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
 	da.year_assessed = 2016
 
 	bd = dd.build

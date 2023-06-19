@@ -32,6 +32,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         act.ActorWholeFacility.update_plasma = false
         STEP = true
     end
+    act.ActorTEQUILA.relax = 0.25
 
     ini.requirements.power_electric_net = 200e6 #W
     ini.requirements.tritium_breeding_ratio = 1.1
