@@ -4,6 +4,8 @@ using GridapGmsh
 using GridapGmsh: gmsh, GmshDiscreteModel
 using Gridap
 import NeutronTransport: MoCSolution
+import Gridap: writevtk
+import Gridap.Geometry: get_triangulation
 
 const XSs = CrossSections
 
@@ -51,7 +53,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     pushfirst!(thicknesses, r0)
     append!(thicknesses, 1.0)
     factory = gmsh.model.geo
-    lc = model_bound/5
+    lc = model_bound/25
 
     radius=0.0
 
@@ -118,7 +120,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
 
     gmsh.write("concentric_circles.msh")
 
-    gmsh.fltk.run()
+    # gmsh.fltk.run()
 
     gmsh.finalize()
 
@@ -134,7 +136,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     nφ = 4
 
     # azimuthal spacing
-    δ = 4.0 
+    δ = 3.0 
 
     # boundary conditions
     bcs = BoundaryConditions(top=Vaccum, left=Vaccum, bottom=Vaccum, right=Vaccum)
@@ -158,7 +160,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     fixed_sources = set_fixed_source_material(prob, "DT_plasma", 8 , 1)
 
     # solve
-    @time sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.1, max_iterations=750)
+    @time sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.01, max_iterations=500)
 
     return sol
 end
@@ -210,4 +212,11 @@ function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) 
 
 
     return tbr
+end
+
+function write_neutron_flux_vtk(sol::MoCSolution{T}, groups::Union{Vector{Int},UnitRange{Int}}) where T
+    NeutronTransport.@unpack prob = sol
+    NeutronTransport.@unpack trackgenerator = prob
+    triang = get_triangulation(trackgenerator.mesh.model)
+    writevtk(triang, "fluxes", cellfields=[string(g) => sol(g) for g in groups])
 end
