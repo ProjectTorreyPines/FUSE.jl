@@ -2,132 +2,132 @@
 #  ActorSheffieldCosting  #
 #= ===================== =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: ParametersActor where {T <: Real}
-	_parent::WeakRef = WeakRef(nothing)
-	_name::Symbol = :not_set
-	construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default = 8.0)
-	fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default = 0.078)
-	divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default = 10.0)
-	blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default = 15.0)
-    coil_redundancy::Entry{Int} = Entry{Int}("-", "Number of spare TF coils"; default = 0)
+Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default=8.0)
+    fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default=0.078)
+    divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default=10.0)
+    blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default=15.0)
+    coil_redundancy::Entry{Int} = Entry{Int}("-", "Number of spare TF coils"; default=0)
 end
 
 mutable struct ActorSheffieldCosting{D,P} <: FacilityAbstractActor
-	dd::IMAS.dd{D}
-	par::FUSEparameters__ActorSheffieldCosting{P}
-	function ActorSheffieldCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorSheffieldCosting{P}; kw...) where {D<:Real,P<:Real}
-		logging_actor_init(ActorSheffieldCosting)
-		par = par(kw...)
-		return new{D,P}(dd, par)
-	end
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorSheffieldCosting{P}
+    function ActorSheffieldCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorSheffieldCosting{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSheffieldCosting)
+        par = par(kw...)
+        return new{D,P}(dd, par)
+    end
 end
 
 function ActorSheffieldCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
-	par = act.ActorSheffieldCosting(kw...)
-	actor = ActorSheffieldCosting(dd, par)
-	step(actor)
-	finalize(actor)
-	return actor
+    par = act.ActorSheffieldCosting(kw...)
+    actor = ActorSheffieldCosting(dd, par)
+    step(actor)
+    finalize(actor)
+    return actor
 end
 
 function _step(actor::ActorSheffieldCosting)
-	dd = actor.dd
-	par = actor.par
-	cst = dd.costing
+    dd = actor.dd
+    par = actor.par
+    cst = dd.costing
 
-	cost_direct = cst.cost_direct_capital
-	cost_ops = cst.cost_operations
+    cost_direct = cst.cost_direct_capital
+    cost_ops = cst.cost_operations
 
-	bd = dd.build
+    bd = dd.build
 
-	da = DollarAdjust(dd)
+    da = DollarAdjust(dd)
 
-	fixed_charge_rate = par.fixed_charge_rate
+    fixed_charge_rate = par.fixed_charge_rate
     scheduled_maintenance_fraction = cst.scheduled_maintenance_fraction
-	plant_lifetime = cst.plant_lifetime
-	divertor_fluence_lifetime = par.divertor_fluence_lifetime
-	blanket_fluence_lifetime = par.blanket_fluence_lifetime
-	construction_lead_time = par.construction_lead_time
+    plant_lifetime = cst.plant_lifetime
+    divertor_fluence_lifetime = par.divertor_fluence_lifetime
+    blanket_fluence_lifetime = par.blanket_fluence_lifetime
+    construction_lead_time = par.construction_lead_time
     coil_redundancy = par.coil_redundancy
 
 
-	thermal_flux = 10.0 # placeholder value for thermal flux on the divertor 
+    thermal_flux = 10.0 # placeholder value for thermal flux on the divertor 
 
-	ec_power = 0.0
-	if !isempty(dd.ec_launchers.beam)
-		for num in eachindex(dd.ec_launchers.beam)
-			ec_power += dd.ec_launchers.beam[num].available_launch_power
-		end
-	end
+    ec_power = 0.0
+    if !isempty(dd.ec_launchers.beam)
+        for num in eachindex(dd.ec_launchers.beam)
+            ec_power += dd.ec_launchers.beam[num].available_launch_power
+        end
+    end
 
-	ic_power = 0.0
-	if !isempty(dd.ic_antennas.antenna)
-		for num in eachindex(dd.ic_antennas.antenna)
-			ic_power += dd.ic_antennas.antenna[num].available_launch_power
-		end
-	end
+    ic_power = 0.0
+    if !isempty(dd.ic_antennas.antenna)
+        for num in eachindex(dd.ic_antennas.antenna)
+            ic_power += dd.ic_antennas.antenna[num].available_launch_power
+        end
+    end
 
-	lh_power = 0.0
-	if !isempty(dd.lh_antennas.antenna)
-		for num in eachindex(dd.lh_antennas.antenna)
-			lh_power += dd.lh_antennas.antenna[num].available_launch_power
-		end
-	end
+    lh_power = 0.0
+    if !isempty(dd.lh_antennas.antenna)
+        for num in eachindex(dd.lh_antennas.antenna)
+            lh_power += dd.lh_antennas.antenna[num].available_launch_power
+        end
+    end
 
-	nb_power = 0.0
-	if !isempty(dd.nbi.unit)
-		for num in eachindex(dd.nbi.unit)
-			nb_power += dd.nbi.unit[num].available_launch_power
-		end
-	end
+    nb_power = 0.0
+    if !isempty(dd.nbi.unit)
+        for num in eachindex(dd.nbi.unit)
+            nb_power += dd.nbi.unit[num].available_launch_power
+        end
+    end
 
     wall_loading = dd.neutronics.time_slice[].wall_loading
-	flux_r = wall_loading.flux_r
-	flux_z = wall_loading.flux_z
-	neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
+    flux_r = wall_loading.flux_r
+    flux_z = wall_loading.flux_z
+    neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
 
     power_thermal, power_electric_generated, power_electric_net = bop_powers(dd.balance_of_plant)
 
-	###### Direct Capital ######
-	total_direct_capital_cost = 0.0
-   
-	##### fusion island
-	sys_fi = resize!(cost_direct.system, "name" => "tokamak")
+    ###### Direct Capital ######
+    total_direct_capital_cost = 0.0
 
-	#main heat transfer system 
-	sub = resize!(sys_fi.subsystem, "name" => "main heat transfer system")
-	sub.cost = cost_direct_capital_Sheffield(:main_heat_transfer_system, power_thermal, da)
-	total_direct_capital_cost += sub.cost
+    ##### fusion island
+    sys_fi = resize!(cost_direct.system, "name" => "tokamak")
 
-	#primary coils 
-	sub = resize!(sys_fi.subsystem, "name" => "primary coils")
-	sub.cost = cost_direct_capital_Sheffield(:primary_coils, cst, bd, da)
-	total_direct_capital_cost += sub.cost
+    #main heat transfer system 
+    sub = resize!(sys_fi.subsystem, "name" => "main heat transfer system")
+    sub.cost = cost_direct_capital_Sheffield(:main_heat_transfer_system, power_thermal, da)
+    total_direct_capital_cost += sub.cost
 
-	#shielding gaps 
-	sub = resize!(sys_fi.subsystem, "name" => "shielding gaps")
-	sub.cost = cost_direct_capital_Sheffield(:shielding_gaps, cst, bd, da)
-	total_direct_capital_cost += sub.cost
+    #primary coils 
+    sub = resize!(sys_fi.subsystem, "name" => "primary coils")
+    sub.cost = cost_direct_capital_Sheffield(:primary_coils, cst, bd, da)
+    total_direct_capital_cost += sub.cost
 
-	#structure 
-	sub = resize!(sys_fi.subsystem, "name" => "structure")
-	sub.cost = cost_direct_capital_Sheffield(:structure, cst, bd, da)
-	total_direct_capital_cost += sub.cost
+    #shielding gaps 
+    sub = resize!(sys_fi.subsystem, "name" => "shielding gaps")
+    sub.cost = cost_direct_capital_Sheffield(:shielding_gaps, cst, bd, da)
+    total_direct_capital_cost += sub.cost
 
-	#aux power 
-	sub = resize!(sys_fi.subsystem, "name" => "aux power")
-	sub.cost = cost_direct_capital_Sheffield(:aux_power, ec_power, ic_power, lh_power, nb_power, da)
-	total_direct_capital_cost += sub.cost
+    #structure 
+    sub = resize!(sys_fi.subsystem, "name" => "structure")
+    sub.cost = cost_direct_capital_Sheffield(:structure, cst, bd, da)
+    total_direct_capital_cost += sub.cost
+
+    #aux power 
+    sub = resize!(sys_fi.subsystem, "name" => "aux power")
+    sub.cost = cost_direct_capital_Sheffield(:aux_power, ec_power, ic_power, lh_power, nb_power, da)
+    total_direct_capital_cost += sub.cost
 
     #redundant components
     if coil_redundancy > 0
         #availability calculation as shown on pg. 228, Sheffield et al. Fusion Tech. 9 (1986)
-        required_components = bd.tf.coils_n 
-        total_components = required_components + coil_redundancy 
+        required_components = bd.tf.coils_n
+        total_components = required_components + coil_redundancy
 
         #0.2342 is the total unscheduled unavailability of all other systems except primary coils (= sum of all Unavailability in Table B.II of Sheffield 1986 except Primary coils)
         # Fra = 6e-6, Mr0 = 1e4, Mr1 = 240 all come from Table B.II of Sheffield 1986 in Primary coils row 
-        unscheduled_unavailability = unscheduled(time_to_failure(6e-6,required_components,total_components), 1e4, 240, fraction_major_failure(0.1,required_components,total_components)) + .2342
+        unscheduled_unavailability = unscheduled(time_to_failure(6e-6, required_components, total_components), 1e4, 240, fraction_major_failure(0.1, required_components, total_components)) + 0.2342
 
         #Equation B.9 in Sheffield 1986
         cst.availability = (1.0 - scheduled_maintenance_fraction) * (1.0 - unscheduled_unavailability)
@@ -135,66 +135,66 @@ function _step(actor::ActorSheffieldCosting)
         total_direct_capital_cost += cost_redundant_coils(cst, bd, da, required_components, total_components)
     end
 
-	##### Facility structures, buildings and site 
-	sys_bld = resize!(cost_direct.system, "name" => "facility")
+    ##### Facility structures, buildings and site 
+    sys_bld = resize!(cost_direct.system, "name" => "facility")
 
-	#balance of plant
-	sub = resize!(sys_bld.subsystem, "name" => "balance of plant")
-	sub.cost = cost_direct_capital_Sheffield(:balance_of_plant, power_electric_net, power_thermal, da)
-	total_direct_capital_cost += sub.cost
+    #balance of plant
+    sub = resize!(sys_bld.subsystem, "name" => "balance of plant")
+    sub.cost = cost_direct_capital_Sheffield(:balance_of_plant, power_electric_net, power_thermal, da)
+    total_direct_capital_cost += sub.cost
 
-	#buildings 
-	sub = resize!(sys_bld.subsystem, "name" => "buildings")
-	sub.cost = cost_direct_capital_Sheffield(:buildings, bd, da)
-	total_direct_capital_cost += sub.cost
+    #buildings 
+    sub = resize!(sys_bld.subsystem, "name" => "buildings")
+    sub.cost = cost_direct_capital_Sheffield(:buildings, bd, da)
+    total_direct_capital_cost += sub.cost
 
-	###### Fuel ######
-	total_fuel_cost = 0
+    ###### Fuel ######
+    total_fuel_cost = 0
 
-	sys = resize!(cost_ops.system, "name" => "blanket")
-	sys.yearly_cost = cost_fuel_Sheffield(:blanket, dd, fixed_charge_rate, cst.availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
-	total_fuel_cost += sys.yearly_cost
+    sys = resize!(cost_ops.system, "name" => "blanket")
+    sys.yearly_cost = cost_fuel_Sheffield(:blanket, dd, fixed_charge_rate, cst.availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
+    total_fuel_cost += sys.yearly_cost
 
-	sys = resize!(cost_ops.system, "name" => "divertor")
-	sys.yearly_cost = cost_fuel_Sheffield(:divertor, dd, fixed_charge_rate, cst.availability, plant_lifetime, neutron_flux, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
-	total_fuel_cost += sys.yearly_cost
+    sys = resize!(cost_ops.system, "name" => "divertor")
+    sys.yearly_cost = cost_fuel_Sheffield(:divertor, dd, fixed_charge_rate, cst.availability, plant_lifetime, neutron_flux, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
+    total_fuel_cost += sys.yearly_cost
 
-	sys = resize!(cost_ops.system, "name" => "aux power")
-	sys.yearly_cost = cost_fuel_Sheffield(:aux_power, ec_power, ic_power, lh_power, nb_power, da)
-	total_fuel_cost += sys.yearly_cost
+    sys = resize!(cost_ops.system, "name" => "aux power")
+    sys.yearly_cost = cost_fuel_Sheffield(:aux_power, ec_power, ic_power, lh_power, nb_power, da)
+    total_fuel_cost += sys.yearly_cost
 
-	sys = resize!(cost_ops.system, "name" => "misc. fuel")
-	sys.yearly_cost = cost_fuel_Sheffield(:misc_fuel, fixed_charge_rate, da)
-	total_fuel_cost += sys.yearly_cost
+    sys = resize!(cost_ops.system, "name" => "misc. fuel")
+    sys.yearly_cost = cost_fuel_Sheffield(:misc_fuel, fixed_charge_rate, da)
+    total_fuel_cost += sys.yearly_cost
 
-	###### Operations & Maintenance #####
-	sys = resize!(cost_ops.system, "name" => "operations and maintenance")
-	sys.yearly_cost = cost_operations_maintenance_Sheffield(power_electric_net, da)
+    ###### Operations & Maintenance #####
+    sys = resize!(cost_ops.system, "name" => "operations and maintenance")
+    sys.yearly_cost = cost_operations_maintenance_Sheffield(power_electric_net, da)
 
-	###### Levelized Cost Of Electricity  ######
-	function indirect_charges(construction_lead_time)
-		return 1 + (0.5 * construction_lead_time / 8)
-	end
+    ###### Levelized Cost Of Electricity  ######
+    function indirect_charges(construction_lead_time)
+        return 1 + (0.5 * construction_lead_time / 8)
+    end
 
-	function capitalization_factor(construction_lead_time)
-		return 1.011^(construction_lead_time + 0.61)
-	end
+    function capitalization_factor(construction_lead_time)
+        return 1.011^(construction_lead_time + 0.61)
+    end
 
-	total_capital_cost = total_direct_capital_cost * capitalization_factor(construction_lead_time) * indirect_charges(construction_lead_time)
+    total_capital_cost = total_direct_capital_cost * capitalization_factor(construction_lead_time) * indirect_charges(construction_lead_time)
 
-	cst.levelized_CoE = 1e3 * (total_capital_cost * fixed_charge_rate + total_fuel_cost + cost_operations_maintenance_Sheffield(power_electric_net, da)) / (power_electric_net * 1e-6 * 8760 * cst.availability) + 0.5e-3
+    cst.levelized_CoE = 1e3 * (total_capital_cost * fixed_charge_rate + total_fuel_cost + cost_operations_maintenance_Sheffield(power_electric_net, da)) / (power_electric_net * 1e-6 * 8760 * cst.availability) + 0.5e-3
 
-	return actor
+    return actor
 end
 
 function _finalize(actor::ActorSheffieldCosting)
-	# sort system/subsystem by their costs
-	sort!(actor.dd.costing.cost_direct_capital.system, by = x -> x.cost, rev = true)
-	for sys in actor.dd.costing.cost_direct_capital.system
-		sort!(sys.subsystem, by = x -> x.cost, rev = true)
-	end
+    # sort system/subsystem by their costs
+    sort!(actor.dd.costing.cost_direct_capital.system, by=x -> x.cost, rev=true)
+    for sys in actor.dd.costing.cost_direct_capital.system
+        sort!(sys.subsystem, by=x -> x.cost, rev=true)
+    end
 
-	return actor
+    return actor
 end
 
 #= =================== =#
@@ -203,25 +203,25 @@ end
 
 #Equation 18 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016)
 function cost_direct_capital_Sheffield(::Type{Val{:main_heat_transfer_system}}, power_thermal::Real, da::DollarAdjust)
-	da.year_assessed = 2016
-	power_thermal = power_thermal / 1e6 #want this in megawatts 
-	cost = 221 * (power_thermal / 4150)^0.6
-	return future_dollars(cost, da)
+    da.year_assessed = 2016
+    power_thermal = power_thermal / 1e6 #want this in megawatts 
+    cost = 221 * (power_thermal / 4150)^0.6
+    return future_dollars(cost, da)
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:primary_coils}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
-	da.year_assessed = 2016   # Year the materials costs were assessed 
-	primary_coils_hfs = IMAS.get_build_layer(bd.layer, type = IMAS._tf_, fs = _hfs_)
-	cost = 1.5 * primary_coils_hfs.volume * unit_cost(bd.tf.technology, cst)
-	return future_dollars(cost, da)
+    da.year_assessed = 2016   # Year the materials costs were assessed 
+    primary_coils_hfs = IMAS.get_build_layer(bd.layer, type=IMAS._tf_, fs=_hfs_)
+    cost = 1.5 * primary_coils_hfs.volume * unit_cost(bd.tf.technology, cst)
+    return future_dollars(cost, da)
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
-	da.year_assessed = 2016
-	shields_hfs = IMAS.get_build_layers(bd.layer, type = IMAS._shield_, fs = _hfs_)
-	gaps_hfs = IMAS.get_build_layers(bd.layer, type = IMAS._gap_, fs = _hfs_)
+    da.year_assessed = 2016
+    shields_hfs = IMAS.get_build_layers(bd.layer, type=IMAS._shield_, fs=_hfs_)
+    gaps_hfs = IMAS.get_build_layers(bd.layer, type=IMAS._gap_, fs=_hfs_)
 
-	cost = 0
+    cost = 0
 
     for layer in shields_hfs
         vol_shield_hfs = layer.volume
@@ -234,26 +234,26 @@ function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, cst::IMAS.c
         cost += vol_gaps_hfs * 0.29 # $M/m^3 from Table A.VII 
     end
 
-	return future_dollars(1.25 * cost, da)
+    return future_dollars(1.25 * cost, da)
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:structure}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
-	da.year_assessed = 2016
-	primary_coils_hfs = IMAS.get_build_layer(bd.layer, type = IMAS._tf_, fs = _hfs_)
-	cost = 0.75 * primary_coils_hfs.volume * unit_cost("steel", cst)
-	return future_dollars(cost, da)
+    da.year_assessed = 2016
+    primary_coils_hfs = IMAS.get_build_layer(bd.layer, type=IMAS._tf_, fs=_hfs_)
+    cost = 0.75 * primary_coils_hfs.volume * unit_cost("steel", cst)
+    return future_dollars(cost, da)
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:aux_power}}, ec_power::Real, ic_power::Real, lh_power::Real, nb_power::Real, da::DollarAdjust)
-	da.year_assessed = 2016
-	aux_power = ec_power + ic_power + lh_power + nb_power
-	cost = 1.1 * (aux_power * 5.3) * 1e-6 # convert to M$ 
-	return future_dollars(cost, da)
+    da.year_assessed = 2016
+    aux_power = ec_power + ic_power + lh_power + nb_power
+    cost = 1.1 * (aux_power * 5.3) * 1e-6 # convert to M$ 
+    return future_dollars(cost, da)
 end
 
 #Equation 19
 function cost_direct_capital_Sheffield(::Type{Val{:balance_of_plant}}, power_electric_net::Real, power_thermal::Real, da::DollarAdjust)
-	da.year_assessed = 2010  # pg. 19 of Generic magnetic fusion reactor revisited 
+    da.year_assessed = 2010  # pg. 19 of Generic magnetic fusion reactor revisited 
 
     power_electric_net = power_electric_net / 1e6 #want input for power electric net, power_thermal in megawatts
     power_thermal = power_thermal / 1e6
@@ -262,15 +262,15 @@ function cost_direct_capital_Sheffield(::Type{Val{:balance_of_plant}}, power_ele
 end
 
 function cost_direct_capital_Sheffield(::Type{Val{:buildings}}, bd::IMAS.build, da::DollarAdjust)
-	da.year_assessed = 2016
+    da.year_assessed = 2016
 
     vol_fusion_island = 0.0
-	for layer in bd.layer
-		vol_fusion_island += layer.volume
-	end
+    for layer in bd.layer
+        vol_fusion_island += layer.volume
+    end
 
-	cost = 839.0 * (vol_fusion_island / 5100)^0.67
-	return future_dollars(cost, da)
+    cost = 839.0 * (vol_fusion_island / 5100)^0.67
+    return future_dollars(cost, da)
 end
 
 #= ================ =#
@@ -279,50 +279,50 @@ end
 
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
 function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
-	da.year_assessed = 2016
+    da.year_assessed = 2016
 
-	bd = dd.build
-	cst = dd.costing
+    bd = dd.build
+    cst = dd.costing
 
-	blankets = IMAS.get_build_layers(bd.layer, type = IMAS._blanket_, fs = _lfs_)
+    blankets = IMAS.get_build_layers(bd.layer, type=IMAS._blanket_, fs=_lfs_)
 
-	if isempty(blankets)
-		cost = 0
-	else
+    if isempty(blankets)
+        cost = 0
+    else
         blanket = blankets[1]
-		initial_cost_blanket = blanket.volume * unit_cost(blanket.material, cst)
+        initial_cost_blanket = blanket.volume * unit_cost(blanket.material, cst)
 
-		blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
-		blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m^2
+        blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
+        blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m^2
 
-		cost = 1.1 * (blanket_capital_cost + blanket_replacement_cost)
-	end
-	return future_dollars(cost, da)
+        cost = 1.1 * (blanket_capital_cost + blanket_replacement_cost)
+    end
+    return future_dollars(cost, da)
 end
 
 #Equation 24
 function cost_fuel_Sheffield(::Type{Val{:divertor}}, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
-	da.year_assessed = 2016
+    da.year_assessed = 2016
 
-	initial_cost_divertor = 0.1 * 0.114 * 0.8 * ((IMAS.fusion_power(dd) / 1e6) / neutron_flux)
+    initial_cost_divertor = 0.1 * 0.114 * 0.8 * ((IMAS.fusion_power(dd) / 1e6) / neutron_flux)
 
-	divertor_capital_cost = 1.1 * initial_cost_divertor * fixed_charge_rate
-	divertor_replacement_cost = (availability * plant_lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / plant_lifetime #divertor fluence lifetime in MW*yr/m^2
+    divertor_capital_cost = 1.1 * initial_cost_divertor * fixed_charge_rate
+    divertor_replacement_cost = (availability * plant_lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / plant_lifetime #divertor fluence lifetime in MW*yr/m^2
 
-	cost = 1.1 * (divertor_capital_cost + divertor_replacement_cost)
-	return future_dollars(cost, da)
+    cost = 1.1 * (divertor_capital_cost + divertor_replacement_cost)
+    return future_dollars(cost, da)
 
 end
 
 #Table III
 function cost_fuel_Sheffield(::Type{Val{:aux_power}}, ec_power::Real, ic_power::Real, lh_power::Real, nb_power::Real, da::DollarAdjust)
-	return 0.1 * cost_direct_capital_Sheffield(Val{:aux_power}, ec_power, ic_power, lh_power, nb_power, da)
+    return 0.1 * cost_direct_capital_Sheffield(Val{:aux_power}, ec_power, ic_power, lh_power, nb_power, da)
 end
 
 function cost_fuel_Sheffield(::Type{Val{:misc_fuel}}, fixed_charge_rate::Real, da::DollarAdjust)
-	da.year_assessed = 1983
-	cost = 24 * fixed_charge_rate + 0.4 # $M/yr # 24*FCR for misc. replacements plus 0.4 M$ for fuel costs (in 1983 dollars)
-	return future_dollars(cost, da)
+    da.year_assessed = 1983
+    cost = 24 * fixed_charge_rate + 0.4 # $M/yr # 24*FCR for misc. replacements plus 0.4 M$ for fuel costs (in 1983 dollars)
+    return future_dollars(cost, da)
 end
 
 #= ====================== =#
@@ -330,14 +330,14 @@ end
 #= ====================== =#
 
 function cost_operations_maintenance_Sheffield(power_electric_net::Real, da::DollarAdjust)
-	da.year_assessed = 1983
-	if power_electric_net == 0
-		cost = 49.1 # $M/yr 
-	else
-		power_electric_net = power_electric_net / 1e6
-		cost = 7.7 * (power_electric_net / 1200)^0.5 # there is a typo in Sheffield 1986 equation F.10, which has been corrected here
-	end
-	return future_dollars(cost, da)
+    da.year_assessed = 1983
+    if power_electric_net == 0
+        cost = 49.1 # $M/yr 
+    else
+        power_electric_net = power_electric_net / 1e6
+        cost = 7.7 * (power_electric_net / 1200)^0.5 # there is a typo in Sheffield 1986 equation F.10, which has been corrected here
+    end
+    return future_dollars(cost, da)
 end
 
 #= ============ =#
@@ -346,41 +346,41 @@ end
 
 #Equation B.10 in Sheffield 1986
 function fraction_major_failure(Fm0, required_components, total_components)
-    denom = 0 
+    denom = 0
     for j in required_components:total_components
-        denom += 1/j 
-    end 
-    
-    denom = required_components*denom 
-    
-    Fm = Fm0/denom
+        denom += 1 / j
+    end
+
+    denom = required_components * denom
+
+    Fm = Fm0 / denom
     return Fm
 end
 
 #Equation B.8 in Sheffield 1986
 function time_to_failure(Fra, required_components, total_components)
-    Tf1 = 1/Fra 
-    num = 0 
-    
-    for j in required_components:total_components 
-        num += 1/j
+    Tf1 = 1 / Fra
+    num = 0
+
+    for j in required_components:total_components
+        num += 1 / j
     end
-    
-    Tfs = Tf1 * num 
+
+    Tfs = Tf1 * num
     return Tfs
 end
 
 #Equation B.4 in Sheffield 1986
 function unscheduled(Tfs, Mr0, Mr1, Fm)
-    Pdt = (Mr0*Fm + Mr1*(1-Fm))/Tfs
-    return Pdt 
+    Pdt = (Mr0 * Fm + Mr1 * (1 - Fm)) / Tfs
+    return Pdt
 end
 
 function cost_redundant_coils(cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust, required_components, total_components)
-	da.year_assessed = 2016   # Year the materials costs were assessed 
-	primary_coils_hfs = IMAS.get_build_layer(bd.layer, type = IMAS._tf_, fs = _hfs_)
-    volume_single_coil = primary_coils_hfs.volume/bd.tf.coils_n
-	cost = 1.5 * volume_single_coil * (total_components - required_components) * unit_cost(bd.tf.technology, cst)
-	return future_dollars(cost, da)
+    da.year_assessed = 2016   # Year the materials costs were assessed 
+    primary_coils_hfs = IMAS.get_build_layer(bd.layer, type=IMAS._tf_, fs=_hfs_)
+    volume_single_coil = primary_coils_hfs.volume / bd.tf.coils_n
+    cost = 1.5 * volume_single_coil * (total_components - required_components) * unit_cost(bd.tf.technology, cst)
+    return future_dollars(cost, da)
 end
 
