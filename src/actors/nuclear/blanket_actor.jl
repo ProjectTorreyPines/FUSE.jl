@@ -161,8 +161,7 @@ function _step(actor::ActorBlanket)
         total_neutron_capture_fraction = sum(ntt.wall_loading.power[index]) / total_power_neutrons
         # evaluate radiative_capture_fraction (could be done better, since ratiation source may not be coming from core)
         total_radiative_capture_fraction = total_neutron_capture_fraction
-        resize!(bm.time_slice)
-        bmt = bm.time_slice[]
+        bmt = resize!(bm.time_slice)
         bmt.power_incident_neutrons = total_power_neutrons .* total_neutron_capture_fraction
         bmt.power_incident_radiated = total_power_radiated .* total_radiative_capture_fraction
         bmt.power_thermal_neutrons = bmt.power_incident_neutrons * par.blanket_multiplier
