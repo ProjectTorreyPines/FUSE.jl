@@ -128,11 +128,10 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_b
     n_grid = 10 * length(shot.ρ)
 
     psit = shot.C[2:2:end, 1]
-    psii = range(psit[1], psit[end], n_grid)
-    rhoi = TEQUILA.ρ.(Ref(shot), psii)
-    eq1d.psi = psii .+ psib
-    eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), psii)
-    eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), psii)
+    eq1d.psi = range(psit[1], psit[end], n_grid)
+    rhoi = TEQUILA.ρ.(Ref(shot), eq1d.psi)
+    eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), eq1d.psi)
+    eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), eq1d.psi)
     eq1d.f = TEQUILA.Fpol.(Ref(shot), rhoi)
     eq1d.f_df_dpsi = TEQUILA.Fpol_dFpol_dψ.(Ref(shot), rhoi)
 
@@ -143,16 +142,15 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_b
     Z0 = shot.surfaces[2, end]
     ϵ = shot.surfaces[3, end]
     κ = shot.surfaces[4, end]
-    a = min(1.5 * R0 * ϵ, R0) # 20% bigger than plasma, but a no bigger than R0
-    b = κ * a
-    Rgrid = range(R0 - a, R0 + a, n_grid)
-    Zgrid = range(Z0 - b, Z0 + b, n_grid)
+    Rdim = min(1.5 * R0 * ϵ, R0) # 20% bigger than plasma, but a no bigger than R0
+    Zdim = κ * Rdim
+    Rgrid = range(R0 - Rdim, R0 + Rdim, n_grid)
+    Zgrid = range(Z0 - Zdim, Z0 + Zdim, n_grid)
 
-    psirz = zeros(n_grid, n_grid)
-
-    eq2d.grid_type.index = 1
     eq2d.grid.dim1 = Rgrid
     eq2d.grid.dim2 = Zgrid
+    eq2d.grid_type.index = 1
+    eq2d.psi = zeros(n_grid, n_grid)
 
     if free_boundary
         # constraints for the private flux region
@@ -161,15 +159,18 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; psib=0.0, free_b
         lower_x_point = any(x_point.z < Z0 for x_point in eqt.boundary.x_point)
         Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction=0.25, n_points=10)
         # convert from fixed to free boundary equilibrium
-        psirz .= VacuumFields.fixed2free(shot, Int(ceil(length(Rb) / 2)), Rgrid, Zgrid; Rx, Zx, ψbound=psib)
+        eq2d.psi .= VacuumFields.fixed2free(shot, Int(ceil(length(Rb) / 2)), Rgrid, Zgrid; Rx, Zx, ψbound=psib)
+        # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds (also add psib offset)
+        true_psi_bound= IMAS.find_psi_boundary(eqt)
+        @. eq2d.psi = (eq2d.psi - psit[1]) * (psit[end] - psit[1]) / (true_psi_bound - psit[1]) + psit[1] + psib
     else
-        for (i, r) in enumerate(Rgrid)
+        Threads.@threads for (i, r) in enumerate(Rgrid)
             for (j, z) in enumerate(Zgrid)
-                psirz[i, j] = shot(r, z)
+                eq2d.psi[i, j] = shot(r, z) + psib
             end
         end
+        eq1d.psi .+= psib
     end
-    eq2d.psi = psirz .+ psib
 
     IMAS.flux_surfaces(eqt)
 end
