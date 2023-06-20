@@ -11,6 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=20)
     number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=10)
     number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=20)
+    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=1.0)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-6)
     psi_norm_boundary_cutoff::Entry{Float64} = Entry{Float64}("-", "Cutoff psi_norm for determining boundary"; default=0.999)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
@@ -79,9 +80,8 @@ function _step(actor::ActorTEQUILA)
     Ip = eqt.global_quantities.ip
 
     # TEQUILA shot
-    shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh;
-        P, Jt, Pbnd, Fbnd, Ip_target=Ip)
-    actor.shot = TEQUILA.solve(shot, par.number_of_iterations; tol=par.tolerance, debug=par.debug)
+    shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target=Ip)
+    actor.shot = TEQUILA.solve(shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax)
 
     if par.do_plot
         for (idx, s) in enumerate(eachcol(actor.shot.surfaces[:, 2:end]))
