@@ -21,6 +21,7 @@ mutable struct ActorPedestal{D,P} <: PlasmaAbstractActor
     inputs::Union{Missing,EPEDNN.InputEPED}
     wped::Union{Missing,Real}
     pped::Union{Missing,Real}
+    ip_from::Symbol
 end
 
 """
@@ -28,18 +29,18 @@ end
 
 Evaluates the pedestal boundary condition (height and width)
 """
-function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorPedestal(dd, act.ActorPedestal; kw...)
+function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; ip_from=:equilibrium, kw...)
+    actor = ActorPedestal(dd, act.ActorPedestal; ip_from, kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; kw...)
+function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal;  ip_from,  kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return ActorPedestal(dd, par, epedmod, missing, missing, missing)
+    return ActorPedestal(dd, par, epedmod, missing, missing, missing, ip_from)
 end
 
 """
@@ -80,7 +81,7 @@ function _step(actor::ActorPedestal;
         βn,
         Bt,
         EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper),
-        abs(eqt.global_quantities.ip / 1e6),
+        abs(IMAS.get_from(dd, :ip, actor.ip_from) / 1e6),
         eqt.boundary.elongation,
         m,
         neped / 1e19,

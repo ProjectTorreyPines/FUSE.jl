@@ -39,7 +39,7 @@ function _step(actor::ActorSteadyStateCurrent)
     eqt = dd.equilibrium.time_slice[]
 
     # update j_ohmic (this also restores j_tor, j_total as expressions)
-    IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles, actor.par.allow_floating_plasma_current)
+    IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[])
     # update core_sources related to current
 
     IMAS.bootstrap_source!(dd)
