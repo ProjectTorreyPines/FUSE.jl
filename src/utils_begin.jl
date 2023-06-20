@@ -184,7 +184,7 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
                 np = min(np, nprocs_max)
             end
             np += 1
-            ENV["JULIA_WORKER_TIMEOUT"] = "180"
+            ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if Distributed.nprocs() < np
                 Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), partition="ga-ird", exclusive="", topology=:master_worker, cpus_per_task=2, time="99:99:99", job_name="python3-$(getpid())")
             end
