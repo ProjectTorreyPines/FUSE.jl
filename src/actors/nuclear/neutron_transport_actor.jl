@@ -53,7 +53,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     pushfirst!(thicknesses, r0)
     append!(thicknesses, 1.0)
     factory = gmsh.model.geo
-    lc = model_bound/25
+    lc = 3
 
     radius=0.0
 
@@ -120,7 +120,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
 
     gmsh.write("concentric_circles.msh")
 
-    # gmsh.fltk.run()
+    gmsh.fltk.run()
 
     gmsh.finalize()
 
@@ -160,7 +160,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     fixed_sources = set_fixed_source_material(prob, "DT_plasma", 8 , 1)
 
     # solve
-    @time sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.01, max_iterations=500)
+    @time sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.001, max_iterations=1000)
 
     return sol
 end
