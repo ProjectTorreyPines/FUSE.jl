@@ -53,7 +53,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     pushfirst!(thicknesses, r0)
     append!(thicknesses, 1.0)
     factory = gmsh.model.geo
-    lc = 3
+    lc = 4
 
     radius=0.0
 
@@ -120,7 +120,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
 
     gmsh.write("concentric_circles.msh")
 
-    gmsh.fltk.run()
+    # gmsh.fltk.run()
 
     gmsh.finalize()
 
@@ -160,7 +160,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     fixed_sources = set_fixed_source_material(prob, "DT_plasma", 8 , 1)
 
     # solve
-    @time sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.001, max_iterations=1000)
+    sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.05, max_iterations=500)
 
     return sol
 end
@@ -199,7 +199,6 @@ function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) 
     vol_integrated_φ = Vector{Float64}()
     tbr=0.0
     plasma_vol = sum(volumes[findall(t -> t == 1, fsr_tag)])
-    print(plasma_vol)
 
     for i in 1:NRegions
         tbr_xs_dict = get_xss_from_hdf5(joinpath(data_path,data_filename), xss[fsr_tag[i]].name, ["(n,Xt)"])
