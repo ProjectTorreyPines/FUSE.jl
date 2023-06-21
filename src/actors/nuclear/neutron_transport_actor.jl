@@ -118,7 +118,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
 
     gmsh.model.mesh.generate(2)
 
-    gmsh.write("concentric_circles.msh")
+    gmsh.write(save_path * "concentric_circles.msh")
 
     # gmsh.fltk.run()
 
