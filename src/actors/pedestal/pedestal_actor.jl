@@ -62,8 +62,8 @@ function _step(actor::ActorPedestal;
 
     m = round(IMAS.A_effective(cp1d),digits=7)
     
-    if !(m == 2.0 || m == 2.5)
-        @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
+    if !(m == 2.014 || m == 2.515)
+        @warn "EPED-NN is only trained on m_effective = 2.014 & 2.515 , m_effective = $m"
     end
 
     neped = @ddtime dd.summary.local.pedestal.n_e.value
