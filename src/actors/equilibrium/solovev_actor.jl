@@ -30,7 +30,7 @@ Solovev equilibrium actor, based on:
 “One size fits all” analytic solutions to the Grad–Shafranov equation
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
-function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors;ip_from::Symbol=:core_profiles, kw...)
+function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
     actor = ActorSolovev(dd, act.ActorSolovev; kw...)
     step(actor)
     finalize(actor)
@@ -40,7 +40,7 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors;ip_from::Symbol=:cor
     return actor
 end
 
-function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; ip_from::Symbol=:not_set,kw...)
+function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; ip_from::Symbol=:not_set, kw...)
     logging_actor_init(ActorSolovev)
     par = par(kw...)
     return ActorSolovev(dd, par, nothing, ip_from)

@@ -30,7 +30,7 @@ function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:cor
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; ip_from::Symbol=:not_set,kw...)
+function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; ip_from::Symbol=:not_set, kw...)
     logging_actor_init(ActorCHEASE)
     par = par(kw...)
     ActorCHEASE(dd, par, nothing, ip_from)

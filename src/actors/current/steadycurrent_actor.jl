@@ -10,11 +10,7 @@ end
 mutable struct ActorSteadyStateCurrent{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSteadyStateCurrent{P}
-    function ActorSteadyStateCurrent(dd::IMAS.dd{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorSteadyStateCurrent)
-        par = par(kw...)
-        return new{D,P}(dd, par)
-    end
+    ip_from::Symbol
 end
 
 """
@@ -27,18 +23,25 @@ Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_pr
 !!! note 
     Stores data in `dd.core_profiles`, `dd.equilbrium`
 """
-function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
+function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles, kw...)
+    actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; ip_from, kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
+function ActorSteadyStateCurrent(dd, par::FUSEparameters__ActorSteadyStateCurrent; ip_from=:unset, kw...)
+    logging_actor_init(ActorSteadyStateCurrent)
+    par = par(kw...)
+    return ActorSteadyStateCurrent(dd, par, ip_from)
+end
 function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
 
     # update j_ohmic (this also restores j_tor, j_total as expressions)
+    ip_target = IMAS.get_from(dd, :ip, actor.ip_from)
+
     IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[])
     # update core_sources related to current
 
