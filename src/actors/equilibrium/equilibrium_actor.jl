@@ -31,7 +31,6 @@ end
 function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors, ip_from::Symbol; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
-    @show ip_from, "actEq", par.model
     if par.model == :Solovev
         eq_actor = ActorSolovev(dd, act.ActorSolovev; ip_from)
     elseif par.model == :CHEASE
