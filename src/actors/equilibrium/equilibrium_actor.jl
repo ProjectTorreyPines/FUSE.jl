@@ -6,6 +6,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
+
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = set_ip_from()    
 end
 
 mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor
@@ -13,7 +16,6 @@ mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
     eq_actor::Union{Nothing,ActorSolovev{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
-    ip_from::Symbol
 end
 
 """
@@ -22,25 +24,26 @@ end
 Provides a common interface to run multiple equilibrium actors
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
-    actor = ActorEquilibrium(dd, act.ActorEquilibrium, act, ip_from; kw...)
+    actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from, kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; ip_from::Symbol=:unset; kw...)
+function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :Solovev
-        eq_actor = ActorSolovev(dd, act.ActorSolovev; ip_from)
+        eq_actor = ActorSolovev(dd, act.ActorSolovev; par.ip_from)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; ip_from)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; par.ip_from)
     elseif par.model == :TEQUILA
-        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; ip_from)
+        @show par.ip_from
+        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; par.ip_from)
     else
         error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
     end
-    return ActorEquilibrium(dd, par, act, eq_actor, ip_from)
+    return ActorEquilibrium(dd, par, act, eq_actor)
 end
 
 """
@@ -80,7 +83,7 @@ NOTE: prepare_eq(dd) must be called at the _step() stage
 of all equilibrium actors to ensure that they work properly
 when used in a transport-equilibrium loop.
 """
-function prepare_eq(dd::IMAS.dd, ip_from::Symbol)
+function prepare_eq(dd::IMAS.dd, ip_from::Union{Symbol,Missing})
     ps = dd.pulse_schedule
     pc = ps.position_control
 

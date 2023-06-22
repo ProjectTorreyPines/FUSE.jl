@@ -8,11 +8,18 @@ import Optim
 Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+
+    #== actor parameters ==#
     ngrid::Entry{Int} = Entry{Int}("-", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     qstar::Entry{T} = Entry{T}("-", "Initial guess of kink safety factor"; default=1.5)
     alpha::Entry{T} = Entry{T}("-", "Initial guess of constant relating to pressure"; default=0.0)
     volume::Entry{T} = Entry{T}("m³", "Scalar volume to match (optional)"; default=missing)
     area::Entry{T} = Entry{T}("m²", "Scalar area to match (optional)"; default=missing)
+
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = set_ip_from()
+
+    #== display and debugging parameters ==#
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
@@ -20,7 +27,6 @@ mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSolovev{P}
     S::Union{Nothing,MXHEquilibrium.SolovevEquilibrium}
-    ip_from::Symbol
 end
 
 """
@@ -31,7 +37,7 @@ Solovev equilibrium actor, based on:
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
 function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
-    actor = ActorSolovev(dd, act.ActorSolovev; kw...)
+    actor = ActorSolovev(dd, act.ActorSolovev; ip_from, kw...)
     step(actor)
     finalize(actor)
     # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
@@ -40,10 +46,10 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:co
     return actor
 end
 
-function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; ip_from::Symbol=:not_set, kw...)
+function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; kw...)
     logging_actor_init(ActorSolovev)
     par = par(kw...)
-    return ActorSolovev(dd, par, nothing, ip_from)
+    return ActorSolovev(dd, par, nothing)
 end
 
 """
@@ -56,7 +62,7 @@ function _step(actor::ActorSolovev)
     par = actor.par
 
     # initialize eqt from pulse_schedule and core_profiles
-    prepare_eq(dd, actor.ip_from)
+    prepare_eq(dd, par.ip_from)
     eq = dd.equilibrium
     eqt = eq.time_slice[]
 

@@ -6,6 +6,8 @@ import TEQUILA
 Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+
+    #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=20)
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=20)
@@ -14,6 +16,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=1.0)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-6)
     psi_norm_boundary_cutoff::Entry{Float64} = Entry{Float64}("-", "Cutoff psi_norm for determining boundary"; default=0.999)
+
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = set_ip_from()
+
+    #== display and debugging parameters ==#
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
@@ -23,7 +30,6 @@ mutable struct ActorTEQUILA{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorTEQUILA{P}
     shot::Union{Nothing,TEQUILA.Shot}
     psib::Real
-    ip_from::Symbol
 end
 
 """
@@ -32,17 +38,17 @@ end
 Runs the Fixed boundary equilibrium solver TEQUILA
 """
 function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles, kw...)
-    par = act.ActorTEQUILA(kw...)
-    actor = ActorTEQUILA(dd, par; ip_from)
+    par = act.ActorTEQUILA(ip_from, kw...)
+    actor = ActorTEQUILA(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; ip_from=:not_set, kw...)
+function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; kw...)
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
-    return ActorTEQUILA(dd, par, nothing, 0.0, ip_from)
+    return ActorTEQUILA(dd, par, nothing, 0.0)
 
 end
 
@@ -57,7 +63,7 @@ function _step(actor::ActorTEQUILA)
 
     par.do_plot && (p = plot(dd.equilibrium; cx=true, label="before"))
 
-    prepare_eq(dd, actor.ip_from)
+    prepare_eq(dd, par.ip_from)
 
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
