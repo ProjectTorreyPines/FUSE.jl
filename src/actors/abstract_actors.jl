@@ -16,6 +16,27 @@ function name(typeof_actor::Type{<:AbstractActor})
     return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
 end
 
+#= ======== =#
+#  set_from  #
+#= ======== =#
+"""
+    set_ip_from()
+
+function to generate the set_ip_from switch to be used in actor parameters
+"""
+function set_ip_from()
+    return Switch{Union{Symbol,Missing}}([:core_profiles, :equilibrium, :pulse_schedule], "-", "Take ip from this IDS", default=missing)
+end
+
+"""
+    set_beta_norm_from()
+
+function to generate the set_ip_from switch to be used in actor parameters
+"""
+function set_beta_norm_from()
+    return Switch{Union{Symbol,Missing}}([:core_profiles, :equilibrium], "-", "Take beta_normal from this IDS", default=missing)
+end
+
 #= ==== =#
 #  step  #
 #= ==== =#
