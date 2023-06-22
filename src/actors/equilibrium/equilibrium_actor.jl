@@ -13,6 +13,7 @@ mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
     eq_actor::Union{Nothing,ActorSolovev{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
+    ip_from::Symbol
 end
 
 """
@@ -20,26 +21,27 @@ end
 
 Provides a common interface to run multiple equilibrium actors
 """
-function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw...)
+function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
+    actor = ActorEquilibrium(dd, act.ActorEquilibrium, act, ip_from; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
+function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors, ip_from::Symbol; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
+    @show ip_from, "actEq", par.model
     if par.model == :Solovev
-        eq_actor = ActorSolovev(dd, act.ActorSolovev)
+        eq_actor = ActorSolovev(dd, act.ActorSolovev; ip_from)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; ip_from)
     elseif par.model == :TEQUILA
-        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA)
+        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; ip_from)
     else
         error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
     end
-    return ActorEquilibrium(dd, par, act, eq_actor)
+    return ActorEquilibrium(dd, par, act, eq_actor, ip_from)
 end
 
 """
@@ -79,7 +81,7 @@ NOTE: prepare_eq(dd) must be called at the _step() stage
 of all equilibrium actors to ensure that they work properly
 when used in a transport-equilibrium loop.
 """
-function prepare_eq(dd::IMAS.dd)
+function prepare_eq(dd::IMAS.dd, ip_from::Symbol)
     ps = dd.pulse_schedule
     pc = ps.position_control
 
@@ -92,7 +94,7 @@ function prepare_eq(dd::IMAS.dd)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
 
     # scalar quantities
-    eqt.global_quantities.ip = @ddtime(ps.flux_control.i_plasma.reference.data)
+    eqt.global_quantities.ip = IMAS.get_from(dd, :ip, ip_from)
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
     B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference.data) / R0
     @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)

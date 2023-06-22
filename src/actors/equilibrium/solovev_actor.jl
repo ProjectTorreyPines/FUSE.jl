@@ -20,6 +20,7 @@ mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSolovev{P}
     S::Union{Nothing,MXHEquilibrium.SolovevEquilibrium}
+    ip_from::Symbol
 end
 
 """
@@ -29,7 +30,7 @@ Solovev equilibrium actor, based on:
 “One size fits all” analytic solutions to the Grad–Shafranov equation
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
-function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors;ip_from::Symbol=:core_profiles, kw...)
     actor = ActorSolovev(dd, act.ActorSolovev; kw...)
     step(actor)
     finalize(actor)
@@ -39,10 +40,10 @@ function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; kw...)
+function ActorSolovev(dd::IMAS.dd, par::FUSEparameters__ActorSolovev; ip_from::Symbol=:not_set,kw...)
     logging_actor_init(ActorSolovev)
     par = par(kw...)
-    return ActorSolovev(dd, par, nothing)
+    return ActorSolovev(dd, par, nothing, ip_from)
 end
 
 """
@@ -55,13 +56,13 @@ function _step(actor::ActorSolovev)
     par = actor.par
 
     # initialize eqt from pulse_schedule and core_profiles
-    prepare_eq(dd)
+    prepare_eq(dd, actor.ip_from)
     eq = dd.equilibrium
     eqt = eq.time_slice[]
 
     # magnetic field
     B0 = @ddtime eq.vacuum_toroidal_field.b0
-    target_ip = abs(eqt.global_quantities.ip)
+    target_ip = eqt.global_quantities.ip
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
     # plasma shape as MXH

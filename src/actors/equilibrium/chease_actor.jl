@@ -15,6 +15,7 @@ mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}
+    ip_from::Symbol
 end
 
 """
@@ -22,14 +23,14 @@ end
 
 Runs the Fixed boundary equilibrium solver CHEASE
 """
-function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
     actor = ActorCHEASE(dd, act.ActorCHEASE; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; kw...)
+function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; ip_from::Symbol=:not_set,kw...)
     logging_actor_init(ActorCHEASE)
     par = par(kw...)
     ActorCHEASE(dd, par, nothing)
@@ -45,7 +46,7 @@ function _step(actor::ActorCHEASE)
     par = actor.par
 
     # initialize eqt from pulse_schedule and core_profiles
-    prepare_eq(dd)
+    prepare_eq(dd, actor.ip_from)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 

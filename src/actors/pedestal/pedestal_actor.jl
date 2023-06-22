@@ -22,6 +22,7 @@ mutable struct ActorPedestal{D,P} <: PlasmaAbstractActor
     wped::Union{Missing,Real}
     pped::Union{Missing,Real}
     ip_from::Symbol
+    beta_normal_from::Symbol
 end
 
 """
@@ -29,18 +30,18 @@ end
 
 Evaluates the pedestal boundary condition (height and width)
 """
-function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; ip_from=:equilibrium, kw...)
-    actor = ActorPedestal(dd, act.ActorPedestal; ip_from, kw...)
+function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:equilibrium,beta_normal_from=:core_profiles ,kw...)
+    actor = ActorPedestal(dd, act.ActorPedestal; ip_from, beta_normal_from, kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal;  ip_from,  kw...)
+function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal;  ip_from::Symbol=:not_set,beta_normal_from::Symbol=:not_set,  kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return ActorPedestal(dd, par, epedmod, missing, missing, missing, ip_from)
+    return ActorPedestal(dd, par, epedmod, missing, missing, missing, ip_from, beta_normal_from)
 end
 
 """
@@ -52,8 +53,7 @@ Runs pedestal actor to evaluate pedestal width and height
 """
 function _step(actor::ActorPedestal;
     warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
-    only_powerlaw::Bool=false,
-    beta_n_from_eq::Bool=false)
+    only_powerlaw::Bool=false)
 
     dd = actor.dd
     eq = dd.equilibrium
@@ -70,15 +70,9 @@ function _step(actor::ActorPedestal;
     zeffped = @ddtime dd.summary.local.pedestal.zeff.value
     Bt = abs(@ddtime(eq.vacuum_toroidal_field.b0)) * eq.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
-    if beta_n_from_eq
-        βn = @ddtime(dd.summary.global_quantities.beta_tor_mhd.value)
-    else
-        βn = @ddtime(dd.summary.global_quantities.beta_tor_thermal_norm.value)
-    end
-
     actor.inputs = EPEDNN.InputEPED(
         eqt.boundary.minor_radius,
-        βn,
+        IMAS.get_from(dd, :beta_normal,actor.beta_normal_from),
         Bt,
         EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper),
         abs(IMAS.get_from(dd, :ip, actor.ip_from) / 1e6),

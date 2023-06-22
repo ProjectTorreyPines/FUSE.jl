@@ -23,6 +23,7 @@ mutable struct ActorTEQUILA{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorTEQUILA{P}
     shot::Union{Nothing,TEQUILA.Shot}
     psib::Real
+    ip_from::Symbol
 end
 
 """
@@ -30,18 +31,19 @@ end
 
 Runs the Fixed boundary equilibrium solver TEQUILA
 """
-function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles,kw...)
     par = act.ActorTEQUILA(kw...)
-    actor = ActorTEQUILA(dd, par)
+    actor = ActorTEQUILA(dd, par; ip_from)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; kw...)
+function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA;ip_from=:not_set, kw...)
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
-    ActorTEQUILA(dd, par, nothing, 0.0)
+    return ActorTEQUILA(dd, par, nothing, 0.0, ip_from)
+
 end
 
 """
@@ -55,7 +57,7 @@ function _step(actor::ActorTEQUILA)
 
     par.do_plot && (p = plot(dd.equilibrium; cx=true, label="before"))
 
-    prepare_eq(dd)
+    prepare_eq(dd, actor.ip_from)
 
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
