@@ -31,7 +31,7 @@ end
 
 Runs the Fixed boundary equilibrium solver TEQUILA
 """
-function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles,kw...)
+function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles, kw...)
     par = act.ActorTEQUILA(kw...)
     actor = ActorTEQUILA(dd, par; ip_from)
     step(actor)
@@ -39,7 +39,7 @@ function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profi
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA;ip_from=:not_set, kw...)
+function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; ip_from=:not_set, kw...)
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
     return ActorTEQUILA(dd, par, nothing, 0.0, ip_from)

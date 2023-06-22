@@ -28,7 +28,7 @@ function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors, ip_from::Symbol; kw...)
+function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; ip_from::Symbol=:unset; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :Solovev
