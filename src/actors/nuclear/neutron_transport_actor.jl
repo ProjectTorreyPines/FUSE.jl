@@ -57,7 +57,6 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
 
     radius=0.0
 
-    xss = Vector{NeutronTransport.CrossSections}()
     data_filename=joinpath(data_path, data_filename)
 
     for (idx, thickness) in enumerate(thicknesses)
@@ -108,11 +107,9 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
         else
             surface = factory.addPlaneSurface([idx, idx-1], idx)
         end
-        
-        # materials
-        xs = get_xss_from_hdf5(data_filename, mats[idx])
-        push!(xss, xs)
     end
+
+    xss = [get_xss_from_hdf5(data_filename, mats[idx]) for idx in eachindex(thicknesses)]
 
     factory.synchronize()
 
