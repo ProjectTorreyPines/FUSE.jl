@@ -39,14 +39,27 @@ function ActorSteadyStateCurrent(dd, par::FUSEparameters__ActorSteadyStateCurren
 end
 function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
+    par = actor.par
     eqt = dd.equilibrium.time_slice[]
+    cpg = dd.core_profiles.global_quantities
+    cp1d = dd.core_profiles.profiles_1d[]
 
     # update j_ohmic (this also restores j_tor, j_total as expressions)
     ip_target = IMAS.get_from(dd, :ip, actor.par.ip_from)
 
-    IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[])
-    # update core_sources related to current
+    if ip_target < @ddtime(cpg.current_non_inductive)
+        if par.allow_floating_plasma_current
+            println("set j_ohmic to zero and allow ip to be floating")
+            cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
+        else
+            @warn "j_ohmic will be negative the non-inductive current $(round(@ddtime(cpg.current_non_inductive),digits=3)) is larger than ip_target $(round(ip_target,digits=3))"
+        end
 
+    else
+        IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[])
+    end
+
+    # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
     return actor

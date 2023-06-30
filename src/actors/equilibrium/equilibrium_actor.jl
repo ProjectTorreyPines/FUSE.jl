@@ -87,7 +87,8 @@ function prepare_eq(dd::IMAS.dd, ip_from::Union{Symbol,Missing})
     ps = dd.pulse_schedule
     pc = ps.position_control
 
-    # freeze cp1d before wiping eqt
+    # freeze core_profiles before wiping eqt and get ip_target
+    ip_target = IMAS.get_from(dd, :ip, ip_from)
     cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[])
 
     # add/clear time-slice
@@ -96,7 +97,8 @@ function prepare_eq(dd::IMAS.dd, ip_from::Union{Symbol,Missing})
     eq1d = dd.equilibrium.time_slice[].profiles_1d
 
     # scalar quantities
-    eqt.global_quantities.ip = IMAS.get_from(dd, :ip, ip_from)
+    eqt.global_quantities.ip = ip_target
+
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
     B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference.data) / R0
     @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)

@@ -46,7 +46,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquili
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
     actor_ped = ActorPedestal(dd, act.ActorPedestal)
     return ActorEquilibriumTransport(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
@@ -54,6 +54,7 @@ end
 function _step(actor::ActorEquilibriumTransport)
     dd = actor.dd
     par = actor.par
+    act = actor.act
 
     if par.do_plot
         pe = plot(dd.equilibrium; color=:gray, label=" (before)", coordinate=:rho_tor_norm)
@@ -65,6 +66,9 @@ function _step(actor::ActorEquilibriumTransport)
     finalize(step(actor.actor_hc))
 
     # evolve j_ohmic
+    if act.ActorCurrent.model == :SteadyStateCurrent
+        act.ActorSteadyStateCurrent.ip_from = :pulse_schedule
+    end
     finalize(step(actor.actor_jt))
 
     # set actors switches specific to this workflow
