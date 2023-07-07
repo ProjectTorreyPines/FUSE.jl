@@ -1075,9 +1075,9 @@ version = "7.84.0+0"
 
 [[deps.LibGEOS]]
 deps = ["CEnum", "Extents", "GEOS_jll", "GeoInterface", "GeoInterfaceRecipes"]
-git-tree-sha1 = "07d15436f3d4c18e7580e7dced1aa988c5c82913"
+git-tree-sha1 = "b12ea8331bc8c5164aec1b610c01e2207e944466"
 uuid = "a90b1aa1-3769-5649-ba7e-abc5a9d163eb"
-version = "0.8.3"
+version = "0.8.4"
 
 [[deps.LibGit2]]
 deps = ["Base64", "NetworkOptions", "Printf", "SHA"]
