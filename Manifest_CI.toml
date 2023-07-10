@@ -700,9 +700,9 @@ version = "1.0.10+0"
 
 [[deps.Functors]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "478f8c3145bb91d82c2cf20433e8c1b30df454cc"
+git-tree-sha1 = "9a68d75d466ccc1218d0552a8e1631151c569545"
 uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
-version = "0.4.4"
+version = "0.4.5"
 
 [[deps.FusionMaterials]]
 deps = ["JSON"]
