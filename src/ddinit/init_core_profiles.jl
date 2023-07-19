@@ -90,18 +90,14 @@ function init_core_profiles(
     end
 
     # Set ions:
+    bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
     # 1. DT
-    ion = resize!(cp1d.ion, "label" => String(bulk))
-    fill!(ion, IMAS.ion_element(ion_symbol=bulk))
-    @assert ion.element[1].z_n == 1.0 "Bulk ion must be a Hydrogenic isotope [:H, :D, :DT, :T]"
-
+    IMAS.ion_element!(bulk_ion, bulk)
+    @assert bulk_ion.element[1].z_n == 1.0 "Bulk ion `$bulk` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
     # 2. Impurity
-    ion = resize!(cp1d.ion, "label" => String(impurity))
-    fill!(ion, IMAS.ion_element(ion_symbol=impurity))
-
+    IMAS.ion_element!(imp_ion, impurity)
     # 3. He
-    ion = resize!(cp1d.ion, "label" => "He")
-    fill!(ion, IMAS.ion_element(ion_symbol=:He))
+    IMAS.ion_element!(he_ion, :He4)
 
     # pedestal
     @ddtime summary.local.pedestal.n_e.value = ne_ped
@@ -126,7 +122,7 @@ function init_core_profiles(
     # DT == 1
     # Imp == 2
     # He == 3
-    zimp = IMAS.ion_element(ion_symbol=impurity).element[1].z_n
+    zimp = imp_ion.element[1].z_n
     niFraction[3] = helium_fraction
     niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
     niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2

@@ -17,14 +17,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersAct
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorThermalCycle <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorThermalCycle
+mutable struct ActorThermalCycle{D,P} <: FacilityAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorThermalCycle{P}
     act::ParametersAllActors
-    function ActorThermalCycle(dd::IMAS.dd, par::FUSEparameters__ActorThermalCycle, act::ParametersAllActors; kw...)
+    function ActorThermalCycle(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalCycle{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorThermalCycle)
         par = par(kw...)
-        return new(dd, par, act)
+        return new{D,P}(dd, par, act)
     end
 end
 
@@ -50,6 +50,7 @@ function _step(actor::ActorThermalCycle)
     ihts = bop.heat_transfer
     wall = ihts.wall
     divertor = ihts.divertor
+    breeder = ihts.breeder
 
     bop = dd.balance_of_plant
     bop.power_cycle_type = string(par.power_cycle_type)
@@ -60,6 +61,9 @@ function _step(actor::ActorThermalCycle)
 
     if bop.power_cycle_type == "fixed_cycle_efficiency"
         @ddtime(bop.thermal_cycle.thermal_efficiency = par.fixed_cycle_efficiency)
+        @ddtime(wall.heat_delivered = wall.heat_load)
+        @ddtime(divertor.heat_delivered = divertor.heat_load)
+        @ddtime(breeder.heat_delivered = breeder.heat_load)
         @ddtime(bop.thermal_cycle.power_electric_generated = @ddtime(bop.thermal_cycle.total_useful_heat_power) * par.fixed_cycle_efficiency)
         return actor
     end

@@ -185,45 +185,36 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
         func(r_start, r_end, shape_parameters...)
 
     else
-        function cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature::Bool, verbose=false)
+        function cost_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Float64}, rz_obstruction::Vector{Tuple{Float64,Float64}}, target_clearance::Float64, target_area::Float64, func::Function, r_start::Float64, r_end::Float64, shape_parameters::Vector{Float64}; use_curvature::Bool, verbose::Bool=false)
             R, Z = func(r_start, r_end, shape_parameters...)
 
             cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
 
             length(R) == length(Z) || error("R and Z have different length")
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            new_length = 0
-            for i in eachindex(Z)
-                index = !(isapprox(R[i], r_start) || isapprox(R[i], r_end))
-                @inbounds if index
-                    R[new_length+1] = R[i]
-                    Z[new_length+1] = Z[i]
-                    new_length += 1
-                end
-            end
-            resize!(R, new_length)
-            resize!(Z, new_length)
+            index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
+            Rv = view(R, index)
+            Zv = view(Z, index)
 
             # no polygon crossings  O(N)
-            cost_inside = 0
-            for (r, z) in zip(R, Z)
+            cost_inside = 0.0
+            for (r, z) in zip(Rv, Zv)
                 inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
                 cost_inside += inpoly
             end
 
             # target clearance  O(1)
-            minimum_distance = IMAS.minimum_distance_two_shapes(R, Z, r_obstruction, z_obstruction)
+            minimum_distance, mean_above_distance_error = IMAS.min_mean_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance; above_target=true)
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
                 cost_min_clearance = 0.0
             end
-            mean_above_distance_error = IMAS.mean_distance_error_two_shapes(R, Z, r_obstruction, z_obstruction, target_clearance; above_target=true)
             cost_mean_above_distance = mean_above_distance_error / target_clearance
 
             # curvature
             if use_curvature
-                curvature = abs.(IMAS.curvature(R, Z))
+                curvature = abs.(IMAS.curvature(Rv, Zv))
                 cost_max_curvature = exp(maximum(curvature)^2.5)
             else
                 cost_max_curvature = 0.0
@@ -595,15 +586,15 @@ function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
 end
 
 """
-    buffer(x::T, y::T, b::Float64) where {T<:AbstractVector{<:Real}} 
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b
 """
-function buffer(x::T, y::T, b::Float64) where {T<:AbstractVector{<:Real}}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(poly, b)
-    x_b = [v[1] for v in GeoInterface.coordinates(poly_b)[1]]
-    y_b = [v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
+    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
     return x_b, y_b
 end
 
@@ -743,13 +734,14 @@ Control of the X-point location can be achieved by modifying R0, Z0.
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
-    function cost(mri::AbstractVector{T}, mzi::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::Float64)
+    function cost(points0::Vector, points::Vector, i::Integer, R0::T, Z0::T, α::Float64)
+        points .= points0
         if upper
-            RX, ZX, R, Z = add_xpoint(mri, mzi, i, R0, Z0, α)
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .> (Z0 + ZX) / 2.0))))^2.0
+            RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z.>(Z0+ZX)/2.0)])))^2.0
         else
-            RX, ZX, R, Z = add_xpoint(mri, mzi, i, R0, Z0, α)
-            return (1.0 - maximum(abs.(IMAS.curvature(R, Z) .* (Z .< (Z0 + ZX) / 2.0))))^2.0
+            RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
+            return (1.0 - maximum(abs.(IMAS.curvature(R, Z)[(Z.<(Z0+ZX)/2.0)])))^2.0
         end
     end
 
@@ -775,16 +767,22 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
         R0 = mri[i]
     end
 
-    res = Optim.optimize(α -> cost(mri, mzi, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
-    RX, ZX, R, Z = add_xpoint(mr, mz, k, R0, Z0, res.minimizer[1])
+    points = collect(zip([mri; mri[1]], [mzi; mzi[1]]))
+    points0 = deepcopy(points)
+
+    res = Optim.optimize(α -> cost(points0, points, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
+
+    points = collect(zip([mr; mr[1]], [mz; mz[1]]))
+    RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, res.minimizer[1])
 
     return RX, ZX, R, Z
 end
 
-function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
-    RX = mr[i] .* α .+ R0 .* (1.0 .- α)
-    ZX = mz[i] .* α .+ Z0 .* (1.0 .- α)
-    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
+function add_xpoint(points::Vector, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
+    RX = points[i][1] .* α .+ R0 .* (1.0 .- α)
+    ZX = points[i][2] .* α .+ Z0 .* (1.0 .- α)
+    points[end] = (RX, ZX)
+    RZ = convex_hull!(points; closed_polygon=true)
     R = T[r for (r, z) in RZ]
     Z = T[z for (r, z) in RZ]
     return RX, ZX, R, Z
@@ -888,7 +886,7 @@ end
 
 Find boundary such that the output MXH parametrization (with x-points) matches the input MXH parametrization (without x-points)
 """
-function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0)
 
     if ~upper_x_point && ~lower_x_point
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
@@ -909,7 +907,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
 
-    function mxhb_from_params!(mxhb0, params::AbstractVector{<:Real}; upper_x_point, lower_x_point, n_points)
+    function mxhb_from_params!(mxhb0::MXHboundary, params::AbstractVector{<:Real}; upper_x_point::Bool, lower_x_point::Bool, n_points::Int)
         L = 1
         mxhb0.mxh.Z0 = params[L]
         L += 1
@@ -926,30 +924,30 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
         # X-points and elongation
-        tmp = Float64[]
+        c = 0.0
         if upper_x_point
             i = argmax(mxhb0.ZX)
-            push!(tmp, sqrt((mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2))
+            c += (mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2
         else
             i = argmax(mxhb0.z_boundary)
             j = argmax(pz)
-            push!(tmp, sqrt((mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2))
+            c += (mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2
         end
         if lower_x_point
             i = argmin(mxhb0.ZX)
-            push!(tmp, sqrt((mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2))
+            c += (mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2
         else
             i = argmin(mxhb0.z_boundary)
             j = argmin(pz)
-            push!(tmp, sqrt((mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2))
+            c += (mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2
         end
 
         # other shape parameters
-        push!(tmp, (mxh0.R0 - mxh.R0))
-        push!(tmp, (mxh0.ϵ - mxh.ϵ))
-        push!(tmp, (mxh0.c0 - mxh.c0))
-        append!(tmp, (mxh0.s[1:N] .- mxh.s[1:N]))
-        append!(tmp, (mxh0.c[1:N] .- mxh.c[1:N]))
+        c += (mxh0.R0 - mxh.R0)^2
+        c += (mxh0.ϵ - mxh.ϵ)^2
+        c += (mxh0.c0 - mxh.c0)^2
+        c += sum((mxh0.s[1:N] .- mxh.s[1:N]) .^ 2)
+        c += sum((mxh0.c[1:N] .- mxh.c[1:N]) .^ 2)
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
@@ -958,9 +956,9 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mzch = [z for (r, z) in hull]
         marea = IMAS.area(mr, mz)
         mareach = IMAS.area(mrch, mzch)
-        push!(tmp, (abs(mareach - marea) / mareach) * 1E3)
+        c += (abs(mareach - marea) / mareach) * 1E3
 
-        return norm(tmp)
+        return sqrt(c)
     end
 
     res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(iterations=1000))
@@ -971,6 +969,54 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     # println(mxh0)
     # println(mxhb0.mxh)
     return mxhb0
+end
+
+"""
+    free_boundary_private_flux_constraint(R::AbstractVector{T}, Z::AbstractVector{T}; upper_x_point::Bool, lower_x_point::Bool, fraction::Float64=0.25, n_points::Int=10) where {T<:Real}
+
+Given a closed boundary R,Z returns Rp,Zp constraint points on plausible private flux regions
+"""
+function free_boundary_private_flux_constraint(R::AbstractVector{T}, Z::AbstractVector{T}; upper_x_point::Bool, lower_x_point::Bool, fraction::Float64=0.25, n_points::Int=10) where {T<:Real}
+    Rp = T[]
+    Zp = T[]
+    for x_point in [-1, 1]
+
+        if x_point == -1 && !lower_x_point
+            continue
+        elseif x_point == 1 && !upper_x_point
+            continue
+        end
+
+        pr = deepcopy(R)
+        pz = deepcopy(Z)
+
+        # up-down and left-right mirror of lcfs with respect to the X-point
+        if x_point == 1
+            pr, pz = IMAS.reorder_flux_surface!(pr, pz, argmin(pz))
+            Rx = pr[argmax(pz)]
+            Zx = pz[argmax(pz)]
+        else
+            pr, pz = IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
+            Rx = pr[argmin(pz)]
+            Zx = pz[argmin(pz)]
+        end
+        pr = -(pr .- Rx) .+ Rx
+        pz = -(pz .- Zx) .+ Zx
+
+        # select points withing a given radius
+        d = sqrt.((pr .- Rx) .^ 2 .+ (pz .- Zx) .^ 2)
+        index = d .< abs(maximum(pz) - minimum(pz)) * fraction
+        pr = pr[index]
+        pz = pz[index]
+
+        # resample to give requested number of points
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points, method=:linear)
+
+        append!(Rp, pr)
+        append!(Zp, pz)
+    end
+
+    return Rp, Zp
 end
 
 function boundary_shape(R0::Real; p=nothing)

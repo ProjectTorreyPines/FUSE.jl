@@ -14,9 +14,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
 end
 
-mutable struct ActorPedestal <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorPedestal
+mutable struct ActorPedestal{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorPedestal{P}
     epedmod::EPEDNN.EPEDmodel
     inputs::Union{Missing,EPEDNN.InputEPED}
     wped::Union{Missing,Real}

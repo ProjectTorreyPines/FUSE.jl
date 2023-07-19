@@ -6,13 +6,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T} <: Paramet
     _name::Symbol = :not_set
 end
 
-mutable struct ActorSteadyStateCurrent <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorSteadyStateCurrent
-    function ActorSteadyStateCurrent(dd::IMAS.dd, par::FUSEparameters__ActorSteadyStateCurrent; kw...)
+mutable struct ActorSteadyStateCurrent{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorSteadyStateCurrent{P}
+    function ActorSteadyStateCurrent(dd::IMAS.dd{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSteadyStateCurrent)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 
@@ -24,7 +24,7 @@ Evolves the current to steady state using the conductivity from `dd.core_profile
 Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_profiles`
 
 !!! note 
-    Stores data in `dd.core_profiles, dd.equilbrium`
+    Stores data in `dd.core_profiles`, `dd.equilbrium`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)

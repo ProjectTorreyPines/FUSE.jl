@@ -8,13 +8,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorStresses{T} <: ParametersActor w
     n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=5)
 end
 
-mutable struct ActorStresses <: ReactorAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorStresses
-    function ActorStresses(dd::IMAS.dd, par::FUSEparameters__ActorStresses; kw...)
+mutable struct ActorStresses{D,P} <: ReactorAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorStresses{P}
+    function ActorStresses(dd::IMAS.dd{D}, par::FUSEparameters__ActorStresses{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorStresses)
         par = par(kw...)
-        return new(dd, par)
+        return new{D,P}(dd, par)
     end
 end
 

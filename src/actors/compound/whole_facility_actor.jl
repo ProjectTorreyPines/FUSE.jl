@@ -7,22 +7,22 @@ Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersAc
     update_plasma::Entry{Bool} = Entry{Bool}("-", "Run plasma related actors"; default=true)
 end
 
-mutable struct ActorWholeFacility <: FacilityAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorWholeFacility
+mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
-    EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport}
-    StabilityLimits::Union{Nothing,ActorStabilityLimits}
-    HFSsizing::Union{Nothing,ActorHFSsizing}
-    LFSsizing::Union{Nothing,ActorLFSsizing}
-    CXbuild::Union{Nothing,ActorCXbuild}
-    PFcoilsOpt::Union{Nothing,ActorPFcoilsOpt}
-    PassiveStructures::Union{Nothing,ActorPassiveStructures}
-    Neutronics::Union{Nothing,ActorNeutronics}
-    Blanket::Union{Nothing,ActorBlanket}
-    Divertors::Union{Nothing,ActorDivertors}
-    BalanceOfPlant::Union{Nothing,ActorBalanceOfPlant}
-    Costing::Union{Nothing,ActorCosting}
+    EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport{D,P}}
+    StabilityLimits::Union{Nothing,ActorStabilityLimits{D,P}}
+    HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
+    LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
+    CXbuild::Union{Nothing,ActorCXbuild{D,P}}
+    PFcoilsOpt::Union{Nothing,ActorPFcoilsOpt{D,P}}
+    PassiveStructures::Union{Nothing,ActorPassiveStructures{D,P}}
+    Neutronics::Union{Nothing,ActorNeutronics{D,P}}
+    Blanket::Union{Nothing,ActorBlanket{D,P}}
+    Divertors::Union{Nothing,ActorDivertors{D,P}}
+    BalanceOfPlant::Union{Nothing,ActorBalanceOfPlant{D,P}}
+    Costing::Union{Nothing,ActorCosting{D,P}}
 end
 
 """

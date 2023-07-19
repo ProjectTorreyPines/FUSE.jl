@@ -162,7 +162,14 @@ First let's do some profiling to identify problemetic functions:
    FUSE.ActorWholeFacility(dd, act); # call this once to precompile
    ```
 
-1. Start with profiling execution time
+   !!! note
+   Alternatively one can create a `profile.jl` file in the `FUSE/playground` folder, write Julia code in that file, select the code to execute and run it with `<Control-Return>`.
+
+1. Use `@time` to monitor execution time and allocations
+
+1. For functions that return very quickly one can use `BenchmarkTooks.@benchmark`
+
+1. Graphical profiling of the execution time is a powerful way to understand where time is spent
    ```julia
    @profview FUSE.ActorWholeFacility(dd, act);
    ```
@@ -170,7 +177,7 @@ First let's do some profiling to identify problemetic functions:
 
 1. Look at allocations
    ```julia
-   @profview_alloc FUSE.ActorWholeFacility(dd, act);
+   @profview_allocs FUSE.ActorWholeFacility(dd, act);
    ```
 
 1. We can decide how finely to comb for bottlenecks by setting `sample_rate` in `@profview` and `@profview_allocs`:
@@ -185,10 +192,12 @@ Let's now investigate where the issue is with the function that we have identifi
 
 * [`@code_warntype`](https://docs.julialang.org/en/v1/manual/performance-tips/#man-code-warntype): static analyzer built-in with Julia
   * only looks at types that are inferred at runtime
-  `@code_warntype function()`
+  * reports types only for the target function
+  * `@code_warntype function()`
 
 * [JET](https://github.com/aviatesk/JET.jl): static analyzer integrated with VScode
   * can detect different possible issues, including types inferred at runtime
+  * JET goes deep into functions
   * `JET.@report_opt function()` reports dynamic dispatch
   * `JET.@report_call function()` reports type errors
   * `JET.@report_call target_modules=(FUSE,IMAS,IMAS.IMASDD, ) FUSE.ActorNeutronics(dd,act);`

@@ -4,7 +4,7 @@ abstract type ReactorAbstractActor <: AbstractActor end
 abstract type HCDAbstractActor <: AbstractActor end
 abstract type PlasmaAbstractActor <: AbstractActor end
 
-function logging_actor_init(typeof_actor::DataType, args...; kw...)
+function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
     logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
 end
 
@@ -13,7 +13,7 @@ function name(actor::AbstractActor)
 end
 
 function name(typeof_actor::Type{<:AbstractActor})
-    return replace(string(typeof_actor.name.name), r"^Actor" => "")
+    return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
 end
 
 #= ==== =#

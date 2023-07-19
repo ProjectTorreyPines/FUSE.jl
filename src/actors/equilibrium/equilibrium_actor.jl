@@ -8,11 +8,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
 end
 
-mutable struct ActorEquilibrium <: PlasmaAbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorEquilibrium
+mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor
+    dd::IMAS.dd{D}
+    par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
-    eq_actor::Union{Nothing,ActorSolovev,ActorCHEASE,ActorTEQUILA}
+    eq_actor::Union{Nothing,ActorSolovev{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
 end
 
 """
