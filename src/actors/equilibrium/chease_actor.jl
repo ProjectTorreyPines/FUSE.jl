@@ -85,7 +85,7 @@ function _step(actor::ActorCHEASE)
         rethrow()
     end
 
-    # convert from fixed to free boundary equilibrium
+    # convert from fixed to free boundary equilibrium (This needs to go in the finalize)
     if par.free_boundary
         # constraints for the private flux region
         upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
@@ -154,6 +154,4 @@ function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     eq2d.grid.dim1 = g.r
     eq2d.grid.dim2 = g.z
     eq2d.psi = g.psirz .* tc["PSI"]
-
-    IMAS.flux_surfaces(eqt)
 end
