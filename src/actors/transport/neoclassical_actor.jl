@@ -1,5 +1,6 @@
 import TGLFNN
 import TAUENN
+import NEO
 
 #= ===================== =#
 #  ActorNeoclassical      #
@@ -7,7 +8,7 @@ import TAUENN
 Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    neoclassical_model::Switch{Symbol} = Switch{Symbol}([:changhinton], "-", "Neoclassical model to run"; default=:changhinton)
+    neoclassical_model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo], "-", "Neoclassical model to run"; default=:changhinton)
     rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
 end
 
@@ -45,12 +46,43 @@ function _step(actor::ActorNeoclassical)
     model = resize!(dd.core_transport.model, :neoclassical)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
+    cp1d = dd.core_profiles.profiles_1d[]
 
     if par.neoclassical_model == :changhinton
         model.identifier.name = "Chang-Hinton"
         eqt = dd.equilibrium.time_slice[]
-        cp1d = dd.core_profiles.profiles_1d[]
         actor.flux_solutions = [TAUENN.neoclassical_changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
+    elseif par.neoclassical_model == :neo 
+        model.identifier.name = "NEO"
+        rho_cp = cp1d.grid.rho_tor_norm
+        gridpoint_cp = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
+        
+        for i in gridpoint_cp
+            neo_solution = NEO.run_neo(NEO.InputNEO(dd, i))
+            total_ion_energy_flux = 0.0 
+           
+            for j in 1:11
+                if ismissing(getfield(neo_solution, Symbol("ENERGY_FLUX_$j")))
+                    energy_flux_electrons = getfield(neo_solution, Symbol("ENERGY_FLUX_$(j-1)")) #subtract out electron energy flux, which is the last energy flux in the list
+                    total_ion_energy_flux -= energy_flux_electrons
+                    break
+                end
+            end
+
+            for field in fieldnames(NEO.flux_solution)
+                if ismissing(getfield(neo_solution, field))
+                    setfield!(neo_solution, field, 0.0)
+                end
+
+                if occursin("ENERGY", string(field))
+                    total_ion_energy_flux += getfield(neo_solution, field) 
+                end
+            end
+
+            solution = TGLFNN.flux_solution(0.0, 0.0, 0.0, total_ion_energy_flux)
+            push!(actor.flux_solutions, solution)
+        end
+  
     else
         error("$(par.neoclassical_model) is not implemented")
     end
