@@ -20,6 +20,7 @@ function workflow_multiobjective_optimization(
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
     constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
+    exploration::AbstractString="nominal",
     N::Int=10,
     iterations::Int=N,
     continue_state::Union{Missing,Metaheuristics.State}=missing,
@@ -77,22 +78,28 @@ function workflow_multiobjective_optimization(
     # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2
     
     # nominal
-    η_cr = 20
-    p_cr = 0.9
-    η_m = 20
-    p_m = 1.0 / length(objectives_functions)
+    if exploration == "nominal"
+        η_cr = 20
+        p_cr = 0.9
+        η_m = 20
+        p_m = 1.0 / length(objectives_functions)
+    end
 
     # increased exploration
-    η_cr = 30  # Increase the crossover distribution index
-    p_cr = 0.6  # Decrease the crossover probability
-    η_m = 30  # Increase the mutation distribution index
-    p_m = 2.0 / length(objectives_functions)  # Increase the mutation probability
+    if exploration == "exploratory"
+        η_cr = 30  # Increase the crossover distribution index
+        p_cr = 0.6  # Decrease the crossover probability
+        η_m = 30  # Increase the mutation distribution index
+        p_m = 2.0 / length(objectives_functions)  # Increase the mutation probability
+    end
 
     # very increased exploration
-    η_cr = 40  # Increase the crossover distribution index
-    p_cr = 0.5  # Decrease the crossover probability
-    η_m = 50  # Increase the mutation distribution index
-    p_m = 4.0 / length(objectives_functions)  # Increase the mutation probability
+    if exploration == "very exploratory"
+        η_cr = 40  # Increase the crossover distribution index
+        p_cr = 0.5  # Decrease the crossover probability
+        η_m = 50  # Increase the mutation distribution index
+        p_m = 4.0 / length(objectives_functions)  # Increase the mutation probability
+    end
 
     algorithm = Metaheuristics.SPEA2(; N, η_cr, p_cr, η_m, p_m, options) # converges and covers well the pareto front! 
     if continue_state !== missing
