@@ -110,7 +110,7 @@ function _finalize(actor::ActorTEQUILA)
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium{D}; ψbound::D=0.0, free_boundary::Bool=false) where {D<:Real}
+function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; ψbound::Real=0.0, free_boundary::Bool=false)
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
 
@@ -172,4 +172,5 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium{D}; ψbound::D=0.
         end
         eq1d.psi .+= ψbound
     end
+
 end

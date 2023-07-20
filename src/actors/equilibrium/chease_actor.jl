@@ -81,12 +81,23 @@ function _step(actor::ActorCHEASE)
     catch
         display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
         display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
-        display(plot(rho_pol, abs.(j_tor); marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
+        display(plot(rho_pol, j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
         rethrow()
     end
 
-    # convert from fixed to free boundary equilibrium (This needs to go in the finalize)
+    return actor
+end
+
+function _finalize(actor::ActorCHEASE)
+    dd = actor.dd
+    par = actor.par
+
+    # convert from fixed to free boundary equilibrium
     if par.free_boundary
+        eqt = dd.equilibrium.time_slice[]
+        z_geo = eqt.boundary.geometric_axis.z
+        r_bound = eqt.boundary.outline.r
+        z_bound = eqt.boundary.outline.z
         # constraints for the private flux region
         upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
         lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
@@ -102,13 +113,9 @@ function _step(actor::ActorCHEASE)
         actor.chease.gfile.psirz = (psi_free_rz .- psi_a) * ((actor.chease.gfile.psi[end] - actor.chease.gfile.psi[1]) / (psi_b - psi_a)) .+ actor.chease.gfile.psi[1]
     end
 
-    return actor
-end
-
-# finalize by converting gEQDSK data to IMAS
-function _finalize(actor::ActorCHEASE)
+    # Convert gEQDSK data to IMAS
     try
-        gEQDSK2IMAS(actor.chease.gfile, actor.dd.equilibrium)
+        gEQDSK2IMAS(actor.chease.gfile, dd.equilibrium)
     catch e
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
@@ -118,6 +125,7 @@ function _finalize(actor::ActorCHEASE)
         display(contour(EQ.r, EQ.z, transpose(actor.chease.gfile.psirz); levels, aspect_ratio=:equal, clim=(levels[1], levels[end])))
         rethrow(e)
     end
+
     return actor
 end
 
