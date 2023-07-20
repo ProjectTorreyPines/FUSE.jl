@@ -53,8 +53,8 @@ function _step(actor::ActorStresses; n_points::Integer=5)
     R_oh_in = IMAS.get_build_layer(bd.layer, type=_oh_).start_radius
     R_oh_out = IMAS.get_build_layer(bd.layer, type=_oh_).end_radius
     
-    f_struct_tf = bd.tf.technology.fraction_stainless
-    f_struct_oh = bd.oh.technology.fraction_stainless
+    f_struct_tf = bd.tf.technology.fraction_steel
+    f_struct_oh = bd.oh.technology.fraction_steel
 
     bucked = sm.center_stack.bucked == 1
     noslip = sm.center_stack.noslip == 1

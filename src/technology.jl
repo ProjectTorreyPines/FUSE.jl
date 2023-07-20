@@ -123,7 +123,7 @@ end
 Returns critical current density and magnetic field given an external magnetic field and coil technology
 """
 function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
-    fraction_conductor = 1.0 - coil_tech.fraction_stainless - coil_tech.fraction_void # fraction of coil that is a conductor
+    fraction_conductor = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void # fraction of coil that is a conductor
     @assert fraction_conductor > 0.0 "coil_J_B_crit: coil technology has no room for conductor"
     if coil_tech.material == "Copper"
         Jcrit = 18.5e6 # A/m^2
