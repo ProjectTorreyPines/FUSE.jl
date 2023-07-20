@@ -33,6 +33,7 @@ function update_ObjectiveFunctionsLibrary!()
     ObjectiveFunction(:req_flattop, "Δhours", dd -> abs(dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / 3600.0, 0.0)
     ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), Inf)
     ObjectiveFunction(:min_βn, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, -Inf)
+    ObjectiveFunction(:min_R0, "m", dd -> dd.equilibrium.time_slice[].boundary.geometric_axis.r, -Inf)
     return ObjectiveFunctionsLibrary
 end
 update_ObjectiveFunctionsLibrary!()
@@ -126,6 +127,8 @@ function update_ConstraintFunctionsLibrary!()
     ConstraintFunction(:min_lh_power_threshold, "%", dd -> (IMAS.power_sol(dd) / dd.requirements.lh_power_threshold_fraction - IMAS.scaling_L_to_H_power(dd)) / IMAS.scaling_L_to_H_power(dd), >, 0.0)
     ConstraintFunction(:max_ωpe_ωce, "%", dd -> IMAS.ω_pe(@ddtime(dd.summary.local.magnetic_axis.n_e.value)) / IMAS.ω_ce(@ddtime(dd.summary.global_quantities.b0.value)), <, 1.0)
     ConstraintFunction(:max_qpol_omp, "%", dd -> (IMAS.q_pol_omp_eich(dd) - dd.requirements.q_pol_omp) / dd.requirements.q_pol_omp, <, 0.0)
+    ConstraintFunction(:max_ds03, "%", dd -> ((IMAS.tau_e_thermal(dd.core_profiles.profiles_1d[], dd.core_sources) / IMAS.tau_e_ds03(dd)) - dd.requirements.ds03) / dd.requirements.ds03, <, 0.0)
+    ConstraintFunction(:max_βn, "%", dd -> (dd.equilibrium.time_slice[].global_quantities.beta_normal - dd.requirements.βn)/dd.requirements.βn, <, 0.0)
     return ConstraintFunctionsLibrary
 end
 update_ConstraintFunctionsLibrary!()
@@ -205,7 +208,7 @@ function optimization_engine(
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(savedir, dd, ini, act; freeze=true)
+            save(savedir, IMAS.dd(), ini, act; freeze=true)
         end
         # evaluate multiple objectives
         return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
@@ -277,4 +280,85 @@ function nan2inf(x::Float64)::Float64
     else
         return x
     end
+end
+
+
+# =================== #
+# Evaluation engine #
+# =================== #
+"""
+    evaluation_engine(
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        actor_or_workflow::Union{Type{<:AbstractActor},Function},
+        x::AbstractVector,
+        save_folder::AbstractString)
+
+NOTE: This function is run by the worker nodes
+"""
+function evaluation_engine(
+    ini::ParametersAllInits,
+    act::ParametersAllActors,
+    actor_or_workflow::Union{Type{<:AbstractActor},Function},
+    x::AbstractVector,
+    save_folder::AbstractString,
+)
+    # update ini based on input optimization vector `x`
+    #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
+    parameters_from_opt!(ini, x)
+
+    # run the problem
+    try
+        if typeof(actor_or_workflow) <: Function
+            dd = actor_or_workflow(ini, act)
+        else
+            dd = init(ini, act)
+            actor = actor_or_workflow(dd, act)
+            dd = actor.dd
+        end
+        # save simulation data to directory
+        if !isempty(save_folder)
+            savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
+            save(savedir, dd, ini, act; freeze=true)
+        end
+
+    catch e
+        # save empty dd and error to directory
+        if !isempty(save_folder)
+            if typeof(e) <: Exception # somehow sometimes `e` is of type String?
+                savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
+                save(savedir, IMAS.dd(), ini, act, e; freeze=true)
+            else
+                @warn "typeof(e) in optimization_engine is String: $e"
+            end
+        end
+    end
+end
+
+"""
+    function evaluation_engine(
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        actor_or_workflow::Union{Type{<:AbstractActor},Function},
+        X::AbstractMatrix,
+        save_folder::AbstractString,
+        p::ProgressMeter.Progress)
+
+NOTE: this function is run by the master process
+"""
+function evaluation_engine(
+    ini::ParametersAllInits,
+    act::ParametersAllActors,
+    actor_or_workflow::Union{Type{<:AbstractActor},Function},
+    X::AbstractMatrix,
+    save_folder::AbstractString)
+
+    save_folder = abspath(save_folder)
+    if !isempty(save_folder)
+        mkpath(save_folder)
+    end
+
+    # parallel evaluation of a generation
+    Distributed.pmap(x -> evaluation_engine(ini, act, actor_or_workflow, x, save_folder), [X[k, :] for k in 1:size(X)[1]])
+
 end
