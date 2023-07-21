@@ -83,6 +83,7 @@ include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
+include(joinpath("actors", "transport", "fixed_profiles_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))
@@ -103,6 +104,7 @@ include(joinpath("actors", "costing", "costing_actor.jl"))
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "equilibrium_transport_actor.jl"))
 include(joinpath("actors", "compound", "whole_facility_actor.jl"))
+include(joinpath("actors", "compound", "opt_actor.jl"))
 
 #= ========== =#
 #  PARAMETERS  #
