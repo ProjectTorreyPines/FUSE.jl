@@ -56,6 +56,13 @@ function _step(actor::ActorEquilibriumTransport)
         pe = plot(dd.equilibrium; color=:gray, label=" (before)", coordinate=:rho_tor_norm)
         pp = plot(dd.core_profiles; color=:gray, label=" (before)")
         ps = plot(dd.core_sources; color=:gray, label=" (before)")
+
+        @printf("Jtor0_before = %.2f MA\n", dd.core_profiles.profiles_1d[].j_tor[1]/1e6)
+        @printf("P0_before = %.2f kPa\n", dd.core_profiles.profiles_1d[].pressure[1]/1e3)
+        @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
+        @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+        @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
+        @printf("rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
     end
 
     # run HCD to get updated current drive
@@ -98,7 +105,19 @@ function _step(actor::ActorEquilibriumTransport)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
-                @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 3)), threshold = $(par.convergence_error)")
+
+                plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm, label="i=$(length(total_error))")
+                plot!(pp, dd.core_profiles, label="i=$(length(total_error))")
+                plot!(ps, dd.core_sources, label="i=$(length(total_error))")
+
+                @printf("\n")
+                @printf("Jtor0_after = %.2f MA\n", j_tor_after[1]/1e6)
+                @printf("P0_after = %.2f kPa\n", pressure_after[1]/1e3)
+                @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
+                @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+                @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
+                @printf("rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
+                @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iter)
@@ -114,9 +133,9 @@ function _step(actor::ActorEquilibriumTransport)
     end
 
     if par.do_plot
-        display(plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm, label=" (after)"))
-        display(plot!(pp, dd.core_profiles, label=" (after)"))
-        display(plot!(ps, dd.core_sources, label=" (after)"))
+        display(pe)
+        display(pp)
+        display(ps)
     end
 
     return actor
