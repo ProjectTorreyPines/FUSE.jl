@@ -99,15 +99,15 @@ function _step(actor::ActorHFSsizing)
             c_joh = 0.0
         end
         
-        c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), dd.build.oh.technology.yield_strength, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), dd.solid_mechanics.center_stack.properties.yield_strength.oh, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
 
         # TF currents and stresses
         c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
-        c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), dd.build.tf.technology.yield_strength, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), dd.solid_mechanics.center_stack.properties.yield_strength.tf, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
 
         # plug stresses
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-            c_spl = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), dd.build.pl.technology.yield_strength, par.stress_tolerance)
+            c_spl = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), dd.solid_mechanics.center_stack.properties.yield_strength.pl, par.stress_tolerance)
         else
             c_spl = 0.0
         end
@@ -189,10 +189,10 @@ function _step(actor::ActorHFSsizing)
         @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ par.j_tolerance) / dd.build.oh.critical_j * 100)%"
         @assert dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance) / dd.build.tf.critical_j * 100)%"
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-            @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.build.pl.technology.yield_strength "PL stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / dd.build.pl.technology.yield_strength * 100)%"
+            @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.solid_mechanics.center_stack.properties.yield_strength.pl "PL stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / dd.solid_mechanics.center_stack.properties.yield_strength.pl * 100)%"
         end
-        @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.build.oh.technology.yield_strength "OH stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / dd.build.oh.technology.yield_strength * 100)%"
-        @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.build.tf.technology.yield_strength "TF stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / dd.build.tf.technology.yield_strength * 100)%"
+        @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.solid_mechanics.center_stack.properties.yield_strength.oh "OH stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / dd.solid_mechanics.center_stack.properties.yield_strength.oh * 100)%"
+        @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.solid_mechanics.center_stack.properties.yield_strength.tf "TF stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / dd.solid_mechanics.center_stack.properties.yield_strength.tf * 100)%"
         @assert dd.build.oh.flattop_duration .* (1.0 .+ par.j_tolerance * 0.9) > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
     end
 
@@ -237,14 +237,14 @@ function _step(actor::ActorHFSsizing)
         if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
             println()
             @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl)
-            @show dd.build.pl.technology.yield_strength
+            @show dd.solid_mechanics.center_stack.properties.yield_strength.pl
         end
         println()
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh)
-        @show dd.build.oh.technology.yield_strength
+        @show dd.solid_mechanics.center_stack.properties.yield_strength.oh
         println()
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf)
-        @show dd.build.tf.technology.yield_strength
+        @show dd.solid_mechanics.center_stack.properties.yield_strength.tf
         println()
         @show old_R0 / a
         @show R0 / a

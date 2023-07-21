@@ -1,18 +1,21 @@
 const supported_coils_techs = [:copper, :LTS, :ITER, :HTS]
 
 """
-Material properties of stainless steel
+Material properties
 """
-const stainless_steel = (
+Base.@kwdef struct MaterialProperties
+    yield_strength::Float64 = NaN
+    young_modulus::Float64 = NaN
+    poisson_ratio::Float64 = NaN
+end
+
+const stainless_steel = MaterialProperties(
     yield_strength=800E6, # Pa
     young_modulus=193.103448275E9, # Pa
     poisson_ratio=0.33,
 )
 
-"""
-Material properties of pure copper
-"""
-const pure_copper = (
+const pure_copper = MaterialProperties(
     yield_strength=70E6, # Pa
     young_modulus=110E9, # Pa
     poisson_ratio=0.34,
@@ -36,7 +39,6 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
         coil_tech.temperature = 293.0
         coil_tech.fraction_steel = 0.0
         coil_tech.fraction_void = 0.1
-        coil_tech.yield_strength = pure_copper.yield_strength
     
     elseif technology ∈ (:LTS, :ITER, :HTS)
         if technology ∈ (:LTS, :ITER)
@@ -49,7 +51,6 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
         coil_tech.fraction_steel = 0.5
         coil_tech.ratio_SC_to_copper = 1.0
         coil_tech.fraction_void = 0.1
-        coil_tech.yield_strength = stainless_steel.yield_strength
     end
 
     if technology == :ITER
