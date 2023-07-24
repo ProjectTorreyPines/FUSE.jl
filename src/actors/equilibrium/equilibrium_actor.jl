@@ -58,11 +58,17 @@ end
 Finalizes the selected equilibrium actor
 """
 function _finalize(actor::ActorEquilibrium)
+    # finalize underlying model actor
     finalize(actor.eq_actor)
+
+    # symmetrize equilibrium if requested and number of X-points is even
     if actor.par.symmetrize && mod(length(actor.dd.pulse_schedule.position_control.x_point), 2) != 1
         IMAS.symmetrize_equilibrium!(actor.dd.equilibrium.time_slice[])
-        IMAS.flux_surfaces(actor.dd.equilibrium.time_slice[])
     end
+
+    # add flux surfaces information
+    IMAS.flux_surfaces(actor.dd.equilibrium.time_slice[])
+
     return actor
 end
 

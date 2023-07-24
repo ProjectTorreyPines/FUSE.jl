@@ -174,10 +174,10 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         dd.solid_mechanics.center_stack.noslip = Int(ini.center_stack.noslip)
         dd.solid_mechanics.center_stack.plug = Int(ini.center_stack.plug)
 
-        # assign materials
-        coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
-        coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
-        coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+        # assign coils and CS technologies
+        assign_technologies(dd, ini)
+
+        # assign radial build materials
         assign_build_layers_materials(dd, ini)
 
         return dd
@@ -201,7 +201,7 @@ NOTE: layer[:].type and layer[:].material follows from naming of layers
 
 layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
 
-layer[:].identifier is created as a hash of then name removing "hfs" or "lfs"
+layer[:].identifier is handled via IMAS.jl expressions
 """
 function init_build(bd::IMAS.build; layers...)
     # empty build IDS
@@ -361,4 +361,60 @@ function scale_build_layers(layers::OrderedCollections.OrderedDict{Symbol,Float6
             layers[layer] = thickness * factor
         end
     end
+end
+
+function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
+    bd = dd.build
+    for (k, layer) in enumerate(bd.layer)
+        if k == 1 && ini.center_stack.plug
+            layer.material = ini.material.wall
+        elseif layer.type == Int(_plasma_)
+            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in bd.layer)) ? "DT_plasma" : "DD_plasma"
+        elseif layer.type == Int(_gap_)
+            layer.material = "Vacuum"
+        elseif layer.type == Int(_oh_)
+            layer.material = bd.oh.technology.material
+        elseif layer.type == Int(_tf_)
+            layer.material = bd.tf.technology.material
+        elseif layer.type == Int(_shield_)
+            layer.material = ini.material.shield
+        elseif layer.type == Int(_blanket_)
+            layer.material = ini.material.blanket
+        elseif layer.type == Int(_wall_)
+            layer.material = ini.material.wall
+        elseif layer.type == Int(_vessel_)
+            layer.material = "Water, Liquid"
+        elseif layer.type == Int(_cryostat_)
+            layer.material = ini.material.wall
+        end
+    end
+end
+
+function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
+    # plug
+    if ini.center_stack.plug
+        mechanical_technology(dd, :pl)
+    end
+
+    # oh
+    coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+    mechanical_technology(dd, :oh)
+
+    # tf
+    coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+    mechanical_technology(dd, :tf)
+
+    #pf
+    coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+end
+
+function mechanical_technology(dd::IMAS.dd, what::Symbol)
+    if what != :pl && getproperty(dd.build, what).technology.material == "Copper"
+        material = pure_copper
+    else
+        material = stainless_steel
+    end
+    setproperty!(dd.solid_mechanics.center_stack.properties.yield_strength, what, material.yield_strength)
+    setproperty!(dd.solid_mechanics.center_stack.properties.poisson_ratio, what, material.poisson_ratio)
+    setproperty!(dd.solid_mechanics.center_stack.properties.young_modulus, what, material.young_modulus)
 end

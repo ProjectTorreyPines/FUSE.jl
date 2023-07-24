@@ -11,8 +11,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     ngrid::Entry{Int} = Entry{Int}("-", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     qstar::Entry{T} = Entry{T}("-", "Initial guess of kink safety factor"; default=1.5)
     alpha::Entry{T} = Entry{T}("-", "Initial guess of constant relating to pressure"; default=0.0)
-    volume::Entry{T} = Entry{T}("m³", "Scalar volume to match (optional)"; default=missing)
-    area::Entry{T} = Entry{T}("m²", "Scalar area to match (optional)"; default=missing)
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
@@ -138,16 +136,7 @@ function _finalize(actor::ActorSolovev)
         eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
     end
     IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, mxh_eq.S.R0, mxh_eq.B0)
-    IMAS.flux_surfaces(eqt)
-
-    # correct equilibrium volume and area
-    if !ismissing(par, :volume)
-        eqt.profiles_1d.volume .*= par.volume / eqt.profiles_1d.volume[end]
-    end
-    if !ismissing(par, :area)
-        eqt.profiles_1d.area .*= par.area / eqt.profiles_1d.area[end]
-    end
-
+    
     return actor
 end
 
