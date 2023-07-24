@@ -176,6 +176,9 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking)
     q_pol_omp::Entry{T} = Entry{T}(IMAS.requirements, :q_pol_omp)
     lh_power_threshold_fraction::Entry{T} = Entry{T}(IMAS.requirements, :lh_power_threshold_fraction)
+    h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2)
+    ds03::Entry{T} = Entry{T}(IMAS.requirements, :ds03)
+    βn::Entry{T} = Entry{T}(IMAS.requirements, :βn)
 end
 
 mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
