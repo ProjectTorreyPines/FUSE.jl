@@ -11,13 +11,14 @@ const XSs = CrossSections
 
 function get_xss_from_hdf5(
     filename::String,
-    material::String;
+    material::String,
+    material_tag::String=material;
     )
     file = h5open(filename, "r")
     νΣf = read(file["material"][material]["nu-fission"]["average"])
     Σt = read(file["material"][material]["nu-transport"]["average"])
     Σs0 = permutedims(read(file["material"][material]["consistent nu-scatter matrix"]["average"]))
-    return CrossSections(material, length(νΣf); νΣf, Σt, Σs0)
+    return CrossSections(material_tag, length(νΣf); νΣf, Σt, Σs0)
 end
 
 function get_xss_from_hdf5(filename::String, material::String, xs_type::Vector{String})
@@ -40,20 +41,19 @@ function get_xss_from_hdf5(filename::String, materials::Vector{String}, xs_type:
     return xs_dict
 end
 
-function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector{String}, data_path::String, data_filename::String, save_path::String=@__DIR__, save_filename::String="concentric_circles") where T
+function concentric_circles(layer_thicknesses::Vector{T}, materials::Vector{String}, layers::Vector{String}, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="concentric_circles") where T
     gmsh.initialize()
-    r0 = 100.0
-    model_bound = sum(layer_thicknesses) + r0 + 1
+    model_bound = sum(layer_thicknesses) + 1
 
-    mats = deepcopy(material_names)
+    mats = deepcopy(materials)
     thicknesses = deepcopy(layer_thicknesses)
-    pushfirst!(mats, "DT_plasma")
+    names = deepcopy(layers)
     push!(mats, "Air-(dry,-near-sea-level)")
+    push!(names, "Exterior")
 
-    pushfirst!(thicknesses, r0)
     append!(thicknesses, 1.0)
     factory = gmsh.model.geo
-    lc = 4
+    lc = model_bound/30
 
     radius=0.0
 
@@ -61,8 +61,12 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
 
     for (idx, thickness) in enumerate(thicknesses)
         radius+=thickness
+        mats[idx] = replace(mats[idx], " " => "-")
+        if mats[idx] == "Vacuum"
+            mats[idx] = "Air-(dry,-near-sea-level)"
+        end 
         material = factory.addPhysicalGroup(2, [idx], idx)
-        GridapGmsh.gmsh.model.setPhysicalName(2, idx, mats[idx])
+        GridapGmsh.gmsh.model.setPhysicalName(2, idx, names[idx])
 
         if idx == length(mats)
             # square cell
@@ -109,19 +113,20 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
         end
     end
 
-    xss = [get_xss_from_hdf5(data_filename, mats[idx]) for idx in eachindex(thicknesses)]
+    xss = [get_xss_from_hdf5(data_filename, mats[idx], names[idx]) for idx in eachindex(thicknesses)]
 
     factory.synchronize()
 
     gmsh.model.mesh.generate(2)
 
-    gmsh.write(save_path * "concentric_circles.msh")
+    mshfile = joinpath(save_path, save_filename * ".msh")
+
+    gmsh.write(mshfile)
 
     # gmsh.fltk.run()
 
     gmsh.finalize()
 
-    mshfile = joinpath(save_path, save_filename * ".msh")
     model = GmshDiscreteModel(mshfile; renumber=true)
     jsonfile = joinpath(save_path, save_filename * ".json")
     Gridap.Io.to_json_file(model, jsonfile)
@@ -154,7 +159,7 @@ function concentric_circles(layer_thicknesses::Vector{T}, material_names::Vector
     prob = MoCProblem(tg, pq, xss)
 
     # define fixed source material
-    fixed_sources = set_fixed_source_material(prob, "DT_plasma", 8 , 1)
+    fixed_sources = set_fixed_source_material(prob, "plasma", 8 , 1)
 
     # solve
     sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.05, max_iterations=500)
@@ -205,8 +210,6 @@ function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) 
             tbr+=vol_integrated_φ[ig]*tbr_xs_dict["(n,Xt)"][g]
         end        
     end
-
-
     return tbr
 end
 
@@ -215,4 +218,11 @@ function write_neutron_flux_vtk(sol::MoCSolution{T}, groups::Union{Vector{Int},U
     NeutronTransport.@unpack trackgenerator = prob
     triang = get_triangulation(trackgenerator.mesh.model)
     writevtk(triang, "fluxes", cellfields=[string(g) => sol(g) for g in groups])
+end
+
+function neutron_transport_1d(dd::IMAS.dd, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
+    thicknesses = [layer.thickness*100 for layer in dd.build.layer if -1 <= layer.fs <= 2]
+    materials = [layer.material for layer in dd.build.layer if -1 <= layer.fs <= 2]
+    layers = [layer.name for layer in dd.build.layer if -1 <= layer.fs <= 2]
+    return concentric_circles(thicknesses, materials, layers, data_path, data_filename, save_path, save_filename)
 end
