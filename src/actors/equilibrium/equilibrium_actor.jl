@@ -6,6 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:Solovev)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
 end
 
 mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor
@@ -43,43 +44,69 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
 end
 
 """
-    step(actor::ActorEquilibrium)
+    _step(actor::ActorEquilibrium)
 
-Runs through the selected equilibrium actor's step
+Clears and initializes data in eqt for equilibrium actors to run properly, then calls the `step()` function of the selected equilibrium actor
 """
 function _step(actor::ActorEquilibrium)
+    dd = actor.dd
+    par = actor.par
+
+    if par.do_plot
+        if !isempty(dd.equilbrium.time_slice)
+            plot(dd.equilibrium; cx=true, label="before ActorEquilibrium")
+        else
+            plot()
+        end
+    end
+
+    # initialize eqt for equilibrium actors
+    prepare_eq(actor)
+
+    # step selected equilibrium actor
     step(actor.eq_actor)
+
     return actor
 end
 
 """
-    finalize(actor::ActorEquilibrium)
+    _finalize(actor::ActorEquilibrium)
 
-Finalizes the selected equilibrium actor
+Calls the `finalize()` function of the selected equilibrium actor and populates flux surfaces information
 """
 function _finalize(actor::ActorEquilibrium)
+    dd = actor.dd
+    par = actor.par
+
+    # finalize selected equilibrium actor
     finalize(actor.eq_actor)
-    if actor.par.symmetrize && mod(length(actor.dd.pulse_schedule.position_control.x_point), 2) != 1
-        IMAS.symmetrize_equilibrium!(actor.dd.equilibrium.time_slice[])
-        IMAS.flux_surfaces(actor.dd.equilibrium.time_slice[])
+
+    # symmetrize equilibrium if requested and number of X-points is even
+    if par.symmetrize && mod(length(dd.pulse_schedule.position_control.x_point), 2) != 1
+        IMAS.symmetrize_equilibrium!(dd.equilibrium.time_slice[])
     end
+
+    # add flux surfaces information
+    IMAS.flux_surfaces(dd.equilibrium.time_slice[])
+
+    if par.do_plot
+        plot!(dd.equilibrium; label="after ActorEquilibrium")
+    end
+
     return actor
 end
 
 """
-    prepare_eq(dd::IMAS.dd)
+    prepare(actor::ActorEquilibrium)
 
-Prepare `dd.equilbrium` to run equilibrium actors.
+Prepare `dd.equilbrium` to run equilibrium actors
 * clear equilibrium__time_slice
 * set Ip, Bt, position control from pulse_schedule
 * Copy pressure from core_profiles to equilibrium
 * Copy j_tor from core_profiles to equilibrium
-
-NOTE: prepare_eq(dd) must be called at the _step() stage
-of all equilibrium actors to ensure that they work properly
-when used in a transport-equilibrium loop.
 """
-function prepare_eq(dd::IMAS.dd)
+function prepare_eq(actor::ActorEquilibrium)
+    dd = actor.dd
     ps = dd.pulse_schedule
     pc = ps.position_control
 
@@ -126,6 +153,36 @@ function prepare_eq(dd::IMAS.dd)
     eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
 
     return dd
+end
+
+"""
+    latest_equilibrium_grids!(dd)
+
+Empties grids at the `dd.global_time` of `core_profiles`, `core_sources` and `core_transport`
+so that the IMAS.jl expressions take the grid info from latest equilibrium. This is necessary
+when iterating between equilibrium and other actors.
+
+See: IMAS/src/expressions/onetime.jl
+"""
+function latest_equilibrium_grids!(dd::IMAS.dd)
+    # core_profiles
+    old_rho_tor_norm = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
+    empty!(dd.core_profiles.profiles_1d[].grid)
+    dd.core_profiles.profiles_1d[].grid.rho_tor_norm = old_rho_tor_norm
+
+    # core_sources
+    for source in dd.core_sources.source
+        old_rho_tor_norm = source.profiles_1d[].grid.rho_tor_norm
+        empty!(source.profiles_1d[].grid)
+        source.profiles_1d[].grid.rho_tor_norm = old_rho_tor_norm
+    end
+
+    # core_transport
+    for model in dd.core_transport.model
+        old_rho_tor_norm = model.profiles_1d[].grid_flux.rho_tor_norm
+        empty!(model.profiles_1d[].grid_flux)
+        model.profiles_1d[].grid_flux.rho_tor_norm = old_rho_tor_norm
+    end
 end
 
 """

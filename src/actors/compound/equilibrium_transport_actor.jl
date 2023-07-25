@@ -29,7 +29,7 @@ Compound actor that runs the following actors in succesion:
 * ActorEquilibrium
 
 !!! note
-    Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
+    Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`, `dd.core_transport`
 """
 function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorEquilibriumTransport(dd, act.ActorEquilibriumTransport, act; kw...)
@@ -85,6 +85,9 @@ function _step(actor::ActorEquilibriumTransport)
             j_tor_before = dd.core_profiles.profiles_1d[].j_tor
             pressure_before = dd.core_profiles.profiles_1d[].pressure
 
+            # core_profiles, core_sources, core_transport grids from latest equilibrium
+            latest_equilibrium_grids!(dd)
+
             # run transport actor
             finalize(step(actor.actor_tr))
 
@@ -105,7 +108,6 @@ function _step(actor::ActorEquilibriumTransport)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
-
                 plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm, label="i=$(length(total_error))")
                 plot!(pp, dd.core_profiles, label="i=$(length(total_error))")
                 plot!(ps, dd.core_sources, label="i=$(length(total_error))")

@@ -48,10 +48,10 @@ function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__t
     if coil_tech.material == "Copper"
         return unit_cost("Copper", cst)
     else
-        fraction_cable = 1 - coil_tech.fraction_stainless - coil_tech.fraction_void
+        fraction_cable = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)
         fraction_copper = fraction_cable - fraction_SC
-        return (coil_tech.fraction_stainless * unit_cost("Steel, Stainless 316", cst) + fraction_copper * unit_cost("Copper", cst) + fraction_SC * unit_cost(coil_tech.material, cst))
+        return (coil_tech.fraction_steel * unit_cost("Steel, Stainless 316", cst) + fraction_copper * unit_cost("Copper", cst) + fraction_SC * unit_cost(coil_tech.material, cst))
     end
 end
 

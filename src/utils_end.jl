@@ -399,7 +399,7 @@ function categorize_errors(
         "Flux surface at ψ=" => :flux_surfaces_B,
         "OH stresses" => :OH_stresses,
         "TF stresses" => :TF_stresses,
-        "stainless_steel.yield_strength" => :CS_stresses,
+        "yield_strength" => :CS_stresses,
         "TF cannot achieve requested B0" => :TF_limit,
         "The OH flux is insufficient to have any flattop duration" => :OH_flux,
         "OH cannot achieve requested flattop" => :OH_flattop,
