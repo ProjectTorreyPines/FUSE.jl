@@ -14,7 +14,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=1.0)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-6)
     psi_norm_boundary_cutoff::Entry{Float64} = Entry{Float64}("-", "Cutoff psi_norm for determining boundary"; default=0.999)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
 
@@ -45,35 +44,26 @@ function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; kw...)
 end
 
 """
-    step(actor::ActorTEQUILA)
+    _step(actor::ActorTEQUILA)
 
 Runs TEQUILA on the r_z boundary, equilibrium pressure and equilibrium j_tor
 """
 function _step(actor::ActorTEQUILA)
     dd = actor.dd
     par = actor.par
-
-    if par.do_plot
-        p = plot(dd.equilibrium; cx=true, label="before")
-    end
-
-    prepare_eq(dd)
-
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
-    psin = eq1d.psi_norm
-
     # BCL 5/30/23: ψbound should be set time dependently, related to the flux swing of the OH coils
     #              For now setting to zero as initial eq1d.psi profile from prepare_eq can be nonsense
-    actor.ψbound = 0.0 #IMAS.interp1d(psin, eq1d.psi)(par.psi_norm_boundary_cutoff)
+    actor.ψbound = 0.0 #IMAS.interp1d(eq1d.psi_norm, eq1d.psi)(par.psi_norm_boundary_cutoff)
 
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
 
     mxh = IMAS.MXH(r_bound, z_bound, par.number_of_MXH_harmonics; optimize_fit=true)
 
-    rho_pol = sqrt.(psin)
+    rho_pol = sqrt.(eq1d.psi_norm)
     rho_pol[1] = 0.0
     P = TEQUILA.FE(rho_pol, eq1d.pressure)
     Jt = TEQUILA.FE(rho_pol, eq1d.j_tor)
@@ -84,17 +74,6 @@ function _step(actor::ActorTEQUILA)
     # TEQUILA shot
     shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target=Ip)
     actor.shot = TEQUILA.solve(shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax)
-
-    if par.do_plot
-        for (idx, s) in enumerate(eachcol(actor.shot.surfaces[:, 2:end]))
-            if idx == length(actor.shot.surfaces[1, 2:end])
-                plot!(p, IMAS.MXH(s), color=:red, label="after TEQUILA")
-            else
-                plot!(p, IMAS.MXH(s), color=:red)
-            end
-        end
-        display(p)
-    end
 
     return actor
 end

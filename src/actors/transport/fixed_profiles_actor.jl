@@ -38,7 +38,7 @@ function ActorFixedProfiles(dd::IMAS.dd, par::FUSEparameters__ActorFixedProfiles
 end
 
 """
-    step(actor::ActorFixedProfiles)
+    _step(actor::ActorFixedProfiles)
 """
 function _step(actor::ActorFixedProfiles)
     par = actor.par
@@ -93,7 +93,7 @@ function _step(actor::ActorFixedProfiles)
 end
 
 """
-    finalize(actor::ActorFixedProfiles)
+    _finalize(actor::ActorFixedProfiles)
 
 Updates IMAS.core_sources
 """

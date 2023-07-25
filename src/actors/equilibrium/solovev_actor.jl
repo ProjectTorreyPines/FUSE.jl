@@ -51,9 +51,6 @@ Non-linear optimization to obtain a target `ip` and `pressure_core`
 function _step(actor::ActorSolovev)
     dd = actor.dd
     par = actor.par
-
-    # initialize eqt from pulse_schedule and core_profiles
-    prepare_eq(dd)
     eq = dd.equilibrium
     eqt = eq.time_slice[]
 
@@ -136,7 +133,7 @@ function _finalize(actor::ActorSolovev)
         eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
     end
     IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, mxh_eq.S.R0, mxh_eq.B0)
-    
+
     return actor
 end
 

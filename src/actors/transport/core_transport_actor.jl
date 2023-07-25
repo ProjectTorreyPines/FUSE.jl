@@ -49,7 +49,7 @@ function _step(actor::ActorCoreTransport)
 end
 
 """
-    finalize(actor::ActorCoreTransport)
+    _finalize(actor::ActorCoreTransport)
 
 Finalizes the selected core transport actor finalize
 """
