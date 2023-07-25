@@ -7,6 +7,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
     _name::Symbol = :not_set
     construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default=8.0)
     fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default=0.078)
+    capitalize_blanket::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st blanket in direct captial cost"; default=false)
+    capitalize_divertor::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st divertor in direct captial cost"; default=false)
     divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default=10.0)
     blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default=15.0)
 end
@@ -100,9 +102,9 @@ function _step(actor::ActorSheffieldCosting)
     sub.cost = cost_direct_capital_Sheffield(:primary_coils, cst, bd, da)
     total_direct_capital_cost += sub.cost
 
-    #shielding gaps 
-    sub = resize!(sys_fi.subsystem, "name" => "shielding gaps")
-    sub.cost = cost_direct_capital_Sheffield(:shielding_gaps, cst, bd, da)
+    #shields 
+    sub = resize!(sys_fi.subsystem, "name" => "shields")
+    sub.cost = cost_direct_capital_Sheffield(:shields, cst, bd, da)
     total_direct_capital_cost += sub.cost
 
     #structure 
@@ -113,6 +115,16 @@ function _step(actor::ActorSheffieldCosting)
     #aux power 
     sub = resize!(sys_fi.subsystem, "name" => "aux power")
     sub.cost = cost_direct_capital_Sheffield(:aux_power, ec_power, ic_power, lh_power, nb_power, da)
+    total_direct_capital_cost += sub.cost
+
+    # blanket
+    sub = resize!(sys_fi.subsystem, "name" => "blanket")
+    sub.cost = cost_direct_capital_Sheffield(:blanket, par.capitalize_blanket, dd, da)
+    total_direct_capital_cost += sub.cost
+
+    #divertor
+    sub = resize!(sys_fi.subsystem, "name" => "divertor")
+    sub.cost = cost_direct_capital_Sheffield(:divertor, par.capitalize_divertor, dd, da)
     total_direct_capital_cost += sub.cost
 
     ##### Facility structures, buildings and site 
@@ -129,14 +141,14 @@ function _step(actor::ActorSheffieldCosting)
     total_direct_capital_cost += sub.cost
 
     ###### Fuel ######
-    total_fuel_cost = 0
+    total_fuel_cost = 0.0
 
     sys = resize!(cost_ops.system, "name" => "blanket")
-    sys.yearly_cost = cost_fuel_Sheffield(:blanket, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
+    sys.yearly_cost = cost_fuel_Sheffield(:blanket, par.capitalize_blanket, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
     total_fuel_cost += sys.yearly_cost
 
     sys = resize!(cost_ops.system, "name" => "divertor")
-    sys.yearly_cost = cost_fuel_Sheffield(:divertor, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
+    sys.yearly_cost = cost_fuel_Sheffield(:divertor, par.capitalize_divertor, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, thermal_flux, divertor_fluence_lifetime, power_electric_net, da)
     total_fuel_cost += sys.yearly_cost
 
     sys = resize!(cost_ops.system, "name" => "aux power")
@@ -196,22 +208,15 @@ function cost_direct_capital_Sheffield(::Type{Val{:primary_coils}}, cst::IMAS.co
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Type{Val{:shielding_gaps}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Type{Val{:shields}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
     shields_hfs = IMAS.get_build_layers(bd.layer, type=IMAS._shield_, fs=_hfs_)
-    gaps_hfs = IMAS.get_build_layers(bd.layer, type=IMAS._gap_, fs=_hfs_)
 
-    cost = 0
-
+    cost = 0.0
     for layer in shields_hfs
         vol_shield_hfs = layer.volume
         material_shield_hfs = layer.material
         cost += vol_shield_hfs * unit_cost(material_shield_hfs, cst)
-    end
-
-    for layer in gaps_hfs
-        vol_gaps_hfs = layer.volume
-        cost += vol_gaps_hfs * 0.29 # $M/m^3 from Table A.VII 
     end
 
     return future_dollars(1.25 * cost, da)
@@ -254,13 +259,46 @@ function cost_direct_capital_Sheffield(::Type{Val{:buildings}}, bd::IMAS.build, 
     return future_dollars(cost, da)
 end
 
+function cost_direct_capital_Sheffield(::Type{Val{:blanket}}, cap::Bool, dd::IMAS.dd, da::DollarAdjust)
+    da.year_assessed = 2016
+
+    cost = 0.0
+
+    if cap == false
+        return 0.0
+    else
+        bd = dd.build
+        cst = dd.costing
+        blankets = IMAS.get_build_layers(bd.layer, type=IMAS._blanket_, fs=_lfs_)
+        for blanket in blankets
+            blanket_capital_cost = 1.1 * blanket.volume * unit_cost(blanket.material, cst)
+            cost += 1.1 * blanket_capital_cost
+        end
+    end
+
+    return future_dollars(cost, da)
+end
+
+function cost_direct_capital_Sheffield(::Type{Val{:divertor}}, cap::Bool, dd::IMAS.dd, da::DollarAdjust)
+    da.year_assessed = 2016
+
+    if cap == false
+        return 0.0
+    else
+        divertor_area = 0.2 * dd.equilibrium.time_slice[].profiles_1d.surface[end]  # assume 20% of first wall is covered by divertor
+        divertor_capital_cost = 1.2 * divertor_area * 0.114
+        cost = 1.1 * divertor_capital_cost
+    end
+
+    return future_dollars(cost, da)
+end
 
 #= ====================== =#
 #      yearly fuel cost    #
 #= ====================== =#
 
 #Equation 23 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016) 
-function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
+function cost_fuel_Sheffield(::Type{Val{:blanket}}, cap::Bool, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, blanket_fluence_lifetime::Real, power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = 2016
 
     bd = dd.build
@@ -268,28 +306,39 @@ function cost_fuel_Sheffield(::Type{Val{:blanket}}, dd::IMAS.dd, fixed_charge_ra
 
     blankets = IMAS.get_build_layers(bd.layer, type=IMAS._blanket_, fs=_lfs_)
 
-    if isempty(blankets)
-        cost = 0
-    else
-        blanket = blankets[1]
-        initial_cost_blanket = blanket.volume * unit_cost(blanket.material, cst)
+    cost = 0.0
+    if !isempty(blankets)
+        for blanket in blankets
+            initial_cost_blanket = 1.1 * blanket.volume * unit_cost(blanket.material, cst)
 
-        blanket_capital_cost = 1.1 * initial_cost_blanket * fixed_charge_rate
-        blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m^2
+            if cap
+                blanket_capital_cost = 0.0
+                blanket_replacement_cost = availability * (neutron_flux / blanket_fluence_lifetime) * initial_cost_blanket
+            else
+                blanket_capital_cost = initial_cost_blanket * fixed_charge_rate
+                blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m^2
+            end
 
-        cost = 1.1 * (blanket_capital_cost + blanket_replacement_cost)
+            cost += 1.1 * (blanket_capital_cost + blanket_replacement_cost)
+        end
     end
     return future_dollars(cost, da)
 end
 
 #Equation 24
-function cost_fuel_Sheffield(::Type{Val{:divertor}}, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
+function cost_fuel_Sheffield(::Type{Val{:divertor}}, cap::Bool, dd::IMAS.dd, fixed_charge_rate::Real, availability::Real, plant_lifetime::Real, neutron_flux::Real, thermal_flux::Real, divertor_fluence_lifetime::Real, power_electric_net, da::DollarAdjust)
     da.year_assessed = 2016
 
-    initial_cost_divertor = 0.1 * 0.114 * 0.8 * ((IMAS.fusion_power(dd) / 1e6) / neutron_flux)
+    divertor_area = 0.2 * dd.equilibrium.time_slice[].profiles_1d.surface[end]  # assume 20% of first wall is covered by divertor
+    initial_cost_divertor = 1.2 * divertor_area * 0.114
 
-    divertor_capital_cost = 1.1 * initial_cost_divertor * fixed_charge_rate
-    divertor_replacement_cost = (availability * plant_lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / plant_lifetime #divertor fluence lifetime in MW*yr/m^2
+    if cap
+        divertor_capital_cost = 0.0
+        divertor_replacement_cost = availability * (thermal_flux / divertor_fluence_lifetime) * initial_cost_divertor
+    else
+        divertor_capital_cost = initial_cost_divertor * fixed_charge_rate
+        divertor_replacement_cost = (availability * plant_lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / plant_lifetime #divertor fluence lifetime in MW*yr/m^2
+    end
 
     cost = 1.1 * (divertor_capital_cost + divertor_replacement_cost)
     return future_dollars(cost, da)
@@ -313,7 +362,7 @@ end
 
 function cost_operations_maintenance_Sheffield(power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = 1983
-    if power_electric_net == 0
+    if power_electric_net == 0.0
         cost = 49.1 # $M/yr 
     else
         power_electric_net = power_electric_net / 1e6
