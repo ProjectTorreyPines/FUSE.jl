@@ -5,12 +5,13 @@ import Distributed
         ini::ParametersAllInits,
         act::ParametersAllActors,
         actor_or_workflow::Union{Type{<:AbstractActor},Function},
-        objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
-        constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[],
+        objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
+        constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
+        exploitation_vs_exploration::Float64=1.0,
         N::Int=10,
         iterations::Int=N,
-        continue_state::Union{Missing,Metaheuristics.State}=missing
-    )
+        continue_state::Union{Missing,Metaheuristics.State}=missing,
+        save_folder::AbstractString="optimization_runs")
 
 Multi-objective optimization of either an `actor(dd, act)` or a `workflow(ini, act)`
 """
@@ -115,7 +116,7 @@ function workflow_multiobjective_optimization(
     return state
 end
 
-function is_dominated(sol_a::Vector{T}, sol_b::Vector{T}) where T
+function is_dominated(sol_a::Vector{T}, sol_b::Vector{T}) where {T}
     return all(sol_b .<= sol_a) .&& any(sol_b .< sol_a)
 end
 
@@ -124,7 +125,7 @@ end
 
 returns indexes of solutions that form the pareto front
 """
-function pareto_front(solutions::Vector{Vector{T}}) where T
+function pareto_front(solutions::Vector{Vector{T}}) where {T}
     pareto = Int[]
     for i in eachindex(solutions)
         is_dominated_by_any = false

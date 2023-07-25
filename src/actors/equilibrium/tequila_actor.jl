@@ -55,7 +55,7 @@ function _step(actor::ActorTEQUILA)
     eq1d = eqt.profiles_1d
 
     # BCL 5/30/23: ψbound should be set time dependently, related to the flux swing of the OH coils
-    #              For now setting to zero as initial eq1d.psi profile from prepare_eq can be nonsense
+    #              For now setting to zero as initial eq1d.psi profile from prepare() can be nonsense
     actor.ψbound = 0.0 #IMAS.interp1d(eq1d.psi_norm, eq1d.psi)(par.psi_norm_boundary_cutoff)
 
     r_bound = eqt.boundary.outline.r

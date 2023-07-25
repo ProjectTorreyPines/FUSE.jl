@@ -61,7 +61,7 @@ function _step(actor::ActorEquilibrium)
     end
 
     # initialize eqt for equilibrium actors
-    prepare_eq(actor)
+    prepare(actor)
 
     # step selected equilibrium actor
     step(actor.eq_actor)
@@ -105,7 +105,7 @@ Prepare `dd.equilbrium` to run equilibrium actors
 * Copy pressure from core_profiles to equilibrium
 * Copy j_tor from core_profiles to equilibrium
 """
-function prepare_eq(actor::ActorEquilibrium)
+function prepare(actor::ActorEquilibrium)
     dd = actor.dd
     ps = dd.pulse_schedule
     pc = ps.position_control
