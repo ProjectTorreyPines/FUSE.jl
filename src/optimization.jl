@@ -195,6 +195,7 @@ function optimization_engine(
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
+    save_dd::Bool=true,
 )
     # update ini based on input optimization vector `x`
     #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
@@ -212,10 +213,16 @@ function optimization_engine(
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(savedir, IMAS.dd(), ini, act; freeze=true)
+            if save_dd
+                save(savedir, dd, ini, act; freeze=true)
+            else
+                save(savedir, IMAS.dd(), ini, act; freeze=true)
+            end
         end
         # evaluate multiple objectives
-        return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
+        if (!ismissing(objectives_functions) && !ismissing(constraints_funciton))
+            return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
+        end
     catch e
         # save empty dd and error to directory
         if !isempty(save_folder)
@@ -227,7 +234,9 @@ function optimization_engine(
             end
         end
         # rethrow() # uncomment for debugging purposes
-        return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
+        if (!ismissing(objectives_functions) && !ismissing(constraints_funciton))
+            return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
+        end
     end
 end
 
@@ -242,6 +251,7 @@ end
         save_folder::AbstractString,
         p::ProgressMeter.Progress)
 
+If either objectives_functions or constraints_functions are missing, then only do distributed FUSE runs and do not return optimization vectors.        
 NOTE: this function is run by the master process
 """
 function optimization_engine(
@@ -252,25 +262,29 @@ function optimization_engine(
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
-    p::ProgressMeter.Progress)
+    p::ProgressMeter.Progress,
+    save_dd::Bool=true,
+    )
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
-    F = zeros(size(X)[1], length(tmp[1][1]))
-    G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
-    H = zeros(size(X)[1], max(length(tmp[1][3]), 1))
-    for k in 1:size(X)[1]
-        f, g, h = tmp[k]
-        F[k, :] .= f
-        if !isempty(g)
-            G[k, :] .= g
+    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder, save_dd), [X[k, :] for k in 1:size(X)[1]])
+    if (!ismissing(objectives_functions) && !ismissing(constraints_funciton))
+        F = zeros(size(X)[1], length(tmp[1][1]))
+        G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
+        H = zeros(size(X)[1], max(length(tmp[1][3]), 1))
+        for k in 1:size(X)[1]
+            f, g, h = tmp[k]
+            F[k, :] .= f
+            if !isempty(g)
+                G[k, :] .= g
+            end
+            if !isempty(h)
+                H[k, :] .= h
+            end
         end
-        if !isempty(h)
-            H[k, :] .= h
-        end
+        return F, G, H
     end
-    return F, G, H
 end
 
 """
@@ -284,85 +298,4 @@ function nan2inf(x::Float64)::Float64
     else
         return x
     end
-end
-
-
-# =================== #
-# Evaluation engine #
-# =================== #
-"""
-    evaluation_engine(
-        ini::ParametersAllInits,
-        act::ParametersAllActors,
-        actor_or_workflow::Union{Type{<:AbstractActor},Function},
-        x::AbstractVector,
-        save_folder::AbstractString)
-
-NOTE: This function is run by the worker nodes
-"""
-function evaluation_engine(
-    ini::ParametersAllInits,
-    act::ParametersAllActors,
-    actor_or_workflow::Union{Type{<:AbstractActor},Function},
-    x::AbstractVector,
-    save_folder::AbstractString,
-)
-    # update ini based on input optimization vector `x`
-    #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
-    parameters_from_opt!(ini, x)
-
-    # run the problem
-    try
-        if typeof(actor_or_workflow) <: Function
-            dd = actor_or_workflow(ini, act)
-        else
-            dd = init(ini, act)
-            actor = actor_or_workflow(dd, act)
-            dd = actor.dd
-        end
-        # save simulation data to directory
-        if !isempty(save_folder)
-            savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(savedir, dd, ini, act; freeze=true)
-        end
-
-    catch e
-        # save empty dd and error to directory
-        if !isempty(save_folder)
-            if typeof(e) <: Exception # somehow sometimes `e` is of type String?
-                savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-                save(savedir, IMAS.dd(), ini, act, e; freeze=true)
-            else
-                @warn "typeof(e) in optimization_engine is String: $e"
-            end
-        end
-    end
-end
-
-"""
-    function evaluation_engine(
-        ini::ParametersAllInits,
-        act::ParametersAllActors,
-        actor_or_workflow::Union{Type{<:AbstractActor},Function},
-        X::AbstractMatrix,
-        save_folder::AbstractString,
-        p::ProgressMeter.Progress)
-
-NOTE: this function is run by the master process
-"""
-function evaluation_engine(
-    ini::ParametersAllInits,
-    act::ParametersAllActors,
-    actor_or_workflow::Union{Type{<:AbstractActor},Function},
-    X::AbstractMatrix,
-    save_folder::AbstractString)
-
-    save_folder = abspath(save_folder)
-    if !isempty(save_folder)
-        mkpath(save_folder)
-    end
-
-    # parallel evaluation of a generation
-    Distributed.pmap(x -> evaluation_engine(ini, act, actor_or_workflow, x, save_folder), [X[k, :] for k in 1:size(X)[1]])
-
 end
