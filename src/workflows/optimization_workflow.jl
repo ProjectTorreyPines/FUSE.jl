@@ -20,7 +20,7 @@ function workflow_multiobjective_optimization(
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
     constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
-    exploration::AbstractString="nominal",
+    exploration::Switch{Symbol} = Switch{Symbol}([:nominal, :exploratory, :very_exploratory], "-", "SPEA2 algorithm setting"; default=:nominal),
     N::Int=10,
     iterations::Int=N,
     continue_state::Union{Missing,Metaheuristics.State}=missing,
