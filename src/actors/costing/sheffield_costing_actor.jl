@@ -92,27 +92,27 @@ function _step(actor::ActorSheffieldCosting)
     ##### fusion island
     sys_fi = resize!(cost_direct.system, "name" => "tokamak")
 
-    #main heat transfer system 
+    # main heat transfer system 
     sub = resize!(sys_fi.subsystem, "name" => "main heat transfer system")
     sub.cost = cost_direct_capital_Sheffield(:main_heat_transfer_system, power_thermal, da)
     total_direct_capital_cost += sub.cost
 
-    #primary coils 
+    # primary coils 
     sub = resize!(sys_fi.subsystem, "name" => "primary coils")
     sub.cost = cost_direct_capital_Sheffield(:primary_coils, cst, bd, da)
     total_direct_capital_cost += sub.cost
 
-    #shields 
+    # shields 
     sub = resize!(sys_fi.subsystem, "name" => "shields")
     sub.cost = cost_direct_capital_Sheffield(:shields, cst, bd, da)
     total_direct_capital_cost += sub.cost
 
-    #structure 
+    # structure 
     sub = resize!(sys_fi.subsystem, "name" => "structure")
     sub.cost = cost_direct_capital_Sheffield(:structure, cst, bd, da)
     total_direct_capital_cost += sub.cost
 
-    #aux power 
+    # aux power 
     sub = resize!(sys_fi.subsystem, "name" => "aux power")
     sub.cost = cost_direct_capital_Sheffield(:aux_power, ec_power, ic_power, lh_power, nb_power, da)
     total_direct_capital_cost += sub.cost
@@ -122,7 +122,7 @@ function _step(actor::ActorSheffieldCosting)
     sub.cost = cost_direct_capital_Sheffield(:blanket, par.capitalize_blanket, dd, da)
     total_direct_capital_cost += sub.cost
 
-    #divertor
+    # divertor
     sub = resize!(sys_fi.subsystem, "name" => "divertor")
     sub.cost = cost_direct_capital_Sheffield(:divertor, par.capitalize_divertor, dd, da)
     total_direct_capital_cost += sub.cost
@@ -130,12 +130,12 @@ function _step(actor::ActorSheffieldCosting)
     ##### Facility structures, buildings and site 
     sys_bld = resize!(cost_direct.system, "name" => "facility")
 
-    #balance of plant
+    # balance of plant
     sub = resize!(sys_bld.subsystem, "name" => "balance of plant")
     sub.cost = cost_direct_capital_Sheffield(:balance_of_plant, power_electric_net, power_thermal, da)
     total_direct_capital_cost += sub.cost
 
-    #buildings 
+    # buildings 
     sub = resize!(sys_bld.subsystem, "name" => "buildings")
     sub.cost = cost_direct_capital_Sheffield(:buildings, bd, da)
     total_direct_capital_cost += sub.cost
