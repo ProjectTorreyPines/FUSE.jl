@@ -53,7 +53,7 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
 end
 
 """
-    step(actor::ActorFluxCalculator)
+    _step(actor::ActorFluxCalculator)
 
 Runs through the selected equilibrium actor's step
 """
@@ -64,7 +64,7 @@ function _step(actor::ActorFluxCalculator)
 end
 
 """
-    finalize(actor::ActorFluxCalculator)
+    _finalize(actor::ActorFluxCalculator)
 
 Finalizes the selected equilibrium actor
 """

@@ -63,7 +63,7 @@ function _step(actor::ActorHCD)
 end
 
 """
-    finalize(actor::ActorHCD)
+    _finalize(actor::ActorHCD)
 
 Finalizes the selected CHD actor's finalize
 """

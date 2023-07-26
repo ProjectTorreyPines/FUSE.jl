@@ -586,29 +586,3 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     # display(plot(layer.outline.r, layer.outline.z; aspect_ratio=:equal))
 end
 
-function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
-    bd = dd.build
-    for (k, layer) in enumerate(bd.layer)
-        if k == 1 && ini.center_stack.plug
-            layer.material = ini.material.wall
-        elseif layer.type == Int(_plasma_)
-            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in dd.build.layer)) ? "DT_plasma" : "DD_plasma"
-        elseif layer.type == Int(_gap_)
-            layer.material = "Vacuum"
-        elseif layer.type == Int(_oh_)
-            layer.material = dd.build.oh.technology.material
-        elseif layer.type == Int(_tf_)
-            layer.material = dd.build.tf.technology.material
-        elseif layer.type == Int(_shield_)
-            layer.material = ini.material.shield
-        elseif layer.type == Int(_blanket_)
-            layer.material = ini.material.blanket
-        elseif layer.type == Int(_wall_)
-            layer.material = ini.material.wall
-        elseif layer.type == Int(_vessel_)
-            layer.material = "Water, Liquid"
-        elseif layer.type == Int(_cryostat_)
-            layer.material = ini.material.wall
-        end
-    end
-end

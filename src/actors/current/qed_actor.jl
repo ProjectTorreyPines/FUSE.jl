@@ -54,7 +54,7 @@ function _step(actor::ActorQED)
     dd = actor.dd
     par = actor.par
 
-    # starecase approach
+    # staircase approach
     actor.QO = deepcopy(actor.QI)
     tnow = actor.t0
     δt = par.Δt / par.Nt
