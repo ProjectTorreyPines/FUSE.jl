@@ -11,7 +11,8 @@ import Distributed
         N::Int=10,
         iterations::Int=N,
         continue_state::Union{Missing,Metaheuristics.State}=missing,
-        save_folder::AbstractString="optimization_runs")
+        save_folder::AbstractString="optimization_runs",
+        save_dd::Bool=true)
 
 Multi-objective optimization of either an `actor(dd, act)` or a `workflow(ini, act)`
 """
@@ -25,7 +26,8 @@ function workflow_multiobjective_optimization(
     N::Int=10,
     iterations::Int=N,
     continue_state::Union{Missing,Metaheuristics.State}=missing,
-    save_folder::AbstractString="optimization_runs")
+    save_folder::AbstractString="optimization_runs",
+    save_dd::Bool=true)
 
     if mod(N, 2) > 0
         error("workflow_multiobjective_optimization population size `N` must be an even number")
@@ -96,7 +98,7 @@ function workflow_multiobjective_optimization(
     flush(stdout)
 
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, save_dd, p), bounds, algorithm)
     display(state)
 
     return state

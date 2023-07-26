@@ -194,7 +194,7 @@ Read (dd, ini, act) to dd.json/h5, ini.json, and act.json files.
 Returns `missing` for files are not there or if `error.txt` file exists in the folder.
 """
 function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
-    if isfile(joinpath(savedir, "error.txt")) && skip_on_error
+    if skip_on_error && isfile(joinpath(savedir, "error.txt"))
         @warn "$savedir simulation errored"
         return missing, missing, missing
     end
