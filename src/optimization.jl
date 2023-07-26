@@ -183,7 +183,8 @@ end
         x::AbstractVector,
         objectives_functions::AbstractVector{<:ObjectiveFunction},
         constraints_functions::AbstractVector{<:ConstraintFunction},
-        save_folder::AbstractString)
+        save_folder::AbstractString,
+        save_dd::Bool=true)
 
 NOTE: This function is run by the worker nodes
 """
@@ -195,8 +196,8 @@ function optimization_engine(
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
-    save_dd::Bool=true,
-)
+    save_dd::Bool=true)
+
     # update ini based on input optimization vector `x`
     #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
     parameters_from_opt!(ini, x)
@@ -213,30 +214,22 @@ function optimization_engine(
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            if save_dd
-                save(savedir, dd, ini, act; freeze=true)
-            else
-                save(savedir, IMAS.dd(), ini, act; freeze=true)
-            end
+            save(savedir, save_dd ? dd : nothing, ini, act; freeze=true)
         end
         # evaluate multiple objectives
-        if (!ismissing(objectives_functions) && !ismissing(constraints_funciton))
-            return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
-        end
+        return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
     catch e
         # save empty dd and error to directory
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
                 savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-                save(savedir, IMAS.dd(), ini, act, e; freeze=true)
+                save(savedir, nothing, ini, act, e; freeze=true)
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
             end
         end
         # rethrow() # uncomment for debugging purposes
-        if (!ismissing(objectives_functions) && !ismissing(constraints_funciton))
-            return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
-        end
+        return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
     end
 end
 
@@ -249,9 +242,9 @@ end
         objectives_functions::AbstractVector{<:ObjectiveFunction},
         constraints_functions::AbstractVector{<:ConstraintFunction},
         save_folder::AbstractString,
+        save_dd::Bool,
         p::ProgressMeter.Progress)
 
-If either objectives_functions or constraints_functions are missing, then only do distributed FUSE runs and do not return optimization vectors.        
 NOTE: this function is run by the master process
 """
 function optimization_engine(
@@ -262,29 +255,26 @@ function optimization_engine(
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
-    p::ProgressMeter.Progress,
-    save_dd::Bool=true,
-    )
+    save_dd::Bool,
+    p::ProgressMeter.Progress)
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder, save_dd), [X[k, :] for k in 1:size(X)[1]])
-    if (!ismissing(objectives_functions) && !ismissing(constraints_funciton))
-        F = zeros(size(X)[1], length(tmp[1][1]))
-        G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
-        H = zeros(size(X)[1], max(length(tmp[1][3]), 1))
-        for k in 1:size(X)[1]
-            f, g, h = tmp[k]
-            F[k, :] .= f
-            if !isempty(g)
-                G[k, :] .= g
-            end
-            if !isempty(h)
-                H[k, :] .= h
-            end
+    F = zeros(size(X)[1], length(tmp[1][1]))
+    G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
+    H = zeros(size(X)[1], max(length(tmp[1][3]), 1))
+    for k in 1:size(X)[1]
+        f, g, h = tmp[k]
+        F[k, :] .= f
+        if !isempty(g)
+            G[k, :] .= g
         end
-        return F, G, H
+        if !isempty(h)
+            H[k, :] .= h
+        end
     end
+    return F, G, H
 end
 
 """
