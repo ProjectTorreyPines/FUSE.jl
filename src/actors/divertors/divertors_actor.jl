@@ -54,10 +54,6 @@ function _step(actor::ActorDivertors)
     # up the flux expansion calculation
     hfs_sol, lfs_sol = IMAS.sol(eqt, dd.wall; levels=[1E-2, 1.1E-2])
     Psol = IMAS.power_sol(dd.core_sources, cp1d)
-    if Psol <= 0.0
-        Psol = 1.0 # W
-        @warn "Psol is <= 0, setting to 1.0W so that λ_omp is finite"
-    end
     λ_omp = IMAS.widthSOL_eich(eqt, Psol)
     flux_expansion = IMAS.flux_expansion(lfs_sol)
     sol1 = lfs_sol[1]

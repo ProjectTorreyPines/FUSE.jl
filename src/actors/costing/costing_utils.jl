@@ -140,28 +140,6 @@ function cost_decomissioning_Sheffield(item::Symbol, args...; kw...)
     return cost_decomissioning_Sheffield(Val{item}, args...; kw...)
 end
 
-#GASC
-
-function cost_direct_capital_GASC(item::Symbol, args...; kw...)
-    return cost_direct_capital_GASC(Val{item}, args...; kw...)
-end
-
-function cost_ops_GASC(item::Symbol, args...; kw...)
-    return cost_ops_GASC(Val{item}, args...; kw...)
-end
-
-function cost_fuel_GASC(item::Symbol, args...; kw...)
-    return cost_fuel_GASC(Val{item}, args...; kw...)
-end
-
-function cost_operations_GASC(item::Symbol, args...; kw...)
-    return cost_operations_GASC(Val{item}, args...; kw...)
-end
-
-function cost_decomissioning_GASC(item::Symbol, args...; kw...)
-    return cost_decomissioning_GASC(Val{item}, args...; kw...)
-end
-
 #ARIES
 
 function cost_direct_capital_ARIES(item::Symbol, args...; kw...)

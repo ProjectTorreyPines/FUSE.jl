@@ -22,7 +22,7 @@ function workflow_multiobjective_optimization(
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
     constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
-    exploration::Switch{Symbol} = Switch{Symbol}([:nominal, :exploratory, :very_exploratory], "-", "SPEA2 algorithm setting"; default=:nominal),
+    exploitation_vs_exploration::Float64=1.0,
     N::Int=10,
     iterations::Int=N,
     continue_state::Union{Missing,Metaheuristics.State}=missing,
@@ -79,30 +79,16 @@ function workflow_multiobjective_optimization(
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
     # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2
-    
-    # nominal
-    if exploration == "nominal"
-        η_cr = 20
-        p_cr = 0.9
-        η_m = 20
-        p_m = 1.0 / length(objectives_functions)
-    end
 
-    # increased exploration
-    if exploration == "exploratory"
-        η_cr = 30  # Increase the crossover distribution index
-        p_cr = 0.6  # Decrease the crossover probability
-        η_m = 30  # Increase the mutation distribution index
-        p_m = 2.0 / length(objectives_functions)  # Increase the mutation probability
-    end
-
-    # very increased exploration
-    if exploration == "very exploratory"
-        η_cr = 40  # Increase the crossover distribution index
-        p_cr = 0.5  # Decrease the crossover probability
-        η_m = 50  # Increase the mutation distribution index
-        p_m = 4.0 / length(objectives_functions)  # Increase the mutation probability
-    end
+    # set algorithm parameters depending on exploitation_vs_exploration index
+    # crossover distribution index
+    η_cr = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 40.0], :cubic).(exploitation_vs_exploration)))
+    # crossover probability
+    p_cr = IMAS.interp1d([0.0, 1.0, 2.0], [0.9, 0.6, 0.5], :cubic).(exploitation_vs_exploration)
+    # mutation distribution index
+    η_m = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20, 30, 50], :cubic).(exploitation_vs_exploration)))
+    # mutation probability
+    η_m = IMAS.interp1d([0.0, 1.0, 2.0], [1.0, 2.0, 4.0], :cubic).(exploitation_vs_exploration)
 
     algorithm = Metaheuristics.SPEA2(; N, η_cr, p_cr, η_m, p_m, options) # converges and covers well the pareto front! 
     if continue_state !== missing
