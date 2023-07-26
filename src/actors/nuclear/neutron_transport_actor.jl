@@ -221,8 +221,84 @@ function write_neutron_flux_vtk(sol::MoCSolution{T}, groups::Union{Vector{Int},U
 end
 
 function neutron_transport_1d(dd::IMAS.dd, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
-    thicknesses = [layer.thickness*100 for layer in dd.build.layer if -1 <= layer.fs <= 2]
-    materials = [layer.material for layer in dd.build.layer if -1 <= layer.fs <= 2]
-    layers = [layer.name for layer in dd.build.layer if -1 <= layer.fs <= 2]
+    thicknesses = [layer.thickness*100 for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]
+    materials = [layer.material for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]
+    layers = [layer.name for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]
     return concentric_circles(thicknesses, materials, layers, data_path, data_filename, save_path, save_filename)
+end
+
+function construct_boundary(r_coords, z_coords, surface_number)
+    factory = gmsh.model.geo
+    lc = 30
+    coords = [factory.addPoint(r,z,0,lc,surface_number*100000+x) for (x, (r, z)) in enumerate(zip(r_coords, z_coords))]
+    pop!(coords)
+    lines = [factory.addLine(coords[x], coords[x+1], surface_number*100000+x) for x in 1:length(coords)-1]
+    append!(lines, factory.addLine(coords[length(coords)], coords[1], surface_number*100000+length(coords)))
+    boundary = factory.addCurveLoop(lines, surface_number)
+    return boundary
+end
+
+function construct_boundary(r_coords, z_coords)
+    # square cell
+    factory = gmsh.model.geo
+    lc = 30
+    top_right = factory.addPoint(r_coords[1], z_coords[1], 0, lc, 999991)
+    bottom_right = factory.addPoint(r_coords[2], z_coords[2], 0, lc, 999992)
+    bottom_left = factory.addPoint(r_coords[3], z_coords[3], 0, lc, 999993)
+    top_left = factory.addPoint(r_coords[4], z_coords[4], 0, lc, 999994)
+    right = factory.addLine(top_right, bottom_right,  999995)
+    bottom = factory.addLine(bottom_right, bottom_left, 999996)
+    left = factory.addLine(bottom_left, top_left, 999997)
+    top = factory.addLine(top_left, top_right, 999998)
+    boundary = factory.addCurveLoop([right, bottom, left, top], 999999)
+
+    # boundaries
+    right_bound = factory.addPhysicalGroup(1,  [right], 999991)
+    bottom_bound = factory.addPhysicalGroup(1, [bottom], 999992)
+    left_bound = factory.addPhysicalGroup(1, [left], 999993)
+    top_bound = factory.addPhysicalGroup(1, [top], 999994)
+    GridapGmsh.gmsh.model.setPhysicalName(1, right_bound, "right")
+    GridapGmsh.gmsh.model.setPhysicalName(1, bottom_bound, "bottom")
+    GridapGmsh.gmsh.model.setPhysicalName(1, left_bound, "left")
+    GridapGmsh.gmsh.model.setPhysicalName(1, top_bound, "top")
+    return boundary
+end
+
+function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
+    gmsh.initialize()
+    factory = gmsh.model.geo
+    names = [layer.name for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]
+    materials = [replace(layer.material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)") for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]
+    boundaries = [construct_boundary(layer.outline.r * 100, layer.outline.z * 100, idx) for (idx, layer) in enumerate(IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_]))]
+    
+    push!(materials, "Air-(dry,-near-sea-level)")
+    push!(names, "Exterior")
+    max_z = maximum([maximum(layer.outline.z) for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]) * 100 + 1.0
+    min_z = minimum([minimum(layer.outline.z) for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]) * 100 - 1.0
+    max_r = maximum([maximum(layer.outline.r) for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]) * 100 + 1.0
+    min_r = 0.0
+    r_bounds = [max_r, min_r, min_r, max_r]
+    z_bounds = [max_z, max_z, min_z, min_z]
+    push!(boundaries, construct_boundary(r_bounds, z_bounds))
+
+    for idx in eachindex(boundaries)
+        if dd.build.layer[idx].fs == IMAS._lfs_
+            surface = factory.addPlaneSurface([boundaries[idx], boundaries[idx+1]], idx)
+        else
+            surface = factory.addPlaneSurface([boundaries[idx]], idx)
+        end
+        material = factory.addPhysicalGroup(2, [idx], idx)
+        GridapGmsh.gmsh.model.setPhysicalName(2, idx, names[idx]) 
+    end
+
+    data_filename=joinpath(data_path, data_filename)
+    xss = [get_xss_from_hdf5(data_filename, materials[idx], names[idx]) for idx in eachindex(boundaries)]
+    factory.synchronize()
+    gmsh.model.mesh.generate(2)
+    mshfile = joinpath(save_path, save_filename * ".msh")
+
+    gmsh.fltk.run()
+    gmsh.finalize()
+    gmsh.clear()
+
 end
