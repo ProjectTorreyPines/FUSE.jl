@@ -7,7 +7,7 @@ import Distributed
         actor_or_workflow::Union{Type{<:AbstractActor},Function},
         objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
         constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
-        exploitation_vs_exploration::Float64=1.0,
+        exploitation_vs_exploration::Float64=0.0,
         N::Int=10,
         iterations::Int=N,
         continue_state::Union{Missing,Metaheuristics.State}=missing,
@@ -22,7 +22,7 @@ function workflow_multiobjective_optimization(
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
     constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
-    exploitation_vs_exploration::Float64=1.0,
+    exploitation_vs_exploration::Float64=0.0,
     N::Int=10,
     iterations::Int=N,
     continue_state::Union{Missing,Metaheuristics.State}=missing,
