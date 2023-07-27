@@ -177,8 +177,11 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     q_pol_omp::Entry{T} = Entry{T}(IMAS.requirements, :q_pol_omp)
     lh_power_threshold_fraction::Entry{T} = Entry{T}(IMAS.requirements, :lh_power_threshold_fraction)
     h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2)
-    ds03::Entry{T} = Entry{T}(IMAS.requirements, :ds03)
+    hds03::Entry{T} = Entry{T}(IMAS.requirements, :hds03)
     βn::Entry{T} = Entry{T}(IMAS.requirements, :βn)
+    coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin)
+    coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin)
+
 end
 
 mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
