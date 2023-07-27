@@ -71,12 +71,12 @@ function _step(actor::ActorHFSsizing)
 
     function assign_PL_OH_TF(x0)
         # assign optimization arguments
-        PL.thickness = mirror_bound(x0[1], 0.0, 100.0)
-        OH.thickness = mirror_bound(x0[2], 0.0, 100.0)
-        TFhfs.thickness = mirror_bound(x0[3], 0.0, 100.0)
+        OH.thickness = mirror_bound(x0[1], 0.0, CPradius - OHTFgap)
+        TFhfs.thickness = mirror_bound(x0[2], 0.0, CPradius - OH.thickness - OHTFgap)
+        PL.thickness = CPradius - TFhfs.thickness - OH.thickness - OHTFgap
         TFlfs.thickness = TFhfs.thickness
-        dd.build.oh.technology.fraction_steel = mirror_bound(x0[4], 0.45, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
-        dd.build.tf.technology.fraction_steel = mirror_bound(x0[5], 0.45, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
+        dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.0, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
+        dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.0, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
         if par.aspect_ratio_tolerance == 0.0
             # NOTE: the blanket expands to keep original plasma major radius constant
             R0 = (plasma.end_radius + plasma.start_radius) / 2.0
@@ -121,9 +121,6 @@ function _step(actor::ActorHFSsizing)
             c_flt = 0.0
         end
 
-        # favor smaller center stacks
-        c_siz = norm([OH.thickness + PL.thickness, TFhfs.thickness]) / old_R0 * 1E-3
-
         if par.verbose
             push!(C_JOH, c_joh)
             push!(C_SOH, c_soh)
@@ -131,11 +128,10 @@ function _step(actor::ActorHFSsizing)
             push!(C_STF, c_stf)
             push!(C_SPL, c_spl)
             push!(C_FLT, c_flt)
-            push!(C_SIZ, c_siz)
         end
 
         # total cost
-        return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt, c_siz])
+        return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
     end
 
     # initialize
@@ -152,6 +148,9 @@ function _step(actor::ActorHFSsizing)
     TFlfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_)
     plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
 
+    CPradius = TFhfs.end_radius
+    OHTFgap = CPradius - TFhfs.thickness - OH.thickness - PL.thickness
+
     target_B0 = maximum(abs.(dd.equilibrium.vacuum_toroidal_field.b0))
     a = (plasma.end_radius - plasma.start_radius) / 2.0
     old_R0 = (plasma.end_radius + plasma.start_radius) / 2.0
@@ -163,14 +162,13 @@ function _step(actor::ActorHFSsizing)
         C_STF = Float64[]
         C_SPL = Float64[]
         C_FLT = Float64[]
-        C_SIZ = Float64[]
     end
 
     # optimization
     old_build = deepcopy(dd.build)
     res = Optim.optimize(
         x0 -> cost(x0),
-        [PL.thickness, OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
+        [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
         Optim.NelderMead(),
         Optim.Options(iterations=10000);
         autodiff=:forward
@@ -220,9 +218,6 @@ function _step(actor::ActorHFSsizing)
             plot!(p, C_STF, label="cost stress TF")
             if sum(C_FLT) > 0.0
                 plot!(p, C_FLT, label="cost flattop")
-            end
-            if sum(C_SIZ) > 0.0
-                plot!(p, C_SIZ, label="cost cs size")
             end
             display(p)
         end
