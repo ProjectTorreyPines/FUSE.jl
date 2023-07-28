@@ -21,7 +21,7 @@ header:
 
 # =========================
 
-JULIA_DIR ?= $(HOME)/.julia
+JULIA_DIR ?= $(shell realpath $(HOME)/.julia)
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -62,10 +62,10 @@ threads:
 
 # remove everything under $HOME/.julia besides $HOME/.julia/dev
 nuke_julia:
-	mv $(JULIA_PKG_DEVDIR) ~/asddsaasddsa
+	mv $(JULIA_PKG_DEVDIR) $(shell realpath $(JULIA_DIR)/../asddsaasddsa)
 	rm -rf $(JULIA_DIR)
 	mkdir -p $(JULIA_DIR)
-	mv ~/asddsaasddsa $(JULIA_PKG_DEVDIR)
+	mv $(shell realpath $(JULIA_DIR)/../asddsaasddsa) $(JULIA_PKG_DEVDIR)
 
 # install the GAregistry to the list of Julia registries
 registry:
@@ -282,6 +282,8 @@ IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));
 '
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
+	jupyter nbextension list
+	jupyter labextension list
 
 # Install PyCall
 PyCall:
