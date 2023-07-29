@@ -1267,10 +1267,16 @@ uuid = "804828d9-b4e9-4eca-b847-748d6c7bafa9"
 version = "0.2.0"
 
 [[deps.Meshes]]
-deps = ["Bessels", "CircularArrays", "Distances", "IterTools", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "8e2877e5a4596e2d6af69764852e7e0c23147ed7"
+deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
+git-tree-sha1 = "5142099f0b9990be3a3a8866b16112c2c534c7f0"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.32.3"
+version = "0.33.2"
+
+    [deps.Meshes.extensions]
+    MeshesMakieExt = "Makie"
+
+    [deps.Meshes.weakdeps]
+    Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
 [[deps.Metaheuristics]]
 deps = ["Distances", "JMcDM", "LinearAlgebra", "Pkg", "Printf", "Random", "Reexport", "Requires", "SearchSpaces", "SnoopPrecompile", "Statistics"]
@@ -1517,9 +1523,9 @@ version = "2.7.1"
 
 [[deps.PeriodicTable]]
 deps = ["Base64", "Test", "Unitful"]
-git-tree-sha1 = "5ed1e2691eb13b6e955aff1b7eec0b2401df208c"
+git-tree-sha1 = "9a9731f346797126271405971dfdf4709947718b"
 uuid = "7b2266bf-644c-5ea3-82d8-af4bbd25a884"
-version = "1.1.3"
+version = "1.1.4"
 
 [[deps.PhysicalConstants]]
 deps = ["Measurements", "Roots", "Unitful"]
