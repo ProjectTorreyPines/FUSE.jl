@@ -50,7 +50,14 @@ function _step(actor::ActorDynamicPlasma)
 
     while dd.global_time < t1
         begin # first 1/2 step
-            dd.global_time += δt / 2.0
+
+            # prepare time dependent arrays of structures
+            tt = dd.global_time + δt / 2.0
+            IMAS.new_timeslice!(dd.equilibrirum, tt)
+            IMAS.new_timeslice!(dd.core_profiles, tt)
+            IMAS.new_timeslice!(dd.core_source, tt)
+            IMAS.new_timeslice!(dd.core_transport, tt)
+            dd.global_time = tt
 
             # run transport actor
             finalize(step(actor.actor_tr))
@@ -63,7 +70,14 @@ function _step(actor::ActorDynamicPlasma)
         end
 
         begin # second 1/2 step
-            dd.global_time += δt / 2.0
+
+            # prepare time dependent arrays of structures
+            tt = dd.global_time + δt / 2.0
+            IMAS.new_timeslice!(dd.equilibrirum, tt)
+            IMAS.new_timeslice!(dd.core_profiles, tt)
+            IMAS.new_timeslice!(dd.core_source, tt)
+            IMAS.new_timeslice!(dd.core_transport, tt)
+            dd.global_time = tt
 
             # evolve j_ohmic
             finalize(step(actor.actor_jt))

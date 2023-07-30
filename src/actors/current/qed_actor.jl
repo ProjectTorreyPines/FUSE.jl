@@ -25,7 +25,14 @@ end
 """
     ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evolves the plasma current using the QED current diffusion solver
+Evolves the plasma current using the QED current diffusion solver.
+
+!!! note
+    This actor wants the driver to do, before calling the actor:
+
+       IMAS.new_timeslice!(dd, dd.global_time + Δt)
+       dd.global_time += Δt
+       ActorQED(dd, act)
 
 !!! note 
     Stores data in `dd.core_profiles`, `dd.equilbrium`
@@ -47,7 +54,7 @@ function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED; kw...)
     QI = qed_init_from_imas(eqt, prof1d)
     QO = deepcopy(QI)
 
-    return ActorQED(dd, par, η_imas(prof1d), QI, QO, dd.global_time, dd.global_time + par.Δt)
+    return ActorQED(dd, par, η_imas(prof1d), QI, QO, dd.global_time - par.Δt, dd.global_time)
 end
 
 function _step(actor::ActorQED)
@@ -75,29 +82,20 @@ end
 function _finalize(actor::ActorQED)
     dd = actor.dd
 
-    # go to the next global time
-    dd.global_time = actor.t1
-
     # set the total toroidal current for new time slices in both equilibrium as well as core_profiles IDSs
     # NOTE: Here really we only care about core_profiles, since when the equilibrium actor is run,
     # then the new equilibrium time slice will be prepared based on the core_profiles current
-    eqt = dd.equilibrium.time_slice[actor.t0]
-    eqt_new = deepcopy(eqt)
-    push!(dd.equilibrium.time_slice, eqt_new, actor.t1)
-    @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = dd.equilibrium.vacuum_toroidal_field.b0[end])
-    dΡ_dρ = eqt_new.profiles_1d.rho_tor[end]
-    ρ = eqt_new.profiles_1d.rho_tor / dΡ_dρ
-    eqt_new.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
-    eqt_new.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt_new.profiles_1d.gm9
+    eqt = dd.equilibrium.time_slice[]
+    dΡ_dρ = eqt.profiles_1d.rho_tor[end]
+    ρ = eqt.profiles_1d.rho_tor / dΡ_dρ
+    eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
+    eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
 
-    # core_profiles
-    cp1d_new = cp1d = dd.core_profiles.profiles_1d[actor.t0]
-    cp1d_new = deepcopy(cp1d)
-    cp1d_new.time = actor.t1
-    push!(dd.core_profiles.profiles_1d, cp1d_new, actor.t1)
-    IMAS.j_total_from_equilibrium!(eqt_new, cp1d_new)
+    # update dd.core_profiles
+    cp1d = dd.core_profiles.profiles_1d[]
+    IMAS.j_total_from_equilibrium!(eqt, cp1d)
 
-    # update core_sources related to current
+    # update dd.core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
 
