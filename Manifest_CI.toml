@@ -1268,9 +1268,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "5142099f0b9990be3a3a8866b16112c2c534c7f0"
+git-tree-sha1 = "e4e5c2ecc2899ea3452aae443c1baae7ec41cd04"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.33.2"
+version = "0.33.4"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
@@ -1517,9 +1517,9 @@ version = "0.12.3"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
-git-tree-sha1 = "4b2e829ee66d4218e0cef22c0a64ee37cf258c29"
+git-tree-sha1 = "716e24b21538abc91f6205fd1d8363f39b442851"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.7.1"
+version = "2.7.2"
 
 [[deps.PeriodicTable]]
 deps = ["Base64", "Test", "Unitful"]
@@ -2067,9 +2067,9 @@ version = "0.4.78"
 
 [[deps.TransformsBase]]
 deps = ["AbstractTrees"]
-git-tree-sha1 = "e826d2ceb71cd8d55bf49fc61bb6b2d4ae3622b5"
+git-tree-sha1 = "ec6182476821cee51649ddb4bf9532826664d597"
 uuid = "28dd2a49-a57a-4bfb-84ca-1a49db9b96b8"
-version = "1.1.0"
+version = "1.1.2"
 
 [[deps.Trapz]]
 git-tree-sha1 = "79eb0ed763084a3e7de81fe1838379ac6a23b6a0"
