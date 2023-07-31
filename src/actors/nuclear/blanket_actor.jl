@@ -200,7 +200,7 @@ function _step(actor::ActorBlanket)
                 module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
                 #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
                 LE = NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)::Vector{Float64}
-                module_neutron_shine_through += (sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons)
+                module_neutron_shine_through = ((sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons) > module_neutron_shine_through ? (sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons) : module_neutron_shine_through)
             end
             modules_neutron_shine_through[ibm] = module_neutron_shine_through
             total_tritium_breeding_ratio += module_tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
