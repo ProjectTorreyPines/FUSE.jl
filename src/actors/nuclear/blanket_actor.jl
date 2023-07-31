@@ -178,13 +178,13 @@ function _step(actor::ActorBlanket)
         energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
         Li6 = min(max(abs(Li6), 0.0), 100.0)
-        modules_neutron_shine_through = Vector{typeof(Li6)}(undef, length(dd.blanket.module))
+        modules_neutron_current_rear = Vector{typeof(Li6)}(undef, length(dd.blanket.module))
         extra_cost = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
             bmt = bm.time_slice[]
             bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
             module_tritium_breeding_ratio = 0.0
-            module_neutron_shine_through = 0.0
+            module_neutron_current_rear = 0.0
             module_wall_loading_power = sum(modules_wall_loading_power[ibm])
             d1 = bm.layer[1].midplane_thickness * abs(modules_relative_thickness13[1+(ibm-1)*2])
             d2 = bm.layer[2].midplane_thickness
@@ -200,16 +200,16 @@ function _step(actor::ActorBlanket)
                 module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
                 #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
                 LE = NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)::Vector{Float64}
-                module_neutron_shine_through = ((sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons) > module_neutron_shine_through ? (sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons) : module_neutron_shine_through)
+                module_neutron_current_rear = ((sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons) > module_neutron_current_rear ? (sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons) : module_neutron_current_rear)
             end
-            modules_neutron_shine_through[ibm] = module_neutron_shine_through
+            modules_neutron_current_rear[ibm] = module_neutron_current_rear
             total_tritium_breeding_ratio += module_tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
             if d1 < min_d1
                 extra_cost += (min_d1 - d1) * 100.0
             end
             if target === 0.0
                 bmt.tritium_breeding_ratio = module_tritium_breeding_ratio
-                bmt.neutron_shine_through = module_neutron_shine_through
+                bmt.neutron_current_rear = module_neutron_current_rear
                 bm.layer[1].midplane_thickness = d1
                 bm.layer[2].midplane_thickness = d2
                 bm.layer[3].midplane_thickness = d3
@@ -218,7 +218,7 @@ function _step(actor::ActorBlanket)
         if target === 0.0
             @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
         else
-            cost = [sqrt(abs(total_tritium_breeding_ratio - target)); maximum(modules_neutron_shine_through); extra_cost] .^ 2
+            cost = [sqrt(abs(total_tritium_breeding_ratio - target)); maximum(modules_neutron_current_rear); extra_cost] .^ 2
             return sum(cost) * (1.0 + (Li6 / 100.0) .^ 2)
         end
     end
