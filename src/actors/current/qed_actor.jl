@@ -15,11 +15,7 @@ end
 mutable struct ActorQED{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorQED{P}
-    η::Function
-    QI::QED.QED_state
-    QO::QED.QED_state
-    t0::Float64
-    t1::Float64
+    QO::Union{Nothing,QED.QED_state}
 end
 
 """
@@ -35,7 +31,7 @@ Evolves the plasma current using the QED current diffusion solver.
        ActorQED(dd, act)
 
 !!! note 
-    Stores data in `dd.core_profiles`, `dd.equilibrium`
+    Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`
 """
 function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorQED(dd, act.ActorQED; kw...)
@@ -47,26 +43,25 @@ end
 function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED; kw...)
     logging_actor_init(ActorQED)
     par = par(kw...)
-
-    eqt = dd.equilibrium.time_slice[]
-    prof1d = dd.core_profiles.profiles_1d[]
-
-    QI = qed_init_from_imas(eqt, prof1d)
-    QO = deepcopy(QI)
-
-    return ActorQED(dd, par, η_imas(prof1d), QI, QO, dd.global_time - par.Δt, dd.global_time)
+    return ActorQED(dd, par, nothing)
 end
 
 function _step(actor::ActorQED)
     dd = actor.dd
     par = actor.par
 
-    # staircase approach
-    actor.QO = deepcopy(actor.QI)
-    tnow = actor.t0
+    eqt = dd.equilibrium.time_slice[]
+    prof1d = dd.core_profiles.profiles_1d[]
+
+    t0 = dd.global_time
+    t1 = dd.global_time + par.Δt
     δt = par.Δt / par.Nt
-    for k in 1:par.Nt
-        tnow += δt
+
+    # initialization
+    actor.QO = qed_init_from_imas(eqt, prof1d)
+
+    # staircase approach
+    for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
         if par.solve_for == :ip
             Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, tnow, :linear)
             Vedge = nothing
@@ -82,7 +77,7 @@ end
 function _finalize(actor::ActorQED)
     dd = actor.dd
 
-    # set the total toroidal current for new time slices in both equilibrium as well as core_profiles IDSs
+    # set the total toroidal current in both equilibrium as well as core_profiles IDSs
     # NOTE: Here really we only care about core_profiles, since when the equilibrium actor is run,
     # then the new equilibrium time slice will be prepared based on the core_profiles current
     eqt = dd.equilibrium.time_slice[]
