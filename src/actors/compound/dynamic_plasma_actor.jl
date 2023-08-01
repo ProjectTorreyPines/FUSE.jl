@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
-    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution", default=100)
+    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution")
 end
 
 mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor
@@ -48,16 +48,18 @@ function _step(actor::ActorDynamicPlasma)
     t0 = dd.global_time
     t1 = t0 + par.Δt
 
-    while dd.global_time < t1
-        begin # first 1/2 step
+    for tt in LinRange(t0, t1, par.Nt + 1)[2:end]
+
+        begin # first 1/2 step (transport)
 
             # prepare time dependent arrays of structures
-            tt = dd.global_time + δt / 2.0
-            IMAS.new_timeslice!(dd.equilibrirum, tt)
-            IMAS.new_timeslice!(dd.core_profiles, tt)
-            IMAS.new_timeslice!(dd.core_source, tt)
-            IMAS.new_timeslice!(dd.core_transport, tt)
-            dd.global_time = tt
+            IMAS.new_timeslice!(dd.equilibrium, tt - δt / 2.0)
+            IMAS.new_timeslice!(dd.core_profiles, tt - δt / 2.0)
+            IMAS.new_timeslice!(dd.core_sources, tt - δt / 2.0)
+            IMAS.new_timeslice!(dd.core_transport, tt - δt / 2.0)
+            dd.global_time = tt - δt / 2.0
+
+            #controller() --> (PS.beta - CP.beta) ==> NBI.power
 
             # run transport actor
             finalize(step(actor.actor_tr))
@@ -69,15 +71,15 @@ function _step(actor::ActorDynamicPlasma)
             finalize(step(actor.actor_hc))
         end
 
-        begin # second 1/2 step
+        begin # second 1/2 step (current)
 
             # prepare time dependent arrays of structures
-            tt = dd.global_time + δt / 2.0
-            IMAS.new_timeslice!(dd.equilibrirum, tt)
+            IMAS.new_timeslice!(dd.equilibrium, tt)
             IMAS.new_timeslice!(dd.core_profiles, tt)
-            IMAS.new_timeslice!(dd.core_source, tt)
-            IMAS.new_timeslice!(dd.core_transport, tt)
+            IMAS.new_timeslice!(dd.core_sources, tt)
             dd.global_time = tt
+
+            #controller() --> (PS.ip - EQ.ip) ==> OH.Vloop
 
             # evolve j_ohmic
             finalize(step(actor.actor_jt))
