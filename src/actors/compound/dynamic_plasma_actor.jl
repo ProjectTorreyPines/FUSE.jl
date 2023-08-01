@@ -35,7 +35,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     par = par(kw...)
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq)
 end
@@ -48,8 +48,11 @@ function _step(actor::ActorDynamicPlasma)
     t0 = dd.global_time
     t1 = t0 + par.Δt
 
-    for tt in LinRange(t0, t1, par.Nt + 1)[2:end]
+    # set Δt of the current actor
+    actor.actor_jt.jt_actor.par.Δt = δt
 
+    prog = ProgressMeter.Progress(par.Nt * 2; dt=0.0, showspeed=true)
+    for tt in LinRange(t0, t1, par.Nt + 1)[2:end]
         begin # first 1/2 step (transport)
 
             # prepare time dependent arrays of structures
@@ -70,6 +73,8 @@ function _step(actor::ActorDynamicPlasma)
             # run HCD to get updated current drive
             finalize(step(actor.actor_hc))
         end
+        ProgressMeter.next!(prog)
+        println(stderr, dd.global_time)
 
         begin # second 1/2 step (current)
 
@@ -90,6 +95,8 @@ function _step(actor::ActorDynamicPlasma)
             # run HCD to get updated current drive
             finalize(step(actor.actor_hc))
         end
+        ProgressMeter.next!(prog)
+        println(stderr, dd.global_time)
     end
 
     return actor
