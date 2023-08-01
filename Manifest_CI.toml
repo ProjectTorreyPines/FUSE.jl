@@ -835,15 +835,15 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "3d73215722dd20d4abea023bb455a95565e5f226"
+git-tree-sha1 = "f078bb6e69dcdd38fd7ab8c6959a43da788e678b"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
 version = "0.1.0"
 
 [[deps.IMASDD]]
-deps = ["AbstractTrees", "DataInterpolations", "HDF5", "JSON", "Memoize", "OrderedCollections", "Printf"]
-git-tree-sha1 = "e733b774effdef1c12540381f648fa9cbe2444ee"
+deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "Printf"]
+git-tree-sha1 = "26c515c8484cb6e3773410f9b65511728ade787f"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1269,9 +1269,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "e4e5c2ecc2899ea3452aae443c1baae7ec41cd04"
+git-tree-sha1 = "e3e5b4ce930861f630e5c1f44802e046f1c4ed46"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.33.4"
+version = "0.33.5"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
