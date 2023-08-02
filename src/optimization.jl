@@ -216,7 +216,7 @@ function optimization_engine(
         end
         # save simulation data to directory
         if !isempty(save_folder)
-            savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
+            savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
             save(savedir, save_dd ? dd : nothing, ini, act; freeze=true)
         end
         # evaluate multiple objectives
@@ -225,7 +225,7 @@ function optimization_engine(
         # save empty dd and error to directory
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
-                savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
+                savedir = joinpath(save_folder, "$(generation)__f$(Dates.now())__$(getpid())")
                 save(savedir, nothing, ini, act, e; freeze=true)
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
