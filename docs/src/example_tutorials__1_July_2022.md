@@ -63,7 +63,7 @@ These concepts are illustrated in the diagram below:
     dd = FUSE.init(ini, act; do_plot=false)
 
     # Run an actor
-    FUSE.ActorEquilibriumTransport(dd, act; do_plot=true);
+    FUSE.ActorStationaryPlasma(dd, act; do_plot=true);
 
 end;
 ```
@@ -379,7 +379,7 @@ act
 ## Running actors 
 * [Actors documentation](https://fuse.help/actors.html)
 * We'll manually step through wht **ActorWholeFacility** does:
-  * **ActorEquilibriumTransport**: transport (TAUENN) equilibrium (Solovev) and current to steady-state
+  * **ActorStationaryPlasma**: transport (TAUENN) equilibrium (Solovev) and current to steady-state
   * **ActorHFSsizing**: Sizes the High Field Side of radial build (plug, OH, TF) superconductors and stresses
   * **ActorLFSsizing**: Sizes the Low Field Side of radial build
   * **ActorCXbuild**: Generate the 2D cross section of the build
@@ -401,7 +401,7 @@ dd = FUSE.init(ini, act; do_plot=false);
 
 
 ```@julia
-@time FUSE.ActorEquilibriumTransport(dd, act;do_plot=true);
+@time FUSE.ActorStationaryPlasma(dd, act;do_plot=true);
 ```
 
 
@@ -478,7 +478,7 @@ IMAS.imas2json(dd,"fpp_v1_FUSE.json")
 ## Worfklows (ie. studies)
 Perform self-contained studies/optimizations (typically running many FUSE simulations)
  
-* [HDB5 validation of ActorEquilibriumTransport](https://fuse.help/example_workflows__transport_equilibrium_validation.html)
+* [HDB5 validation of ActorStationaryPlasma](https://fuse.help/example_workflows__transport_equilibrium_validation.html)
 
   [<img src="../../docs/src/assets/workflow_hdb5.png" width="600"/>](workflow_hdb5.png)
 
