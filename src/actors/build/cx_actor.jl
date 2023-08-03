@@ -5,6 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor wh
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium"; default=true)
+    resolution::Entry{Float64} = Entry{Float64}("-", "Scaling factor determinig the number of points used for the build cross-sectional outlines"; default=1.0)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
@@ -42,7 +43,6 @@ function _step(actor::ActorCXbuild)
     par = actor.par
 
     bd = dd.build
-    div = dd.divertors
     eqt = dd.equilibrium.time_slice[]
 
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
@@ -60,7 +60,7 @@ function _step(actor::ActorCXbuild)
     end
     empty!(bd.structure)
 
-    build_cx!(bd, pr, pz)
+    build_cx!(bd, pr, pz; par.resolution)
 
     divertor_regions!(bd, eqt, dd.divertors)
 
@@ -400,11 +400,11 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
 end
 
 """
-    build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
+    build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; resolution::Float64=1.0)
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
+function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; resolution::Float64=1.0)
     plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
 
     # _plasma_ outline scaled to match 1D radial build
@@ -429,7 +429,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     for k in plasma_to_tf
         layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
         @debug "$(bd.layer[k].name) $(layer_shape)"
-        optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside)
+        optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside, resolution)
     end
 
     # _in_
@@ -469,11 +469,11 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
 end
 
 """
-    optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape)
+    optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=true, resolution::Float64=1.0)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
-function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=true)
+function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=true, resolution::Float64=1.0)
     layer = bd.layer[layer_index]
     obstr = bd.layer[obstr_index]
     # display("Layer $layer_index = $(layer.name)")
@@ -520,14 +520,23 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
 
     # handle offset, negative offset, and convex-hull
     if layer.shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
+        
+        # resample disabled because this can lead to outlines of different layers to be crossing
+        # oR, oZ = IMAS.resample_2d_path(oR, oZ)
+        # oR[end] = oR[1]
+        # oZ[end] = oZ[1]
+        
         R, Z = buffer(oR, oZ, (hfs_thickness + lfs_thickness) / 2.0)
+
+        # R, Z = IMAS.resample_2d_path(R, Z; n_points = Int(round(sqrt(length(R)*length(oR)))) )
+        # R[end] = R[1]
+        # Z[end] = Z[1]
+        
         R .+= r_offset
         if layer.shape == Int(_convex_hull_)
             hull = convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
-            # resample disabled because this can lead to outlines of different layers to be crossing
-            # R, Z = IMAS.resample_2d_path(R, Z)
         end
         layer.outline.r, layer.outline.z = R, Z
 
@@ -574,7 +583,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
             layer.shape = layer.shape + 100
         end
 
-        func = shape_function(layer.shape)
+        func = shape_function(layer.shape; resolution)
         layer.shape_parameters = initialize_shape_parameters(layer.shape, oR, oZ, l_start, l_end, target_clearance)
 
         layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...)
