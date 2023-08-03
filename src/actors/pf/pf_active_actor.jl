@@ -134,7 +134,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw..
 end
 
 """
-    step(actor::ActorPFcoilsOpt;
+    _step(actor::ActorPFcoilsOpt;
         symmetric::Bool=actor.symmetric,
         λ_regularize::Float64=actor.λ_regularize,
         weight_lcfs::Float64=actor.par.weight_lcfs,

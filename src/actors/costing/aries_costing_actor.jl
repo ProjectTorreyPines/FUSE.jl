@@ -55,7 +55,7 @@ function _step(actor::ActorARIESCosting)
             continue # avoid double counting of oh
         end
         c = cost_direct_capital_ARIES(layer, cst, da)
-        if c > 0
+        if c > 0.0
             sub = resize!(tokamak.subsystem, "name" => replace(layer.name, r"^hfs " => ""))
             sub.cost = c
         end
@@ -70,7 +70,7 @@ function _step(actor::ActorARIESCosting)
     # Heating and current drive
     for hcd in vcat(dd.ec_launchers.beam, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
         c = cost_direct_capital_ARIES(hcd, da)
-        if c > 0
+        if c > 0.0
             sub = resize!(tokamak.subsystem, "name" => uppercase(hcd.name))
             sub.cost = c
         end
@@ -388,7 +388,7 @@ function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electr
     da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
 
-    if power_electric_generated == 0
+    if power_electric_generated == 0.0
         cost = 80.0 # estimate based on Table 36 in ARIES
     else
         cost = 80.0 * (power_electric_generated / 1200.0)^0.5
@@ -435,4 +435,3 @@ function cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetim
     cost = unit_cost * plant_lifetime
     return future_dollars(cost, da)
 end
-

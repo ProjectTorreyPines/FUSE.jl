@@ -47,7 +47,7 @@ function _step(actor::ActorCurrent)
 end
 
 """
-    finalize(actor::ActorCurrent)
+    _finalize(actor::ActorCurrent)
 
 Finalizes the selected current evolution actor finalize
 """

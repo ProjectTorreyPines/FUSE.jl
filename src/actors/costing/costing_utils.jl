@@ -118,7 +118,7 @@ end
 #  Dispatch on symbol  #
 #= ================== =#
 
-#Sheffield
+#Sheffield (and GASC)
 
 function cost_direct_capital_Sheffield(item::Symbol, args...; kw...)
     return cost_direct_capital_Sheffield(Val{item}, args...; kw...)

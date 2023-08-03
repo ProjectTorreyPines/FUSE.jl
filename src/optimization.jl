@@ -33,6 +33,7 @@ function update_ObjectiveFunctionsLibrary!()
     ObjectiveFunction(:req_flattop, "Δhours", dd -> abs(dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / 3600.0, 0.0)
     ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), Inf)
     ObjectiveFunction(:min_βn, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, -Inf)
+    ObjectiveFunction(:min_R0, "m", dd -> dd.equilibrium.time_slice[].boundary.geometric_axis.r, -Inf)
     return ObjectiveFunctionsLibrary
 end
 update_ObjectiveFunctionsLibrary!()
@@ -182,7 +183,9 @@ end
         x::AbstractVector,
         objectives_functions::AbstractVector{<:ObjectiveFunction},
         constraints_functions::AbstractVector{<:ConstraintFunction},
-        save_folder::AbstractString)
+        save_folder::AbstractString,
+        generation::Int,
+        save_dd::Bool=true)
 
 NOTE: This function is run by the worker nodes
 """
@@ -194,7 +197,9 @@ function optimization_engine(
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
-)
+    generation::Int,
+    save_dd::Bool=true)
+
     # update ini based on input optimization vector `x`
     #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
     parameters_from_opt!(ini, x)
@@ -211,7 +216,7 @@ function optimization_engine(
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(savedir, dd, ini, act; freeze=true)
+            save(savedir, save_dd ? dd : nothing, ini, act; freeze=true)
         end
         # evaluate multiple objectives
         return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
@@ -219,8 +224,8 @@ function optimization_engine(
         # save empty dd and error to directory
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
-                savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-                save(savedir, IMAS.dd(), ini, act, e; freeze=true)
+                savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
+                save(savedir, nothing, ini, act, e; freeze=true)
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
             end
@@ -231,7 +236,7 @@ function optimization_engine(
 end
 
 """
-    function optimization_engine(
+    optimization_engine(
         ini::ParametersAllInits,
         act::ParametersAllActors,
         actor_or_workflow::Union{Type{<:AbstractActor},Function},
@@ -239,6 +244,7 @@ end
         objectives_functions::AbstractVector{<:ObjectiveFunction},
         constraints_functions::AbstractVector{<:ConstraintFunction},
         save_folder::AbstractString,
+        save_dd::Bool,
         p::ProgressMeter.Progress)
 
 NOTE: this function is run by the master process
@@ -251,11 +257,12 @@ function optimization_engine(
     objectives_functions::AbstractVector{<:ObjectiveFunction},
     constraints_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
+    save_dd::Bool,
     p::ProgressMeter.Progress)
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder), [X[k, :] for k in 1:size(X)[1]])
+    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder, p.counter, save_dd), [X[k, :] for k in 1:size(X)[1]])
     F = zeros(size(X)[1], length(tmp[1][1]))
     G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
     H = zeros(size(X)[1], max(length(tmp[1][3]), 1))

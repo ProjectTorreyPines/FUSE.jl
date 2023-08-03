@@ -136,20 +136,22 @@ end
 """
     save(
         savedir::AbstractString,
-        dd::IMAS.dd,
-        ini::ParametersAllInits,
-        act::ParametersAllActors,
-        e::Union{Nothing, Exception} = nothing;
-        freeze::Bool = true,
-        format::Symbol = :json)
+        dd::Union{Nothing,IMAS.dd},
+        ini::Union{Nothing,ParametersAllInits},
+        act::Union{Nothing,ParametersAllActors},
+        e::Union{Nothing,Exception}=nothing;
+        freeze::Bool=true,
+        format::Symbol=:json)
 
-Save FUSE (dd, ini, act) to dd.json/h5, ini.json, and act.json files and exception stacktrace to "error.txt"
+Save FUSE (`dd`, `ini`, `act`) to `dd.json`/`h5`, `ini.json`, and `act.json` files and exception stacktrace to `error.txt`
+
+If `dd`, `ini`, `act`, or `e` are `nothing` then the corresponding file is not created.
 """
 function save(
     savedir::AbstractString,
-    dd::IMAS.dd,
-    ini::ParametersAllInits,
-    act::ParametersAllActors,
+    dd::Union{Nothing,IMAS.dd},
+    ini::Union{Nothing,ParametersAllInits},
+    act::Union{Nothing,ParametersAllActors},
     e::Union{Nothing,Exception}=nothing;
     freeze::Bool=true,
     format::Symbol=:json)
@@ -165,15 +167,21 @@ function save(
         end
     end
 
-    if format == :hdf
-        IMAS.imas2hdf(dd, joinpath(savedir, "dd.h5"); freeze)
-    elseif format == :json
-        IMAS.imas2json(dd, joinpath(savedir, "dd.json"); freeze)
+    if dd !== nothing
+        if format == :hdf
+            IMAS.imas2hdf(dd, joinpath(savedir, "dd.h5"); freeze)
+        elseif format == :json
+            IMAS.imas2json(dd, joinpath(savedir, "dd.json"); freeze)
+        end
     end
 
-    ini2json(ini, joinpath(savedir, "ini.json"))
+    if ini !== nothing
+        ini2json(ini, joinpath(savedir, "ini.json"))
+    end
 
-    act2json(act, joinpath(savedir, "act.json"))
+    if act !== nothing
+        act2json(act, joinpath(savedir, "act.json"))
+    end
 
     return savedir
 end
@@ -186,7 +194,7 @@ Read (dd, ini, act) to dd.json/h5, ini.json, and act.json files.
 Returns `missing` for files are not there or if `error.txt` file exists in the folder.
 """
 function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
-    if isfile(joinpath(savedir, "error.txt")) && skip_on_error
+    if skip_on_error && isfile(joinpath(savedir, "error.txt"))
         @warn "$savedir simulation errored"
         return missing, missing, missing
     end
@@ -397,13 +405,17 @@ function categorize_errors(
         "TaskFailedException" => :task_exception,
         "Could not trace closed flux surface" => :flux_surfaces_A,
         "Flux surface at ψ=" => :flux_surfaces_B,
+        "OH stresses" => :OH_stresses,
+        "TF stresses" => :TF_stresses,
         "yield_strength" => :CS_stresses,
         "TF cannot achieve requested B0" => :TF_limit,
         "The OH flux is insufficient to have any flattop duration" => :OH_flux,
         "OH cannot achieve requested flattop" => :OH_flattop,
+        "OH exceeds critical current" => :OH_critical_j,
         "< dd.build.tf.critical_j" => :TF_critical_j,
         "DomainError with" => :Solovev,
-        "BoundsError: attempt to access" => :flux_surfaces_C)
+        "BoundsError: attempt to access" => :flux_surfaces_C,
+        "divertors" => :divertors)
     merge!(error_messages, extra_error_messages)
 
     other_errors = Dict{String,Vector{String}}()

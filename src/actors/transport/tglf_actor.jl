@@ -39,7 +39,7 @@ function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
 end
 
 """
-    step(actor::ActorTGLF)
+    _step(actor::ActorTGLF)
 
 Runs TGLF actor to evaluate the turbulence flux on a vector of gridpoints
 """
@@ -72,7 +72,7 @@ function _step(actor::ActorTGLF)
 end
 
 """
-    finalize(actor::ActorTGLF)
+    _finalize(actor::ActorTGLF)
 
 Writes results to dd.core_transport
 """
