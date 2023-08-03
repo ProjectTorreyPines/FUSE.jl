@@ -42,7 +42,7 @@ Runs ActorNeoclassical to evaluate the neoclassical transport flux on a vector o
 function _step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
-    model = resize!(dd.core_transport.model, :neoclassical)
+    model = resize!(dd.core_transport.model, :neoclassical; wipe=false, allow_multiple_matches=true)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 

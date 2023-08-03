@@ -53,7 +53,7 @@ function _step(actor::ActorEquilibrium)
     par = actor.par
 
     if par.do_plot
-        if !isempty(dd.equilbrium.time_slice)
+        if !isempty(dd.equilibrium.time_slice)
             plot(dd.equilibrium; cx=true, label="before ActorEquilibrium")
         else
             plot()
@@ -99,7 +99,7 @@ end
 """
     prepare(actor::ActorEquilibrium)
 
-Prepare `dd.equilbrium` to run equilibrium actors
+Prepare `dd.equilibrium` to run equilibrium actors
 * clear equilibrium__time_slice
 * set Ip, Bt, position control from pulse_schedule
 * Copy pressure from core_profiles to equilibrium

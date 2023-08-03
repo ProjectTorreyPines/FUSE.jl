@@ -39,7 +39,7 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
 end
 
 """
-    _step(actor::ActorCoreTransport)
+    step(actor::ActorCoreTransport)
 
 Runs through the selected core transport actor step
 """

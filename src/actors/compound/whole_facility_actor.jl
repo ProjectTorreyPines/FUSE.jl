@@ -11,7 +11,7 @@ mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
-    EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport{D,P}}
+    EquilibriumTransport::Union{Nothing,ActorStationaryPlasma{D,P}}
     StabilityLimits::Union{Nothing,ActorStabilityLimits{D,P}}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
     LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
@@ -29,7 +29,7 @@ end
     ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
-* ActorEquilibriumTransport
+* ActorStationaryPlasma
     * ActorSteadyStateCurrent
     * ActorHCD
     * ActorCoreTransport
@@ -81,7 +81,7 @@ function _step(actor::ActorWholeFacility)
     act = actor.act
 
     if par.update_plasma
-        actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
+        actor.EquilibriumTransport = ActorStationaryPlasma(dd, act)
         actor.StabilityLimits = ActorStabilityLimits(dd, act)
     end
 
@@ -92,7 +92,7 @@ function _step(actor::ActorWholeFacility)
         end
         @warn "Aspect ratio changed by $((actor.HFSsizing.R0_scale-1.0)*100)% --> re-running plasma actors"
         scale_aspect_ratio!(dd, actor.HFSsizing.R0_scale)
-        actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
+        actor.EquilibriumTransport = ActorStationaryPlasma(dd, act)
         actor.StabilityLimits = ActorStabilityLimits(dd, act)
     end
 
