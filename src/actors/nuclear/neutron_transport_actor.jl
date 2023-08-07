@@ -267,7 +267,8 @@ end
 function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
     gmsh.initialize()
     factory = gmsh.model.geo
-    layers = IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])
+    layers = IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_]) 
+    layers = [layer for layer in layers if !occursin("first", layer.name)] # temporary fix
     names = [layer.name for layer in layers]
     materials = [replace(layer.material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)") for layer in layers]
     boundaries = [construct_boundary(layer.outline.r * 100, layer.outline.z * 100, idx) for (idx, layer) in enumerate(layers)]
@@ -282,8 +283,8 @@ function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, sav
     z_bounds = [max_z, max_z, min_z, min_z]
     push!(boundaries, construct_boundary(r_bounds, z_bounds))
 
-    for idx in eachindex(boundaries)
-        if dd.build.layer[idx].fs == IMAS._lfs_
+    for (idx, layer) in enumerate(layers)
+        if layer.fs == Int(IMAS._hfs_)
             surface = factory.addPlaneSurface([boundaries[idx], boundaries[idx+1]], idx)
         else
             surface = factory.addPlaneSurface([boundaries[idx]], idx)
