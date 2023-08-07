@@ -61,8 +61,6 @@ function _step(actor::ActorTEQUILA)
 
     par.do_plot && (p = plot(dd.equilibrium; cx=true, label="before"))
 
-    prepare_eq(dd, par.ip_from)
-
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 

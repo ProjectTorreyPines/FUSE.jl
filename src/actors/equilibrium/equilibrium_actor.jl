@@ -107,12 +107,13 @@ Prepare `dd.equilibrium` to run equilibrium actors
 * Copy pressure from core_profiles to equilibrium
 * Copy j_tor from core_profiles to equilibrium
 """
-function prepare_eq(dd::IMAS.dd, ip_from::Union{Symbol,Missing})
+function prepare(actor::ActorEquilibrium)
+    dd = actor.dd
     ps = dd.pulse_schedule
     pc = ps.position_control
 
     # freeze core_profiles before wiping eqt and get ip_target
-    ip_target = IMAS.get_from(dd, :ip, ip_from)
+    ip_target = IMAS.get_from(dd, :ip, actor.par.ip_from)
     cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[])
 
     # add/clear time-slice

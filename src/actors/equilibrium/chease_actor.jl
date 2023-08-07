@@ -50,7 +50,6 @@ function _step(actor::ActorCHEASE)
     par = actor.par
 
     # initialize eqt from pulse_schedule and core_profiles
-    prepare_eq(dd, par.ip_from)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
