@@ -267,15 +267,16 @@ end
 function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
     gmsh.initialize()
     factory = gmsh.model.geo
-    names = [layer.name for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]
-    materials = [replace(layer.material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)") for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]
-    boundaries = [construct_boundary(layer.outline.r * 100, layer.outline.z * 100, idx) for (idx, layer) in enumerate(IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_]))]
+    layers = IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])
+    names = [layer.name for layer in layers]
+    materials = [replace(layer.material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)") for layer in layers]
+    boundaries = [construct_boundary(layer.outline.r * 100, layer.outline.z * 100, idx) for (idx, layer) in enumerate(layers)]
     
     push!(materials, "Air-(dry,-near-sea-level)")
     push!(names, "Exterior")
-    max_z = maximum([maximum(layer.outline.z) for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]) * 100 + 1.0
-    min_z = minimum([minimum(layer.outline.z) for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]) * 100 - 1.0
-    max_r = maximum([maximum(layer.outline.r) for layer in IMAS.get_build_layers(dd.build.layer, fs=[IMAS._in_, IMAS._hfs_, IMAS._lhfs_])]) * 100 + 1.0
+    max_z = maximum([maximum(layer.outline.z) for layer in layers]) * 100 + 1.0
+    min_z = minimum([minimum(layer.outline.z) for layer in layers]) * 100 - 1.0
+    max_r = maximum([maximum(layer.outline.r) for layer in layers]) * 100 + 1.0
     min_r = 0.0
     r_bounds = [max_r, min_r, min_r, max_r]
     z_bounds = [max_z, max_z, min_z, min_z]
@@ -299,6 +300,5 @@ function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, sav
 
     gmsh.fltk.run()
     gmsh.finalize()
-    gmsh.clear()
 
 end
