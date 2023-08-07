@@ -47,8 +47,8 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal)
-    return ActorEquilibriumTransport(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, beta_norm_from=:core_profiles)
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -99,7 +99,7 @@ function _step(actor::ActorStationaryPlasma)
             finalize(step(actor.actor_tr))
 
             # run pedestal actor
-            if actor.update_pedestal
+            if par.update_pedestal
                 finalize(step(actor.actor_ped))
             end
 
