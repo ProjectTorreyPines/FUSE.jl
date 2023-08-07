@@ -1,7 +1,7 @@
-#= ========================= =#
-#  ActorEquilibriumTransport  #
-#= ========================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: ParametersActor where {T<:Real}
+#= ===================== =#
+#  ActorStationaryPlasma  #
+#= ===================== =#
+Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
@@ -10,9 +10,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibriumTransport{T} <: Param
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
 end
 
-mutable struct ActorEquilibriumTransport{D,P} <: PlasmaAbstractActor
+mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEquilibriumTransport{P}
+    par::FUSEparameters__ActorStationaryPlasma{P}
     act::ParametersAllActors
     actor_tr::ActorCoreTransport{D,P}
     actor_hc::ActorHCD{D,P}
@@ -22,7 +22,7 @@ mutable struct ActorEquilibriumTransport{D,P} <: PlasmaAbstractActor
 end
 
 """
-    ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs the following actors in succesion:
 * ActorCurrent
@@ -31,17 +31,17 @@ Compound actor that runs the following actors in succesion:
 * ActorEquilibrium
 
 !!! note
-    Stores data in `dd.equilibrium, dd.core_profiles, dd.core_sources`
+    Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`, `dd.core_transport`
 """
-function ActorEquilibriumTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorEquilibriumTransport(dd, act.ActorEquilibriumTransport, act; kw...)
+function ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorStationaryPlasma(dd, act.ActorStationaryPlasma, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquilibriumTransport, act::ParametersAllActors; kw...)
-    logging_actor_init(ActorEquilibriumTransport)
+function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationaryPlasma, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorStationaryPlasma)
     par = par(kw...)
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
@@ -51,7 +51,7 @@ function ActorEquilibriumTransport(dd::IMAS.dd, par::FUSEparameters__ActorEquili
     return ActorEquilibriumTransport(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
 
-function _step(actor::ActorEquilibriumTransport)
+function _step(actor::ActorStationaryPlasma)
     dd = actor.dd
     par = actor.par
     act = actor.act
@@ -60,6 +60,13 @@ function _step(actor::ActorEquilibriumTransport)
         pe = plot(dd.equilibrium; color=:gray, label=" (before)", coordinate=:rho_tor_norm)
         pp = plot(dd.core_profiles; color=:gray, label=" (before)")
         ps = plot(dd.core_sources; color=:gray, label=" (before)")
+
+        @printf("Jtor0_before = %.2f MA\n", dd.core_profiles.profiles_1d[].j_tor[1]/1e6)
+        @printf("P0_before = %.2f kPa\n", dd.core_profiles.profiles_1d[].pressure[1]/1e3)
+        @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
+        @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+        @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
+        @printf("rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
     end
 
     # run HCD to get updated current drive
@@ -85,13 +92,15 @@ function _step(actor::ActorEquilibriumTransport)
             j_tor_before = dd.core_profiles.profiles_1d[].j_tor
             pressure_before = dd.core_profiles.profiles_1d[].pressure
 
-            # run transport actor with or without pedestal
-            if par.update_pedestal
+            # core_profiles, core_sources, core_transport grids from latest equilibrium
+            latest_equilibrium_grids!(dd)
+
+            # run transport actor
+            finalize(step(actor.actor_tr))
+
+            # run pedestal actor
+            if actor.update_pedestal
                 finalize(step(actor.actor_ped))
-                finalize(step(actor.actor_tr))
-                finalize(step(actor.actor_ped))
-            else
-                finalize(step(actor.actor_tr))
             end
 
             # run HCD to get updated current drive
@@ -111,7 +120,18 @@ function _step(actor::ActorEquilibriumTransport)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
-                @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 3)), threshold = $(par.convergence_error)")
+                plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm, label="i=$(length(total_error))")
+                plot!(pp, dd.core_profiles, label="i=$(length(total_error))")
+                plot!(ps, dd.core_sources, label="i=$(length(total_error))")
+
+                @printf("\n")
+                @printf("Jtor0_after = %.2f MA\n", j_tor_after[1]/1e6)
+                @printf("P0_after = %.2f kPa\n", pressure_after[1]/1e3)
+                @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
+                @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+                @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
+                @printf("rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
+                @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iter)
@@ -127,9 +147,9 @@ function _step(actor::ActorEquilibriumTransport)
     end
 
     if par.do_plot
-        display(plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm, label=" (after)"))
-        display(plot!(pp, dd.core_profiles, label=" (after)"))
-        display(plot!(ps, dd.core_sources, label=" (after)"))
+        display(pe)
+        display(pp)
+        display(ps)
     end
 
     return actor

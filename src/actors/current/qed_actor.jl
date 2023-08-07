@@ -15,20 +15,23 @@ end
 mutable struct ActorQED{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorQED{P}
-    η::Function
-    QI::QED.QED_state
-    QO::QED.QED_state
-    t0::Float64
-    t1::Float64
+    QO::Union{Nothing,QED.QED_state}
 end
 
 """
     ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evolves the plasma current using the QED current diffusion solver
+Evolves the plasma current using the QED current diffusion solver.
+
+!!! note
+    This actor wants the driver to do, before calling the actor:
+
+       IMAS.new_timeslice!(dd, dd.global_time + Δt)
+       dd.global_time += Δt
+       ActorQED(dd, act)
 
 !!! note 
-    Stores data in `dd.core_profiles`, `dd.equilbrium`
+    Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`
 """
 function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorQED(dd, act.ActorQED; kw...)
@@ -40,26 +43,25 @@ end
 function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED; kw...)
     logging_actor_init(ActorQED)
     par = par(kw...)
-
-    eqt = dd.equilibrium.time_slice[]
-    prof1d = dd.core_profiles.profiles_1d[]
-
-    QI = qed_init_from_imas(eqt, prof1d)
-    QO = deepcopy(QI)
-
-    return ActorQED(dd, par, η_imas(prof1d), QI, QO, dd.global_time, dd.global_time + par.Δt)
+    return ActorQED(dd, par, nothing)
 end
 
 function _step(actor::ActorQED)
     dd = actor.dd
     par = actor.par
 
-    # starecase approach
-    actor.QO = deepcopy(actor.QI)
-    tnow = actor.t0
+    eqt = dd.equilibrium.time_slice[]
+    prof1d = dd.core_profiles.profiles_1d[]
+
+    t0 = dd.global_time
+    t1 = dd.global_time + par.Δt
     δt = par.Δt / par.Nt
-    for k in 1:par.Nt
-        tnow += δt
+
+    # initialization
+    actor.QO = qed_init_from_imas(eqt, prof1d)
+
+    # staircase approach
+    for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
         if par.solve_for == :ip
             Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, tnow, :linear)
             Vedge = nothing
@@ -75,29 +77,20 @@ end
 function _finalize(actor::ActorQED)
     dd = actor.dd
 
-    # go to the next global time
-    dd.global_time = actor.t1
-
-    # set the total toroidal current for new time slices in both equilibrium as well as core_profiles IDSs
+    # set the total toroidal current in both equilibrium as well as core_profiles IDSs
     # NOTE: Here really we only care about core_profiles, since when the equilibrium actor is run,
     # then the new equilibrium time slice will be prepared based on the core_profiles current
-    eqt = dd.equilibrium.time_slice[actor.t0]
-    eqt_new = deepcopy(eqt)
-    push!(dd.equilibrium.time_slice, eqt_new, actor.t1)
-    @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = dd.equilibrium.vacuum_toroidal_field.b0[end])
-    dΡ_dρ = eqt_new.profiles_1d.rho_tor[end]
-    ρ = eqt_new.profiles_1d.rho_tor / dΡ_dρ
-    eqt_new.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
-    eqt_new.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt_new.profiles_1d.gm9
+    eqt = dd.equilibrium.time_slice[]
+    dΡ_dρ = eqt.profiles_1d.rho_tor[end]
+    ρ = eqt.profiles_1d.rho_tor / dΡ_dρ
+    eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
+    eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
 
-    # core_profiles
-    cp1d_new = cp1d = dd.core_profiles.profiles_1d[actor.t0]
-    cp1d_new = deepcopy(cp1d)
-    cp1d_new.time = actor.t1
-    push!(dd.core_profiles.profiles_1d, cp1d_new, actor.t1)
-    IMAS.j_total_from_equilibrium!(eqt_new, cp1d_new)
+    # update dd.core_profiles
+    cp1d = dd.core_profiles.profiles_1d[]
+    IMAS.j_total_from_equilibrium!(eqt, cp1d)
 
-    # update core_sources related to current
+    # update dd.core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
 

@@ -39,7 +39,7 @@ function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
 end
 
 """
-    step(actor::ActorTGLF)
+    _step(actor::ActorTGLF)
 
 Runs TGLF actor to evaluate the turbulence flux on a vector of gridpoints
 """
@@ -57,7 +57,7 @@ function _step(actor::ActorTGLF)
 
     model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
 
-    model = resize!(dd.core_transport.model, :anomalous)
+    model = resize!(dd.core_transport.model, :anomalous; wipe=false, allow_multiple_matches=true)
     model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
@@ -72,7 +72,7 @@ function _step(actor::ActorTGLF)
 end
 
 """
-    finalize(actor::ActorTGLF)
+    _finalize(actor::ActorTGLF)
 
 Writes results to dd.core_transport
 """

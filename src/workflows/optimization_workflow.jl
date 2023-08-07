@@ -5,12 +5,14 @@ import Distributed
         ini::ParametersAllInits,
         act::ParametersAllActors,
         actor_or_workflow::Union{Type{<:AbstractActor},Function},
-        objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[];
-        constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[],
+        objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
+        constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
+        exploitation_vs_exploration::Float64=0.0,
         N::Int=10,
         iterations::Int=N,
-        continue_state::Union{Missing,Metaheuristics.State}=missing
-    )
+        continue_state::Union{Missing,Metaheuristics.State}=missing,
+        save_folder::AbstractString="optimization_runs",
+        save_dd::Bool=true)
 
 Multi-objective optimization of either an `actor(dd, act)` or a `workflow(ini, act)`
 """
@@ -20,10 +22,12 @@ function workflow_multiobjective_optimization(
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
     constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
+    exploitation_vs_exploration::Float64=0.0,
     N::Int=10,
     iterations::Int=N,
     continue_state::Union{Missing,Metaheuristics.State}=missing,
-    save_folder::AbstractString="optimization_runs")
+    save_folder::AbstractString="optimization_runs",
+    save_dd::Bool=true)
 
     if mod(N, 2) > 0
         error("workflow_multiobjective_optimization population size `N` must be an even number")
@@ -75,24 +79,16 @@ function workflow_multiobjective_optimization(
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
     # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2
-    
-    # nominal
-    η_cr = 20
-    p_cr = 0.9
-    η_m = 20
-    p_m = 1.0 / length(objectives_functions)
 
-    # increased exploration
-    η_cr = 30  # Increase the crossover distribution index
-    p_cr = 0.6  # Decrease the crossover probability
-    η_m = 30  # Increase the mutation distribution index
-    p_m = 2.0 / length(objectives_functions)  # Increase the mutation probability
-
-    # very increased exploration
-    η_cr = 40  # Increase the crossover distribution index
-    p_cr = 0.5  # Decrease the crossover probability
-    η_m = 50  # Increase the mutation distribution index
-    p_m = 4.0 / length(objectives_functions)  # Increase the mutation probability
+    # set algorithm parameters depending on exploitation_vs_exploration index
+    # crossover distribution index
+    η_cr = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 40.0], :cubic).(exploitation_vs_exploration)))
+    # crossover probability
+    p_cr = IMAS.interp1d([0.0, 1.0, 2.0], [0.9, 0.6, 0.5], :cubic).(exploitation_vs_exploration)
+    # mutation distribution index
+    η_m = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 50.0], :cubic).(exploitation_vs_exploration)))
+    # mutation probability
+    p_m = IMAS.interp1d([0.0, 1.0, 2.0], [1.0, 2.0, 4.0], :cubic).(exploitation_vs_exploration)
 
     algorithm = Metaheuristics.SPEA2(; N, η_cr, p_cr, η_m, p_m, options) # converges and covers well the pareto front! 
     if continue_state !== missing
@@ -102,13 +98,13 @@ function workflow_multiobjective_optimization(
     flush(stdout)
 
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, p), bounds, algorithm)
+    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, save_dd, p), bounds, algorithm)
     display(state)
 
     return state
 end
 
-function is_dominated(sol_a::Vector{T}, sol_b::Vector{T}) where T
+function is_dominated(sol_a::Vector{T}, sol_b::Vector{T}) where {T}
     return all(sol_b .<= sol_a) .&& any(sol_b .< sol_a)
 end
 
@@ -117,7 +113,7 @@ end
 
 returns indexes of solutions that form the pareto front
 """
-function pareto_front(solutions::Vector{Vector{T}}) where T
+function pareto_front(solutions::Vector{Vector{T}}) where {T}
     pareto = Int[]
     for i in eachindex(solutions)
         is_dominated_by_any = false

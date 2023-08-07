@@ -276,20 +276,19 @@ function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparam
             cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
             counter += N
         end
-        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)[1:argmin(abs.(cp1d.grid.rho_tor_norm .- rho_transport[end]))]
+        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
         for ion in cp1d.ion
             if par.evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
                 counter += N
             elseif par.evolve_densities[Symbol(ion.label)] == :match_ne_scale
-                ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, rho_transport, z_ne)
-
+                ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp1d.grid.rho_tor_norm, z_ne)
             end
         end
     end
 
     # Ensure Quasi neutrality
-    if !IMAS.is_quasi_neutral(cp1d) && par.evolve_densities != :fixed
+    if !IMAS.is_quasi_neutral(cp1d)
         q_specie = [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality]
         @assert q_specie != Symbol[] "no quasi neutrality specie while quasi neutrality is broken"
         IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
@@ -329,7 +328,7 @@ Sets up the evolve_density dict to evolve only ne and keep the rest matching the
 function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
     dd_thermal = [Symbol(ion.label) for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_thermal) > 0.0]
     dd_fast = [Symbol(String(ion.label) * "_fast") for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_fast) > 0.0]
-    return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal)
+    return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie=:DT)
 end
 
 """
