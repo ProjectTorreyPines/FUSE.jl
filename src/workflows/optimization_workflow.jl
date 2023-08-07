@@ -86,9 +86,9 @@ function workflow_multiobjective_optimization(
     # crossover probability
     p_cr = IMAS.interp1d([0.0, 1.0, 2.0], [0.9, 0.6, 0.5], :cubic).(exploitation_vs_exploration)
     # mutation distribution index
-    η_m = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20, 30, 50], :cubic).(exploitation_vs_exploration)))
+    η_m = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 50.0], :cubic).(exploitation_vs_exploration)))
     # mutation probability
-    η_m = IMAS.interp1d([0.0, 1.0, 2.0], [1.0, 2.0, 4.0], :cubic).(exploitation_vs_exploration)
+    p_m = IMAS.interp1d([0.0, 1.0, 2.0], [1.0, 2.0, 4.0], :cubic).(exploitation_vs_exploration)
 
     algorithm = Metaheuristics.SPEA2(; N, η_cr, p_cr, η_m, p_m, options) # converges and covers well the pareto front! 
     if continue_state !== missing
