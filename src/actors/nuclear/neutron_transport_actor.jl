@@ -282,10 +282,20 @@ function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, sav
     r_bounds = [max_r, min_r, min_r, max_r]
     z_bounds = [max_z, max_z, min_z, min_z]
     push!(boundaries, construct_boundary(r_bounds, z_bounds))
+    outer_bounds = [last(boundaries)]
+    counter = 1
 
-    for (idx, layer) in enumerate(layers)
-        if layer.fs == Int(IMAS._hfs_)
+    for idx in eachindex(boundaries)
+        if idx <= length(layers) && layers[idx].fs == Int(IMAS._hfs_)
             surface = factory.addPlaneSurface([boundaries[idx], boundaries[idx+1]], idx)
+            if counter == 1
+                push!(outer_bounds, surface)
+            end
+        elseif idx <= length(layers) && layers[idx].fs == Int(IMAS._in_)
+            surface = factory.addPlaneSurface([boundaries[idx]], idx)
+#             push!(outer_bounds, surface)
+        elseif idx == length(boundaries)
+            surface = factory.addPlaneSurface(outer_bounds, idx)
         else
             surface = factory.addPlaneSurface([boundaries[idx]], idx)
         end
@@ -298,8 +308,50 @@ function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, sav
     factory.synchronize()
     gmsh.model.mesh.generate(2)
     mshfile = joinpath(save_path, save_filename * ".msh")
-
     gmsh.fltk.run()
+    gmsh.write(mshfile)
     gmsh.finalize()
+    
+    return xss, mshfile
+end
 
+function run_2d(xss, mshfile, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
+    model = GmshDiscreteModel(mshfile; renumber=true)
+    jsonfile = joinpath(save_path, save_filename * ".json")
+    Gridap.Io.to_json_file(model, jsonfile)
+
+    jsonfile = joinpath(save_path, save_filename * ".json")
+    geometry = DiscreteModelFromFile(jsonfile)
+
+    # number of azimuthal angles
+    nφ = 4
+
+    # azimuthal spacing
+    δ = 3.0 
+
+    # boundary conditions
+    bcs = BoundaryConditions(top=Vaccum, left=Vaccum, bottom=Vaccum, right=Vaccum)
+
+    # initialize track generator
+    tg = TrackGenerator(geometry, nφ, δ, bcs=bcs)
+    
+    # perform ray tracing
+    trace!(tg)
+
+    # proceed to segmentation
+    segmentize!(tg)
+
+    # polar quadrature
+    pq = NeutronTransport.TabuchiYamamoto(2)
+
+    # define the problem
+    prob = MoCProblem(tg, pq, xss)
+
+    # define fixed source material
+    fixed_sources = set_fixed_source_material(prob, "plasma", 8 , 1)
+
+    # solve
+    sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.05, max_iterations=500)
+
+    return sol
 end
