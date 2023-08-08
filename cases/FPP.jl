@@ -78,7 +78,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
     act.ActorEquilibrium.symmetrize = true
 
     # simple analytic AT confinement
-    act.ActorTauenn.transport_model = :ds03
+    act.ActorTauenn.transport_model = :h98y2
 
     # Based on STEP
     if STEP
@@ -93,7 +93,7 @@ function case_parameters(::Type{Val{:FPP}}; version::Symbol, init_from::Symbol, 
         # limits (default FPP exceeds βn limits and greenwald density)
         act.ActorStabilityLimits.models = [:model_201,  :model_401] # :model_301, :beta_troyon_1984
         # scale confinement to roughly match STEP prediction
-        act.ActorTauenn.confinement_factor = 0.9
+        act.ActorTauenn.confinement_factor = 1.2
     else
         act.ActorStabilityLimits.models = [:model_201,  :model_301, :model_401] # :beta_troyon_1984
     end

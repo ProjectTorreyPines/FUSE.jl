@@ -61,7 +61,7 @@ function _step(actor::ActorStationaryPlasma)
         pp = plot(dd.core_profiles; color=:gray, label=" (before)")
         ps = plot(dd.core_sources; color=:gray, label=" (before)")
 
-        @printf("Jtor0_before = %.2f MA\n", dd.core_profiles.profiles_1d[].j_tor[1]/1e6)
+        @printf("Jtor0_before = %.2f MA/m²\n", dd.core_profiles.profiles_1d[].j_tor[1]/1e6)
         @printf("P0_before = %.2f kPa\n", dd.core_profiles.profiles_1d[].pressure[1]/1e3)
         @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
         @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
