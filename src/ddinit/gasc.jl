@@ -115,7 +115,7 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     V = gasc.outputs["plasma parameters"]["plasmaVolume"]
     vol = gasc.outputs["numerical profiles"]["volumeProf"] .* V
     P1 = sum(IMAS.gradient(vol) .* LinRange(1.0, 0.0, length(vol))) / V
-    ini.equilibrium.pressure_core = Pavg / P1
+    ini.equilibrium.pressure_core = Pavg / P1 * 0.8
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
     n_xpoints = Int(gasc.inputs["divertor metrics"]["numberDivertors"])

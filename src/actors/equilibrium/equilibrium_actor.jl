@@ -37,7 +37,6 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
     elseif par.model == :CHEASE
         eq_actor = ActorCHEASE(dd, act.ActorCHEASE; par.ip_from)
     elseif par.model == :TEQUILA
-        @show par.ip_from
         eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; par.ip_from)
     else
         error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
