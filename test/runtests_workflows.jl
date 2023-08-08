@@ -28,9 +28,6 @@ end
             FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
                 println("== $(testname) ==")
                 ini, act = FUSE.case_parameters(args...; kw...)
-                if occursin("ods", testname)
-                    act.ActorEquilibrium.model = :Solovev
-                end
                 FUSE.init(ini, act)
             end
         end
