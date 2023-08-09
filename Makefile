@@ -21,7 +21,8 @@ header:
 
 # =========================
 
-JULIA_DIR ?= $(shell realpath $(HOME)/.julia)
+realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
+JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -55,6 +56,9 @@ endef
 
 # =========================
 
+test: .PHONY
+	echo $(JULIA_DIR)
+
 # simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
 threads:
 	@echo "set the JULIA_NUM_THREADS environment variable"
@@ -62,10 +66,10 @@ threads:
 
 # remove everything under $HOME/.julia besides $HOME/.julia/dev
 nuke_julia:
-	mv $(JULIA_PKG_DEVDIR) $(shell realpath $(JULIA_DIR)/../asddsaasddsa)
+	mv $(JULIA_PKG_DEVDIR) $(call realpath,$(JULIA_DIR)/../asddsaasddsa)
 	rm -rf $(JULIA_DIR)
 	mkdir -p $(JULIA_DIR)
-	mv $(shell realpath $(JULIA_DIR)/../asddsaasddsa) $(JULIA_PKG_DEVDIR)
+	mv $(call realpath,$(JULIA_DIR)/../asddsaasddsa) $(JULIA_PKG_DEVDIR)
 
 # install the GAregistry to the list of Julia registries
 registry:
@@ -112,7 +116,7 @@ rm_hide:
 
 # install Revise and load it when Julia starts up
 revise:
-	julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0")); Pkg.compat("Revise", "< 3.4.1")'
+	#julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0")); Pkg.compat("Revise", "< 3.4.1")'
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
