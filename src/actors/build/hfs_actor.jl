@@ -65,7 +65,8 @@ function _step(actor::ActorHFSsizing)
         if tmp > 0.0
             return exp(tmp) - 1.0
         else
-            return -tmp
+            #return -tmp
+            return 1e-6
         end
     end
 
@@ -95,20 +96,33 @@ function _step(actor::ActorHFSsizing)
         _step(actor.stresses_actor)
 
         # OH currents and stresses
-        if actor.fluxswing_actor.par.operate_oh_at_j_crit
+        if actor.fluxswing_actor.par.operate_oh_at_j_crit && (par.j_tolerance >= 0)
             c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
         else
             c_joh = 0.0
         end
-        
-        c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), dd.solid_mechanics.center_stack.properties.yield_strength.oh, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+
+        if (par.j_tolerance >= 0)
+            c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), dd.solid_mechanics.center_stack.properties.yield_strength.oh, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        else
+            c_soh = 0.0
+        end
 
         # TF currents and stresses
-        c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
-        c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), dd.solid_mechanics.center_stack.properties.yield_strength.tf, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        if (par.j_tolerance >= 0)
+            c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
+        else
+            c_jtf = 0.0
+        end
+        
+        if (par.stress_tolerance >= 0)
+            c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), dd.solid_mechanics.center_stack.properties.yield_strength.tf, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        else
+            c_stf = 0.
+        end
 
         # plug stresses
-        if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
+        if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl) && (par.stress_tolerance >= 0)
             c_spl = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), dd.solid_mechanics.center_stack.properties.yield_strength.pl, par.stress_tolerance)
         else
             c_spl = 0.0
@@ -121,6 +135,14 @@ function _step(actor::ActorHFSsizing)
             c_flt = 0.0
         end
 
+        # weight cost values
+        c_joh *= 100.0
+        c_soh *= 10.0
+        c_jtf *= 100.0
+        c_stf *= 1.0
+        c_spl *= 1.0
+        c_flt *= 1000.0
+
         if par.verbose
             push!(C_JOH, c_joh)
             push!(C_SOH, c_soh)
@@ -131,7 +153,9 @@ function _step(actor::ActorHFSsizing)
         end
 
         # total cost
-        return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
+        #return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
+        return norm([c_joh, c_soh, c_jtf, c_stf, c_spl, c_flt])
+
     end
 
     # initialize
@@ -170,7 +194,7 @@ function _step(actor::ActorHFSsizing)
         x0 -> cost(x0),
         [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
         Optim.NelderMead(),
-        Optim.Options(iterations=10000);
+        Optim.Options(iterations=1000);
         autodiff=:forward
     )
     assign_PL_OH_TF(res.minimizer)
