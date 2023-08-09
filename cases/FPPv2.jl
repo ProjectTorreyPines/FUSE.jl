@@ -98,12 +98,12 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
 
     act.ActorStabilityLimits.models = [:model_201, :model_401]
 
-    act.ActorPFcoilsOpt.update_equilibrium = true
-    act.ActorPFcoilsOpt.do_plot = true
+    act.ActorPFcoilsOpt.update_equilibrium = false
 
     act.ActorHFSsizing.aspect_ratio_tolerance = 0.01
 
     act.ActorEquilibrium.model = :TEQUILA
+    
     act.ActorTEQUILA.relax = 0.25
 
     # finalize
