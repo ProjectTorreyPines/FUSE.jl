@@ -213,7 +213,36 @@ function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) 
     return tbr
 end
 
-function write_neutron_flux_vtk(sol::MoCSolution{T}, groups::Union{Vector{Int},UnitRange{Int}}) where T
+function get_tbr(sol::MoCSolution{T}, dd::IMAS.dd, data_path::String, data_filename::String) where T
+    NeutronTransport.@unpack φ, prob = sol
+    NeutronTransport.@unpack trackgenerator, fsr_tag, xss = prob
+    NeutronTransport.@unpack volumes = trackgenerator
+    NGroups = NeutronTransport.ngroups(prob)
+    NRegions = NeutronTransport.nregions(prob)
+    
+    vol_integrated_φ = Vector{Float64}()
+    tbr=0.0
+    plasma_vol = sum(volumes[findall(t -> t == 1, fsr_tag)])
+
+    for i in 1:NRegions
+        if xss[fsr_tag[i]].name == "Exterior"
+            material = "Air-(dry,-near-sea-level)"
+        else
+            material = IMAS.get_build_layers(dd.build.layer, name=xss[fsr_tag[i]].name)[1].material
+            material = replace(material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)")
+        end
+        tbr_xs_dict = get_xss_from_hdf5(joinpath(data_path,data_filename), material, ["(n,Xt)"])
+        for g in 1:NGroups
+            ig = NeutronTransport.@region_index(i, g)
+            push!(vol_integrated_φ, sol.φ[ig] * volumes[i] / plasma_vol)
+            tbr+=vol_integrated_φ[ig]*tbr_xs_dict["(n,Xt)"][g]
+        end        
+    end
+    return tbr
+end
+    
+
+function write_neutron_flux_vtk(sol::MoCSolution{T}, groups::Union{Vector{Int},UnitRange{Int}}=1:length(sol.prob.xss[1].Σt)) where T
     NeutronTransport.@unpack prob = sol
     NeutronTransport.@unpack trackgenerator = prob
     triang = get_triangulation(trackgenerator.mesh.model)
@@ -268,6 +297,7 @@ function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, sav
     gmsh.initialize()
     factory = gmsh.model.geo
     layers = IMAS.get_build_layers(dd.build.layer, fs=[IMAS._hfs_, IMAS._lhfs_]) 
+    append!(layers, IMAS.get_build_layers(dd.build.layer, type=IMAS._oh_))
     layers = [layer for layer in layers if !occursin("first", layer.name)] # temporary fix
     names = [layer.name for layer in layers]
     materials = [replace(layer.material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)") for layer in layers]
@@ -295,6 +325,9 @@ function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, sav
             surface = factory.addPlaneSurface(outer_bounds, idx)
         else
             surface = factory.addPlaneSurface([boundaries[idx]], idx)
+            if idx <= length(layers) && layers[idx].fs == Int(IMAS._in_)
+                push!(outer_bounds, surface)
+            end
         end
         material = factory.addPhysicalGroup(2, [idx], idx)
         GridapGmsh.gmsh.model.setPhysicalName(2, idx, names[idx]) 
