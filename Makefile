@@ -56,9 +56,6 @@ endef
 
 # =========================
 
-test: .PHONY
-	echo $(JULIA_DIR)
-
 # simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
 threads:
 	@echo "set the JULIA_NUM_THREADS environment variable"
