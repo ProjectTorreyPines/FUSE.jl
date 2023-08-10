@@ -53,7 +53,7 @@ end
         dates, mem
     end
 
-    index = sortperm(diff(mem))[end-min(n, length(mem) - 2):end]
+    index = sortperm(diff(mem))[end-min(n - 1, length(mem) - 2):end]
     for i in index
         @series begin
             primary := false
