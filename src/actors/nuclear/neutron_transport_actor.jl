@@ -191,7 +191,7 @@ function get_cell_φ(sol::MoCSolution{T}, cell::Int, gs::UnitRange{Int64}) where
     return φs
 end
 
-function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) where T
+function get_tbr(sol::MoCSolution{T}, mat_tags::Dict{String, String}, data_path::String, data_filename::String) where T
     NeutronTransport.@unpack φ, prob = sol
     NeutronTransport.@unpack trackgenerator, fsr_tag, xss = prob
     NeutronTransport.@unpack volumes = trackgenerator
@@ -203,7 +203,13 @@ function get_tbr(sol::MoCSolution{T}, data_path::String, data_filename::String) 
     plasma_vol = sum(volumes[findall(t -> t == 1, fsr_tag)])
 
     for i in 1:NRegions
-        tbr_xs_dict = get_xss_from_hdf5(joinpath(data_path,data_filename), xss[fsr_tag[i]].name, ["(n,Xt)"])
+        if xss[fsr_tag[i]].name == "Exterior"
+            material = "Air-(dry,-near-sea-level)"
+        else
+            material = mat_tags[xss[fsr_tag[i]].name]
+            material = replace(material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)")
+        end
+        tbr_xs_dict = get_xss_from_hdf5(joinpath(data_path,data_filename), material, ["(n,Xt)"])
         for g in 1:NGroups
             ig = NeutronTransport.@region_index(i, g)
             push!(vol_integrated_φ, sol.φ[ig] * volumes[i] / plasma_vol)
