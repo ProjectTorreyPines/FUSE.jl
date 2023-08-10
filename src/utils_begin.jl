@@ -3,6 +3,7 @@ import Distributed
 import ClusterManagers
 import TimerOutputs
 import Dates
+using InteractiveUtils: summarysize, format_bytes, Markdown
 
 # ====== #
 # Timing #
@@ -24,10 +25,45 @@ end
 # ====== #
 # Memory #
 # ====== #
-const memory = Tuple{Dates.DateTime,String,Int}[]
+Base.@kwdef struct Memory
+    data::Vector{Tuple{Dates.DateTime,String,Int}} = Tuple{Dates.DateTime,String,Int}[]
+end
+
+const memory = Memory()
 
 function memory_time_tag(txt::String)
-    push!(memory, (Dates.now(), txt, get_julia_process_memory_usage()))
+    push!(memory.data, (Dates.now(), txt, get_julia_process_memory_usage()))
+end
+
+@recipe function plot_memory(memory::Memory, n::Int=2, ignore_first_seconds::Int=0)
+    cutoff = memory.data[1][1] + Dates.Second(ignore_first_seconds)
+    filtered_data = filter(point -> point[1] > cutoff, memory.data)
+
+    dates = [point[1] for point in filtered_data]
+    dates = Dates.value.(dates .- dates[1]) ./ 1000
+    action = [point[2] for point in filtered_data]
+    mem = [point[3] / 1024 / 1024 for point in filtered_data]
+    if ignore_first_seconds > 0
+        mem = mem .- mem[1]
+    end
+
+    @series begin
+        seriestype := scatter
+        label := ""
+        dates, mem
+    end
+
+    index = sortperm(diff(mem))[end-min(n, length(mem) - 2):end]
+    for i in index
+        @series begin
+            primary := false
+            series_annotations := Plots.text.([action[i], action[i+1]], 6, :red)
+            color := :red
+            xlabel --> "Time [s]"
+            ylabel --> (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
+            [dates[i], dates[i+1]], [mem[i], mem[i+1]]
+        end
+    end
 end
 
 function get_julia_process_memory_usage()
@@ -35,6 +71,67 @@ function get_julia_process_memory_usage()
     mem_info = read(`ps -p $pid -o rss=`, String)
     mem_usage_kb = parse(Int, strip(mem_info))
     return mem_usage_kb * 1024
+end
+
+"""
+    varinfo(m::Module=Main, pattern::Regex=r""; all=false, imported=false, recursive=false, sortby::Symbol=:name, minsize::Int=0)
+
+Return a markdown table giving information about exported global variables in a module, optionally restricted
+to those matching `pattern`.
+
+The memory consumption estimate is an approximate lower bound on the size of the internal structure of the object.
+
+- `all` : also list non-exported objects defined in the module, deprecated objects, and compiler-generated objects.
+- `imported` : also list objects explicitly imported from other modules.
+- `recursive` : recursively include objects in sub-modules, observing the same settings in each.
+- `sortby` : the column to sort results by. Options are `:name` (default), `:size`, and `:summary`.
+- `minsize` : only includes objects with size at least `minsize` bytes. Defaults to `0`.
+
+The output of `varinfo` is intended for display purposes only.  See also [`names`](@ref) to get an array of symbols defined in
+a module, which is suitable for more general manipulations.
+"""
+function varinfo(m::Module=Base.active_module(), pattern::Regex=r""; all::Bool=false, imported::Bool=false, recursive::Bool=false, sortby::Symbol=:name, minsize::Int=0)
+    sortby in (:name, :size, :summary) || throw(ArgumentError("Unrecognized `sortby` value `:$sortby`. Possible options are `:name`, `:size`, and `:summary`"))
+    rows = Vector{Any}[]
+    workqueue = [(m, ""),]
+    parents = Module[m]
+    while !isempty(workqueue)
+        m2, prep = popfirst!(workqueue)
+        for v in names(m2; all, imported)
+            if !isdefined(m2, v) || !occursin(pattern, string(v))
+                continue
+            end
+            value = getfield(m2, v)
+            isbuiltin = value === Base || value === Base.active_module() || value === Core
+            if recursive && !isbuiltin && isa(value, Module) && value !== m2 && nameof(value) === v && value ∉ parents
+                push!(parents, value)
+                push!(workqueue, (value, "$v."))
+            end
+            ssize_str, ssize = if isbuiltin
+                ("", typemax(Int))
+            else
+                ss = summarysize(value)
+                (format_bytes(ss), ss)
+            end
+            if ssize >= minsize
+                push!(rows, Any[string(prep, v), ssize_str, summary(value), ssize])
+            end
+        end
+    end
+    let (col, rev) = if sortby === :name
+            1, false
+        elseif sortby === :size
+            4, true
+        elseif sortby === :summary
+            3, false
+        else
+            @assert "unreachable"
+        end
+        sort!(rows; by=r -> r[col], rev)
+    end
+    pushfirst!(rows, Any["name", "size", "summary"])
+
+    return Markdown.MD(Any[Markdown.Table(map(r -> r[1:3], rows), Symbol[:l, :r, :l])])
 end
 
 # ==== #
