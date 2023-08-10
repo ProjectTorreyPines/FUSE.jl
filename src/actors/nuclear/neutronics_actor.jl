@@ -90,14 +90,14 @@ function _step(actor::ActorNeutronics)
 
     # find neutron flux [counts/s/m²]
     # smooth the load of each neutron withing a window
-    wall_r, wall_z = rwall[1:end-1], zwall[1:end-1]
-    rwall[end] = wall_r[1]
-    zwall[end] = wall_z[1]
+    # note: flux is defined at the cells, not at the nodes
+    wall_r = (rwall[1:end-1] .+ rwall[2:end]) ./ 2.0
+    wall_z = (zwall[1:end-1] .+ zwall[2:end]) ./ 2.0
     d = sqrt.(IMAS.gradient(rwall) .^ 2.0 .+ IMAS.gradient(zwall) .^ 2.0)
-    @views d = (d[1:end-1] .+ d[2:end]) ./ 2.0
+    d = @views (d[1:end-1] .+ d[2:end]) ./ 2.0
     l = cumsum(d)
     wall_s = d .* wall_r .* 2π
-    ns = 10
+    ns = 10 # window size
     stencil = collect(-ns:ns)
 
     nflux_r = zero(wall_r)
@@ -133,8 +133,8 @@ function _step(actor::ActorNeutronics)
 
     # IMAS assignments
     dd = actor.dd
-    dd.neutronics.first_wall.r = wall_r
-    dd.neutronics.first_wall.z = wall_z
+    dd.neutronics.first_wall.r = rwall
+    dd.neutronics.first_wall.z = zwall
     ntt = resize!(dd.neutronics.time_slice)
     ntt.wall_loading.flux_r = nflux_r
     ntt.wall_loading.flux_z = nflux_z
@@ -233,14 +233,14 @@ function define_neutrons(actor::ActorNeutronics; p=nothing)
     return neutrons, W_per_trace
 end
 
-function define_wall(actor::ActorNeutronics)
+function define_wall(actor::ActorNeutronics; step::Float64=0.1)
     # resample wall and make sure it's clockwise (for COCOS = 11)
     eqt = actor.dd.equilibrium.time_slice[]
     wall = IMAS.first_wall(actor.dd.wall)
-    rwall, zwall = IMAS.resample_2d_path(wall.r, wall.z; step=0.1)
+    rwall, zwall = IMAS.resample_2d_path(wall.r, wall.z; step)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
-    IMAS.reorder_flux_surface!(rwall, zwall, R0, Z0)
+    IMAS.reorder_flux_surface!(rwall, zwall, R0, Z0; force_close=true)
     return rwall, zwall
 end
 
