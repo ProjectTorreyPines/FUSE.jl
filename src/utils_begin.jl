@@ -35,15 +35,37 @@ function memory_time_tag(txt::String)
     push!(memory.data, (Dates.now(), txt, get_julia_process_memory_usage()))
 end
 
-@recipe function plot_memory(memory::Memory, n::Int=2, ignore_first_seconds::Int=0)
-    cutoff = memory.data[1][1] + Dates.Second(ignore_first_seconds)
+"""
+    plot_memory(memory::Memory, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
+
+Plot the memory usage over time from a `Memory` object. 
+
+# Arguments
+- `n_big_jumps`: number of significant memory jumps to highlight in the plot.
+- `ignore_first_seconds`: number of initial seconds to ignore in the plot. Memory usage will be plotted relative to the memory after this cutoff. Default is `0` (no seconds are ignored).
+
+# Returns
+A plot with the following characteristics:
+- Time is displayed on the x-axis as delta seconds since the first recorded time (after ignoring the specified initial seconds).
+- Memory usage is displayed on the y-axis in MB.
+- Memory usage is shown as a scatter plot.
+- The `n_big_jumps` largest jumps in memory are highlighted in red with annotations indicating the action causing each jump.
+"""
+@recipe function plot_memory(memory::Memory, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
+    if isempty(memory.data)
+        cutoff = 0.0
+    else
+        cutoff = memory.data[1][1] + Dates.Second(ignore_first_seconds)
+    end
     filtered_data = filter(point -> point[1] > cutoff, memory.data)
 
     dates = [point[1] for point in filtered_data]
-    dates = Dates.value.(dates .- dates[1]) ./ 1000
+    if !isempty(memory.data)
+        dates = Dates.value.(dates .- dates[1]) ./ 1000
+    end
     action = [point[2] for point in filtered_data]
     mem = [point[3] / 1024 / 1024 for point in filtered_data]
-    if ignore_first_seconds > 0
+    if !isempty(memory.data) && ignore_first_seconds > 0
         mem = mem .- mem[1]
     end
 
@@ -53,13 +75,13 @@ end
         dates, mem
     end
 
-    index = sortperm(diff(mem))[end-min(n - 1, length(mem) - 2):end]
+    index = sortperm(diff(mem))[end-min(n_big_jumps - 1, length(mem) - 2):end]
     for i in index
         @series begin
             primary := false
             series_annotations := Plots.text.([action[i], action[i+1]], 6, :red)
             color := :red
-            xlabel --> "Time [s]"
+            xlabel --> "ΔTime [s]"
             ylabel --> (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
             [dates[i], dates[i+1]], [mem[i], mem[i+1]]
         end
