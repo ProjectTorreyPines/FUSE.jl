@@ -47,7 +47,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, beta_norm_from=:core_profiles)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, beta_norm_from=:equilibrium)
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
 
@@ -61,8 +61,8 @@ function _step(actor::ActorStationaryPlasma)
         pp = plot(dd.core_profiles; color=:gray, label=" (before)")
         ps = plot(dd.core_sources; color=:gray, label=" (before)")
 
-        @printf("Jtor0_before = %.2f MA/m²\n", dd.core_profiles.profiles_1d[].j_tor[1]/1e6)
-        @printf("P0_before = %.2f kPa\n", dd.core_profiles.profiles_1d[].pressure[1]/1e3)
+        @printf("Jtor0_before = %.2f MA/m²\n", getproperty(dd.core_profiles.profiles_1d[],:j_tor,[0.0])[1]/1e6)
+        @printf("P0_before = %.2f kPa\n", getproperty(dd.core_profiles.profiles_1d[], :pressure, [0.0])[1]/1e3)
         @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
         @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
         @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))

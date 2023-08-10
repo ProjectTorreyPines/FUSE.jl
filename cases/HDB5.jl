@@ -57,7 +57,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = data_row[:ZEFF]
-    ini.core_profiles.rot_core = 50e3
+    ini.core_profiles.rot_core = 10e3
     ini.core_profiles.ngrid = 201
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
@@ -71,7 +71,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
             ini.nbi.beam_energy = 100e3
         end
         ini.nbi.beam_mass = 2.0
-        ini.nbi.toroidal_angle = 0.0
+        ini.nbi.toroidal_angle = 18. / 360. * 2pi # 18 degrees assumed like DIII-D
     end
 
     if data_row[:PECRH] > 0
