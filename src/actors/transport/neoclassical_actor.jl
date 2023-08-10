@@ -60,11 +60,20 @@ function _step(actor::ActorNeoclassical)
         for i in gridpoint_cp
             neo_solution = NEO.run_neo(NEO.InputNEO(dd, i))
             total_ion_energy_flux = 0.0 
+            particle_flux_electrons = 0.0
+            energy_flux_electrons = 0.0
            
             for j in 1:11
                 if ismissing(getfield(neo_solution, Symbol("ENERGY_FLUX_$j")))
-                    energy_flux_electrons = getfield(neo_solution, Symbol("ENERGY_FLUX_$(j-1)")) #subtract out electron energy flux, which is the last energy flux in the list
+                    energy_flux_electrons += getfield(neo_solution, Symbol("ENERGY_FLUX_$(j-1)")) #subtract out electron energy flux, which is the last energy flux in the list
                     total_ion_energy_flux -= energy_flux_electrons
+                    break
+                end
+            end
+
+            for j in 1:11
+                if ismissing(getfield(neo_solution, Symbol("PARTICLE_FLUX_$j")))
+                    particle_flux_electrons += getfield(neo_solution, Symbol("PARTICLE_FLUX_$(j-1)")) #subtract out electron particle flux, which is the last particle flux in the list
                     break
                 end
             end
@@ -79,7 +88,7 @@ function _step(actor::ActorNeoclassical)
                 end
             end
 
-            solution = TGLFNN.flux_solution(0.0, 0.0, 0.0, total_ion_energy_flux)
+            solution = TGLFNN.flux_solution(particle_flux_electrons, 0.0, energy_flux_electrons, total_ion_energy_flux)
             push!(actor.flux_solutions, solution)
         end
   
@@ -96,6 +105,7 @@ end
 Writes ActorNeoclassical results to dd.core_transport
 """
 function _finalize(actor::ActorNeoclassical)
+    par = actor.par
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
@@ -103,10 +113,18 @@ function _finalize(actor::ActorNeoclassical)
     model = findfirst(:neoclassical, actor.dd.core_transport.model)
     m1d = model.profiles_1d[]
     m1d.total_ion_energy.flux = zeros(length(actor.par.rho_transport))
+    m1d.electrons.particles.flux = zeros(length(actor.par.rho_transport))
+    m1d.electrons.energy.flux = zeros(length(actor.par.rho_transport))
+
     for (neoclassical_idx, rho) in enumerate(actor.par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
         m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
+
+        if par.neoclassical_model == :neo
+            m1d.electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx]
+            m1d.electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx]
+        end
     end
 
     return actor
