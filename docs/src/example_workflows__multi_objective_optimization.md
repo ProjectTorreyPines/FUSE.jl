@@ -166,7 +166,7 @@ scatter(x, y, marker_z=c ,xlabel=xname, ylabel=yname, colorbar_title=cname, mark
 # Here `@everywhere` is needed to make all processes aware of the custom function
 @everywhere function workflow_custom(ini, act)
     FUSE.init(dd, ini, act)
-    FUSE.ActorEquilibriumTransport(dd, act)
+    FUSE.ActorStationaryPlasma(dd, act)
     FUSE.ActorCXbuild(dd, act)
     return dd
 end

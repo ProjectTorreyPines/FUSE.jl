@@ -35,7 +35,7 @@ ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
 # initialize `dd` from 0D parameters
 dd = FUSE.init(ini, act; do_plot=true)
 # run an actor
-FUSE.ActorEquilibriumTransport(dd, act; do_plot=true);
+FUSE.ActorStationaryPlasma(dd, act; do_plot=true);
 ```
 
 """

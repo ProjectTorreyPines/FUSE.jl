@@ -56,11 +56,15 @@ function _step(actor::ActorBlanket)
     eqt = dd.equilibrium.time_slice[]
     ntt = dd.neutronics.time_slice[]
 
+    raxis = eqt.global_quantities.magnetic_axis.r
+    zaxis = eqt.global_quantities.magnetic_axis.z
+
     total_power_neutrons = sum(ntt.wall_loading.power)
     total_power_radiated = 0.0 # IMAS.radiative_power(dd.core_profiles.profiles_1d[])
 
-    fwr = dd.neutronics.first_wall.r
-    fwz = dd.neutronics.first_wall.z
+    # note flux is defined at the cells, not the nodes
+    wall_r = (dd.neutronics.first_wall.r[1:end-1] .+ dd.neutronics.first_wall.r[2:end]) ./ 2.0
+    wall_z = (dd.neutronics.first_wall.z[1:end-1] .+ dd.neutronics.first_wall.z[2:end]) ./ 2.0
 
     # all blanket modules
     blankets = [structure for structure in dd.build.structure if structure.type == Int(_blanket_)]
@@ -73,6 +77,7 @@ function _step(actor::ActorBlanket)
     modules_relative_thickness13 = Float64[]
     modules_effective_thickness = Matrix{Float64}[]
     modules_wall_loading_power = Vector{Float64}[]
+    modules_flux_geometric_scale = Vector{Float64}[]
     blanket_model_1d = NNeutronics.Blanket()
     for (istructure, structure) in enumerate(blankets)
         bm = dd.blanket.module[istructure]
@@ -122,21 +127,22 @@ function _step(actor::ActorBlanket)
 
         # identify first wall portion of the blanket module
         tmp = convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
-        index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(fwr, fwz)])
-        istart = argmin(abs.(fwz[index]))
-        if fwz[index][istart+1] > fwz[index][istart]
-            i = argmin(fwz[index])
+        index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(wall_r, wall_z)])
+        istart = argmin(abs.(wall_z[index]))
+        if IMAS.getindex_circular(wall_z[index], istart + 1) > wall_z[index][istart]
+            i = argmin(wall_z[index])
             index = vcat(index[i:end], index[1:i-1])
         else
-            i = argmin(fwz[index])
+            i = argmin(wall_z[index])
             index = vcat(index[i+1:end], index[1:i])
         end
 
         # calculate effective thickness of the layers based on the direction of the average impinging neutron flux
         effective_thickness = zeros(length(index), 3)
+        flux_geometric_scale = zeros(length(index))
         r_coords = zeros(4)
         z_coords = zeros(4)
-        for (k, (r0, z0, fr, fz)) in enumerate(zip(fwr[index], fwz[index], ntt.wall_loading.flux_r[index], ntt.wall_loading.flux_z[index]))
+        for (k, (r0, z0, fr, fz)) in enumerate(zip(wall_r[index], wall_z[index], ntt.wall_loading.flux_r[index], ntt.wall_loading.flux_z[index]))
             fn = norm(fr, fz)
             r_coords[1] = r0
             z_coords[1] = z0
@@ -154,7 +160,14 @@ function _step(actor::ActorBlanket)
                     z_coords[ilayer+1] = hit[1][2]
                 end
             end
-            effective_thickness[k, :] .= sqrt.(diff(r_coords) .^ 2.0 .+ diff(z_coords) .^ 2.0)
+            effective_thickness[k, :] .= sqrt.(diff(r_coords[:]) .^ 2.0 .+ diff(z_coords[:]) .^ 2.0)
+
+            # approximate geometric scale of neutron flux from fist wall to the back of the blanket
+            R1 = r_coords[1]
+            a1 = sqrt((r_coords[1] - raxis)^2 + (z_coords[1] - zaxis)^2)
+            R3 = r_coords[end]
+            a3 = sqrt((r_coords[end] - raxis)^2 + (z_coords[end] - zaxis)^2)
+            flux_geometric_scale[k] = (R1 * a1) / (R3 * a3) # 4π²Rr
         end
 
         # assign totals in IDS
@@ -170,6 +183,7 @@ function _step(actor::ActorBlanket)
 
         push!(modules_effective_thickness, effective_thickness)
         push!(modules_wall_loading_power, ntt.wall_loading.power[index])
+        push!(modules_flux_geometric_scale, flux_geometric_scale)
     end
 
     # Optimize layers thicknesses and minimize Li6 enrichment needed to match
@@ -178,15 +192,19 @@ function _step(actor::ActorBlanket)
         energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
         Li6 = min(max(abs(Li6), 0.0), 100.0)
-        modules_neutron_shine_through = Vector{typeof(Li6)}(undef, length(dd.blanket.module))
+        modules_peak_wall_flux = zeros(length(dd.blanket.module))
+        modules_peak_escape_flux = zeros(length(dd.blanket.module))
         extra_cost = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
             bmt = bm.time_slice[]
             bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
             module_tritium_breeding_ratio = 0.0
-            module_neutron_shine_through = 0.0
             module_wall_loading_power = sum(modules_wall_loading_power[ibm])
             d1 = bm.layer[1].midplane_thickness * abs(modules_relative_thickness13[1+(ibm-1)*2])
+            if d1 < min_d1
+                extra_cost += (min_d1 - d1)
+                d1 = max(d1, min_d1)
+            end
             d2 = bm.layer[2].midplane_thickness
             d3 = bm.layer[3].midplane_thickness * abs(modules_relative_thickness13[2+(ibm-1)*2])
             dtot = d1 + d2 + d3
@@ -200,16 +218,17 @@ function _step(actor::ActorBlanket)
                 module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
                 #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
                 LE = NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)::Vector{Float64}
-                module_neutron_shine_through += (sum(LE) * modules_wall_loading_power[ibm][k] / total_power_neutrons)
+                escape_flux = sum(LE) * modules_wall_loading_power[ibm][k] * modules_flux_geometric_scale[ibm][k]
+                if escape_flux > modules_peak_escape_flux[ibm]
+                    modules_peak_escape_flux[ibm] = escape_flux
+                end
             end
-            modules_neutron_shine_through[ibm] = module_neutron_shine_through
+            modules_peak_wall_flux[ibm] = maximum(modules_wall_loading_power[ibm])
             total_tritium_breeding_ratio += module_tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
-            if d1 < min_d1
-                extra_cost += (min_d1 - d1) * 100.0
-            end
             if target === 0.0
                 bmt.tritium_breeding_ratio = module_tritium_breeding_ratio
-                bmt.neutron_shine_through = module_neutron_shine_through
+                bmt.peak_wall_flux = modules_peak_wall_flux[ibm]
+                bmt.peak_escape_flux = modules_peak_escape_flux[ibm]
                 bm.layer[1].midplane_thickness = d1
                 bm.layer[2].midplane_thickness = d2
                 bm.layer[3].midplane_thickness = d3
@@ -218,8 +237,8 @@ function _step(actor::ActorBlanket)
         if target === 0.0
             @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
         else
-            cost = [sqrt(abs(total_tritium_breeding_ratio - target)); maximum(modules_neutron_shine_through); extra_cost] .^ 2
-            return sum(cost) * (1.0 + (Li6 / 100.0) .^ 2)
+            cost = norm([(total_tritium_breeding_ratio - target), maximum(modules_peak_escape_flux) / sum(modules_peak_wall_flux), extra_cost])
+            return cost
         end
     end
 

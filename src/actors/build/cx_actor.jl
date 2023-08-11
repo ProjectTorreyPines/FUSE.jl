@@ -5,6 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor wh
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium"; default=true)
+    n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
@@ -42,7 +43,6 @@ function _step(actor::ActorCXbuild)
     par = actor.par
 
     bd = dd.build
-    div = dd.divertors
     eqt = dd.equilibrium.time_slice[]
 
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
@@ -60,7 +60,7 @@ function _step(actor::ActorCXbuild)
     end
     empty!(bd.structure)
 
-    build_cx!(bd, pr, pz)
+    build_cx!(bd, pr, pz; par.n_points)
 
     divertor_regions!(bd, eqt, dd.divertors)
 
@@ -120,7 +120,6 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     sort!(private; by=p -> IMAS.minimum_distance_two_shapes(p..., rlcfs, zlcfs))
 
     for (pr, pz) in private
-
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
             # handle Solovev cases with flux surface that crosses midplane
             
@@ -311,16 +310,24 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         domain_r = vcat(xx, reverse(xx), xx[1])
         domain_z = vcat(yy, [Zx * 5.0, Zx * 5.0], yy[1])
         domain_poly = xy_polygon(domain_r, domain_z)
-        divertor_poly = LibGEOS.intersection(wall_poly, domain_poly)
-        divertor_poly = LibGEOS.difference(divertor_poly, plasma_poly)
+        wall_domain_poly = LibGEOS.intersection(wall_poly, domain_poly)
+        divertor_poly = LibGEOS.difference(wall_domain_poly, plasma_poly)
 
         # Assign to build structure
         coords = GeoInterface.coordinates(divertor_poly)
         structure = resize!(bd.structure, "type" => Int(_divertor_), "name" => "$ul_name divertor")
         structure.material = "Tungsten"
-        structure.outline.r = [v[1] for v in coords[1]]
-        structure.outline.z = [v[2] for v in coords[1]]
-        structure.toroidal_extent = 2pi
+        try
+            structure.outline.r = [v[1] for v in coords[1]]
+            structure.outline.z = [v[2] for v in coords[1]]
+            structure.toroidal_extent = 2π
+        catch e
+            p = plot(wall_poly; alpha=0.3, aspect_ratio=:equal)
+            plot!(domain_poly; alpha=0.3)
+            plot!(plasma_poly; alpha=0.3)
+            display(p)
+            rethrow(e)
+        end
 
         # now find divertor plasma facing surfaces
         indexes, crossings = IMAS.intersection(xx, yy, pl_r, pl_z)
@@ -409,12 +416,17 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     return nothing
 end
 
+function IMAS.resample_2d_path(layer::IMAS.build__layer; n_points::Int)
+    layer.outline.r, layer.outline.z = IMAS.resample_2d_path(layer.outline.r, layer.outline.z; n_points, method=:linear)
+    return layer
+end
+
 """
-    build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
+    build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_points::Int)
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
+function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_points::Int)
     plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
 
     # _plasma_ outline scaled to match 1D radial build
@@ -437,9 +449,16 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
     tf_to_plasma = IMAS.get_build_indexes(bd.layer, fs=_hfs_)
     plasma_to_tf = reverse(tf_to_plasma)
     for k in plasma_to_tf
-        layer_shape = BuildLayerShape(mod(mod(bd.layer[k].shape, 1000), 100))
-        @debug "$(bd.layer[k].name) $(layer_shape)"
-        optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside)
+        layer = bd.layer[k]
+        layer_shape = BuildLayerShape(mod(mod(layer.shape, 1000), 100))
+        @debug "$(layer.name) $(layer_shape)"
+        layer.shape, layer.shape_parameters = optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside, resolution=n_points / 201.0)
+    end
+
+    # resample
+    for k in tf_to_plasma[1:end-1]
+        layer = bd.layer[k]
+        IMAS.resample_2d_path(layer; n_points)
     end
 
     # _in_
@@ -452,9 +471,10 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         U -= 2.0 * TF.thickness
     end
     for k in IMAS.get_build_indexes(bd.layer, fs=_in_)
-        L = bd.layer[k].start_radius
-        R = bd.layer[k].end_radius
-        bd.layer[k].outline.r, bd.layer[k].outline.z = rectangle_shape(L, R, D, U)
+        layer = bd.layer[k]
+        L = layer.start_radius
+        R = layer.end_radius
+        layer.outline.r, layer.outline.z = rectangle_shape(L, R, D, U)
     end
 
     # _out_
@@ -467,11 +487,12 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
         end
     else
         for k in iout
+            layer = bd.layer[k]
             L = 0.0
-            R = bd.layer[k].end_radius
-            D = minimum(bd.layer[k-1].outline.z) - bd.layer[k].thickness
-            U = maximum(bd.layer[k-1].outline.z) + bd.layer[k].thickness
-            bd.layer[k].outline.r, bd.layer[k].outline.z = rectangle_shape(L, R, D, U)
+            R = layer.end_radius
+            D = minimum(bd.layer[k-1].outline.z) - layer.thickness
+            U = maximum(bd.layer[k-1].outline.z) + layer.thickness
+            layer.outline.r, layer.outline.z = rectangle_shape(L, R, D, U)
         end
     end
 
@@ -479,11 +500,13 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64})
 end
 
 """
-    optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape)
+    optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=true, resolution::Float64=1.0)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
-function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=true)
+function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape_enum::BuildLayerShape; tight::Bool=true, resolution::Float64=1.0)
+    shape = Int(shape_enum)
+
     layer = bd.layer[layer_index]
     obstr = bd.layer[obstr_index]
     # display("Layer $layer_index = $(layer.name)")
@@ -525,40 +548,36 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     end
     r_offset = (lfs_thickness .- hfs_thickness) / 2.0
 
-    # update shape
-    layer.shape = Int(shape)
-
     # handle offset, negative offset, and convex-hull
-    if layer.shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
+    if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         R, Z = buffer(oR, oZ, (hfs_thickness + lfs_thickness) / 2.0)
         R .+= r_offset
-        if layer.shape == Int(_convex_hull_)
+        if shape == Int(_convex_hull_)
             hull = convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
-            # resample disabled because this can lead to outlines of different layers to be crossing
-            # R, Z = IMAS.resample_2d_path(R, Z)
         end
         layer.outline.r, layer.outline.z = R, Z
+        shape_parameters = Float64[]
 
     else # handle shapes
-        if layer.shape > 1000
-            layer.shape = mod(layer.shape, 1000)
+        if shape > 1000
+            shape = mod(shape, 1000)
         end
-        if layer.shape > 100
-            layer.shape = mod(layer.shape, 100)
+        if shape > 100
+            shape = mod(shape, 100)
         end
 
-        if layer.shape == Int(_silo_)
+        if shape == Int(_silo_)
             is_up_down_symmetric = false
-        elseif abs(sum(oZ) / sum(abs.(oZ))) < 1E-2
+        elseif abs(sum(oZ) / sum(abs, oZ)) < 1E-2
             is_up_down_symmetric = true
         else
             is_up_down_symmetric = false
         end
 
         is_negative_D = false
-        if layer.shape != Int(_silo_)
+        if shape != Int(_silo_)
             _, imaxr = findmax(oR)
             _, iminr = findmin(oR)
             _, imaxz = findmax(oZ)
@@ -577,22 +596,23 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         end
 
         if is_negative_D
-            layer.shape = layer.shape + 1000
+            shape = shape + 1000
         end
 
         if !is_up_down_symmetric
-            layer.shape = layer.shape + 100
+            shape = shape + 100
         end
 
-        func = shape_function(layer.shape)
-        layer.shape_parameters = initialize_shape_parameters(layer.shape, oR, oZ, l_start, l_end, target_clearance)
+        func = shape_function(shape; resolution)
+        shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, target_clearance)
 
-        layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...)
-        layer.shape_parameters = optimize_shape(oR, oZ, target_clearance, func, l_start, l_end, layer.shape_parameters; use_curvature)
-        layer.outline.r, layer.outline.z = func(l_start, l_end, layer.shape_parameters...; resample=false)
+        layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...)
+        shape_parameters = optimize_shape(oR, oZ, target_clearance, func, l_start, l_end, shape_parameters; use_curvature)
+        layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...; resample=false)
     end
 
     IMAS.reorder_flux_surface!(layer.outline.r, layer.outline.z)
-    # display(plot(layer.outline.r, layer.outline.z; aspect_ratio=:equal))
+
+    return Int(shape_enum), shape_parameters
 end
 
