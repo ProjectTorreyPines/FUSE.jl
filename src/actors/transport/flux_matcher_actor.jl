@@ -176,7 +176,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     if par.evolve_rotation == :flux_match
-        norm = 1E-2 #[kg / m s^2]
+        norm = 1E-3 #[kg / m s^2]
         target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.momentum_tor.flux[cf_gridpoints]
         append!(error, error_transformation!(target, output, norm))
