@@ -6,7 +6,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     _name::Symbol = :not_set
     j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
     stress_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
-    aspect_ratio_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the aspect_ratio change"; default=0.0)
     error_on_technology::Entry{Bool} = Entry{Bool}("-", "Error if build stresses and current limits are not met"; default=true)
     error_on_performance::Entry{Bool} = Entry{Bool}("-", "Error if requested Bt and flattop duration are not met"; default=true)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
@@ -18,7 +17,6 @@ mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor
     par::FUSEparameters__ActorHFSsizing{P}
     stresses_actor::ActorStresses{D,P}
     fluxswing_actor::ActorFluxSwing{D,P}
-    R0_scale::Float64
 end
 
 """
@@ -48,7 +46,7 @@ function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::P
     par = act.ActorHFSsizing(kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing)
     stresses_actor = ActorStresses(dd, act.ActorStresses)
-    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor, 1.0)
+    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor)
 end
 
 function _step(actor::ActorHFSsizing)
@@ -77,12 +75,6 @@ function _step(actor::ActorHFSsizing)
         TFlfs.thickness = TFhfs.thickness
         dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.0, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
         dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.0, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
-        if par.aspect_ratio_tolerance == 0.0
-            # NOTE: the blanket expands to keep original plasma major radius constant
-            R0 = (plasma.end_radius + plasma.start_radius) / 2.0
-            BL.thickness += old_R0 - R0
-            BL.thickness = max(BL.thickness, old_BL_thickness)
-        end
         return nothing
     end
 
@@ -201,13 +193,6 @@ function _step(actor::ActorHFSsizing)
     step(actor.stresses_actor)
 
     R0 = (plasma.start_radius + plasma.end_radius) / 2.0
-    actor.R0_scale = R0 / old_R0
-
-    function check_aspect()
-        if abs(actor.R0_scale - 1.0) > 1E-6
-            @assert abs(actor.R0_scale - 1.0) <= par.aspect_ratio_tolerance "Plasma aspect ratio changed more than $(par.aspect_ratio_tolerance*100)% ($((R0/old_R0-1.0)*100)%). If this is acceptable to you, you can change `act.ActorHFSsizing.aspect_ratio_tolerance` accordingly."
-        end
-    end
 
     function check_technology()
         @assert dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance) / dd.build.tf.critical_j * 100)%"
@@ -277,7 +262,6 @@ function _step(actor::ActorHFSsizing)
     end
 
     try
-        check_aspect()
         if par.error_on_technology
             check_technology()
         end

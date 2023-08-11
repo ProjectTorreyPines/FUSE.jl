@@ -140,10 +140,15 @@ end
         ini::Union{Nothing,ParametersAllInits},
         act::Union{Nothing,ParametersAllActors},
         e::Union{Nothing,Exception}=nothing;
+        memory::Bool=false,
         freeze::Bool=true,
         format::Symbol=:json)
 
 Save FUSE (`dd`, `ini`, `act`) to `dd.json`/`h5`, `ini.json`, and `act.json` files and exception stacktrace to `error.txt`
+
+`timer` option allows saving of `FUSE.timer` info to `timer.txt` file
+
+`varinfo` option allows saving of detailed variables memory usage to `varinfo.txt` file
 
 If `dd`, `ini`, `act`, or `e` are `nothing` then the corresponding file is not created.
 """
@@ -153,17 +158,38 @@ function save(
     ini::Union{Nothing,ParametersAllInits},
     act::Union{Nothing,ParametersAllActors},
     e::Union{Nothing,Exception}=nothing;
+    timer::Bool=true,
+    varinfo::Bool=true,
     freeze::Bool=true,
-    format::Symbol=:json)
+    format::Symbol=:json,
+    overwrite_files::Bool=false)
+
+    savedir = abspath(savedir)
 
     @assert format ∈ (:hdf, :json) "format must be either `:hdf` or `:json`"
-    mkdir(savedir) # purposely error if directory exists or path does not exist
+    if !(isdir(savedir) && overwrite_files)
+        mkdir(savedir) # purposely error if directory exists or path does not exist
+    end
 
     # first write error.txt so that if we are parsing while running optimizer,
     # the parser can immediately see if this is a failing case
     if e !== nothing
         open(joinpath(savedir, "error.txt"), "w") do file
             showerror(file, e, catch_backtrace())
+        end
+    end
+
+    # save timer output
+    if timer
+        open(joinpath(savedir, "timer.txt"), "w") do file
+            show(file, FUSE.timer)
+        end
+    end
+
+    # save vars usage
+    if varinfo
+        open(joinpath(savedir, "varinfo.txt"), "w") do file
+            println(file, FUSE.varinfo(FUSE, all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
         end
     end
 
@@ -397,7 +423,6 @@ function categorize_errors(
     errors = Dict(:other => String[])
     error_messages = Dict(
         "EQDSK_COCOS_01.OUT" => :chease,
-        "aspect ratio changed" => :aspect_ratio_change,
         "Unable to blend the core-pedestal" => :blend_core_ped,
         "Bad expression" => :bad_expression,
         "Exceeded limits" => :exceed_lim_A,
