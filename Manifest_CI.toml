@@ -176,7 +176,7 @@ version = "0.4.2"
 
 [[deps.CHEASE]]
 deps = ["EFIT", "Fortran90Namelists", "MXHEquilibrium"]
-git-tree-sha1 = "5c61d03836a87d903abff9fc7b59ca6396663216"
+git-tree-sha1 = "e8e6b0f21df1d5b62ea8228b5ad151398ec6aacd"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/CHEASE.jl.git"
 uuid = "40781a8e-f1bb-11ec-24ef-0f6bc40c1567"
@@ -486,7 +486,7 @@ version = "0.2.0"
 
 [[deps.EPEDNN]]
 deps = ["BSON", "Dates", "Flux", "Memoize"]
-git-tree-sha1 = "d1038fa65a6e1d963266ef7a7dc90cbe070bb0f4"
+git-tree-sha1 = "91b7dd2dd532cc6c4c93e9c52297ac4dc1255dc6"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/EPEDNN.jl.git"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503991"
@@ -843,7 +843,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "Printf"]
-git-tree-sha1 = "58595eaa5f33822e66e2418384e8b0613af29a7e"
+git-tree-sha1 = "9269d8bbcfdb1cdd69dee1797e6c946d06a1fedd"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1192,7 +1192,7 @@ version = "5.6.0+0"
 
 [[deps.MXHEquilibrium]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "FileIO", "ForwardDiff", "Gmsh", "HCubature", "Interpolations", "LRUCache", "LinearAlgebra", "Memoize", "MeshIO", "MeshTools", "Meshes", "MillerExtendedHarmonic", "NetCDF", "Optim", "PolygonOps", "StaticArrays", "Test", "Trapz", "Zygote"]
-git-tree-sha1 = "173af9e97352ac1e32db84827adac19a7bf43a03"
+git-tree-sha1 = "567e7eb83a20f4f22d8a5aa0cbea65440e35308a"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MXHEquilibrium.jl.git"
 uuid = "8efa4e5a-7b9a-4eec-876e-01d13d5b5d75"
@@ -1269,9 +1269,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "8caf86c13636511adbcb63cc965ffa8a7c1bfa3c"
+git-tree-sha1 = "4766d1539377397923f95161e9e9540866637f2f"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.34.7"
+version = "0.34.8"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
@@ -1848,7 +1848,7 @@ version = "0.9.4"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections"]
-git-tree-sha1 = "5d60d93f6293278b8c65aa5dff51d026ce760f5a"
+git-tree-sha1 = "398e2bb46e31a10fe5dd33477f538c149db4bea3"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
@@ -1975,7 +1975,7 @@ version = "0.2.2"
 
 [[deps.TAUENN]]
 deps = ["CoordinateConventions", "EPEDNN", "IMAS", "IMASDD", "Measurements", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "Plots", "Printf", "TGLFNN"]
-git-tree-sha1 = "4edfa90be9037657bea0703420d4327f62461b7a"
+git-tree-sha1 = "c3da849b598ccd6170e841dd3652831760ffc7ba"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TAUENN.jl.git"
 uuid = "4f5ffc88-c87f-11eb-142e-4d2ba0394a67"
@@ -1983,7 +1983,7 @@ version = "0.1.0"
 
 [[deps.TEQUILA]]
 deps = ["BSON", "FFTW", "FiniteElementHermite", "JuMP", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "NLopt", "Optim", "PlotUtils", "PreallocationTools", "QuadGK", "RecipesBase", "Roots", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "f0441fd3e68b6edf47956dc31260482c72ed10e7"
+git-tree-sha1 = "bd1a083e1a2a7a7883e6ef60da90375e646a5b2e"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TEQUILA.jl.git"
 uuid = "a60c9cbd-e72f-4185-96b6-b8fc312c4d37"
@@ -1991,7 +1991,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "b1565b73604ef642530329f7c719f3bb240133de"
+git-tree-sha1 = "71bbbdd2fdb093bed3ade139bbf850b473edec58"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
@@ -2138,7 +2138,7 @@ version = "0.2.0"
 
 [[deps.VacuumFields]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "FiniteElementHermite", "LinearAlgebra", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic", "Plots", "SpecialFunctions", "TEQUILA", "Trapz"]
-git-tree-sha1 = "e55d410cfd54e35f0ebef3905c1904c2c12708e4"
+git-tree-sha1 = "5bb239213310dbb1ed53979501a0152196afe36a"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
@@ -2348,9 +2348,9 @@ version = "1.5.5+0"
 
 [[deps.Zygote]]
 deps = ["AbstractFFTs", "ChainRules", "ChainRulesCore", "DiffRules", "Distributed", "FillArrays", "ForwardDiff", "GPUArrays", "GPUArraysCore", "IRTools", "InteractiveUtils", "LinearAlgebra", "LogExpFunctions", "MacroTools", "NaNMath", "PrecompileTools", "Random", "Requires", "SparseArrays", "SpecialFunctions", "Statistics", "ZygoteRules"]
-git-tree-sha1 = "5be3ddb88fc992a7d8ea96c3f10a49a7e98ebc7b"
+git-tree-sha1 = "e2fe78907130b521619bc88408c859a472c4172b"
 uuid = "e88e6eb3-aa80-5325-afca-941959d7151f"
-version = "0.6.62"
+version = "0.6.63"
 
     [deps.Zygote.extensions]
     ZygoteColorsExt = "Colors"
