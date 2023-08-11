@@ -65,8 +65,7 @@ function _step(actor::ActorHFSsizing)
         if tmp > 0.0
             return exp(tmp) - 1.0
         else
-            #return -tmp
-            return 1e-6
+            return -tmp
         end
     end
 
@@ -153,8 +152,8 @@ function _step(actor::ActorHFSsizing)
         end
 
         # total cost
-        #return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
-        return norm([c_joh, c_soh, c_jtf, c_stf, c_spl, c_flt])
+        return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
+        #return norm([c_joh, c_soh, c_jtf, c_stf, c_spl, c_flt])
 
     end
 
@@ -194,7 +193,7 @@ function _step(actor::ActorHFSsizing)
         x0 -> cost(x0),
         [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
         Optim.NelderMead(),
-        Optim.Options(iterations=1000);
+        Optim.Options(iterations=1000, g_tol=1e-6);
         autodiff=:forward
     )
     assign_PL_OH_TF(res.minimizer)
