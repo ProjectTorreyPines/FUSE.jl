@@ -1,7 +1,7 @@
 using CSV
 using DataFrames
-using Memoize: Memoize
-using Dates: Dates
+import Memoize
+import Dates
 
 #= ================================= =#
 #  Learning rate for HTS - from GASC  #
