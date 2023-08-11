@@ -140,9 +140,11 @@ end
         ini::Union{Nothing,ParametersAllInits},
         act::Union{Nothing,ParametersAllActors},
         e::Union{Nothing,Exception}=nothing;
-        memory::Bool=false,
+        timer::Bool=true,
+        varinfo::Bool=false,
         freeze::Bool=true,
-        format::Symbol=:json)
+        format::Symbol=:json,
+        overwrite_files::Bool=true)
 
 Save FUSE (`dd`, `ini`, `act`) to `dd.json`/`h5`, `ini.json`, and `act.json` files and exception stacktrace to `error.txt`
 
@@ -159,16 +161,16 @@ function save(
     act::Union{Nothing,ParametersAllActors},
     e::Union{Nothing,Exception}=nothing;
     timer::Bool=true,
-    varinfo::Bool=true,
+    varinfo::Bool=false,
     freeze::Bool=true,
     format::Symbol=:json,
-    overwrite_files::Bool=false)
-
-    savedir = abspath(savedir)
+    overwrite_files::Bool=true)
 
     @assert format ∈ (:hdf, :json) "format must be either `:hdf` or `:json`"
-    if !(isdir(savedir) && overwrite_files)
-        mkdir(savedir) # purposely error if directory exists or path does not exist
+
+    savedir = abspath(savedir)
+    if !overwrite_files || !isdir(savedir)
+        mkdir(savedir)
     end
 
     # first write error.txt so that if we are parsing while running optimizer,
