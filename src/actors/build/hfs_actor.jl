@@ -101,7 +101,7 @@ function _step(actor::ActorHFSsizing)
             c_joh = 0.0
         end
 
-        if (par.j_tolerance >= 0)
+        if (par.stress_tolerance >= 0)
             c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), dd.solid_mechanics.center_stack.properties.yield_strength.oh, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
         else
             c_soh = 0.0
@@ -170,6 +170,9 @@ function _step(actor::ActorHFSsizing)
     TFhfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_hfs_)
     TFlfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_)
     plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
+
+    CPradius = TFhfs.end_radius
+    OHTFgap = CPradius - TFhfs.thickness - OH.thickness - PL.thickness
 
     target_B0 = maximum(abs, dd.equilibrium.vacuum_toroidal_field.b0)
     a = (plasma.end_radius - plasma.start_radius) / 2.0
