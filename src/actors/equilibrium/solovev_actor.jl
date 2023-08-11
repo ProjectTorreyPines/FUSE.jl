@@ -120,7 +120,7 @@ function _finalize(actor::ActorSolovev)
     target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
     target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
 
-    MXHEquilibrium_to_dd!(dd, mxh_eq, par.ngrid, cocos_in=3)
+    MXHEquilibrium_to_dd!(dd.equilibrium, mxh_eq, par.ngrid, cocos_in=3)
 
     # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
     eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
@@ -137,14 +137,12 @@ function _finalize(actor::ActorSolovev)
     return actor
 end
 
-function MXHEquilibrium_to_dd!(dd::IMAS.dd, mxh_eq::MXHEquilibrium.AbstractEquilibrium, ngrid::Int; cocos_in::Int=11)
-
+function MXHEquilibrium_to_dd!(eq::IMAS.equilibrium, mxh_eq::MXHEquilibrium.AbstractEquilibrium, ngrid::Int; cocos_in::Int=11)
     tc = MXHEquilibrium.transform_cocos(cocos_in, 11)
 
     rlims = MXHEquilibrium.limits(mxh_eq.S; pad=0.3)[1]
     zlims = MXHEquilibrium.limits(mxh_eq.S; pad=0.3)[2]
 
-    eq = dd.equilibrium
     eqt = eq.time_slice[]
     Ip = eqt.global_quantities.ip
     sign_Ip = sign(Ip)
@@ -159,7 +157,9 @@ function MXHEquilibrium_to_dd!(dd::IMAS.dd, mxh_eq::MXHEquilibrium.AbstractEquil
     eq.vacuum_toroidal_field.r0 = mxh_eq.S.R0
     @ddtime eq.vacuum_toroidal_field.b0 = mxh_eq.B0 * sign_Bt
 
+    t0 = eqt.time
     empty!(eqt)
+    eqt.time = t0
 
     eqt.global_quantities.ip = Ip
     eqt.boundary.geometric_axis.r = mxh_eq.S.R0
@@ -181,6 +181,5 @@ function MXHEquilibrium_to_dd!(dd::IMAS.dd, mxh_eq::MXHEquilibrium.AbstractEquil
 
     IMAS.flux_surfaces(eqt)
 
-    return dd
-
+    return
 end

@@ -8,10 +8,17 @@ using Test
     end
 end
 
+@testset "fluxmatcher" begin
+    dd, ini, act = FUSE.init(:ITER,init_from=:scalars)
+    act.ActorFluxMatcher.max_iterations = 3
+    act.ActorFluxMatcher.evolve_pedestal = true
+    act.ActorFluxMatcher.evolve_densities = FUSE.setup_density_evolution_electron_flux_match_rest_ne_scale(dd)
+    FUSE.ActorFluxMatcher(dd,act)
+end
+
 @testset "init" begin
     tests = FUSE.OrderedCollections.OrderedDict()
     tests["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
-    tests["ITER_scalars"] = ([:ITER], Dict(:init_from => :scalars))
     tests["D3D"] = ([:D3D], Dict())
     tests["FPP_v1_demount_scalars"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :scalars))
     tests["FPP_v1_demount_ods"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :ods))

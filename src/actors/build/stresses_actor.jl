@@ -37,7 +37,6 @@ function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function _step(actor::ActorStresses)
-
     dd = actor.dd
     par = actor.par
 
@@ -47,7 +46,7 @@ function _step(actor::ActorStresses)
 
     plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
     R0 = (plasma.end_radius + plasma.start_radius) / 2.0
-    B0 = maximum(abs.(eq.vacuum_toroidal_field.b0))
+    B0 = maximum(abs, eq.vacuum_toroidal_field.b0)
 
     R_tf_in = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_).start_radius
     R_tf_out = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_).end_radius
@@ -488,21 +487,21 @@ function solve_1D_solid_mechanics!(
     end
 
     # keep the worse case based on the Von Mises stresses
-    if ismissing(smcs.stress.vonmises, :tf) || maximum(abs.(smcs.stress.vonmises.tf)) < maximum(abs.(vonmises_stress_tf))
+    if ismissing(smcs.stress.vonmises, :tf) || maximum(abs, smcs.stress.vonmises.tf) < maximum(abs, vonmises_stress_tf)
         smcs.stress.vonmises.tf = vonmises_stress_tf
         smcs.stress.axial.tf = axial_stress_tf_avg
         smcs.stress.radial.tf = radial_stress_tf
         smcs.stress.hoop.tf = hoop_stress_tf
         smcs.displacement.tf = displacement_tf
     end
-    if ismissing(smcs.stress.vonmises, :oh) || maximum(abs.(smcs.stress.vonmises.oh)) < maximum(abs.(vonmises_stress_oh))
+    if ismissing(smcs.stress.vonmises, :oh) || maximum(abs, smcs.stress.vonmises.oh) < maximum(abs, vonmises_stress_oh)
         smcs.stress.vonmises.oh = vonmises_stress_oh
         smcs.stress.axial.oh = axial_stress_oh_avg
         smcs.stress.radial.oh = radial_stress_oh
         smcs.stress.hoop.oh = hoop_stress_oh
         smcs.displacement.oh = displacement_oh
     end
-    if plug && (ismissing(smcs.stress.vonmises, :pl) || maximum(abs.(smcs.stress.vonmises.pl)) < maximum(abs.(vonmises_stress_pl)))
+    if plug && (ismissing(smcs.stress.vonmises, :pl) || maximum(abs, smcs.stress.vonmises.pl) < maximum(abs, vonmises_stress_pl))
         smcs.stress.vonmises.pl = vonmises_stress_pl
         smcs.stress.axial.pl = axial_stress_pl_avg
         smcs.stress.radial.pl = radial_stress_pl

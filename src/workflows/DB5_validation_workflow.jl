@@ -8,7 +8,7 @@ import ProgressMeter
 ProgressMeter.ijulia_behavior(:clear)
 
 """
-    workflow_simple_equilibrium_transport(
+    workflow_simple_stationary_plasma(
         ini::ParametersAllInits,
         act::ParametersAllActors;
         save_directory::String="",
@@ -19,7 +19,7 @@ ProgressMeter.ijulia_behavior(:clear)
 
 Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
 """
-function workflow_simple_equilibrium_transport(
+function workflow_simple_stationary_plasma(
     ini::ParametersAllInits,
     act::ParametersAllActors;
     save_directory::String="",
@@ -36,7 +36,7 @@ function workflow_simple_equilibrium_transport(
     act.ActorTauenn.warn_nn_train_bounds = warn_nn_train_bounds
     act.ActorTauenn.transport_model = transport_model
     act.ActorTauenn.verbose = verbose
-    ActorEquilibriumTransport(dd, act; do_plot=do_plot)
+    ActorStationaryPlasma(dd, act; do_plot=do_plot)
 
     if !isempty(save_directory)
         IMAS.imas2json(dd, joinpath(save_directory, "$(ini.general.casename).json"))
@@ -83,7 +83,7 @@ function workflow_HDB5_validation(;
     run_df[:, "T0_fuse"] = zeros(n_cases)
     run_df[:, "error_message"] = ["" for i in 1:n_cases]
 
-    # Run workflow_simple_equilibrium_transport on each of the selected case
+    # Run workflow_simple_stationary_plasma on each of the selected case
     data_rows = ProgressMeter.@showprogress pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
 
     for k in 1:length(data_rows)
@@ -115,7 +115,7 @@ function run_HDB5_from_data_row(data_row, act::Union{ParametersActor,Missing}=mi
         if ismissing(act)
             act = ACT
         end
-        dd = workflow_simple_equilibrium_transport(ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
+        dd = workflow_simple_stationary_plasma(ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
         data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
         data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
         data_row[:error_message] = ""
@@ -139,7 +139,7 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String
     if x_name == "TAUTH"
         x_ylim = [5e-3, 1e1]
     else
-        x_ylim = [minimum(abs.(dataframe[:, x_name])) / 1e1, maximum(dataframe[:, x_name]) * 1e1]
+        x_ylim = [minimum(abs, dataframe[:, x_name]) / 1e1, maximum(dataframe[:, x_name]) * 1e1]
     end
     dataframe = dataframe[DataFrames.completecases(dataframe), :]
     R² = round(R_squared(dataframe[:, x_name], dataframe[:, y_name]), digits=2)
@@ -167,5 +167,5 @@ function R_squared(x, y)
 end
 
 function mean_relative_error(x, y)
-    return sum(abs.((y .- x) ./ x)) / length(x)
+    return sum(abs, (y .- x) ./ x) / length(x)
 end
