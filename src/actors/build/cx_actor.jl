@@ -122,8 +122,19 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     for (pr, pz) in private
 
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
-            # open flux surface does not encicle the plasma
-            continue
+            # handle Solovev cases with flux surface that crosses midplane
+            
+            if detected_lower == 1 && detected_upper == 0
+                ispos = pz .> 0 
+                deleteat!(pz,ispos)
+                deleteat!(pr,ispos)
+            elseif detected_upper == 1 && detected_lower == 0
+                isneg = pz .< 0
+                deleteat!(pz,isneg)
+                deleteat!(pr,isneg)
+            else
+                continue
+            end
         end
 
         # xpoint between lcfs and private region
@@ -166,18 +177,6 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
                 continue
             end
             detected_lower -= 1
-        end
-
-        # remove private flux region from wall (necessary because of Z expansion)
-        # this may fail if the private region is small or weirdly shaped
-        try
-            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr1, pz1))
-        catch e
-            if typeof(e) <: LibGEOS.GEOSError
-                continue
-            else
-                rethrow(e)
-            end
         end
 
         # add the divertor slots
@@ -247,8 +246,19 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     sort!(private; by=p -> IMAS.minimum_distance_two_shapes(p..., rlcfs, zlcfs))
     for (pr, pz) in private
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
-            # open flux surface does not encicle the plasma
-            continue
+            # handle Solovev cases with flux surface that crosses midplane
+            
+            if detected_lower == 1 && detected_upper == 0
+                ispos = pz .> 0 
+                deleteat!(pz,ispos)
+                deleteat!(pr,ispos)
+            elseif detected_upper == 1 && detected_lower == 0
+                isneg = pz .< 0
+                deleteat!(pz,isneg)
+                deleteat!(pr,isneg)
+            else
+                continue
+            end
         end
 
         # xpoint between lcfs and private region
