@@ -93,7 +93,7 @@ function _step(actor::ActorHFSsizing)
             c_joh = 0.0
         end
 
-        if (par.j_tolerance >= 0)
+        if (par.stress_tolerance >= 0)
             c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), dd.solid_mechanics.center_stack.properties.yield_strength.oh, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
         else
             c_soh = 0.0
