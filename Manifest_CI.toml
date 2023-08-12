@@ -1269,9 +1269,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "4766d1539377397923f95161e9e9540866637f2f"
+git-tree-sha1 = "abad770f1588a56392820984c8c648b90b645f45"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.34.8"
+version = "0.34.9"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
@@ -1983,7 +1983,7 @@ version = "0.1.0"
 
 [[deps.TEQUILA]]
 deps = ["BSON", "FFTW", "FiniteElementHermite", "JuMP", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "NLopt", "Optim", "PlotUtils", "PreallocationTools", "QuadGK", "RecipesBase", "Roots", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "bd1a083e1a2a7a7883e6ef60da90375e646a5b2e"
+git-tree-sha1 = "d6c1de924515b66c91e0783ee7332d3db9fef518"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TEQUILA.jl.git"
 uuid = "a60c9cbd-e72f-4185-96b6-b8fc312c4d37"
