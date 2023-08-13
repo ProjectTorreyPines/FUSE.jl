@@ -57,7 +57,7 @@ function _step(actor::ActorTGLF)
 
     model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
 
-    model = resize!(dd.core_transport.model, :anomalous; wipe=false, allow_multiple_matches=true)
+    model = resize!(dd.core_transport.model, :anomalous; wipe=false)
     model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport

@@ -230,7 +230,7 @@ function optimization_engine(
                 @warn "typeof(e) in optimization_engine is String: $e"
             end
         end
-        # rethrow() # uncomment for debugging purposes
+        # rethrow(e) # uncomment for debugging purposes
         return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
     end
 end
