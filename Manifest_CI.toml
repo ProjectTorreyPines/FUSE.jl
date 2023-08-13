@@ -843,7 +843,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "Printf"]
-git-tree-sha1 = "9269d8bbcfdb1cdd69dee1797e6c946d06a1fedd"
+git-tree-sha1 = "32758fc09634d1d1b4c46f382a925e9317dda214"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1269,9 +1269,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Tables", "TransformsBase"]
-git-tree-sha1 = "abad770f1588a56392820984c8c648b90b645f45"
+git-tree-sha1 = "ca2979953961e4e9e26de17df91021bbde1a3c32"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.34.9"
+version = "0.34.10"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
@@ -1763,9 +1763,9 @@ version = "0.4.0+0"
 
 [[deps.Roots]]
 deps = ["ChainRulesCore", "CommonSolve", "Printf", "Setfield"]
-git-tree-sha1 = "de432823e8aab4dd1a985be4be768f95acf152d4"
+git-tree-sha1 = "59f5b44bce19cee49fe02a75c10225046276084f"
 uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "2.0.17"
+version = "2.0.18"
 
     [deps.Roots.extensions]
     RootsForwardDiffExt = "ForwardDiff"
