@@ -39,28 +39,28 @@ function _step(actor::ActorICsimple)
     dd = actor.dd
     par = actor.par
 
+    eqt = dd.equilibrium.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
+    cs = dd.core_sources
+
+    R0 = eqt.boundary.geometric_axis.r
+    beta_tor = eqt.global_quantities.beta_tor
+    rho_cp = cp1d.grid.rho_tor_norm
+    volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
+    area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
+
     n_antennas = length(dd.ic_antennas.antenna)
     _, width, rho_0 = same_length_vectors(1:n_antennas, par.width, par.rho_0)
 
     for (idx, ica) in enumerate(dd.ic_antennas.antenna)
-        eqt = dd.equilibrium.time_slice[]
-        cp1d = dd.core_profiles.profiles_1d[]
-        cs = dd.core_sources
-
         power_launched = @ddtime(ica.power_launched.data)
-
-        rho_cp = cp1d.grid.rho_tor_norm
-        volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
-        area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
         # for FPP cases 80% to ions is reasonable (especially using minority heating)
         ion_electron_fraction_cp = fill(0.8, length(rho_cp))
 
-        R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
         zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx])
-        beta_tor = eqt.global_quantities.beta_tor
 
         eta = TekeV * 0.063 / (2.0 + zeff) / (1.0 + 0.5 * beta_tor)
         j_parallel = eta / R0 / ne20 * power_launched
