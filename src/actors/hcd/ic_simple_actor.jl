@@ -66,7 +66,7 @@ function _step(actor::ActorICsimple)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        source = resize!(cs.source, :ic, "identifier.name" => eca.name; wipe=false)
+        source = resize!(cs.source, :ic, "identifier.name" => ica.name; wipe=false)
         gaussian_source(
             source,
             ica.name,
