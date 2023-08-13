@@ -64,7 +64,7 @@ function _step(actor::ActorLHsimple)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        source = resize!(cs.source, :lh; wipe=false, allow_multiple_matches=true)
+        source = resize!(cs.source, :lh, "identifier.name" => lha.name; wipe=false)
         gaussian_source(
             source,
             lha.name,
