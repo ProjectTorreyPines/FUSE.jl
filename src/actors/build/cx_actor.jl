@@ -560,7 +560,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
 
         if shape == Int(_silo_)
             is_up_down_symmetric = false
-        elseif abs(sum(oZ) / sum(abs.(oZ))) < 1E-2
+        elseif abs(sum(oZ) / sum(abs, oZ)) < 1E-2
             is_up_down_symmetric = true
         else
             is_up_down_symmetric = false

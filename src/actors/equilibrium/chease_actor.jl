@@ -82,11 +82,11 @@ function _step(actor::ActorCHEASE)
             rho_pol, pressure, j_tor,
             rescale_eq_to_ip=par.rescale_eq_to_ip,
             clear_workdir=par.clear_workdir)
-    catch
+    catch e
         display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
         display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
         display(plot(rho_pol, j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
-        rethrow()
+        rethrow(e)
     end
 
     return actor

@@ -139,7 +139,7 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String
     if x_name == "TAUTH"
         x_ylim = [5e-3, 1e1]
     else
-        x_ylim = [minimum(abs.(dataframe[:, x_name])) / 1e1, maximum(dataframe[:, x_name]) * 1e1]
+        x_ylim = [minimum(abs, dataframe[:, x_name]) / 1e1, maximum(dataframe[:, x_name]) * 1e1]
     end
     dataframe = dataframe[DataFrames.completecases(dataframe), :]
     dataframe = filter(row -> row["$(name)_fuse"] > 0.0, dataframe)
@@ -170,5 +170,5 @@ function R_squared(x, y)
 end
 
 function mean_relative_error(x, y)
-    return sum(abs.((y .- x) ./ x)) / length(x)
+    return sum(abs, (y .- x) ./ x) / length(x)
 end
