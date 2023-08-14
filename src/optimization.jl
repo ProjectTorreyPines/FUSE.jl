@@ -217,13 +217,7 @@ function optimization_engine(
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
-            save(savedir, save_dd ? dd : nothing, ini, act; freeze=true)
-
-            # save timer output
-            redirect_stdio(stdout=savedir*"/timing.txt") do
-                show(FUSE.timer)
-            end
-
+            save(savedir, save_dd ? dd : nothing, ini, act; timer=true, varinfo=true, freeze=true, overwrite_files=false)
         end
         # evaluate multiple objectives
         return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
@@ -232,18 +226,12 @@ function optimization_engine(
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
                 savedir = joinpath(save_folder, "$(generation)__f$(Dates.now())__$(getpid())")
-                save(savedir, nothing, ini, act, e; freeze=true)
-
-                # save timer output
-                redirect_stdio(stdout=savedir*"/timing.txt") do
-                    show(FUSE.timer)
-                end
-                
+                save(savedir, nothing, ini, act, e; timer=true, varinfo=true, freeze=true, overwrite_files=false)                
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
             end
         end
-        # rethrow() # uncomment for debugging purposes
+        # rethrow(e) # uncomment for debugging purposes
         return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
     end
 end
