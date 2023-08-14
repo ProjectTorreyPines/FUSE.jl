@@ -39,21 +39,22 @@ function _step(actor::ActorNBsimple)
     dd = actor.dd
     par = actor.par
 
+    eqt = dd.equilibrium.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
+    cs = dd.core_sources
+
+    R0 = eqt.boundary.geometric_axis.r
+    rho_cp = cp1d.grid.rho_tor_norm
+    volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
+    area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
+
     n_beams = length(dd.nbi.unit)
     _, width, rho_0 = same_length_vectors(1:n_beams, par.width, par.rho_0)
 
     for (idx, nbu) in enumerate(dd.nbi.unit)
-        eqt = dd.equilibrium.time_slice[]
-        cp1d = dd.core_profiles.profiles_1d[]
-        cs = dd.core_sources
-
         beam_energy = @ddtime (nbu.energy.data)
         beam_mass = nbu.species.a
         power_launched = @ddtime(nbu.power_launched.data)
-
-        rho_cp = cp1d.grid.rho_tor_norm
-        volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
-        area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
@@ -61,7 +62,6 @@ function _step(actor::ActorNBsimple)
         momentum_source =
             sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
-        R0 = eqt.boundary.geometric_axis.r
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
 

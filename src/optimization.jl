@@ -128,11 +128,12 @@ function update_ConstraintFunctionsLibrary!()
     ConstraintFunction(:min_lh_power_threshold, "%", dd -> (IMAS.power_sol(dd) / dd.requirements.lh_power_threshold_fraction - IMAS.scaling_L_to_H_power(dd)) / IMAS.scaling_L_to_H_power(dd), >, 0.0)
     ConstraintFunction(:max_ωpe_ωce, "%", dd -> IMAS.ω_pe(@ddtime(dd.summary.local.magnetic_axis.n_e.value)) / IMAS.ω_ce(@ddtime(dd.summary.global_quantities.b0.value)), <, 1.0)
     ConstraintFunction(:max_qpol_omp, "%", dd -> (IMAS.q_pol_omp_eich(dd) - dd.requirements.q_pol_omp) / dd.requirements.q_pol_omp, <, 0.0)
-    ConstraintFunction(:max_tf_j, "%", dd -> dd.build.tf.critical_j / dd.build.tf.max_j, >, 1.399)
-    ConstraintFunction(:max_oh_j, "%", dd -> dd.build.oh.critical_j / dd.build.oh.max_j, >, 1.399)
-    ConstraintFunction(:max_pl_stress, "%", dd -> ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl) ? 0.0 : dd.solid_mechanics.center_stack.properties.yield_strength.pl / maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), >, 1.199)
-    ConstraintFunction(:max_tf_stress, "%", dd -> dd.solid_mechanics.center_stack.properties.yield_strength.tf / maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), >, 1.199)
-    ConstraintFunction(:max_oh_stress, "%", dd -> dd.solid_mechanics.center_stack.properties.yield_strength.oh / maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), >, 1.199)
+    ConstraintFunction(:max_tf_j, "%", dd -> dd.build.tf.critical_j / dd.build.tf.max_j - dd.requirements.coil_j_margin, >, 0.0)
+    ConstraintFunction(:max_oh_j, "%", dd -> dd.build.oh.critical_j / dd.build.oh.max_j - dd.requirements.coil_j_margin, >, 0.0)
+    ConstraintFunction(:max_pl_stress, "%", dd -> ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl) ? 0.0 : dd.solid_mechanics.center_stack.properties.yield_strength.pl / maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) - dd.requirements.coil_stress_margin, >, 0.0)
+    ConstraintFunction(:max_tf_stress, "%", dd -> dd.solid_mechanics.center_stack.properties.yield_strength.tf / maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) - dd.requirements.coil_stress_margin, >, 0.0)
+    ConstraintFunction(:max_oh_stress, "%", dd -> dd.solid_mechanics.center_stack.properties.yield_strength.oh / maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) - dd.requirements.coil_stress_margin, >, 0.0)
+    ConstraintFunction(:max_hds03, "%", dd -> (@ddtime(dd.summary.global_quantities.tau_energy.value)/IMAS.tau_e_ds03(dd) - dd.requirements.hds03)/dd.requirements.hds03, <, 0.0)
     return ConstraintFunctionsLibrary
 end
 update_ConstraintFunctionsLibrary!()
@@ -215,8 +216,8 @@ function optimization_engine(
         end
         # save simulation data to directory
         if !isempty(save_folder)
-            savedir = joinpath(save_folder, "$(Dates.now())__$(getpid())")
-            save(savedir, save_dd ? dd : nothing, ini, act; freeze=true)
+            savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
+            save(savedir, save_dd ? dd : nothing, ini, act; timer=true, varinfo=true, freeze=true, overwrite_files=false)
         end
         # evaluate multiple objectives
         return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
@@ -224,8 +225,8 @@ function optimization_engine(
         # save empty dd and error to directory
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
-                savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
-                save(savedir, nothing, ini, act, e; freeze=true)
+                savedir = joinpath(save_folder, "$(generation)__f$(Dates.now())__$(getpid())")
+                save(savedir, nothing, ini, act, e; timer=true, varinfo=true, freeze=true, overwrite_files=false)                
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
             end
