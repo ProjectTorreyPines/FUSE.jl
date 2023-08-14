@@ -45,8 +45,8 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     par = par(kw...)
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:equilibrium)
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
     actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, beta_norm_from=:equilibrium)
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
