@@ -299,7 +299,7 @@ function construct_boundary(r_coords, z_coords)
     return boundary
 end
 
-function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
+function neutron_transport_2d(dd::IMAS.dd, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
     gmsh.initialize()
     factory = gmsh.model.geo
     layers = IMAS.get_build_layers(dd.build.layer, fs=[IMAS._hfs_, IMAS._lhfs_]) 
@@ -348,10 +348,11 @@ function construct_2d(dd::IMAS.dd, data_path::String, data_filename::String, sav
     gmsh.write(mshfile)
     gmsh.finalize()
     
-    return xss, mshfile
+    sol = run_2d(dd, xss, mshfile, save_path, save_filename)
+    return sol
 end
 
-function run_2d(xss, mshfile, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
+function run_2d(dd, xss, mshfile, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
     model = GmshDiscreteModel(mshfile; renumber=true)
     jsonfile = joinpath(save_path, save_filename * ".json")
     Gridap.Io.to_json_file(model, jsonfile)
@@ -384,7 +385,11 @@ function run_2d(xss, mshfile, save_path::String=pwd(), save_filename::String="fu
     prob = MoCProblem(tg, pq, xss)
 
     # define fixed source material
-    fixed_sources = set_fixed_source_material(prob, "plasma", 8 , 1)
+    if IMAS.get_build_layers(dd.build.layer, type=_plasma_)[1].material == "DD_plasma"
+        fixed_sources = set_fixed_source_material(prob, "plasma", 42 , 1)
+    else
+        fixed_sources = set_fixed_source_material(prob, "plasma", 8 , 1)
+    end
 
     # solve
     sol = NeutronTransport.solve(prob, fixed_sources, debug=true, max_residual=0.05, max_iterations=500)
