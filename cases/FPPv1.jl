@@ -29,6 +29,10 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints = :double
         act.ActorEquilibrium.model = :TEQUILA
+        act.ActorHCD.ec_model = :none
+        act.ActorHCD.ic_model = :none
+        act.ActorHCD.lh_model = :none
+        act.ActorHCD.nb_model = :none
         act.ActorWholeFacility.update_plasma = false
         STEP = true
     end
