@@ -68,6 +68,9 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
             end
         end
 
+        # initialize requirements
+        init_requirements(dd, ini, act)
+
         # initialize missing IDSs from ODS (if loading from ODS)
         init_missing_from_ods(dd, ini, act)
 
