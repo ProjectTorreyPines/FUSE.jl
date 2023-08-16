@@ -91,7 +91,7 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.ec_launchers.efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 2.0e8
-    ini.requirements.flattop_duration = 86400.0
+    ini.requirements.flattop_duration = 86400.0 / 2
     ini.requirements.tritium_breeding_ratio = 1.1
 
     #### ACT ####
