@@ -126,14 +126,6 @@ function _step(actor::ActorHFSsizing)
             c_flt = 0.0
         end
 
-        # weight cost values
-        c_joh *= 100.0
-        c_soh *= 10.0
-        c_jtf *= 100.0
-        c_stf *= 1.0
-        c_spl *= 1.0
-        c_flt *= 1000.0
-
         if par.verbose
             push!(C_JOH, c_joh)
             push!(C_SOH, c_soh)
@@ -145,8 +137,6 @@ function _step(actor::ActorHFSsizing)
 
         # total cost
         return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
-        #return norm([c_joh, c_soh, c_jtf, c_stf, c_spl, c_flt])
-
     end
 
     # initialize
