@@ -299,16 +299,40 @@ function construct_boundary(r_coords, z_coords)
     return boundary
 end
 
+function construct_circle(center_coords::Vector, radius, surface_id)
+    # make inner circle points
+    factory = gmsh.model.geo
+    lc = 30
+    center = factory.addPoint(center_coords[1], center_coords[2], 0, lc, 5*(surface_id-1)+1)
+    right = factory.addPoint(center_coords[1]+radius, center_coords[2], 0, lc, 5*(surface_id-1)+2)
+    top = factory.addPoint(center_coords[1], center_coords[2]+radius, 0, lc, 5*(surface_id-1)+3)
+    left = factory.addPoint(center_coords[1]-radius, center_coords[2], 0, lc, 5*(surface_id-1)+4)
+    bottom = factory.addPoint(center_coords[1], center_coords[2]-radius, 0, lc, 5*(surface_id-1)+5)
+
+    # make arcs and circle
+    right_top = factory.addCircleArc(right, center, top, 4*(surface_id-1)+1)
+    top_left = factory.addCircleArc(top, center, left, 4*(surface_id-1)+2)
+    left_bottom = factory.addCircleArc(left, center, bottom, 4*(surface_id-1)+3)
+    bottom_right = factory.addCircleArc(bottom, center, right, 4*(surface_id-1)+4)
+    circle = factory.addCurveLoop([right_top, top_left, left_bottom, bottom_right], surface_id)
+    return circle
+end
+
 function neutron_transport_2d(dd::IMAS.dd, data_path::String, data_filename::String, save_path::String=pwd(), save_filename::String="fuse_neutron_transport")
     gmsh.initialize()
     factory = gmsh.model.geo
     layers = IMAS.get_build_layers(dd.build.layer, fs=[IMAS._hfs_, IMAS._lhfs_]) 
-    append!(layers, IMAS.get_build_layers(dd.build.layer, type=IMAS._oh_))
+    pushfirst!(layers, IMAS.get_build_layer(dd.build.layer, type=IMAS._oh_))
     layers = [layer for layer in layers if !occursin("first", layer.name)] # temporary fix
-    names = [layer.name for layer in layers]
+    names = [replace(layer.name, "plasma" => "plsm") for layer in layers]
     materials = [replace(layer.material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)") for layer in layers]
     boundaries = [construct_boundary(layer.outline.r * 100, layer.outline.z * 100, idx) for (idx, layer) in enumerate(layers)]
-    
+    # equilibrium_magnetic_axis = dd.equilibrium.time_slice[1].global_quantities.magnetic_axis
+    push!(names, "plasma")
+    push!(materials, "DT_plasma")
+    # push!(boundaries, construct_boundary(equilibrium_magnetic_axis.r * 100, equilibrium_magnetic_axis.z * 100, length(materials + 1)))
+    push!(boundaries, construct_circle([dd.equilibrium.vacuum_toroidal_field.r0 *100, 0], 25, 88888))
+
     push!(materials, "Air-(dry,-near-sea-level)")
     push!(names, "Exterior")
     max_z = maximum([maximum(layer.outline.z) for layer in layers]) * 100 + 1.0
@@ -322,7 +346,7 @@ function neutron_transport_2d(dd::IMAS.dd, data_path::String, data_filename::Str
     counter = 1
 
     for idx in eachindex(boundaries)
-        if idx <= length(layers) && layers[idx].fs == Int(IMAS._hfs_)
+        if idx <= length(layers) && (layers[idx].fs == Int(IMAS._hfs_) || layers[idx].fs == Int(IMAS._lhfs_))
             surface = factory.addPlaneSurface([boundaries[idx], boundaries[idx+1]], idx)
             if counter == 1
                 push!(outer_bounds, surface)
