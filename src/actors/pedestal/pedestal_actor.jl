@@ -6,18 +6,15 @@ import EPEDNN
 Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-
     #== actor parameters ==#
     edge_bound::Entry{T} = Entry{T}("-", "Defines rho at which edge starts"; default=0.8)
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ratio of ion to electron temperatures"; default=1.0)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
-
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = set_ip_from()
-    beta_norm_from::Switch{Union{Symbol,Missing}} = set_beta_norm_from()
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    beta_norm_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:βn)
     update_core_profiles::Entry{Bool} = Entry{Bool}("-", "Update core_profiles"; default=true)
-
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
 end

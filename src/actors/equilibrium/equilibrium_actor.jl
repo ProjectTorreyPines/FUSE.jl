@@ -4,9 +4,12 @@
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    #== actor parameters ==#
     model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
-    ip_from::Switch{Union{Symbol,Missing}} = set_ip_from()
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    #== display and debugging parameters ==#
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
 end
 
