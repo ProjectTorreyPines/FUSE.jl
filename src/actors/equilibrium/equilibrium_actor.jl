@@ -136,12 +136,10 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
 
     # x-points
-    if length(getproperty(pc,:x_point,[])) >= 1
-        resize!(eqt.boundary.x_point, length(pc.x_point))
-        for k in eachindex(pc.x_point)
-            eqt.boundary.x_point[k].r = @ddtime(pc.x_point[k].r.reference.data)
-            eqt.boundary.x_point[k].z = @ddtime(pc.x_point[k].z.reference.data)
-        end
+    resize!(eqt.boundary.x_point, length(pc.x_point))
+    for k in eachindex(pc.x_point)
+        eqt.boundary.x_point[k].r = @ddtime(pc.x_point[k].r.reference.data)
+        eqt.boundary.x_point[k].z = @ddtime(pc.x_point[k].z.reference.data)
     end
 
     # set j_tor and pressure
