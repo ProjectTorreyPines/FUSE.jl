@@ -327,12 +327,10 @@ function neutron_transport_2d(dd::IMAS.dd, data_path::String, data_filename::Str
     names = [replace(layer.name, "plasma" => "plsm") for layer in layers]
     materials = [replace(layer.material," " => "-", "Vacuum" => "Air-(dry,-near-sea-level)") for layer in layers]
     boundaries = [construct_boundary(layer.outline.r * 100, layer.outline.z * 100, idx) for (idx, layer) in enumerate(layers)]
-    # equilibrium_magnetic_axis = dd.equilibrium.time_slice[1].global_quantities.magnetic_axis
+    equilibrium_magnetic_axis = dd.equilibrium.time_slice[2].global_quantities.magnetic_axis
     push!(names, "plasma")
     push!(materials, "DT_plasma")
-    # push!(boundaries, construct_boundary(equilibrium_magnetic_axis.r * 100, equilibrium_magnetic_axis.z * 100, length(materials + 1)))
-    push!(boundaries, construct_circle([dd.equilibrium.vacuum_toroidal_field.r0 *100, 0], 25, 88888))
-
+    push!(boundaries, construct_circle([equilibrium_magnetic_axis.r * 100, equilibrium_magnetic_axis.z * 100], 50, 88888))
     push!(materials, "Air-(dry,-near-sea-level)")
     push!(names, "Exterior")
     max_z = maximum([maximum(layer.outline.z) for layer in layers]) * 100 + 1.0
@@ -385,10 +383,10 @@ function run_2d(dd, xss, mshfile, save_path::String=pwd(), save_filename::String
     geometry = DiscreteModelFromFile(jsonfile)
 
     # number of azimuthal angles
-    nφ = 4
+    nφ = 16
 
     # azimuthal spacing
-    δ = 3.0 
+    δ = 1.5 
 
     # boundary conditions
     bcs = BoundaryConditions(top=Vaccum, left=Vaccum, bottom=Vaccum, right=Vaccum)
