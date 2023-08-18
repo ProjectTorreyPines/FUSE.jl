@@ -114,9 +114,9 @@ version = "0.3.7"
 
 [[deps.BandedMatrices]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "PrecompileTools"]
-git-tree-sha1 = "6e9b384d5e21452bc81cae3552c74f430e320985"
+git-tree-sha1 = "106122bad983acd8e21aef3f7a7f91a3ac739077"
 uuid = "aae01518-5342-5314-be14-df237901396f"
-version = "0.17.35"
+version = "0.17.36"
 weakdeps = ["SparseArrays"]
 
     [deps.BandedMatrices.extensions]
@@ -990,9 +990,9 @@ version = "0.1.5"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
-git-tree-sha1 = "a7e91ef94114d5bc8952bcaa8d6ff952cf709808"
+git-tree-sha1 = "7e5d6779a1e09a36db2a7b6cff50942a0a7d0fca"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.4.2"
+version = "1.5.0"
 
 [[deps.JMcDM]]
 deps = ["Requires"]
@@ -1423,7 +1423,7 @@ version = "0.1.4"
 
 [[deps.MillerExtendedHarmonic]]
 deps = ["Dierckx", "LinearAlgebra", "Optim", "RecipesBase"]
-git-tree-sha1 = "00f1cb45a495633a8a17df030ab3b0e0cb5d7c9e"
+git-tree-sha1 = "3c16d4437fd79ac4194b91f48dc634a9672e8e5e"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"
 uuid = "c82744c2-dc08-461a-8c37-87ab04d0f9b8"
@@ -2189,7 +2189,7 @@ version = "0.1.0"
 
 [[deps.TEQUILA]]
 deps = ["BSON", "FFTW", "FiniteElementHermite", "JuMP", "LinearAlgebra", "LinearSolve", "MXHEquilibrium", "MillerExtendedHarmonic", "NLopt", "Optim", "PlotUtils", "PreallocationTools", "QuadGK", "RecipesBase", "Roots", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "cd828d4f030c447546b40f6a380ac013845fadc4"
+git-tree-sha1 = "8ced3aefb2569f074c2b24862d31323b4faaf154"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TEQUILA.jl.git"
 uuid = "a60c9cbd-e72f-4185-96b6-b8fc312c4d37"
