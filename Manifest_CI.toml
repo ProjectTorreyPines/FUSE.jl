@@ -1349,12 +1349,6 @@ git-tree-sha1 = "f4e059d60f10ffa61f897c10f7fbdb8eed895e95"
 uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 version = "1.19.0"
 
-[[deps.MathProgBase]]
-deps = ["LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "9abbe463a1e9fc507f12a69e7f29346c2cdc472c"
-uuid = "fdba3010-5040-5b88-9595-932c9decdf73"
-version = "0.7.8"
-
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "Random", "Sockets"]
 git-tree-sha1 = "03a9b9718f5682ecb107ac9f7308991db4ce395b"
@@ -1467,10 +1461,14 @@ uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
 version = "7.8.3"
 
 [[deps.NLopt]]
-deps = ["MathOptInterface", "MathProgBase", "NLopt_jll"]
-git-tree-sha1 = "5a7e32c569200a8a03c3d55d286254b0321cd262"
+deps = ["NLopt_jll"]
+git-tree-sha1 = "19d2a1c8a3c5b5a459f54a10e54de630c4a05701"
 uuid = "76087f3c-5699-56af-9a33-bf431cd00edd"
-version = "0.6.5"
+version = "1.0.0"
+weakdeps = ["MathOptInterface"]
+
+    [deps.NLopt.extensions]
+    NLoptMathOptInterfaceExt = ["MathOptInterface"]
 
 [[deps.NLopt_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
