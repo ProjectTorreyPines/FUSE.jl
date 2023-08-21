@@ -112,11 +112,11 @@ function _finalize(actor::ActorNeoclassical)
 
     model = findfirst(:neoclassical, actor.dd.core_transport.model)
     m1d = model.profiles_1d[]
-    m1d.total_ion_energy.flux = zeros(length(actor.par.rho_transport))
-    m1d.electrons.particles.flux = zeros(length(actor.par.rho_transport))
-    m1d.electrons.energy.flux = zeros(length(actor.par.rho_transport))
+    m1d.total_ion_energy.flux = zeros(length(par.rho_transport))
+    m1d.electrons.particles.flux = zeros(length(par.rho_transport))
+    m1d.electrons.energy.flux = zeros(length(par.rho_transport))
 
-    for (neoclassical_idx, rho) in enumerate(actor.par.rho_transport)
+    for (neoclassical_idx, rho) in enumerate(par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
         m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
