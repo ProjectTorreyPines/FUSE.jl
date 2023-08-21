@@ -170,9 +170,12 @@ function solve_1D_solid_mechanics!(
     verbose::Bool=false) where (T<:Real)   # : (bool), flag for verbose output to terminal
 
     if empty_smcs
-        original_cs_properties = deepcopy(smcs.properties)
-        empty!(smcs)
-        fill!(smcs.properties, original_cs_properties)
+        # empty smcs but always retain the materials' properties
+        for field in keys(smcs)
+            if field != :properties
+                empty!(smcs, field)
+            end
+        end
     end
 
     tp = typeof(promote(R0, B0, R_tf_in, R_tf_out, Bz_oh, R_oh_in, R_oh_out)[1])

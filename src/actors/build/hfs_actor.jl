@@ -72,7 +72,12 @@ function _step(actor::ActorHFSsizing)
         OH.thickness = mirror_bound(x0[1], 0.0, CPradius - OHTFgap)
         TFhfs.thickness = mirror_bound(x0[2], 0.0, CPradius - OH.thickness - OHTFgap)
         PL.thickness = CPradius - TFhfs.thickness - OH.thickness - OHTFgap
+        OH.thickness = mirror_bound(x0[1], 0.0, CPradius - OHTFgap)
+        TFhfs.thickness = mirror_bound(x0[2], 0.0, CPradius - OH.thickness - OHTFgap)
+        PL.thickness = CPradius - TFhfs.thickness - OH.thickness - OHTFgap
         TFlfs.thickness = TFhfs.thickness
+        dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.0, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
+        dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.0, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
         dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.0, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
         dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.0, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
         return nothing
@@ -87,7 +92,7 @@ function _step(actor::ActorHFSsizing)
         _step(actor.stresses_actor)
 
         # OH currents and stresses
-        if actor.fluxswing_actor.par.operate_oh_at_j_crit && (par.j_tolerance >= 0)
+        if actor.fluxswing_actor.par.operate_oh_at_j_crit && (par.j_tolerance >= 0) && (par.j_tolerance >= 0)
             c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
         else
             c_joh = 0.0
@@ -126,14 +131,6 @@ function _step(actor::ActorHFSsizing)
             c_flt = 0.0
         end
 
-        # weight cost values
-        c_joh *= 100.0
-        c_soh *= 10.0
-        c_jtf *= 100.0
-        c_stf *= 1.0
-        c_spl *= 1.0
-        c_flt *= 1000.0
-
         if par.verbose
             push!(C_JOH, c_joh)
             push!(C_SOH, c_soh)
@@ -145,8 +142,6 @@ function _step(actor::ActorHFSsizing)
 
         # total cost
         return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
-        #return norm([c_joh, c_soh, c_jtf, c_stf, c_spl, c_flt])
-
     end
 
     # initialize
