@@ -56,29 +56,15 @@ function _step(actor::ActorNeoclassical)
         model.identifier.name = "NEO"
         rho_cp = cp1d.grid.rho_tor_norm
         gridpoint_cp = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
+
+        n_species = length(cp1d.ion)+1
         
         for i in gridpoint_cp
             neo_solution = NEO.run_neo(NEO.InputNEO(dd, i))
-            total_ion_energy_flux = 0.0 
-            particle_flux_electrons = 0.0
-            energy_flux_electrons = 0.0
            
-            #subtract from ions energy the electron energy flux, which is the last energy flux in the list (this will be added again later)
-            for j in 1:11
-                if ismissing(getfield(neo_solution, Symbol("ENERGY_FLUX_$j")))
-                    energy_flux_electrons = getfield(neo_solution, Symbol("ENERGY_FLUX_$(j-1)"))
-                    total_ion_energy_flux = -energy_flux_electrons
-                    break
-                end
-            end
-
-            #electron particle flux is the last particle flux in the list
-            for j in 1:11
-                if ismissing(getfield(neo_solution, Symbol("PARTICLE_FLUX_$j")))
-                    particle_flux_electrons = getfield(neo_solution, Symbol("PARTICLE_FLUX_$(j-1)"))
-                    break
-                end
-            end
+            energy_flux_electrons = getfield(neo_solution, Symbol("ENERGY_FLUX_$(n_species)")) # electrons are always the last species in the list
+            total_ion_energy_flux = -energy_flux_electrons # exclude electron energy flux from total ion energy flux
+            particle_flux_electrons = getfield(neo_solution, Symbol("PARTICLE_FLUX_$(n_species)"))
 
             for field in fieldnames(NEO.flux_solution)
                 if ismissing(getfield(neo_solution, field))
