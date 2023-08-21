@@ -63,17 +63,19 @@ function _step(actor::ActorNeoclassical)
             particle_flux_electrons = 0.0
             energy_flux_electrons = 0.0
            
+            #subtract from ions energy the electron energy flux, which is the last energy flux in the list (this will be added again later)
             for j in 1:11
                 if ismissing(getfield(neo_solution, Symbol("ENERGY_FLUX_$j")))
-                    energy_flux_electrons += getfield(neo_solution, Symbol("ENERGY_FLUX_$(j-1)")) #subtract out electron energy flux, which is the last energy flux in the list
-                    total_ion_energy_flux -= energy_flux_electrons
+                    energy_flux_electrons = getfield(neo_solution, Symbol("ENERGY_FLUX_$(j-1)"))
+                    total_ion_energy_flux = -energy_flux_electrons
                     break
                 end
             end
 
+            #electron particle flux is the last particle flux in the list
             for j in 1:11
                 if ismissing(getfield(neo_solution, Symbol("PARTICLE_FLUX_$j")))
-                    particle_flux_electrons += getfield(neo_solution, Symbol("PARTICLE_FLUX_$(j-1)")) #subtract out electron particle flux, which is the last particle flux in the list
+                    particle_flux_electrons = getfield(neo_solution, Symbol("PARTICLE_FLUX_$(j-1)"))
                     break
                 end
             end
