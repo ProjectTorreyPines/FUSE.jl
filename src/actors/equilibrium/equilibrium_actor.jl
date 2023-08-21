@@ -115,7 +115,7 @@ function prepare(actor::ActorEquilibrium)
     pc = ps.position_control
 
     # freeze core_profiles before wiping eqt and get ip_target
-    ip_target = IMAS.get_from(dd, :ip, actor.par.ip_from)
+    ip_target = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
     cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[])
 
     # add/clear time-slice

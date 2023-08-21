@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
     ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
-    beta_norm_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:βn)
+    βn_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:βn)
     update_core_profiles::Entry{Bool} = Entry{Bool}("-", "Update core_profiles"; default=true)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
@@ -33,8 +33,8 @@ end
 
 Evaluates the pedestal boundary condition (height and width)
 """
-function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:equilibrium, beta_norm_from=:core_profiles, kw...)
-    actor = ActorPedestal(dd, act.ActorPedestal; ip_from, beta_norm_from, kw...)
+function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:equilibrium, βn_from=:core_profiles, kw...)
+    actor = ActorPedestal(dd, act.ActorPedestal; ip_from, βn_from, kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -75,10 +75,10 @@ function _step(actor::ActorPedestal;
 
     actor.inputs = EPEDNN.InputEPED(
         eqt.boundary.minor_radius,
-        IMAS.get_from(dd, :beta_normal, par.beta_norm_from),
+        IMAS.get_from(dd, Val{:βn}, par.βn_from),
         Bt,
         EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper),
-        abs(IMAS.get_from(dd, :ip, par.ip_from) / 1e6),
+        abs(IMAS.get_from(dd, Val{:ip}, par.ip_from) / 1e6),
         eqt.boundary.elongation,
         m,
         neped / 1e19,
