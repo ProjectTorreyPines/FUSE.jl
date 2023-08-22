@@ -42,7 +42,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
     logging_actor_init(ActorFluxMatcher)
     par = par(kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, beta_norm_from=:core_profiles)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:core_profiles)
     ActorFluxMatcher(dd, par, actor_ct, actor_ped)
 end
 
@@ -114,10 +114,10 @@ function flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<
     # evolve pedestal
     if par.evolve_pedestal
         # modify dd with new z_profiles
-        actor.actor_ped.par.beta_norm_from = :equilibrium
+        actor.actor_ped.par.βn_from = :equilibrium
         finalize(step(actor.actor_ped))
         unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
-        actor.actor_ped.par.beta_norm_from = :core_profiles
+        actor.actor_ped.par.βn_from = :core_profiles
         finalize(step(actor.actor_ped))
         unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
     else

@@ -16,25 +16,24 @@ function name(typeof_actor::Type{<:AbstractActor})
     return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
 end
 
-#= ======== =#
-#  set_from  #
-#= ======== =#
+#= =============== =#
+#  Switch_get_from  #
+#= =============== =#
 """
-    set_ip_from()
+    Switch_get_from(quantity::Symbol)
 
-function to generate the set_ip_from switch to be used in actor parameters
+Switch to pick form which IDS `quantity` comes from
 """
-function set_ip_from()
-    return Switch{Union{Symbol,Missing}}([:core_profiles, :equilibrium, :pulse_schedule], "-", "Take ip from this IDS", default=missing)
-end
-
-"""
-    set_beta_norm_from()
-
-function to generate the set_ip_from switch to be used in actor parameters
-"""
-function set_beta_norm_from()
-    return Switch{Union{Symbol,Missing}}([:core_profiles, :equilibrium], "-", "Take beta_normal from this IDS", default=missing)
+function Switch_get_from(quantity::Symbol)::Switch{Union{Symbol,Missing}}
+    txt = "Take $quantity from this IDS"
+    if quantity == :ip
+        swch = Switch{Union{Symbol,Missing}}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+    elseif quantity == :βn
+        swch = Switch{Union{Symbol,Missing}}([:core_profiles, :equilibrium], "-", txt)
+    else
+        error("`$quantity` not supported in Switch_get_from()")
+    end
+    return swch
 end
 
 #= ==== =#
@@ -45,7 +44,7 @@ end
 
 Calls `_step(actor)`
 
-This is where the calculation is done.
+This is where the main part of the actor calculation gets done
 """
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
     memory_time_tag("$(name(actor)) - @step IN")
@@ -79,7 +78,7 @@ end
 
 Calls `_finalize(actor)`
 
-This is typically used to update `dd` to whatever the actor has calculated at the `step` function.
+This is typically used to update `dd` to whatever the actor has calculated at the `step` function
 """
 function finalize(actor::T) where {T<:AbstractActor}
     memory_time_tag("$(name(actor)) - finalize IN")

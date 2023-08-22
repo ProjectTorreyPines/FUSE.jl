@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T} <: ParametersActor wh
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED], "-", "Current actor to run"; default=:SteadyStateCurrent)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = set_ip_from()
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
 end
 
 mutable struct ActorCurrent{D,P} <: PlasmaAbstractActor

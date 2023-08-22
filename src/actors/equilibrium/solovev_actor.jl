@@ -8,13 +8,12 @@ import Optim
 Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-
     #== actor parameters ==#
     ngrid::Entry{Int} = Entry{Int}("-", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     qstar::Entry{T} = Entry{T}("-", "Initial guess of kink safety factor"; default=1.5)
     alpha::Entry{T} = Entry{T}("-", "Initial guess of constant relating to pressure"; default=0.0)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = set_ip_from()
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end

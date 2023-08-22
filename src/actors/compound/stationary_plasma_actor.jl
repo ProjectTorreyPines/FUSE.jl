@@ -47,7 +47,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:equilibrium)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, beta_norm_from=:equilibrium)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:equilibrium)
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
 
@@ -73,13 +73,13 @@ function _step(actor::ActorStationaryPlasma)
     finalize(step(actor.actor_hc))
 
     # evolve j_ohmic
-    if act.ActorCurrent.model == :SteadyStateCurrent
-        act.ActorSteadyStateCurrent.ip_from = :pulse_schedule
+    if typeof(actor.actor_jt) <: ActorSteadyStateCurrent
+        actor.actor_jt.par.ip_from = :pulse_schedule
     end
     finalize(step(actor.actor_jt))
 
     # set actors switches specific to this workflow
-    if actor.actor_eq.par.model == :CHEASE
+    if typeof(actor.actor_eq) <: ActorCHEASE
         chease_par = actor.actor_eq.eq_actor.par
         orig_par_chease = deepcopy(chease_par)
         chease_par.rescale_eq_to_ip = true
@@ -141,7 +141,7 @@ function _step(actor::ActorStationaryPlasma)
         end
 
     finally
-        if actor.actor_eq.par.model == :CHEASE
+        if typeof(actor.actor_eq) <: ActorCHEASE
             actor.actor_eq.eq_actor.par = orig_par_chease
         end
     end
