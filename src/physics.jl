@@ -662,19 +662,19 @@ end
 Returns LibGEOS.Polygon stucture from x and y arrays
 """
 function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
-    x = deepcopy(x)
-    y = deepcopy(y)
-    if (x[1] != x[end]) && (x[1] ≈ x[end])
-        x[end] = x[1]
+    if (x[1] ≈ x[end]) && (y[1] ≈ y[end])
+        coords = [[ [x[i], y[i]] for i in 1:length(x) ]]
+        coords[1][end] .= coords[1][1]
+    else
+        coords = [[ i>length(x) ? [x[1], y[1]] : [x[i], y[i]] for i in 1:length(x)+1 ]]
     end
-    if (y[1] != y[end]) && (y[1] ≈ y[end])
-        y[end] = y[1]
+
+    if (coords[1][1][1] != coords[1][end][1]) && (coords[1][1][1] ≈ coords[1][end][1])
+        coords[1][end][1] = coords[1][1][1]
     end
-    if (x[1] != x[end]) || (y[1] != y[end])
-        push!(x, x[1])
-        push!(y, y[1])
+    if (coords[1][1][2] != coords[1][end][2]) && (coords[1][1][2] ≈ coords[1][end][2])
+        coords[1][end][2] = coords[1][1][2]
     end
-    coords = [collect(map(collect, zip(x, y)))]
     return LibGEOS.Polygon(coords)
 end
 
