@@ -64,7 +64,7 @@ end
 Finds the optimal coil currents and locations of the poloidal field coils
 to match the equilibrium boundary shape and obtain a field-null region at plasma start-up.
 
-!!! note 
+!!! note
     Manupulates data in `dd.pf_active`
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -353,19 +353,14 @@ end
 
 Calculates coil green function at given R and Z coordinate
 """
-function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
     if coil.green_model == :point # fastest
         return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     elseif coil.green_model ∈ (:corners, :simple) # medium
         if coil.pf_active__coil.name == "OH"
-            n = 3
-            z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length=n)
-            green = []
-            for z in z_filaments
-                push!(green, VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
-            end
-            return sum(green)
+            z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length=n_filaments)
+            return sum(z -> VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments), z_filaments)
 
         elseif coil.green_model == :corners
             return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
