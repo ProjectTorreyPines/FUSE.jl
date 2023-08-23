@@ -360,7 +360,7 @@ function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_f
     elseif coil.green_model ∈ (:corners, :simple) # medium
         if coil.pf_active__coil.name == "OH"
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length=n_filaments)
-            return sum(z -> VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments), z_filaments)
+            return sum(VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
 
         elseif coil.green_model == :corners
             return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
