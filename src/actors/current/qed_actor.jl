@@ -51,24 +51,34 @@ function _step(actor::ActorQED)
     par = actor.par
 
     eqt = dd.equilibrium.time_slice[]
-    prof1d = dd.core_profiles.profiles_1d[]
+    cp1d = dd.core_profiles.profiles_1d[]
 
     t0 = dd.global_time
     t1 = dd.global_time + par.Δt
     δt = par.Δt / par.Nt
 
     # initialization
-    actor.QO = qed_init_from_imas(eqt, prof1d)
+    actor.QO = qed_init_from_imas(eqt, cp1d)
 
-    # staircase approach
-    for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
+    if false
+        # staircase approach to track current ramps: one QED diffuse call for each time step
+        for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
+            if par.solve_for == :ip
+                Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, tnow, :linear)
+                Vedge = nothing
+            else
+                error("Vloop advance not supported")
+            end
+            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, 1; Vedge, Ip)
+        end
+    else
         if par.solve_for == :ip
-            Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, tnow, :linear)
+            Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, t1, :linear)
             Vedge = nothing
         else
             error("Vloop advance not supported")
         end
-        actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, 1; Vedge, Ip)
+        actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[t1]), par.Δt, par.Nt; Vedge, Ip)
     end
 
     return actor
@@ -98,9 +108,19 @@ function _finalize(actor::ActorQED)
 end
 
 # utils
-function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, prof1d::IMAS.core_profiles__profiles_1d)
-    rho_tor = eqt.profiles_1d.rho_tor
+"""
+    qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
+
+Setup QED from data in IMAS `dd`
+
+NOTE: QED is initalized from equilibrium and not core_profiles because
+it needs both `q` and `j_tor`, and equilibrium is the only place where
+the two ought to be self-consistent
+"""
+function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
     R0, B0 = IMAS.vacuum_r0_b0(eqt)
+
+    rho_tor = eqt.profiles_1d.rho_tor
     gm1 = eqt.profiles_1d.gm1
     f = eqt.profiles_1d.f
     dvolume_drho_tor = eqt.profiles_1d.dvolume_drho_tor
@@ -108,17 +128,17 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, prof1d::IMAS.core
     j_tor = eqt.profiles_1d.j_tor
     gm9 = eqt.profiles_1d.gm9
 
-    if ismissing(prof1d, :j_non_inductive)
+    if ismissing(cp1d, :j_non_inductive)
         ρ_j_non_inductive = nothing
     else
-        ρ_j_non_inductive = (prof1d.grid.rho_tor_norm, prof1d.j_non_inductive)
+        ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, cp1d.j_non_inductive)
     end
 
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive)
 end
 
-function η_imas(prof1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
-    rho = prof1d.grid.rho_tor_norm
-    η = 1.0 ./ prof1d.conductivity_parallel
+function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
+    rho = cp1d.grid.rho_tor_norm
+    η = 1.0 ./ cp1d.conductivity_parallel
     return QED.η_FE(rho, η; use_log)
 end
