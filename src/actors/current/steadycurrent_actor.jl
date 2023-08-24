@@ -55,7 +55,7 @@ function _step(actor::ActorSteadyStateCurrent)
 
     else
         # update j_ohmic (this also restores j_tor, j_total as expressions)
-        IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[])
+        IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
     end
 
     # update core_sources related to current
