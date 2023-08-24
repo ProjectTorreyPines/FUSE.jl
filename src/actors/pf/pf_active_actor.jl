@@ -245,17 +245,17 @@ end
 #= ==================================== =#
 #  IMAS.pf_active__coil to VacuumFields  #
 #= ==================================== =#
-mutable struct GS_IMAS_pf_active__coil <: VacuumFields.AbstractCoil
-    pf_active__coil::IMAS.pf_active__coil
-    r::Real
-    z::Real
-    width::Real
-    height::Real
-    turns_with_sign::Real
-    spacing::Real
-    coil_tech::Union{IMAS.build__oh__technology,IMAS.build__pf_active__technology}
-    current_data::Vector{<:Real}
-    current_time::Vector{<:Real}
+mutable struct GS_IMAS_pf_active__coil{PF1<:IMAS.pf_active__coil, R1<:Real, R2<:Real, B1<: Union{IMAS.build__oh__technology,IMAS.build__pf_active__technology}} <: VacuumFields.AbstractCoil
+    pf_active__coil::PF1
+    r::R1
+    z::R1
+    width::R1
+    height::R1
+    turns_with_sign::R2
+    spacing::R1
+    coil_tech::B1
+    current_data::Vector{R1}
+    current_time::Vector{R1}
     time_index::Int
     green_model::Symbol
 end
