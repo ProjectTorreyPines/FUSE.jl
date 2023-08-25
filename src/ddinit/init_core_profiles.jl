@@ -10,7 +10,7 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
-            if !ismissing(dd1.core_profiles, :time) && length(keys(dd1.core_profiles.time)) > 0
+            if !ismissing(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
                 dd.global_time = max(dd.global_time, maximum(dd1.core_profiles.time))
                 dd.core_profiles = dd1.core_profiles
 
@@ -24,7 +24,7 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             else
                 init_from = :scalars
             end
-            if ismissing(dd.core_profiles.global_quantities, :ejima) && ~ismissing(ini.core_profiles, :ejima)
+            if ismissing(dd.core_profiles.global_quantities, :ejima) && !ismissing(ini.core_profiles, :ejima)
                 IMAS.set_time_array(dd.core_profiles.global_quantities, :ejima, ini.core_profiles.ejima)
             end
         end
