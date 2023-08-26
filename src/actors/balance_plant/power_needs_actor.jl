@@ -91,8 +91,9 @@ end
 function heating_and_current_drive_calc(system_unit::Any)
     power_electric_total = 0.0
     for item_unit in system_unit
-        if length(keys(item_unit.efficiency)) > 0
-            efficiency = prod([getproperty(item_unit.efficiency, i) for i in keys(item_unit.efficiency)])
+        efficiencies = collect((value for value in values(item_unit.efficiency) if value !== missing))
+        if length(efficiencies) > 0
+            efficiency = prod(efficiencies)
         else
             efficiency = 1.0
         end

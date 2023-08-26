@@ -10,13 +10,12 @@ function init_missing_from_ods(dd::IMAS.dd, ini::ParametersAllInits, act::Parame
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
-            for ids in keys(dd1)
-                if length(keys(getproperty(dd, ids))) == 0
-                    data = getproperty(dd1, ids)
-                    if !ismissing(data, :time)
-                        dd.global_time = max(dd.global_time, maximum(data.time))
-                    end
-                    setproperty!(dd, ids, data)
+            for field in keys(dd1)
+                ids1 = getproperty(dd1, field)
+                ids = getproperty(dd, field)
+                if !ismissing(ids1, :time) && length(ids1.time) > 0 && (ismissing(ids, :time) || length(ids.time) == 0)
+                    dd.global_time = max(dd.global_time, maximum(ids1.time))
+                    setproperty!(dd, field, ids1)
                 end
             end
         end
@@ -35,12 +34,12 @@ function init_requirements(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
     TimerOutputs.@timeit timer "init_requirements" begin
 
         # NOTE: `log10_flattop_duration` (used when running optimizations) wins over `flattop_duration`
-        for field in sort([field for field in fieldnames(typeof(ini.requirements)) if string(field)[1]!='_'], by=x->startswith(string(x),"log10_"))
+        for field in sort([field for field in fieldnames(typeof(ini.requirements)) if string(field)[1] != '_'], by=x -> startswith(string(x), "log10_"))
             value = getproperty(ini.requirements, field, missing)
             if value !== missing
                 if startswith(string(field), "log10_")
                     field = Symbol(replace(string(field), "log10_" => ""))
-                    value = 10.0.^value
+                    value = 10.0 .^ value
                 end
                 setproperty!(dd.requirements, field, value)
             end
