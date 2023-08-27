@@ -140,6 +140,14 @@ function _step(actor::ActorHFSsizing)
             push!(C_FLT, c_flt)
         end
 
+        # add weights
+        c_joh *= 1
+        c_soh *= 1
+        c_jtf *= 1
+        c_stf *= 1
+        c_spl *= 1
+        c_flt *= 10
+
         # total cost
         return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
     end
