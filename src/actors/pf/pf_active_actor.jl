@@ -64,7 +64,7 @@ end
 Finds the optimal coil currents and locations of the poloidal field coils
 to match the equilibrium boundary shape and obtain a field-null region at plasma start-up.
 
-!!! note 
+!!! note
     Manupulates data in `dd.pf_active`
 """
 function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -245,17 +245,17 @@ end
 #= ==================================== =#
 #  IMAS.pf_active__coil to VacuumFields  #
 #= ==================================== =#
-mutable struct GS_IMAS_pf_active__coil <: VacuumFields.AbstractCoil
-    pf_active__coil::IMAS.pf_active__coil
-    r::Real
-    z::Real
-    width::Real
-    height::Real
-    turns_with_sign::Real
-    spacing::Real
-    coil_tech::Union{IMAS.build__oh__technology,IMAS.build__pf_active__technology}
-    current_data::Vector{<:Real}
-    current_time::Vector{<:Real}
+mutable struct GS_IMAS_pf_active__coil{PF1<:IMAS.pf_active__coil, R1<:Real, R2<:Real, B1<: Union{IMAS.build__oh__technology,IMAS.build__pf_active__technology}} <: VacuumFields.AbstractCoil
+    pf_active__coil::PF1
+    r::R1
+    z::R1
+    width::R1
+    height::R1
+    turns_with_sign::R2
+    spacing::R1
+    coil_tech::B1
+    current_data::Vector{R1}
+    current_time::Vector{R1}
     time_index::Int
     green_model::Symbol
 end
@@ -353,19 +353,14 @@ end
 
 Calculates coil green function at given R and Z coordinate
 """
-function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
     if coil.green_model == :point # fastest
         return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     elseif coil.green_model ∈ (:corners, :simple) # medium
         if coil.pf_active__coil.name == "OH"
-            n = 3
-            z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length=n)
-            green = []
-            for z in z_filaments
-                push!(green, VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n))
-            end
-            return sum(green)
+            z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0, length=n_filaments)
+            return sum(VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
 
         elseif coil.green_model == :corners
             return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
@@ -532,7 +527,7 @@ function optimize_coils_rail(
         if ismissing(eqt.global_quantities, :ip)
             # find ψp
             ψp_constant = eqt.global_quantities.psi_boundary
-            rb, zb = IMAS.boundary(pc, time_index = 1)
+            rb, zb = IMAS.boundary(pc, 1)
             Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(ψp_constant, rb, zb, fixed_coils)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             push!(weights, Float64[])
@@ -854,7 +849,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                IMAS.boundary(pc, time_index=1)
+                IMAS.boundary(pc, 1)
             end
         else
             @series begin

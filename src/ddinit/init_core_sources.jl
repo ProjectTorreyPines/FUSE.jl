@@ -199,7 +199,7 @@ function init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
-            if !ismissing(dd1.core_sources, :time) && length(keys(dd1.core_sources.time)) > 0
+            if !ismissing(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
                 dd.global_time = max(dd.global_time, maximum(dd1.core_sources.time))
                 dd.core_sources = dd1.core_sources
                 unique_core_sources_names!(dd.core_sources)
