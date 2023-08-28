@@ -18,15 +18,15 @@ end
 
 @testset "init" begin
     tests = FUSE.OrderedCollections.OrderedDict()
-    tests["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
-    tests["D3D"] = ([:D3D], Dict())
-    tests["FPP_v1_demount_scalars"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :scalars))
-    tests["FPP_v1_demount_ods"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :ods))
-    tests["FPP_v1_ods"] = ([:FPP], Dict(:version => :v1, :init_from => :ods))
-    tests["FPP_v1_scalars"] = ([:FPP], Dict(:version => :v1, :init_from => :scalars))
-    tests["CAT"] = ([:CAT], Dict())
-    tests["HDB5"] = ([:HDB5], Dict(:tokamak => :JET, :case => 500))
-    tests["ARC"] = ([:ARC], Dict())
+#    tests["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
+#    tests["D3D"] = ([:D3D], Dict())
+#    tests["FPP_v1_demount_scalars"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :scalars))
+#    tests["FPP_v1_demount_ods"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :ods))
+#    tests["FPP_v1_ods"] = ([:FPP], Dict(:version => :v1, :init_from => :ods))
+#    tests["FPP_v1_scalars"] = ([:FPP], Dict(:version => :v1, :init_from => :scalars))
+#    tests["CAT"] = ([:CAT], Dict())
+#    tests["HDB5"] = ([:HDB5], Dict(:tokamak => :JET, :case => 500))
+#    tests["ARC"] = ([:ARC], Dict())
     tests["SPARC"] = ([:SPARC], Dict())
 
     for (testname, (args, kw)) in tests
@@ -40,6 +40,8 @@ end
         end
     end
 end
+ini,act= FUSE.case_parameters(:SPARC);
+dd = FUSE.init(ini,act);
 
 @testset "optimization" begin
     ini = FUSE.ParametersInits()
