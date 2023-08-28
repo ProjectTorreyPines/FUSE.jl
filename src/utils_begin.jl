@@ -112,7 +112,7 @@ The memory consumption estimate is an approximate lower bound on the size of the
 The output of `varinfo` is intended for display purposes only.  See also [`names`](@ref) to get an array of symbols defined in
 a module, which is suitable for more general manipulations.
 """
-function varinfo(m::Module=Base.active_module(), pattern::Regex=r""; all::Bool=false, imported::Bool=false, recursive::Bool=false, sortby::Symbol=:name, minsize::Int=0)
+function varinfo(m::Module=Main, pattern::Regex=r""; all::Bool=false, imported::Bool=false, recursive::Bool=false, sortby::Symbol=:name, minsize::Int=0)
     sortby in (:name, :size, :summary) || throw(ArgumentError("Unrecognized `sortby` value `:$sortby`. Possible options are `:name`, `:size`, and `:summary`"))
     rows = Vector{Any}[]
     workqueue = [(m, ""),]
@@ -124,7 +124,7 @@ function varinfo(m::Module=Base.active_module(), pattern::Regex=r""; all::Bool=f
                 continue
             end
             value = getfield(m2, v)
-            isbuiltin = value === Base || value === Base.active_module() || value === Core
+            isbuiltin = value === Base || value === Main || value === Core
             if recursive && !isbuiltin && isa(value, Module) && value !== m2 && nameof(value) === v && value ∉ parents
                 push!(parents, value)
                 push!(workqueue, (value, "$v."))
