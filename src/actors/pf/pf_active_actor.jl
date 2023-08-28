@@ -527,7 +527,7 @@ function optimize_coils_rail(
         if ismissing(eqt.global_quantities, :ip)
             # find ψp
             ψp_constant = eqt.global_quantities.psi_boundary
-            rb, zb = IMAS.boundary(pc, time_index = 1)
+            rb, zb = IMAS.boundary(pc, 1)
             Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(ψp_constant, rb, zb, fixed_coils)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             push!(weights, Float64[])
@@ -849,7 +849,7 @@ Plot ActorPFcoilsOpt optimization cross-section
                 cx := true
                 label --> "Field null region"
                 seriescolor --> :red
-                IMAS.boundary(pc, time_index=1)
+                IMAS.boundary(pc, 1)
             end
         else
             @series begin
