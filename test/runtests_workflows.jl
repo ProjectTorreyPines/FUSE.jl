@@ -34,11 +34,13 @@ end
             FUSE.TimerOutputs.reset_timer!(FUSE.timer, testname)
             FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
                 println("== $(testname) ==")
-                ini, act = FUSE.case_parameters(args...; kw...)
-                FUSE.init(ini, act)
+#                ini, act = FUSE.case_parameters(args...; kw...)
+#                FUSE.init(ini, act)
             end
         end
     end
+    ini,act=  FUSE.case_parameters(:SPARC)
+    dd = FUSE.init(ini,act)
 end
 ini,act= FUSE.case_parameters(:SPARC);
 dd = FUSE.init(ini,act);
