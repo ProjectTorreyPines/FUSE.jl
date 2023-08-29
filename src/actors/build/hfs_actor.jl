@@ -171,16 +171,20 @@ function _step(actor::ActorHFSsizing)
 
     # optimization
     old_build = deepcopy(dd.build)
-    res = Optim.optimize(
-        x0 -> cost(x0),
-        [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
-        Optim.NelderMead(),
-        Optim.Options(iterations=1000, g_tol=1e-6);
-        autodiff=:forward
-    )
-    assign_PL_OH_TF(res.minimizer)
-    step(actor.fluxswing_actor)
-    step(actor.stresses_actor)
+    res = for run in 1:2
+        # first run primes for second run
+        res = Optim.optimize(
+            x0 -> cost(x0),
+            [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
+            Optim.NelderMead(),
+            Optim.Options(iterations=500*run, g_tol=1e-6);
+            autodiff=:forward
+        )
+        assign_PL_OH_TF(res.minimizer)
+        step(actor.fluxswing_actor)
+        step(actor.stresses_actor)
+        res
+    end
 
     R0 = (plasma.start_radius + plasma.end_radius) / 2.0
 
