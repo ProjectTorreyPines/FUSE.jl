@@ -111,6 +111,7 @@ include(joinpath("actors", "compound", "whole_facility_actor.jl"))
 #= ========== =#
 include("parameters_inits.jl")
 include("parameters_actors.jl")
+include("signal.jl")
 
 #= ============ =#
 #  OPTIMIZATION  #
@@ -142,5 +143,6 @@ include("precompile.jl")
 #= EXPORT =#
 #= ====== =#
 export IMAS, @ddtime, constants, ±, ↔, Logging
+export step, pulse, ramp, trap
 
 end
