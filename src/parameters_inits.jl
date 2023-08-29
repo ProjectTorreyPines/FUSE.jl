@@ -22,6 +22,13 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
         ], "-", "Initialize run from")
 end
 
+Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :time
+    pulse_shedule_time_basis::Entry{AbstractRange{Float64}} = Entry{AbstractRange{Float64}}("s", "Time basis used to discretize the pulse schedule")
+    simulation_start::Entry{Float64} = Entry{Float64}("s", "Time at which the simulation starts"; default=0.0)
+end
+
 Base.@kwdef mutable struct FUSEparameters__material{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :material
@@ -181,13 +188,13 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     βn::Entry{T} = Entry{T}(IMAS.requirements, :βn)
     coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin)
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin)
-
 end
 
 mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     _parent::WeakRef
     _name::Symbol
     general::FUSEparameters__general{T}
+    time::FUSEparameters__time{T}
     gasc::FUSEparameters__gasc{T}
     ods::FUSEparameters__ods{T}
     build::FUSEparameters__build{T}
@@ -210,6 +217,7 @@ function ParametersInits{T}() where {T<:Real}
         WeakRef(nothing),
         :ini,
         FUSEparameters__general{T}(),
+        FUSEparameters__time{T}(),
         FUSEparameters__gasc{T}(),
         FUSEparameters__ods{T}(),
         FUSEparameters__build{T}(),
