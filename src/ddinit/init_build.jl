@@ -63,6 +63,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
     TimerOutputs.reset_timer!("init_build")
     TimerOutputs.@timeit timer "init_build" begin
         init_from = ini.general.init_from
+        dd.global_time = ini.time.simulation_start
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)

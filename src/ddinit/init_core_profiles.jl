@@ -7,11 +7,11 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
     TimerOutputs.reset_timer!("init_core_profiles")
     TimerOutputs.@timeit timer "init_core_profiles" begin
         init_from = ini.general.init_from
+        dd.global_time = ini.time.simulation_start
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
             if !ismissing(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
-                dd.global_time = max(dd.global_time, maximum(dd1.core_profiles.time))
                 dd.core_profiles = dd1.core_profiles
 
                 # also set the pedestal in summary IDS

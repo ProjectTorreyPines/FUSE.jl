@@ -10,11 +10,11 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
     TimerOutputs.reset_timer!("init_equilibrium")
     TimerOutputs.@timeit timer "init_equilibrium" begin
         init_from = ini.general.init_from
+        dd.global_time = ini.time.simulation_start
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
             if !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0
-                dd.global_time = max(dd.global_time, maximum(dd1.equilibrium.time))
                 dd.equilibrium = dd1.equilibrium
                 eqt = dd.equilibrium.time_slice[]
                 IMAS.flux_surfaces(eqt)

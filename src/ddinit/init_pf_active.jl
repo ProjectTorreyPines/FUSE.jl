@@ -12,11 +12,11 @@ function init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAll
     TimerOutputs.reset_timer!("init_pf_active")
     TimerOutputs.@timeit timer "init_pf_active" begin
         init_from = ini.general.init_from
+        dd.global_time = ini.time.simulation_start
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
             if !ismissing(dd1.pf_active, :time) && length(dd1.pf_active.time) > 0
-                dd.global_time = max(dd.global_time, maximum(dd1.pf_active.time))
                 dd.pf_active = dd1.pf_active
             else
                 init_from = :scalars
