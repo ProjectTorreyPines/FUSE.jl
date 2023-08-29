@@ -42,8 +42,6 @@ end
             end
         end
     end
-    ini,act=  FUSE.case_parameters(:SPARC)
-    dd = FUSE.init(ini,act)
 end
 
 @testset "optimization" begin
