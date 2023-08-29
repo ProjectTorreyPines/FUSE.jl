@@ -10,10 +10,17 @@ For most applications, calling this high level function is sufficient.
 function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
-        ods_items = []
+
         # Check what is in the ods to load
+        ods_items = []
         if ini.general.init_from == :ods
             ods_items = keys(IMAS.json2imas(ini.ods.filename))
+        end
+
+        # initialize pulse_schedule
+        init_pulse_schedule(dd, ini, act)
+        if do_plot
+            display(plot(dd.pulse_schedule))
         end
 
         # initialize equilibrium
