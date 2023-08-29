@@ -204,7 +204,12 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; diverto
     pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
-    pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1)
+    try
+        pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1)
+    catch e
+        display(plot(wall_poly; aspect_ratio=:equal))
+        rethrow(e)
+    end
 
     return pr, pz
 end
