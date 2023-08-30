@@ -264,18 +264,11 @@ end
         end
     end
 
-    # if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
-    if !ismissing(ini.equilibrium, :κ) && ini.equilibrium.κ < 1.0 && !ismissing(ini.equilibrium, :ϵ)
-        κ = IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * ini.equilibrium.κ
-    else
-        κ = ini.equilibrium.κ
-    end
-
     mxh = IMAS.MXH(
         ini.equilibrium.R0,
         ini.equilibrium.Z0,
         ini.equilibrium.ϵ,
-        κ,
+        ini_equilibrium_elongation_true(ini),
         0.0,
         [ini.equilibrium.𝚶, 0.0],
         [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
@@ -301,5 +294,20 @@ end
                 end
             end
         end
+    end
+end
+
+"""
+    if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
+"""
+function ini_equilibrium_elongation_true(ini::ParametersAllInits)
+    if !ismissing(ini.equilibrium, :κ)
+        if ini.equilibrium.κ < 1.0 && !ismissing(ini.equilibrium, :ϵ)
+            return IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * ini.equilibrium.κ
+        else
+            return ini.equilibrium.κ
+        end
+    else
+        return missing
     end
 end

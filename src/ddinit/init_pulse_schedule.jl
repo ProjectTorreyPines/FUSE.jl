@@ -27,11 +27,7 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         # locally to this functions so that things work from
         # different entry points
         ini = deepcopy(ini)
-
-        # if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
-        if !ismissing(ini.equilibrium, :κ) && ini.equilibrium.κ < 1.0 && !ismissing(ini.equilibrium, :ϵ)
-            ini.equilibrium.κ = IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * ini.equilibrium.κ
-        end
+        ini.equilibrium.κ = ini_equilibrium_elongation_true(ini)
 
         if init_from == :scalars
             time, data = get_time_dependent(ini.equilibrium, :ip, simplify)

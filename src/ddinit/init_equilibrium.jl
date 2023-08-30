@@ -30,11 +30,6 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         # different entry points
         ini = deepcopy(ini)
 
-        # if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
-        if !ismissing(ini.equilibrium, :κ) && ini.equilibrium.κ < 1.0 && !ismissing(ini.equilibrium, :ϵ)
-            ini.equilibrium.κ = IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * ini.equilibrium.κ
-        end
-
         if init_from == :ods
             ini.equilibrium.ip = eqt.global_quantities.ip
             ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
@@ -91,7 +86,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 ini.equilibrium.R0,
                 ini.equilibrium.Z0,
                 ini.equilibrium.ϵ,
-                ini.equilibrium.κ,
+                ini_equilibrium_elongation_true(ini),
                 0.0,
                 [ini.equilibrium.𝚶, 0.0],
                 [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
