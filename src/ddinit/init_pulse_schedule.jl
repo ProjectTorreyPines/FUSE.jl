@@ -80,7 +80,7 @@ function get_time_dependent(par::AbstractParameters, field::Symbol, simplify::Fl
 
     if typeof(value) <: Function
         time = collect(SimulationParameters.top(par).time.pulse_shedule_time_basis)
-        data = value(time)
+        data = value.(time)
         if simplify != 0.0
             time, data = IMAS.simplify_2d_path(time, data, simplify)
         end

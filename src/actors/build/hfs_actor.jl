@@ -56,14 +56,15 @@ function _step(actor::ActorHFSsizing)
     # modify j_tolerance in fluxswing_actor (since actor.fluxswing_actor.par is a copy, this does not affect act.ActorFluxSwing)
     actor.fluxswing_actor.par.j_tolerance = par.j_tolerance
 
-    # Relative error with tolerance
+    # Relative error with tolerance used for currents and stresses (not flattop)
     # NOTE: we divide by (abs(target) + 1.0) because critical currents can drop to 0.0!
+    # NOTE: we stronlgy penalize going above target, and only gently encourage not going below it (since 
     function target_value(value, target, tolerance)
         tmp = (value .* (1.0 .+ tolerance) .- target) ./ (abs(target) + 1.0)
         if tmp > 0.0
             return exp(tmp) - 1.0
         else
-            return -tmp
+            return -tmp * 1E-3
         end
     end
 
@@ -105,11 +106,11 @@ function _step(actor::ActorHFSsizing)
         else
             c_jtf = 0.0
         end
-        
+
         if (par.stress_tolerance >= 0)
             c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), dd.solid_mechanics.center_stack.properties.yield_strength.tf, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
         else
-            c_stf = 0.
+            c_stf = 0.0
         end
 
         # plug stresses
@@ -171,20 +172,16 @@ function _step(actor::ActorHFSsizing)
 
     # optimization
     old_build = deepcopy(dd.build)
-    res = for run in 1:2
-        # first run primes for second run
-        res = Optim.optimize(
-            x0 -> cost(x0),
-            [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
-            Optim.NelderMead(),
-            Optim.Options(iterations=500*run, g_tol=1e-6);
-            autodiff=:forward
-        )
-        assign_PL_OH_TF(res.minimizer)
-        step(actor.fluxswing_actor)
-        step(actor.stresses_actor)
-        res
-    end
+    res = Optim.optimize(
+        x0 -> cost(x0),
+        [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
+        Optim.NelderMead(),
+        Optim.Options(iterations=1000, g_tol=1e-6);
+        autodiff=:forward
+    )
+    assign_PL_OH_TF(res.minimizer)
+    step(actor.fluxswing_actor)
+    step(actor.stresses_actor)
 
     R0 = (plasma.start_radius + plasma.end_radius) / 2.0
 
@@ -197,7 +194,7 @@ function _step(actor::ActorHFSsizing)
         @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.solid_mechanics.center_stack.properties.yield_strength.oh "OH stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / dd.solid_mechanics.center_stack.properties.yield_strength.oh * 100)%"
         @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.solid_mechanics.center_stack.properties.yield_strength.tf "TF stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / dd.solid_mechanics.center_stack.properties.yield_strength.tf * 100)%"
     end
-    
+
     function check_performance()
         max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
         @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"

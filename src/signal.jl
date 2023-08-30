@@ -4,7 +4,7 @@
 Unitary step triggered at t=0
 """
 function step(t::T)::T where T
-    return @. t >= 0.0
+    return t >= 0.0
 end
 
 """
@@ -24,7 +24,7 @@ Unitary pulse with width of 1, starting at t=0
 function pulse(t::T)::T where T
     a = step(t)
     b = step(-t + 1)
-    return @. a * b
+    return a * b
 end
 
 """
@@ -42,9 +42,9 @@ end
 Unitary ramp from t=0 to t=1
 """
 function ramp(t::T)::T where T
-    a = @. t * (t < 1) * (t > 0)
-    b = @. t >= 1
-    return @. a + b
+    a = t * (t < 1) * (t > 0)
+    b = t >= 1
+    return a + b
 end
 
 """
@@ -67,9 +67,9 @@ function trap(t::T, flattop_fraction::Float64)::T where T
     if flattop_fraction == 1.0
         return pulse(t)
     else
-        a = @. ramp(t * k) * (t < 0.5)
-        b = @. ramp(-t * k + k) * (t >= 0.5)
-        return @. a + b
+        a = ramp(t * k) * (t < 0.5)
+        b = ramp(-t * k + k) * (t >= 0.5)
+        return a + b
     end
 end
 
