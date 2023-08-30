@@ -255,3 +255,51 @@ end
 function json2ini(filename::AbstractString)
     return SimulationParameters.json2par(filename, ParametersInits())
 end
+
+@recipe function plot_ini(ini::ParametersAllInits)
+    N = 0
+    for par in SimulationParameters.leaves(ini)
+        if typeof(par.value) <: Function
+            N += 1
+        end
+    end
+
+    # if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
+    if !ismissing(ini.equilibrium, :κ) && ini.equilibrium.κ < 1.0 && !ismissing(ini.equilibrium, :ϵ)
+        κ = IMAS.elongation_limit(1.0 / ini.equilibrium.ϵ) * ini.equilibrium.κ
+    else
+        κ = ini.equilibrium.κ
+    end
+
+    mxh = IMAS.MXH(
+        ini.equilibrium.R0,
+        ini.equilibrium.Z0,
+        ini.equilibrium.ϵ,
+        κ,
+        0.0,
+        [ini.equilibrium.𝚶, 0.0],
+        [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
+
+    if N > 0
+        layout := @layout [N+1]
+
+        @series begin
+            label := ""
+            subplot := 1
+            aspectratio := :equal
+            mxh
+        end
+
+        k = 1
+        for par in SimulationParameters.leaves(ini)
+            if typeof(par.value) <: Function
+                k += 1
+                @series begin
+                    label := ""
+                    subplot := k
+                    par
+                end
+            end
+        end
+    end
+end
