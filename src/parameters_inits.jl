@@ -47,6 +47,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     κ::Entry{Union{Function,T}} = Entry{Union{Function,T}}("-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
     δ::Entry{Union{Function,T}} = Entry{Union{Function,T}}(IMAS.equilibrium__time_slice___boundary, :triangularity)
     ζ::Entry{Union{Function,T}} = Entry{Union{Function,T}}(IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
+    𝚶::Entry{Union{Function,T}} = Entry{Union{Function,T}}("-", "Plasma ovality for up-down asymmetric plasmas"; default=0.0)
     pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure")
     ip::Entry{Union{Function,T}} = Entry{Union{Function,T}}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")

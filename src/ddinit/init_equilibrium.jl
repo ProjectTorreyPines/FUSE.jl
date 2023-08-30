@@ -93,7 +93,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 ini.equilibrium.ϵ,
                 ini.equilibrium.κ,
                 0.0,
-                [0.0, 0.0],
+                [ini.equilibrium.𝚶, 0.0],
                 [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
         end
 
@@ -104,6 +104,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         ini.equilibrium.κ = mxh.κ
         ini.equilibrium.δ = sin(mxh.s[1])
         ini.equilibrium.ζ = -mxh.s[2]
+        ini.equilibrium.𝚶 = mxh.c[1]
 
         dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
 

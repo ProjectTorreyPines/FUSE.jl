@@ -45,7 +45,7 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             # initialize position_control from mxh
             shape_parameters = Dict{Symbol,Tuple{Vector{Float64},Vector{Float64}}}()
             all_times = Float64[]
-            for shape_parameter in [:R0, :Z0, :ϵ, :κ, :δ, :ζ]
+            for shape_parameter in [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶]
                 time, data = get_time_dependent(ini.equilibrium, shape_parameter, simplify)
                 shape_parameters[shape_parameter] = time, data
                 append!(all_times, time)
@@ -59,7 +59,8 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 κ = IMAS.interp1d(shape_parameters[:κ][1], shape_parameters[:κ][2]).(time)
                 δ = IMAS.interp1d(shape_parameters[:δ][1], shape_parameters[:δ][2]).(time)
                 ζ = IMAS.interp1d(shape_parameters[:ζ][1], shape_parameters[:ζ][2]).(time)
-                mxh = IMAS.MXH(R0, Z0, ϵ, κ, 0.0, [0.0, 0.0], [asin(δ), -ζ])
+                𝚶 = IMAS.interp1d(shape_parameters[:𝚶][1], shape_parameters[:𝚶][2]).(time)
+                mxh = IMAS.MXH(R0, Z0, ϵ, κ, 0.0, [𝚶, 0.0], [asin(δ), -ζ])
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, time)
                 if k == length(all_times) - 1 && all_times[k+1] == Inf
                     init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, Inf)
