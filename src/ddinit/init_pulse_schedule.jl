@@ -16,6 +16,28 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
+
+            if ini.equilibrium.boundary_from == :ods && !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0
+                eqt = dd.equilibrium.time_slice[]
+                IMAS.flux_surfaces(eqt)
+
+                # if number of x-points is not set explicitly, get it from the ODS
+                n_xpoints = length(eqt.boundary.x_point)
+                if n_xpoints == 0
+                    ini.equilibrium.xpoints = :none
+                elseif n_xpoints == 1
+                    if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
+                        ini.equilibrium.xpoints = :upper
+                    else
+                        ini.equilibrium.xpoints = :lower
+                    end
+                elseif n_xpoints == 2
+                    ini.equilibrium.xpoints = :double
+                else
+                    error("cannot handle $n_xpoints x-points")
+                end
+            end
+
             if !ismissing(dd1.pulse_schedule, :time) && length(dd1.pulse_schedule.time) > 0
                 dd.pulse_schedule = dd1.pulse_schedule
             else

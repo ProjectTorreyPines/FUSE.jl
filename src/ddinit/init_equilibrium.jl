@@ -35,35 +35,15 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
             ini.equilibrium.B0 = @ddtime dd.equilibrium.vacuum_toroidal_field.b0
             ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
+        end
 
+        if boundary_from == :ods
             pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
             pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
             pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+            mxh = IMAS.MXH(pr, pz, 4)
 
-            if boundary_from == :ods
-                mxh = IMAS.MXH(pr, pz, 4)
-            end
-
-            if ismissing(ini.equilibrium, :xpoints)
-                # if number of x-points is not set explicitly, get it from the ODS
-                n_xpoints = length(eqt.boundary.x_point)
-                if n_xpoints == 0
-                    ini.equilibrium.xpoints = :none
-                elseif n_xpoints == 1
-                    if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
-                        ini.equilibrium.xpoints = :upper
-                    else
-                        ini.equilibrium.xpoints = :lower
-                    end
-                elseif n_xpoints == 2
-                    ini.equilibrium.xpoints = :double
-                else
-                    error("cannot handle $n_xpoints x-points")
-                end
-            end
-        end
-
-        if boundary_from == :rz_points
+        elseif boundary_from == :rz_points
             # R,Z boundary from points
             if ismissing(ini.equilibrium, :rz_points)
                 error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
@@ -90,6 +70,8 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 0.0,
                 [ini.equilibrium.𝚶, 0.0],
                 [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
+        else
+            error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
         end
 
         # make equilibrium scalars consistent with MXH parametrization
