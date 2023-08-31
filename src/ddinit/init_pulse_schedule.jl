@@ -56,34 +56,54 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             dd.pulse_schedule.flux_control.i_plasma.reference.time = time
             dd.pulse_schedule.flux_control.i_plasma.reference.data = data
 
+            # R0 should not be time dependent for definition of B0
+            if !isempty(dd.build.layer)
+                plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
+                R0 = (plasma.R_start + plasma.R_end) / 2.0
+            elseif typeof(getfield(ini.equilibrium, :R0).value) <: Function
+                error("`ini.equilibrium.R0` should not be time dependent")
+            else
+                mxh = IMAS.MXH(ini.equilibrium)
+                R0 = mxh.R0
+            end
+
             time, data = get_time_dependent(ini.equilibrium, :B0, simplify)
             dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.time = time
-            dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = data .* ini.equilibrium.R0
+            dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = data .* R0
 
             # initialize position_control from mxh
-            shape_parameters = Dict{Symbol,Tuple{Vector{Float64},Vector{Float64}}}()
-            all_times = Float64[]
-            for shape_parameter in [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶]
-                time, data = get_time_dependent(ini.equilibrium, shape_parameter, simplify)
-                shape_parameters[shape_parameter] = time, data
-                append!(all_times, time)
-            end
-            all_times = sort!(unique(all_times))
-
-            for (k, time) in enumerate(all_times)
-                R0 = IMAS.interp1d(shape_parameters[:R0][1], shape_parameters[:R0][2]).(time)
-                Z0 = IMAS.interp1d(shape_parameters[:Z0][1], shape_parameters[:Z0][2]).(time)
-                ϵ = IMAS.interp1d(shape_parameters[:ϵ][1], shape_parameters[:ϵ][2]).(time)
-                κ = IMAS.interp1d(shape_parameters[:κ][1], shape_parameters[:κ][2]).(time)
-                δ = IMAS.interp1d(shape_parameters[:δ][1], shape_parameters[:δ][2]).(time)
-                ζ = IMAS.interp1d(shape_parameters[:ζ][1], shape_parameters[:ζ][2]).(time)
-                𝚶 = IMAS.interp1d(shape_parameters[:𝚶][1], shape_parameters[:𝚶][2]).(time)
-                mxh = IMAS.MXH(R0, Z0, ϵ, κ, 0.0, [𝚶, 0.0], [asin(δ), -ζ])
-                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, time)
-                if k == length(all_times) - 1 && all_times[k+1] == Inf
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, Inf)
-                    break
+            if ini.equilibrium.boundary_from == :scalars
+                shape_parameters = Dict{Symbol,Tuple{Vector{Float64},Vector{Float64}}}()
+                all_times = Float64[]
+                for shape_parameter in [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶]
+                    time, data = get_time_dependent(ini.equilibrium, shape_parameter, simplify)
+                    shape_parameters[shape_parameter] = time, data
+                    append!(all_times, time)
                 end
+                all_times = sort!(unique(all_times))
+
+                for (k, time) in enumerate(all_times)
+                    R0 = IMAS.interp1d(shape_parameters[:R0][1], shape_parameters[:R0][2]).(time)
+                    Z0 = IMAS.interp1d(shape_parameters[:Z0][1], shape_parameters[:Z0][2]).(time)
+                    ϵ = IMAS.interp1d(shape_parameters[:ϵ][1], shape_parameters[:ϵ][2]).(time)
+                    κ = IMAS.interp1d(shape_parameters[:κ][1], shape_parameters[:κ][2]).(time)
+                    δ = IMAS.interp1d(shape_parameters[:δ][1], shape_parameters[:δ][2]).(time)
+                    ζ = IMAS.interp1d(shape_parameters[:ζ][1], shape_parameters[:ζ][2]).(time)
+                    𝚶 = IMAS.interp1d(shape_parameters[:𝚶][1], shape_parameters[:𝚶][2]).(time)
+                    mxh = IMAS.MXH(R0, Z0, ϵ, κ, 0.0, [𝚶, 0.0], [asin(δ), -ζ])
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, time)
+                    if k == length(all_times) - 1 && all_times[k+1] == Inf
+                        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, Inf)
+                        break
+                    end
+                end
+
+            else
+                # NOT SETUP FOR TIME DEPENDENCE YET
+                mxh = IMAS.MXH(ini.equilibrium)
+                ini.equilibrium(mxh)
+                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, ini.time.simulation_start)
+                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, Inf)
             end
         end
 

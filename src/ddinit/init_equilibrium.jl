@@ -23,8 +23,6 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             end
         end
 
-        boundary_from = ini.equilibrium.boundary_from
-
         # we make a copy because we overwrite some parameters
         # locally to this functions so that things work from
         # different entry points
@@ -37,47 +35,10 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
         end
 
-        if boundary_from == :ods
-            pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-            pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
-            pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-            mxh = IMAS.MXH(pr, pz, 4)
+        # ini.equilibrium boundary expressed in MHX independenty of how the user input it
+        mxh = IMAS.MXH(ini.equilibrium)
 
-        elseif boundary_from == :rz_points
-            # R,Z boundary from points
-            if ismissing(ini.equilibrium, :rz_points)
-                error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
-            end
-            pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
-            pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
-            pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-            mxh = IMAS.MXH(pr, pz, 4)
-
-        elseif boundary_from == :MXH_params
-            # R,Z boundary from MXH
-            if ismissing(ini.equilibrium, :MXH_params)
-                error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
-            end
-            mxh = IMAS.MXH(ini.equilibrium.MXH_params)
-
-        elseif boundary_from == :scalars
-            # R,Z boundary from scalars
-            mxh = IMAS.MXH(
-                ini.equilibrium.R0,
-                ini.equilibrium.Z0,
-                ini.equilibrium.ϵ,
-                ini_equilibrium_elongation_true(ini),
-                0.0,
-                [ini.equilibrium.𝚶, 0.0],
-                [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
-        else
-            error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
-        end
-
-        # make equilibrium scalars consistent with MXH parametrization
-        ini.equilibrium(mxh)
-
-        dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
+        dd.equilibrium.vacuum_toroidal_field.r0 = mxh.R0
 
         # the pressure and j_tor to be used by equilibrium solver will need to be set in dd.core_profiles
         if isempty(dd.core_profiles.profiles_1d)

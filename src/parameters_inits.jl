@@ -342,7 +342,7 @@ function IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
 
     elseif boundary_from == :rz_points
         # R,Z boundary from points
-        if ismissing(ini.equilibrium, :rz_points)
+        if ismissing(equilibrium, :rz_points)
             error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
         end
         pr, pz = equilibrium.rz_points[1], equilibrium.rz_points[2]
@@ -352,7 +352,7 @@ function IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
 
     elseif boundary_from == :MXH_params
         # R,Z boundary from MXH
-        if ismissing(ini.equilibrium, :MXH_params)
+        if ismissing(equilibrium, :MXH_params)
             error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
         end
         mxh = IMAS.MXH(equilibrium.MXH_params)
