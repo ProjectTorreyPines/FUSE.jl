@@ -39,7 +39,7 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
         coil_tech.temperature = 293.0
         coil_tech.fraction_steel = 0.0
         coil_tech.fraction_void = 0.1
-    
+
     elseif technology ∈ (:LTS, :ITER, :HTS)
         if technology ∈ (:LTS, :ITER)
             coil_tech.temperature = 4.2
@@ -77,9 +77,9 @@ end
 
 """
     LTS_Jcrit(
-        Bext,               # : strength of external magnetic field, Tesla
-        strain=0.0,         # : strain on conductor due to either thermal expansion or JxB stress
-        temperature=4.2,    # : temperature of conductor, Kelvin 
+        Bext::Real,               # : strength of external magnetic field, Tesla
+        strain::Real=0.0,         # : strain on conductor due to either thermal expansion or JxB stress
+        temperature::Real=4.2,    # : temperature of conductor, Kelvin 
         )
 
 Calculates the critical current density and fraction of critical magnetic field for internal-tin Nb3Sn LTS superconductor wire.
@@ -93,7 +93,7 @@ OUTPUTS
 J_c : engineering critical current density, A/m^2
 b   : ratio of external magnetic field at conductor to SC critical magnetic field, T/T
 """
-function Nb3Sn_Jcrit(Bext, strain=0.0, temperature=4.2)
+function Nb3Sn_Jcrit(Bext::Real, strain::Real=0.0, temperature::Real=4.2)
     #Table 6 in Lu et al., Supercond. Sci. Technol. 21 (2008) 105016
     A0 = 29330000
     Bc00 = 28.45
@@ -137,16 +137,16 @@ NOTE: the output critical current density is in terms of current per YBCO cross-
 area of REBCO tape. To get the critical current per cross-sectional area of REBCO tape, scale by the correct ratio of YBCO area to tape area.
 
     YBCO_Jcrit(
-        Bext, # : external magnetic field at conductor, Tesla
-        strain = 0.0, # : strain at conductor, percent
-        temperature = 20.0, # : temperature of conductor, K 
-        ag_c = 0) # : angle between external field and HTS tape normal vector, degrees. 0 is perp (worst-case), 90 is parallel (best-case). 
+        Bext::Real, # : external magnetic field at conductor, Tesla
+        strain::Real = 0.0, # : strain at conductor, percent
+        temperature::Real = 20.0, # : temperature of conductor, K 
+        ag_c::Real = 0.0) # : angle between external field and HTS tape normal vector, degrees. 0 is perp (worst-case), 90 is parallel (best-case). 
 
 OUTPUTS
 J_c : critical current density, A/m^2
 b   : ratio of peak magnetic field at conductor to SC critical magnetic field, T/T
 """
-function YBCO_Jcrit(Bext, strain=0.0, temperature=20.0, ag_c=0)
+function YBCO_Jcrit(Bext::Real, strain::Real=0.0, temperature::Real=20.0, ag_c::Real=0.0)
     # Equation 2-4, Table 1 in T.S. Lee 2015 FED
     Bcrit = 68.5
     Tcrit = 87.6
@@ -179,16 +179,16 @@ end
 Calculates the critical current density of ReBCO superconducting tape.
 
     ReBCO_Jcrit(
-        Bext, # : external magnetic field at conductor, Tesla
-        strain = 0.0, # : strain at conductor, percent
-        temperature = 20.0, # : temperature of conductor, K 
-        ag_c = 0) # : angle between external field and HTS tape normal vector, degrees. 0 is perp (worst-case), 90 is parallel (best-case). 
+        Bext::Real, # : external magnetic field at conductor, Tesla
+        strain::Real = 0.0, # : strain at conductor, percent
+        temperature::Real = 20.0, # : temperature of conductor, K 
+        ag_c::Real = 0.0) # : angle between external field and HTS tape normal vector, degrees. 0 is perp (worst-case), 90 is parallel (best-case). 
 
 OUTPUTS
 J_c : critical current density, A/m^2
 b   : ratio of peak magnetic field at conductor to SC critical magnetic field, T/T
 """
-function ReBCO_Jcrit(Bext, strain=0.0, temperature=20.0, ag_c=0)
+function ReBCO_Jcrit(Bext::Real, strain::Real=0.0, temperature::Real=20.0, ag_c::Real=0.0)
     fHTSinTape = 1.0 / 46.54 # fraction of ReBCO tape that is YBCO superconductor
     J_c, b = YBCO_Jcrit(Bext, strain, temperature, ag_c)
     return J_c * fHTSinTape, b
@@ -217,7 +217,7 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
     end
 end
 
-function GAMBL_blanket(bm=IMAS.blanket__module)
+function GAMBL_blanket(bm::IMAS.blanket__module)
     layers = resize!(bm.layer, 3)
 
     n = 1
