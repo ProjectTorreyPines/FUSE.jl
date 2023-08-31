@@ -111,7 +111,6 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     act.ActorTEQUILA.relax = 0.25
 
     # finalize
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

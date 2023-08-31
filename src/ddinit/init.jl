@@ -11,6 +11,10 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
 
+        # Makes `ini` and `act` self-consistent and consistent with one another
+        # NOTE: we purposly operate in place, so that the user can see chances in their own ini, act
+        consistent_ini_act!(ini, act)
+
         # Check what is in the ods to load
         ods_items = []
         if ini.general.init_from == :ods
@@ -114,7 +118,9 @@ end
 """
     consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
 
-Checks and makes `ini` and `act` consistent with one another
+Makes `ini` and `act` self-consistent and consistent with one another
+
+NOTE: operates in place
 """
 function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
 

@@ -113,7 +113,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         :He4_fast => :fixed,
         :electrons => :flux_match)
 
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

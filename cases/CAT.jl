@@ -52,7 +52,6 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorPFcoilsOpt.symmetric = true
 
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
     

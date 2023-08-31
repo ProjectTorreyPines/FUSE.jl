@@ -119,7 +119,6 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
         gasc_buck_OH_TF!(ini.build.layers)
     end
 
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 
