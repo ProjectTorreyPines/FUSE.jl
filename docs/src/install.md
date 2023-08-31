@@ -123,7 +123,6 @@ make chease
    !!! note
        You will need to be on a secure wifi network for the macports installation to succeed
 
-
 1. Install `Emacs`, `gcc`, `mpich`, `fftw`, `netcdf`:
    ```bash
    sudo port install emacs +x11
