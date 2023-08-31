@@ -143,4 +143,14 @@ function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
         act.ActorPFcoilsOpt.symmetric = ini.equilibrium.xpoints in [:none, :double]
     end
 
+
+function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
+    # scalars consistent with MXH parametrization
+    equilibrium.ϵ = mxh.ϵ
+    equilibrium.R0 = mxh.R0
+    equilibrium.Z0 = mxh.Z0
+    equilibrium.κ = mxh.κ
+    equilibrium.δ = sin(mxh.s[1])
+    equilibrium.ζ = -mxh.s[2]
+    equilibrium.𝚶 = mxh.c[1]
 end

@@ -92,14 +92,8 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
         end
 
-        # scalars consistent with MXH parametrization
-        ini.equilibrium.ϵ = mxh.ϵ
-        ini.equilibrium.R0 = mxh.R0
-        ini.equilibrium.Z0 = mxh.Z0
-        ini.equilibrium.κ = mxh.κ
-        ini.equilibrium.δ = sin(mxh.s[1])
-        ini.equilibrium.ζ = -mxh.s[2]
-        ini.equilibrium.𝚶 = mxh.c[1]
+        # make equilibrium scalars consistent with MXH parametrization
+        ini.equilibrium(mxh)
 
         dd.equilibrium.vacuum_toroidal_field.r0 = ini.equilibrium.R0
 
