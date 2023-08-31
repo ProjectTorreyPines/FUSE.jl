@@ -40,16 +40,16 @@ end
 Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :equilibrium
-    B0::Entry{Union{Function,T}} = Entry{Union{Function,T}}(IMAS.equilibrium__vacuum_toroidal_field, :b0)
-    R0::Entry{Union{Function,T}} = Entry{Union{Function,T}}("m", "Geometric genter of the plasma. NOTE: This also scales the radial build layers.")
-    Z0::Entry{Union{Function,T}} = Entry{Union{Function,T}}("m", "Z offset of the machine midplane"; default=0.0)
-    ϵ::Entry{Union{Function,T}} = Entry{Union{Function,T}}("-", "Plasma inverse aspect ratio. NOTE: This also scales the radial build layers.")
-    κ::Entry{Union{Function,T}} = Entry{Union{Function,T}}("-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
-    δ::Entry{Union{Function,T}} = Entry{Union{Function,T}}(IMAS.equilibrium__time_slice___boundary, :triangularity)
-    ζ::Entry{Union{Function,T}} = Entry{Union{Function,T}}(IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
-    𝚶::Entry{Union{Function,T}} = Entry{Union{Function,T}}("-", "Plasma ovality for up-down asymmetric plasmas"; default=0.0)
+    B0::Entry{T} = Entry{T}(IMAS.equilibrium__vacuum_toroidal_field, :b0)
+    R0::Entry{T} = Entry{T}("m", "Geometric genter of the plasma. NOTE: This also scales the radial build layers.")
+    Z0::Entry{T} = Entry{T}("m", "Z offset of the machine midplane"; default=0.0)
+    ϵ::Entry{T} = Entry{T}("-", "Plasma inverse aspect ratio. NOTE: This also scales the radial build layers.")
+    κ::Entry{T} = Entry{T}("-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
+    δ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :triangularity)
+    ζ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
+    𝚶::Entry{T} = Entry{T}("-", "Plasma ovality for up-down asymmetric plasmas"; default=0.0)
     pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure")
-    ip::Entry{Union{Function,T}} = Entry{Union{Function,T}}(IMAS.equilibrium__time_slice___global_quantities, :ip)
+    ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the equilibrium grid"; default=129)
     field_null_surface::Entry{T} = Entry{T}("-", "ψn value of the field_null_surface. Disable with 0.0"; default=0.75)
@@ -310,4 +310,66 @@ function ini_equilibrium_elongation_true(ini::ParametersAllInits)
     else
         return missing
     end
+end
+
+"""
+    (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
+
+ini.equilibrium scalars from MXH parametrization
+"""
+function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
+    equilibrium.ϵ = mxh.ϵ
+    equilibrium.R0 = mxh.R0
+    equilibrium.Z0 = mxh.Z0
+    equilibrium.κ = mxh.κ
+    equilibrium.δ = sin(mxh.s[1])
+    equilibrium.ζ = -mxh.s[2]
+    equilibrium.𝚶 = mxh.c[1]
+end
+
+"""
+    IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
+
+return ini.equilibrium boundary expressed in MHX independenty of how the user input it
+"""
+function IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
+    boundary_from = equilibrium.boundary_from
+    if boundary_from == :ods
+        pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
+        pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+        mxh = IMAS.MXH(pr, pz, 4)
+
+    elseif boundary_from == :rz_points
+        # R,Z boundary from points
+        if ismissing(ini.equilibrium, :rz_points)
+            error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
+        end
+        pr, pz = equilibrium.rz_points[1], equilibrium.rz_points[2]
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
+        pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+        mxh = IMAS.MXH(pr, pz, 4)
+
+    elseif boundary_from == :MXH_params
+        # R,Z boundary from MXH
+        if ismissing(ini.equilibrium, :MXH_params)
+            error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
+        end
+        mxh = IMAS.MXH(equilibrium.MXH_params)
+
+    elseif boundary_from == :scalars
+        # R,Z boundary from scalars
+        mxh = IMAS.MXH(
+            equilibrium.R0,
+            equilibrium.Z0,
+            equilibrium.ϵ,
+            ini_equilibrium_elongation_true(ini),
+            0.0,
+            [equilibrium.𝚶, 0.0],
+            [asin(equilibrium.δ), -equilibrium.ζ])
+    else
+        error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
+    end
+
+    return mxh
 end
