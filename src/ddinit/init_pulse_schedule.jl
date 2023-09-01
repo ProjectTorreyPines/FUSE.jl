@@ -49,7 +49,7 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         # locally to this functions so that things work from
         # different entry points
         ini = deepcopy(ini)
-        ini.equilibrium.κ = ini_equilibrium_elongation_true(ini)
+        ini.equilibrium.κ = ini_equilibrium_elongation_true(ini.equilibrium)
 
         if init_from == :scalars
             time, data = get_time_dependent(ini.equilibrium, :ip, simplify)

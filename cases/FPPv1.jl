@@ -40,7 +40,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
 
     ini.requirements.power_electric_net = 200e6 #W
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.flattop_duration = 12 * 3600 # s
+    ini.requirements.flattop_duration = 12 * 3600.0 # s
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0

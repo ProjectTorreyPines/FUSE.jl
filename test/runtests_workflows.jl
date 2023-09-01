@@ -9,11 +9,11 @@ using Test
 end
 
 @testset "fluxmatcher" begin
-    dd, ini, act = FUSE.init(:ITER,init_from=:scalars)
+    dd, ini, act = FUSE.init(:ITER, init_from=:scalars)
     act.ActorFluxMatcher.max_iterations = 3
     act.ActorFluxMatcher.evolve_pedestal = true
     act.ActorFluxMatcher.evolve_densities = FUSE.setup_density_evolution_electron_flux_match_rest_ne_scale(dd)
-    FUSE.ActorFluxMatcher(dd,act)
+    FUSE.ActorFluxMatcher(dd, act)
 end
 
 @testset "init" begin
