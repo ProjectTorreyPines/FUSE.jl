@@ -70,18 +70,20 @@ function _step(actor::ActorHFSsizing)
 
     function assign_PL_OH_TF(x0)
         # assign optimization arguments
-        OH.thickness = mirror_bound(x0[1], 0.0, CPradius - OHTFgap)
-        TFhfs.thickness = mirror_bound(x0[2], 0.0, CPradius - OH.thickness - OHTFgap)
+        TFhfs.thickness = TFlfs.thickness = mirror_bound(x0[1], 0.1, 0.9) * CPradius
+        OH.thickness = mirror_bound(x0[2], 0.1, 0.9) * (CPradius - TFhfs.thickness - OHTFgap)
         PL.thickness = CPradius - TFhfs.thickness - OH.thickness - OHTFgap
-        TFlfs.thickness = TFhfs.thickness
-        dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.0, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
-        dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.0, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
-        return nothing
+        dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.1, 1.0 - dd.build.oh.technology.fraction_void - 0.1)
+        dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1)
+
+        # favor relatively small and equal TF and OH
+        return norm(((OH.thickness + TFhfs.thickness) / CPradius, abs(OH.thickness - TFhfs.thickness) / CPradius))
     end
 
     function cost(x0)
         # assign optimization arguments
-        assign_PL_OH_TF(x0)
+        c_cst = assign_PL_OH_TF(x0)
+        c_cst *= 1E-3
 
         # evaluate coils currents and stresses
         _step(actor.fluxswing_actor)
@@ -134,10 +136,11 @@ function _step(actor::ActorHFSsizing)
             push!(C_STF, c_stf)
             push!(C_SPL, c_spl)
             push!(C_FLT, c_flt)
+            push!(C_CST, c_cst)
         end
 
         # total cost
-        return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
+        return norm((norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt, c_cst))
     end
 
     # initialize
@@ -168,13 +171,14 @@ function _step(actor::ActorHFSsizing)
         C_STF = Float64[]
         C_SPL = Float64[]
         C_FLT = Float64[]
+        C_CST = Float64[]
     end
 
     # optimization
     old_build = deepcopy(dd.build)
     res = Optim.optimize(
         x0 -> cost(x0),
-        [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
+        [TFhfs.thickness / CPradius, OH.thickness / (CPradius - TFhfs.thickness - OHTFgap), dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
         Optim.NelderMead(),
         Optim.Options(iterations=1000, g_tol=1e-6);
         autodiff=:forward
@@ -218,6 +222,7 @@ function _step(actor::ActorHFSsizing)
             if sum(C_FLT) > 0.0
                 plot!(p, C_FLT, label="cost flattop")
             end
+            plot!(p, C_CST, label="small TF & OH")
             display(p)
         end
 
