@@ -268,7 +268,7 @@ end
         ini.equilibrium.R0,
         ini.equilibrium.Z0,
         ini.equilibrium.ϵ,
-        ini_equilibrium_elongation_true(equilibrium),
+        ini_equilibrium_elongation_true(ini.equilibrium),
         0.0,
         [ini.equilibrium.𝚶, 0.0],
         [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])

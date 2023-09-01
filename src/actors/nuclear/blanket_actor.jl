@@ -43,7 +43,7 @@ end
 function _step(actor::ActorBlanket)
     dd = actor.dd
     empty!(dd.blanket)
-    blankets = IMAS.get_build_layer(dd.build.layer, type=_blanket_, fs=_hfs_)
+    blankets = IMAS.get_build_layers(dd.build.layer, type=_blanket_, fs=_hfs_)
     if isempty(blankets)
         @warn "No blanket present for ActorBlanket to do anything"
         return actor
