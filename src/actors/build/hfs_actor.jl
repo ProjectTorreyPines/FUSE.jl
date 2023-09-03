@@ -83,7 +83,7 @@ function _step(actor::ActorHFSsizing)
     function cost(x0)
         # assign optimization arguments
         c_cst = assign_PL_OH_TF(x0)
-        c_cst *= 1E-3
+        c_cst *= 1E-1
 
         # evaluate coils currents and stresses
         _step(actor.fluxswing_actor)
@@ -140,7 +140,7 @@ function _step(actor::ActorHFSsizing)
         end
 
         # total cost
-        return norm((norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt, c_cst))
+        return norm((norm([c_joh, c_soh, c_flt]), norm([c_jtf, c_stf]), c_spl, c_cst) .^ 2)
     end
 
     # initialize
