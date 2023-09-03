@@ -317,7 +317,7 @@ function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100, resolut
     zb_e1 = coil_maxz - centerpost_maxz
     ra_e2 = r2 - r0
     zb_e2 = coil_maxz
-    e1_e2_ratio = sqrt(ra_e1^2+zb_e1^2) / sqrt(ra_e2^2+zb_e2^2)
+    e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
     n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
     n2_points = Int(round(n_points * resolution))
 
@@ -361,7 +361,7 @@ function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=1
     zb_e1 = coil_maxz - centerpost_maxz
     ra_e2 = r2 - r0
     zb_e2 = coil_maxz
-    e1_e2_ratio = sqrt(ra_e1^2+zb_e1^2) / sqrt(ra_e2^2+zb_e2^2)
+    e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
     n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
     n2_points = Int(round(n_points * resolution))
 
@@ -399,7 +399,7 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
     zb_e2 = (height - outerpost_height) / 2.0
 
     # number of points
-    e1_e2_ratio = sqrt(ra_e1^2+zb_e1^2) / sqrt(ra_e2^2+zb_e2^2)
+    e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
     n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
     n2_points = Int(round(n_points * resolution))
 
@@ -663,10 +663,10 @@ Returns LibGEOS.Polygon stucture from x and y arrays
 """
 function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
     if (x[1] ≈ x[end]) && (y[1] ≈ y[end])
-        coords = [[ [x[i], y[i]] for i in 1:length(x) ]]
+        coords = [[[x[i], y[i]] for i in 1:length(x)]]
         coords[1][end] .= coords[1][1]
     else
-        coords = [[ i>length(x) ? [x[1], y[1]] : [x[i], y[i]] for i in 1:length(x)+1 ]]
+        coords = [[i > length(x) ? [x[1], y[1]] : [x[i], y[i]] for i in 1:length(x)+1]]
     end
 
     if (coords[1][1][1] != coords[1][end][1]) && (coords[1][1][1] ≈ coords[1][end][1])
@@ -977,6 +977,10 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
     mxhb.z_boundary = Z
 
     return mxhb
+end
+
+function fitMXHboundary(mxh::IMAS.MXH, n_xpoints::Int; n_points::Int=0)
+    return fitMXHboundary(mxh; upper_x_point=n_xpoints ∈ (1, 2), lower_x_point=n_xpoints ∈ (-1, 2), n_points)
 end
 
 """

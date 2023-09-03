@@ -67,6 +67,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
+            dd1.global_time = ini.time.simulation_start
             if length(keys(dd1.wall)) > 0
                 dd.wall = dd1.wall
             end
@@ -76,11 +77,6 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
                 init_from = :scalars
             end
         end
-
-        # we make a copy because we overwrite some parameters
-        # locally to this functions so that things work from
-        # different entry points
-        ini = deepcopy(ini)
 
         eqt = dd.equilibrium.time_slice[]
 
@@ -96,9 +92,9 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
                 pf_inside_tf=(ini.pf_active.n_coils_inside > 0),
                 pf_outside_tf=(ini.pf_active.n_coils_outside > 0))
         else
-            layers = deepcopy(ini.build.layers)
+            layers = ini.build.layers
             # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
-            scale_build_layers(layers, dd.equilibrium.vacuum_toroidal_field.r0, eqt.boundary.minor_radius, ini.build.plasma_gap)
+            scale_build_layers!(layers, dd.equilibrium.vacuum_toroidal_field.r0, eqt.boundary.minor_radius, ini.build.plasma_gap)
         end
 
         # populate dd.build with radial build layers
@@ -337,12 +333,12 @@ function layers_meters_from_fractions(
     end
 
     # from fractions to meters
-    scale_build_layers(layers, (rmax + rmin) / 2.0, (rmax - rmin) / 2.0, 0.0)
+    scale_build_layers!(layers, (rmax + rmin) / 2.0, (rmax - rmin) / 2.0, 0.0)
 
     return layers
 end
 
-function scale_build_layers(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
+function scale_build_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
     gap = a * gap_fraction
     plasma_start = R0 - a - gap
     layer_plasma_start = 0.0

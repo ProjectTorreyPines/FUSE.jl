@@ -2,57 +2,43 @@
 #  init pulse_schedule IDS  #
 #= ======================= =#
 """
-    init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; simplify_time_traces::Float64=0.1)
 
 Initialize `dd.pulse_schedule` starting from `ini` and `act` parameters
 """
-function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; simplify_time_traces::Float64=0.1)
     TimerOutputs.reset_timer!("init_pulse_schedule")
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from
         dd.global_time = ini.time.simulation_start
 
-        simplify = 0.1
-
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
-
-            if ini.equilibrium.boundary_from == :ods && !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0
-                eqt = dd.equilibrium.time_slice[]
-                IMAS.flux_surfaces(eqt)
-
-                # if number of x-points is not set explicitly, get it from the ODS
-                n_xpoints = length(eqt.boundary.x_point)
-                if n_xpoints == 0
-                    ini.equilibrium.xpoints = :none
-                elseif n_xpoints == 1
-                    if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
-                        ini.equilibrium.xpoints = :upper
-                    else
-                        ini.equilibrium.xpoints = :lower
-                    end
-                elseif n_xpoints == 2
-                    ini.equilibrium.xpoints = :double
-                else
-                    error("cannot handle $n_xpoints x-points")
-                end
-            end
-
+            dd1.global_time = ini.time.simulation_start
             if !ismissing(dd1.pulse_schedule, :time) && length(dd1.pulse_schedule.time) > 0
                 dd.pulse_schedule = dd1.pulse_schedule
             else
                 init_from = :scalars
             end
+
+            if ismissing(ini.equilibrium, :ip)
+                ini.equilibrium.ip = dd1.equilibrium.time_slice[].global_quantities.ip
+            end
+            if ismissing(ini.equilibrium, :R0)
+                ini.equilibrium.R0 = dd1.equilibrium.vacuum_toroidal_field.r0
+            end
+            if ismissing(ini.equilibrium, :B0)
+                ini.equilibrium.B0 = @ddtime dd1.equilibrium.vacuum_toroidal_field.b0
+            end
+
+        else
+            dd1 = IMAS.dd()
         end
 
-        # we make a copy because we overwrite some parameters
-        # locally to this functions so that things work from
-        # different entry points
-        ini = deepcopy(ini)
-        ini.equilibrium.κ = ini_equilibrium_elongation_true(ini.equilibrium)
+        nx = n_xpoints(ini, dd1) # x-points are not time dependent yet
 
         if init_from == :scalars
-            time, data = get_time_dependent(ini.equilibrium, :ip, simplify)
+            time, data = get_time_dependent(ini.equilibrium, :ip, simplify_time_traces)
             dd.pulse_schedule.flux_control.i_plasma.reference.time = time
             dd.pulse_schedule.flux_control.i_plasma.reference.data = data
 
@@ -63,11 +49,11 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             elseif typeof(getfield(ini.equilibrium, :R0).value) <: Function
                 error("`ini.equilibrium.R0` should not be time dependent")
             else
-                mxh = IMAS.MXH(ini.equilibrium)
+                mxh = IMAS.MXH(ini, dd1)
                 R0 = mxh.R0
             end
 
-            time, data = get_time_dependent(ini.equilibrium, :B0, simplify)
+            time, data = get_time_dependent(ini.equilibrium, :B0, simplify_time_traces)
             dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.time = time
             dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = data .* R0
 
@@ -76,7 +62,7 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 shape_parameters = Dict{Symbol,Tuple{Vector{Float64},Vector{Float64}}}()
                 all_times = Float64[]
                 for shape_parameter in [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶]
-                    time, data = get_time_dependent(ini.equilibrium, shape_parameter, simplify)
+                    time, data = get_time_dependent(ini.equilibrium, shape_parameter, simplify_time_traces)
                     shape_parameters[shape_parameter] = time, data
                     append!(all_times, time)
                 end
@@ -90,20 +76,24 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                     δ = IMAS.interp1d(shape_parameters[:δ][1], shape_parameters[:δ][2]).(time)
                     ζ = IMAS.interp1d(shape_parameters[:ζ][1], shape_parameters[:ζ][2]).(time)
                     𝚶 = IMAS.interp1d(shape_parameters[:𝚶][1], shape_parameters[:𝚶][2]).(time)
+                    κ = ini_equilibrium_elongation_true(κ, ϵ)
                     mxh = IMAS.MXH(R0, Z0, ϵ, κ, 0.0, [𝚶, 0.0], [asin(δ), -ζ])
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, time)
+                    mxhb = fitMXHboundary(mxh, nx)
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, time)
                     if k == length(all_times) - 1 && all_times[k+1] == Inf
-                        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, Inf)
+                        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
                         break
                     end
                 end
 
             else
                 # NOT SETUP FOR TIME DEPENDENCE YET
-                mxh = IMAS.MXH(ini.equilibrium)
+                mxh = IMAS.MXH(ini, dd1)
                 ini.equilibrium(mxh)
-                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, ini.time.simulation_start)
-                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh, ini.equilibrium.xpoints, Inf)
+                mxhb = fitMXHboundary(mxh, nx)
+
+                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, ini.time.simulation_start)
+                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
             end
         end
 
@@ -111,16 +101,16 @@ function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
     end
 end
 
-function get_time_dependent(par::AbstractParameters, field::Symbol, simplify::Float64=0.0)
-    @assert 0.0 <= simplify <= 1.0 "get_time_dependent() simplify must be between [0,1]"
+function get_time_dependent(par::AbstractParameters, field::Symbol, simplify_time_traces::Float64=0.0)
+    @assert 0.0 <= simplify_time_traces <= 1.0 "get_time_dependent() simplify_time_traces must be between [0,1]"
 
     value = getfield(par, field).value
 
     if typeof(value) <: Function
         time = collect(SimulationParameters.top(par).time.pulse_shedule_time_basis)
         data = value.(time)
-        if simplify != 0.0
-            time, data = IMAS.simplify_2d_path(time, data, simplify)
+        if simplify_time_traces != 0.0
+            time, data = IMAS.simplify_2d_path(time, data, simplify_time_traces)
         end
     else
         time = Float64[SimulationParameters.top(par).time.simulation_start, Inf]
@@ -132,34 +122,29 @@ end
 """
     init_pulse_schedule_postion_control(
         pc::IMAS.pulse_schedule__position_control,
-        mxh::IMAS.MXH,
-        xpoints::Symbol,
+        mxhb::FUSE.MXHboundary,
         time0::Float64)
 
 Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
 function init_pulse_schedule_postion_control(
     pc::IMAS.pulse_schedule__position_control,
-    mxh::IMAS.MXH,
-    xpoints::Symbol,
+    mxhb::FUSE.MXHboundary,
     time0::Float64)
 
-    if xpoints ∈ (:lower, :upper, :double)
-        # MXHboundary adds x-points
-        mxhb = fitMXHboundary(mxh; lower_x_point=(xpoints ∈ (:lower, :double)), upper_x_point=(xpoints ∈ (:upper, :double)))
-        pr = mxhb.r_boundary
-        pz = mxhb.z_boundary
+    # MXHboundary adds x-points
+    pr = mxhb.r_boundary
+    pz = mxhb.z_boundary
 
-        # x-point information
-        resize!(pc.x_point, length(mxhb.RX); wipe=false)
-        for (k, (rx, zx)) in enumerate(zip(mxhb.RX, mxhb.ZX))
-            IMAS.set_time_array(pc.x_point[k].r.reference, :data, time0, rx)
-            IMAS.set_time_array(pc.x_point[k].z.reference, :data, time0, zx)
-        end
-
-        # boundary with x-points parametrized with MXH
-        mxh = IMAS.MXH(pr, pz, 2)
+    # x-point information
+    resize!(pc.x_point, length(mxhb.RX); wipe=false)
+    for (k, (rx, zx)) in enumerate(zip(mxhb.RX, mxhb.ZX))
+        IMAS.set_time_array(pc.x_point[k].r.reference, :data, time0, rx)
+        IMAS.set_time_array(pc.x_point[k].z.reference, :data, time0, zx)
     end
+
+    # boundary with x-points parametrized with MXH
+    mxh = IMAS.MXH(pr, pz, 2)
     pr, pz = mxh(100; adaptive=false)
 
     # scalars

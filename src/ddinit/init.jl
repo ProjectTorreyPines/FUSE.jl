@@ -11,8 +11,12 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
 
+        # we make a copy because we overwrite some of the parameters internally
+        # and we want this function to work always the same for subsequent calls
+        ini = deepcopy(ini)
+        act = deepcopy(act)
+
         # Makes `ini` and `act` self-consistent and consistent with one another
-        # NOTE: we purposly operate in place, so that the user can see chances in their own ini, act
         consistent_ini_act!(ini, act)
 
         # Check what is in the ods to load

@@ -16,6 +16,7 @@ function init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAll
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
+            dd1.global_time = ini.time.simulation_start
             if !ismissing(dd1.pf_active, :time) && length(dd1.pf_active.time) > 0
                 dd.pf_active = dd1.pf_active
             else

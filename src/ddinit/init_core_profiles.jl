@@ -11,6 +11,7 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
+            dd1.global_time = ini.time.simulation_start
             if !ismissing(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
                 dd.core_profiles = dd1.core_profiles
 

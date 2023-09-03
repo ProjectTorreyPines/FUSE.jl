@@ -264,17 +264,10 @@ end
         end
     end
 
-    mxh = IMAS.MXH(
-        ini.equilibrium.R0,
-        ini.equilibrium.Z0,
-        ini.equilibrium.ϵ,
-        ini_equilibrium_elongation_true(ini.equilibrium),
-        0.0,
-        [ini.equilibrium.𝚶, 0.0],
-        [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
+    mxh = IMAS.MXH(ini)
 
     if N > 0
-        layout := @layout [N+1]
+        layout := @layout [N + 1]
 
         @series begin
             label := ""
@@ -298,7 +291,9 @@ end
 end
 
 """
-    if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
+    ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
+
+if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
 """
 function ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
     if !ismissing(equilibrium, :κ)
@@ -309,6 +304,19 @@ function ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibriu
         end
     else
         return missing
+    end
+end
+
+"""
+    ini_equilibrium_elongation_true(κ::T, ϵ::T) where {T<:Real}
+
+if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
+"""
+function ini_equilibrium_elongation_true(κ::T, ϵ::T) where {T<:Real}
+    if κ < 1.0
+        return IMAS.elongation_limit(1.0 / ϵ) * κ
+    else
+        return κ
     end
 end
 
@@ -332,8 +340,30 @@ end
 
 return ini.equilibrium boundary expressed in MHX independenty of how the user input it
 """
-function IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
-    boundary_from = equilibrium.boundary_from
+function IMAS.MXH(ini::ParametersAllInits)
+    init_from = ini.general.init_from
+    if init_from == :ods
+        dd = IMAS.json2imas(ini.ods.filename)
+    else
+        dd = IMAS.dd()
+    end
+    return IMAS.MXH(ini, dd)
+end
+
+function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
+    init_from = ini.general.init_from
+    if init_from == :ods
+        if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
+            dd.global_time = ini.time.simulation_start
+            eqt = dd.equilibrium.time_slice[]
+            IMAS.flux_surfaces(eqt)
+            dd.equilibrium # to avoid GC?
+        else
+            init_from = :scalars
+        end
+    end
+
+    boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
         pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
         pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
@@ -342,34 +372,75 @@ function IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
 
     elseif boundary_from == :rz_points
         # R,Z boundary from points
-        if ismissing(equilibrium, :rz_points)
+        if ismissing(ini.equilibrium, :rz_points)
             error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
         end
-        pr, pz = equilibrium.rz_points[1], equilibrium.rz_points[2]
+        pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
         pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
         pr, pz = IMAS.reorder_flux_surface!(pr, pz)
         mxh = IMAS.MXH(pr, pz, 4)
 
     elseif boundary_from == :MXH_params
         # R,Z boundary from MXH
-        if ismissing(equilibrium, :MXH_params)
+        if ismissing(ini.equilibrium, :MXH_params)
             error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
         end
-        mxh = IMAS.MXH(equilibrium.MXH_params)
+        mxh = IMAS.MXH(ini.equilibrium.MXH_params)
 
     elseif boundary_from == :scalars
         # R,Z boundary from scalars
         mxh = IMAS.MXH(
-            equilibrium.R0,
-            equilibrium.Z0,
-            equilibrium.ϵ,
-            ini_equilibrium_elongation_true(equilibrium),
+            ini.equilibrium.R0,
+            ini.equilibrium.Z0,
+            ini.equilibrium.ϵ,
+            ini_equilibrium_elongation_true(ini.equilibrium),
             0.0,
-            [equilibrium.𝚶, 0.0],
-            [asin(equilibrium.δ), -equilibrium.ζ])
+            [ini.equilibrium.𝚶, 0.0],
+            [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
     else
         error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
     end
 
     return mxh
+end
+
+function n_xpoints(ini::ParametersAllInits, dd::IMAS.dd)
+    if ismissing(ini.equilibrium, :xpoints) && !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
+        # if number of x-points is not set explicitly, get it from the ODS
+        eqt = dd.equilibrium.time_slice[]
+        IMAS.flux_surfaces(eqt)
+
+        if ismissing(ini.equilibrium, :xpoints)
+            nx = length(eqt.boundary.x_point)
+            if nx == 0
+                return 0
+            elseif nx == 1
+                if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
+                    return 1
+                else
+                    return -1
+                end
+            elseif nx == 2
+                return 2
+            else
+                error("cannot handle $nx x-points")
+            end
+        end
+    else
+        return n_xpoints(ini.equilibrium.xpoints)
+    end
+end
+
+function n_xpoints(xpoints::Symbol)
+    if xpoints == :none
+        return 0
+    elseif xpoints == :lower
+        return -1
+    elseif xpoints == :upper
+        return 1
+    elseif xpoints == :double
+        return 2
+    else
+        error("xpoints can only be [:none, :lower, :upper, :double]")
+    end
 end

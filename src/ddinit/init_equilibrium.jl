@@ -14,6 +14,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
+            dd1.global_time = ini.time.simulation_start
             if !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0
                 dd.equilibrium = dd1.equilibrium
                 eqt = dd.equilibrium.time_slice[]
@@ -21,12 +22,9 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             else
                 init_from = :scalars
             end
+        else
+            dd1 = IMAS.dd()
         end
-
-        # we make a copy because we overwrite some parameters
-        # locally to this functions so that things work from
-        # different entry points
-        ini = deepcopy(ini)
 
         if init_from == :ods
             ini.equilibrium.ip = eqt.global_quantities.ip
@@ -35,21 +33,20 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
             ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
         end
 
-        # ini.equilibrium boundary expressed in MHX independenty of how the user input it
-        mxh = IMAS.MXH(ini.equilibrium)
-
+        # mxh independenty of how the user input it
+        mxh = IMAS.MXH(ini, dd1)
         dd.equilibrium.vacuum_toroidal_field.r0 = mxh.R0
 
-        # the pressure and j_tor to be used by equilibrium solver will need to be set in dd.core_profiles
+        # the pressure and j_tor to be used by equilibrium solver need to be set in dd.core_profiles
+        # while the equilibrium boundary neds to be set in init_pulse_schedule
         if isempty(dd.core_profiles.profiles_1d)
             cp1d = resize!(dd.core_profiles.profiles_1d)
             if init_from == :ods
                 # take p and j from input equilibrium ods
-                eqt1 = dd1.equilibrium.time_slice[]
-                cp1d.grid.rho_tor_norm = eqt1.profiles_1d.rho_tor_norm
-                cp1d.grid.psi = eqt1.profiles_1d.psi
-                cp1d.j_tor = eqt1.profiles_1d.j_tor
-                cp1d.pressure = eqt1.profiles_1d.pressure
+                cp1d.grid.rho_tor_norm = eqt.profiles_1d.rho_tor_norm
+                cp1d.grid.psi = eqt.profiles_1d.psi
+                cp1d.j_tor = eqt.profiles_1d.j_tor
+                cp1d.pressure = eqt.profiles_1d.pressure
 
             else
                 # guess pressure and j_tor from input current and peak pressure
@@ -62,7 +59,7 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         end
 
         # solve equilibrium
-        if !(init_from == :ods && boundary_from == :ods)
+        if !(init_from == :ods && ini.equilibrium.boundary_from == :ods)
             act_copy = deepcopy(act)
             act_copy.ActorCHEASE.rescale_eq_to_ip = true
             ActorEquilibrium(dd, act_copy)

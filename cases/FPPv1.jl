@@ -25,6 +25,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
 
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
+        ini.time.simulation_start = 1.0
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints = :double

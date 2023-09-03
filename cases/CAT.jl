@@ -12,6 +12,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.boundary_from = :ods
 
     ini.ods.filename = joinpath(@__DIR__, "..", "sample", "CAT_eq_ods.json")
+    ini.time.simulation_start = 0.006
 
     ini.build.blanket = 1.0
     ini.build.shield = 0.5
@@ -52,8 +53,10 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorPFcoilsOpt.symmetric = true
 
+    act.ActorStabilityLimits.raise_on_breach = false
+
     set_new_base!(ini)
     set_new_base!(act)
-    
+
     return ini, act
 end

@@ -11,6 +11,7 @@ function init_missing_from_ods(dd::IMAS.dd, ini::ParametersAllInits, act::Parame
 
         if init_from == :ods
             dd1 = IMAS.json2imas(ini.ods.filename)
+            dd1.global_time = ini.time.simulation_start
             for field in keys(dd1)
                 ids1 = getproperty(dd1, field)
                 ids = getproperty(dd, field)
