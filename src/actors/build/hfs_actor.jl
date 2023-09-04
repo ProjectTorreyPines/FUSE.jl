@@ -146,23 +146,12 @@ function _step(actor::ActorHFSsizing)
     # initialize
     PL = dd.build.layer[1]
     OH = IMAS.get_build_layer(dd.build.layer, type=_oh_)
-    BLs = IMAS.get_build_layers(dd.build.layer, type=_blanket_, fs=_hfs_)
-    if isempty(BLs)
-        BL = PL
-    else
-        BL = BLs[1]
-    end
-    old_BL_thickness = BL.thickness
     TFhfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_hfs_)
     TFlfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_)
     plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
-
     CPradius = TFhfs.end_radius
     OHTFgap = CPradius - TFhfs.thickness - OH.thickness - PL.thickness
-
     target_B0 = maximum(abs, dd.equilibrium.vacuum_toroidal_field.b0)
-    a = (plasma.end_radius - plasma.start_radius) / 2.0
-    old_R0 = (plasma.end_radius + plasma.start_radius) / 2.0
 
     if par.verbose
         C_JOH = Float64[]
@@ -252,9 +241,6 @@ function _step(actor::ActorHFSsizing)
         println()
         @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf)
         @show dd.solid_mechanics.center_stack.properties.yield_strength.tf
-        println()
-        @show old_R0 / a
-        @show R0 / a
     end
 
     try
@@ -269,6 +255,8 @@ function _step(actor::ActorHFSsizing)
         end
     catch e
         print_details()
+        plot(old_build)
+        display(plot!(dd.build; cx=false))
         dd.build = old_build
         rethrow(e)
     end
