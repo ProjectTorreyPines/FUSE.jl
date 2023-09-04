@@ -8,8 +8,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where 
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
-    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution", default=100)
-    solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop", default=:ip)
+    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
+    solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
 end
 
 mutable struct ActorQED{D,P} <: PlasmaAbstractActor

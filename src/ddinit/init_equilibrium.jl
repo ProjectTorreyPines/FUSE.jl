@@ -2,35 +2,22 @@
 #  init equilibrium IDS  #
 #= ==================== =#
 """
-    init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
 
 Initialize `dd.equilibrium` starting from `ini` and `act` parameters
 """
-function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
     TimerOutputs.reset_timer!("init_equilibrium")
     TimerOutputs.@timeit timer "init_equilibrium" begin
         init_from = ini.general.init_from
-        dd.global_time = ini.time.simulation_start
 
         if init_from == :ods
-            dd1 = IMAS.json2imas(ini.ods.filename)
-            dd1.global_time = ini.time.simulation_start
             if !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0
                 dd.equilibrium = dd1.equilibrium
                 eqt = dd.equilibrium.time_slice[]
-                IMAS.flux_surfaces(eqt)
             else
                 init_from = :scalars
             end
-        else
-            dd1 = IMAS.dd()
-        end
-
-        if init_from == :ods
-            ini.equilibrium.ip = eqt.global_quantities.ip
-            ini.equilibrium.R0 = dd.equilibrium.vacuum_toroidal_field.r0
-            ini.equilibrium.B0 = @ddtime dd.equilibrium.vacuum_toroidal_field.b0
-            ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
         end
 
         # mxh independenty of how the user input it
@@ -47,7 +34,6 @@ function init_equilibrium(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
                 cp1d.grid.psi = eqt.profiles_1d.psi
                 cp1d.j_tor = eqt.profiles_1d.j_tor
                 cp1d.pressure = eqt.profiles_1d.pressure
-
             else
                 # guess pressure and j_tor from input current and peak pressure
                 psin = LinRange(0.0, 1.0, 129)

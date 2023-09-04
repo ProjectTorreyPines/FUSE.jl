@@ -76,7 +76,6 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
     ini.core_profiles.helium_fraction = 0.04
-    ini.core_profiles.ejima = 0.4
 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5

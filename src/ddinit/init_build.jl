@@ -55,19 +55,16 @@ end
 #  init build  #
 #= ========== =#
 """
-    init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
 
 Initialize `dd.build` starting from `ini` and `act` parameters
 """
-function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
     TimerOutputs.reset_timer!("init_build")
     TimerOutputs.@timeit timer "init_build" begin
         init_from = ini.general.init_from
-        dd.global_time = ini.time.simulation_start
 
         if init_from == :ods
-            dd1 = IMAS.json2imas(ini.ods.filename)
-            dd1.global_time = ini.time.simulation_start
             if length(keys(dd1.wall)) > 0
                 dd.wall = dd1.wall
             end
@@ -98,7 +95,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
         end
 
         # populate dd.build with radial build layers
-        init_build(dd.build, layers)
+        init_build!(dd.build, layers)
 
         # divertors
         if ini.build.divertors == :from_x_points
@@ -182,7 +179,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
 end
 
 """
-    init_build(bd::IMAS.build; layers...)
+    init_build!(bd::IMAS.build; layers...)
 
 Initialize build IDS based on center stack layers (thicknesses)
 
@@ -200,7 +197,7 @@ layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is handled via IMAS.jl expressions
 """
-function init_build(bd::IMAS.build; layers...)
+function init_build!(bd::IMAS.build; layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
@@ -255,13 +252,13 @@ function init_build(bd::IMAS.build; layers...)
     return bd
 end
 
-function init_build(bd::IMAS.build, layers::AbstractDict)
+function init_build!(bd::IMAS.build, layers::AbstractDict)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
-    init_build(bd; nt...)
+    init_build!(bd; nt...)
 end
 
 """
-    function init_build(
+    function init_build!(
         bd::IMAS.build,
         eqt::IMAS.equilibrium__time_slice,
         wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};

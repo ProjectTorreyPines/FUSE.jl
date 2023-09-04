@@ -59,8 +59,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     # explicitly set thickness of radial build layers
     ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.80
-    layers[:OH] = 1.30
-    layers[:hfs_TF] = 1.10
+    layers[:OH] = 1.275
+    layers[:gap_OH_TF] = 0.05
+    layers[:hfs_TF] = 1.075
     layers[:hfs_vacuum_vessel] = 0.30
     layers[:hfs_shield] = 0.40
     layers[:hfs_wall] = 0.1
@@ -98,8 +99,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
-
-    ini.core_profiles.ejima = 0.4
 
     ini.nbi.power_launched = 2 * 16.7e6
     ini.nbi.beam_energy = 1e6

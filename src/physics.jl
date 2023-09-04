@@ -979,8 +979,8 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
     return mxhb
 end
 
-function fitMXHboundary(mxh::IMAS.MXH, n_xpoints::Int; n_points::Int=0)
-    return fitMXHboundary(mxh; upper_x_point=n_xpoints ∈ (1, 2), lower_x_point=n_xpoints ∈ (-1, 2), n_points)
+function fitMXHboundary(mxh::IMAS.MXH, nx::Int; n_points::Int=0)
+    return fitMXHboundary(mxh; upper_x_point=nx ∈ (1, 2), lower_x_point=nx ∈ (-1, 2), n_points)
 end
 
 """

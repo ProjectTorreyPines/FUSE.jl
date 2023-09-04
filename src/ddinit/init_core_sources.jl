@@ -188,19 +188,16 @@ function unique_core_sources_names!(cs::IMAS.core_sources)
 end
 
 """
-    init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
 
 Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from `ini` and `act` parameters
 """
-function init_core_sources(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
     TimerOutputs.reset_timer!("init_core_sources")
     TimerOutputs.@timeit timer "init_core_sources" begin
         init_from = ini.general.init_from
-        dd.global_time = ini.time.simulation_start
 
         if init_from == :ods
-            dd1 = IMAS.json2imas(ini.ods.filename)
-            dd1.global_time = ini.time.simulation_start
             if !ismissing(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
                 dd.core_sources = dd1.core_sources
                 unique_core_sources_names!(dd.core_sources)

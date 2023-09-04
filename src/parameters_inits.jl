@@ -64,7 +64,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     greenwald_fraction::Entry{T} = Entry{T}("-", "Line average electron density expressed as fraction of Greenwald density")
     greenwald_fraction_ped::Entry{T} = Entry{T}("-", "Pedestal electron density expressed as fraction of Greenwald density")
     ne_ped::Entry{T} = Entry{T}("m^-3", "Pedestal electron density")
-    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ", default=0.05)
+    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05)
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio")
     T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     n_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
@@ -74,8 +74,8 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     bulk::Entry{Symbol} = Entry{Symbol}("-", "Bulk ion species")
     impurity::Entry{Symbol} = Entry{Symbol}("-", "Impurity ion species")
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction")
-    ejima::Entry{T} = Entry{T}("-", "Ejima coefficient")
-    polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction", default=0.0)
+    ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4)
+    polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction"; default=0.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where {T<:Real}
@@ -402,33 +402,6 @@ function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
     end
 
     return mxh
-end
-
-function n_xpoints(ini::ParametersAllInits, dd::IMAS.dd)
-    if ismissing(ini.equilibrium, :xpoints) && !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
-        # if number of x-points is not set explicitly, get it from the ODS
-        eqt = dd.equilibrium.time_slice[]
-        IMAS.flux_surfaces(eqt)
-
-        if ismissing(ini.equilibrium, :xpoints)
-            nx = length(eqt.boundary.x_point)
-            if nx == 0
-                return 0
-            elseif nx == 1
-                if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
-                    return 1
-                else
-                    return -1
-                end
-            elseif nx == 2
-                return 2
-            else
-                error("cannot handle $nx x-points")
-            end
-        end
-    else
-        return n_xpoints(ini.equilibrium.xpoints)
-    end
 end
 
 function n_xpoints(xpoints::Symbol)

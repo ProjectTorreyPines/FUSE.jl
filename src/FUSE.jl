@@ -29,6 +29,7 @@ include("technology.jl")
 #  DDINIT  #
 #= ====== =#
 include(joinpath("ddinit", "init.jl"))
+include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))

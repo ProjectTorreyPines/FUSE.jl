@@ -2,40 +2,24 @@
 #  init pulse_schedule IDS  #
 #= ======================= =#
 """
-    init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; simplify_time_traces::Float64=0.1)
+    init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd; simplify_time_traces::Float64=0.1)
 
 Initialize `dd.pulse_schedule` starting from `ini` and `act` parameters
 """
-function init_pulse_schedule(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; simplify_time_traces::Float64=0.1)
+function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd; simplify_time_traces::Float64=0.1)
     TimerOutputs.reset_timer!("init_pulse_schedule")
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from
-        dd.global_time = ini.time.simulation_start
 
         if init_from == :ods
-            dd1 = IMAS.json2imas(ini.ods.filename)
-            dd1.global_time = ini.time.simulation_start
             if !ismissing(dd1.pulse_schedule, :time) && length(dd1.pulse_schedule.time) > 0
                 dd.pulse_schedule = dd1.pulse_schedule
             else
                 init_from = :scalars
             end
-
-            if ismissing(ini.equilibrium, :ip)
-                ini.equilibrium.ip = dd1.equilibrium.time_slice[].global_quantities.ip
-            end
-            if ismissing(ini.equilibrium, :R0)
-                ini.equilibrium.R0 = dd1.equilibrium.vacuum_toroidal_field.r0
-            end
-            if ismissing(ini.equilibrium, :B0)
-                ini.equilibrium.B0 = @ddtime dd1.equilibrium.vacuum_toroidal_field.b0
-            end
-
-        else
-            dd1 = IMAS.dd()
         end
 
-        nx = n_xpoints(ini, dd1) # x-points are not time dependent yet
+        nx = n_xpoints(ini.equilibrium.xpoints) # XPOINTS NOT SETUP FOR TIME DEPENDENCE YET
 
         if init_from == :scalars
             time, data = get_time_dependent(ini.equilibrium, :ip, simplify_time_traces)

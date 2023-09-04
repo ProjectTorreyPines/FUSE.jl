@@ -128,7 +128,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw..
 
     # reset pf coil rails
     n_coils = [rail.coils_number for rail in bd.pf_active.rail]
-    init_pf_active(pf, bd, n_coils)
+    init_pf_active!(pf, bd, n_coils)
 
     return ActorPFcoilsOpt(dd, par, eq_in, eq_out, pf, bd, par.symmetric, λ_regularize, trace, par.green_model)
 end
