@@ -1,3 +1,5 @@
+ProgressMeter.ijulia_behavior(:clear)
+
 #= ================== =#
 #  ActorDynamicPlasma  #
 #= ================== =#
@@ -51,52 +53,60 @@ function _step(actor::ActorDynamicPlasma)
     # set Δt of the current actor
     actor.actor_jt.jt_actor.par.Δt = δt
 
-    prog = ProgressMeter.Progress(par.Nt * 2; dt=0.0, showspeed=true)
-    for tt in LinRange(t0, t1, par.Nt + 1)[2:end]
-        begin # first 1/2 step (transport)
+    prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
+    backup_actor_logging = logging()[:actors]
+    logging(; actors=Logging.Error)
+    try
+        for tt in LinRange(t0, t1, par.Nt + 1)[2:end]
+            begin # first 1/2 step (transport)
+                # prepare time dependent arrays of structures
+                IMAS.new_timeslice!(dd.equilibrium, tt - δt / 2.0)
+                IMAS.new_timeslice!(dd.core_profiles, tt - δt / 2.0)
+                IMAS.new_timeslice!(dd.core_sources, tt - δt / 2.0)
+                IMAS.new_timeslice!(dd.core_transport, tt - δt / 2.0)
+                dd.global_time = tt - δt / 2.0
 
-            # prepare time dependent arrays of structures
-            IMAS.new_timeslice!(dd.equilibrium, tt - δt / 2.0)
-            IMAS.new_timeslice!(dd.core_profiles, tt - δt / 2.0)
-            IMAS.new_timeslice!(dd.core_sources, tt - δt / 2.0)
-            IMAS.new_timeslice!(dd.core_transport, tt - δt / 2.0)
-            dd.global_time = tt - δt / 2.0
+                #controller() --> (PS.beta - CP.beta) ==> NBI.power
 
-            #controller() --> (PS.beta - CP.beta) ==> NBI.power
+                # run transport actor
+                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_tr)) 1/2")])
+                finalize(step(actor.actor_tr))
 
-            # run transport actor
-            finalize(step(actor.actor_tr))
+                # run equilibrium actor with the updated beta
+                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_eq)) 1/2")])
+                finalize(step(actor.actor_eq))
 
-            # run equilibrium actor with the updated beta
-            finalize(step(actor.actor_eq))
+                # run HCD to get updated current drive
+                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_hc)) 1/2")])
+                finalize(step(actor.actor_hc))
+            end
 
-            # run HCD to get updated current drive
-            finalize(step(actor.actor_hc))
+            begin # second 1/2 step (current)
+                # prepare time dependent arrays of structures
+                IMAS.new_timeslice!(dd.equilibrium, tt)
+                IMAS.new_timeslice!(dd.core_profiles, tt)
+                IMAS.new_timeslice!(dd.core_sources, tt)
+                dd.global_time = tt
+
+                #controller() --> (PS.ip - EQ.ip) ==> OH.Vloop
+
+                # evolve j_ohmic
+                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_jt)) 2/2")])
+                finalize(step(actor.actor_jt))
+
+                # run equilibrium actor with the updated beta
+                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_eq)) 2/2")])
+                finalize(step(actor.actor_eq))
+
+                # run HCD to get updated current drive
+                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_hc)) 2/2")])
+                finalize(step(actor.actor_hc))
+            end
+            println(stderr, dd.global_time)
         end
-        ProgressMeter.next!(prog)
-        println(stderr, dd.global_time)
-
-        begin # second 1/2 step (current)
-
-            # prepare time dependent arrays of structures
-            IMAS.new_timeslice!(dd.equilibrium, tt)
-            IMAS.new_timeslice!(dd.core_profiles, tt)
-            IMAS.new_timeslice!(dd.core_sources, tt)
-            dd.global_time = tt
-
-            #controller() --> (PS.ip - EQ.ip) ==> OH.Vloop
-
-            # evolve j_ohmic
-            finalize(step(actor.actor_jt))
-
-            # run equilibrium actor with the updated beta
-            finalize(step(actor.actor_eq))
-
-            # run HCD to get updated current drive
-            finalize(step(actor.actor_hc))
-        end
-        ProgressMeter.next!(prog)
-        println(stderr, dd.global_time)
+    catch e
+        logging(; actors=backup_actor_logging)
+        rethrow(e)
     end
 
     return actor
