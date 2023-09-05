@@ -62,9 +62,9 @@ function _step(actor::ActorHFSsizing)
     function target_value(value, target, tolerance)
         tmp = (value .* (1.0 .+ tolerance) .- target) ./ (abs(target) + 1.0)
         if tmp > 0.0
-            return exp(tmp) - 1.0
+            return tmp
         else
-            return -tmp * 1E-3
+            return tmp * 1E-3
         end
     end
 
@@ -73,17 +73,17 @@ function _step(actor::ActorHFSsizing)
         TFhfs.thickness = TFlfs.thickness = mirror_bound(x0[1], 0.1, 0.9) * CPradius
         OH.thickness = mirror_bound(x0[2], 0.1, 0.9) * (CPradius - TFhfs.thickness - OHTFgap)
         PL.thickness = CPradius - TFhfs.thickness - OH.thickness - OHTFgap
-        dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.1, 1.0 - dd.build.oh.technology.fraction_void - 0.1)
-        dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1)
+        dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.1, 1.0 - dd.build.oh.technology.fraction_void)
+        dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.1, 1.0 - dd.build.tf.technology.fraction_void)
 
-        # favor relatively small and equal TF and OH
-        return norm(((OH.thickness + TFhfs.thickness) / CPradius, abs(OH.thickness - TFhfs.thickness) / CPradius))
+        # to guide the optimizer, we favor smaller and similar size TF and OH, as well as steel over SC
+        return norm(((OH.thickness + TFhfs.thickness) / CPradius, abs(OH.thickness - TFhfs.thickness) / CPradius, 1.0 - dd.build.oh.technology.fraction_steel, 1.0 - dd.build.tf.technology.fraction_steel))
     end
 
     function cost(x0)
         # assign optimization arguments
         c_cst = assign_PL_OH_TF(x0)
-        c_cst *= 1E-1
+        c_cst *= 1E-3
 
         # evaluate coils currents and stresses
         _step(actor.fluxswing_actor)
@@ -124,7 +124,7 @@ function _step(actor::ActorHFSsizing)
 
         # flattop
         if actor.fluxswing_actor.par.operate_oh_at_j_crit
-            c_flt = abs((dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / dd.requirements.flattop_duration)
+            c_flt = abs((dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / dd.requirements.flattop_duration)^2
         else
             c_flt = 0.0
         end
@@ -140,7 +140,7 @@ function _step(actor::ActorHFSsizing)
         end
 
         # total cost
-        return norm((norm([c_joh, c_soh, c_flt]), norm([c_jtf, c_stf]), c_spl, c_cst) .^ 2)
+        return norm((c_joh, c_soh, c_flt, c_jtf, c_stf, c_spl, c_cst))^2
     end
 
     # initialize
@@ -167,10 +167,9 @@ function _step(actor::ActorHFSsizing)
     old_build = deepcopy(dd.build)
     res = Optim.optimize(
         x0 -> cost(x0),
-        [TFhfs.thickness / CPradius, OH.thickness / (CPradius - TFhfs.thickness - OHTFgap), dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
+        [0.3, 0.5, 0.6, 0.6],
         Optim.NelderMead(),
         Optim.Options(iterations=1000, g_tol=1e-6);
-        autodiff=:forward
     )
     assign_PL_OH_TF(res.minimizer)
     step(actor.fluxswing_actor)
