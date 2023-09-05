@@ -19,11 +19,11 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         ini = deepcopy(ini)
         act = deepcopy(act)
 
-        # Makes `ini` and `act` self-consistent and consistent with one another
-        consistent_ini_act!(ini, act)
-
         # load ods once if needed
         dd1 = ini_from_ods!(ini)
+
+        # Makes `ini` and `act` self-consistent and consistent with one another
+        consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
         if !ismissing(ini.equilibrium, :R0) || !isempty(dd1.equilibrium)
