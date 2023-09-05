@@ -73,7 +73,14 @@ function _step(actor::ActorTEQUILA)
 
     # TEQUILA shot
     shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target=Ip)
-    actor.shot = TEQUILA.solve(shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax)
+    try
+        actor.shot = TEQUILA.solve(shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax)
+    catch e
+        display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
+        display(plot(rho_pol, eq1d.pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
+        display(plot(rho_pol, eq1d.j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
+        rethrow(e)
+    end
 
     return actor
 end
