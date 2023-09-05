@@ -9,6 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where
     nn::Entry{Bool} = Entry{Bool}("-", "Use TGLF-NN"; default=true)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
+    user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default = "")
     rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
 end
@@ -55,7 +56,12 @@ function _step(actor::ActorTGLF)
         actor.input_tglfs[k] = TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
     end
 
-    model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+    if length(par.user_specified_model) > 0
+        model_filename = par.user_specified_model
+    else
+        model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+    end
+
 
     model = resize!(dd.core_transport.model, :anomalous; wipe=false)
     model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename
@@ -90,7 +96,7 @@ function _finalize(actor::ActorTGLF)
 
     # TGLF's grid is V` based so we modify the output to the "classical" flux
     a_minor = (eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard) ./ 2.0
-    volume_prime_miller_correction = IMAS.gradient(a_minor, eqt.profiles_1d.volume) ./ eqt.profiles_1d.surface 
+    volume_prime_miller_correction = IMAS.gradient(a_minor, eqt.profiles_1d.volume) ./ eqt.profiles_1d.surface
     for (tglf_idx, rho) in enumerate(par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
