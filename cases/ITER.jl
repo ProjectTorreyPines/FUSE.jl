@@ -6,7 +6,7 @@ ITER
 Arguments:
 * `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "ITER_$(init_from)"
@@ -38,7 +38,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         κ = 1.85
         δ = 0.485
         ζ = -0.09583
-        if ini.equilibrium.boundary_from == :scalars
+        if boundary_from == :scalars
             ini.equilibrium.R0 = R0
             ini.equilibrium.Z0 = Z0
             ini.equilibrium.ϵ = ϵ
