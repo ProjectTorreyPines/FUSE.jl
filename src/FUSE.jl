@@ -62,6 +62,7 @@ include(joinpath("actors", "build", "cx_actor.jl"))
 
 include(joinpath("actors", "nuclear", "blanket_actor.jl"))
 include(joinpath("actors", "nuclear", "neutronics_actor.jl"))
+include(joinpath("actors", "nuclear", "neutron_transport_actor.jl"))
 
 include(joinpath("actors", "current", "qed_actor.jl"))
 include(joinpath("actors", "current", "steadycurrent_actor.jl"))
