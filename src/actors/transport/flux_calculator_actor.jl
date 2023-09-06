@@ -36,8 +36,6 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
     elseif par.turbulence_model == :TGLF
         act.ActorTGLF.rho_transport = par.rho_transport
         turb_actor = ActorTGLF(dd, act.ActorTGLF)
-    else
-        error("turbulence_model `$(par.turbulence_model)` is not supported yet")
     end
 
     if par.neoclassical_model == :none
@@ -45,8 +43,6 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
     elseif par.neoclassical_model == :neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport
         neoc_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
-    else
-        error("neoclassical_model `$(par.neoclassical_model)` is not supported yet")
     end
 
     return ActorFluxCalculator(dd, par, turb_actor, neoc_actor)
