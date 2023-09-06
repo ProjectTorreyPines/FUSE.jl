@@ -91,8 +91,7 @@ function _finalize(actor::ActorQED)
     # NOTE: Here really we only care about core_profiles, since when the equilibrium actor is run,
     # then the new equilibrium time slice will be prepared based on the core_profiles current
     eqt = dd.equilibrium.time_slice[]
-    dΡ_dρ = eqt.profiles_1d.rho_tor[end]
-    ρ = eqt.profiles_1d.rho_tor / dΡ_dρ
+    ρ = eqt.profiles_1d.rho_tor_norm
     eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
     eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
 
