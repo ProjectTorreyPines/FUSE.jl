@@ -13,6 +13,7 @@ end
 mutable struct ActorNeoclassical{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNeoclassical{P}
+    input_neos::Union{Vector{<:NEO.InputNEO},Missing}
     flux_solutions::Vector{<:IMAS.flux_solution}
 end
 
@@ -30,7 +31,12 @@ end
 
 function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
     par = par(kw...)
-    return ActorNeoclassical(dd, par, IMAS.flux_solution[])
+    if par.model == :neo
+        input_neos = Vector{NEO.InputNEO}(undef, length(par.rho_transport))
+    else
+        input_neos = missing
+    end
+    return ActorNeoclassical(dd, par, input_neos, IMAS.flux_solution[])
 end
 
 """
@@ -57,7 +63,8 @@ function _step(actor::ActorNeoclassical)
 
         n_species = length(cp1d.ion)+1
         
-        for i in gridpoint_cp
+        for (idx,i) in enumerate(gridpoint_cp)
+            actor.input_neos[idx] = NEO.InputNEO(dd, i)
             neo_solution = NEO.run_neo(NEO.InputNEO(dd, i))
            
             energy_flux_electrons = getfield(neo_solution, Symbol("ENERGY_FLUX_$(n_species)")) # electrons are always the last species in the list
