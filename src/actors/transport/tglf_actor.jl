@@ -90,7 +90,7 @@ function _finalize(actor::ActorTGLF)
 
     # TGLF's grid is V` based so we modify the output to the "classical" flux
     a_minor = (eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard) ./ 2.0
-    volume_prime_miller_correction = IMAS.gradient(a_minor, eqt.profiles_1d.volume) ./ eqt.profiles_1d.surface 
+    volume_prime_miller_correction = IMAS.gradient(a_minor, eqt.profiles_1d.volume) ./ eqt.profiles_1d.surface
     for (tglf_idx, rho) in enumerate(par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
         rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
