@@ -46,6 +46,10 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
     return actor
 end
 
+function step(actor::Missing)
+    return actor
+end
+
 #= ======== =#
 #  finalize  #
 #= ======== =#
@@ -75,6 +79,10 @@ function finalize(actor::T) where {T<:AbstractActor}
         end
     end
     memory_time_tag("$(name(actor)) - finalize OUT")
+    return actor
+end
+
+function finalize(actor::Missing)
     return actor
 end
 
