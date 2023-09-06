@@ -50,8 +50,8 @@ FUSE.init(dd, ini, act; do_plot=true);
 
 
 ```@julia
-# look at what parameters for example ActorEquilibriumTransport and ActorTauenn use
-display(act.ActorEquilibriumTransport)
+# look at what parameters for example ActorStationaryPlasma and ActorTauenn use
+display(act.ActorStationaryPlasma)
 display(act.ActorTauenn)
 
 # look at the details some of these parameters
@@ -64,7 +64,7 @@ act.ActorTauenn.temp_pedestal_ratio = 0.9;
 
 ```@julia
 # run the actor
-FUSE.ActorEquilibriumTransport(dd, act; do_plot=true);
+FUSE.ActorStationaryPlasma(dd, act; do_plot=true);
 ```
 
 ### Initialize FPP case from STEP

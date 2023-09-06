@@ -21,7 +21,8 @@ header:
 
 # =========================
 
-JULIA_DIR ?= $(HOME)/.julia
+realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
+JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -50,7 +51,7 @@ DOCKER_PLATFORM := amd64
 
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone --single-branch git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 endef
 
 # =========================
@@ -62,10 +63,10 @@ threads:
 
 # remove everything under $HOME/.julia besides $HOME/.julia/dev
 nuke_julia:
-	mv $(JULIA_PKG_DEVDIR) ~/asddsaasddsa
+	mv $(JULIA_PKG_DEVDIR) $(call realpath,$(JULIA_DIR)/../asddsaasddsa)
 	rm -rf $(JULIA_DIR)
 	mkdir -p $(JULIA_DIR)
-	mv ~/asddsaasddsa $(JULIA_PKG_DEVDIR)
+	mv $(call realpath,$(JULIA_DIR)/../asddsaasddsa) $(JULIA_PKG_DEVDIR)
 
 # install the GAregistry to the list of Julia registries
 registry:
@@ -285,6 +286,8 @@ IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));
 '
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
+	jupyter nbextension list
+	jupyter labextension list
 
 # Install PyCall
 PyCall:

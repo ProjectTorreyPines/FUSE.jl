@@ -22,9 +22,6 @@ Once installed, restart your termninal to pick-up the `julia` executable
    !!! note
        To clone the FUSE repository you will need to [setup your public key on git GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
 
-   !!! note
-       If you are installing from an old install and the package update isn't able to resolve itself feel free to remove every folder except the `dev` folder in your `.julia` folder
-
 1. Add FUSE and its dependencies to the julia environment (this may take a few minutes):
 
    ```bash
@@ -123,13 +120,17 @@ make chease
 
 1. Download and Install Macports: https://www.macports.org/install.php
 
+   !!! note
+       You will need to be on a secure wifi network for the macports installation to succeed
+
 1. Install `Emacs`, `gcc`, `mpich`, `fftw`, `netcdf`:
    ```bash
    sudo port install emacs +x11
    sudo port install gcc12
    sudo port select --set gcc mp-gcc12
    sudo port install mpich-gcc12
-   sudo port select --set mpi mpich-gcc12-fortran   
+   sudo port select --set mpi mpich-gcc12-fortran
+   sudo port install openmpi-gcc12
    sudo port install fftw-3
    sudo port install fftw-3-long
    sudo port install fftw-3-single

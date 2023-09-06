@@ -11,7 +11,7 @@ mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
-    EquilibriumTransport::Union{Nothing,ActorEquilibriumTransport{D,P}}
+    EquilibriumTransport::Union{Nothing,ActorStationaryPlasma{D,P}}
     StabilityLimits::Union{Nothing,ActorStabilityLimits{D,P}}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
     LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
@@ -29,7 +29,7 @@ end
     ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
-* ActorEquilibriumTransport
+* ActorStationaryPlasma
     * ActorSteadyStateCurrent
     * ActorHCD
     * ActorCoreTransport
@@ -81,20 +81,11 @@ function _step(actor::ActorWholeFacility)
     act = actor.act
 
     if par.update_plasma
-        actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
+        actor.EquilibriumTransport = ActorStationaryPlasma(dd, act)
         actor.StabilityLimits = ActorStabilityLimits(dd, act)
     end
 
     actor.HFSsizing = ActorHFSsizing(dd, act)
-    if abs(actor.HFSsizing.R0_scale - 1.0) > 1E-6
-        if !par.update_plasma
-            error("HFSsizing has changed aspect ratio by $((actor.HFSsizing.R0_scale-1.0)*100)%. You must allow for `act.ActorWholeFacility.update_plasma=true`.")
-        end
-        @warn "Aspect ratio changed by $((actor.HFSsizing.R0_scale-1.0)*100)% --> re-running plasma actors"
-        scale_aspect_ratio!(dd, actor.HFSsizing.R0_scale)
-        actor.EquilibriumTransport = ActorEquilibriumTransport(dd, act)
-        actor.StabilityLimits = ActorStabilityLimits(dd, act)
-    end
 
     actor.LFSsizing = ActorLFSsizing(dd, act)
 
@@ -119,26 +110,4 @@ function _step(actor::ActorWholeFacility)
     actor.Costing = ActorCosting(dd, act)
 
     return actor
-end
-
-"""
-    scale_aspect_ratio!(ps::IMAS.pulse_schedule, R0_scale::Float64)
-
-Update the radial coordinates of all the leaves of pulse_schedule and wall IDSs
-as well as equilibrium.vacuum_toroidal_field.r0
-"""
-function scale_aspect_ratio!(dd::IMAS.dd, R0_scale::Float64)
-    eq = dd.equilibrium
-    ΔR0 = eq.vacuum_toroidal_field.r0 * (R0_scale - 1.0)
-    eq.vacuum_toroidal_field.r0 += ΔR0
-
-    dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data *= R0_scale
-
-    for leaf in (collect(IMAS.leaves(dd.pulse_schedule)); collect(IMAS.leaves(dd.wall)))
-        uloc = IMAS.ulocation(leaf.ids, leaf.field)
-        if occursin(".r.", uloc) && IMAS.info(uloc)["units"] ∈ ("mixed", "m")
-            old_value = getproperty(leaf.ids, leaf.field)
-            setproperty!(leaf.ids, leaf.field, old_value .+ ΔR0)
-        end
-    end
 end

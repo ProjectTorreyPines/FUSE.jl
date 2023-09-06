@@ -11,8 +11,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     ngrid::Entry{Int} = Entry{Int}("-", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     qstar::Entry{T} = Entry{T}("-", "Initial guess of kink safety factor"; default=1.5)
     alpha::Entry{T} = Entry{T}("-", "Initial guess of constant relating to pressure"; default=0.0)
-    volume::Entry{T} = Entry{T}("m³", "Scalar volume to match (optional)"; default=missing)
-    area::Entry{T} = Entry{T}("m²", "Scalar area to match (optional)"; default=missing)
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
@@ -53,9 +51,6 @@ Non-linear optimization to obtain a target `ip` and `pressure_core`
 function _step(actor::ActorSolovev)
     dd = actor.dd
     par = actor.par
-
-    # initialize eqt from pulse_schedule and core_profiles
-    prepare_eq(dd)
     eq = dd.equilibrium
     eqt = eq.time_slice[]
 
@@ -125,7 +120,7 @@ function _finalize(actor::ActorSolovev)
     target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
     target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
 
-    MXHEquilibrium_to_dd!(dd, mxh_eq, par.ngrid, cocos_in=3)
+    MXHEquilibrium_to_dd!(dd.equilibrium, mxh_eq, par.ngrid, cocos_in=3)
 
     # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
     eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
@@ -138,27 +133,16 @@ function _finalize(actor::ActorSolovev)
         eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
     end
     IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, mxh_eq.S.R0, mxh_eq.B0)
-    IMAS.flux_surfaces(eqt)
-
-    # correct equilibrium volume and area
-    if !ismissing(par, :volume)
-        eqt.profiles_1d.volume .*= par.volume / eqt.profiles_1d.volume[end]
-    end
-    if !ismissing(par, :area)
-        eqt.profiles_1d.area .*= par.area / eqt.profiles_1d.area[end]
-    end
 
     return actor
 end
 
-function MXHEquilibrium_to_dd!(dd::IMAS.dd, mxh_eq::MXHEquilibrium.AbstractEquilibrium, ngrid::Int; cocos_in::Int=11)
-
+function MXHEquilibrium_to_dd!(eq::IMAS.equilibrium, mxh_eq::MXHEquilibrium.AbstractEquilibrium, ngrid::Int; cocos_in::Int=11)
     tc = MXHEquilibrium.transform_cocos(cocos_in, 11)
 
     rlims = MXHEquilibrium.limits(mxh_eq.S; pad=0.3)[1]
     zlims = MXHEquilibrium.limits(mxh_eq.S; pad=0.3)[2]
 
-    eq = dd.equilibrium
     eqt = eq.time_slice[]
     Ip = eqt.global_quantities.ip
     sign_Ip = sign(Ip)
@@ -173,7 +157,9 @@ function MXHEquilibrium_to_dd!(dd::IMAS.dd, mxh_eq::MXHEquilibrium.AbstractEquil
     eq.vacuum_toroidal_field.r0 = mxh_eq.S.R0
     @ddtime eq.vacuum_toroidal_field.b0 = mxh_eq.B0 * sign_Bt
 
+    t0 = eqt.time
     empty!(eqt)
+    eqt.time = t0
 
     eqt.global_quantities.ip = Ip
     eqt.boundary.geometric_axis.r = mxh_eq.S.R0
@@ -195,6 +181,5 @@ function MXHEquilibrium_to_dd!(dd::IMAS.dd, mxh_eq::MXHEquilibrium.AbstractEquil
 
     IMAS.flux_surfaces(eqt)
 
-    return dd
-
+    return
 end

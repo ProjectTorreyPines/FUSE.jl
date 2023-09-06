@@ -36,14 +36,14 @@ function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; 
 end
 
 """
-    step(actor::ActorNeoclassical)
+    _step(actor::ActorNeoclassical)
 
 Runs ActorNeoclassical to evaluate the neoclassical transport flux on a vector of gridpoints
 """
 function _step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
-    model = resize!(dd.core_transport.model, :neoclassical)
+    model = resize!(dd.core_transport.model, :neoclassical; wipe=false)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
     cp1d = dd.core_profiles.profiles_1d[]
@@ -88,7 +88,7 @@ function _step(actor::ActorNeoclassical)
 end
 
 """
-    finalize(actor::ActorNeoclassical)
+    _finalize(actor::ActorNeoclassical)
 
 Writes ActorNeoclassical results to dd.core_transport
 """

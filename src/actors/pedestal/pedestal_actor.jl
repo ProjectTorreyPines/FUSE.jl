@@ -59,8 +59,7 @@ function _step(actor::ActorPedestal;
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    m = IMAS.A_effective(cp1d)
-    
+    m = Int(round(IMAS.A_effective(cp1d) * 2.0)) / 2.0
     if !(m == 2.0 || m == 2.5)
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
@@ -110,11 +109,6 @@ function _finalize(actor::ActorPedestal)
     dd = actor.dd
     par = actor.par
 
-    T_ratio_pedestal = par.T_ratio_pedestal
-    ped_factor = par.ped_factor
-    edge_bound = par.edge_bound
-    update_core_profiles = par.update_core_profiles
-
     cp1d = dd.core_profiles.profiles_1d[]
     impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
     zi = sum(impurity) / length(impurity)
@@ -124,12 +118,12 @@ function _finalize(actor::ActorPedestal)
     tped = (actor.pped * 1e6) / nsum / constants.e
 
     dd_ped = dd.summary.local.pedestal
-    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + T_ratio_pedestal) * ped_factor
-    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * T_ratio_pedestal
-    @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(ped_factor))
+    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + par.T_ratio_pedestal) * par.ped_factor
+    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * par.T_ratio_pedestal
+    @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
 
-    if update_core_profiles
-        IMAS.blend_core_edge_Hmode(cp1d, dd_ped, edge_bound)
+    if par.update_core_profiles
+        IMAS.blend_core_edge_Hmode(cp1d, dd_ped, par.edge_bound)
     end
 
     return actor

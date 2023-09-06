@@ -1,6 +1,5 @@
 using CSV
 using DataFrames
-using Memoize: Memoize
 
 #= ============ =#
 #  ActorCosting  #
@@ -8,7 +7,7 @@ using Memoize: Memoize
 Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch{Symbol}([:FUSE, :ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
+    model::Switch{Symbol} = Switch{Symbol}([:FUSE, :ARIES, :Sheffield, :GASC], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{Int} = Entry{Int}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()))
     future_inflation_rate::Entry{T} = Entry{T}("-", "Predicted average rate of future inflation"; default=0.025)
     plant_lifetime::Entry{Int} = Entry{Int}("year", "Lifetime of the plant"; default=40)
@@ -21,7 +20,7 @@ mutable struct ActorCosting{D,P} <: FacilityAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCosting{P}
     act::ParametersAllActors
-    cst_actor::Union{ActorSheffieldCosting{D,P},ActorARIESCosting{D,P}}
+    cst_actor::Union{ActorSheffieldCosting{D,P},ActorARIESCosting{D,P},ActorGASCCosting{D,P}}
 end
 
 """
@@ -57,6 +56,9 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
     elseif par.model == :ARIES
         cst_actor = ActorARIESCosting(dd, act.ActorARIESCosting)
+
+    elseif par.model == :GASC
+        cst_actor = ActorGASCCosting(dd, act.ActorGASCCosting)
 
     else
         error("ActorCosting: model = '$(par.model)' can only be ':Sheffield' or ':ARIES'")

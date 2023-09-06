@@ -136,26 +136,42 @@ end
 """
     save(
         savedir::AbstractString,
-        dd::IMAS.dd,
-        ini::ParametersAllInits,
-        act::ParametersAllActors,
-        e::Union{Nothing, Exception} = nothing;
-        freeze::Bool = true,
-        format::Symbol = :json)
+        dd::Union{Nothing,IMAS.dd},
+        ini::Union{Nothing,ParametersAllInits},
+        act::Union{Nothing,ParametersAllActors},
+        e::Union{Nothing,Exception}=nothing;
+        timer::Bool=true,
+        varinfo::Bool=false,
+        freeze::Bool=true,
+        format::Symbol=:json,
+        overwrite_files::Bool=true)
 
-Save FUSE (dd, ini, act) to dd.json/h5, ini.json, and act.json files and exception stacktrace to "error.txt"
+Save FUSE (`dd`, `ini`, `act`) to `dd.json`/`h5`, `ini.json`, and `act.json` files and exception stacktrace to `error.txt`
+
+`timer` option allows saving of `FUSE.timer` info to `timer.txt` file
+
+`varinfo` option allows saving of detailed variables memory usage to `varinfo.txt` file
+
+If `dd`, `ini`, `act`, or `e` are `nothing` then the corresponding file is not created.
 """
 function save(
     savedir::AbstractString,
-    dd::IMAS.dd,
-    ini::ParametersAllInits,
-    act::ParametersAllActors,
+    dd::Union{Nothing,IMAS.dd},
+    ini::Union{Nothing,ParametersAllInits},
+    act::Union{Nothing,ParametersAllActors},
     e::Union{Nothing,Exception}=nothing;
+    timer::Bool=true,
+    varinfo::Bool=false,
     freeze::Bool=true,
-    format::Symbol=:json)
+    format::Symbol=:json,
+    overwrite_files::Bool=true)
 
     @assert format ∈ (:hdf, :json) "format must be either `:hdf` or `:json`"
-    mkdir(savedir) # purposely error if directory exists or path does not exist
+
+    savedir = abspath(savedir)
+    if !overwrite_files || !isdir(savedir)
+        mkdir(savedir)
+    end
 
     # first write error.txt so that if we are parsing while running optimizer,
     # the parser can immediately see if this is a failing case
@@ -165,15 +181,35 @@ function save(
         end
     end
 
-    if format == :hdf
-        IMAS.imas2hdf(dd, joinpath(savedir, "dd.h5"); freeze)
-    elseif format == :json
-        IMAS.imas2json(dd, joinpath(savedir, "dd.json"); freeze)
+    # save timer output
+    if timer
+        open(joinpath(savedir, "timer.txt"), "w") do file
+            show(file, FUSE.timer)
+        end
     end
 
-    ini2json(ini, joinpath(savedir, "ini.json"))
+    # save vars usage
+    if varinfo
+        open(joinpath(savedir, "varinfo.txt"), "w") do file
+            println(file, FUSE.varinfo(FUSE, all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
+        end
+    end
 
-    act2json(act, joinpath(savedir, "act.json"))
+    if dd !== nothing
+        if format == :hdf
+            IMAS.imas2hdf(dd, joinpath(savedir, "dd.h5"); freeze)
+        elseif format == :json
+            IMAS.imas2json(dd, joinpath(savedir, "dd.json"); freeze)
+        end
+    end
+
+    if ini !== nothing
+        ini2json(ini, joinpath(savedir, "ini.json"))
+    end
+
+    if act !== nothing
+        act2json(act, joinpath(savedir, "act.json"))
+    end
 
     return savedir
 end
@@ -186,7 +222,7 @@ Read (dd, ini, act) to dd.json/h5, ini.json, and act.json files.
 Returns `missing` for files are not there or if `error.txt` file exists in the folder.
 """
 function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
-    if isfile(joinpath(savedir, "error.txt")) && skip_on_error
+    if skip_on_error && isfile(joinpath(savedir, "error.txt"))
         @warn "$savedir simulation errored"
         return missing, missing, missing
     end
@@ -389,7 +425,6 @@ function categorize_errors(
     errors = Dict(:other => String[])
     error_messages = Dict(
         "EQDSK_COCOS_01.OUT" => :chease,
-        "aspect ratio changed" => :aspect_ratio_change,
         "Unable to blend the core-pedestal" => :blend_core_ped,
         "Bad expression" => :bad_expression,
         "Exceeded limits" => :exceed_lim_A,
@@ -397,13 +432,17 @@ function categorize_errors(
         "TaskFailedException" => :task_exception,
         "Could not trace closed flux surface" => :flux_surfaces_A,
         "Flux surface at ψ=" => :flux_surfaces_B,
-        "stainless_steel.yield_strength" => :CS_stresses,
+        "OH stresses" => :OH_stresses,
+        "TF stresses" => :TF_stresses,
+        "yield_strength" => :CS_stresses,
         "TF cannot achieve requested B0" => :TF_limit,
         "The OH flux is insufficient to have any flattop duration" => :OH_flux,
         "OH cannot achieve requested flattop" => :OH_flattop,
+        "OH exceeds critical current" => :OH_critical_j,
         "< dd.build.tf.critical_j" => :TF_critical_j,
         "DomainError with" => :Solovev,
-        "BoundsError: attempt to access" => :flux_surfaces_C)
+        "BoundsError: attempt to access" => :flux_surfaces_C,
+        "divertors" => :divertors)
     merge!(error_messages, extra_error_messages)
 
     other_errors = Dict{String,Vector{String}}()

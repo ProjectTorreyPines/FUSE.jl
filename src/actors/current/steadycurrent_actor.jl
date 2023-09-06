@@ -19,12 +19,12 @@ end
 """
     ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evolves the current to steady state using the conductivity from `dd.core_profiles` and current profile form `dd.equilibrium`.
-
-Also sets the ohmic, bootstrap and non-inductive current profiles in `dd.core_profiles`
+* evolves the ohmic current to steady state using the conductivity from `dd.core_profiles` and total current form `dd.equilibrium`.
+* sets the ohmic, bootstrap, and non-inductive current profiles in `dd.core_profiles`
+* updates bootstrap and ohmic in `dd.core_sources`
 
 !!! note 
-    Stores data in `dd.core_profiles`, `dd.equilbrium`
+    Stores data in `dd.core_sources` and `dd.core_profiles`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
@@ -38,7 +38,8 @@ function _step(actor::ActorSteadyStateCurrent)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     # update j_ohmic (this also restores j_tor, j_total as expressions)
-    IMAS.j_ohmic_steady_state!(eqt, cp1d)
+    Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, dd.global_time, :linear)
+    IMAS.j_ohmic_steady_state!(eqt, cp1d, Ip)
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)

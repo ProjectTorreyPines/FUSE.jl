@@ -3,13 +3,13 @@ import OrderedCollections
 import SimulationParameters: SwitchOption
 
 const tf_shape_options = OrderedCollections.OrderedDict{Symbol,SwitchOption}(
-    :princeton_D_exact => SwitchOption(_princeton_D_exact_, "princeton_D_exact"),
     :princeton_D => SwitchOption(_princeton_D_, "princeton_D"),
     :princeton_D_scaled => SwitchOption(_princeton_D_scaled_, "princeton_D_scaled"),
     :rectangle => SwitchOption(_rectangle_, "rectangle"),
     :double_ellipse => SwitchOption(_double_ellipse_, "double_ellipse"),
     :triple_arc => SwitchOption(_triple_arc_, "triple_arc"),
     :miller => SwitchOption(_miller_, "miller"),
+    :square_miller => SwitchOption(_square_miller_, "square_miller"),
     :spline => SwitchOption(_spline_, "spline"))
 
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
@@ -176,6 +176,12 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking)
     q_pol_omp::Entry{T} = Entry{T}(IMAS.requirements, :q_pol_omp)
     lh_power_threshold_fraction::Entry{T} = Entry{T}(IMAS.requirements, :lh_power_threshold_fraction)
+    h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2)
+    hds03::Entry{T} = Entry{T}(IMAS.requirements, :hds03)
+    βn::Entry{T} = Entry{T}(IMAS.requirements, :βn)
+    coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin)
+    coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin)
+
 end
 
 mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
