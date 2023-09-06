@@ -330,9 +330,9 @@ Sets up the evolve_density dict to evolve only ne and keep the rest matching the
 function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
     dd_thermal = [Symbol(ion.label) for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_thermal) > 0.0]
     dd_fast = [Symbol(String(ion.label) * "_fast") for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_fast) > 0.0]
-    quasi_neutality_specie = :D
+    quasi_neutrality_specie = :D
     if :DT ∈ dd_thermal
-        quasi_neutality_specie = :DT
+        quasi_neutrality_specie = :DT
     end
     return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie)
 end
