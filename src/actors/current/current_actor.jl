@@ -31,7 +31,7 @@ function ActorCurrent(dd::IMAS.dd, par::FUSEparameters__ActorCurrent, act::Param
     logging_actor_init(ActorCurrent)
     par = par(kw...)
     if par.model == :SteadyStateCurrent
-        jt_actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; ip_from=par.ip_from)
+        jt_actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; par.ip_from)
     elseif par.model == :QED
         jt_actor = ActorQED(dd, act.ActorQED)
     end

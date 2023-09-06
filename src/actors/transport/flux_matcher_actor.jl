@@ -334,7 +334,7 @@ function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
     if :DT ∈ dd_thermal
         quasi_neutality_specie = :DT
     end
-    return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie=quasi_neutality_specie)
+    return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie)
 end
 
 """
