@@ -1,4 +1,3 @@
-import TAUENN
 import NEO
 #= ===================== =#
 #  ActorNeoclassical      #
@@ -62,7 +61,7 @@ function _step(actor::ActorNeoclassical)
         gridpoint_cp = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
 
         for (idx,i) in enumerate(gridpoint_cp)
-                actor.input_neos[idx] = NEO.InputNEO(dd, i)
+            actor.input_neos[idx] = NEO.InputNEO(dd, i)
         end
 
         actor.flux_solutions = [NEO.run_neo(actor.input_neos[idx]) for idx in 1:length(par.rho_transport)]
