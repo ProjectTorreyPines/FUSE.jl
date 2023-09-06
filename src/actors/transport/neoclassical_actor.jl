@@ -61,29 +61,11 @@ function _step(actor::ActorNeoclassical)
         rho_cp = cp1d.grid.rho_tor_norm
         gridpoint_cp = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
 
-        n_species = length(cp1d.ion)+1
-        
         for (idx,i) in enumerate(gridpoint_cp)
-            actor.input_neos[idx] = NEO.InputNEO(dd, i)
-            neo_solution = NEO.run_neo(NEO.InputNEO(dd, i))
-           
-            energy_flux_electrons = getfield(neo_solution, Symbol("ENERGY_FLUX_$(n_species)")) # electrons are always the last species in the list
-            total_ion_energy_flux = -energy_flux_electrons # exclude electron energy flux from total ion energy flux
-            particle_flux_electrons = getfield(neo_solution, Symbol("PARTICLE_FLUX_$(n_species)"))
-
-            for field in fieldnames(NEO.flux_solution)
-                if ismissing(getfield(neo_solution, field))
-                    setfield!(neo_solution, field, 0.0)
-                end
-
-                if occursin("ENERGY", string(field))
-                    total_ion_energy_flux += getfield(neo_solution, field) 
-                end
-            end
-
-            solution = IMAS.flux_solution(particle_flux_electrons, 0.0, energy_flux_electrons, total_ion_energy_flux)
-            push!(actor.flux_solutions, solution)
+                actor.input_neos[idx] = NEO.InputNEO(dd, i)
         end
+
+        actor.flux_solutions = [NEO.run_neo(actor.input_neos[idx]) for idx in 1:length(par.rho_transport)]
     end
 
     return actor
