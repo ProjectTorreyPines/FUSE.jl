@@ -341,6 +341,8 @@ function digest(
         l = @layout [a{0.3w} b{0.6w,0.9h}]
         p = plot(layout=l, size=(900, 400))
         plot!(p, dd.neutronics.time_slice[].wall_loading; xlim, subplot=1)
+        neutrons = define_neutrons(dd, 100000)[1]
+        plot!(p, neutrons, dd.equilibrium.time_slice[]; xlim, subplot=1)
         plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel="")
         display(p)
     end
@@ -386,6 +388,7 @@ function digest(dd::IMAS.dd,
     ini::Union{Nothing,ParametersAllInits}=nothing,
     act::Union{Nothing,ParametersAllActors}=nothing
 )
+    title = replace(title, r".pdf$" => "")
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)
