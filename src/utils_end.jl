@@ -162,6 +162,7 @@ function save(
     e::Union{Nothing,Exception}=nothing;
     timer::Bool=true,
     varinfo::Bool=false,
+    memtrace::Bool=false,
     freeze::Bool=true,
     format::Symbol=:json,
     overwrite_files::Bool=true)
@@ -193,6 +194,11 @@ function save(
         open(joinpath(savedir, "varinfo.txt"), "w") do file
             println(file, FUSE.varinfo(FUSE, all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
         end
+    end
+
+    # save memory trace
+    if memtrace
+        save(FUSE.memtrace, joinpath(savedir, "memtrace.txt"))
     end
 
     if dd !== nothing

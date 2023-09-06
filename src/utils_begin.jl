@@ -25,20 +25,20 @@ end
 # ====== #
 # Memory #
 # ====== #
-Base.@kwdef struct Memory
+Base.@kwdef struct MemTrace
     data::Vector{Tuple{Dates.DateTime,String,Int}} = Tuple{Dates.DateTime,String,Int}[]
 end
 
-const memory = Memory()
+const memtrace = MemTrace()
 
 function memory_time_tag(txt::String)
-    push!(memory.data, (Dates.now(), txt, get_julia_process_memory_usage()))
+    push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
 end
 
 """
-    plot_memory(memory::Memory, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
+    plot_memtrace(memtrace::MemTrace, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
 
-Plot the memory usage over time from a `Memory` object. 
+Plot the memory usage over time from a `MemTrace` object. 
 
 # Arguments
 - `n_big_jumps`: number of significant memory jumps to highlight in the plot.
@@ -51,21 +51,21 @@ A plot with the following characteristics:
 - Memory usage is shown as a scatter plot.
 - The `n_big_jumps` largest jumps in memory are highlighted in red with annotations indicating the action causing each jump.
 """
-@recipe function plot_memory(memory::Memory, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
-    if isempty(memory.data)
+@recipe function plot_memtrace(memtrace::MemTrace, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
+    if isempty(memtrace.data)
         cutoff = 0.0
     else
-        cutoff = memory.data[1][1] + Dates.Second(ignore_first_seconds)
+        cutoff = memtrace.data[1][1] + Dates.Second(ignore_first_seconds)
     end
-    filtered_data = filter(point -> point[1] > cutoff, memory.data)
+    filtered_data = filter(point -> point[1] > cutoff, memtrace.data)
 
     dates = [point[1] for point in filtered_data]
-    if !isempty(memory.data)
+    if !isempty(memtrace.data)
         dates = Dates.value.(dates .- dates[1]) ./ 1000
     end
     action = [point[2] for point in filtered_data]
     mem = [point[3] / 1024 / 1024 for point in filtered_data]
-    if !isempty(memory.data) && ignore_first_seconds > 0
+    if !isempty(memtrace.data) && ignore_first_seconds > 0
         mem = mem .- mem[1]
     end
 
@@ -93,6 +93,19 @@ function get_julia_process_memory_usage()
     mem_info = read(`ps -p $pid -o rss=`, String)
     mem_usage_kb = parse(Int, strip(mem_info))
     return mem_usage_kb * 1024
+end
+
+"""
+    save(memtrace::MemTrace, filename::String="memtrace.txt")
+
+Save a memory trace to file
+"""
+function save(memtrace::MemTrace, filename::String="memtrace.txt")
+    open(filename, "w") do file
+        for (date, txt, kb) in memtrace.data
+            println(file, "$date $kb \"$txt\"")
+        end
+    end
 end
 
 """
