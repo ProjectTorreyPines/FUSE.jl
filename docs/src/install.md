@@ -120,13 +120,17 @@ make chease
 
 1. Download and Install Macports: https://www.macports.org/install.php
 
+   !!! note
+       You will need to be on a secure wifi network for the macports installation to succeed
+
 1. Install `Emacs`, `gcc`, `mpich`, `fftw`, `netcdf`:
    ```bash
    sudo port install emacs +x11
    sudo port install gcc12
    sudo port select --set gcc mp-gcc12
    sudo port install mpich-gcc12
-   sudo port select --set mpi mpich-gcc12-fortran   
+   sudo port select --set mpi mpich-gcc12-fortran
+   sudo port install openmpi-gcc12
    sudo port install fftw-3
    sudo port install fftw-3-long
    sudo port install fftw-3-single
