@@ -338,7 +338,11 @@ function digest(
         println('\u200B')
         xlim = extrema(dd.neutronics.first_wall.r)
         xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
-        display(plot(dd.neutronics.time_slice[].wall_loading; xlim))
+        l = @layout [a{0.3w} b{0.6w,0.9h}]
+        p = plot(layout=l, size=(900, 400))
+        plot!(p, dd.neutronics.time_slice[].wall_loading; xlim, subplot=1)
+        plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel="")
+        display(p)
     end
 
     # center stack stresses
