@@ -14,7 +14,7 @@ end
 mutable struct ActorNeoclassical{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNeoclassical{P}
-    flux_solutions::Vector{<:TGLFNN.flux_solution}
+    flux_solutions::Vector{<:IMAS.flux_solution}
 end
 
 """
@@ -31,7 +31,7 @@ end
 
 function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
     par = par(kw...)
-    return ActorNeoclassical(dd, par, TGLFNN.flux_solution[])
+    return ActorNeoclassical(dd, par, IMAS.flux_solution[])
 end
 
 """

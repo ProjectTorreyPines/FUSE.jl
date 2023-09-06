@@ -18,7 +18,7 @@ mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTGLF{P}
     input_tglfs::Vector{<:TGLFNN.InputTGLF}
-    flux_solutions::Vector{<:TGLFNN.flux_solution}
+    flux_solutions::Vector{<:IMAS.flux_solution}
 end
 
 """
@@ -36,7 +36,7 @@ end
 function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
     par = par(kw...)
     input_tglfs = Vector{TGLFNN.InputTGLF}(undef, length(par.rho_transport))
-    return ActorTGLF(dd, par, input_tglfs, TGLFNN.flux_solution[])
+    return ActorTGLF(dd, par, input_tglfs, IMAS.flux_solution[])
 end
 
 """
