@@ -49,7 +49,7 @@ function _step(actor::ActorNeoclassical)
     if par.neoclassical_model == :changhinton
         model.identifier.name = "Chang-Hinton"
         eqt = dd.equilibrium.time_slice[]
-        actor.flux_solutions = [TAUENN.neoclassical_changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
+        actor.flux_solutions = [NEO.changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
     elseif par.neoclassical_model == :neo 
         model.identifier.name = "NEO"
         rho_cp = cp1d.grid.rho_tor_norm
