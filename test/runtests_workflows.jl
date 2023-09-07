@@ -59,17 +59,3 @@ end
     @test ini.build.symmetric == true
     @test typeof(ini.build.symmetric) <: Bool
 end
-
-# @testset "QEDcurrent_actor" begin
-#     # Load TRANSP data at 2.91 s
-#     file_0 = joinpath(dirname(dirname(@__DIR__)), "QED", "sample", "ods_163303Z29-2910.json")
-#     dd = IMAS.json2imas(file_0; verbose=false)
-#     # initialize actor
-#     actor = FUSE.ActorQED(dd)
-#     # evolve current
-#     for k in 1:3
-#         FUSE.step(actor, 0.1, 100, resume=true)
-#         FUSE.finalize(actor)
-#         dd.global_time = dd.equilibrium.time[end]
-#     end
-# end
