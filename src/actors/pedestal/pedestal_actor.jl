@@ -43,18 +43,14 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; kw...)
 end
 
 """
-    _step(actor::ActorPedestal;
-        warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
-        only_powerlaw::Bool=false)
+    _step(actor::ActorPedestal; beta_n_from_eq::Bool=false)
 
 Runs pedestal actor to evaluate pedestal width and height
 """
-function _step(actor::ActorPedestal;
-    warn_nn_train_bounds::Bool=actor.par.warn_nn_train_bounds,
-    only_powerlaw::Bool=false,
-    beta_n_from_eq::Bool=false)
-
+function _step(actor::ActorPedestal; beta_n_from_eq::Bool=false)
     dd = actor.dd
+    par = actor.par
+
     eq = dd.equilibrium
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
@@ -86,7 +82,7 @@ function _step(actor::ActorPedestal;
         eqt.boundary.geometric_axis.r,
         zeffped)
 
-    sol = actor.epedmod(actor.inputs; only_powerlaw, warn_nn_train_bounds)
+    sol = actor.epedmod(actor.inputs; par.only_powerlaw, par.warn_nn_train_bounds)
 
     if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
         actor.pped = 1.5 * sol.pressure.GH.H
