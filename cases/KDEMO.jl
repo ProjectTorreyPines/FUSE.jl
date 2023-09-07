@@ -1,5 +1,5 @@
 """
-    case_parameters(:KDEMO; init_from::Symbol)
+    case_parameters(:KDEMOl)
 
 KDEMO
 
