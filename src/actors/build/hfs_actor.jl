@@ -198,19 +198,13 @@ function _step(actor::ActorHFSsizing)
 
         if par.verbose
             p = plot(yscale=:log10, legend=:topright)
-            if sum(C_JOH) > 0.0
-                plot!(p, C_JOH, label="cost Jcrit OH")
-            end
-            plot!(p, C_JTF, label="cost Jcrit TF")
-            if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-                plot!(p, C_SPL, label="cost stress PL")
-            end
-            plot!(p, C_SOH, label="cost stress OH")
-            plot!(p, C_STF, label="cost stress TF")
-            if sum(C_FLT) > 0.0
-                plot!(p, C_FLT, label="cost flattop")
-            end
-            plot!(p, C_CST, label="small TF & OH")
+            plot!(p, C_JOH ./ (C_JOH .> 0.0), label="cost Jcrit OH")
+            plot!(p, C_JTF ./ (C_JTF .> 0.0), label="cost Jcrit TF")
+            plot!(p, C_SPL ./ (C_SPL .> 0.0), label="cost stress PL")
+            plot!(p, C_SOH ./ (C_SOH .> 0.0), label="cost stress OH")
+            plot!(p, C_STF ./ (C_STF .> 0.0), label="cost stress TF")
+            plot!(p, C_FLT ./ (C_FLT .> 0.0), label="cost flattop")
+            plot!(p, C_CST ./ (C_CST .> 0.0), label="small TF & OH")
             display(p)
         end
 
