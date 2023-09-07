@@ -80,7 +80,7 @@ function init_core_profiles!(
 
     cp1d.grid.rho_tor_norm = LinRange(0, 1, ngrid)
     cp1d.zeff = ones(ngrid) .* zeff
-    cp1d.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cp1d.grid.rho_tor_norm)
+    cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / 8, rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
 
     # Density handling
     @assert !ismissing(ne_ped) || !ismissing(greenwald_fraction) || !ismissing(greenwald_fraction_ped) "At least one of ini.core_profiles ne_ped / greenwald_fraction_ped / greenwald_fraction must be set"

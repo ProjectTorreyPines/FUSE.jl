@@ -48,7 +48,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         if !(init_from == :ods && ini.equilibrium.boundary_from == :ods)
             act_copy = deepcopy(act)
             act_copy.ActorCHEASE.rescale_eq_to_ip = true
-            ActorEquilibrium(dd, act_copy)
+            ActorEquilibrium(dd, act_copy; ip_from=:pulse_schedule)
         end
 
         # field null surface

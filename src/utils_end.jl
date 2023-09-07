@@ -338,6 +338,34 @@ function digest(
         display(plot(dd.core_sources, only=4))
     end
 
+    # Electron energy flux matching
+    sec += 1
+    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.core_transport,only=1))
+    end
+
+    # Ion energy flux matching
+    sec += 1
+    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.core_transport,only=2))
+    end
+
+    # Electron particle flux matching
+    sec += 1
+    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.core_transport,only=3))
+    end
+
+    # Momentum flux matching
+    sec += 1
+    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.core_transport,only=4))
+    end
+
     # neutron wall loading
     sec += 1
     if !isempty(dd.neutronics.time_slice) && section ∈ (0, sec)

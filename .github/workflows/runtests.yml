@@ -63,4 +63,4 @@ jobs:
       - name: Debug with tmate if failure + manual triggrer + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
+        timeout-minutes: 120

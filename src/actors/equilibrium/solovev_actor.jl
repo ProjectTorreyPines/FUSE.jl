@@ -8,9 +8,13 @@ import Optim
 Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    #== actor parameters ==#
     ngrid::Entry{Int} = Entry{Int}("-", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     qstar::Entry{T} = Entry{T}("-", "Initial guess of kink safety factor"; default=1.5)
     alpha::Entry{T} = Entry{T}("-", "Initial guess of constant relating to pressure"; default=0.0)
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    #== display and debugging parameters ==#
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
@@ -27,8 +31,8 @@ Solovev equilibrium actor, based on:
 “One size fits all” analytic solutions to the Grad–Shafranov equation
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
-function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorSolovev(dd, act.ActorSolovev; kw...)
+function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
+    actor = ActorSolovev(dd, act.ActorSolovev; ip_from, kw...)
     step(actor)
     finalize(actor)
     # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
@@ -51,12 +55,14 @@ Non-linear optimization to obtain a target `ip` and `pressure_core`
 function _step(actor::ActorSolovev)
     dd = actor.dd
     par = actor.par
+
+    # initialize eqt from pulse_schedule and core_profiles
     eq = dd.equilibrium
     eqt = eq.time_slice[]
 
     # magnetic field
     B0 = @ddtime eq.vacuum_toroidal_field.b0
-    target_ip = abs(eqt.global_quantities.ip)
+    target_ip = eqt.global_quantities.ip
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
     # plasma shape as MXH
