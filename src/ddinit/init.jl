@@ -10,15 +10,32 @@ For most applications, calling this high level function is sufficient.
 function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
-        ods_items = []
-        # Check what is in the ods to load
-        if ini.general.init_from == :ods
-            ods_items = keys(IMAS.json2imas(ini.ods.filename))
+
+        # set the dd.global time to when simulation starts
+        dd.global_time = ini.time.simulation_start
+
+        # we make a copy because we overwrite some of the parameters internally
+        # and we want this function to work always the same for subsequent calls
+        ini = deepcopy(ini)
+        act = deepcopy(act)
+
+        # load ods once if needed
+        dd1 = ini_from_ods!(ini)
+
+        # Makes `ini` and `act` self-consistent and consistent with one another
+        consistent_ini_act!(ini, act)
+
+        # initialize pulse_schedule
+        if !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
+            init_pulse_schedule!(dd, ini, act, dd1)
+            if do_plot
+                display(plot(dd.pulse_schedule))
+            end
         end
 
         # initialize equilibrium
-        if !ismissing(ini.equilibrium, :B0) || (:equilibrium ∈ ods_items)
-            init_equilibrium(dd, ini, act)
+        if !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
+            init_equilibrium!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.equilibrium.time_slice[end]))
                 plot(dd.equilibrium.time_slice[end]; cx=true, show_x_points=true)
@@ -27,16 +44,16 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize core profiles
-        if !ismissing(ini.core_profiles, :bulk) || (:core_profiles ∈ ods_items)
-            init_core_profiles(dd, ini, act)
+        if !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.core_profiles)
+            init_core_profiles!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_profiles, legend=:bottomleft))
             end
         end
 
         # initialize core sources
-        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || (:core_sources ∈ ods_items)
-            init_core_sources(dd, ini, act)
+        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || !isempty(dd1.core_sources)
+            init_core_sources!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_sources, legend=:topright))
                 display(plot(dd.core_sources, legend=:bottomright; integrated=true))
@@ -44,11 +61,11 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize currents
-        init_currents(dd, ini, act)
+        init_currents!(dd, ini, act, dd1)
 
         # initialize build
-        if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || (:build ∈ ods_items)
-            init_build(dd, ini, act)
+        if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || !isempty(dd1.build)
+            init_build!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
                 plot!(dd.build)
@@ -58,8 +75,8 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize oh and pf coils
-        if !ismissing(ini.oh, :n_coils) || (:pf_active ∈ ods_items)
-            init_pf_active(dd, ini, act)
+        if !ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active)
+            init_pf_active!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
                 plot!(dd.build)
@@ -69,10 +86,10 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize requirements
-        init_requirements(dd, ini, act)
+        init_requirements!(dd, ini, act, dd1)
 
         # initialize missing IDSs from ODS (if loading from ODS)
-        init_missing_from_ods(dd, ini, act)
+        init_missing_from_ods!(dd, ini, act, dd1)
 
         return dd
     end
@@ -107,7 +124,9 @@ end
 """
     consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
 
-Checks and makes `ini` and `act` consistent with one another
+Makes `ini` and `act` self-consistent and consistent with one another
+
+NOTE: operates in place
 """
 function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
 
@@ -129,5 +148,4 @@ function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
     if !ismissing(ini.equilibrium, :xpoints)
         act.ActorPFcoilsOpt.symmetric = ini.equilibrium.xpoints in [:none, :double]
     end
-
 end

@@ -37,11 +37,14 @@ function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
+
     # update j_ohmic (this also restores j_tor, j_total as expressions)
     Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, dd.global_time, :linear)
     IMAS.j_ohmic_steady_state!(eqt, cp1d, Ip)
+    
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
+    
     return actor
 end

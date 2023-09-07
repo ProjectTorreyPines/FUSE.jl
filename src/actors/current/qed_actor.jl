@@ -7,9 +7,9 @@ import FiniteElementHermite
 Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
-    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution", default=100)
-    solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop", default=:ip)
+    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
+    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
+    solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
 end
 
 mutable struct ActorQED{D,P} <: PlasmaAbstractActor
@@ -24,7 +24,7 @@ end
 Evolves the plasma current using the QED current diffusion solver.
 
 !!! note
-    This actor wants the driver to do, before calling the actor:
+    This actor operates at "dd.global_time", any time advance must be done outside of the actor
 
        IMAS.new_timeslice!(dd, dd.global_time + Δt)
        dd.global_time += Δt
@@ -53,32 +53,39 @@ function _step(actor::ActorQED)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    t0 = dd.global_time
-    t1 = dd.global_time + par.Δt
-    δt = par.Δt / par.Nt
-
     # initialization
     actor.QO = qed_init_from_imas(eqt, cp1d)
 
-    if false
-        # staircase approach to track current ramps: one QED diffuse call for each time step
-        for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
+    if par.Δt == Inf
+        Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, Inf, :linear)
+        Vedge = nothing
+        QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[Inf]); Vedge, Ip)
+
+    else
+        t0 = dd.global_time
+        t1 = dd.global_time + par.Δt
+        δt = par.Δt / par.Nt
+    
+        if false
+            # staircase approach to track current ramps: one QED diffuse call for each time step
+            for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
+                if par.solve_for == :ip
+                    Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, tnow, :linear)
+                    Vedge = nothing
+                else
+                    error("Vloop advance not supported")
+                end
+                actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, 1; Vedge, Ip)
+            end
+        else
             if par.solve_for == :ip
-                Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, tnow, :linear)
+                Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, t1, :linear)
                 Vedge = nothing
             else
                 error("Vloop advance not supported")
             end
-            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, 1; Vedge, Ip)
+            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[t1]), par.Δt, par.Nt; Vedge, Ip)
         end
-    else
-        if par.solve_for == :ip
-            Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, t1, :linear)
-            Vedge = nothing
-        else
-            error("Vloop advance not supported")
-        end
-        actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[t1]), par.Δt, par.Nt; Vedge, Ip)
     end
 
     return actor
@@ -91,8 +98,7 @@ function _finalize(actor::ActorQED)
     # NOTE: Here really we only care about core_profiles, since when the equilibrium actor is run,
     # then the new equilibrium time slice will be prepared based on the core_profiles current
     eqt = dd.equilibrium.time_slice[]
-    dΡ_dρ = eqt.profiles_1d.rho_tor[end]
-    ρ = eqt.profiles_1d.rho_tor / dΡ_dρ
+    ρ = eqt.profiles_1d.rho_tor_norm
     eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
     eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
 

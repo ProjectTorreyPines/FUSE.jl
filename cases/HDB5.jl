@@ -82,7 +82,6 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         ini.ic_antennas.power_launched = data_row[:PICRH]
     end
 
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

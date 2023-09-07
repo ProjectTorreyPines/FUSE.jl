@@ -37,7 +37,10 @@ function _step(actor::ActorNeutronics)
     do_plot::Bool = actor.par.do_plot
     p = do_plot ? plot() : nothing
 
-    neutrons, W_per_trace = define_neutrons(actor; p)
+    neutrons, W_per_trace = define_neutrons(actor)
+    if do_plot
+        plot!(p, neutrons, actor.dd.equilibrium.time_slice[])
+    end
 
     rwall, zwall = define_wall(actor)
     rz_wall = collect(zip(rwall, zwall))
@@ -173,11 +176,13 @@ function Zcoord(n::neutron_particle)
     n.z
 end
 
-function define_neutrons(actor::ActorNeutronics; p=nothing)
-    N::Int = actor.par.N
+function define_neutrons(actor::ActorNeutronics)
+    define_neutrons(actor.dd, actor.par.N)
+end
 
-    cp1d = actor.dd.core_profiles.profiles_1d[]
-    eqt = actor.dd.equilibrium.time_slice[]
+function define_neutrons(dd::IMAS.dd, N::Int)
+    cp1d = dd.core_profiles.profiles_1d[]
+    eqt = dd.equilibrium.time_slice[]
 
     # 2D neutron source
     # NOTE: we add power of neutrons coming from (D+D→He3+n) as if they were from (D+D→He4+n)
@@ -219,18 +224,25 @@ function define_neutrons(actor::ActorNeutronics; p=nothing)
         neutrons[k] = neutron_particle(xk, yk, zk, δvxk, δvyk, δvzk)
     end
 
-    # plot neutrons
-    if p !== nothing
-        histogram2d!(p,
-            Rcoord.(neutrons),
-            Zcoord.(neutrons),
-            nbins=(LinRange(minimum(r), maximum(r), length(r) - 1), LinRange(minimum(z), maximum(z), length(z) - 1)),
-            aspect_ratio=:equal,
-            weights=zeros(N) .+ 1 / 40,
-        )
-    end
-
     return neutrons, W_per_trace
+end
+
+@recipe function plot_neutrons(neutrons::Vector{neutron_particle{T}}, eqt::IMAS.equilibrium__time_slice) where {T<:Real}
+    N = length(neutrons)
+    r = eqt.profiles_2d[1].grid.dim1
+    z = eqt.profiles_2d[1].grid.dim2
+
+    # normalization weight to bring bin value in the unitary range
+    plot_norm = 0.5 / (N * (r[2] - r[1]) * (z[2] - z[1]) / eqt.profiles_1d.area[end])
+
+    @series begin
+        seriestype --> :histogram2d
+        nbins := (LinRange(minimum(r), maximum(r), length(r) - 1), LinRange(minimum(z), maximum(z), length(z) - 1))
+        aspect_ratio := :equal
+        grid := false
+        weights := zeros(N) .+ plot_norm
+        Rcoord.(neutrons), Zcoord.(neutrons)
+    end
 end
 
 function define_wall(actor::ActorNeutronics; step::Float64=0.1)

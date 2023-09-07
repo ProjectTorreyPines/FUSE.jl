@@ -9,6 +9,8 @@ function uwanted_warnings_filter(log_args)
 end
 
 const log_topics = Dict{Symbol,Logging.LogLevel}()
+
+# initialize logging level to `Error` for the different topics
 for topic in (:actors,)
     log_topics[topic] = Logging.Error
 end
@@ -25,6 +27,7 @@ function logging(level::Logging.LogLevel, topic::Symbol, text::AbstractString)
     if log_topics[topic] <= level
         Logging.@logmsg level text
     end
+    return log_topics
 end
 
 """
@@ -47,5 +50,5 @@ function logging(level::Union{Nothing,Logging.LogLevel}=nothing; topics...)
             error("Valid FUSE logging topics are: $(Symbol[topic for topic in keys(log_topics)])")
         end
     end
-    return nothing
+    return log_topics
 end

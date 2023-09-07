@@ -29,9 +29,9 @@ function workflow_simple_stationary_plasma(
     verbose=false)
 
     dd = IMAS.dd()
-    init_equilibrium(dd, ini, act) # already solves the equilibrium once
-    init_core_profiles(dd, ini, act)
-    init_core_sources(dd, ini, act)
+    init_equilibrium!(dd, ini, act) # already solves the equilibrium once
+    init_core_profiles!(dd, ini, act)
+    init_core_sources!(dd, ini, act)
 
     act.ActorTauenn.warn_nn_train_bounds = warn_nn_train_bounds
     act.ActorTauenn.transport_model = transport_model

@@ -59,8 +59,10 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.ϵ = 0.2857142857142857
     ini.equilibrium.κ = 0.8826
     ini.equilibrium.δ = 0.7
+    ini.equilibrium.ζ = 0.05
+    ini.equilibrium.𝚶 = 0.2
     ini.equilibrium.pressure_core = 1.2e6
-    ini.equilibrium.ip = 8.0e6
+    ini.equilibrium.ip = t -> trap(t / Δt, 0.9) * 8.0e6 + trap((t - Δt / 4) / (Δt / 2), 0.75) * 1.0E6 - trap((t - Δt * 3 / 8) / (Δt / 4), 0.25) * 2.0E6
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
 
@@ -74,7 +76,6 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
     ini.core_profiles.helium_fraction = 0.04
-    ini.core_profiles.ejima = 0.4
 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
@@ -91,8 +92,12 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.ec_launchers.efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 2.0e8
-    ini.requirements.flattop_duration = 86400.0 / 2
+    ini.requirements.flattop_duration = 80000.0
     ini.requirements.tritium_breeding_ratio = 1.1
+
+    Δt = 100 # change pulse duration to change rate of change of plasma dynamics
+    ini.time.pulse_shedule_time_basis = range(0.0, Δt, step=Δt / 1000)
+    ini.time.simulation_start = Δt / 4 * 0.9
 
     #### ACT ####
 
@@ -105,7 +110,6 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     act.ActorTEQUILA.relax = 0.25
 
     # finalize
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 
