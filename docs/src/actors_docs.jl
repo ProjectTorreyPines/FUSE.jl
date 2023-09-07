@@ -6,19 +6,19 @@ Physics and engineering **actors** are the fundamental building blocks of FUSE s
 * Actors functionality is controlled via `act` parameters
 * Actors can be combined into other actors
 
-Fidelity hierarchy is enabled by concept of *abstract* Vs *concrete* actors
-* Abstract actors define physics/component 
-* Concrete actors implement a specific model for that physics/component
+Fidelity hierarchy is enabled by concept of *generic* Vs *specific* actors
+* Generic actors define physics/component 
+* Specific actors implement a specific model for that physics/component
 * For example:
   ```
-  EquilibriumActor  <--  abstract
-  ├─ SolovevActor   <--  concrete
-  └─ CHEASEActor    <--  concrete
+  EquilibriumActor  <--  generic
+  ├─ SolovevActor   <--  specific
+  └─ CHEASEActor    <--  specific
   ```
-* `act.[AbstractActor].model` selects concrete actor being used
-* All concrete actors will expect data and fill the same enties in `dd`
+* `act.[GenericActor].model` selects specific actor being used
+* All specific actors will expect data and fill the same enties in `dd`
   * IMAS.jl expressions are key to make this work seamlessly
-* Where possible workflows should make use of abstract actors and not hardcode use of concrete actors
+* Where possible workflows should make use of generic actors and not hardcode use of specific actors
 
 ```@contents
     Pages = ["actors.md"]
