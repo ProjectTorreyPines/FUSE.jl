@@ -55,6 +55,10 @@ function _step(actor::ActorFluxMatcher)
     dd = actor.dd
     par = actor.par
 
+    @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
+
+    empty!(dd.core_transport)
+
     if par.do_plot
         p = plot(dd.core_profiles, label="  before")
     end
