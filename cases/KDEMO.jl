@@ -1,5 +1,5 @@
 """
-    case_parameters(:KDEMOl)
+    case_parameters(:KDEMO)
 
 KDEMO
 
