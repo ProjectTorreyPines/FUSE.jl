@@ -26,7 +26,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
-        if !ismissing(ini.equilibrium, :R0) || !isempty(dd1.equilibrium)
+        if !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
             init_pulse_schedule!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.pulse_schedule))
