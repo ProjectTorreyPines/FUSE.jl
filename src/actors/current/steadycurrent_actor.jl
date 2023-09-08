@@ -45,14 +45,13 @@ function _step(actor::ActorSteadyStateCurrent)
     cp1d = dd.core_profiles.profiles_1d[]
 
     ip_target = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
-    if ip_target < @ddtime(cpg.current_non_inductive)
+    if abs(ip_target) < abs(@ddtime(cpg.current_non_inductive))
         if par.allow_floating_plasma_current
             println("set j_ohmic to zero and allow ip to be floating")
             cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
         else
-            @warn "j_ohmic will be negative the non-inductive current $(round(@ddtime(cpg.current_non_inductive),digits=3)) is larger than ip_target $(round(ip_target,digits=3))"
+            @warn "j_ohmic will be change sign, as the non-inductive current $(round(@ddtime(cpg.current_non_inductive),digits=3)) has larger magnitude than ip_target $(round(ip_target,digits=3))"
         end
-
     else
         # update j_ohmic (this also restores j_tor, j_total as expressions)
         IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
