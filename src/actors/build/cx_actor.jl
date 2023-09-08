@@ -183,10 +183,21 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         end
 
         # add the divertor slots
-        α = 0.2
+        α = 0.25
         pr2 = vcat(pr1, R0 * α + Rx * (1 - α))
         pz2 = vcat(pz1, Z0 * α + Zx * (1 - α))
-        slot = LibGEOS.buffer(xy_polygon(pr2, pz2), a)
+
+        slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
+        inner_slot = xy_polygon(pr1, pz1)
+        slot = LibGEOS.difference(slot_convhull, inner_slot)
+        slot = LibGEOS.buffer(slot, a)
+
+        scale = 1.001
+        Rc1, Zc1 = IMAS.centroid(pr1, pz1)
+        pr3 = vcat((pr1 .- Rc1) .* scale .+ Rc1, reverse(pr1))
+        pz3 = vcat((pz1 .- Zc1) .* scale .+ Zc1, reverse(pz1))
+        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), a))
+
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
 
