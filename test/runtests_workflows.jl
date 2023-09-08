@@ -19,7 +19,7 @@ end
 @testset "init" begin
     tests = FUSE.OrderedCollections.OrderedDict()
     tests["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
-    tests["D3D"] = ([:D3D], Dict())
+    tests["D3D"] = ([:D3D], Dict(:scenario => :H_mode))
     tests["FPP_v1_demount_scalars"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :scalars))
     tests["FPP_v1_demount_ods"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :ods))
     tests["FPP_v1_ods"] = ([:FPP], Dict(:version => :v1, :init_from => :ods))
