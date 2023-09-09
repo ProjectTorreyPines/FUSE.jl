@@ -2,7 +2,7 @@
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "acc67ca62e87d3f55b6de65c7834ab8014683e8a"
+project_hash = "5a6757e15a1c830a846abde3db8202a826888263"
 
 [[deps.ADAS]]
 deps = ["AbstractTrees", "BSON", "Colors", "FileIO", "Interpolations", "JLD2", "Logging", "MD5", "RecipesBase"]
@@ -13,9 +13,9 @@ uuid = "f4a0d185-1024-41e7-8ef7-3196bb2f6549"
 version = "0.1.0"
 
 [[deps.ADTypes]]
-git-tree-sha1 = "a4c8e0f8c09d4aa708289c1a5fc23e2d1970017a"
+git-tree-sha1 = "d68758475ff90600488eb975b5ac222709a7dd6f"
 uuid = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
-version = "0.2.1"
+version = "0.2.2"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -347,9 +347,9 @@ version = "2.2.1"
 
 [[deps.ConstructionBase]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "fe2838a593b5f776e1597e086dcd47560d94e816"
+git-tree-sha1 = "c53fc348ca4d40d7b371e71fd52251839080cbc9"
 uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
-version = "1.5.3"
+version = "1.5.4"
 
     [deps.ConstructionBase.extensions]
     ConstructionBaseIntervalSetsExt = "IntervalSets"
@@ -662,7 +662,7 @@ version = "2.21.1"
 
 [[deps.FiniteElementHermite]]
 deps = ["BandedMatrices", "FastGaussQuadrature", "QuadGK", "StaticArrays", "Test"]
-git-tree-sha1 = "66b2cf1079e6b99fce9c338e6e2dfda9413e6108"
+git-tree-sha1 = "1fa5b74a483f543fb5e19ba89e5ca830979da902"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/FiniteElementHermite.jl.git"
 uuid = "6ce10167-d368-4c0e-af34-9787cdd175e5"
@@ -676,9 +676,9 @@ version = "0.8.4"
 
 [[deps.Flux]]
 deps = ["Adapt", "ChainRulesCore", "Functors", "LinearAlgebra", "MLUtils", "MacroTools", "NNlib", "OneHotArrays", "Optimisers", "Preferences", "ProgressLogging", "Random", "Reexport", "SparseArrays", "SpecialFunctions", "Statistics", "Zygote"]
-git-tree-sha1 = "723a8ec75b26fe278256c89c363e370ba733c12e"
+git-tree-sha1 = "7ffd73e8ca363f80367123aab0c5d0edabab4e60"
 uuid = "587475ba-b771-5e3f-ad9e-33799f191a9c"
-version = "0.14.4"
+version = "0.14.5"
 
     [deps.Flux.extensions]
     FluxAMDGPUExt = "AMDGPU"
@@ -835,10 +835,10 @@ uuid = "78b55507-aeef-58d4-861c-77aaff3498b1"
 version = "0.21.0+0"
 
 [[deps.Glib_jll]]
-deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Pkg", "Zlib_jll"]
-git-tree-sha1 = "d3b3624125c1474292d0d8ed0f65554ac37ddb23"
+deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libiconv_jll", "Libmount_jll", "PCRE2_jll", "Zlib_jll"]
+git-tree-sha1 = "e94c92c7bf4819685eb80186d51c43e71d4afa17"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
-version = "2.74.0+2"
+version = "2.76.5+0"
 
 [[deps.Gmsh]]
 deps = ["gmsh_jll"]
@@ -913,7 +913,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "6e0a407ec834d1db67f4a56b331a22cb10570224"
+git-tree-sha1 = "68b569cc622d4ec11cb77ca6cb82fe09da5a0bdd"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1483,6 +1483,14 @@ git-tree-sha1 = "a7b647ce8f4fefbcaf7de28fa208c812e21dc18f"
 uuid = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 version = "1.3.2"
 
+[[deps.NEO]]
+deps = ["IMAS", "SpecialFunctions"]
+git-tree-sha1 = "b28e2e0196b37e8990295c1ddc26dae063085b96"
+repo-rev = "master"
+repo-url = "git@github.com/ProjectTorreyPines/NEO.jl.git"
+uuid = "081d0416-0f87-42c0-8034-5895805e76d8"
+version = "0.1.0"
+
 [[deps.NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
 git-tree-sha1 = "a0b464d183da839699f4c79e7606d9d186ec172c"
@@ -1825,7 +1833,7 @@ version = "1.8.0"
 
 [[deps.QED]]
 deps = ["ArgParse", "BandedMatrices", "FiniteElementHermite", "ForwardDiff", "JSON", "LinearAlgebra", "Requires"]
-git-tree-sha1 = "d6c0b0b4dec961b20760a54d5fdd874faebc8ce9"
+git-tree-sha1 = "5c5275405995f35b0278a1b3dadcfa364eaf1b42"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/QED.jl.git"
 uuid = "8bcbec86-48c7-11ec-16a6-c1bc83299373"
@@ -1887,9 +1895,9 @@ version = "0.6.12"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "DocStringExtensions", "GPUArraysCore", "IteratorInterfaceExtensions", "LinearAlgebra", "RecipesBase", "Requires", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "7ed35fb5f831aaf09c2d7c8736d44667a1afdcb0"
+git-tree-sha1 = "5f834446731ba29d1d68d91fddf8f9593b68b7a2"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "2.38.7"
+version = "2.38.8"
 
     [deps.RecursiveArrayTools.extensions]
     RecursiveArrayToolsMeasurementsExt = "Measurements"
@@ -1987,9 +1995,9 @@ version = "0.6.39"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "ArrayInterface", "ChainRulesCore", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables", "TruncatedStacktraces", "ZygoteRules"]
-git-tree-sha1 = "54b005258bb5ee4b6fd0f440b528e7b7af4c9975"
+git-tree-sha1 = "c0781c7ebb65776e9770d333b5e191d20dd45fcf"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "1.96.2"
+version = "1.97.0"
 weakdeps = ["Zygote"]
 
     [deps.SciMLBase.extensions]
@@ -2134,9 +2142,9 @@ weakdeps = ["OffsetArrays", "StaticArrays"]
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "StaticArraysCore"]
-git-tree-sha1 = "9cabadf6e7cd2349b6cf49f1915ad2028d65e881"
+git-tree-sha1 = "51621cca8651d9e334a659443a74ce50a3b6dfab"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.6.2"
+version = "1.6.3"
 weakdeps = ["Statistics"]
 
     [deps.StaticArrays.extensions]
@@ -2191,15 +2199,16 @@ uuid = "69024149-9ee7-55f6-a4c4-859efe599b68"
 version = "0.3.7"
 
 [[deps.StringManipulation]]
-git-tree-sha1 = "46da2434b41f41ac3594ee9816ce5541c6096123"
+deps = ["PrecompileTools"]
+git-tree-sha1 = "25ad9b0ccbc6cc63dfff1eb3f4bbb4d3e0d8a491"
 uuid = "892a3eda-7b42-436c-8928-eab12a02cf0e"
-version = "0.3.0"
+version = "0.3.2"
 
 [[deps.StructArrays]]
-deps = ["Adapt", "DataAPI", "GPUArraysCore", "StaticArraysCore", "Tables"]
-git-tree-sha1 = "521a0e828e98bb69042fec1809c1b5a680eb7389"
+deps = ["Adapt", "ConstructionBase", "DataAPI", "GPUArraysCore", "StaticArraysCore", "Tables"]
+git-tree-sha1 = "0a3db38e4cce3c54fe7a71f831cd7b6194a54213"
 uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-version = "0.6.15"
+version = "0.6.16"
 
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
@@ -2317,9 +2326,9 @@ version = "0.4.78"
 
 [[deps.TransformsBase]]
 deps = ["AbstractTrees"]
-git-tree-sha1 = "842dbeb762d090eb28824e40187110ea84ad4245"
+git-tree-sha1 = "53e92e907bd67eef12e319ca932a7dd036428bfc"
 uuid = "28dd2a49-a57a-4bfb-84ca-1a49db9b96b8"
-version = "1.2.0"
+version = "1.2.1"
 
 [[deps.Trapz]]
 git-tree-sha1 = "79eb0ed763084a3e7de81fe1838379ac6a23b6a0"
