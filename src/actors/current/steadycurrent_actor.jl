@@ -4,16 +4,14 @@
 Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "allows the plasma current to increase or decrease based on the non-inductive current"; default=false)
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
 end
 
 mutable struct ActorSteadyStateCurrent{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSteadyStateCurrent{P}
-    function ActorSteadyStateCurrent(dd::IMAS.dd{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorSteadyStateCurrent)
-        par = par(kw...)
-        return new{D,P}(dd, par)
-    end
 end
 
 """
@@ -26,22 +24,42 @@ end
 !!! note 
     Stores data in `dd.core_sources` and `dd.core_profiles`
 """
-function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
+function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles, kw...)
+    actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; ip_from, kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
+function ActorSteadyStateCurrent(dd, par::FUSEparameters__ActorSteadyStateCurrent; kw...)
+    logging_actor_init(ActorSteadyStateCurrent)
+    par = par(kw...)
+    return ActorSteadyStateCurrent(dd, par)
+end
+
 function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
+    par = actor.par
     eqt = dd.equilibrium.time_slice[]
+    cpg = dd.core_profiles.global_quantities
     cp1d = dd.core_profiles.profiles_1d[]
-    # update j_ohmic (this also restores j_tor, j_total as expressions)
-    Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, dd.global_time, :linear)
-    IMAS.j_ohmic_steady_state!(eqt, cp1d, Ip)
+
+    ip_target = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
+    if abs(ip_target) < abs(@ddtime(cpg.current_non_inductive))
+        if par.allow_floating_plasma_current
+            println("set j_ohmic to zero and allow ip to be floating")
+            cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
+        else
+            @warn "j_ohmic will be change sign, as the non-inductive current $(round(@ddtime(cpg.current_non_inductive),digits=3)) has larger magnitude than ip_target $(round(ip_target,digits=3))"
+        end
+    else
+        # update j_ohmic (this also restores j_tor, j_total as expressions)
+        IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
+    end
+
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
+    
     return actor
 end

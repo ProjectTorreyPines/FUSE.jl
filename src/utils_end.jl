@@ -162,6 +162,7 @@ function save(
     e::Union{Nothing,Exception}=nothing;
     timer::Bool=true,
     varinfo::Bool=false,
+    memtrace::Bool=false,
     freeze::Bool=true,
     format::Symbol=:json,
     overwrite_files::Bool=true)
@@ -193,6 +194,11 @@ function save(
         open(joinpath(savedir, "varinfo.txt"), "w") do file
             println(file, FUSE.varinfo(FUSE, all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
         end
+    end
+
+    # save memory trace
+    if memtrace
+        save(FUSE.memtrace, joinpath(savedir, "memtrace.txt"))
     end
 
     if dd !== nothing
@@ -332,13 +338,47 @@ function digest(
         display(plot(dd.core_sources, only=4))
     end
 
+    # Electron energy flux matching
+    sec += 1
+    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.core_transport,only=1))
+    end
+
+    # Ion energy flux matching
+    sec += 1
+    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.core_transport,only=2))
+    end
+
+    # Electron particle flux matching
+    sec += 1
+    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.core_transport,only=3))
+    end
+
+    # Momentum flux matching
+    sec += 1
+    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.core_transport,only=4))
+    end
+
     # neutron wall loading
     sec += 1
     if !isempty(dd.neutronics.time_slice) && section ∈ (0, sec)
         println('\u200B')
         xlim = extrema(dd.neutronics.first_wall.r)
         xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
-        display(plot(dd.neutronics.time_slice[].wall_loading; xlim))
+        l = @layout [a{0.3w} b{0.6w,0.9h}]
+        p = plot(layout=l, size=(900, 400))
+        plot!(p, dd.neutronics.time_slice[].wall_loading; xlim, subplot=1)
+        neutrons = define_neutrons(dd, 100000)[1]
+        plot!(p, neutrons, dd.equilibrium.time_slice[]; xlim, subplot=1)
+        plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel="")
+        display(p)
     end
 
     # center stack stresses
@@ -382,6 +422,7 @@ function digest(dd::IMAS.dd,
     ini::Union{Nothing,ParametersAllInits}=nothing,
     act::Union{Nothing,ParametersAllActors}=nothing
 )
+    title = replace(title, r".pdf$" => "")
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)

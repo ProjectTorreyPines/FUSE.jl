@@ -76,6 +76,7 @@ function workflow_multiobjective_optimization(
 
     # optimize
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1, f_calls_limit=1E9, g_calls_limit=1E9, h_calls_limit=1E9)
+
     # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
     # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
     # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2

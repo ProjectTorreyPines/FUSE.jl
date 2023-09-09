@@ -52,35 +52,34 @@ end
 function _step(actor::ActorHFSsizing)
     dd = actor.dd
     par = actor.par
+    cs = dd.solid_mechanics.center_stack
 
     # modify j_tolerance in fluxswing_actor (since actor.fluxswing_actor.par is a copy, this does not affect act.ActorFluxSwing)
     actor.fluxswing_actor.par.j_tolerance = par.j_tolerance
 
-    # Relative error with tolerance
+    # Relative error with tolerance used for currents and stresses (not flattop)
     # NOTE: we divide by (abs(target) + 1.0) because critical currents can drop to 0.0!
+    # NOTE: we stronlgy penalize going above target, and only gently encourage not going below it (since 
     function target_value(value, target, tolerance)
-        tmp = (value .* (1.0 .+ tolerance) .- target) ./ (abs(target) + 1.0)
-        if tmp > 0.0
-            return exp(tmp) - 1.0
-        else
-            return -tmp
-        end
+        tmp = (value .* (1.0 .+ tolerance) - target) ./ (abs(target) + 1.0)
+        return sign(tmp) * tmp^2
     end
 
     function assign_PL_OH_TF(x0)
         # assign optimization arguments
-        OH.thickness = mirror_bound(x0[1], 0.0, CPradius - OHTFgap)
-        TFhfs.thickness = mirror_bound(x0[2], 0.0, CPradius - OH.thickness - OHTFgap)
+        TFhfs.thickness = TFlfs.thickness = x0[1] * CPradius
+        OH.thickness = x0[2] * (CPradius - TFhfs.thickness - OHTFgap)
         PL.thickness = CPradius - TFhfs.thickness - OH.thickness - OHTFgap
-        TFlfs.thickness = TFhfs.thickness
-        dd.build.oh.technology.fraction_steel = mirror_bound(x0[3], 0.0, 1.0 - dd.build.oh.technology.fraction_void - 0.05)
-        dd.build.tf.technology.fraction_steel = mirror_bound(x0[4], 0.0, 1.0 - dd.build.tf.technology.fraction_void - 0.05)
-        return nothing
+        dd.build.oh.technology.fraction_steel = x0[3]
+        dd.build.tf.technology.fraction_steel = x0[4]
+
+        # want smallest possible TF and OH
+        return ((OH.thickness + TFhfs.thickness) / CPradius)^2
     end
 
     function cost(x0)
         # assign optimization arguments
-        assign_PL_OH_TF(x0)
+        c_cst = assign_PL_OH_TF(x0)
 
         # evaluate coils currents and stresses
         _step(actor.fluxswing_actor)
@@ -94,7 +93,7 @@ function _step(actor::ActorHFSsizing)
         end
 
         if (par.stress_tolerance >= 0)
-            c_soh = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh), dd.solid_mechanics.center_stack.properties.yield_strength.oh, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+            c_soh = target_value(maximum(cs.stress.vonmises.oh), cs.properties.yield_strength.oh, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
         else
             c_soh = 0.0
         end
@@ -105,23 +104,23 @@ function _step(actor::ActorHFSsizing)
         else
             c_jtf = 0.0
         end
-        
+
         if (par.stress_tolerance >= 0)
-            c_stf = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf), dd.solid_mechanics.center_stack.properties.yield_strength.tf, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+            c_stf = target_value(maximum(cs.stress.vonmises.tf), cs.properties.yield_strength.tf, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
         else
-            c_stf = 0.
+            c_stf = 0.0
         end
 
         # plug stresses
-        if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl) && (par.stress_tolerance >= 0)
-            c_spl = target_value(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl), dd.solid_mechanics.center_stack.properties.yield_strength.pl, par.stress_tolerance)
+        if !ismissing(cs.stress.vonmises, :pl) && (par.stress_tolerance >= 0)
+            c_spl = target_value(maximum(cs.stress.vonmises.pl), cs.properties.yield_strength.pl, par.stress_tolerance)
         else
             c_spl = 0.0
         end
 
         # flattop
         if actor.fluxswing_actor.par.operate_oh_at_j_crit
-            c_flt = abs((dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / dd.requirements.flattop_duration)
+            c_flt = target_value(dd.requirements.flattop_duration, dd.build.oh.flattop_duration, 0.0)
         else
             c_flt = 0.0
         end
@@ -133,32 +132,24 @@ function _step(actor::ActorHFSsizing)
             push!(C_STF, c_stf)
             push!(C_SPL, c_spl)
             push!(C_FLT, c_flt)
+            push!(C_CST, c_cst)
         end
 
         # total cost
-        return norm([norm([c_joh, c_soh]), norm([c_jtf, c_stf]), c_spl, c_flt])
+        return c_cst, [c_joh, c_soh, c_flt, c_jtf, c_stf, c_spl], [0.0]
     end
 
     # initialize
+    old_build = deepcopy(dd.build)
     PL = dd.build.layer[1]
     OH = IMAS.get_build_layer(dd.build.layer, type=_oh_)
-    BLs = IMAS.get_build_layers(dd.build.layer, type=_blanket_, fs=_hfs_)
-    if isempty(BLs)
-        BL = PL
-    else
-        BL = BLs[1]
-    end
-    old_BL_thickness = BL.thickness
     TFhfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_hfs_)
     TFlfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_)
     plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
-
     CPradius = TFhfs.end_radius
     OHTFgap = CPradius - TFhfs.thickness - OH.thickness - PL.thickness
-
-    target_B0 = maximum(abs, dd.equilibrium.vacuum_toroidal_field.b0)
-    a = (plasma.end_radius - plasma.start_radius) / 2.0
-    old_R0 = (plasma.end_radius + plasma.start_radius) / 2.0
+    R0, B0 = IMAS.vacuum_r0_b0(dd.equilibrium.time_slice[])
+    target_B0 = abs(B0)
 
     if par.verbose
         C_JOH = Float64[]
@@ -167,33 +158,28 @@ function _step(actor::ActorHFSsizing)
         C_STF = Float64[]
         C_SPL = Float64[]
         C_FLT = Float64[]
+        C_CST = Float64[]
     end
 
     # optimization
-    old_build = deepcopy(dd.build)
-    res = Optim.optimize(
-        x0 -> cost(x0),
-        [OH.thickness, TFhfs.thickness, dd.build.oh.technology.fraction_steel, dd.build.tf.technology.fraction_steel],
-        Optim.NelderMead(),
-        Optim.Options(iterations=1000, g_tol=1e-6);
-        autodiff=:forward
-    )
-    assign_PL_OH_TF(res.minimizer)
+    bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
+    options = Metaheuristics.Options(; seed=1, iterations=50)
+    algorithm = Metaheuristics.ECA(; N=20, options)
+    res = Metaheuristics.optimize(cost, bounds, algorithm)
+    assign_PL_OH_TF(Metaheuristics.minimizer(res))
     step(actor.fluxswing_actor)
     step(actor.stresses_actor)
-
-    R0 = (plasma.start_radius + plasma.end_radius) / 2.0
 
     function check_technology()
         @assert dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance) / dd.build.tf.critical_j * 100)%"
         @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ par.j_tolerance) / dd.build.oh.critical_j * 100)%"
-        if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-            @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.solid_mechanics.center_stack.properties.yield_strength.pl "PL stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / dd.solid_mechanics.center_stack.properties.yield_strength.pl * 100)%"
+        if !ismissing(cs.stress.vonmises, :pl)
+            @assert maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.pl "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.pl * 100)%"
         end
-        @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.solid_mechanics.center_stack.properties.yield_strength.oh "OH stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / dd.solid_mechanics.center_stack.properties.yield_strength.oh * 100)%"
-        @assert maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < dd.solid_mechanics.center_stack.properties.yield_strength.tf "TF stresses are too high: $(maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / dd.solid_mechanics.center_stack.properties.yield_strength.tf * 100)%"
+        @assert maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.oh "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.oh * 100)%"
+        @assert maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.tf "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.tf * 100)%"
     end
-    
+
     function check_performance()
         max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
         @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
@@ -201,22 +187,18 @@ function _step(actor::ActorHFSsizing)
     end
 
     function print_details()
+        println(cost(Metaheuristics.minimizer(res)))
         print(res)
 
         if par.verbose
             p = plot(yscale=:log10, legend=:topright)
-            if sum(C_JOH) > 0.0
-                plot!(p, C_JOH, label="cost Jcrit OH")
-            end
-            plot!(p, C_JTF, label="cost Jcrit TF")
-            if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
-                plot!(p, C_SPL, label="cost stress PL")
-            end
-            plot!(p, C_SOH, label="cost stress OH")
-            plot!(p, C_STF, label="cost stress TF")
-            if sum(C_FLT) > 0.0
-                plot!(p, C_FLT, label="cost flattop")
-            end
+            plot!(p, C_JOH ./ (C_JOH .> 0.0), label="Jcrit OH constraint")
+            plot!(p, C_JTF ./ (C_JTF .> 0.0), label="Jcrit TF constraint")
+            plot!(p, C_SPL ./ (C_SPL .> 0.0), label="stress PL constraint")
+            plot!(p, C_SOH ./ (C_SOH .> 0.0), label="stress OH constraint")
+            plot!(p, C_STF ./ (C_STF .> 0.0), label="stress TF constraint")
+            plot!(p, C_FLT ./ (C_FLT .> 0.0), label="flattop constraint")
+            plot!(p, C_CST ./ (C_CST .> 0.0), label="small TF & OH cost", color=:black)
             display(p)
         end
 
@@ -229,26 +211,28 @@ function _step(actor::ActorHFSsizing)
         println()
         @show dd.build.oh.flattop_duration
         @show dd.requirements.flattop_duration
+        @show dd.build.oh.flattop_duration / dd.requirements.flattop_duration
         println()
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
+        @show dd.build.oh.critical_j / dd.build.oh.max_j
         println()
         @show dd.build.tf.max_j
         @show dd.build.tf.critical_j
-        if !ismissing(dd.solid_mechanics.center_stack.stress.vonmises, :pl)
+        @show dd.build.tf.critical_j / dd.build.tf.max_j
+        if !ismissing(cs.stress.vonmises, :pl)
             println()
-            @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.pl)
-            @show dd.solid_mechanics.center_stack.properties.yield_strength.pl
+            @show maximum(cs.stress.vonmises.pl)
+            @show cs.properties.yield_strength.pl
         end
         println()
-        @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh)
-        @show dd.solid_mechanics.center_stack.properties.yield_strength.oh
+        @show maximum(cs.stress.vonmises.oh)
+        @show cs.properties.yield_strength.oh
+        @show cs.properties.yield_strength.oh / maximum(cs.stress.vonmises.oh)
         println()
-        @show maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf)
-        @show dd.solid_mechanics.center_stack.properties.yield_strength.tf
-        println()
-        @show old_R0 / a
-        @show R0 / a
+        @show maximum(cs.stress.vonmises.tf)
+        @show cs.properties.yield_strength.tf
+        @show cs.properties.yield_strength.tf / maximum(cs.stress.vonmises.tf)
     end
 
     try
@@ -263,6 +247,8 @@ function _step(actor::ActorHFSsizing)
         end
     catch e
         print_details()
+        plot(old_build)
+        display(plot!(dd.build; cx=false))
         dd.build = old_build
         rethrow(e)
     end

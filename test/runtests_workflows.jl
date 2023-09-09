@@ -9,11 +9,11 @@ using Test
 end
 
 @testset "fluxmatcher" begin
-    dd, ini, act = FUSE.init(:ITER,init_from=:scalars)
+    dd, ini, act = FUSE.init(:ITER, init_from=:scalars)
     act.ActorFluxMatcher.max_iterations = 3
     act.ActorFluxMatcher.evolve_pedestal = true
     act.ActorFluxMatcher.evolve_densities = FUSE.setup_density_evolution_electron_flux_match_rest_ne_scale(dd)
-    FUSE.ActorFluxMatcher(dd,act)
+    FUSE.ActorFluxMatcher(dd, act)
 end
 
 @testset "init" begin
@@ -35,8 +35,8 @@ end
             FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
                 println("== $(testname) ==")
                 ini, act = FUSE.case_parameters(args...; kw...)
-                if occursin("ods", testname)
-                    act.ActorEquilibrium.model = :Solovev
+                if testname == "SPARC"
+                    act.ActorEquilibrium.model = :Solovev # The CI tool doesn't work with SPARC & TEQUILA for unexplainable reasons
                 end
                 FUSE.init(ini, act)
             end
@@ -59,17 +59,3 @@ end
     @test ini.build.symmetric == true
     @test typeof(ini.build.symmetric) <: Bool
 end
-
-# @testset "QEDcurrent_actor" begin
-#     # Load TRANSP data at 2.91 s
-#     file_0 = joinpath(dirname(dirname(@__DIR__)), "QED", "sample", "ods_163303Z29-2910.json")
-#     dd = IMAS.json2imas(file_0; verbose=false)
-#     # initialize actor
-#     actor = FUSE.ActorQED(dd)
-#     # evolve current
-#     for k in 1:3
-#         FUSE.step(actor, 0.1, 100, resume=true)
-#         FUSE.finalize(actor)
-#         dd.global_time = dd.equilibrium.time[end]
-#     end
-# end

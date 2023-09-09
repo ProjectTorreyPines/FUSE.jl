@@ -12,6 +12,7 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.boundary_from = :ods
 
     ini.ods.filename = joinpath(@__DIR__, "..", "sample", "D3D_eq_ods.json")
+    ini.time.simulation_start = 1.0
 
     ini.build.blanket = 0.0
     ini.build.shield = 0.0
@@ -56,7 +57,6 @@ function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,Parameters
         :electrons => :flux_match,
         :C => :match_ne_scale)
 
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 
