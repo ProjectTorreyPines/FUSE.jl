@@ -36,6 +36,7 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 dd.summary;
                 greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
                 greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
+                ne_coreped_ratio=getproperty(ini.core_profiles, :ne_coreped_ratio, missing),
                 ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
                 pressure_core=dd.equilibrium.time_slice[].profiles_1d.pressure[1],
                 helium_fraction=ini.core_profiles.helium_fraction,
@@ -62,6 +63,7 @@ function init_core_profiles(
     summary::IMAS.summary;
     greenwald_fraction::Union{Real,Missing},
     greenwald_fraction_ped::Union{Real,Missing},
+    ne_coreped_ratio::Union{Real,Missing},
     ne_ped::Union{Real,Missing},
     pressure_core::Real,
     helium_fraction::Real,
@@ -85,16 +87,33 @@ function init_core_profiles(
     cp1d.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cp1d.grid.rho_tor_norm)
 
     # Density handling
-    @assert !ismissing(ne_ped) || !ismissing(greenwald_fraction) || !ismissing(greenwald_fraction_ped) "At least one of ini.core_profiles ne_ped / greenwald_fraction_ped / greenwald_fraction must be set"
-    @assert !ismissing(ne_ped) ⊻ !ismissing(greenwald_fraction_ped) "One and only one of ini.core_profiles.ne_ped or ini.core_profiles.greenwald_fraction_ped must be set"
-    if ismissing(ne_ped)
-        ne_ped = greenwald_fraction_ped * IMAS.greenwald_density(eqt)
-    end
+    #
+    # possible denstiy input combinations:
+    #                           case 1	case 2	case 3	case 4	case 5
+    # greenwald_fraction	    (X)	    (X)	    X		
+    # greenwald_fraction_ped	X			            X	
+    # ne_ped		                    X			            X
+    # ne_coreped_ratio			                X	    X	    X
+
     if ismissing(greenwald_fraction)
+        @assert !ismissing(ne_ped) ⊻ !ismissing(greenwald_fraction_ped) "greenwald_fraction is missing: One and only one of ini.core_profiles.ne_ped or ini.core_profiles.greenwald_fraction_ped must be set"
+        if ismissing(ne_ped)
+            ne_ped = greenwald_fraction_ped * IMAS.greenwald_density(eqt)
+        end
         # guess greewald fraction from ne_ped
         ne0_guess = ne_ped * 1.4
         cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0_guess, ngrid, n_shaping, n_shaping, w_ped)
         greenwald_fraction = IMAS.greenwald_fraction(eqt, cp1d)
+    else
+        and3 = !ismissing(ne_ped) & !ismissing(ne_coreped_ratio) & !ismissing(greenwald_fraction_ped)
+        xor3 = !ismissing(ne_ped) ⊻ !ismissing(ne_coreped_ratio) ⊻ !ismissing(greenwald_fraction_ped)
+        @assert  xor3 & ~and3 "greenwald_fraction is set: One and only oneof ini.core_profiles ne_ped / greenwald_fraction_ped / ne_coreped_ratio must be set"
+        if ismissing(greenwald_fraction_ped)
+            greenwald_fraction_ped = greenwald_fraction / ne_coreped_ratio
+        end
+        if ismissing(ne_ped)
+            ne_ped = greenwald_fraction_ped * IMAS.greenwald_density(eqt)
+        end
     end
 
     # Set ions:

@@ -55,6 +55,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     _name::Symbol = :core_profiles
     greenwald_fraction::Entry{T} = Entry{T}("-", "Line average electron density expressed as fraction of Greenwald density")
     greenwald_fraction_ped::Entry{T} = Entry{T}("-", "Pedestal electron density expressed as fraction of Greenwald density")
+    ne_coreped_ratio::Entry{T} = Entry{T}("-", "Ratio of line average electron density to pedestal electron density")
     ne_ped::Entry{T} = Entry{T}("m^-3", "Pedestal electron density")
     w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ", default=0.05)
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio")
