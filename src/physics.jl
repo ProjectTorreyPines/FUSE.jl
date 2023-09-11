@@ -659,7 +659,7 @@ end
 """
     xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
 
-Returns LibGEOS.Polygon stucture from x and y arrays
+Returns LibGEOS.Polygon from x and y arrays
 """
 function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
     if (x[1] ≈ x[end]) && (y[1] ≈ y[end])
@@ -678,6 +678,20 @@ function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
     return LibGEOS.Polygon(coords)
 end
 
+"""
+    xy_polygon(coords::T) where {T<:Vector{Tuple{Float64, Float64}}}
+
+Returns LibGEOS.Polygon from vector of tuple with x, y points
+"""
+function xy_polygon(coords::T) where {T<:Vector{Tuple{Float64, Float64}}}
+    return LibGEOS.Polygon([[[coord[1],coord[2]] for coord in coords]])
+end
+
+"""
+    xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
+
+Returns LibGEOS.Polygon from IMAS build layer or structure
+"""
 function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
     return xy_polygon(layer.outline.r, layer.outline.z)
 end

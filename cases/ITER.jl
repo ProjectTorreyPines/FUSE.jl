@@ -6,9 +6,13 @@ ITER
 Arguments:
 * `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits()
     act = ParametersActors()
+
+    # checking init_from and boundary_from
+    @assert boundary_from != :rz_points "boundary from :rz_points isn't supported in the ITER case"
+
     ini.general.casename = "ITER_$(init_from)"
     ini.general.init_from = init_from
 
@@ -30,7 +34,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         ini.equilibrium.pressure_core = 0.643e6
 
         ini.equilibrium.xpoints = :lower
-        ini.equilibrium.boundary_from = :MXH_params
+        ini.equilibrium.boundary_from = boundary_from
 
         R0 = 6.2
         Z0 = 0.0
@@ -38,7 +42,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol)::Tuple{Parameter
         κ = 1.85
         δ = 0.485
         ζ = -0.09583
-        if ini.equilibrium.boundary_from == :scalars
+        if boundary_from == :scalars
             ini.equilibrium.R0 = R0
             ini.equilibrium.Z0 = Z0
             ini.equilibrium.ϵ = ϵ

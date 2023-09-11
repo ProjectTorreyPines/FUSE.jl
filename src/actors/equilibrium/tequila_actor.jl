@@ -6,6 +6,7 @@ import TEQUILA
 Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=21)
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=20)
@@ -14,6 +15,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=1.0)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-6)
     psi_norm_boundary_cutoff::Entry{Float64} = Entry{Float64}("-", "Cutoff psi_norm for determining boundary"; default=0.999)
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    #== display and debugging parameters ==#
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
 
@@ -29,8 +34,8 @@ end
 
 Runs the Fixed boundary equilibrium solver TEQUILA
 """
-function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorTEQUILA(kw...)
+function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles, kw...)
+    par = act.ActorTEQUILA(ip_from, kw...)
     actor = ActorTEQUILA(dd, par)
     step(actor)
     finalize(actor)
@@ -40,7 +45,8 @@ end
 function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; kw...)
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
-    ActorTEQUILA(dd, par, nothing, 0.0)
+    return ActorTEQUILA(dd, par, nothing, 0.0)
+
 end
 
 """
@@ -51,6 +57,9 @@ Runs TEQUILA on the r_z boundary, equilibrium pressure and equilibrium j_tor
 function _step(actor::ActorTEQUILA)
     dd = actor.dd
     par = actor.par
+
+    par.do_plot && (p = plot(dd.equilibrium; cx=true, label="before"))
+
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
