@@ -683,8 +683,8 @@ end
 
 Returns LibGEOS.Polygon from vector of tuple with x, y points
 """
-function xy_polygon(coords::T) where {T<:Vector{Tuple{Float64, Float64}}}
-    return LibGEOS.Polygon([[[coord[1],coord[2]] for coord in coords]])
+function xy_polygon(coords::T) where {T<:Vector{Tuple{Float64,Float64}}}
+    return LibGEOS.Polygon([[[coord[1], coord[2]] for coord in coords]])
 end
 
 """

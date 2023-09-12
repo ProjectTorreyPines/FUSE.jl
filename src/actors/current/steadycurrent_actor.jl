@@ -24,7 +24,7 @@ end
 !!! note 
     Stores data in `dd.core_sources` and `dd.core_profiles`
 """
-function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles, kw...)
+function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; ip_from=:pulse_schedule, kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; ip_from, kw...)
     step(actor)
     finalize(actor)
@@ -44,7 +44,7 @@ function _step(actor::ActorSteadyStateCurrent)
     cpg = dd.core_profiles.global_quantities
     cp1d = dd.core_profiles.profiles_1d[]
 
-    ip_target = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
+    ip_target = IMAS.get_from(dd, Val{:ip}, par.ip_from)
     if abs(ip_target) < abs(@ddtime(cpg.current_non_inductive))
         if par.allow_floating_plasma_current
             println("set j_ohmic to zero and allow ip to be floating")
@@ -60,6 +60,6 @@ function _step(actor::ActorSteadyStateCurrent)
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
-    
+
     return actor
 end

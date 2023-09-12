@@ -56,10 +56,11 @@ function _step(actor::ActorTGLF)
         actor.input_tglfs[k] = TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
     end
 
-    if length(par.user_specified_model) > 0
+    if !isempty(par.user_specified_model)
         model_filename = par.user_specified_model
     else
         model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+        model_filename *= "_d3d" # will be changed to FPP soon
     end
 
 

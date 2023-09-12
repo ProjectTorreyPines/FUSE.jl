@@ -10,6 +10,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where 
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
 end
 
 mutable struct ActorQED{D,P} <: PlasmaAbstractActor
@@ -33,8 +35,8 @@ Evolves the plasma current using the QED current diffusion solver.
 !!! note 
     Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`
 """
-function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorQED(dd, act.ActorQED; kw...)
+function ActorQED(dd::IMAS.dd, act::ParametersAllActors; ip_from=:pulse_schedule, kw...)
+    actor = ActorQED(dd, act.ActorQED; ip_from, kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -57,20 +59,20 @@ function _step(actor::ActorQED)
     actor.QO = qed_init_from_imas(eqt, cp1d)
 
     if par.Δt == Inf
-        Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, Inf, :linear)
+        Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
         Vedge = nothing
-        QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[Inf]); Vedge, Ip)
+        QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
 
     else
         t0 = dd.global_time
         t1 = dd.global_time + par.Δt
         δt = par.Δt / par.Nt
-    
-        if false
+
+        if true
             # staircase approach to track current ramps: one QED diffuse call for each time step
             for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
                 if par.solve_for == :ip
-                    Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, tnow, :linear)
+                    Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tnow)
                     Vedge = nothing
                 else
                     error("Vloop advance not supported")
@@ -79,7 +81,7 @@ function _step(actor::ActorQED)
             end
         else
             if par.solve_for == :ip
-                Ip = IMAS.get_time_array(dd.pulse_schedule.flux_control.i_plasma.reference, :data, t1, :linear)
+                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=t0)
                 Vedge = nothing
             else
                 error("Vloop advance not supported")
@@ -134,13 +136,18 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     j_tor = eqt.profiles_1d.j_tor
     gm9 = eqt.profiles_1d.gm9
 
+    y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` used for packing points
+
     if ismissing(cp1d, :j_non_inductive)
         ρ_j_non_inductive = nothing
     else
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, cp1d.j_non_inductive)
+        y .*= ρ_j_non_inductive[2]
     end
 
-    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive)
+    ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
+
+    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
 end
 
 function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
