@@ -913,7 +913,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "68b569cc622d4ec11cb77ca6cb82fe09da5a0bdd"
+git-tree-sha1 = "fb7965f7472e0b4cb21101d16952994b9ea750b4"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -921,7 +921,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "Printf"]
-git-tree-sha1 = "8e43b0da527e7d765de5a44019b2993fa2fb8fda"
+git-tree-sha1 = "be57f0e04a696b156ebdbf7586d811192075bfb5"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -2243,7 +2243,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "9506349747fe64f3eed1d9f585bbf30a86c5ff05"
+git-tree-sha1 = "347caa34deab2e54ecca93c546818f9f701aa9a1"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
