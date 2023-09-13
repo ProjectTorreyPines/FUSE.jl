@@ -32,3 +32,34 @@ function case_parameters(case::Symbol; kw...)
     end
     return case_parameters(Val{case}; kw...)
 end
+
+"""
+    case_parameters_creation_from_ini(ini_case::AbstractParameters)
+
+Useful function to create a case_paramter function for a case from an ini
+"""
+function case_parameters_creation_from_ini(ini_case::ParametersAllInits)
+    ini_base = ParametersInits()
+    for field in keys(ini_base)
+        code_string = ""
+        for sub_field in keys(getproperty(ini_base, field))
+            value_case = getproperty(getproperty(ini_case, field), sub_field, missing)
+            value_base = getproperty(getproperty(ini_base, field), sub_field, missing)
+            if value_case !== value_base
+                if typeof(value_case) <: Symbol
+                    code_string = "ini.$field.$sub_field = :$value_case"
+                elseif typeof(value_case) <: String
+                    code_string = "ini.$field.$sub_field = \"$value_case\""
+                elseif typeof(value_case) <: OrderedCollections.OrderedDict
+                    code_string = "ini.$field.$sub_field = OrderedCollections.OrderedDict(\n    " * join([":$k => $v," for (k, v) in value_case], "\n    ") * "\n)"
+                else
+                    code_string = "ini.$field.$sub_field = $value_case"
+                end
+                println(code_string)
+            end
+        end
+        if !isempty(code_string)
+            println()
+        end
+    end
+end
