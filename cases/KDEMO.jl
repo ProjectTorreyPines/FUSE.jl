@@ -88,11 +88,9 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.requirements.tritium_breeding_ratio = 1.1
 
     act.ActorFluxMatcher.evolve_densities = Dict(
-        :Ne => :match_ne_scale,
-        :DT => :quasi_neutrality,
-        :He4 => :match_ne_scale,
-        :He4_fast => :fixed,
-        :electrons => :flux_match)
+        :He4 => :match_ne_scale, :He4_fast => :fixed,
+        :DT => :quasi_neutrality, :DT_fast => :fixed,
+        :electrons => :flux_match, :Ne20 => :match_ne_scale)
 
     set_new_base!(ini)
     set_new_base!(act)
