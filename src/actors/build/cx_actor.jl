@@ -84,7 +84,7 @@ end
 
 Generate first wall outline starting from an equilibrium
 """
-function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_divertor_length_fraction_z_plasma::Real=0.2)
+function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; divertor_length_fraction::Real=0.2)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
 
@@ -109,8 +109,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     t = LinRange(0, 2π, 31)
 
     # divertor lengths
-    linear_z_plasma_size = maximum(zlcfs) - minimum(zlcfs)
-    max_divertor_length = linear_z_plasma_size * max_divertor_length_fraction_z_plasma
+    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
+    max_divertor_length = linear_plasma_size * divertor_length_fraction
 
     detected_upper = bd.divertors.upper.installed
     detected_lower = bd.divertors.lower.installed
@@ -141,7 +141,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
         Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
         d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
-        if d > linear_z_plasma_size / 5
+        if d > linear_plasma_size / 5
             continue
         end
 
@@ -152,16 +152,13 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
             continue
         end
 
-        # distance from points in private flux region to X-point
-        Dx = sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0)
-        divertor_length = minimum((Dx[1], Dx[end], max_divertor_length))
+        max_d = maximum(sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0))
+        divertor_length = min(max_d * 0.8, max_divertor_length)
 
         # limit extent of private flux regions
-        circle_r = divertor_length .* cos.(t) .+ Rx
-        circle_z = sign(Zx) .* divertor_length .* sin.(t) .+ Zx
-        circle = collect(zip(circle_r, circle_z))
+        circle = collect(zip(divertor_length .* cos.(t) .+ Rx, sign(Zx) .* divertor_length .* sin.(t) .+ Zx))
         circle[1] = circle[end]
-        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
+        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && rr >= R_hfs_plasma && rr <= R_lfs_plasma]
         pr1 = [rr for (rr, zz) in slot]
         pz1 = [zz for (rr, zz) in slot]
         if isempty(pr1)
@@ -182,21 +179,10 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         end
 
         # add the divertor slots
-        α = 0.25
+        α = 0.2
         pr2 = vcat(pr1, R0 * α + Rx * (1 - α))
         pz2 = vcat(pz1, Z0 * α + Zx * (1 - α))
-
-        slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
-        inner_slot = xy_polygon(pr1, pz1)
-        slot = LibGEOS.difference(slot_convhull, inner_slot)
-        slot = LibGEOS.buffer(slot, a)
-
-        scale = 1.001
-        Rc1, Zc1 = IMAS.centroid(pr1, pz1)
-        pr3 = vcat((pr1 .- Rc1) .* scale .+ Rc1, reverse(pr1))
-        pz3 = vcat((pz1 .- Zc1) .* scale .+ Zc1, reverse(pz1))
-        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), a))
-
+        slot = LibGEOS.buffer(xy_polygon(pr2, pz2), a)
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
 
@@ -217,16 +203,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
-    try
-        pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1)
-    catch e
-        pp = plot(wall_poly; aspect_ratio=:equal)
-        for (pr, pz) in private
-            plot!(pp, pr, pz, label="")
-        end
-        display(pp)
-        rethrow(e)
-    end
+    pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1)
 
     return pr, pz
 end
