@@ -68,7 +68,7 @@ function _step(actor::ActorFluxMatcher)
         if par.optimizer_algorithm == :anderson
             res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=0, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init, factor=1e-2, show_trace=par.verbose, store_trace=par.verbose, iterations=par.max_iterations, ftol=1E-3)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init,factor=1e-2, show_trace=par.verbose, store_trace=par.verbose, iterations=par.max_iterations, ftol=1E-3)
         end
         res
     finally
@@ -105,7 +105,7 @@ end
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
 function flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real}; z_history::Vector{Vector{Float64}}=Vector{Float64}[], err_history::Vector{Float64}=Float64[])
-    push!(z_history, z_profiles)
+    push!(z_history,z_profiles)
     z_profiles = z_profiles ./ 100
     dd = actor.dd
     par = actor.par
@@ -153,7 +153,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     cp1d = dd.core_profiles.profiles_1d[]
-    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:particles, :j_parallel, :momentum_tor, :energy])
+    total_sources = IMAS.total_sources(dd.core_sources, cp1d)
     total_fluxes = IMAS.total_fluxes(dd.core_transport)
 
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
