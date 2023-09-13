@@ -6,9 +6,12 @@ import CHEASE
 Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
     rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
 end
 
 mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor
@@ -22,8 +25,8 @@ end
 
 Runs the Fixed boundary equilibrium solver CHEASE
 """
-function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorCHEASE(dd, act.ActorCHEASE; kw...)
+function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
+    actor = ActorCHEASE(dd, act.ActorCHEASE; ip_from, kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -43,6 +46,8 @@ Runs CHEASE on the r_z boundary, equilibrium pressure and equilibrium j_tor
 function _step(actor::ActorCHEASE)
     dd = actor.dd
     par = actor.par
+
+    # initialize eqt from pulse_schedule and core_profiles
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 

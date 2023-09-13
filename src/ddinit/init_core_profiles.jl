@@ -1,17 +1,15 @@
 """
-    init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
 
 Initialize `dd.core_profiles` starting from `ini` and `act` parameters
 """
-function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
     TimerOutputs.reset_timer!("init_core_profiles")
     TimerOutputs.@timeit timer "init_core_profiles" begin
         init_from = ini.general.init_from
 
         if init_from == :ods
-            dd1 = IMAS.json2imas(ini.ods.filename)
             if !ismissing(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
-                dd.global_time = max(dd.global_time, maximum(dd1.core_profiles.time))
                 dd.core_profiles = dd1.core_profiles
 
                 # also set the pedestal in summary IDS
@@ -25,12 +23,12 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 init_from = :scalars
             end
             if ismissing(dd.core_profiles.global_quantities, :ejima) && !ismissing(ini.core_profiles, :ejima)
-                IMAS.set_time_array(dd.core_profiles.global_quantities, :ejima, ini.core_profiles.ejima)
+                @ddtime(dd.core_profiles.global_quantities.ejima = ini.core_profiles.ejima)
             end
         end
 
         if init_from == :scalars
-            init_core_profiles(
+            init_core_profiles!(
                 dd.core_profiles,
                 dd.equilibrium,
                 dd.summary;
@@ -57,7 +55,7 @@ function init_core_profiles(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
     end
 end
 
-function init_core_profiles(
+function init_core_profiles!(
     cp::IMAS.core_profiles,
     eq::IMAS.equilibrium,
     summary::IMAS.summary;
@@ -84,7 +82,7 @@ function init_core_profiles(
 
     cp1d.grid.rho_tor_norm = LinRange(0, 1, ngrid)
     cp1d.zeff = ones(ngrid) .* zeff
-    cp1d.rotation_frequency_tor_sonic = rot_core .* (1.0 .- cp1d.grid.rho_tor_norm)
+    cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / 8, rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
 
     # Density handling
     #

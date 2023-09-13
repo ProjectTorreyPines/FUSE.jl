@@ -55,17 +55,16 @@ end
 #  init build  #
 #= ========== =#
 """
-    init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
 
 Initialize `dd.build` starting from `ini` and `act` parameters
 """
-function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
     TimerOutputs.reset_timer!("init_build")
     TimerOutputs.@timeit timer "init_build" begin
         init_from = ini.general.init_from
 
         if init_from == :ods
-            dd1 = IMAS.json2imas(ini.ods.filename)
             if length(keys(dd1.wall)) > 0
                 dd.wall = dd1.wall
             end
@@ -75,11 +74,6 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
                 init_from = :scalars
             end
         end
-
-        # we make a copy because we overwrite some parameters
-        # locally to this functions so that things work from
-        # different entry points
-        ini = deepcopy(ini)
 
         eqt = dd.equilibrium.time_slice[]
 
@@ -95,13 +89,13 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
                 pf_inside_tf=(ini.pf_active.n_coils_inside > 0),
                 pf_outside_tf=(ini.pf_active.n_coils_outside > 0))
         else
-            layers = deepcopy(ini.build.layers)
+            layers = ini.build.layers
             # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
-            scale_build_layers(layers, dd.equilibrium.vacuum_toroidal_field.r0, eqt.boundary.minor_radius, ini.build.plasma_gap)
+            scale_build_layers!(layers, dd.equilibrium.vacuum_toroidal_field.r0, eqt.boundary.minor_radius, ini.build.plasma_gap)
         end
 
         # populate dd.build with radial build layers
-        init_build(dd.build, layers)
+        init_build!(dd.build, layers)
 
         # divertors
         if ini.build.divertors == :from_x_points
@@ -185,7 +179,7 @@ function init_build(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActo
 end
 
 """
-    init_build(bd::IMAS.build; layers...)
+    init_build!(bd::IMAS.build; layers...)
 
 Initialize build IDS based on center stack layers (thicknesses)
 
@@ -203,7 +197,7 @@ layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
 
 layer[:].identifier is handled via IMAS.jl expressions
 """
-function init_build(bd::IMAS.build; layers...)
+function init_build!(bd::IMAS.build; layers...)
     # empty build IDS
     empty!(bd)
     # assign layers
@@ -258,13 +252,13 @@ function init_build(bd::IMAS.build; layers...)
     return bd
 end
 
-function init_build(bd::IMAS.build, layers::AbstractDict)
+function init_build!(bd::IMAS.build, layers::AbstractDict)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
-    init_build(bd; nt...)
+    init_build!(bd; nt...)
 end
 
 """
-    function init_build(
+    function init_build!(
         bd::IMAS.build,
         eqt::IMAS.equilibrium__time_slice,
         wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
@@ -336,12 +330,12 @@ function layers_meters_from_fractions(
     end
 
     # from fractions to meters
-    scale_build_layers(layers, (rmax + rmin) / 2.0, (rmax - rmin) / 2.0, 0.0)
+    scale_build_layers!(layers, (rmax + rmin) / 2.0, (rmax - rmin) / 2.0, 0.0)
 
     return layers
 end
 
-function scale_build_layers(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
+function scale_build_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
     gap = a * gap_fraction
     plasma_start = R0 - a - gap
     layer_plasma_start = 0.0

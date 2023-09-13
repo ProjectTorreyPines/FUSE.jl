@@ -29,6 +29,8 @@ include("technology.jl")
 #  DDINIT  #
 #= ====== =#
 include(joinpath("ddinit", "init.jl"))
+include(joinpath("ddinit", "init_from_ods.jl"))
+include(joinpath("ddinit", "init_pulse_schedule.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
@@ -43,6 +45,7 @@ include(joinpath("ddinit", "gasc.jl"))
 #= ====== =#
 # the order of include matters due to import/using statements as well as the dependency of defines structures
 include(joinpath("actors", "abstract_actors.jl"))
+include(joinpath("actors", "noop_actor.jl"))
 
 include(joinpath("actors", "equilibrium", "solovev_actor.jl"))
 include(joinpath("actors", "equilibrium", "chease_actor.jl"))
@@ -111,6 +114,7 @@ include(joinpath("actors", "compound", "whole_facility_actor.jl"))
 #= ========== =#
 include("parameters_inits.jl")
 include("parameters_actors.jl")
+include("signal.jl")
 
 #= ============ =#
 #  OPTIMIZATION  #
@@ -142,5 +146,6 @@ include("precompile.jl")
 #= EXPORT =#
 #= ====== =#
 export IMAS, @ddtime, constants, ±, ↔, Logging
+export step, pulse, ramp, trap
 
 end

@@ -33,7 +33,7 @@ end
 
 function ActorFixedProfiles(dd::IMAS.dd, par::FUSEparameters__ActorFixedProfiles, act::ParametersAllActors; kw...)
     par = par(kw...)
-    ped_actor = ActorPedestal(dd, act.ActorPedestal; update_core_profiles=false, par.T_ratio_pedestal)
+    ped_actor = ActorPedestal(dd, act.ActorPedestal; update_core_profiles=false, par.T_ratio_pedestal, ip_from=:equilibrium, βn_from=:equilibrium)
     return ActorFixedProfiles(dd, par, ped_actor)
 end
 
@@ -53,17 +53,19 @@ function _step(actor::ActorFixedProfiles)
     # update electron temperature profile
     # uses new pedestal height & width, existing Te0 & T_shaping 
     Te = cp1d.electrons.temperature
-    tval = IMAS.Hmode_profiles(Te[end], dd.summary.local.pedestal.t_e.value[], Te[1], length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, 1 - dd.summary.local.pedestal.position.rho_tor_norm[])
+    Te_ped = @ddtime(dd.summary.local.pedestal.t_e.value)
+    w_ped = @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)
+    tval = IMAS.Hmode_profiles(Te[end], Te_ped, Te[1], length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, 1.0 - w_ped)
     cp1d.electrons.temperature = tval
     if any(tval .< 0)
-        throw("Te profile is negative for T0=$(Te[1]) eV and Tped=$(dd.summary.local.pedestal.t_e.value[]) eV")
+        throw("Te profile is negative for T0=$(Te[1]) eV and Tped=$(Te_ped) eV")
     end
 
     # update ion temperature profiles
     # uses new pedestal height & width, existing Te0 & T_shaping, and T_ratio_pedestal & T_ratio_core
-    tval_ions = IMAS.Hmode_profiles(Te[end] * par.T_ratio_pedestal, dd.summary.local.pedestal.t_e.value[] * par.T_ratio_pedestal, Te[1] * par.T_ratio_core, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, 1 - dd.summary.local.pedestal.position.rho_tor_norm[])
+    tval_ions = IMAS.Hmode_profiles(Te[end] * par.T_ratio_pedestal, Te_ped * par.T_ratio_pedestal, Te[1] * par.T_ratio_core, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, 1.0 - w_ped)
     if any(tval_ions .< 0)
-        throw("Ti profile is negative for T0=$(Te[1]*par.T_ratio_core) eV and Tped=$(dd.summary.local.pedestal.t_e.value[]*par.T_ratio_pedestal) eV")
+        throw("Ti profile is negative for T0=$(Te[1]*par.T_ratio_core) eV and Tped=$(Te_ped*par.T_ratio_pedestal) eV")
     end
     for ion in cp1d.ion
         ion.temperature = tval_ions
@@ -72,15 +74,16 @@ function _step(actor::ActorFixedProfiles)
     # update electron density profile
     # uses new pedestal height & width, existing ne0 & n_shaping 
     ne = cp1d.electrons.density
+    ne_ped = @ddtime(dd.summary.local.pedestal.n_e.value)
     # first store ratios of electron density to ion densities
     ion_fractions = zeros(Float64, length(cp1d.ion), length(ne))
     for (ii, ion) in enumerate(cp1d.ion)
         ion_fractions[ii, :] = ion.density_thermal ./ ne
     end
-    nval = IMAS.Hmode_profiles(ne[end], dd.summary.local.pedestal.n_e.value[], ne[1], length(cp1d.grid.rho_tor_norm), par.n_shaping, par.n_shaping, 1 - dd.summary.local.pedestal.position.rho_tor_norm[])
+    nval = IMAS.Hmode_profiles(ne[end], ne_ped, ne[1], length(cp1d.grid.rho_tor_norm), par.n_shaping, par.n_shaping, 1.0 - w_ped)
     cp1d.electrons.density = nval
     if any(nval .< 0)
-        throw("ne profile is negative for n0=$(ne[1]) /m^3 and Tped=$(dd.summary.local.pedestal.n_e.value[]) /m^3")
+        throw("ne profile is negative for n0=$(ne[1]) /m^3 and Tped=$(ne_ped) /m^3")
     end
 
     # update ion density profiles

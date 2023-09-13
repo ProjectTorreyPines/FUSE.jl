@@ -29,9 +29,9 @@ function workflow_simple_stationary_plasma(
     verbose=false)
 
     dd = IMAS.dd()
-    init_equilibrium(dd, ini, act) # already solves the equilibrium once
-    init_core_profiles(dd, ini, act)
-    init_core_sources(dd, ini, act)
+    init_equilibrium!(dd, ini, act) # already solves the equilibrium once
+    init_core_profiles!(dd, ini, act)
+    init_core_sources!(dd, ini, act)
 
     act.ActorTauenn.warn_nn_train_bounds = warn_nn_train_bounds
     act.ActorTauenn.transport_model = transport_model
@@ -142,12 +142,15 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String
         x_ylim = [minimum(abs, dataframe[:, x_name]) / 1e1, maximum(dataframe[:, x_name]) * 1e1]
     end
     dataframe = dataframe[DataFrames.completecases(dataframe), :]
+    dataframe = filter(row -> row["$(name)_fuse"] > 0.0, dataframe)
+
     R² = round(R_squared(dataframe[:, x_name], dataframe[:, y_name]), digits=2)
     MRE = round(100 * mean_relative_error(dataframe[:, x_name], dataframe[:, y_name]), digits=2)
-    p = plot(dataframe[:, x_name], dataframe[:, y_name], seriestype=:scatter, xaxis=:log, yaxis=:log, ylim=x_ylim, xlim=x_ylim, xlabel=x_name, ylabel=y_name, label="mean_relative_error = $MRE %")
+    p = plot(dataframe[:, x_name], dataframe[:, y_name], seriestype=:scatter, xaxis=:log, yaxis=:log, ylim=x_ylim, xlim=x_ylim, xlabel=x_name, ylabel=y_name, label="mean_relative_error = $MRE % for N = $(length(dataframe[:, x_name]))")
     plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]], linestyle=:dash, label="+50%")
     plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]], linestyle=:dash, label="-50%", legend=:topleft)
     display(plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]], label=nothing))
+
     println("R² = $(R²), mean_relative_error = $MRE)")
     return p
 end

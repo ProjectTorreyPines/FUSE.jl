@@ -25,6 +25,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
 
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
+        ini.time.simulation_start = 1.0
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         ini.equilibrium.boundary_from = :scalars
         ini.equilibrium.xpoints = :double
@@ -40,7 +41,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
 
     ini.requirements.power_electric_net = 200e6 #W
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.flattop_duration = 12 * 3600 # s
+    ini.requirements.flattop_duration = 12 * 3600.0 # s
 
     ini.core_profiles.bulk = :DT
     ini.core_profiles.rot_core = 0.0
@@ -119,7 +120,6 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
         gasc_buck_OH_TF!(ini.build.layers)
     end
 
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

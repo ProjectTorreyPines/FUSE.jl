@@ -22,6 +22,13 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
         ], "-", "Initialize run from")
 end
 
+Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :time
+    pulse_shedule_time_basis::Entry{AbstractRange{Float64}} = Entry{AbstractRange{Float64}}("s", "Time basis used to discretize the pulse schedule")
+    simulation_start::Entry{Float64} = Entry{Float64}("s", "Time at which the simulation starts"; default=0.0)
+end
+
 Base.@kwdef mutable struct FUSEparameters__material{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :material
@@ -40,6 +47,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     κ::Entry{T} = Entry{T}("-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
     δ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :triangularity)
     ζ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
+    𝚶::Entry{T} = Entry{T}("-", "Plasma ovality for up-down asymmetric plasmas"; default=0.0)
     pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure")
     ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
@@ -57,7 +65,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     greenwald_fraction_ped::Entry{T} = Entry{T}("-", "Pedestal electron density expressed as fraction of Greenwald density")
     ne_coreped_ratio::Entry{T} = Entry{T}("-", "Ratio of line average electron density to pedestal electron density")
     ne_ped::Entry{T} = Entry{T}("m^-3", "Pedestal electron density")
-    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ", default=0.05)
+    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05)
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio")
     T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     n_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
@@ -67,8 +75,8 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     bulk::Entry{Symbol} = Entry{Symbol}("-", "Bulk ion species")
     impurity::Entry{Symbol} = Entry{Symbol}("-", "Impurity ion species")
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction")
-    ejima::Entry{T} = Entry{T}("-", "Ejima coefficient")
-    polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction", default=0.0)
+    ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4)
+    polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction"; default=0.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where {T<:Real}
@@ -182,13 +190,13 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     βn::Entry{T} = Entry{T}(IMAS.requirements, :βn)
     coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin)
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin)
-
 end
 
 mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     _parent::WeakRef
     _name::Symbol
     general::FUSEparameters__general{T}
+    time::FUSEparameters__time{T}
     gasc::FUSEparameters__gasc{T}
     ods::FUSEparameters__ods{T}
     build::FUSEparameters__build{T}
@@ -211,6 +219,7 @@ function ParametersInits{T}() where {T<:Real}
         WeakRef(nothing),
         :ini,
         FUSEparameters__general{T}(),
+        FUSEparameters__time{T}(),
         FUSEparameters__gasc{T}(),
         FUSEparameters__ods{T}(),
         FUSEparameters__build{T}(),
@@ -246,4 +255,166 @@ end
 
 function json2ini(filename::AbstractString)
     return SimulationParameters.json2par(filename, ParametersInits())
+end
+
+@recipe function plot_ini(ini::ParametersAllInits)
+    N = 0
+    for par in SimulationParameters.leaves(ini)
+        if typeof(par.value) <: Function
+            N += 1
+        end
+    end
+
+    mxh = IMAS.MXH(ini)
+
+    if N > 0
+        layout := @layout [N + 1]
+
+        @series begin
+            label := ""
+            subplot := 1
+            aspectratio := :equal
+            mxh
+        end
+
+        k = 1
+        for par in SimulationParameters.leaves(ini)
+            if typeof(par.value) <: Function
+                k += 1
+                @series begin
+                    label := ""
+                    subplot := k
+                    par
+                end
+            end
+        end
+    end
+end
+
+"""
+    ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
+
+if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
+"""
+function ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
+    if !ismissing(equilibrium, :κ)
+        if equilibrium.κ < 1.0 && !ismissing(equilibrium, :ϵ)
+            return IMAS.elongation_limit(1.0 / equilibrium.ϵ) * equilibrium.κ
+        else
+            return equilibrium.κ
+        end
+    else
+        return missing
+    end
+end
+
+"""
+    ini_equilibrium_elongation_true(κ::T, ϵ::T) where {T<:Real}
+
+if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
+"""
+function ini_equilibrium_elongation_true(κ::T, ϵ::T) where {T<:Real}
+    if κ < 1.0
+        return IMAS.elongation_limit(1.0 / ϵ) * κ
+    else
+        return κ
+    end
+end
+
+"""
+    (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
+
+ini.equilibrium scalars from MXH parametrization
+"""
+function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
+    equilibrium.ϵ = mxh.ϵ
+    equilibrium.R0 = mxh.R0
+    equilibrium.Z0 = mxh.Z0
+    equilibrium.κ = mxh.κ
+    equilibrium.δ = sin(mxh.s[1])
+    equilibrium.ζ = -mxh.s[2]
+    equilibrium.𝚶 = mxh.c[1]
+end
+
+"""
+    IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
+
+return ini.equilibrium boundary expressed in MHX independenty of how the user input it
+"""
+function IMAS.MXH(ini::ParametersAllInits)
+    init_from = ini.general.init_from
+    if init_from == :ods
+        dd = IMAS.json2imas(ini.ods.filename)
+    else
+        dd = IMAS.dd()
+    end
+    return IMAS.MXH(ini, dd)
+end
+
+function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
+    init_from = ini.general.init_from
+    if init_from == :ods
+        if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
+            dd.global_time = ini.time.simulation_start
+            eqt = dd.equilibrium.time_slice[]
+            IMAS.flux_surfaces(eqt)
+            dd.equilibrium # to avoid GC?
+        else
+            init_from = :scalars
+        end
+    end
+
+    boundary_from = ini.equilibrium.boundary_from
+    if boundary_from == :ods
+        pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
+        pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+        mxh = IMAS.MXH(pr, pz, 4)
+
+    elseif boundary_from == :rz_points
+        # R,Z boundary from points
+        if ismissing(ini.equilibrium, :rz_points)
+            error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
+        end
+        pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101)
+        pr, pz = IMAS.reorder_flux_surface!(pr, pz)
+        mxh = IMAS.MXH(pr, pz, 4)
+
+    elseif boundary_from == :MXH_params
+        # R,Z boundary from MXH
+        if ismissing(ini.equilibrium, :MXH_params)
+            error("ini.equilibrium.boundary_from is set as $boundary_from but MXH_params wasn't set")
+        end
+        mxh = IMAS.MXH(ini.equilibrium.MXH_params)
+
+    elseif boundary_from == :scalars
+        # R,Z boundary from scalars
+        mxh = IMAS.MXH(
+            ini.equilibrium.R0,
+            ini.equilibrium.Z0,
+            ini.equilibrium.ϵ,
+            ini_equilibrium_elongation_true(ini.equilibrium),
+            0.0,
+            [ini.equilibrium.𝚶, 0.0],
+            [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
+    else
+        error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
+    end
+
+    return mxh
+end
+
+function n_xpoints(xpoints::Symbol)
+    if xpoints == :none
+        return 0
+    elseif xpoints == :lower
+        return -1
+    elseif xpoints == :upper
+        return 1
+    elseif xpoints == :double
+        return 2
+    else
+        error("xpoints can only be [:none, :lower, :upper, :double]")
+    end
 end

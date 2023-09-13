@@ -42,7 +42,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
     logging_actor_init(ActorFluxMatcher)
     par = par(kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:core_profiles)
     ActorFluxMatcher(dd, par, actor_ct, actor_ped)
 end
 
@@ -68,7 +68,7 @@ function _step(actor::ActorFluxMatcher)
         if par.optimizer_algorithm == :anderson
             res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=0, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
         elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init,factor=1e-2, show_trace=par.verbose, store_trace=par.verbose, iterations=par.max_iterations, ftol=1E-3)
+            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init, factor=1e-2, show_trace=par.verbose, store_trace=par.verbose, iterations=par.max_iterations, ftol=1E-3)
         end
         res
     finally
@@ -105,7 +105,7 @@ end
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
 function flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real}; z_history::Vector{Vector{Float64}}=Vector{Float64}[], err_history::Vector{Float64}=Float64[])
-    push!(z_history,z_profiles)
+    push!(z_history, z_profiles)
     z_profiles = z_profiles ./ 100
     dd = actor.dd
     par = actor.par
@@ -114,9 +114,11 @@ function flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<
     # evolve pedestal
     if par.evolve_pedestal
         # modify dd with new z_profiles
-        finalize(step(actor.actor_ped, beta_n_from_eq=true))
+        actor.actor_ped.par.βn_from = :equilibrium
+        finalize(step(actor.actor_ped))
         unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
-        finalize(step(actor.actor_ped, beta_n_from_eq=false))
+        actor.actor_ped.par.βn_from = :core_profiles
+        finalize(step(actor.actor_ped))
         unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
     else
         # modify dd with new z_profiles
@@ -151,7 +153,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     cp1d = dd.core_profiles.profiles_1d[]
-    total_sources = IMAS.total_sources(dd.core_sources, cp1d)
+    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:particles, :j_parallel, :momentum_tor, :energy])
     total_fluxes = IMAS.total_fluxes(dd.core_transport)
 
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
@@ -174,7 +176,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     if par.evolve_rotation == :flux_match
-        norm = 1E-2 #[kg / m s^2]
+        norm = 1E-3 #[kg / m s^2]
         target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.momentum_tor.flux[cf_gridpoints]
         append!(error, error_transformation!(target, output, norm))
@@ -328,7 +330,11 @@ Sets up the evolve_density dict to evolve only ne and keep the rest matching the
 function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
     dd_thermal = [Symbol(ion.label) for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_thermal) > 0.0]
     dd_fast = [Symbol(String(ion.label) * "_fast") for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_fast) > 0.0]
-    return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie=:DT)
+    quasi_neutrality_specie = :D
+    if :DT ∈ dd_thermal
+        quasi_neutrality_specie = :DT
+    end
+    return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie)
 end
 
 """

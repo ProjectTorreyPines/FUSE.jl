@@ -4,8 +4,12 @@
 Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:Solovev)
+    #== actor parameters ==#
+    model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
+    #== data flow parameters ==#
+    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    #== display and debugging parameters ==#
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
 end
 
@@ -21,8 +25,8 @@ end
 
 Provides a common interface to run multiple equilibrium actors
 """
-function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw...)
+function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
+    actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from, kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -32,11 +36,11 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :Solovev
-        eq_actor = ActorSolovev(dd, act.ActorSolovev)
+        eq_actor = ActorSolovev(dd, act.ActorSolovev; par.ip_from)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; par.ip_from)
     elseif par.model == :TEQUILA
-        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA)
+        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; par.ip_from)
     else
         error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
     end
@@ -110,7 +114,8 @@ function prepare(actor::ActorEquilibrium)
     ps = dd.pulse_schedule
     pc = ps.position_control
 
-    # freeze cp1d before wiping eqt
+    # freeze core_profiles before wiping eqt and get ip_target
+    ip_target = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
     cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[])
 
     # add/clear time-slice
@@ -119,7 +124,8 @@ function prepare(actor::ActorEquilibrium)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
 
     # scalar quantities
-    eqt.global_quantities.ip = @ddtime(ps.flux_control.i_plasma.reference.data)
+    eqt.global_quantities.ip = ip_target
+
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
     B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference.data) / R0
     @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)
@@ -136,10 +142,12 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
 
     # x-points
-    resize!(eqt.boundary.x_point, length(pc.x_point))
-    for k in eachindex(pc.x_point)
-        eqt.boundary.x_point[k].r = @ddtime(pc.x_point[k].r.reference.data)
-        eqt.boundary.x_point[k].z = @ddtime(pc.x_point[k].z.reference.data)
+    if length(getproperty(pc,:x_point,[])) >= 1
+        resize!(eqt.boundary.x_point, length(pc.x_point))
+        for k in eachindex(pc.x_point)
+            eqt.boundary.x_point[k].r = @ddtime(pc.x_point[k].r.reference.data)
+            eqt.boundary.x_point[k].z = @ddtime(pc.x_point[k].z.reference.data)
+        end
     end
 
     # set j_tor and pressure

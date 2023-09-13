@@ -4,19 +4,17 @@ const coils_turns_spacing = 0.03
 #  init pf_active IDS  #
 #= ================== =#
 """
-    init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
 
 Initialize `dd.pf_active` starting from `ini` and `act` parameters
 """
-function init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
     TimerOutputs.reset_timer!("init_pf_active")
     TimerOutputs.@timeit timer "init_pf_active" begin
         init_from = ini.general.init_from
 
         if init_from == :ods
-            dd1 = IMAS.json2imas(ini.ods.filename)
             if !ismissing(dd1.pf_active, :time) && length(dd1.pf_active.time) > 0
-                dd.global_time = max(dd.global_time, maximum(dd1.pf_active.time))
                 dd.pf_active = dd1.pf_active
             else
                 init_from = :scalars
@@ -31,7 +29,7 @@ function init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAll
             if ini.pf_active.n_coils_outside > 0
                 push!(n_coils, ini.pf_active.n_coils_outside)
             end
-            init_pf_active(dd.pf_active, dd.build, n_coils)
+            init_pf_active!(dd.pf_active, dd.build, n_coils)
         end
 
         coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
@@ -43,7 +41,7 @@ function init_pf_active(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAll
 end
 
 """
-    init_pf_active(
+    init_pf_active!(
         pf_active::IMAS.pf_active,
         bd::IMAS.build,
         n_coils::Vector{TI};
@@ -56,7 +54,7 @@ NOTE: n_coils
 * the first element in the array sets the number of coils in the OH
 * any subsequent element sets the number of coils for each of the vacuum regions in the build
 """
-function init_pf_active(
+function init_pf_active!(
     pf_active::IMAS.pf_active,
     bd::IMAS.build,
     n_coils::Vector{TI};

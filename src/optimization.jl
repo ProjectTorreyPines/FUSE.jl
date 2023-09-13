@@ -217,7 +217,7 @@ function optimization_engine(
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
-            save(savedir, save_dd ? dd : nothing, ini, act; timer=true, varinfo=true, freeze=true, overwrite_files=false)
+            save(savedir, save_dd ? dd : nothing, ini, act; timer=true, memtrace=true, freeze=true, overwrite_files=false)
         end
         # evaluate multiple objectives
         return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
@@ -226,7 +226,7 @@ function optimization_engine(
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
                 savedir = joinpath(save_folder, "$(generation)__f$(Dates.now())__$(getpid())")
-                save(savedir, nothing, ini, act, e; timer=true, varinfo=true, freeze=true, overwrite_files=false)                
+                save(savedir, nothing, ini, act, e; timer=true, memtrace=true, freeze=true, overwrite_files=false)                
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
             end

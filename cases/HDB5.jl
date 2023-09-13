@@ -50,14 +50,13 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     end
 
     # Core_profiles parameters
-    ini.core_profiles.greenwald_fraction = data_row[:NEL] * 1e-20 / (data_row[:IP] / 1e6 / (pi * data_row[:AMIN]^2))
-    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
+    ini.core_profiles.ne_ped = data_row[:NEL] / 1.4
     ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = data_row[:ZEFF]
-    ini.core_profiles.rot_core = 50e3
+    ini.core_profiles.rot_core = 10e3
     ini.core_profiles.ngrid = 201
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
@@ -71,7 +70,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
             ini.nbi.beam_energy = 100e3
         end
         ini.nbi.beam_mass = 2.0
-        ini.nbi.toroidal_angle = 0.0
+        ini.nbi.toroidal_angle = 18. / 360. * 2pi # 18 degrees assumed like DIII-D
     end
 
     if data_row[:PECRH] > 0
@@ -82,7 +81,6 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         ini.ic_antennas.power_launched = data_row[:PICRH]
     end
 
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 
@@ -98,7 +96,7 @@ function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::F
         return run_df[run_df.database_case.==database_case, :]
     end
 
-    signal_names = ["TOK", "SHOT", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
+    signal_names = ["TOK", "SHOT","TIME", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
     signal_names = vcat(signal_names, extra_signal_names)
     # subselect on the signals of interest
     run_df = run_df[:, signal_names]
