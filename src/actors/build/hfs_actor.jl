@@ -170,22 +170,6 @@ function _step(actor::ActorHFSsizing)
     step(actor.fluxswing_actor)
     step(actor.stresses_actor)
 
-    function check_technology()
-        @assert dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance) / dd.build.tf.critical_j * 100)%"
-        @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ par.j_tolerance) / dd.build.oh.critical_j * 100)%"
-        if !ismissing(cs.stress.vonmises, :pl)
-            @assert maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.pl "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.pl * 100)%"
-        end
-        @assert maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.oh "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.oh * 100)%"
-        @assert maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.tf "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.tf * 100)%"
-    end
-
-    function check_performance()
-        max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
-        @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
-        @assert dd.build.oh.flattop_duration .* (1.0 .+ par.j_tolerance * 0.9) > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
-    end
-
     function print_details()
         println(cost(Metaheuristics.minimizer(res)))
         print(res)
@@ -236,15 +220,27 @@ function _step(actor::ActorHFSsizing)
     end
 
     try
-        if par.error_on_technology
-            check_technology()
+        success = true
+        # technology checks
+        success = assert_conditions(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j, "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance) / dd.build.tf.critical_j * 100)%", par.error_on_technology, success)
+        success = assert_conditions(dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j, "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ par.j_tolerance) / dd.build.oh.critical_j * 100)%", par.error_on_technology, success)
+        if !ismissing(cs.stress.vonmises, :pl)
+            success = assert_conditions(maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.pl, "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.pl * 100)%", par.error_on_technology, success)
         end
-        if par.error_on_performance
-            check_performance()
-        end
+        success = assert_conditions(maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.oh, "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.oh * 100)%", par.error_on_technology, success)
+        success = assert_conditions(maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.tf, "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.tf * 100)%", par.error_on_technology, success)
+
+        # performance checks
+        max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
+        success = assert_conditions(target_B0 < max_B0, "TF cannot achieve requested B0 ($target_B0 [T] instead of $max_B0 [T])", par.error_on_performance, success)
+        success = assert_conditions(dd.build.oh.flattop_duration > dd.requirements.flattop_duration, "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) [s] insted of $(dd.requirements.flattop_duration) [s])", par.error_on_performance, success)
+
+        @assert success "HFS sizing cannot be done within constraints"
+
         if par.verbose
             print_details()
         end
+
     catch e
         print_details()
         plot(old_build)
@@ -254,4 +250,11 @@ function _step(actor::ActorHFSsizing)
     end
 
     return actor
+end
+
+function assert_conditions(passing_condition::Bool, message::String, do_raise::Bool, success::Bool)
+    if !passing_condition
+        @warn message
+    end
+    return success && !(do_raise && !passing_condition)
 end
