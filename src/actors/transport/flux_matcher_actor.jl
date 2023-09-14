@@ -56,7 +56,7 @@ function _step(actor::ActorFluxMatcher)
     par = actor.par
 
     if par.do_plot
-        p = plot(dd.core_profiles, label="  before")
+        cp1d_before = deepcopy(dd.core_profiles.profiles_1d[])
     end
 
     z_init = pack_z_profiles(dd, par) .* 100
@@ -92,8 +92,21 @@ function _step(actor::ActorFluxMatcher)
     """
 
     if par.do_plot
-        display(plot(dd.core_transport))
-        display(plot!(p, dd.core_profiles, label="  after"))
+        cp1d = dd.core_profiles.profiles_1d[]
+        N_channels = Int(length(z_init) / length(par.rho_transport))
+        p = plot(layout=(N_channels, 2), size=(1000, 1000), xguidefontsize=15, yguidefontsize=14, legendfontsize=12,
+            tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern")
+
+        titels = ["Electron temperature", "Ion temperature", "Ion temperature", "Rotation frequency tor sonic"]
+        to_plot_after = [(cp1d.electrons, :temperature), (cp1d.ion[1], :temperature), (cp1d.electrons, :density_thermal), (cp1d, :rotation_frequency_tor_sonic)]
+        to_plot_before = [(cp1d_before.electrons, :temperature), (cp1d_before.ion[1], :temperature), (cp1d_before.electrons, :density_thermal), (cp1d_before, :rotation_frequency_tor_sonic)]
+
+        for sub in 1:N_channels
+            plot!(dd.core_transport; only=sub, subplot=2 * sub - 1, aspect=:equal)
+            plot!(to_plot_before[sub][1], to_plot_before[sub][2]; subplot=2 * sub, label="before", linestyle=:dash, color=:black)
+            plot!(to_plot_after[sub][1], to_plot_after[sub][2]; subplot=2 * sub, label="after", title=titels[sub], aspect=:equal)
+        end
+        display(p)
     end
 
     return actor
