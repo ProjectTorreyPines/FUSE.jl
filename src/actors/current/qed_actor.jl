@@ -68,7 +68,7 @@ function _step(actor::ActorQED)
         t1 = dd.global_time + par.Δt
         δt = par.Δt / par.Nt
 
-        if true
+        if false
             # staircase approach to track current ramps: one QED diffuse call for each time step
             for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
                 if par.solve_for == :ip
