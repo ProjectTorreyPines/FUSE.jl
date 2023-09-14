@@ -13,9 +13,9 @@ uuid = "f4a0d185-1024-41e7-8ef7-3196bb2f6549"
 version = "0.1.0"
 
 [[deps.ADTypes]]
-git-tree-sha1 = "d68758475ff90600488eb975b5ac222709a7dd6f"
+git-tree-sha1 = "f2b16fe1a3491b295105cae080c2a5f77a842718"
 uuid = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
-version = "0.2.2"
+version = "0.2.3"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -88,9 +88,9 @@ version = "0.1.29"
 
 [[deps.ArrayLayouts]]
 deps = ["FillArrays", "LinearAlgebra"]
-git-tree-sha1 = "a350eb3cd7833f3544f2858c709ce1b8882842c6"
+git-tree-sha1 = "0d61921af2799487b80453a44abb57db7a0c1381"
 uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
-version = "1.3.1"
+version = "1.4.1"
 weakdeps = ["SparseArrays"]
 
     [deps.ArrayLayouts.extensions]
@@ -913,7 +913,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "fb7965f7472e0b4cb21101d16952994b9ea750b4"
+git-tree-sha1 = "3741b9119260d563b45129dc85fbf1595528690e"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -921,7 +921,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "Printf"]
-git-tree-sha1 = "be57f0e04a696b156ebdbf7586d811192075bfb5"
+git-tree-sha1 = "96870d59ba7bb6161de2e4370900cbf5124f8823"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1053,9 +1053,9 @@ version = "0.2.4"
 
 [[deps.KLU]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
-git-tree-sha1 = "764164ed65c30738750965d55652db9c94c59bfe"
+git-tree-sha1 = "884c2968c2e8e7e6bf5956af88cb46aa745c854b"
 uuid = "ef3ab10e-7fda-4108-b977-705223b18434"
-version = "0.4.0"
+version = "0.4.1"
 
 [[deps.KernelAbstractions]]
 deps = ["Adapt", "Atomix", "InteractiveUtils", "LinearAlgebra", "MacroTools", "PrecompileTools", "Requires", "SparseArrays", "StaticArrays", "UUIDs", "UnsafeAtomics", "UnsafeAtomicsLLVM"]
@@ -1422,9 +1422,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "TransformsBase"]
-git-tree-sha1 = "30be7bfcd536dd05fbf7ae05c7911753ed7ffee0"
+git-tree-sha1 = "f16d0b5be3857477675c9d5096662f977a5ae83a"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.35.4"
+version = "0.35.6"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
@@ -1625,9 +1625,9 @@ version = "1.4.1"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "bbb5c2115d63c2f1451cb70e5ef75e8fe4707019"
+git-tree-sha1 = "a12e56c72edee3ce6b96667745e6cbbe5498f200"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "1.1.22+0"
+version = "1.1.23+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -1827,9 +1827,9 @@ version = "0.1.4"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "ae36206463b2395804f2787ffe172f44452b538d"
+git-tree-sha1 = "00099623ffee15972c16111bcf84c58a0051257c"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.8.0"
+version = "1.9.0"
 
 [[deps.QED]]
 deps = ["ArgParse", "BandedMatrices", "FiniteElementHermite", "ForwardDiff", "JSON", "LinearAlgebra", "Requires"]
@@ -1895,17 +1895,19 @@ version = "0.6.12"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "DocStringExtensions", "GPUArraysCore", "IteratorInterfaceExtensions", "LinearAlgebra", "RecipesBase", "Requires", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "5f834446731ba29d1d68d91fddf8f9593b68b7a2"
+git-tree-sha1 = "9dbbf698bdd943fbf380f81bb4c365bc76287dc3"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "2.38.8"
+version = "2.38.9"
 
     [deps.RecursiveArrayTools.extensions]
     RecursiveArrayToolsMeasurementsExt = "Measurements"
+    RecursiveArrayToolsMonteCarloMeasurementsExt = "MonteCarloMeasurements"
     RecursiveArrayToolsTrackerExt = "Tracker"
     RecursiveArrayToolsZygoteExt = "Zygote"
 
     [deps.RecursiveArrayTools.weakdeps]
     Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
+    MonteCarloMeasurements = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
     Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
     Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
@@ -2243,7 +2245,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "347caa34deab2e54ecca93c546818f9f701aa9a1"
+git-tree-sha1 = "fd33b943c057b378b4a88be1cb8d38c4bbec42a5"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
