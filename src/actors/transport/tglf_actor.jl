@@ -54,6 +54,11 @@ function _step(actor::ActorTGLF)
     ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
         actor.input_tglfs[k] = TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
+        if par.nn
+            # TGLF-NN has some difficulty with the sign of rotation / shear
+            actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
+            actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
+        end
     end
 
     if !isempty(par.user_specified_model)
