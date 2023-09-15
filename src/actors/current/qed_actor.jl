@@ -12,6 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where 
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
+    vloop_from::Switch{Symbol} = switch_get_from(:vloop)
 end
 
 mutable struct ActorQED{D,P} <: PlasmaAbstractActor
@@ -35,8 +36,8 @@ Evolves the plasma current using the QED current diffusion solver.
 !!! note 
     Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`
 """
-function ActorQED(dd::IMAS.dd, act::ParametersAllActors; ip_from=:pulse_schedule, kw...)
-    actor = ActorQED(dd, act.ActorQED; ip_from, kw...)
+function ActorQED(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles, vloop_from=:core_profiles, kw...)
+    actor = ActorQED(dd, act.ActorQED; ip_from, vloop_from, kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -59,8 +60,13 @@ function _step(actor::ActorQED)
     actor.QO = qed_init_from_imas(eqt, cp1d)
 
     if par.Δt == Inf
-        Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
-        Vedge = nothing
+        if par.solve_for == :ip
+            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+            Vedge = nothing
+        else
+            Ip = nothing
+            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
+        end
         QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
 
     else
@@ -75,7 +81,8 @@ function _step(actor::ActorQED)
                     Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tnow)
                     Vedge = nothing
                 else
-                    error("Vloop advance not supported")
+                    Ip = nothing
+                    Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=tnow)
                 end
                 actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, 1; Vedge, Ip)
             end
@@ -84,9 +91,10 @@ function _step(actor::ActorQED)
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=t0)
                 Vedge = nothing
             else
-                error("Vloop advance not supported")
+                Ip = nothing
+                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=t0)
             end
-            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[t1]), par.Δt, par.Nt; Vedge, Ip)
+            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[t0]), par.Δt, par.Nt; Vedge, Ip)
         end
     end
 
