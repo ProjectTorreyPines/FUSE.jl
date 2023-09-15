@@ -23,6 +23,7 @@ end
 const ObjectiveFunctionsLibrary = Dict{Symbol,ObjectiveFunction}()
 function update_ObjectiveFunctionsLibrary!()
     empty!(ObjectiveFunctionsLibrary)
+    #! format: off
     ObjectiveFunction(:min_levelized_CoE, "\$/kWh", dd -> dd.costing.levelized_CoE, -Inf)
     ObjectiveFunction(:min_log10_levelized_CoE, "log₁₀(\$/kW)", dd -> log10(dd.costing.levelized_CoE), -Inf)
     ObjectiveFunction(:min_capital_cost, "\$B", dd -> dd.costing.cost_direct_capital.cost / 1E3, -Inf)
@@ -34,6 +35,7 @@ function update_ObjectiveFunctionsLibrary!()
     ObjectiveFunction(:max_log10_flattop, "log₁₀(hours)", dd -> log10(dd.build.oh.flattop_duration / 3600.0), Inf)
     ObjectiveFunction(:min_βn, "", dd -> dd.equilibrium.time_slice[].global_quantities.beta_normal, -Inf)
     ObjectiveFunction(:min_R0, "m", dd -> dd.equilibrium.time_slice[].boundary.geometric_axis.r, -Inf)
+    #! format: on
     return ObjectiveFunctionsLibrary
 end
 update_ObjectiveFunctionsLibrary!()
@@ -80,7 +82,7 @@ function Base.show(io::IO, f::ObjectiveFunction)
     printstyled(io, f.name; bold=true, color=:blue)
     print(io, " →")
     print(io, " $(f.target)")
-    print(io, " [$(f.units)]")
+    return print(io, " [$(f.units)]")
 end
 
 function Base.show(io::IO, x::MIME"text/plain", objfs::AbstractDict{Symbol,ObjectiveFunction})
@@ -118,6 +120,7 @@ end
 const ConstraintFunctionsLibrary = Dict{Symbol,ConstraintFunction}() #s
 function update_ConstraintFunctionsLibrary!()
     empty!(ConstraintFunctionsLibrary)
+    #! format: off
     ConstraintFunction(:required_power_electric_net, "%", dd -> abs(@ddtime(dd.balance_of_plant.power_electric_net) - dd.requirements.power_electric_net) / dd.requirements.power_electric_net, ==, 0.0, 0.01) # relative tolerance
     ConstraintFunction(:min_required_power_electric_net, "%", dd -> (@ddtime(dd.balance_of_plant.power_electric_net) - dd.requirements.power_electric_net) / dd.requirements.power_electric_net, >, 0.0)
     ConstraintFunction(:required_flattop, "%", dd -> abs(dd.build.oh.flattop_duration - dd.requirements.flattop_duration) / dd.requirements.flattop_duration, ==, 0.0, 0.01) # relative tolerance
@@ -134,6 +137,7 @@ function update_ConstraintFunctionsLibrary!()
     ConstraintFunction(:max_tf_stress, "%", dd -> dd.solid_mechanics.center_stack.properties.yield_strength.tf / maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) - dd.requirements.coil_stress_margin, >, 0.0)
     ConstraintFunction(:max_oh_stress, "%", dd -> dd.solid_mechanics.center_stack.properties.yield_strength.oh / maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) - dd.requirements.coil_stress_margin, >, 0.0)
     ConstraintFunction(:max_hds03, "%", dd -> (@ddtime(dd.summary.global_quantities.tau_energy.value)/IMAS.tau_e_ds03(dd) - dd.requirements.hds03)/dd.requirements.hds03, <, 0.0)
+    #! format: on
     return ConstraintFunctionsLibrary
 end
 update_ConstraintFunctionsLibrary!()
@@ -163,7 +167,7 @@ function Base.show(io::IO, cnst::ConstraintFunction)
             print(io, " ± $(cnst.tolerance * cnst.limit)")
         end
     end
-    print(io, " [$(cnst.units)]")
+    return print(io, " [$(cnst.units)]")
 end
 
 function Base.show(io::IO, x::MIME"text/plain", cnsts::AbstractDict{Symbol,ConstraintFunction})
@@ -226,7 +230,7 @@ function optimization_engine(
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
                 savedir = joinpath(save_folder, "$(generation)__f$(Dates.now())__$(getpid())")
-                save(savedir, nothing, ini, act, e; timer=true, memtrace=true, freeze=true, overwrite_files=false)                
+                save(savedir, nothing, ini, act, e; timer=true, memtrace=true, freeze=true, overwrite_files=false)
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
             end
@@ -263,7 +267,10 @@ function optimization_engine(
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
-    tmp = Distributed.pmap(x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder, p.counter, save_dd), [X[k, :] for k in 1:size(X)[1]])
+    tmp = Distributed.pmap(
+        x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder, p.counter, save_dd),
+        [X[k, :] for k in 1:size(X)[1]]
+    )
     F = zeros(size(X)[1], length(tmp[1][1]))
     G = zeros(size(X)[1], max(length(tmp[1][2]), 1))
     H = zeros(size(X)[1], max(length(tmp[1][3]), 1))

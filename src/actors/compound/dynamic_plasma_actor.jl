@@ -66,7 +66,7 @@ function _step(actor::ActorDynamicPlasma)
     ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
     cp1d = dd.core_profiles.profiles_1d[]
     η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
-    fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg*0.5, η_avg * 0.2, η_avg*100))
+    fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 0.1, η_avg * 0.1, 0.0))
 
     prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
     backup_actor_logging = logging()[:actors]

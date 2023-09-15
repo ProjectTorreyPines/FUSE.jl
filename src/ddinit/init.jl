@@ -39,7 +39,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
             if do_plot
                 display(plot(dd.equilibrium.time_slice[end]))
                 plot(dd.equilibrium.time_slice[end]; cx=true, show_x_points=true)
-                display(plot!(dd.equilibrium.time_slice[1].boundary, label="Field null"))
+                display(plot!(dd.equilibrium.time_slice[1].boundary; label="Field null"))
             end
         end
 
@@ -47,16 +47,17 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         if !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.core_profiles)
             init_core_profiles!(dd, ini, act, dd1)
             if do_plot
-                display(plot(dd.core_profiles, legend=:bottomleft))
+                display(plot(dd.core_profiles; legend=:bottomleft))
             end
         end
 
         # initialize core sources
-        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || !isempty(dd1.core_sources)
+        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) ||
+           !ismissing(ini.nbi, :power_launched) || !isempty(dd1.core_sources)
             init_core_sources!(dd, ini, act, dd1)
             if do_plot
-                display(plot(dd.core_sources, legend=:topright))
-                display(plot(dd.core_sources, legend=:bottomright; integrated=true))
+                display(plot(dd.core_sources; legend=:topright))
+                display(plot(dd.core_sources; legend=:bottomright, integrated=true))
             end
         end
 

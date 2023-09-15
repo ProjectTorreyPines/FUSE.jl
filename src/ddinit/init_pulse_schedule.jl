@@ -28,7 +28,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
 
             # R0 should not be time dependent for definition of B0
             if !isempty(dd.build.layer)
-                plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
+                plasma = IMAS.get_build_layer(dd.build.layer; type=_plasma_)
                 R0 = (plasma.R_start + plasma.R_end) / 2.0
             elseif typeof(getfield(ini.equilibrium, :R0).value) <: Function
                 error("`ini.equilibrium.R0` should not be time dependent")
