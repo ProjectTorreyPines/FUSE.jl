@@ -153,7 +153,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     cp1d = dd.core_profiles.profiles_1d[]
-    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:particles, :j_parallel, :momentum_tor, :energy])
+    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
     total_fluxes = IMAS.total_fluxes(dd.core_transport)
 
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
