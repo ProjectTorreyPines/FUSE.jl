@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where 
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
 mutable struct ActorQED{D,P} <: PlasmaAbstractActor
