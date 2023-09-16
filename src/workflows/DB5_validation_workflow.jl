@@ -76,7 +76,6 @@ function workflow_HDB5_validation(;
             [
                 run_df[run_df.TOK.==tok, :][
                     Random.shuffle(1:DataFrames.nrow(run_df[run_df.TOK.==tok, :]))[1:minimum([n_samples_per_tokamak, length(run_df[run_df.TOK.==tok, :][:, "TOK"])])],
-                    :
                 ] for tok in tok_list
             ]
         )
