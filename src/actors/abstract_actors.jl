@@ -17,21 +17,23 @@ function name(typeof_actor::Type{<:AbstractActor})
 end
 
 #= =============== =#
-#  Switch_get_from  #
+#  switch_get_from  #
 #= =============== =#
 """
-    Switch_get_from(quantity::Symbol)
+    switch_get_from(quantity::Symbol)
 
 Switch to pick form which IDS `quantity` comes from
 """
-function Switch_get_from(quantity::Symbol)::Switch{Union{Symbol,Missing}}
+function switch_get_from(quantity::Symbol)::Switch{Symbol}
     txt = "Take $quantity from this IDS"
     if quantity == :ip
-        swch = Switch{Union{Symbol,Missing}}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+    elseif quantity == :vloop
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
     elseif quantity == :βn
-        swch = Switch{Union{Symbol,Missing}}([:core_profiles, :equilibrium], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt)
     else
-        error("`$quantity` not supported in Switch_get_from()")
+        error("`$quantity` not supported in switch_get_from()")
     end
     return swch
 end

@@ -6,26 +6,26 @@ Expands the subtypes into struct members
 macro insert_subtype_members(T)
     expr = Expr(:block)
     for s in subtypes(eval(T))
-        mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__"=>""))
-        constraint = Symbol(replace(String(Symbol(s)), "FUSE."=>""))
+        mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__" => ""))
+        constraint = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
         push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(constraint), esc(:T))))
     end
-    expr
+    return expr
 end
 
 """
     @insert_constructor_members T
 
 Returns a tuple of all the evaluated cosntructors for the
-subtypes we can then splat into the larger constructor 
+subtypes we can then splat into the larger constructor
 """
 macro insert_constructor_members(T)
     expr = Expr(:tuple)
     for s in subtypes(eval(T))
-        mem = Symbol(replace(String(Symbol(s)), "FUSE."=>""))
+        mem = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
         push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
     end
-    expr
+    return expr
 end
 
 

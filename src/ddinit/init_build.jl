@@ -5,13 +5,26 @@ import OrderedCollections
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _triple_arc_, _miller_, _square_miller_, _spline_, _silo_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _triple_arc_,
+    _miller_, _square_miller_, _spline_, _silo_
 
 #= ========================================== =#
 #  Visualization of IMAS.build.layer as table  #
 #= ========================================== =#
 function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
-    df = DataFrames.DataFrame(group=String[], details=String[], type=String[], ΔR=Float64[], R_start=Float64[], R_end=Float64[], material=String[], area=Float64[], volume=Float64[])
+
+    df = DataFrames.DataFrame(;
+        group=String[],
+        details=String[],
+        type=String[],
+        ΔR=Float64[],
+        R_start=Float64[],
+        R_end=Float64[],
+        material=String[],
+        area=Float64[],
+        volume=Float64[]
+    )
+
     for layer in layers
         group = replace(string(BuildLayerSide(layer.fs)), "_" => "")
         type = replace(string(BuildLayerType(layer.type)), "_" => "")
@@ -26,6 +39,7 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
         volume = getproperty(layer, :volume, NaN)
         push!(df, [group, details, type, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume])
     end
+
     return df
 end
 
@@ -128,7 +142,7 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         end
 
         # set the TF shape
-        tf_to_plasma = IMAS.get_build_indexes(dd.build.layer, fs=_hfs_)
+        tf_to_plasma = IMAS.get_build_indexes(dd.build.layer; fs=_hfs_)
         plama_to_tf = collect(reverse(tf_to_plasma))
         # set all shapes to convex hull by default
         for k in tf_to_plasma
@@ -184,14 +198,15 @@ end
 Initialize build IDS based on center stack layers (thicknesses)
 
 NOTE: layer[:].type and layer[:].material follows from naming of layers
-*   0 ...gap... : vacuum
-*   1 OH: ohmic coil
-*   2 TF: toroidal field coil
-*   6 vessel...: vacuum vessel
-*   3 shield...: neutron shield
-*   4 blanket...: neutron blanket
-*   5 wall....: first wall
-*  -1 ...plasma...: 
+
+  - 0 ...gap... : vacuum
+  - 1 OH: ohmic coil
+  - 2 TF: toroidal field coil
+  - 6 vessel...: vacuum vessel
+  - 3 shield...: neutron shield
+  - 4 blanket...: neutron blanket
+  - 5 wall....: first wall
+  - -1 ...plasma...:
 
 layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
 
@@ -254,7 +269,7 @@ end
 
 function init_build!(bd::IMAS.build, layers::AbstractDict)
     nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
-    init_build!(bd; nt...)
+    return init_build!(bd; nt...)
 end
 
 """
@@ -399,7 +414,7 @@ function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
     mechanical_technology(dd, :tf)
 
     #pf
-    coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+    return coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
 end
 
 function mechanical_technology(dd::IMAS.dd, what::Symbol)
@@ -410,5 +425,5 @@ function mechanical_technology(dd::IMAS.dd, what::Symbol)
     end
     setproperty!(dd.solid_mechanics.center_stack.properties.yield_strength, what, material.yield_strength)
     setproperty!(dd.solid_mechanics.center_stack.properties.poisson_ratio, what, material.poisson_ratio)
-    setproperty!(dd.solid_mechanics.center_stack.properties.young_modulus, what, material.young_modulus)
+    return setproperty!(dd.solid_mechanics.center_stack.properties.young_modulus, what, material.young_modulus)
 end

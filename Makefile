@@ -456,6 +456,10 @@ rm_manifests:
 dd:
 	julia ../IMASDD/src/generate_dd.jl
 
+# copy .JuliaFormatter.toml to all dependencies
+formatter:
+	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
+
 # generate milestones for all the FUSE packages
 milestones:
     # NOTE, to get this running: `gh auth login` then `gh extension install valeriobelli/gh-milestone`

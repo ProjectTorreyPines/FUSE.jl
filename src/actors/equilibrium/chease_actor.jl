@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor whe
     clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
     rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
 mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor

@@ -13,13 +13,13 @@ const timer = TimerOutputs.TimerOutput()
 function TimerOutputs.reset_timer!(to::TimerOutputs.TimerOutput, section::String)
     pop!(to.inner_timers, section, nothing)
     to.prev_timer_label = ""
-    to.prev_timer = nothing
+    return to.prev_timer = nothing
 end
 
 function TimerOutputs.reset_timer!(section::String)
     pop!(timer.inner_timers, section, nothing)
     timer.prev_timer_label = ""
-    timer.prev_timer = nothing
+    return timer.prev_timer = nothing
 end
 
 # ====== #
@@ -32,24 +32,27 @@ end
 const memtrace = MemTrace()
 
 function memory_time_tag(txt::String)
-    push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
+    return push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
 end
 
 """
     plot_memtrace(memtrace::MemTrace, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
 
-Plot the memory usage over time from a `MemTrace` object. 
+Plot the memory usage over time from a `MemTrace` object.
 
 # Arguments
-- `n_big_jumps`: number of significant memory jumps to highlight in the plot.
-- `ignore_first_seconds`: number of initial seconds to ignore in the plot. Memory usage will be plotted relative to the memory after this cutoff. Default is `0` (no seconds are ignored).
+
+  - `n_big_jumps`: number of significant memory jumps to highlight in the plot.
+  - `ignore_first_seconds`: number of initial seconds to ignore in the plot. Memory usage will be plotted relative to the memory after this cutoff. Default is `0` (no seconds are ignored).
 
 # Returns
+
 A plot with the following characteristics:
-- Time is displayed on the x-axis as delta seconds since the first recorded time (after ignoring the specified initial seconds).
-- Memory usage is displayed on the y-axis in MB.
-- Memory usage is shown as a scatter plot.
-- The `n_big_jumps` largest jumps in memory are highlighted in red with annotations indicating the action causing each jump.
+
+  - Time is displayed on the x-axis as delta seconds since the first recorded time (after ignoring the specified initial seconds).
+  - Memory usage is displayed on the y-axis in MB.
+  - Memory usage is shown as a scatter plot.
+  - The `n_big_jumps` largest jumps in memory are highlighted in red with annotations indicating the action causing each jump.
 """
 @recipe function plot_memtrace(memtrace::MemTrace, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
     if isempty(memtrace.data)
@@ -116,11 +119,11 @@ to those matching `pattern`.
 
 The memory consumption estimate is an approximate lower bound on the size of the internal structure of the object.
 
-- `all` : also list non-exported objects defined in the module, deprecated objects, and compiler-generated objects.
-- `imported` : also list objects explicitly imported from other modules.
-- `recursive` : recursively include objects in sub-modules, observing the same settings in each.
-- `sortby` : the column to sort results by. Options are `:name` (default), `:size`, and `:summary`.
-- `minsize` : only includes objects with size at least `minsize` bytes. Defaults to `0`.
+  - `all` : also list non-exported objects defined in the module, deprecated objects, and compiler-generated objects.
+  - `imported` : also list objects explicitly imported from other modules.
+  - `recursive` : recursively include objects in sub-modules, observing the same settings in each.
+  - `sortby` : the column to sort results by. Options are `:name` (default), `:size`, and `:summary`.
+  - `minsize` : only includes objects with size at least `minsize` bytes. Defaults to `0`.
 
 The output of `varinfo` is intended for display purposes only.  See also [`names`](@ref) to get an array of symbols defined in
 a module, which is suitable for more general manipulations.
@@ -128,7 +131,7 @@ a module, which is suitable for more general manipulations.
 function varinfo(m::Module=Main, pattern::Regex=r""; all::Bool=false, imported::Bool=false, recursive::Bool=false, sortby::Symbol=:name, minsize::Int=0)
     sortby in (:name, :size, :summary) || throw(ArgumentError("Unrecognized `sortby` value `:$sortby`. Possible options are `:name`, `:size`, and `:summary`"))
     rows = Vector{Any}[]
-    workqueue = [(m, ""),]
+    workqueue = [(m, "")]
     parents = Module[m]
     while !isempty(workqueue)
         m2, prep = popfirst!(workqueue)
@@ -174,7 +177,7 @@ end
 # ==== #
 function unwrap(v, inplace=false)
     unwrapped = inplace ? v : copy(v)
-    for i = 2:length(v)
+    for i in 2:length(v)
         while (unwrapped[i] - unwrapped[i-1] >= pi)
             unwrapped[i] -= 2pi
         end
@@ -199,7 +202,7 @@ Returns scalars and vectors as vectors of the same lengths
 For example:
 
     same_length_vectors(1, [2], [3,3,6], [4,4,4,4,4,4])
-    
+
     4-element Vector{Vector{Int64}}:
     [1, 1, 1, 1, 1, 1]
     [2, 2, 2, 2, 2, 2]
@@ -216,7 +219,7 @@ function same_length_vectors(args...)
     end
     n = maximum(map(length2, args))
     args = collect(map(x -> isa(x, Vector) ? x : [x], args))
-    args = map(x -> vcat([x for k = 1:n]...)[1:n], args)
+    return args = map(x -> vcat([x for k in 1:n]...)[1:n], args)
 end
 
 """
@@ -318,7 +321,14 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
             np += 1
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if Distributed.nprocs() < np
-                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), partition="ga-ird", exclusive="", topology=:master_worker, cpus_per_task=2, time="99:99:99")
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    partition="ga-ird",
+                    exclusive="",
+                    topology=:master_worker,
+                    cpus_per_task=2,
+                    time="99:99:99"
+                )
             end
         else
             error("Not running on omega cluster")
@@ -333,7 +343,7 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
             np += 1
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if Distributed.nprocs() < np
-                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), exclusive="", topology=:master_worker, kw...)
+                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()); exclusive="", topology=:master_worker, kw...)
             end
         else
             error("Not running on saga cluster")
@@ -345,11 +355,11 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
             np = min(np, nprocs_max)
         end
         if Distributed.nprocs() < np
-            Distributed.addprocs(np - Distributed.nprocs(), topology=:master_worker)
+            Distributed.addprocs(np - Distributed.nprocs(); topology=:master_worker)
         end
 
     else
         error("Cluster $cluster is unknown. Add it to the FUSE.parallel_environment")
     end
-    println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
+    return println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
 end

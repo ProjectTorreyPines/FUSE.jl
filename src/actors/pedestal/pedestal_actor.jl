@@ -12,8 +12,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
-    βn_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:βn)
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
+    βn_from::Switch{Symbol} = switch_get_from(:βn)
     update_core_profiles::Entry{Bool} = Entry{Bool}("-", "Update core_profiles"; default=true)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
