@@ -63,7 +63,7 @@ ini_opt.equilibrium.R0 = ini.equilibrium.R0 ↔ [ini.equilibrium.R0, 10.0];
 
 ```@julia
 # FUSE comes with a library of objective functions
-OFL = deepcopy(FUSE.ObjectiveFunctionsLibrary)
+OFL = deepcopy(FUSE.ObjectivesFunctionsLibrary)
 OFL[:max_power_electric_net].target = 200.0
 objective_functions = [OFL[:max_power_electric_net], OFL[:min_log10_levelized_CoE], OFL[:max_log10_flattop]]
 
@@ -166,7 +166,7 @@ scatter(x, y, marker_z=c ,xlabel=xname, ylabel=yname, colorbar_title=cname, mark
 # Here `@everywhere` is needed to make all processes aware of the custom function
 @everywhere function workflow_custom(ini, act)
     FUSE.init(dd, ini, act)
-    FUSE.ActorStationaryPlasma(dd, act)
+    FUSE.ActorEquilibriumTransport(dd, act)
     FUSE.ActorCXbuild(dd, act)
     return dd
 end
