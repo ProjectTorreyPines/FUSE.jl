@@ -45,6 +45,12 @@ Base.@kwdef mutable struct PFcoilsOptTrace
     cost_total::Vector{Float64} = Float64[]
 end
 
+function Base.empty!(trace::PFcoilsOptTrace)
+    for field in fieldnames(typeof(trace))
+        empty!(getfield(trace, field))
+    end
+end
+
 mutable struct ActorPFcoilsOpt{D,P} <: ReactorAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFcoilsOpt{P}
@@ -115,9 +121,6 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw..
     logging_actor_init(ActorPFcoilsOpt)
     par = par(kw...)
 
-    eq_in = dd.equilibrium
-    eq_out = deepcopy(eq_in)
-    par.symmetric
     λ_regularize = 1E-3
     trace = PFcoilsOptTrace()
 
@@ -125,7 +128,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw..
     n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
     init_pf_active!(dd.pf_active, dd.build, n_coils)
 
-    return ActorPFcoilsOpt(dd, par, eq_in, eq_out, λ_regularize, trace)
+    return ActorPFcoilsOpt(dd, par, dd.equilibrium, dd.equilibrium, λ_regularize, trace)
 end
 
 """
@@ -136,6 +139,11 @@ Optimize coil currents and positions to produce sets of equilibria while minimiz
 function _step(actor::ActorPFcoilsOpt)
     dd = actor.dd
     par = actor.par
+
+    # reset pf_active to work on a possibly updated equilibrium
+    empty!(actor.trace)
+    actor.eq_in = dd.equilibrium
+    actor.eq_out = IMAS.lazycopy(dd.equilibrium)
 
     # Get coils organized by their function, and initialize
     fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor, par.optimization_scheme)
@@ -193,7 +201,7 @@ function _finalize(actor::ActorPFcoilsOpt)
     end
 
     # update equilibrium
-    for time_index in 1:length(actor.eq_in.time_slice)
+    for time_index in eachindex(actor.eq_in.time_slice)
         if ismissing(actor.eq_in.time_slice[time_index].global_quantities, :ip)
             continue
         end
@@ -521,7 +529,7 @@ function optimize_coils_rail(
 
     fixed_eqs = []
     weights = []
-    for time_index in 1:length(eq.time_slice)
+    for time_index in eachindex(eq.time_slice)
         eqt = eq.time_slice[time_index]
         # field nulls
         if ismissing(eqt.global_quantities, :ip)
@@ -971,7 +979,7 @@ Attributes:
         for k in 1:nparams
             @series begin
                 label --> "#$k"
-                x, [getfield(trace, what)[i][k] for i in 1:length(trace.cost_total)][start_at:end]
+                x, [getfield(trace, what)[i][k] for i in eachindex(trace.cost_total)][start_at:end]
             end
         end
 
