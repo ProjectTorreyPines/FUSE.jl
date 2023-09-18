@@ -944,7 +944,7 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         empty!(mxhb.ZX)
         mxhb.r_boundary = mr
         mxhb.z_boundary = mz
-        return mxh
+        return mxhb
     end
 
     R0 = mxhb.mxh.R0
