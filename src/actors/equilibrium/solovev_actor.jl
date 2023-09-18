@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     qstar::Entry{T} = Entry{T}("-", "Initial guess of kink safety factor"; default=1.5)
     alpha::Entry{T} = Entry{T}("-", "Initial guess of constant relating to pressure"; default=0.0)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end

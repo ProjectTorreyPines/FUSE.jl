@@ -9,6 +9,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T} <: ParametersAc
     _name::Symbol = :not_set
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution")
+    evolve_current::Entry{Bool} = Entry{Bool}("-", "Evolve the plasma current"; default=true)
+    evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
+    evolve_hcd::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
+    evolve_transport::Entry{Bool} = Entry{Bool}("-", "Evolve the transport"; default=true)
 end
 
 mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor
@@ -39,7 +43,10 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED)
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act)
+    actor_jt.jt_actor.par.solve_for = :vloop
+    actor_jt.jt_actor.par.vloop_from = :pulse_schedule
+    actor_jt.jt_actor.par.ip_from = :pulse_schedule
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq)
 end
 
@@ -54,61 +61,62 @@ function _step(actor::ActorDynamicPlasma)
     # set Δt of the current actor
     actor.actor_jt.jt_actor.par.Δt = δt
 
+    # setup things for Ip control
+    empty!(dd.pulse_schedule.flux_control.loop_voltage.reference, :data)
+    ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
+    cp1d = dd.core_profiles.profiles_1d[]
+    η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
+    fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 0.1, η_avg * 0.1, 0.0))
+
     prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
     backup_actor_logging = logging()[:actors]
     logging(; actors=Logging.Error)
     try
-        for tt in LinRange(t0, t1, par.Nt + 1)[2:end]
-            begin # first 1/2 step (transport)
-                # prepare time dependent arrays of structures
-                IMAS.new_timeslice!(dd.equilibrium, tt - δt / 2.0)
-                IMAS.new_timeslice!(dd.core_profiles, tt - δt / 2.0)
-                IMAS.new_timeslice!(dd.core_sources, tt - δt / 2.0)
-                IMAS.new_timeslice!(dd.core_transport, tt - δt / 2.0)
-                dd.global_time = tt - δt / 2.0
+        for (kk, tt) in enumerate(LinRange(t0, t1, 2 * par.Nt + 1)[2:end])
+            # prepare time dependent arrays of structures
+            IMAS.new_timeslice!(dd.equilibrium, tt)
+            IMAS.new_timeslice!(dd.core_profiles, tt)
+            IMAS.new_timeslice!(dd.core_sources, tt)
+            dd.global_time = tt
 
-                #controller() --> (PS.beta - CP.beta) ==> NBI.power
-
+            if mod(kk, 2) == 0
                 # run transport actor
-                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_tr)) 1/2")])
-                finalize(step(actor.actor_tr))
-
-                # run equilibrium actor with the updated beta
-                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_eq)) 1/2")])
-                finalize(step(actor.actor_eq))
-
-                # run HCD to get updated current drive
-                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_hc)) 1/2")])
-                finalize(step(actor.actor_hc))
-            end
-
-            begin # second 1/2 step (current)
-                # prepare time dependent arrays of structures
-                IMAS.new_timeslice!(dd.equilibrium, tt)
-                IMAS.new_timeslice!(dd.core_profiles, tt)
-                IMAS.new_timeslice!(dd.core_sources, tt)
-                dd.global_time = tt
-
-                #controller() --> (PS.ip - EQ.ip) ==> OH.Vloop
-
+                ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
+                if par.evolve_transport
+                    _finalize(_step(actor.actor_tr))
+                end
+            else
                 # evolve j_ohmic
-                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_jt)) 2/2")])
-                finalize(step(actor.actor_jt))
-
-                # run equilibrium actor with the updated beta
-                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_eq)) 2/2")])
-                finalize(step(actor.actor_eq))
-
-                # run HCD to get updated current drive
-                ProgressMeter.next!(prog; showvalues=[("start time", t0), ("  end time", t1), ("      time", dd.global_time), ("     stage", "$(name(actor.actor_hc)) 2/2")])
-                finalize(step(actor.actor_hc))
+                ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
+                controller(dd, ctrl_ip, Val{:ip})
+                if par.evolve_current
+                    _finalize(_step(actor.actor_jt))
+                end
             end
-            println(stderr, dd.global_time)
+
+            # run equilibrium actor with the updated beta
+            ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
+            # controller(dd, Val{:shaping})
+            if par.evolve_equilibrium
+                _finalize(_step(actor.actor_eq))
+            end
+
+            # run HCD to get updated current drive
+            # controller(dd, Val{:hcd})
+            ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
+            if par.evolve_hcd
+                _finalize(_step(actor.actor_hc))
+            end
         end
     catch e
-        logging(; actors=backup_actor_logging)
         rethrow(e)
+    finally
+        logging(; actors=backup_actor_logging)
     end
 
     return actor
+end
+
+function showvalues(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
+    return ("start time", t0), ("  end time", t1), ("      time", actor.dd.global_time), ("     stage", "$(name(actor)) ($phase/2)")
 end

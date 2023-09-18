@@ -9,16 +9,16 @@ Base.@kwdef struct MaterialProperties
     poisson_ratio::Float64 = NaN
 end
 
-const stainless_steel = MaterialProperties(
+const stainless_steel = MaterialProperties(;
     yield_strength=800E6, # Pa
     young_modulus=193.103448275E9, # Pa
-    poisson_ratio=0.33,
+    poisson_ratio=0.33
 )
 
-const pure_copper = MaterialProperties(
+const pure_copper = MaterialProperties(;
     yield_strength=70E6, # Pa
     young_modulus=110E9, # Pa
-    poisson_ratio=0.34,
+    poisson_ratio=0.34
 )
 
 """
@@ -87,7 +87,7 @@ This uses the experimental fits from Table 6 in Lu et al., Supercond. Sci. Techn
 
 NOTE: this returns the "engineering critical current density", which is the critical current divided by the cross-section of
 the entire Nb3Sn strand. The strands considered in the reference study are approx. 50% Nb3Sn, 50% copper, and so the acutal
-J_crit of the so-called "non-Cu" part of the wire (i.e. Nb3Sn only) will be approx. twice as large as the value calculated here. 
+J_crit of the so-called "non-Cu" part of the wire (i.e. Nb3Sn only) will be approx. twice as large as the value calculated here.
 
 OUTPUTS
 J_c : engineering critical current density, A/m^2

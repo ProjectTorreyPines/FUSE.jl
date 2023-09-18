@@ -72,7 +72,12 @@ function workflow_HDB5_validation(;
     if n_samples_per_tokamak !== :all
         tok_list = unique(run_df[:, "TOK"])
         run_df = DataFrames.reduce(
-            vcat, [run_df[run_df.TOK.==tok, :][Random.shuffle(1:DataFrames.nrow(run_df[run_df.TOK.==tok, :]))[1:minimum([n_samples_per_tokamak, length(run_df[run_df.TOK.==tok, :][:, "TOK"])])], :] for tok in tok_list]
+            vcat,
+            [
+                run_df[run_df.TOK.==tok, :][
+                    Random.shuffle(1:DataFrames.nrow(run_df[run_df.TOK.==tok, :]))[1:minimum([n_samples_per_tokamak, length(run_df[run_df.TOK.==tok, :][:, "TOK"])])],
+                ] for tok in tok_list
+            ]
         )
     end
 
@@ -115,7 +120,7 @@ function run_HDB5_from_data_row(data_row, act::Union{ParametersActor,Missing}=mi
         if ismissing(act)
             act = ACT
         end
-        dd = workflow_simple_stationary_plasma(ini, act, warn_nn_train_bounds=verbose, do_plot=do_plot)
+        dd = workflow_simple_stationary_plasma(ini, act; warn_nn_train_bounds=verbose, do_plot=do_plot)
         data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
         data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
         data_row[:error_message] = ""
@@ -144,12 +149,23 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String
     dataframe = dataframe[DataFrames.completecases(dataframe), :]
     dataframe = filter(row -> row["$(name)_fuse"] > 0.0, dataframe)
 
-    R² = round(R_squared(dataframe[:, x_name], dataframe[:, y_name]), digits=2)
-    MRE = round(100 * mean_relative_error(dataframe[:, x_name], dataframe[:, y_name]), digits=2)
-    p = plot(dataframe[:, x_name], dataframe[:, y_name], seriestype=:scatter, xaxis=:log, yaxis=:log, ylim=x_ylim, xlim=x_ylim, xlabel=x_name, ylabel=y_name, label="mean_relative_error = $MRE % for N = $(length(dataframe[:, x_name]))")
-    plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]], linestyle=:dash, label="+50%")
-    plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]], linestyle=:dash, label="-50%", legend=:topleft)
-    display(plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]], label=nothing))
+    R² = round(R_squared(dataframe[:, x_name], dataframe[:, y_name]); digits=2)
+    MRE = round(100 * mean_relative_error(dataframe[:, x_name], dataframe[:, y_name]); digits=2)
+    p = plot(
+        dataframe[:, x_name],
+        dataframe[:, y_name];
+        seriestype=:scatter,
+        xaxis=:log,
+        yaxis=:log,
+        ylim=x_ylim,
+        xlim=x_ylim,
+        xlabel=x_name,
+        ylabel=y_name,
+        label="mean_relative_error = $MRE % for N = $(length(dataframe[:, x_name]))"
+    )
+    plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]]; linestyle=:dash, label="+50%")
+    plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]]; linestyle=:dash, label="-50%", legend=:topleft)
+    display(plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing))
 
     println("R² = $(R²), mean_relative_error = $MRE)")
     return p
@@ -162,7 +178,7 @@ Plot regression of `\$name` and `\$(name)_fuse` data stored in a given CSV file
 """
 function plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
     dataframe = CSV.read(filename, DataFrames.DataFrame)
-    plot_x_y_regression(dataframe, name)
+    return plot_x_y_regression(dataframe, name)
 end
 
 function R_squared(x, y)

@@ -178,21 +178,21 @@ function save(
     # the parser can immediately see if this is a failing case
     if e !== nothing
         open(joinpath(savedir, "error.txt"), "w") do file
-            showerror(file, e, catch_backtrace())
+            return showerror(file, e, catch_backtrace())
         end
     end
 
     # save timer output
     if timer
         open(joinpath(savedir, "timer.txt"), "w") do file
-            show(file, FUSE.timer)
+            return show(file, FUSE.timer)
         end
     end
 
     # save vars usage
     if varinfo
         open(joinpath(savedir, "varinfo.txt"), "w") do file
-            println(file, FUSE.varinfo(FUSE, all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
+            return println(file, FUSE.varinfo(FUSE; all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
         end
     end
 
@@ -261,8 +261,9 @@ end
 Provides concise and informative summary of `dd`, including several plots
 
 NOTES:
-* `section` is used internally to produce digest PDFs
-* this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
+
+  - `section` is used internally to produce digest PDFs
+  - this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
 """
 function digest(
     dd::IMAS.dd;
@@ -279,15 +280,15 @@ function digest(
     sec += 1
     if !isempty(dd.equilibrium.time_slice) && section ∈ (0, sec)
         println('\u200B')
-        p = plot(dd.equilibrium, legend=false)
+        p = plot(dd.equilibrium; legend=false)
         if !isempty(dd.build.layer)
-            plot!(p[1], dd.build, legend=false)
+            plot!(p[1], dd.build; legend=false)
         end
         if !isempty(dd.pf_active.coil)
-            plot!(p[1], dd.pf_active, legend=false, colorbar=false)
+            plot!(p[1], dd.pf_active; legend=false, colorbar=false)
         end
         if !isempty(dd.divertors.divertor)
-            plot!(p[1], dd.divertors, legend=false)
+            plot!(p[1], dd.divertors; legend=false)
         end
         display(p)
     end
@@ -303,67 +304,67 @@ function digest(
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_profiles, only=1))
+        display(plot(dd.core_profiles; only=1))
     end
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_profiles, only=2))
+        display(plot(dd.core_profiles; only=2))
     end
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_profiles, only=3))
+        display(plot(dd.core_profiles; only=3))
     end
 
     # core sources
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_sources, only=1))
+        display(plot(dd.core_sources; only=1))
     end
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_sources, only=2))
+        display(plot(dd.core_sources; only=2))
     end
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_sources, only=3))
+        display(plot(dd.core_sources; only=3))
     end
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_sources, only=4))
+        display(plot(dd.core_sources; only=4))
     end
 
     # Electron energy flux matching
     sec += 1
-    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+    if !isempty(dd.core_transport) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_transport,only=1))
+        display(plot(dd.core_transport; only=1))
     end
 
     # Ion energy flux matching
     sec += 1
-    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+    if !isempty(dd.core_transport) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_transport,only=2))
+        display(plot(dd.core_transport; only=2))
     end
 
     # Electron particle flux matching
     sec += 1
-    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+    if !isempty(dd.core_transport) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_transport,only=3))
+        display(plot(dd.core_transport; only=3))
     end
 
     # Momentum flux matching
     sec += 1
-    if !isempty(dd.core_transport)  && section ∈ (0, sec)
+    if !isempty(dd.core_transport) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.core_transport,only=4))
+        display(plot(dd.core_transport; only=4))
     end
 
     # neutron wall loading
@@ -373,7 +374,7 @@ function digest(
         xlim = extrema(dd.neutronics.first_wall.r)
         xlim = (xlim[1] - ((xlim[2] - xlim[1]) / 10.0), xlim[2] + ((xlim[2] - xlim[1]) / 10.0))
         l = @layout [a{0.3w} b{0.6w,0.9h}]
-        p = plot(layout=l, size=(900, 400))
+        p = plot(; layout=l, size=(900, 400))
         plot!(p, dd.neutronics.time_slice[].wall_loading; xlim, subplot=1)
         neutrons = define_neutrons(dd, 100000)[1]
         plot!(p, neutrons, dd.equilibrium.time_slice[]; xlim, subplot=1)
@@ -429,7 +430,7 @@ function digest(dd::IMAS.dd,
     try
         filename = redirect_stdout(Base.DevNull()) do
             filename = with_logger(logger) do
-                Weave.weave(joinpath(@__DIR__, "digest.jmd");
+                return Weave.weave(joinpath(@__DIR__, "digest.jmd");
                     mod=@__MODULE__,
                     doctype="md2pdf",
                     template=joinpath(@__DIR__, "digest.tpl"),
@@ -442,12 +443,12 @@ function digest(dd::IMAS.dd,
                         :description => description))
             end
         end
-        cp(filename, outfilename, force=true)
+        cp(filename, outfilename; force=true)
         return outfilename
     catch e
         println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir")
     else
-        rm(tmpdir, recursive=true, force=true)
+        rm(tmpdir; recursive=true, force=true)
     end
 end
 
@@ -495,7 +496,7 @@ function categorize_errors(
             continue
         end
         first_line, second_line = open(filename, "r") do f
-            (readline(f), readline(f))
+            return (readline(f), readline(f))
         end
         found = false
         for (err, cat) in error_messages
@@ -521,11 +522,11 @@ function categorize_errors(
     end
 
     if do_plot
-        display(histogram(findall(x -> isfile(joinpath(x, "error.txt")), sort(dirs)), labe="Errors"))
+        display(histogram(findall(x -> isfile(joinpath(x, "error.txt")), sort(dirs)); labe="Errors"))
         labels = collect(keys(errors))
         v = collect(map(length, values(errors)))
         index = sortperm(v)[end:-1:1]
-        display(pie(["$(rpad(string(length(errors[cat])),8))   $(string(cat))" for cat in labels[index]], v[index], legend=:outerright))
+        display(pie(["$(rpad(string(length(errors[cat])),8))   $(string(cat))" for cat in labels[index]], v[index]; legend=:outerright))
     end
 
     if show_first_line
