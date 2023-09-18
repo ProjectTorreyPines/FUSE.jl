@@ -9,10 +9,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T} <: ParametersAc
     _name::Symbol = :not_set
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution")
+    evolve_transport::Entry{Bool} = Entry{Bool}("-", "Evolve the transport"; default=true)
+    evolve_hcd::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
     evolve_current::Entry{Bool} = Entry{Bool}("-", "Evolve the plasma current"; default=true)
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
-    evolve_hcd::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
-    evolve_transport::Entry{Bool} = Entry{Bool}("-", "Evolve the transport"; default=true)
+    evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=true)
 end
 
 mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor
@@ -23,6 +24,7 @@ mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
+    actor_pf::ActorPFcoilsOpt{D,P}
 end
 
 """
@@ -40,14 +42,21 @@ end
 function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorDynamicPlasma)
     par = par(kw...)
+
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
+
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
+
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED)
     actor_jt.jt_actor.par.solve_for = :vloop
     actor_jt.jt_actor.par.vloop_from = :pulse_schedule
     actor_jt.jt_actor.par.ip_from = :pulse_schedule
+
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
-    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq)
+
+    actor_pf = ActorPFcoilsOpt(dd, act.ActorPFcoilsOpt; optimization_scheme=:currents)
+
+    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_pf)
 end
 
 function _step(actor::ActorDynamicPlasma)
@@ -68,7 +77,7 @@ function _step(actor::ActorDynamicPlasma)
     η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
     fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 0.1, η_avg * 0.1, 0.0))
 
-    prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
+    prog = ProgressMeter.Progress(par.Nt * 8; dt=0.0, showspeed=true)
     backup_actor_logging = logging()[:actors]
     logging(; actors=Logging.Error)
     try
@@ -96,13 +105,17 @@ function _step(actor::ActorDynamicPlasma)
 
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
-            # controller(dd, Val{:shaping})
             if par.evolve_equilibrium
                 _finalize(_step(actor.actor_eq))
             end
 
+            # run the pf_active actor to get update coil currents
+            ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_pf, mod(kk, 2) + 1))
+            if par.evolve_pf_active
+                _finalize(_step(actor.actor_pf))
+            end
+
             # run HCD to get updated current drive
-            # controller(dd, Val{:hcd})
             ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
             if par.evolve_hcd
                 _finalize(_step(actor.actor_hc))
