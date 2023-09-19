@@ -136,7 +136,7 @@ end
 
 Optimize coil currents and positions to produce sets of equilibria while minimizing coil currents
 """
-function _step(actor::ActorPFcoilsOpt)
+function _step(actor::ActorPFcoilsOpt{T}) where {T<:Real}
     dd = actor.dd
     par = actor.par
 
@@ -150,7 +150,7 @@ function _step(actor::ActorPFcoilsOpt)
     coils = vcat(pinned_coils, optim_coils, fixed_coils)
     for coil in coils
         coil.current_time = actor.eq_in.time
-        coil.current_data = zeros(size(actor.eq_in.time))
+        coil.current_data = zeros(T, size(actor.eq_in.time))
     end
 
     # run rail type optimizer

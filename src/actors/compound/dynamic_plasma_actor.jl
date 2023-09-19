@@ -77,7 +77,7 @@ function _step(actor::ActorDynamicPlasma)
     η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
     fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 0.1, η_avg * 0.1, 0.0))
 
-    prog = ProgressMeter.Progress(par.Nt * 8; dt=0.0, showspeed=true)
+    prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
     backup_actor_logging = logging()[:actors]
     logging(; actors=Logging.Error)
     try
@@ -109,12 +109,6 @@ function _step(actor::ActorDynamicPlasma)
                 _finalize(_step(actor.actor_eq))
             end
 
-            # run the pf_active actor to get update coil currents
-            ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_pf, mod(kk, 2) + 1))
-            if par.evolve_pf_active
-                _finalize(_step(actor.actor_pf))
-            end
-
             # run HCD to get updated current drive
             ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
             if par.evolve_hcd
@@ -125,6 +119,12 @@ function _step(actor::ActorDynamicPlasma)
         rethrow(e)
     finally
         logging(; actors=backup_actor_logging)
+    end
+
+    # run the pf_active actor to get update coil currents
+    # NOTE: for the time being this actor works on all time slices at once
+    if par.evolve_pf_active
+        finalize(step(actor.actor_pf))
     end
 
     return actor

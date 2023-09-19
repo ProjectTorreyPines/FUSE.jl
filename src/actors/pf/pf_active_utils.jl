@@ -55,7 +55,7 @@ function Base.getproperty(coil::GS_IMAS_pf_active__coil, field::Symbol)
     end
 end
 
-function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value)
+function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value::Real)
     if field == :current
         getfield(coil, :current_data)[coil.time_index] = value
     else
