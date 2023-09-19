@@ -8,7 +8,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     _name::Symbol = :not_set
     evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Evolve ion temperature "; default=:flux_match)
     evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Evolve electron temperature"; default=:flux_match)
-    evolve_densities::Entry{Union{AbstractDict,Symbol}} = Entry{Union{AbstractDict,Symbol}}("-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
+    evolve_densities::Entry{Union{AbstractDict,Symbol}} =
+        Entry{Union{AbstractDict,Symbol}}("-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Evolve the electron temperature"; default=:fixed)
     rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "Rho transport grid"; default=0.2:0.1:0.8)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=true)
@@ -43,7 +44,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
     par = par(kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
     actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:core_profiles)
-    ActorFluxMatcher(dd, par, actor_ct, actor_ped)
+    return ActorFluxMatcher(dd, par, actor_ct, actor_ped)
 end
 
 """
@@ -66,9 +67,28 @@ function _step(actor::ActorFluxMatcher)
     res = try
         log_topics[:actors] = Logging.Warn
         if par.optimizer_algorithm == :anderson
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init, show_trace=par.verbose, store_trace=par.verbose, method=:anderson, m=0, beta=-par.step_size, iterations=par.max_iterations, ftol=1E-3, xtol=1E-2)
+            res = NLsolve.nlsolve(
+                z -> flux_match_errors(actor, z; z_history, err_history),
+                z_init;
+                show_trace=par.verbose,
+                store_trace=par.verbose,
+                method=:anderson,
+                m=0,
+                beta=-par.step_size,
+                iterations=par.max_iterations,
+                ftol=1E-3,
+                xtol=1E-2
+            )
         elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(z -> flux_match_errors(actor, z; z_history, err_history), z_init, factor=1e-2, show_trace=par.verbose, store_trace=par.verbose, iterations=par.max_iterations, ftol=1E-3)
+            res = NLsolve.nlsolve(
+                z -> flux_match_errors(actor, z; z_history, err_history),
+                z_init;
+                factor=1e-2,
+                show_trace=par.verbose,
+                store_trace=par.verbose,
+                iterations=par.max_iterations,
+                ftol=1E-3
+            )
         end
         res
     finally
@@ -94,12 +114,13 @@ function _step(actor::ActorFluxMatcher)
     if par.do_plot
         cp1d = dd.core_profiles.profiles_1d[]
         N_channels = Int(length(z_init) / length(par.rho_transport))
-        p = plot(layout=(N_channels, 2), size=(1000, 1000), xguidefontsize=15, yguidefontsize=14, legendfontsize=12,
+        p = plot(; layout=(N_channels, 2), size=(1000, 1000), xguidefontsize=15, yguidefontsize=14, legendfontsize=12,
             tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern")
 
         titels = ["Electron temperature", "Ion temperature", "Ion temperature", "Rotation frequency tor sonic"]
         to_plot_after = [(cp1d.electrons, :temperature), (cp1d.ion[1], :temperature), (cp1d.electrons, :density_thermal), (cp1d, :rotation_frequency_tor_sonic)]
-        to_plot_before = [(cp1d_before.electrons, :temperature), (cp1d_before.ion[1], :temperature), (cp1d_before.electrons, :density_thermal), (cp1d_before, :rotation_frequency_tor_sonic)]
+        to_plot_before =
+            [(cp1d_before.electrons, :temperature), (cp1d_before.ion[1], :temperature), (cp1d_before.electrons, :density_thermal), (cp1d_before, :rotation_frequency_tor_sonic)]
 
         for sub in 1:N_channels
             plot!(dd.core_transport; only=sub, subplot=2 * sub - 1, aspect=:equal)
@@ -117,7 +138,12 @@ end
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
-function flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real}; z_history::Vector{Vector{Float64}}=Vector{Float64}[], err_history::Vector{Float64}=Float64[])
+function flux_match_errors(
+    actor::ActorFluxMatcher,
+    z_profiles::AbstractVector{<:Real};
+    z_history::Vector{Vector{Float64}}=Vector{Float64}[],
+    err_history::Vector{Float64}=Float64[]
+)
     push!(z_history, z_profiles)
     z_profiles = z_profiles ./ 100
     dd = actor.dd
@@ -267,7 +293,6 @@ function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparam
     rho_transport = par.rho_transport
     counter = 0
     N = length(rho_transport)
-
     if par.evolve_Ti == :flux_match
         Ti_new = IMAS.profile_from_z_transport(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
         counter += N
@@ -282,7 +307,8 @@ function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparam
     end
 
     if par.evolve_rotation == :flux_match
-        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
+        cp1d.rotation_frequency_tor_sonic =
+            IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
         counter += N
     end
 
@@ -301,9 +327,8 @@ function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparam
             end
         end
     end
-
-    # Ensure Quasi neutrality
-    if !IMAS.is_quasi_neutral(cp1d)
+    # Ensure Quasi neutrality if you are evolving densities
+    if !IMAS.is_quasi_neutral(cp1d) && par.evolve_densities != :fixed
         q_specie = [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality]
         @assert q_specie != Symbol[] "no quasi neutrality specie while quasi neutrality is broken"
         IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
@@ -370,5 +395,5 @@ function parse_and_plot_error(data::String)
         filtered_arr = filter(x -> !occursin(r"^\s*$", x), split(line, " "))
         array[idx] = parse(Float64, filtered_arr[3])
     end
-    display(plot(array, yscale=:log10, ylabel="log of convergence errror", xlabel="iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(array))), ylim=[1e-4, 10]))
+    return display(plot(array; yscale=:log10, ylabel="log of convergence errror", xlabel="iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(array))), ylim=[1e-4, 10]))
 end
