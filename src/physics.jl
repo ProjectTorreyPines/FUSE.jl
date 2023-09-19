@@ -1027,8 +1027,7 @@ end
 
 Find boundary such that the output MXH parametrization (with x-points) matches the input MXH parametrization (without x-points)
 """
-function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0)
-
+function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0, target_area::Float64=0.0, target_volume::Float64=0.0, debug::Bool=false)
     if ~upper_x_point && ~lower_x_point
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     end
@@ -1060,7 +1059,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         return MXHboundary!(mxhb0; upper_x_point, lower_x_point, n_points)
     end
 
-    function cost(params::AbstractVector{<:Real}; mxh, upper_x_point, lower_x_point, n_points)
+    function cost(params::AbstractVector{<:Real}; mxh, upper_x_point, lower_x_point, n_points, target_area::Float64, target_volume::Float64)
         mxhb_from_params!(mxhb0, params; upper_x_point, lower_x_point, n_points)
         IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
@@ -1098,17 +1097,26 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         marea = IMAS.area(mr, mz)
         mareach = IMAS.area(mrch, mzch)
         c += (abs(mareach - marea) / mareach) * 1E3
+        if target_area > 0
+            c += 1e2*(marea - target_area).^2
+        end
+        if target_volume > 0
+            mvolume = IMAS.revolution_volume(mr, mz)
+            c += 1e3*(mvolume - target_volume).^2
+        end
 
         return sqrt(c)
     end
-
-    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(; iterations=1000))
+    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points, target_area, target_volume), vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(; iterations=1000))
     mxhb_from_params!(mxhb0, res.minimizer; upper_x_point, lower_x_point, n_points)
     IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
-    # println(res)
-    # println(mxh)
-    # println(mxh0)
-    # println(mxhb0.mxh)
+    if debug    
+        println(res)
+        println(mxh)
+        println(mxh0)
+        println(mxhb0.mxh)
+        display(plot(mxh0))
+    end
     return mxhb0
 end
 
