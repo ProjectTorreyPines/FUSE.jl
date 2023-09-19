@@ -93,12 +93,11 @@ function _finalize(actor::ActorNeoclassical)
 
     for (neoclassical_idx, rho) in enumerate(par.rho_transport)
         rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
-        rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
-        m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] # W / m^2
+        m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_i * IMAS.energy_flux_gacode_to_fuse(cp1d, eqt, rho)
 
         if par.model == :neo
-            m1d.electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx]
-            m1d.electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx]
+            m1d.electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].PARTICLE_FLUX_e * IMAS.particle_flux_gacode_to_fuse(cp1d, eqt, rho)
+            m1d.electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_e * IMAS.energy_flux_gacode_to_fuse(cp1d, eqt, rho)
         end
     end
 
