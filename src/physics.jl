@@ -1097,14 +1097,16 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         marea = IMAS.area(mr, mz)
         mareach = IMAS.area(mrch, mzch)
         c += (abs(mareach - marea) / mareach) * 1E3
+
+        # Matching a target area and or volume
         if target_area > 0
-            c += 1e2*(marea - target_area).^2
+            x_point_area = IMAS.area(mxhb0.r_boundary, mxhb0.z_boundary)
+            c += 1e2*(x_point_area - target_area).^2
         end
         if target_volume > 0
-            mvolume = IMAS.revolution_volume(mr, mz)
-            c += 1e3*(mvolume - target_volume).^2
+            x_point_volume = IMAS.revolution_volume(mxhb0.r_boundary, mxhb0.z_boundary)
+            c += 1e1*(x_point_volume - target_volume).^2
         end
-
         return sqrt(c)
     end
     res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points, target_area, target_volume), vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(; iterations=1000))
