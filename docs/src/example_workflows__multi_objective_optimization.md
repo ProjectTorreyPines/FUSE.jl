@@ -4,42 +4,46 @@
 
 
 ```@julia
-using Revise
-using FUSE
-using Plots; gr();
+#@time using WarmupFUSE
+@time using FUSE
+using Plots;
+gr();
 FUSE.logging(Logging.Info; actors=Logging.Error);
+```
+
+### Define a working folder
+
+
+```@julia
+save_folder = "optimization_run_LTSorHTS_ohtf_fixHFS_req_dens_flattop_fixHFSagain_no0ohm_explore2_minopt_maxflat"
 ```
 
 ### Setup distributed computing environment
 
-See more details here: https://fuse.help/parallel.html
-
 
 ```@julia
-FUSE.parallel_environment("localhost")
+old_dir = pwd()
+mkpath(save_folder)
+try
+    cd(save_folder) # this is to save temporary distributed files in working folder
+    FUSE.parallel_environment("omega", 128 * 2) # ("saga",120)
+finally
+    cd(old_dir)
+end
+display(pwd())
 using Distributed
+#@everywhere import WarmupFUSE
+@everywhere import FUSE
 ```
 
 ### Get `ini` and `act` for FPP case and custmize as needed
 
 
 ```@julia
-ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
-act.ActorPFcoilsOpt.optimization_scheme = :none; # don't spend time optimizing the PFs
-```
-
-### As a good practice, test the actor/workflow that you want to optimize first
-
-
-```@julia
-dd = FUSE.init(ini, act)
-FUSE.ActorWholeFacility(dd, act);
-```
-
-
-```@julia
-#IMAS.freeze(dd.balance_of_plant)
-plot(dd.core_profiles)
+ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars, STEP=true)
+#act.ActorPFcoilsOpt.optimization_scheme = :none; # don't spend time optimizing the PFs
+act.ActorStabilityLimits.models = [:beta_troyon_1984, :model_201, :model_401] # include βn check
+act.ActorTauenn.eped_only_powerlaw = true # more reliable for broader exploration
 ```
 
 ### Define optimization variables and ranges
@@ -47,36 +51,57 @@ plot(dd.core_profiles)
 
 ```@julia
 # nominal value and ranges
-ini_opt = deepcopy(ini)
-ini_opt.ec_launchers.power_launched = ini.ec_launchers.power_launched ↔ [10e6, 200e6];
-ini_opt.core_profiles.zeff = ini.core_profiles.zeff ↔ [1.1, 2.5]
-ini_opt.equilibrium.δ = ini.equilibrium.δ ↔ [-0.7,0.7]
-ini_opt.equilibrium.ζ = ini.equilibrium.ζ ↔ [0,0.2]
-ini_opt.equilibrium.κ = ini.equilibrium.κ ↔ [1.3,2.5]
-ini_opt.equilibrium.B0 = ini.equilibrium.B0 ↔ [1.0, 20.]
-ini_opt.equilibrium.ip = ini.equilibrium.ip ↔ [1.0e6, 22e6]
-ini_opt.equilibrium.R0 = ini.equilibrium.R0 ↔ [ini.equilibrium.R0, 10.0];
+ini.ec_launchers.power_launched = ini.ec_launchers.power_launched[1] ↔ [1e6, 200e6];
+ini.core_profiles.zeff = ini.core_profiles.zeff ↔ [1.1, 2.5]
+ini.core_profiles.greenwald_fraction = ini.core_profiles.greenwald_fraction ↔ [0.8, 1.3]
+#ini.equilibrium.δ = ini.equilibrium.δ ↔ [-0.7,0.7]
+#ini.equilibrium.ζ = ini.equilibrium.ζ ↔ [0,0.2]
+ini.equilibrium.κ = 0.95 # k set to be 95% of maximum controllable value
+ini.equilibrium.B0 = ini.equilibrium.B0 ↔ [1.0, 20.0]
+ini.equilibrium.ip = ini.equilibrium.ip ↔ [1.0e6, 22e6]
+ini.equilibrium.R0 = ini.equilibrium.R0 ↔ [ini.equilibrium.R0, 10.0];
+ini.requirements.log10_flattop_duration = log10(3600.0) ↔ [log10(3600.0), log10(1000.0 * 3600.0)];
+ini.tf.technology = :HTS ↔ (:HTS, :LTS);
+ini.oh.technology = :HTS ↔ (:HTS, :LTS);
 ```
 
-### Define the optimization objectives
+### As a good practice, test the actor/workflow that you want to optimize
 
 
 ```@julia
-# FUSE comes with a library of objective functions
-OFL = deepcopy(FUSE.ObjectivesFunctionsLibrary)
-OFL[:max_power_electric_net].target = 200.0
-objective_functions = [OFL[:max_power_electric_net], OFL[:min_log10_levelized_CoE], OFL[:max_log10_flattop]]
+#dd = FUSE.init(ini, act);
+#FUSE.ActorWholeFacility(dd, act);
+```
 
+
+```@julia
+#FUSE.digest(dd)
+```
+
+### See what are the possible optimization objectives and constraints
+
+
+```@julia
+# FUSE comes with a library of objective and constraints functions
+OFL = deepcopy(FUSE.ObjectiveFunctionsLibrary)
 CFL = deepcopy(FUSE.ConstraintFunctionsLibrary)
-CFL[:target_power_electric_net].limit = 200.0
-CFL[:target_power_electric_net].tolerance = 0.01
-constraint_functions = [CFL[:target_power_electric_net], CFL[:steady_state]]
+println("== OBJECTIVE FUNCTIONS ==")
+display(OFL)
+println()
+println("== CONSTRAINT FUNCTIONS ==")
+display(CFL)
+```
 
-# ...but one can define custom objectives and constraints too
-# target_power_electric = FUSE.ObjectiveFunction(:target_power_electric_net, "MW", dd -> @ddtime(dd.balance_of_plant.power_electric_net)/1E6, 200)
-#objective_functions = [target_power_electric, OFL[:min_cost], OFL[:max_flattop]]
+## Set the optimization objectives and constraints
 
+
+```@julia
+objective_functions = [OFL[:min_βn], OFL[:min_capital_cost], OFL[:max_log10_flattop]]
+constraint_functions = [CFL[:min_required_power_electric_net]]
+println("== OBJECTIVE FUNCTIONS ==")
 display(objective_functions)
+println()
+println("== CONSTRAINT FUNCTIONS ==")
 display(constraint_functions)
 ```
 
@@ -86,90 +111,30 @@ display(constraint_functions)
 ```@julia
 # option to resume an optimization where it was left off
 if false
-    continue_results = results
+    continue_state = state
 else
-    continue_results = missing
+    continue_state = missing
 end
 
 # define optimization parameters
 # For real optimization studies the population size (N) and number of iterations should be bigger
 # eg. N=100, iterations=25
 optimization_parameters = Dict(
-    :N => max(4, Int(floor((nprocs()-1)/2))*2), # even number
-    :iterations => 10,
-    :continue_results => continue_results,
-    :save_folder => "optimization_runs")
+    :N => max(4, Int(floor((nprocs() - 1) / 2)) * 2), # even number
+    :iterations => 100,
+    :continue_state => continue_state,
+    :save_folder => save_folder)
 
 # run optimization
-results = FUSE.workflow_multiobjective_optimization(ini_opt, act, FUSE.ActorWholeFacility, objective_functions, constraint_functions; optimization_parameters...);
+state = FUSE.workflow_multiobjective_optimization(ini, act, FUSE.ActorWholeFacility, objective_functions, constraint_functions; optimization_parameters...);
+
 ```
 
-### Save optimization results to file
+## Remember to always release computing resources!
 
 
 ```@julia
-# Optimization results can be re-loaded this way:
-filename = "optimization_runs/optimization.bson"
-@time results = FUSE.load_optimization(filename);
-```
-
-### Plot multi-objective optimization results
-
-
-```@julia
-extract_inputs = Dict(
-    :Paux => (dd, ini, act) -> ini.ec_launchers.power_launched / 1E6,
-    :zeff => (dd, ini, act) -> ini.core_profiles.zeff,
-    :κ => (dd, ini, act) -> ini.equilibrium.κ,
-    :δ => (dd, ini, act) -> ini.equilibrium.δ,
-    :ζ => (dd, ini, act) -> ini.equilibrium.ζ,
-    :B0 => (dd, ini, act) -> ini.equilibrium.B0,
-    :ip => (dd, ini, act) -> ini.equilibrium.ip / 1E6,
-    :R0 => (dd, ini, act) -> ini.equilibrium.R0,
-)
-
-extract_outputs = Dict(
-    :beta_n => (dd, ini, act) -> dd.equilibrium.time_slice[].global_quantities.beta_normal,
-    :log10_levelized_CoE => (dd, ini, act) -> log10(dd.costing.levelized_CoE),
-    :Pfusion => (dd, ini, act) -> IMAS.fusion_power(dd.core_profiles.profiles_1d[]) / 1E6,
-    :Pelectric => (dd, ini, act) -> @ddtime(dd.balance_of_plant.power_electric_net) / 1E6,
-    :log10_flattop => (dd, ini, act) -> log10(dd.build.oh.flattop_duration / 3600.0)
-)
-
-path="optimization_runs"
-dirs = filter(isdir,readdir(path; join=true));
-inputs,outputs = FUSE.load(dirs, [extract_inputs, extract_outputs]);
-```
-
-
-```@julia
-using Plots
-display(plot([histogram(inputs[:,name], title=name, label="") for name in names(inputs)]...))
-plot([histogram(outputs[:,name], title=name, label="") for name in names(outputs)]...)
-```
-
-
-```@julia
-xname="log10_levelized_CoE"
-x=outputs[:,xname]
-yname="Pelectric"
-y=outputs[:,yname]
-cname="beta_n"
-c=outputs[:,cname]
-scatter(x, y, marker_z=c ,xlabel=xname, ylabel=yname, colorbar_title=cname, marker=:circle, markerstrokewidth=0, label="")
-```
-
-### How to: Define and use a custom FUSE workflow
-
-
-```@julia
-# Here `@everywhere` is needed to make all processes aware of the custom function
-@everywhere function workflow_custom(ini, act)
-    FUSE.init(dd, ini, act)
-    FUSE.ActorEquilibriumTransport(dd, act)
-    FUSE.ActorCXbuild(dd, act)
-    return dd
+for i in workers()
+    rmprocs(i)
 end
-
-# results = FUSE.workflow_multiobjective_optimization(ini, act, custom_workflow, objective_functions; optimization_parameters...);
 ```
