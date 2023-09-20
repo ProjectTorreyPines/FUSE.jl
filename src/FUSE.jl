@@ -52,6 +52,7 @@ include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
+include(joinpath("actors", "pf", "pf_active_utils.jl"))
 include(joinpath("actors", "pf", "pf_active_actor.jl"))
 include(joinpath("actors", "pf", "pf_passive_actor.jl"))
 
