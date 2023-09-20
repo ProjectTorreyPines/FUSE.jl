@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     evolve_densities::Entry{Union{AbstractDict,Symbol}} =
         Entry{Union{AbstractDict,Symbol}}("-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Evolve the electron temperature"; default=:fixed)
-    rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "Rho transport grid"; default=0.2:0.1:0.8)
+    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "Rho transport grid"; default=0.2:0.1:0.8)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
