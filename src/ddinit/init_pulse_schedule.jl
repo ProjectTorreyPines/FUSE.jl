@@ -129,7 +129,8 @@ function init_pulse_schedule_postion_control(
 
     # boundary with x-points parametrized with MXH
     mxh = IMAS.MXH(pr, pz, 2)
-    pr, pz = mxh(100; adaptive=false)
+    pr, pz = IMAS.resample_2d_path(pr,pz;n_points=100)
+    IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
 
     # scalars
     IMAS.set_time_array(pc.minor_radius.reference, :data, time0, mxh.ϵ * mxh.R0)
