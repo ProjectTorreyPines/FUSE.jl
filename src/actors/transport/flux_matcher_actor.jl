@@ -117,7 +117,7 @@ function _step(actor::ActorFluxMatcher)
         p = plot(; layout=(N_channels, 2), size=(1000, 1000), xguidefontsize=15, yguidefontsize=14, legendfontsize=12,
             tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern")
 
-        titels = ["Electron temperature", "Ion temperature", "Ion temperature", "Rotation frequency tor sonic"]
+        titels = ["Electron temperature", "Ion temperature", "Electron density", "Rotation frequency tor sonic"]
         to_plot_after = [(cp1d.electrons, :temperature), (cp1d.ion[1], :temperature), (cp1d.electrons, :density_thermal), (cp1d, :rotation_frequency_tor_sonic)]
         to_plot_before =
             [(cp1d_before.electrons, :temperature), (cp1d_before.ion[1], :temperature), (cp1d_before.electrons, :density_thermal), (cp1d_before, :rotation_frequency_tor_sonic)]

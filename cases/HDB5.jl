@@ -8,13 +8,13 @@ For description of cases/variables see https://osf.io/593q6/
 """
 function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersAllInits,ParametersAllActors}
     if !ismissing(database_case)
-        data_row = load_hdb5(database_case=database_case)
+        data_row = load_hdb5(; database_case)
     elseif !ismissing(case)
         data_row = load_hdb5(tokamak)[case, :]
     else
         error("Specifcy either the case or database_case")
     end
-    case_parameters(data_row)
+    return case_parameters(data_row)
 end
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
@@ -38,16 +38,30 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     if data_row[:CONFIG] == "SN"
         # upper single null
         ini.equilibrium.xpoints = :upper
+        upper_x_point = true
+        lower_x_point = false
     elseif data_row[:CONFIG] == "SN(L)"
         # lower single null
         ini.equilibrium.xpoints = :lower
+        upper_x_point = false
+        lower_x_point = true
     elseif data_row[:CONFIG] == "DN"
         # double null
+        upper_x_point = true
+        lower_x_point = true
         ini.equilibrium.xpoints = :double
     else
         # no x-points
         ini.equilibrium.xpoints = :none
+        upper_x_point = false
+        lower_x_point = false
     end
+
+    # to match the experimental volume and area:
+    mxh = IMAS.MXH(ini, IMAS.dd())
+    mxh_volume = FUSE.fitMXHboundary(mxh; upper_x_point, lower_x_point, target_volume=data_row[:VOL], target_area=data_row[:AREA])
+    ini.equilibrium.boundary_from = :MXH_params
+    ini.equilibrium.MXH_params = IMAS.flat_coeffs(IMAS.MXH(mxh_volume.r_boundary, mxh_volume.z_boundary))
 
     # Core_profiles parameters
     ini.core_profiles.ne_ped = data_row[:NEL] / 1.4
@@ -70,7 +84,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
             ini.nbi.beam_energy = 100e3
         end
         ini.nbi.beam_mass = 2.0
-        ini.nbi.toroidal_angle = 18. / 360. * 2pi # 18 degrees assumed like DIII-D
+        ini.nbi.toroidal_angle = 18.0 / 360.0 * 2pi # 18 degrees assumed like DIII-D
     end
 
     if data_row[:PECRH] > 0
@@ -96,7 +110,16 @@ function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::F
         return run_df[run_df.database_case.==database_case, :]
     end
 
-    signal_names = ["TOK", "SHOT","TIME", "AMIN", "KAPPA", "DELTA", "NEL", "ZEFF", "TAUTH", "RGEO", "BT", "IP", "PNBI", "ENBI", "PICRH", "PECRH", "POHM", "MEFF", "VOL", "AREA", "WTH", "CONFIG"]
+    signal_names = [
+        "TOK", "SHOT", "TIME",
+        "AMIN", "KAPPA", "DELTA",
+        "NEL", "ZEFF", "TAUTH",
+        "RGEO", "BT", "IP",
+        "PNBI", "ENBI", "PICRH",
+        "PECRH", "POHM", "MEFF",
+        "VOL", "AREA", "WTH",
+        "CONFIG"
+    ]
     signal_names = vcat(signal_names, extra_signal_names)
     # subselect on the signals of interest
     run_df = run_df[:, signal_names]
