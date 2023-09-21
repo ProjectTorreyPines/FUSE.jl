@@ -134,6 +134,7 @@ function update_ConstraintFunctionsLibrary!()
     ConstraintFunction(:max_tf_stress, "%", dd -> dd.solid_mechanics.center_stack.properties.yield_strength.tf / maximum(dd.solid_mechanics.center_stack.stress.vonmises.tf) - dd.requirements.coil_stress_margin, >, 0.0)
     ConstraintFunction(:max_oh_stress, "%", dd -> dd.solid_mechanics.center_stack.properties.yield_strength.oh / maximum(dd.solid_mechanics.center_stack.stress.vonmises.oh) - dd.requirements.coil_stress_margin, >, 0.0)
     ConstraintFunction(:max_hds03, "%", dd -> (@ddtime(dd.summary.global_quantities.tau_energy.value)/IMAS.tau_e_ds03(dd) - dd.requirements.hds03)/dd.requirements.hds03, <, 0.0)
+    ConstraintFunction(:min_q95, "%", dd -> (dd.equilibrium.time_slice[].global_quantities.q_95 - dd.requirements.q95)/dd.requirements.q95, >, 0.0)
     return ConstraintFunctionsLibrary
 end
 update_ConstraintFunctionsLibrary!()
