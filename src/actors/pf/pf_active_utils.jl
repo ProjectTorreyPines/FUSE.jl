@@ -3,7 +3,7 @@ import VacuumFields
 #= ==================================== =#
 #  IMAS.pf_active__coil to VacuumFields  #
 #= ==================================== =#
-mutable struct GS_IMAS_pf_active__coil{T<:Real} <: VacuumFields.AbstractCoil
+mutable struct GS_IMAS_pf_active__coil{T<:Real,C<:Real} <: VacuumFields.AbstractCoil{T,C}
     pf_active__coil::IMAS.pf_active__coil{T}
     r::T
     z::T
@@ -12,8 +12,8 @@ mutable struct GS_IMAS_pf_active__coil{T<:Real} <: VacuumFields.AbstractCoil
     turns_with_sign::T
     spacing::T
     coil_tech::IMAS.build__pf_active__technology{T}
-    current_data::Vector{T}
-    current_time::Vector{T}
+    current_data::Vector{C}
+    current_time::Vector{Float64}
     time_index::Int
     green_model::Symbol
 end

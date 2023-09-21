@@ -184,13 +184,13 @@ end
 
 Update actor.eq_out 2D equilibrium PSI based on coils positions and currents
 """
-function _finalize(actor::ActorPFcoilsOpt)
+function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
     update_equilibrium = par.update_equilibrium
 
-    coils = GS_IMAS_pf_active__coil[]
+    coils = GS_IMAS_pf_active__coil{D,D}[]
     for (k, coil) in enumerate(dd.pf_active.coil)
         if k <= dd.build.pf_active.rail[1].coils_number
             coil_tech = dd.build.oh.technology
@@ -349,10 +349,10 @@ end
 
 function optimize_coils_rail(
     eq::IMAS.equilibrium,
-    dd::IMAS.dd,
-    pinned_coils::Vector{GS_IMAS_pf_active__coil},
-    optim_coils::Vector{GS_IMAS_pf_active__coil},
-    fixed_coils::Vector{GS_IMAS_pf_active__coil};
+    dd::IMAS.dd{D},
+    pinned_coils::Vector{GS_IMAS_pf_active__coil{D,D}},
+    optim_coils::Vector{GS_IMAS_pf_active__coil{D,D}},
+    fixed_coils::Vector{GS_IMAS_pf_active__coil{D,D}};
     symmetric::Bool,
     λ_regularize::Real,
     weight_lcfs::Real,
@@ -360,7 +360,7 @@ function optimize_coils_rail(
     weight_currents::Real,
     weight_strike::Real,
     maxiter::Integer,
-    verbose::Bool)
+    verbose::Bool) where {D<:Real}
 
     bd = dd.build
     pc = dd.pulse_schedule.position_control
@@ -555,13 +555,13 @@ Returns tuple of GS_IMAS_pf_active__coil coils organized by their function:
   - pinned: coils with fixed position but current is optimized
   - optim: coils that have theri position and current optimized
 """
-function fixed_pinned_optim_coils(actor::ActorPFcoilsOpt, optimization_scheme::Symbol)
+function fixed_pinned_optim_coils(actor::ActorPFcoilsOpt{D,P}, optimization_scheme::Symbol) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
-    fixed_coils = GS_IMAS_pf_active__coil[]
-    pinned_coils = GS_IMAS_pf_active__coil[]
-    optim_coils = GS_IMAS_pf_active__coil[]
+    fixed_coils = GS_IMAS_pf_active__coil{D,D}[]
+    pinned_coils = GS_IMAS_pf_active__coil{D,D}[]
+    optim_coils = GS_IMAS_pf_active__coil{D,D}[]
     for (k, coil) in enumerate(dd.pf_active.coil)
         if k <= dd.build.pf_active.rail[1].coils_number
             coil_tech = dd.build.oh.technology
@@ -592,13 +592,13 @@ end
 Plot ActorPFcoilsOpt optimization cross-section
 """
 @recipe function plot_ActorPFcoilsOpt_cx(
-    actor::ActorPFcoilsOpt;
+    actor::ActorPFcoilsOpt{D,P};
     time_index=nothing,
     equilibrium=true,
     build=true,
     coils_flux=false,
     rail=false,
-    plot_r_buffer=1.6)
+    plot_r_buffer=1.6) where {D<:Real, P<:Real}
 
     @assert typeof(time_index) <: Union{Nothing,Integer}
     @assert typeof(equilibrium) <: Bool
@@ -648,7 +648,7 @@ Plot ActorPFcoilsOpt optimization cross-section
         R = range(xlim[1], xlim[2]; length=ngrid)
         Z = range(ylim[1], ylim[2]; length=Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
 
-        coils = GS_IMAS_pf_active__coil[]
+        coils = GS_IMAS_pf_active__coil{D,D}[]
         for (k, coil) in enumerate(dd.pf_active.coil)
             if k <= dd.build.pf_active.rail[1].coils_number
                 coil_tech = dd.build.oh.technology
