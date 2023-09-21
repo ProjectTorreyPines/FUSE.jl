@@ -188,6 +188,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2)
     hds03::Entry{T} = Entry{T}(IMAS.requirements, :hds03)
     βn::Entry{T} = Entry{T}(IMAS.requirements, :βn)
+    q95::Entry{T} = Entry{T}(IMAS.requirements, :q95)    
     coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin)
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin)
 end
