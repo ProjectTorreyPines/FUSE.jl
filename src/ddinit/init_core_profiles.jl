@@ -87,26 +87,34 @@ function init_core_profiles!(
     # Density handling
     #
     # possible denstiy input combinations:
-    #                           case 1	case 2	case 3	case 4	case 5
-    # greenwald_fraction	    (X)	    (X)	    X		
-    # greenwald_fraction_ped	X			            X	
-    # ne_ped		                    X			            X
+    #                           case 1	case 2	case 3	case 4	case 5  case 6  case 7
+    # greenwald_fraction	    X	    X	    X		
+    # greenwald_fraction_ped	X			            X	            X        
+    # ne_ped		                    X			            X               X
     # ne_coreped_ratio			                X	    X	    X
 
     if ismissing(greenwald_fraction)
         @assert !ismissing(ne_ped) ⊻ !ismissing(greenwald_fraction_ped) "greenwald_fraction is missing: One and only one of ini.core_profiles.ne_ped or ini.core_profiles.greenwald_fraction_ped must be set"
         if ismissing(ne_ped)
             ne_ped = greenwald_fraction_ped * IMAS.greenwald_density(eqt)
+        elseif ismissing(greenwald_fraction_ped)
+            greenwald_fraction_ped = ne_ped / IMAS.greenwald_density(eqt)
         end
-        # guess greewald fraction from ne_ped
-        ne0_guess = ne_ped * 1.4
-        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0_guess, ngrid, n_shaping, n_shaping, w_ped)
-        greenwald_fraction = IMAS.greenwald_fraction(eqt, cp1d)
+
+        if !ismissing(ne_coreped_ratio)
+            # case 4 or 5: calc greenwald_fraction from greenwald_fraction_ped and ne_coreped_ratio
+            greenwald_fraction = greenwald_fraction_ped * ne_coreped_ratio
+        else
+            # case 6 or 7: guess greewald_fraction from ne_ped
+            ne0_guess = ne_ped * 1.4
+            cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0_guess, ngrid, n_shaping, n_shaping, w_ped)
+            greenwald_fraction = IMAS.greenwald_fraction(eqt, cp1d)
+        end
     else
         and3 = !ismissing(ne_ped) & !ismissing(ne_coreped_ratio) & !ismissing(greenwald_fraction_ped)
         xor3 = !ismissing(ne_ped) ⊻ !ismissing(ne_coreped_ratio) ⊻ !ismissing(greenwald_fraction_ped)
-        @assert  xor3 & ~and3 "greenwald_fraction is set: One and only oneof ini.core_profiles ne_ped / greenwald_fraction_ped / ne_coreped_ratio must be set"
-        if ismissing(greenwald_fraction_ped)
+        @assert  xor3 & ~and3 "greenwald_fraction is set: One and only one of ini.core_profiles ne_ped / greenwald_fraction_ped / ne_coreped_ratio must be set"
+        if !ismissing(ne_coreped_ratio)
             greenwald_fraction_ped = greenwald_fraction / ne_coreped_ratio
         end
         if ismissing(ne_ped)
