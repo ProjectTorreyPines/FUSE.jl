@@ -101,7 +101,7 @@ end
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")
 
-Save a memory trace to file
+Save a FUSE memory trace to file
 """
 function save(memtrace::MemTrace, filename::String="memtrace.txt")
     open(filename, "w") do file
@@ -109,6 +109,26 @@ function save(memtrace::MemTrace, filename::String="memtrace.txt")
             println(file, "$date $kb \"$txt\"")
         end
     end
+end
+
+"""
+    load(memtrace::MemTrace, filename::String="memtrace.txt")
+
+Load a FUSE memory trace from file
+"""
+function load(memtrace::MemTrace, filename::String="memtrace.txt")
+    open(filename, "r") do file
+        for line in eachline(file)
+            m = match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+\"(.*?)\"", line)
+            if m !== nothing
+                date = Dates.DateTime(m[1], "yyyy-mm-ddTHH:MM:SS.sss")
+                kb = parse(Int, m[2])
+                txt = m[3]
+                push!(memtrace.data, (date, txt, kb))
+            end
+        end
+    end
+    return memtrace
 end
 
 """
