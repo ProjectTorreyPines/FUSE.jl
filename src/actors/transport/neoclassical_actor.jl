@@ -84,21 +84,10 @@ function _finalize(actor::ActorNeoclassical)
     model = findfirst(:neoclassical, actor.dd.core_transport.model)
     m1d = model.profiles_1d[]
 
-    if par.model == :neo
-        m1d.electrons.particles.flux = zeros(length(par.rho_transport))
-        m1d.electrons.energy.flux = zeros(length(par.rho_transport))
-    end
-
-    m1d.total_ion_energy.flux = zeros(length(par.rho_transport))
-
-    for (neoclassical_idx, rho) in enumerate(par.rho_transport)
-        rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
-        m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_i * IMAS.energy_flux_gacode_to_fuse(cp1d, eqt, rho)
-
-        if par.model == :neo
-            m1d.electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].PARTICLE_FLUX_e * IMAS.particle_flux_gacode_to_fuse(cp1d, eqt, rho)
-            m1d.electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[neoclassical_idx].ENERGY_FLUX_e * IMAS.energy_flux_gacode_to_fuse(cp1d, eqt, rho)
-        end
+    if par.model == :changhinton
+        IMAS.flux_gacode_to_fuse([:ion_energy_flux], actor.flux_solutions, m1d, eqt, cp1d)
+    elseif par.model == :neo
+        IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux], actor.flux_solutions, m1d, eqt, cp1d)
     end
 
     return actor

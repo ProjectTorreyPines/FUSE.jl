@@ -90,18 +90,8 @@ function _finalize(actor::ActorTGLF)
     eqt = dd.equilibrium.time_slice[]
     model = findfirst(:anomalous, actor.dd.core_transport.model)
     m1d = model.profiles_1d[]
-    m1d.electrons.energy.flux = zeros(length(par.rho_transport))
-    m1d.total_ion_energy.flux = zeros(length(par.rho_transport))
-    m1d.electrons.particles.flux = zeros(length(par.rho_transport))
-    m1d.momentum_tor.flux = zeros(length(par.rho_transport))
 
-    # TGLF's grid is V` based so we modify the output to the "classical" flux
-    for (tglf_idx, rho) in enumerate(par.rho_transport)
-        rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
-        m1d.electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_e * IMAS.energy_flux_gacode_to_fuse(cp1d, eqt, rho)
-        m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_i * IMAS.energy_flux_gacode_to_fuse(cp1d, eqt, rho)
-        m1d.electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].PARTICLE_FLUX_e * IMAS.particle_flux_gacode_to_fuse(cp1d, eqt, rho)
-        m1d.momentum_tor.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].STRESS_TOR_i * IMAS.momentum_flux_gacode_to_fuse(cp1d, eqt, rho)
-    end
+    IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux, :momentum_flux], actor.flux_solutions, m1d, eqt, cp1d)
+
     return actor
 end
