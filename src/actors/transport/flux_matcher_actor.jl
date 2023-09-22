@@ -340,7 +340,7 @@ end
 """
     check_evolve_densities(dd::IMAS.dd, evolve_densities::Dict)
 """
-function check_evolve_densities(dd::IMAS.dd, evolve_densities::Dict)
+function check_evolve_densities(dd::IMAS.dd, evolve_densities::AbstractDict)
     return check_evolve_densities(dd.core_profiles.profiles_1d[], evolve_densities)
 end
 
@@ -349,7 +349,7 @@ end
 
 Checks if the evolve_densities dictionary makes sense and return sensible errors if this is not the case
 """
-function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::Dict)
+function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
     dd_species = vcat([Symbol(ion.label) for ion in cp1d.ion], :electrons)
     dd_species = vcat(dd_species, [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if sum(ion.density_fast) > 0.0])
     # Check if evolve_densities contains all of dd species
