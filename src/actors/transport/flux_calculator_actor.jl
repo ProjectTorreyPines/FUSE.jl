@@ -12,8 +12,8 @@ end
 mutable struct ActorFluxCalculator{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxCalculator{P}
-    actor_turb::ActorTGLF{D,P}
-    actor_neoc::ActorNeoclassical{D,P}
+    actor_turb::Union{ActorTGLF{D,P},ActorNoOperation{D,P}}
+    actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -33,6 +33,7 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
 
     if par.turbulence_model == :none
         logging(Logging.Debug, :actors, "ActorFluxCalculator: turbulent transport disabled")
+        actor_turb = ActorNoOperation(dd, act.ActorNoOperation)
     elseif par.turbulence_model == :TGLF
         act.ActorTGLF.rho_transport = par.rho_transport
         actor_turb = ActorTGLF(dd, act.ActorTGLF)
@@ -40,6 +41,7 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
 
     if par.neoclassical_model == :none
         logging(Logging.Debug, :actors, "ActorFluxCalculator: neoclassical transport disabled")
+        actor_neoc = ActorNoOperation(dd, act.ActorNoOperation)
     elseif par.neoclassical_model == :neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport
         actor_neoc = ActorNeoclassical(dd, act.ActorNeoclassical)
