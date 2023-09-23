@@ -74,7 +74,7 @@ A plot with the following characteristics:
 
     @series begin
         seriestype := scatter
-        label := ""
+        label --> ""
         dates, mem
     end
 
@@ -84,10 +84,14 @@ A plot with the following characteristics:
             primary := false
             series_annotations := Plots.text.([action[i], action[i+1]], 6, :red)
             color := :red
-            xlabel --> "ΔTime [s]"
-            ylabel --> (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
             [dates[i], dates[i+1]], [mem[i], mem[i+1]]
         end
+    end
+    @series begin
+        primary := false
+        xlabel := "ΔTime [s]"
+        ylabel := (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
+        [], []
     end
 end
 

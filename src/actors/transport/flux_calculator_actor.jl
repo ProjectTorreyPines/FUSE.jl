@@ -19,7 +19,7 @@ end
 """
     ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a common interface to run multiple equilibrium actors
+Provides a common interface to run multiple transport model actors
 """
 function ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; kw...)
