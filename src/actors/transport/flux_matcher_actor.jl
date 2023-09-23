@@ -149,15 +149,14 @@ function flux_match_errors(
     dd = actor.dd
     par = actor.par
 
-
     # evolve pedestal
     if par.evolve_pedestal
         # modify dd with new z_profiles
         actor.actor_ped.par.βn_from = :equilibrium
-        finalize(step(actor.actor_ped))
+        _finalize(_step(actor.actor_ped))
         unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
         actor.actor_ped.par.βn_from = :core_profiles
-        finalize(step(actor.actor_ped))
+        _finalize(_step(actor.actor_ped))
         unpack_z_profiles(dd.core_profiles.profiles_1d[], par, z_profiles)
     else
         # modify dd with new z_profiles
@@ -167,7 +166,7 @@ function flux_match_errors(
     IMAS.sources!(dd)
 
     # evaludate neoclassical + turbulent fluxes
-    finalize(step(actor.actor_ct))
+    _finalize(_step(actor.actor_ct))
 
     # compare fluxes
     errors = flux_match_errors(dd, par)
@@ -187,10 +186,6 @@ Evaluates the flux_matching errors for the :flux_match species and channels
 NOTE: flux matching is done in physical units
 """
 function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
-    if par.verbose
-        flush(stdout)
-    end
-
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
     total_fluxes = IMAS.total_fluxes(dd.core_transport)
