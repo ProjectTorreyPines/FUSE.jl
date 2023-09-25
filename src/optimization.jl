@@ -209,6 +209,9 @@ function optimization_engine(
     #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
     parameters_from_opt!(ini, x)
 
+    # attempt to release memory
+    malloc_trim_if_glibc()
+
     # run the problem
     try
         if typeof(actor_or_workflow) <: Function
