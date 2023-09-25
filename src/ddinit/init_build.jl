@@ -79,7 +79,7 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if length(keys(dd1.wall)) > 0
+            if !isempty(dd1.wall)
                 dd.wall = dd1.wall
             end
             if length(dd1.build.layer) > 0

@@ -19,7 +19,7 @@ end
 """
     ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a common interface to run multiple equilibrium actors
+Provides a common interface to run multiple transport model actors
 """
 function ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; kw...)
@@ -56,8 +56,8 @@ end
 Runs through the selected equilibrium actor's step
 """
 function _step(actor::ActorFluxCalculator)
-    step(actor.actor_turb)
-    step(actor.actor_neoc)
+    _step(actor.actor_turb)
+    _step(actor.actor_neoc)
     return actor
 end
 
@@ -67,7 +67,7 @@ end
 Finalizes the selected equilibrium actor
 """
 function _finalize(actor::ActorFluxCalculator)
-    finalize(actor.actor_turb)
-    finalize(actor.actor_neoc)
+    _finalize(actor.actor_turb)
+    _finalize(actor.actor_neoc)
     return actor
 end
