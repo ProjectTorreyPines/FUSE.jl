@@ -53,6 +53,9 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.tf.technology = :HTS
     ini.oh.technology = :HTS
 
+    ini.center_stack.bucked = true
+    ini.center_stack.plug = true
+
     #ini.requirements.power_electric_net = 50E6 ?
     ini.requirements.flattop_duration = 1800.0
     #ini.requirements.tritium_breeding_ratio = 1.0 ?

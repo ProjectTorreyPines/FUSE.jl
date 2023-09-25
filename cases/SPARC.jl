@@ -46,6 +46,9 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.tf.technology = :HTS
     ini.oh.technology = :HTS
 
+    ini.center_stack.bucked = true
+    ini.center_stack.plug = true
+
     ini.requirements.flattop_duration = 10.0
 
     ini.core_profiles.greenwald_fraction = 0.37
