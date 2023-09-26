@@ -11,7 +11,7 @@ mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
-    EquilibriumTransport::Union{Nothing,ActorStationaryPlasma{D,P}}
+    StationaryPlasma::Union{Nothing,ActorStationaryPlasma{D,P}}
     StabilityLimits::Union{Nothing,ActorStabilityLimits{D,P}}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
     LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
@@ -81,7 +81,7 @@ function _step(actor::ActorWholeFacility)
     act = actor.act
 
     if par.update_plasma
-        actor.EquilibriumTransport = ActorStationaryPlasma(dd, act)
+        actor.StationaryPlasma = ActorStationaryPlasma(dd, act)
         actor.StabilityLimits = ActorStabilityLimits(dd, act)
     end
 

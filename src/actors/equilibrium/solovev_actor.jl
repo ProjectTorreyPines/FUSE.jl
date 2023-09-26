@@ -31,13 +31,10 @@ Solovev equilibrium actor, based on:
 “One size fits all” analytic solutions to the Grad–Shafranov equation
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
-function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
-    actor = ActorSolovev(dd, act.ActorSolovev; ip_from, kw...)
+function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSolovev(dd, act.ActorSolovev; kw...)
     step(actor)
     finalize(actor)
-    # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
-    act.ActorSolovev.qstar = actor.S.qstar
-    act.ActorSolovev.alpha = actor.S.alpha
     return actor
 end
 
@@ -139,6 +136,10 @@ function _finalize(actor::ActorSolovev)
         eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
     end
     IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, mxh_eq.S.R0, mxh_eq.B0)
+
+    # record optimized values of qstar and alpha in `act` for subsequent calls to the same actor
+    actor.par.qstar = actor.S.qstar
+    actor.par.alpha = actor.S.alpha
 
     return actor
 end

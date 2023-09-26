@@ -33,8 +33,8 @@ end
 
 Evaluates the pedestal boundary condition (height and width)
 """
-function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:equilibrium, βn_from=:core_profiles, kw...)
-    actor = ActorPedestal(dd, act.ActorPedestal; ip_from, βn_from, kw...)
+function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorPedestal(dd, act.ActorPedestal; kw...)
     step(actor)
     finalize(actor)
     return actor
