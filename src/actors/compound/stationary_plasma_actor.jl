@@ -45,7 +45,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     par = par(kw...)
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:equilibrium)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
     actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:equilibrium)
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
@@ -69,15 +69,6 @@ function _step(actor::ActorStationaryPlasma)
         @printf("rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
     end
 
-    # run HCD to get updated current drive
-    finalize(step(actor.actor_hc))
-
-    # evolve j_ohmic
-    if typeof(actor.actor_jt) <: ActorSteadyStateCurrent
-        actor.actor_jt.par.ip_from = :pulse_schedule
-    end
-    finalize(step(actor.actor_jt))
-
     # set actors switches specific to this workflow
     if typeof(actor.actor_eq) <: ActorCHEASE
         chease_par = actor.actor_eq.eq_actor.par
@@ -86,6 +77,12 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     try
+        # run HCD to get updated current drive
+        finalize(step(actor.actor_hc))
+
+        # evolve j_ohmic
+        finalize(step(actor.actor_jt))
+
         total_error = Float64[]
         while isempty(total_error) || (total_error[end] > par.convergence_error)
             # get current and pressure profiles before updating them
@@ -139,6 +136,12 @@ function _step(actor::ActorStationaryPlasma)
                 break
             end
         end
+
+        # run HCD to get updated current drive
+        finalize(step(actor.actor_hc))
+
+        # evolve j_ohmic
+        finalize(step(actor.actor_jt))
 
     finally
         if typeof(actor.actor_eq) <: ActorCHEASE
