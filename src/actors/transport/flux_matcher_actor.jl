@@ -114,8 +114,15 @@ function _step(actor::ActorFluxMatcher)
     if par.do_plot
         cp1d = dd.core_profiles.profiles_1d[]
         N_channels = Int(length(z_init) / length(par.rho_transport))
-        p = plot(; layout=(N_channels, 2), size=(1000, 1000), xguidefontsize=15, yguidefontsize=14, legendfontsize=12,
-            tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern")
+        p = plot(;
+            layout=(N_channels, 2),
+            size=(1000, 1000),
+            xguidefontsize=15,
+            yguidefontsize=14,
+            legendfontsize=12,
+            tickfont=font(12, "Computer Modern"),
+            fontfamily="Computer Modern"
+        )
 
         titels = ["Electron temperature", "Ion temperature", "Electron density", "Rotation frequency tor sonic"]
         to_plot_after = [(cp1d.electrons, :temperature), (cp1d.ion[1], :temperature), (cp1d.electrons, :density_thermal), (cp1d, :rotation_frequency_tor_sonic)]
