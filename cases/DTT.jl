@@ -2,12 +2,8 @@
     case_parameters(:DTT)
 
 DTT
-
-Arguments:
-* `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
 function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,ParametersAllActors}
-
     ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "DTT"
@@ -47,14 +43,14 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     # layers[:hfs_vacuum_vessel] = 0.15,
     # layers[:hfs_shield] = 0.05
 #roba da FPP
-    # layers[:hfs_gap_low_temp_shield_TF] = 0.01
-    # layers[:hfs_low_temp_shield] = 0.02
-    # layers[:hfs_gap_vacuum_vessel_low_temp_shield] = 0.01 #1.275
+    layers[:hfs_gap_low_temp_shield_TF] = 0.01
+    layers[:hfs_low_temp_shield] = 0.02
+    layers[:hfs_gap_vacuum_vessel_low_temp_shield] = 0.01 #1.275
 
-    # # raggio vessel int = 1.275
-    # layers[:hfs_vacuum_vessel_wall_outer] = 0.01
-    # layers[:hfs_vacuum_vessel] = 0.115
-    # layers[:hfs_vacuum_vessel_wall_inner] = 0.01 #1.410
+    # raggio vessel int = 1.275
+    layers[:hfs_vacuum_vessel_wall_outer] = 0.01
+    layers[:hfs_vacuum_vessel] = 0.115
+    layers[:hfs_vacuum_vessel_wall_inner] = 0.01 #1.410
 #roba da ITER.jl
     layers[:hfs_wall] = 0.05 #1.460
     layers[:hfs_gap_plasma_wall]= 0.03 #1.490
@@ -66,16 +62,16 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     # layers[:lfs_vacuum_vessel] = 0.20
 
 #roba da FPP
-    # layers[:lfs_vacuum_vessel_wall_inner] = 0.01
-    # layers[:lfs_vacuum_vessel] = 0.21
-    # layers[:lfs_vacuum_vessel_wall_outer] = 0.01 # 3.453
+    layers[:lfs_vacuum_vessel_wall_inner] = 0.01
+    layers[:lfs_vacuum_vessel] = 0.21
+    layers[:lfs_vacuum_vessel_wall_outer] = 0.01 # 3.453
 
-    # layers[:hfs_gap_low_temp_shield_TF] = 0.01
-    # layers[:hfs_low_temp_shield] = 0.02
-    # layers[:hfs_gap_vacuum_vessel_low_temp_shield] = 0.01 # 3.457
+    layers[:lfs_gap_vacuum_vessel_low_temp_shield] = 0.01 # 3.457
+    layers[:lfs_low_temp_shield] = 0.02
+    layers[:lfs_gap_low_temp_shield_TF] = 0.01
 
     layers[:lfs_TF] = 0.585 # 4.078
-    layers[:gap_cryostat] = 1.5 #boh
+    layers[:gap_cryostat] = 0.5
     layers[:cryostat] = 0.30
     ini.build.n_first_wall_conformal_layers = 1
 
@@ -105,12 +101,12 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Ne
 
-    ini.core_profiles.ejima = 0.4 # non so cosa sia
+    ini.core_profiles.ejima = 0.4
 
     ini.nbi.power_launched = 10e6         
     ini.nbi.beam_energy = 0.5e6                   #500 keV
-    ini.ec_launchers.power_launched = 29e6        #su 32 installati
-    ini.ic_antennas.power_launched = 6e6          #su 8 installati
+    ini.ec_launchers.power_launched = 29e6        #of 32 installed
+    ini.ic_antennas.power_launched = 6e6          #of 8 installed
 
     act.ActorFluxMatcher.evolve_densities = Dict(
         :Ne => :match_ne_scale,
