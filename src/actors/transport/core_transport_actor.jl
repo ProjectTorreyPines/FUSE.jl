@@ -5,6 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch{Symbol}([:Tauenn, :FluxMatcher, :FixedProfiles], "-", "Transport actor to run"; default=:FixedProfiles)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the core transport"; default=false)
 end
 
 mutable struct ActorCoreTransport{D,P} <: PlasmaAbstractActor
@@ -29,9 +30,9 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     logging_actor_init(ActorCoreTransport)
     par = par(kw...)
     if par.model == :FluxMatcher
-        tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act)
+        tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
     elseif par.model == :Tauenn
-        tr_actor = ActorTauenn(dd, act.ActorTauenn)
+        tr_actor = ActorTauenn(dd, act.ActorTauenn; par.do_plot)
     elseif par.model == :FixedProfiles
         tr_actor = ActorFixedProfiles(dd, act.ActorFixedProfiles, act)
     end

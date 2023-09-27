@@ -12,14 +12,14 @@ end
 mutable struct ActorFluxCalculator{D,P} <: PlasmaAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxCalculator{P}
-    turb_actor::ActorTGLF{D,P}
-    neoc_actor::ActorNeoclassical{D,P}
+    actor_turb::ActorTGLF{D,P}
+    actor_neoc::ActorNeoclassical{D,P}
 end
 
 """
     ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a common interface to run multiple equilibrium actors
+Provides a common interface to run multiple transport model actors
 """
 function ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; kw...)
@@ -35,17 +35,17 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
         logging(Logging.Debug, :actors, "ActorFluxCalculator: turbulent transport disabled")
     elseif par.turbulence_model == :TGLF
         act.ActorTGLF.rho_transport = par.rho_transport
-        turb_actor = ActorTGLF(dd, act.ActorTGLF)
+        actor_turb = ActorTGLF(dd, act.ActorTGLF)
     end
 
     if par.neoclassical_model == :none
         logging(Logging.Debug, :actors, "ActorFluxCalculator: neoclassical transport disabled")
     elseif par.neoclassical_model == :neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport
-        neoc_actor = ActorNeoclassical(dd, act.ActorNeoclassical)
+        actor_neoc = ActorNeoclassical(dd, act.ActorNeoclassical)
     end
 
-    return ActorFluxCalculator(dd, par, turb_actor, neoc_actor)
+    return ActorFluxCalculator(dd, par, actor_turb, actor_neoc)
 end
 
 """
@@ -54,8 +54,8 @@ end
 Runs through the selected equilibrium actor's step
 """
 function _step(actor::ActorFluxCalculator)
-    step(actor.turb_actor)
-    step(actor.neoc_actor)
+    _step(actor.actor_turb)
+    _step(actor.actor_neoc)
     return actor
 end
 
@@ -65,7 +65,7 @@ end
 Finalizes the selected equilibrium actor
 """
 function _finalize(actor::ActorFluxCalculator)
-    finalize(actor.turb_actor)
-    finalize(actor.neoc_actor)
+    _finalize(actor.actor_turb)
+    _finalize(actor.actor_neoc)
     return actor
 end

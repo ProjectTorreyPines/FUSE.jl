@@ -24,8 +24,8 @@ end
 !!! note 
     Stores data in `dd.core_sources` and `dd.core_profiles`
 """
-function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; ip_from=:pulse_schedule, kw...)
-    actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; ip_from, kw...)
+function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
     step(actor)
     finalize(actor)
     return actor

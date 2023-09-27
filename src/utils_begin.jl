@@ -74,7 +74,7 @@ A plot with the following characteristics:
 
     @series begin
         seriestype := scatter
-        label := ""
+        label --> ""
         dates, mem
     end
 
@@ -84,10 +84,14 @@ A plot with the following characteristics:
             primary := false
             series_annotations := Plots.text.([action[i], action[i+1]], 6, :red)
             color := :red
-            xlabel --> "ΔTime [s]"
-            ylabel --> (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
             [dates[i], dates[i+1]], [mem[i], mem[i+1]]
         end
+    end
+    @series begin
+        primary := false
+        xlabel := "ΔTime [s]"
+        ylabel := (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
+        [], []
     end
 end
 
@@ -101,7 +105,7 @@ end
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")
 
-Save a memory trace to file
+Save a FUSE memory trace to file
 """
 function save(memtrace::MemTrace, filename::String="memtrace.txt")
     open(filename, "w") do file
@@ -109,6 +113,26 @@ function save(memtrace::MemTrace, filename::String="memtrace.txt")
             println(file, "$date $kb \"$txt\"")
         end
     end
+end
+
+"""
+    load(memtrace::MemTrace, filename::String="memtrace.txt")
+
+Load a FUSE memory trace from file
+"""
+function load(memtrace::MemTrace, filename::String="memtrace.txt")
+    open(filename, "r") do file
+        for line in eachline(file)
+            m = match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+\"(.*?)\"", line)
+            if m !== nothing
+                date = Dates.DateTime(m[1], "yyyy-mm-ddTHH:MM:SS.sss")
+                kb = parse(Int, m[2])
+                txt = m[3]
+                push!(memtrace.data, (date, txt, kb))
+            end
+        end
+    end
+    return memtrace
 end
 
 """
@@ -170,6 +194,41 @@ function varinfo(m::Module=Main, pattern::Regex=r""; all::Bool=false, imported::
     pushfirst!(rows, Any["name", "size", "summary"])
 
     return Markdown.MD(Any[Markdown.Table(map(r -> r[1:3], rows), Symbol[:l, :r, :l])])
+end
+
+"""
+    malloc_trim_if_glibc()
+
+Check if the underlying system uses the GNU C Library (GLIBC) and, if so, calls `malloc_trim(0)`
+to attempt to release memory back to the system. This function is primarily useful on Linux systems
+where GLIBC is the standard C library.
+
+On non-Linux systems, or Linux systems not using GLIBC, the function does nothing
+
+## Notes
+
+  - This method uses a heuristic by checking for the presence of "glibc" in `/proc/version`.
+    While this is indicative of GLIBC's presence on many typical systems, it's not a guaranteed check.
+  - The actual `malloc_trim` function is specific to the glibc implementation of the C standard library.
+"""
+function malloc_trim_if_glibc()
+    # Check if on Linux
+    if Sys.islinux()
+        # Check for glibc by reading /proc/version (this is specific to Linux)
+        try
+            version_info = read("/proc/version", String)
+            if occursin("glibc", version_info)
+                ccall(:malloc_trim, Cvoid, (Cint,), 0)
+                #println("malloc_trim called.")
+            else
+                #println("Not using glibc.")
+            end
+        catch e
+            #println("Error reading /proc/version: ", e)
+        end
+    else
+        #println("Not on a Linux system.")
+    end
 end
 
 # ==== #

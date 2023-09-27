@@ -36,8 +36,8 @@ Evolves the plasma current using the QED current diffusion solver.
 !!! note 
     Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`
 """
-function ActorQED(dd::IMAS.dd, act::ParametersAllActors; ip_from=:core_profiles, vloop_from=:core_profiles, kw...)
-    actor = ActorQED(dd, act.ActorQED; ip_from, vloop_from, kw...)
+function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorQED(dd, act.ActorQED; kw...)
     step(actor)
     finalize(actor)
     return actor
