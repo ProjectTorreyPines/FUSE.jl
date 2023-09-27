@@ -18,7 +18,7 @@ mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
-    actor_ped::ActorPedestal{D,P}
+    actor_ped::Union{ActorPedestal{D,P},ActorNoOP{D,P}}
 end
 
 """
