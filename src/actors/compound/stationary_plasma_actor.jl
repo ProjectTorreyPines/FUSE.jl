@@ -47,7 +47,13 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:equilibrium)
+    if act.ActorCoreTransport.model == :FluxMatcher
+        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:equilibrium)
+        actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
+        actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
+    else
+        actor_ped = ActorNoOP(dd,act.ActorNoOP)
+    end
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
 
@@ -96,9 +102,7 @@ function _step(actor::ActorStationaryPlasma)
             finalize(step(actor.actor_tr))
 
             # run pedestal actor
-            if par.update_pedestal
-                finalize(step(actor.actor_ped))
-            end
+            finalize(step(actor.actor_ped))
 
             # run HCD to get updated current drive
             finalize(step(actor.actor_hc))
