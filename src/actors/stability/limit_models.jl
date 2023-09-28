@@ -24,7 +24,7 @@ end
 ##### SPECIAL CASES #####
 
 function force_fail(dd::IMAS.dd, model::IMAS.stability__model)
-    error(raw"¯\_(ツ)_/¯") #I'll change this eventually
+    return error(raw"¯\_(ツ)_/¯") #I'll change this eventually
 end
 
 ##### MODEL COLLECTIONS #####
@@ -35,7 +35,7 @@ function default_limits(dd::IMAS.dd)
     collection.identifier.description = "Uses the default set of models"
 
     models = [:beta_troyon_1984, :model_201, :model_301, :model_401]
-    run_stability_models(dd, models)
+    return run_stability_models(dd, models)
 end
 
 function beta_limits(dd::IMAS.dd)
@@ -44,7 +44,7 @@ function beta_limits(dd::IMAS.dd)
     collection.identifier.description = "Checks all beta limit models"
 
     models = [:beta_troyon_1984, :beta_troyon_1985, :beta_tuda_1985, :beta_bernard_1983]
-    run_stability_models(dd, models)
+    return run_stability_models(dd, models)
 end
 
 function current_limits(dd::IMAS.dd)
@@ -53,7 +53,7 @@ function current_limits(dd::IMAS.dd)
     collection.identifier.description = "Checks all current limit models"
 
     models = [:model_201]
-    run_stability_models(dd, models)
+    return run_stability_models(dd, models)
 end
 
 function density_limits(dd::IMAS.dd)
@@ -62,7 +62,7 @@ function density_limits(dd::IMAS.dd)
     collection.identifier.description = "Checks all density limit models"
 
     models = [:model_301]
-    run_stability_models(dd, models)
+    return run_stability_models(dd, models)
 end
 
 
@@ -95,7 +95,7 @@ Limit in normalized beta using classical scaling using combined kink and balloon
 
 Model Formulation: βn < 2.8
 
-Citation: 
+Citation:
 """
 function beta_troyon_1985(dd::IMAS.dd)
     model = resize!(dd.stability.model, :beta_troyon_1985)
@@ -116,7 +116,7 @@ Limit in beta_normal using classical scaling using only kink stability
 
 Model Formulation: βn < 3.2
 
-Citation: 
+Citation:
 """
 function beta_tuda_1985(dd::IMAS.dd)
     model = resize!(dd.stability.model, :beta_tuda_1985)
@@ -137,7 +137,7 @@ Limit in normalized beta using classical scaling using only ballooning stability
 
 Model Formulation: βn < 2.8
 
-Citation: 
+Citation:
 """
 function beta_bernard_1983(dd::IMAS.dd)
     model = resize!(dd.stability.model, :beta_bernard_1983)
@@ -158,7 +158,7 @@ Modern limit in normlaized beta normalized by plasma inductance
 
 Model Formulation: βn / li < C_{beta}
 
-Citation: 
+Citation:
 """
 function model_105(dd::IMAS.dd)
     model = resize!(dd.stability.model, :model_105)
@@ -184,7 +184,7 @@ Standard limit in edge current via the safety factor
 
 Model Formulation: q95 < 2
 
-Citation: 
+Citation:
 """
 function model_201(dd::IMAS.dd)
     model = resize!(dd.stability.model, :model_201)
@@ -198,6 +198,25 @@ function model_201(dd::IMAS.dd)
     @ddtime(model.fraction = model_value / target_value)
 end
 
+"""
+    safety_factor_rho_08_lt_2(dd::IMAS.dd)
+
+Avoid opimizer pushing too much plasma current to "q_95 = 2.0"
+"""
+function safety_factor_rho_08_lt_2(dd::IMAS.dd)
+    model = resize!(dd.stability.model, :safety_factor_rho_08_lt_2)
+    model.identifier.name = "q(rho=0.8) > 2.0"
+    model.identifier.description = "q(rho=0.8) > 2.0"
+
+    rho_eq = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
+    q_08 = abs.(dd.equilibrium.time_slice[].profiles_1d.q)[argmin(abs.(rho_eq .- 0.8))]
+
+    model_value = 1 / abs(q_08)
+    target_value = 0.5
+
+    @ddtime(model.fraction = model_value / target_value)
+
+end
 
 ##### DENSITY LIMIT MODELS #####
 
@@ -208,7 +227,7 @@ Standard limit in density using IMAS greenwald fraction
 
 Model Formulation: f_{GW,IMAS} < 1.0
 
-Citation: 
+Citation:
 """
 function model_301(dd::IMAS.dd)
     model = resize!(dd.stability.model, :model_301)
