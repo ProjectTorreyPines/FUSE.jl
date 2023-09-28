@@ -43,7 +43,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
     logging_actor_init(ActorFluxMatcher)
     par = par(kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:core_profiles)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:core_profiles, rho_nml=par.rho_transport[end-1], rho_ped=par.rho_transport[end])
     return ActorFluxMatcher(dd, par, actor_ct, actor_ped)
 end
 
