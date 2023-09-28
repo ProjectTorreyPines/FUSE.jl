@@ -18,7 +18,7 @@ mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
-    actor_ped::Union{ActorPedestal{D,P},ActorNoOP{D,P}}
+    actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -52,7 +52,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
         actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
         actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
     else
-        actor_ped = ActorNoOP(dd,act.ActorNoOP)
+        actor_ped = ActorNoOperation(dd,act.ActorNoOP)
     end
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
