@@ -5,7 +5,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T} <: Parameter
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    update_pedestal::Entry{Bool} = Entry{Bool}("-", "Updates the pedestal before and after the transport step"; default=false)
     max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
 end
@@ -18,7 +17,7 @@ mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
-    actor_ped::ActorPedestal{D,P}
+    actor_ped::Union{ActorPedestal{D,P},ActorNoOP{D,P}}
 end
 
 """
@@ -45,9 +44,15 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     par = par(kw...)
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:equilibrium)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:equilibrium)
+    if act.ActorCoreTransport.model == :FluxMatcher
+        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:equilibrium)
+        actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
+        actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
+    else
+        actor_ped = ActorNoOP(dd,act.ActorNoOP)
+    end
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
 
@@ -69,15 +74,6 @@ function _step(actor::ActorStationaryPlasma)
         @printf("rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
     end
 
-    # run HCD to get updated current drive
-    finalize(step(actor.actor_hc))
-
-    # evolve j_ohmic
-    if typeof(actor.actor_jt) <: ActorSteadyStateCurrent
-        actor.actor_jt.par.ip_from = :pulse_schedule
-    end
-    finalize(step(actor.actor_jt))
-
     # set actors switches specific to this workflow
     if typeof(actor.actor_eq) <: ActorCHEASE
         chease_par = actor.actor_eq.eq_actor.par
@@ -86,6 +82,12 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     try
+        # run HCD to get updated current drive
+        finalize(step(actor.actor_hc))
+
+        # evolve j_ohmic
+        finalize(step(actor.actor_jt))
+
         total_error = Float64[]
         while isempty(total_error) || (total_error[end] > par.convergence_error)
             # get current and pressure profiles before updating them
@@ -99,9 +101,7 @@ function _step(actor::ActorStationaryPlasma)
             finalize(step(actor.actor_tr))
 
             # run pedestal actor
-            if par.update_pedestal
-                finalize(step(actor.actor_ped))
-            end
+            finalize(step(actor.actor_ped))
 
             # run HCD to get updated current drive
             finalize(step(actor.actor_hc))
@@ -139,6 +139,12 @@ function _step(actor::ActorStationaryPlasma)
                 break
             end
         end
+
+        # run HCD to get updated current drive
+        finalize(step(actor.actor_hc))
+
+        # evolve j_ohmic
+        finalize(step(actor.actor_jt))
 
     finally
         if typeof(actor.actor_eq) <: ActorCHEASE

@@ -7,7 +7,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     #== actor parameters ==#
-    edge_bound::Entry{T} = Entry{T}("-", "Defines rho at which edge starts"; default=0.8)
+    rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
+    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped in docstring
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ratio of ion to electron temperatures"; default=1.0)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
@@ -33,8 +34,8 @@ end
 
 Evaluates the pedestal boundary condition (height and width)
 """
-function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:equilibrium, βn_from=:core_profiles, kw...)
-    actor = ActorPedestal(dd, act.ActorPedestal; ip_from, βn_from, kw...)
+function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorPedestal(dd, act.ActorPedestal; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -118,7 +119,7 @@ function _finalize(actor::ActorPedestal)
     @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
 
     if par.update_core_profiles
-        IMAS.blend_core_edge_Hmode(cp1d, dd_ped, par.edge_bound)
+        IMAS.blend_core_edge_Hmode(cp1d, dd_ped, par.rho_nml, par.rho_ped)
     end
 
     return actor

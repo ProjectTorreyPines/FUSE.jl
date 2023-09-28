@@ -43,7 +43,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
     logging_actor_init(ActorFluxMatcher)
     par = par(kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
-    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:core_profiles)
+    actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:core_profiles, rho_nml=par.rho_transport[end-1], rho_ped=par.rho_transport[end])
     return ActorFluxMatcher(dd, par, actor_ct, actor_ped)
 end
 
@@ -116,8 +116,15 @@ function _step(actor::ActorFluxMatcher)
     if par.do_plot
         cp1d = dd.core_profiles.profiles_1d[]
         N_channels = Int(length(z_init) / length(par.rho_transport))
-        p = plot(; layout=(N_channels, 2), size=(1000, 1000), xguidefontsize=15, yguidefontsize=14, legendfontsize=12,
-            tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern")
+        p = plot(;
+            layout=(N_channels, 2),
+            size=(1000, 1000),
+            xguidefontsize=15,
+            yguidefontsize=14,
+            legendfontsize=12,
+            tickfont=font(12, "Computer Modern"),
+            fontfamily="Computer Modern"
+        )
 
         titels = ["Electron temperature", "Ion temperature", "Electron density", "Rotation frequency tor sonic"]
         to_plot_after = [(cp1d.electrons, :temperature), (cp1d.ion[1], :temperature), (cp1d.electrons, :density_thermal), (cp1d, :rotation_frequency_tor_sonic)]
