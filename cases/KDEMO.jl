@@ -86,6 +86,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
 
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 1.1
+    ini.requirements.power_electric_net = 400e6 # as example
 
     act.ActorFluxMatcher.evolve_densities = Dict(
         :He4 => :match_ne_scale, :He4_fast => :fixed,

@@ -28,6 +28,18 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         end
 
         if init_from == :scalars
+
+            # set core_profiles to match P_fusion requested
+            if !ismissing(getproperty(ini.requirements, :power_electric_net, missing))
+                Pfusion_estimate = ini.requirements.power_electric_net / 0.4
+                res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd, ini), [ini.equilibrium.pressure_core], Optim.NelderMead(),Optim.Options(g_tol=1E-3))
+                pressure_core = res.minimizer[1]
+                ActorCurrent(dd,act;ip_from=:equilibrium)
+                ActorEquilibrium(dd,act;ip_from=:core_profiles)
+            else
+                pressure_core = dd.equilibrium.time_slice[].profiles_1d.pressure[1]
+            end
+
             init_core_profiles!(
                 dd.core_profiles,
                 dd.equilibrium,
@@ -35,7 +47,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
                 greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
                 ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
-                pressure_core=dd.equilibrium.time_slice[].profiles_1d.pressure[1],
+                pressure_core=pressure_core,
                 helium_fraction=ini.core_profiles.helium_fraction,
                 T_ratio=ini.core_profiles.T_ratio,
                 T_shaping=ini.core_profiles.T_shaping,
@@ -162,4 +174,36 @@ function init_core_profiles!(
     # set spin polarization
     cp.global_quantities.polarized_fuel_fraction = polarized_fuel_fraction
     return cp
+end
+
+
+function cost_Pfusion_p0(p0::AbstractVector{<:Real}, target_pfus::Real, dd::IMAS.dd, ini::ParametersAllInits)
+    p = p0[1]
+    # set opt bound
+    if p < 1e1
+        p = 1e1
+    elseif p>1e7
+        p = 1e7
+    end
+    init_core_profiles!(
+        dd.core_profiles,
+        dd.equilibrium,
+        dd.summary;
+        greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
+        greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
+        ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
+        pressure_core=p,
+        helium_fraction=ini.core_profiles.helium_fraction,
+        T_ratio=ini.core_profiles.T_ratio,
+        T_shaping=ini.core_profiles.T_shaping,
+        n_shaping=ini.core_profiles.n_shaping,
+        w_ped=ini.core_profiles.w_ped,
+        zeff=ini.core_profiles.zeff,
+        rot_core=ini.core_profiles.rot_core,
+        ngrid=ini.core_profiles.ngrid,
+        bulk=ini.core_profiles.bulk,
+        impurity=ini.core_profiles.impurity,
+        ejima=getproperty(ini.core_profiles, :ejima, missing),
+        polarized_fuel_fraction=ini.core_profiles.polarized_fuel_fraction)
+    return abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
 end
