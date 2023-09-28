@@ -47,7 +47,7 @@ end
 function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, cst::IMAS.costing)
     if coil_tech.material == "Copper"
         return unit_cost("Copper", cst)
-    elseif coil_tech.material == "Nb3Sn"
+    elseif coil_tech.material == "Nb3Sn" # Nb3Sn unit cost applies to the formed conductor (including steel and copper)
         return unit_cost("Nb3Sn", cst)
     else
         fraction_cable = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
