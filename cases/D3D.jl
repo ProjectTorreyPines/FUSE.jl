@@ -12,7 +12,7 @@ DIII-D
 Arguments:
 * `scenario`: `:H_mode`, `:L_mode` or :default (loads an experimental d3d case)
 """
-function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:D3D}}; scenario=:H_mode)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits()
     act = ParametersActors()
 
