@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
         Entry{Union{AbstractDict,Symbol}}("-", "Dict to specify which ion species are evolved, kept constant, or used to enforce quasi neutarlity"; default=:fixed)
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Evolve the electron temperature"; default=:fixed)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "Rho transport grid"; default=0.2:0.1:0.8)
-    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=true)
+    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
@@ -103,6 +103,7 @@ function _step(actor::ActorFluxMatcher)
     end
 
     flux_match_errors(actor::ActorFluxMatcher, z_history[argmin(err_history)]) # res.zero == z_profiles for the smallest error iteration
+
     if par.evolve_densities !== :fixed
         IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in par.evolve_densities if evolve == :quasi_neutrality][1])
     end
@@ -139,6 +140,21 @@ function _step(actor::ActorFluxMatcher)
         display(p)
     end
 
+    # for completely collapsed cases we don't want it to crash in the optimizer so
+    cp1d = dd.core_profiles.profiles_1d[]
+    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te
+        @warn "Profiles completely collpased due to insufficient source versus turbulence"
+        te=cp1d.electrons.temperature
+        teped = @ddtime(dd.summary.local.pedestal.t_e.value)
+        lowest_profile = IMAS.Hmode_profiles(te[end],teped,teped*1.5,length(te),1.1,1.1,2*(1 - @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)))
+        cp1d.electrons.temperature = lowest_profile
+        if par.evolve_Ti
+            for ion in cp1d.ion
+                ion.temperature = lowest_profile
+            end
+        end
+    end
+        #        
     return actor
 end
 

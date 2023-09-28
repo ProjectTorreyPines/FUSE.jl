@@ -34,6 +34,9 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 Pfusion_estimate = ini.requirements.power_electric_net / 0.4
                 res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd, ini), [ini.equilibrium.pressure_core], Optim.NelderMead(),Optim.Options(g_tol=1E-3))
                 pressure_core = res.minimizer[1]
+
+                ini.equilibrium.pressure_core = pressure_core
+                cp1d = dd.core_profiles.profiles_1d[]
                 ActorCurrent(dd,act;ip_from=:equilibrium)
                 ActorEquilibrium(dd,act;ip_from=:core_profiles)
             else
