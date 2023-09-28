@@ -16,9 +16,14 @@ end
     FUSE.ActorFluxMatcher(dd, act)
 end
 
+@testset "dd floats" begin
+    ini, act = FUSE.init(:ITER, init_from=:ods)
+    dd = IMAS.dd{Real}()
+    FUSE.init(dd, ini, act)
+end
+
 @testset "init" begin
     tests = FUSE.OrderedCollections.OrderedDict()
-    tests["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
     tests["D3D"] = ([:D3D], Dict())
     tests["FPP_v1_demount_scalars"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :scalars))
     tests["FPP_v1_demount_ods"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :ods))
