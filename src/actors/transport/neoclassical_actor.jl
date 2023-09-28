@@ -59,12 +59,10 @@ function _step(actor::ActorNeoclassical)
         model.identifier.name = "NEO"
         rho_cp = cp1d.grid.rho_tor_norm
         gridpoint_cp = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
-
         for (idx,i) in enumerate(gridpoint_cp)
             actor.input_neos[idx] = NEO.InputNEO(dd, i)
         end
-
-        actor.flux_solutions = [NEO.run_neo(actor.input_neos[idx]) for idx in 1:length(par.rho_transport)]
+        actor.flux_solutions = asyncmap(input_neo -> NEO.run_neo(input_neo), actor.input_neos)
     end
 
     return actor
