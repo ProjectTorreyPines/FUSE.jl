@@ -103,6 +103,7 @@ end
 
 function _finalize(actor::ActorQED)
     dd = actor.dd
+    par = actor.par
 
     # set the total toroidal current in both equilibrium as well as core_profiles IDSs
     # NOTE: Here really we only care about core_profiles, since when the equilibrium actor is run,
@@ -119,6 +120,12 @@ function _finalize(actor::ActorQED)
     # update dd.core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
+
+    # add vloop info to pulse_schedule
+    if par.solve_for == :ip
+        vloop = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
+        @ddtime(dd.pulse_schedule.flux_control.loop_voltage.reference.data = vloop)
+    end
 
     return actor
 end
