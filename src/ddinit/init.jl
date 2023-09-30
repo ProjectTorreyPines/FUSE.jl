@@ -7,10 +7,16 @@ FUSE provides this high-level `init` function to populate `dd` starting from the
 This function essentially calls all other `FUSE.init...` functions in FUSE.
 For most applications, calling this high level function is sufficient.
 """
-function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
+function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, initialize_hardware::Bool=true)
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
 
+        # always empty non-hardware IDSs
+        empty!(dd.equilibrium)
+        empty!(dd.core_profiles)
+        empty!(dd.pulse_schedule)
+        empty!(dd.core_sources)
+        
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
 
@@ -65,7 +71,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         init_currents!(dd, ini, act, dd1)
 
         # initialize build
-        if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || !isempty(dd1.build)
+        if initialize_hardware && (!ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || !isempty(dd1.build))
             init_build!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
@@ -76,7 +82,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize oh and pf coils
-        if !ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active)
+        if initialize_hardware && (!ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active))
             init_pf_active!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
