@@ -47,10 +47,8 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED, ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
     actor_jt.jt_actor.par.solve_for = :vloop
-    actor_jt.jt_actor.par.vloop_from = :pulse_schedule
-    actor_jt.jt_actor.par.ip_from = :pulse_schedule
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
@@ -75,7 +73,7 @@ function _step(actor::ActorDynamicPlasma)
     ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
     cp1d = dd.core_profiles.profiles_1d[]
     η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
-    fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 0.1, η_avg * 0.1, 0.0))
+    fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 1.0, η_avg * 0.5, 0.0))
 
     prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
     backup_actor_logging = logging()[:actors]
@@ -131,5 +129,12 @@ function _step(actor::ActorDynamicPlasma)
 end
 
 function showvalues(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
-    return ("start time", t0), ("  end time", t1), ("      time", actor.dd.global_time), ("     stage", "$(name(actor)) ($phase/2)")
+    dd = actor.dd
+    return (
+        ("start time", t0),
+        ("  end time", t1),
+        ("      time", dd.global_time),
+        ("     stage", "$(name(actor)) ($phase/2)"),
+        ("        ip", "$(IMAS.get_from(dd, Val{:ip}, :core_profiles)/1E6) [MA]")
+    )
 end
