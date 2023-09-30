@@ -23,7 +23,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFcoilsOpt{T} <: ParametersActor
     _name::Symbol = :not_set
     green_model::Switch{Symbol} = Switch{Symbol}(options_green_model, "-", "Model used for the coils Green function calculations"; default=:simple)
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
-    weight_currents::Entry{T} = Entry{T}("-", "Weight of current limit constraint"; default=2.0)
+    weight_currents::Entry{T} = Entry{T}("-", "Weight of current limit constraint"; default=2.0) # current limit tolerance
     weight_strike::Entry{T} = Entry{T}("-", "Weight given to matching the strike-points"; default=0.1)
     weight_lcfs::Entry{T} = Entry{T}("-", "Weight given to matching last closed flux surface"; default=1.0)
     weight_null::Entry{T} = Entry{T}("-", "Weight given to get field null for plasma breakdown"; default=1.0)
@@ -77,7 +77,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
     if par.optimization_scheme == :none
         if par.do_plot
             plot(actor.eq_in; cx=true)
-            plot!(dd.build)
+            plot!(dd.build; legend=false)
             display(plot!(actor.pf_active))
         end
 
@@ -102,7 +102,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
         if par.do_plot
             # final time slice
             time_index = length(dd.equilibrium.time)
-            display(plot(dd.pf_active, :currents; time=dd.equilibrium.time[time_index], title="Current limits at t=$(dd.equilibrium.time[time_index]) s"))
+            display(plot(dd.pf_active, :currents; time0=dd.equilibrium.time[time_index], title="PF coils current limits at t=$(dd.equilibrium.time[time_index]) s"))
             display(plot(actor; equilibrium=true, time_index))
             # field null time slice
             if par.weight_null > 0.0
@@ -164,7 +164,8 @@ function _step(actor::ActorPFcoilsOpt{T}) where {T<:Real}
             par.weight_currents,
             par.weight_strike,
             par.maxiter,
-            par.verbose)
+            par.verbose,
+            do_trace=par.do_plot)
     else
         error("Supported ActorPFcoilsOpt optimization_scheme are `:currents` or `:rail`")
     end
@@ -219,11 +220,7 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
         ψ_f2f = transpose(VacuumFields.fixed2free(EQfixed, coils, R, Z))
         actor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
         actor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
-        if false # hack to force up-down symmetric equilibrium
-            actor.eq_out.time_slice[time_index].profiles_2d[1].psi = (ψ_f2f .+ ψ_f2f[1:end, end:-1:1]) ./ 2.0
-        else
-            actor.eq_out.time_slice[time_index].profiles_2d[1].psi = copy(ψ_f2f)
-        end
+        actor.eq_out.time_slice[time_index].profiles_2d[1].psi = copy(ψ_f2f)
     end
 
     # update psi
@@ -240,8 +237,10 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
-function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)::Vector{Float64}
-    distances = []
+function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
+    distances = Float64[]
+    lbounds = Float64[]
+    ubounds = Float64[]
     for rail in bd.pf_active.rail
         if rail.name !== "OH"
             # not symmetric
@@ -255,20 +254,28 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)::Vec
                 coil_distances = collect(range(-1.0, 1.0; length=rail.coils_number + 2))[2+Int((rail.coils_number - 1) // 2)+1:end-1]
             end
             append!(distances, coil_distances)
+            append!(lbounds, coil_distances .* 0.0 .- 1.0)
+            append!(ubounds, coil_distances .* 0.0 .+ 1.0)
         end
     end
-    oh_height_off = []
+    oh_height_off = Float64[]
     for rail in bd.pf_active.rail
         if rail.name == "OH"
             push!(oh_height_off, 1.0)
+            push!(lbounds, 1.0 - 1.0 / rail.coils_number / 2.0)
+            push!(ubounds, 1.0)
             if !symmetric
                 push!(oh_height_off, 0.0)
+                push!(lbounds, -1.0 / rail.coils_number / 2.0)
+                push!(ubounds, 1.0 / rail.coils_number / 2.0)
             end
         end
     end
     packed = vcat(distances, oh_height_off, log10(λ_regularize))
+    push!(lbounds, -25.0)
+    push!(ubounds, -5.0)
 
-    return packed
+    return packed, (lbounds, ubounds)
 end
 
 function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::IMAS.build)
@@ -282,7 +289,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
         oh_height_off = packed[end-n_oh_params:end-1]
         distances = packed[1:end-n_oh_params]
     else
-        oh_height_off = []
+        oh_height_off = Float64[]
         distances = packed[1:end-1]
     end
 
@@ -360,13 +367,14 @@ function optimize_coils_rail(
     weight_currents::Real,
     weight_strike::Real,
     maxiter::Integer,
-    verbose::Bool) where {D<:Real}
+    verbose::Bool,
+    do_trace::Bool) where {D<:Real}
 
     bd = dd.build
     pc = dd.pulse_schedule.position_control
 
     fixed_eqs = []
-    weights = []
+    weights = Vector{Float64}[]
     for time_index in eachindex(eq.time_slice)
         eqt = eq.time_slice[time_index]
         # field nulls
@@ -398,7 +406,7 @@ function optimize_coils_rail(
                 end
             end
             # find ψp
-            Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx, fraction_inside=1.0 - 1E-6)
+            Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx, fraction_inside=1.0 - 1E-3)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             # weight more near the x-points
             h = (maximum(Zp) - minimum(Zp)) / 2.0
@@ -413,133 +421,93 @@ function optimize_coils_rail(
         end
     end
 
-    packed = pack_rail(bd, λ_regularize, symmetric)
+    packed, bounds = pack_rail(bd, λ_regularize, symmetric)
     trace = PFcoilsOptTrace()
 
     oh_indexes = [coil.pf_active__coil.name == "OH" for coil in vcat(pinned_coils, optim_coils)]
 
-    packed_tmp = [packed]
-    function placement_cost(packed; do_trace=false)
-        packed_tmp[1] = packed
-
-        index = findall(.>(1.0), abs.(packed[1:end-1]))
-        if length(index) > 0
-            cost_1to1 = sum(abs.(packed[index]) .- 1.0)
-        else
-            cost_1to1 = 0.0
-        end
-
+    function placement_cost(packed::Vector{Float64}; do_trace::Bool=false)
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
         coils = vcat(pinned_coils, optim_coils)
 
-        all_cost_lcfs = []
-        all_cost_currents = []
-        all_cost_oh = []
+        all_cost_lcfs = 0.0
+        all_const_currents = Float64[]
         for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs, weights))
             for coil in vcat(pinned_coils, optim_coils, fixed_coils)
                 coil.time_index = time_index
             end
+
+            # find best currents to match boundary
             currents, cost_lcfs0 = VacuumFields.currents_to_match_ψp(fixed_eq..., coils; weights=weight, λ_regularize, return_cost=true)
+
+            # currents cost
             current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
-            oh_max_current_densities = [coil_J_B_crit(bd.oh.max_b_field, coil.coil_tech)[1] for coil in coils[oh_indexes]]
-            pf_max_current_densities = [coil_J_B_crit(coil_selfB(coil), coil.coil_tech)[1] for coil in coils[oh_indexes.==false]]
+            oh_max_current_densities = [coil_J_B_crit(bd.oh.max_b_field, coil.coil_tech)[1] for coil in coils[oh_indexes]] ./ weight_currents
+            pf_max_current_densities = [coil_J_B_crit(coil_selfB(coil), coil.coil_tech)[1] for coil in coils[oh_indexes.==false]] ./ weight_currents
             max_current_densities = vcat(oh_max_current_densities, pf_max_current_densities)
-            fraction_max_current_densities = abs.(current_densities ./ max_current_densities)
-            #currents cost
-            push!(all_cost_currents, norm(exp.(fraction_max_current_densities * weight_currents) / exp(1)) / length(currents))
-            # boundary and oh costs
+            append!(all_const_currents, log10.(abs.(current_densities) ./ (1.0 .+ max_current_densities)))
+
+            # boundary costs
             if ismissing(eq.time_slice[time_index].global_quantities, :ip)
-                push!(all_cost_lcfs, cost_lcfs0 * weight_null)
-                push!(all_cost_oh, 0.0)
+                all_cost_lcfs += cost_lcfs0 * weight_null
             else
-                push!(all_cost_lcfs, cost_lcfs0 * weight_lcfs)
-                # OH cost (to avoid OH shrinking too much)
-                index = findfirst(rail -> rail.name === "OH", bd.pf_active.rail)
-                if index !== nothing
-                    oh_rail_length = diff(collect(extrema(bd.pf_active.rail[index].outline.z)))[1]
-                    total_oh_coils_length = sum(coil.height for coil in coils[oh_indexes.==true])
-                    cost_oh = oh_rail_length / total_oh_coils_length
-                else
-                    cost_oh = 0.0
-                end
-                push!(all_cost_oh, cost_oh)
+                all_cost_lcfs += cost_lcfs0 * weight_lcfs
             end
         end
-        cost_lcfs = norm(all_cost_lcfs) / length(all_cost_lcfs)
-        cost_currents = norm(all_cost_currents) / length(all_cost_currents)
-        cost_oh = norm(all_cost_oh) / length(all_cost_oh)
+
         # Spacing between PF coils
-        cost_spacing = 0.0
+        const_spacing = 0.0
         if length(optim_coils) > 0
             for (k1, c1) in enumerate(optim_coils)
                 for (k2, c2) in enumerate(optim_coils)
-                    if k1 < k2 && c1.pf_active__coil.name != "OH" && c2.pf_active__coil.name != "OH"
-                        cost_spacing += exp(sqrt((c1.width + c2.width)^2 + (c1.height + c2.height)^2) / sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2))
+                    if k1 < k2
+                        d = sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
+                        s = sqrt((c1.width + c2.width)^2 + (c1.height + c2.height)^2)
+                        if c1.pf_active__coil.name == "OH" && c2.pf_active__coil.name == "OH"
+                        else
+                            const_spacing = max(const_spacing, s - d)
+                        end
                     end
                 end
             end
-            cost_spacing = cost_spacing / length(optim_coils)^2
         end
 
-        cost_lcfs_2 = cost_lcfs^2 * 10000.0
-        cost_currents_2 = cost_currents^2
-        cost_oh_2 = cost_oh^2
-        cost_1to1_2 = cost_1to1^2
-        cost_spacing_2 = cost_spacing^2
-
-        # total cost
-        cost = sqrt(cost_lcfs_2 + cost_currents_2 + cost_oh_2 + cost_1to1_2 + cost_spacing_2)
+        cost = all_cost_lcfs
         if do_trace
             push!(trace.params, packed)
-            push!(trace.cost_lcfs, sqrt(cost_lcfs_2))
-            push!(trace.cost_currents, sqrt(cost_currents_2))
-            push!(trace.cost_oh, sqrt(cost_oh_2))
-            push!(trace.cost_1to1, sqrt(cost_1to1_2))
-            push!(trace.cost_spacing, sqrt(cost_spacing_2))
+            push!(trace.cost_lcfs, all_cost_lcfs)
+            push!(trace.cost_oh, 0.0)
+            push!(trace.cost_currents, maximum(all_const_currents))
+            push!(trace.cost_1to1, 0.0)
+            push!(trace.cost_spacing, maximum(const_spacing))
             push!(trace.cost_total, cost)
         end
-        if isnan(cost)
-            display(plot([p[end] for p in trace.params]))
-            if isnan(cost_lcfs)
-                error("optimize_coils_rail cost_lcfs is NaN")
-            end
-            if isnan(cost_currents)
-                error("optimize_coils_rail cost_currents is NaN")
-            end
-            if isnan(cost_oh)
-                error("optimize_coils_rail cost_oh is NaN")
-            end
-            if isnan(cost_1to1)
-                error("optimize_coils_rail cost_1to1 is NaN")
-            end
-            if isnan(cost_spacing)
-                error("optimize_coils_rail cost_spacing is NaN")
-            end
-        end
-        return cost
 
-    end
-
-    function clb(x)
-        placement_cost(packed_tmp[1]; do_trace=true)
-        return false
+        return cost, vcat(all_const_currents, const_spacing), [0.0]
     end
 
     if maxiter == 0
         placement_cost(packed)
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
+
     else
-        res = Optim.optimize(
-            placement_cost,
-            packed,
-            Optim.NelderMead(),
-            Optim.Options(; time_limit=60 * 2, iterations=maxiter, callback=clb, g_tol=1E-4, show_trace=verbose);
-            autodiff=:forward
-        )
+        x_optimum = deepcopy(packed)
+        function logger(st, x_optimum, x_tol=1E-3)
+            α = 0.1
+            x_optimum .= x_optimum .* (1.0 - α) .+ Metaheuristics.minimizer(st) .* α
+            if norm(Metaheuristics.minimizer(st) .- x_optimum) < x_tol
+                st.termination_status_code = Metaheuristics.OBJECTIVE_DIFFERENCE_LIMIT
+                st.stop = true
+            end
+        end
+
+        options = Metaheuristics.Options(; seed=1, iterations=1000)
+        algorithm = Metaheuristics.ECA(; N=length(packed), options)
+        res = Metaheuristics.optimize(x -> placement_cost(x; do_trace), bounds, algorithm; logger=st -> logger(st, x_optimum))
+        packed = Metaheuristics.minimizer(res)
         if verbose
             println(res)
         end
-        packed = Optim.minimizer(res)
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
     end
 
@@ -598,7 +566,7 @@ Plot ActorPFcoilsOpt optimization cross-section
     build=true,
     coils_flux=false,
     rail=false,
-    plot_r_buffer=1.6) where {D<:Real, P<:Real}
+    plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
     @assert typeof(time_index) <: Union{Nothing,Integer}
     @assert typeof(equilibrium) <: Bool
@@ -613,7 +581,7 @@ Plot ActorPFcoilsOpt optimization cross-section
     if time_index === nothing
         time_index = length(actor.eq_out.time_slice)
     end
-    time = actor.eq_out.time_slice[time_index].time
+    time0 = actor.eq_out.time_slice[time_index].time
 
     # if there is no equilibrium then treat this as a field_null plot
     field_null = false
@@ -730,7 +698,7 @@ Plot ActorPFcoilsOpt optimization cross-section
 
     # plot pf_active coils
     @series begin
-        time --> time
+        time0 --> time0
         dd.pf_active
     end
 

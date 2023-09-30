@@ -16,7 +16,8 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
     casename::Entry{String} = Entry{String}("-", "Mnemonic name of the case being run")
-    init_from::Switch{Symbol} = Switch{Symbol}([
+    init_from::Switch{Symbol} = Switch{Symbol}(
+        [
             :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
             :scalars => "Initialize FUSE run from scalar parameters"
         ], "-", "Initialize run from")
@@ -150,7 +151,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
-    layers::Entry{OrderedCollections.OrderedDict{Symbol,Float64}} = Entry{OrderedCollections.OrderedDict{Symbol,Float64}}("m", "Sorted dictionary of layers thicknesses in radial build")
+    layers::Entry{OrderedCollections.OrderedDict{Symbol,Float64}} =
+        Entry{OrderedCollections.OrderedDict{Symbol,Float64}}("m", "Sorted dictionary of layers thicknesses in radial build")
     blanket::Entry{T} = Entry{T}("-", "Fraction of blanket in radial build")
     shield::Entry{T} = Entry{T}("-", "Fraction of shield in radial build")
     vessel::Entry{T} = Entry{T}("-", "Fraction of vessel in radial build")
@@ -178,7 +180,8 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     _name::Symbol = :requirements
     power_electric_net::Entry{T} = Entry{T}(IMAS.requirements, :power_electric_net)
     flattop_duration::Entry{T} = Entry{T}(IMAS.requirements, :flattop_duration)
-    log10_flattop_duration::Entry{T} = Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
+    log10_flattop_duration::Entry{T} =
+        Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
     tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio)
     cost::Entry{T} = Entry{T}(IMAS.requirements, :cost)
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking)
@@ -256,40 +259,6 @@ function json2ini(filename::AbstractString)
     return SimulationParameters.json2par(filename, ParametersInits())
 end
 
-@recipe function plot_ini(ini::ParametersAllInits)
-    N = 0
-    for par in SimulationParameters.leaves(ini)
-        if typeof(par.value) <: Function
-            N += 1
-        end
-    end
-
-    mxh = IMAS.MXH(ini)
-
-    if N > 0
-        layout := @layout [N + 1]
-
-        @series begin
-            label := ""
-            subplot := 1
-            aspectratio := :equal
-            mxh
-        end
-
-        k = 1
-        for par in SimulationParameters.leaves(ini)
-            if typeof(par.value) <: Function
-                k += 1
-                @series begin
-                    label := ""
-                    subplot := k
-                    par
-                end
-            end
-        end
-    end
-end
-
 """
     ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
 
@@ -332,7 +301,7 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.κ = mxh.κ
     equilibrium.δ = sin(mxh.s[1])
     equilibrium.ζ = -mxh.s[2]
-    equilibrium.𝚶 = mxh.c[1]
+    return equilibrium.𝚶 = mxh.c[1]
 end
 
 """
@@ -415,5 +384,42 @@ function n_xpoints(xpoints::Symbol)
         return 2
     else
         error("xpoints can only be [:none, :lower, :upper, :double]")
+    end
+end
+
+"""
+    plot_ini(ini::ParametersAllInits)
+
+Plots ini time dependent time traces including plasma boundary
+"""
+@recipe function plot_ini(ini::ParametersAllInits)
+    N = 0
+    for par in SimulationParameters.leaves(ini)
+        if typeof(par.value) <: Function
+            N += 1
+        end
+    end
+
+    layout := @layout [N + 1]
+
+    mxh = IMAS.MXH(ini)
+    @series begin
+        label := ""
+        subplot := 1
+        aspectratio := :equal
+        xlim := (0, mxh.R0 * 2)
+        mxh
+    end
+
+    k = 1
+    for par in SimulationParameters.leaves(ini)
+        if typeof(par.value) <: Function
+            k += 1
+            @series begin
+                label := ""
+                subplot := k
+                par
+            end
+        end
     end
 end

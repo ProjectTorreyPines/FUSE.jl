@@ -86,7 +86,7 @@ function _step(actor::ActorPedestal)
 
     if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
         actor.pped = 1.5 * sol.pressure.GH.H
-        actor.wped = maximum(sol.width.GH.H, 0.01)
+        actor.wped = max(sol.width.GH.H, 0.01)
         @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.5 = $(round(actor.pped*1e6)) [Pa] assumed "
     else
         actor.pped = sol.pressure.GH.H

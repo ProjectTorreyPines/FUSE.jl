@@ -1232,7 +1232,6 @@ function check_ped_finder(profile::AbstractVector{<:Real}, psi_norm::AbstractVec
     )
 end
 
-
 """
     ip_from_q_star(a::Real, B0::Real, q_star::Real, R0::Real, κ::Real)
 
