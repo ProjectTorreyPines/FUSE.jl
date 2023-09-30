@@ -48,6 +48,25 @@ function ramp(t::T)::T where {T}
 end
 
 """
+    ramp(t::T, ramp_fraction::Float64)::T where {T}
+
+Unitary ramp
+
+The `ramp_fraction` defines the fraction of ramp with respect to 1.0 and must be between [0.0,1.0]
+
+NOTE: This function is designed as is to be able to switch between `ramp(t, ramp_fraction)` and `trap(t, ramp_fraction)`.
+"""
+function ramp(t::T, ramp_fraction::Float64)::T where {T}
+    @assert 0 <= ramp_fraction <= 1 "ramp ramp_fraction must be between [0.0,1.0]"
+    k = 1.0 / ramp_fraction
+    if ramp_fraction == 0.0
+        return pulse(t)
+    else
+        return ramp(t * k)
+    end
+end
+
+"""
     ramp(t::T, t_start::Float64, Δt::Float64)::T where T
 
 Unitary ramp over the range of width Δt, starting at t=t_start
