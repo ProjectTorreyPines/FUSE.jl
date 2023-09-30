@@ -115,7 +115,7 @@ function _finalize(actor::ActorQED)
 
     # update dd.core_profiles
     cp1d = dd.core_profiles.profiles_1d[]
-    IMAS.j_total_from_equilibrium!(eqt, cp1d)
+    IMAS.j_ohmic_total_from_equilibrium!(eqt, cp1d)
 
     # update dd.core_sources related to current
     IMAS.bootstrap_source!(dd)
