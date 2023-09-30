@@ -16,6 +16,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         empty!(dd.core_profiles)
         empty!(dd.pulse_schedule)
         empty!(dd.core_sources)
+        empty!(dd.summary)
         
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
