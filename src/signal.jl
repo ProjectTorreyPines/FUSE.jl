@@ -57,14 +57,16 @@ function ramp(t::T, t_start::Float64, Δt::Float64)::T where {T}
 end
 
 """
-    trap(t::T, flattop_fraction::Float64)::T where T
+    trap(t::T, ramp_fraction::Float64)::T where T
 
-Unitary trapezoid. The `flattop_fraction` defines the fraction of flat top within [0,1]
+Unitary trapezoid
+
+The `ramp_fraction` defines the fraction of ramp with respect to flattop and must be between [0.0,0.5]
 """
-function trap(t::T, flattop_fraction::Float64)::T where {T}
-    @assert 0 <= flattop_fraction <= 1 "trap flattop_fraction must be between [0,1]"
-    k = 1 / ((1 - flattop_fraction) / 2)
-    if flattop_fraction == 1.0
+function trap(t::T, ramp_fraction::Float64)::T where {T}
+    @assert 0 <= ramp_fraction <= 0.5 "trap ramp_fraction must be between [0.0,0.5]"
+    k = 1.0 / ramp_fraction
+    if ramp_fraction == 0.0
         return pulse(t)
     else
         a = ramp(t * k) * (t < 0.5)
@@ -74,10 +76,12 @@ function trap(t::T, flattop_fraction::Float64)::T where {T}
 end
 
 """
-    trap(t::T, t_start::Float64, Δt::Float64, flattop_fraction::Float64)::T where T
+    trap(t::T, t_start::Float64, Δt::Float64, ramp_fraction::Float64)::T where T
 
-Unitary trapezoid, shifted by t_start and scaled by Δt. The `flattop_fraction` defines the fraction of flat top within [0,1]
+Unitary trapezoid, with time shifted by t_start and scaled by Δt
+
+The `ramp_fraction` defines the fraction of ramp with respect to flattop and must be between [0.0,0.5]
 """
-function trap(t::T, t_start::Float64, Δt::Float64, flattop_fraction::Float64)::T where {T}
-    return trap((t - t_start) / Δt, flattop_fraction)
+function trap(t::T, t_start::Float64, Δt::Float64, ramp_fraction::Float64)::T where {T}
+    return trap((t - t_start) / Δt, ramp_fraction)
 end
