@@ -67,7 +67,8 @@ function _step(actor::ActorQED)
             Ip = nothing
             Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
         end
-        QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
+        actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
+#        actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[]), 1000000.0, 1000; Vedge, Ip)
 
     else
         t0 = dd.global_time
@@ -112,10 +113,17 @@ function _finalize(actor::ActorQED)
     ρ = eqt.profiles_1d.rho_tor_norm
     eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
     eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
+    empty!(eqt.profiles_1d, :j_parallel) # restore expression
 
     # update dd.core_profiles
     cp1d = dd.core_profiles.profiles_1d[]
-    IMAS.j_ohmic_total_from_equilibrium!(eqt, cp1d)
+    cp1d.j_total = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.j_parallel, :cubic).(cp1d.grid.rho_tor_norm)
+    if ismissing(cp1d, :j_non_inductive)
+        cp1d.j_ohmic = cp1d.j_total
+    else
+        cp1d.j_ohmic = cp1d.j_total .- cp1d.j_non_inductive
+    end
+    empty!(cp1d, :j_tor) # restore expression
 
     # update dd.core_sources related to current
     IMAS.bootstrap_source!(dd)
@@ -151,15 +159,13 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     j_tor = eqt.profiles_1d.j_tor
     gm9 = eqt.profiles_1d.gm9
 
-    y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` used for packing points
-
+    y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
     if ismissing(cp1d, :j_non_inductive)
         ρ_j_non_inductive = nothing
     else
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, cp1d.j_non_inductive)
         y .*= ρ_j_non_inductive[2]
     end
-
     ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
 
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
