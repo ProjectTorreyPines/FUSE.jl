@@ -882,9 +882,9 @@ version = "1.5.1"
 
 [[deps.HDF5]]
 deps = ["Compat", "HDF5_jll", "Libdl", "MPIPreferences", "Mmap", "Preferences", "Printf", "Random", "Requires", "UUIDs"]
-git-tree-sha1 = "ec7df74b7b2022e8252a8bfd4ec23411491adc3b"
+git-tree-sha1 = "26407bd1c60129062cec9da63dc7d08251544d53"
 uuid = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
-version = "0.17.0"
+version = "0.17.1"
 
     [deps.HDF5.extensions]
     MPIExt = "MPI"
@@ -930,7 +930,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "2ec6eeac8c2337e421e63bcdd382a796523a7670"
+git-tree-sha1 = "dc19f36f09d70f5a7fe731fcf28d6937dc63433c"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -938,7 +938,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "Printf"]
-git-tree-sha1 = "f7e35c878f7e1bc402ae2769a620d614d995bf91"
+git-tree-sha1 = "ddf1ea5681dfbe23d18399944a29ec7c40d04dea"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1558,18 +1558,20 @@ version = "0.1.0"
 
 [[deps.NNlib]]
 deps = ["Adapt", "Atomix", "ChainRulesCore", "GPUArraysCore", "KernelAbstractions", "LinearAlgebra", "Pkg", "Random", "Requires", "Statistics"]
-git-tree-sha1 = "6e4e90c2e2ef091ef50b91af65fa4bb09c3d0728"
+git-tree-sha1 = "3bc568de99214f72a76c7773ade218819afcc36e"
 uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
-version = "0.9.6"
+version = "0.9.7"
 
     [deps.NNlib.extensions]
     NNlibAMDGPUExt = "AMDGPU"
     NNlibCUDACUDNNExt = ["CUDA", "cuDNN"]
     NNlibCUDAExt = "CUDA"
+    NNlibEnzymeCoreExt = "EnzymeCore"
 
     [deps.NNlib.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
     CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+    EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
     cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
 
 [[deps.NaNMath]]
@@ -2097,7 +2099,7 @@ version = "0.9.4"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections", "RecipesBase"]
-git-tree-sha1 = "577265e15bafe526eef7ceb0458db8f193dd7e94"
+git-tree-sha1 = "2d2c56b03add9bd89e8624a34d58f68b7192005d"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
@@ -2276,7 +2278,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "947a3244099d5c72e649a07eda7b9119cd8e0fde"
+git-tree-sha1 = "c93844cc684c8d799fec5faf43a62b2bfaeef9b5"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
