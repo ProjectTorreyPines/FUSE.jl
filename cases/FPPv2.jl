@@ -62,7 +62,7 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.ζ = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.05
     ini.equilibrium.𝚶 = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.2
     ini.equilibrium.pressure_core = t -> ramp((t - Δt / 8) / Δt, 0.3) * 1.0e6 + 0.2e6
-    ini.equilibrium.ip = t -> ramp(t / Δt, 0.05) * 7.0e6 + ramp((t - Δt / 2) / (Δt / 2), 0.125) * 1.0E6# - trap((t - Δt * 3 / 8) / (Δt / 4), 0.125) * 2.0E6
+    ini.equilibrium.ip = t -> ramp(t / Δt, 0.05) * 7.0e6 + ramp((t - Δt / 2) / (Δt / 2), 0.125) * 1.0E6
     ini.equilibrium.xpoints = t -> step((t - Δt / 7) / (Δt / 2)) < 0.5 ? :none : :lower
     ini.equilibrium.boundary_from = :scalars
 
