@@ -1,18 +1,27 @@
+sample_path = joinpath(@__DIR__, "..", "sample")
+shot_details = Dict(
+    :H_mode => Dict(:time0 => 2.7, :filename => joinpath(sample_path, "D3D_standard_Hmode.json")),
+    :L_mode => Dict(:time0 => 2.0 , :filename => joinpath(sample_path, "D3D_standard_Lmode.json")),
+    :default => Dict(:time0 => 0.0 , :filename => joinpath(sample_path, "D3D_eq_ods.json"))
+    )
 """
     case_parameters(:D3D)
 
 DIII-D
+
+Arguments:
+* `scenario`: `:H_mode`, `:L_mode` or :default (loads an experimental d3d case)
 """
-function case_parameters(::Type{Val{:D3D}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:D3D}}; scenario=:H_mode)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits()
     act = ParametersActors()
 
-    ini.general.casename = "D3D"
+    ini.general.casename = "D3D $scenario scenario"
     ini.general.init_from = :ods
     ini.equilibrium.boundary_from = :ods
 
-    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "D3D_eq_ods.json")
-    ini.time.simulation_start = 1.0
+    ini.ods.filename = shot_details[scenario][:filename]
+    ini.time.simulation_start = shot_details[scenario][:time0]
 
     ini.build.blanket = 0.0
     ini.build.shield = 0.0
