@@ -104,10 +104,11 @@ end
     prepare(actor::ActorEquilibrium)
 
 Prepare `dd.equilibrium` to run equilibrium actors
-* clear equilibrium__time_slice
-* set Ip, Bt, position control from pulse_schedule
-* Copy pressure from core_profiles to equilibrium
-* Copy j_tor from core_profiles to equilibrium
+
+  - clear equilibrium__time_slice
+  - set Ip, Bt, position control from pulse_schedule
+  - Copy pressure from core_profiles to equilibrium
+  - Copy j_tor from core_profiles to equilibrium
 """
 function prepare(actor::ActorEquilibrium)
     dd = actor.dd
@@ -142,11 +143,17 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
 
     # x-points
-    if length(getproperty(pc,:x_point,[])) >= 1
-        resize!(eqt.boundary.x_point, length(pc.x_point))
+    if length(getproperty(pc, :x_point, [])) >= 1
+        n = 0
         for k in eachindex(pc.x_point)
-            eqt.boundary.x_point[k].r = @ddtime(pc.x_point[k].r.reference.data)
-            eqt.boundary.x_point[k].z = @ddtime(pc.x_point[k].z.reference.data)
+            rx = @ddtime(pc.x_point[k].r.reference.data)
+            zx = @ddtime(pc.x_point[k].z.reference.data)
+            if rx > 0.0 && !isnan(rx) && !isnan(zx)
+                n += 1
+                resize!(eqt.boundary.x_point, n)
+                eqt.boundary.x_point[n].r = rx
+                eqt.boundary.x_point[n].z = zx
+            end
         end
     end
 
@@ -199,14 +206,14 @@ end
 Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
 function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
-    dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end], length=length(eqt.profiles_2d[1].grid.dim1))
+    dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end]; length=length(eqt.profiles_2d[1].grid.dim1))
     @assert collect(dim1) ≈ eqt.profiles_2d[1].grid.dim1
-    dim2 = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end], length=length(eqt.profiles_2d[1].grid.dim2))
+    dim2 = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end]; length=length(eqt.profiles_2d[1].grid.dim2))
     @assert collect(dim2) ≈ eqt.profiles_2d[1].grid.dim2
-    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length=length(eqt.profiles_1d.psi))
+    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end]; length=length(eqt.profiles_1d.psi))
     @assert collect(psi) ≈ eqt.profiles_1d.psi
 
-    MXHEquilibrium.efit(
+    return MXHEquilibrium.efit(
         MXHEquilibrium.cocos(11), # COCOS
         dim1, # Radius/R range
         dim2, # Elevation/Z range
