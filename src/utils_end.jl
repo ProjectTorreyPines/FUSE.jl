@@ -389,6 +389,20 @@ function digest(
         display(plot(dd.solid_mechanics.center_stack.stress))
     end
 
+    # pf active
+    sec += 1
+    if !isempty(dd.pf_active.coil) && section ∈ (0, sec)
+        println('\u200B')
+        time0 = dd.equilibrium.time[end]
+        l = @layout [a{0.5w} b{0.5w}]
+        p = plot(; layout=l, size=(900, 400))
+        plot!(p, dd.pf_active, :currents; time0, title="Current limits at t=$(time0) s", subplot=1)
+        plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
+        plot!(p, dd.build; subplot=2, legend=false)
+        plot!(p, dd.pf_active; time0, subplot=2)
+        display(p)
+    end
+
     # balance of plant (cannot be plotted right now plotting can only be done when running actor and not from data in dd)
     # sec += 1
     # if !missing(dd.balance_of_plant, :Q_plant) && section ∈ (0, sec)

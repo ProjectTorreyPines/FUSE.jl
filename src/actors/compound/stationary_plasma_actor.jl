@@ -5,7 +5,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T} <: Parameter
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    update_pedestal::Entry{Bool} = Entry{Bool}("-", "Updates the pedestal before and after the transport step"; default=false)
     max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
 end
@@ -52,7 +51,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
         actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
         actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
     else
-        actor_ped = ActorNoOperation(dd,act.ActorNoOP)
+        actor_ped = ActorNoOperation(dd,act.ActorNoOperation)
     end
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
