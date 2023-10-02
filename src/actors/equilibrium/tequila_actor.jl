@@ -56,9 +56,6 @@ Runs TEQUILA on the r_z boundary, equilibrium pressure and equilibrium j_tor
 function _step(actor::ActorTEQUILA)
     dd = actor.dd
     par = actor.par
-
-    par.do_plot && (p = plot(dd.equilibrium; cx=true, label="before"))
-
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
@@ -66,10 +63,7 @@ function _step(actor::ActorTEQUILA)
     #              For now setting to zero as initial eq1d.psi profile from prepare() can be nonsense
     actor.ψbound = 0.0 #IMAS.interp1d(eq1d.psi_norm, eq1d.psi)(par.psi_norm_boundary_cutoff)
 
-    r_bound = eqt.boundary.outline.r
-    z_bound = eqt.boundary.outline.z
-
-    mxh = IMAS.MXH(r_bound, z_bound, par.number_of_MXH_harmonics; optimize_fit=true)
+    mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, par.number_of_MXH_harmonics; optimize_fit=true)
 
     rho_pol = sqrt.(eq1d.psi_norm)
     rho_pol[1] = 0.0
@@ -84,7 +78,7 @@ function _step(actor::ActorTEQUILA)
     try
         actor.shot = TEQUILA.solve(shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax)
     catch e
-        display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
+        display(plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:dot, aspect_ratio=:equal))
         display(plot(rho_pol, eq1d.pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
         display(plot(rho_pol, eq1d.j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
         rethrow(e)
@@ -120,12 +114,24 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; ψbound::Real=0.
     eqt.global_quantities.magnetic_axis.r = Rax
     eqt.global_quantities.magnetic_axis.z = Zax
 
-    n_grid = 10 * length(shot.ρ)
+    R0 = shot.surfaces[1, end]
+    Z0 = shot.surfaces[2, end]
+    ϵ = shot.surfaces[3, end]
+    κ = shot.surfaces[4, end]
+    a = R0 * ϵ
+    Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
+    Zdim = κ * Rdim
+
+    nr_grid = 129
+    nz_grid = Int(ceil(nr_grid * Zdim / Rdim))
+
+    Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
+    Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
 
     psit = shot.C[2:2:end, 1]
     psia = psit[1]
     psib = psit[end]
-    eq1d.psi = range(psia, psib, n_grid)
+    eq1d.psi = range(psia, psib, nr_grid)
     rhoi = TEQUILA.ρ.(Ref(shot), eq1d.psi)
     eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), eq1d.psi)
     eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), eq1d.psi)
@@ -134,20 +140,10 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; ψbound::Real=0.
 
     resize!(eqt.profiles_2d, 1)
     eq2d = eqt.profiles_2d[1]
-
-    R0 = shot.surfaces[1, end]
-    Z0 = shot.surfaces[2, end]
-    ϵ = shot.surfaces[3, end]
-    κ = shot.surfaces[4, end]
-    Rdim = min(1.5 * R0 * ϵ, R0) # 50% bigger than the plasma, but a no bigger than R0
-    Zdim = κ * Rdim
-    Rgrid = range(R0 - Rdim, R0 + Rdim, n_grid)
-    Zgrid = range(Z0 - Zdim, Z0 + Zdim, n_grid)
-
     eq2d.grid.dim1 = Rgrid
     eq2d.grid.dim2 = Zgrid
     eq2d.grid_type.index = 1
-    eq2d.psi = zeros(n_grid, n_grid)
+    eq2d.psi = zeros(nr_grid, nz_grid)
 
     if free_boundary
         # # constraints for the private flux region

@@ -52,7 +52,8 @@ function _step(actor::ActorLHsimple)
     _, width, rho_0 = same_length_vectors(1:n_antennas, par.width, par.rho_0)
 
     for (idx, lha) in enumerate(dd.lh_antennas.antenna)
-        power_launched = @ddtime(lha.power_launched.data)
+        power_launched = @ddtime(dd.pulse_schedule.lh.power.reference.data)
+        @ddtime(lha.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = zeros(length(rho_cp))
 

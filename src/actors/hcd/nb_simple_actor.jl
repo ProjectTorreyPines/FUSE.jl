@@ -54,7 +54,8 @@ function _step(actor::ActorNBsimple)
     for (idx, nbu) in enumerate(dd.nbi.unit)
         beam_energy = @ddtime (nbu.energy.data)
         beam_mass = nbu.species.a
-        power_launched = @ddtime(nbu.power_launched.data)
+        power_launched = @ddtime(dd.pulse_schedule.nbi.power.reference.data)
+        @ddtime(nbu.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
