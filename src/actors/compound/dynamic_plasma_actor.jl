@@ -69,7 +69,6 @@ function _step(actor::ActorDynamicPlasma)
     actor.actor_jt.jt_actor.par.Δt = δt
 
     # setup things for Ip control
-    empty!(dd.pulse_schedule.flux_control.loop_voltage.reference, :data)
     ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
     cp1d = dd.core_profiles.profiles_1d[]
     η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
