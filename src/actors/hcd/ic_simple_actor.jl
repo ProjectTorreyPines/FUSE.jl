@@ -53,7 +53,8 @@ function _step(actor::ActorICsimple)
     _, width, rho_0 = same_length_vectors(1:n_antennas, par.width, par.rho_0)
 
     for (idx, ica) in enumerate(dd.ic_antennas.antenna)
-        power_launched = @ddtime(ica.power_launched.data)
+        power_launched = @ddtime(dd.pulse_schedule.ic.power.reference.data)
+        @ddtime(ica.power_launched.data = power_launched)
 
         # for FPP cases 80% to ions is reasonable (especially using minority heating)
         ion_electron_fraction_cp = fill(0.8, length(rho_cp))

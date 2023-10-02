@@ -31,7 +31,6 @@ function init_nbi(
     for (idx, nbu) in enumerate(dd.nbi.unit)
         nbu.name = length(power_launched) > 1 ? "nbi_$idx" : "nbi"
         @ddtime(nbu.energy.data = beam_energy[idx])
-        @ddtime(nbu.power_launched.data = power_launched[idx])
         nbu.available_launch_power = power_launched[idx]
         nbu.species.a = beam_mass[idx]
         # 1 beamlet
@@ -72,7 +71,6 @@ function init_ec_launchers(
     resize!(dd.ec_launchers.beam, length(power_launched))
     for (idx, ecb) in enumerate(dd.ec_launchers.beam)
         ecb.name = length(power_launched) > 1 ? "ec_$idx" : "ec"
-        @ddtime(ecb.power_launched.data = power_launched[idx])
         ecb.available_launch_power = power_launched[idx]
         if efficiency_conversion[idx] !== missing
             ecb.efficiency.conversion = efficiency_conversion[idx]
@@ -109,7 +107,6 @@ function init_ic_antennas(
     resize!(dd.ic_antennas.antenna, length(power_launched))
     for (idx, ica) in enumerate(dd.ic_antennas.antenna)
         ica.name = length(power_launched) > 1 ? "ic_$idx" : "ic"
-        @ddtime(ica.power_launched.data = power_launched[idx])
         ica.available_launch_power = power_launched[idx]
         if efficiency_coupling[idx] !== missing
             ica.efficiency.coupling = efficiency_coupling[idx]
@@ -149,7 +146,6 @@ function init_lh_antennas(
     for (idx, lha) in enumerate(dd.lh_antennas.antenna)
         lha = resize!(dd.lh_antennas.antenna, idx)[idx]
         lha.name = length(power_launched) > 1 ? "lh_$idx" : "lh"
-        @ddtime(lha.power_launched.data = power_launched[idx])
         lha.available_launch_power = power_launched[idx]
         if efficiency_coupling[idx] !== missing
             lha.efficiency.coupling = efficiency_coupling[idx]

@@ -83,6 +83,32 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, ini.time.simulation_start)
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
             end
+
+            # NB
+            if !ismissing(ini.nbi, :power_launched)
+                time, data = get_time_dependent(ini.nbi, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.nbi.power.reference.time = time
+                dd.pulse_schedule.nbi.power.reference.data = data
+            end
+            # EC
+            if !ismissing(ini.ec_launchers, :power_launched)
+                time, data = get_time_dependent(ini.ec_launchers, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.ec.power.reference.time = time
+                dd.pulse_schedule.ec.power.reference.data = data
+            end
+            # IC
+            if !ismissing(ini.ic_antennas, :power_launched)
+                time, data = get_time_dependent(ini.ic_antennas, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.ic.power.reference.time = time
+                dd.pulse_schedule.ic.power.reference.data = data
+            end
+            # LH
+            if !ismissing(ini.lh_antennas, :power_launched)
+                time, data = get_time_dependent(ini.lh_antennas, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.lh.power.reference.time = time
+                dd.pulse_schedule.lh.power.reference.data = data
+            end
+
         end
 
         return dd
