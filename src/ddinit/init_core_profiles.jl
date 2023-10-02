@@ -33,7 +33,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             if !ismissing(getproperty(ini.requirements, :power_electric_net, missing))
                 Pfusion_estimate = ini.requirements.power_electric_net / 0.4
                 res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd, ini), [ini.equilibrium.pressure_core], Optim.NelderMead(),Optim.Options(g_tol=1E-3))
-                pressure_core = res.minimizer[1]
+                pressure_core = abs(res.minimizer[1])
 
                 ini.equilibrium.pressure_core = pressure_core
                 cp1d = dd.core_profiles.profiles_1d[]
@@ -181,8 +181,8 @@ end
 
 
 function cost_Pfusion_p0(p0::AbstractVector{<:Real}, target_pfus::Real, dd::IMAS.dd, ini::ParametersAllInits)
-    p = p0[1]
-    # set opt bound
+    p = abs(p0[1])
+    # set optimizaiton bound
     if p < 1e1
         p = 1e1
     elseif p>1e7
