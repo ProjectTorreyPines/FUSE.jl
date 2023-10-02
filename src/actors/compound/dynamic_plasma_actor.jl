@@ -48,7 +48,8 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED, ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
-    actor_jt.jt_actor.par.solve_for = :vloop
+    actor_jt.jt_actor.par.solve_for = :ip
+    #actor_jt.jt_actor.par.solve_for = :vloop
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
@@ -72,7 +73,7 @@ function _step(actor::ActorDynamicPlasma)
     ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
     cp1d = dd.core_profiles.profiles_1d[]
     η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
-    fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 1.0, η_avg * 0.5, 0.0))
+    fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 2.0, η_avg * 0.5, 0.0))
 
     prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
     backup_actor_logging = logging()[:actors]
@@ -94,7 +95,9 @@ function _step(actor::ActorDynamicPlasma)
             else
                 # evolve j_ohmic
                 ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
-                controller(dd, ctrl_ip, Val{:ip})
+                if actor.actor_jt.jt_actor.par.solve_for == :vloop
+                    controller(dd, ctrl_ip, Val{:ip})
+                end
                 if par.evolve_current
                     _finalize(_step(actor.actor_jt))
                 end
