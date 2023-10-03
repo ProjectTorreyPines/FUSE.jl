@@ -68,7 +68,7 @@ function _step(actor::ActorTEQUILA)
     rho_pol = sqrt.(eq1d.psi_norm)
     rho_pol[1] = 0.0
     P = TEQUILA.FE(rho_pol, eq1d.pressure)
-    Jt = TEQUILA.FE(rho_pol, eq1d.j_tor)
+    Jt = TEQUILA.FE(rho_pol, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]) # don't allow for negative current
     Pbnd = eq1d.pressure[end]
     Fbnd = eq1d.f[end]
 
