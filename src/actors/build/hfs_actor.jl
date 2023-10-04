@@ -84,8 +84,8 @@ function _step(actor::ActorHFSsizing)
         c_cst = assign_PL_OH_TF(x0)
 
         # evaluate coils currents and stresses
-        _step(actor.fluxswing_actor)
-        _step(actor.stresses_actor)
+        finalize(step(actor.fluxswing_actor))
+        finalize(step(actor.stresses_actor))
 
         # OH currents and stresses
         if actor.fluxswing_actor.par.operate_oh_at_j_crit && (par.j_tolerance >= 0)
@@ -169,8 +169,8 @@ function _step(actor::ActorHFSsizing)
     algorithm = Metaheuristics.ECA(; N=20, options)
     res = Metaheuristics.optimize(cost, bounds, algorithm)
     assign_PL_OH_TF(Metaheuristics.minimizer(res))
-    step(actor.fluxswing_actor)
-    step(actor.stresses_actor)
+    finalize(step(actor.fluxswing_actor))
+    finalize(step(actor.stresses_actor))
 
     function print_details()
         println(cost(Metaheuristics.minimizer(res)))

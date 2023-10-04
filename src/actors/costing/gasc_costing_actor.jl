@@ -63,11 +63,11 @@ function ActorGASCCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function _step(actor::ActorGASCCosting)
-    _step(actor.sheffield_actor)
+    step(actor.sheffield_actor)
     return actor
 end
 
 function _finalize(actor::ActorGASCCosting)
-    _finalize(actor.sheffield_actor)
+    finalize(actor.sheffield_actor)
     return actor
 end

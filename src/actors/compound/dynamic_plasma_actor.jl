@@ -76,8 +76,7 @@ function _step(actor::ActorDynamicPlasma)
     fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 2.0, η_avg * 0.5, 0.0))
 
     prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
-    backup_actor_logging = logging()[:actors]
-    logging(; actors=Logging.Error)
+    old_logging = do_logging(actor, false)
     try
         for (kk, tt) in enumerate(LinRange(t0, t1, 2 * par.Nt + 1)[2:end])
             # prepare time dependent arrays of structures
@@ -90,7 +89,7 @@ function _step(actor::ActorDynamicPlasma)
                 # run transport actor
                 ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
                 if par.evolve_transport
-                    _finalize(_step(actor.actor_tr))
+                    finalize(step(actor.actor_tr))
                 end
             else
                 # evolve j_ohmic
@@ -99,26 +98,26 @@ function _step(actor::ActorDynamicPlasma)
                     controller(dd, ctrl_ip, Val{:ip})
                 end
                 if par.evolve_current
-                    _finalize(_step(actor.actor_jt))
+                    finalize(step(actor.actor_jt))
                 end
             end
 
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
             if par.evolve_equilibrium
-                _finalize(_step(actor.actor_eq))
+                finalize(step(actor.actor_eq))
             end
 
             # run HCD to get updated current drive
             ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
             if par.evolve_hcd
-                _finalize(_step(actor.actor_hc))
+                finalize(step(actor.actor_hc))
             end
         end
     catch e
         rethrow(e)
     finally
-        logging(; actors=backup_actor_logging)
+        do_logging(actor, old_logging)
     end
 
     # run the pf_active actor to get update coil currents
