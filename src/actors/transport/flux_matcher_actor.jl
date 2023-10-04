@@ -161,9 +161,6 @@ function flux_match_errors(
     # evolve pedestal
     if par.evolve_pedestal
         # modify dd with new z_profiles
-        actor.actor_ped.par.βn_from = :equilibrium
-        finalize(step(actor.actor_ped))
-        unpack_z_profiles(dd, par, z_profiles)
         actor.actor_ped.par.βn_from = :core_profiles
         finalize(step(actor.actor_ped))
         unpack_z_profiles(dd, par, z_profiles)
