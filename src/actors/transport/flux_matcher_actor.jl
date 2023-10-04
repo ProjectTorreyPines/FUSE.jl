@@ -63,11 +63,10 @@ function _step(actor::ActorFluxMatcher)
     end
 
     z_init = pack_z_profiles(dd, par) .* 100
-    old_log_level = log_topics[:actors]
     err_history = Float64[]
     z_history = Vector{Float64}[]
+    old_logging = actor_logging(dd, false)
     res = try
-        log_topics[:actors] = Logging.Warn
         if par.optimizer_algorithm == :anderson
             res = NLsolve.nlsolve(
                 z -> flux_match_errors(actor, z; z_history, err_history),
@@ -94,7 +93,7 @@ function _step(actor::ActorFluxMatcher)
         end
         res
     finally
-        log_topics[:actors] = old_log_level
+        actor_logging(dd, old_logging)
     end
 
     if par.verbose
@@ -177,11 +176,8 @@ function flux_match_errors(
     # evolve pedestal
     if par.evolve_pedestal
         # modify dd with new z_profiles
-        actor.actor_ped.par.βn_from = :equilibrium
-        _finalize(_step(actor.actor_ped))
-        unpack_z_profiles(dd, par, z_profiles)
         actor.actor_ped.par.βn_from = :core_profiles
-        _finalize(_step(actor.actor_ped))
+        finalize(step(actor.actor_ped))
         unpack_z_profiles(dd, par, z_profiles)
     else
         # modify dd with new z_profiles
@@ -191,7 +187,7 @@ function flux_match_errors(
     IMAS.sources!(dd)
 
     # evaludate neoclassical + turbulent fluxes
-    _finalize(_step(actor.actor_ct))
+    finalize(step(actor.actor_ct))
 
     # compare fluxes
     errors = flux_match_errors(dd, par)

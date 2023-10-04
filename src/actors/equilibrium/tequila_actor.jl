@@ -27,6 +27,8 @@ mutable struct ActorTEQUILA{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorTEQUILA{P}
     shot::Union{Nothing,TEQUILA.Shot}
     ψbound::D
+    old_boundary_outline_r::Vector{D}
+    old_boundary_outline_z::Vector{D}
 end
 
 """
@@ -41,11 +43,10 @@ function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; kw...)
+function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}; kw...) where {D<:Real, P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
-    return ActorTEQUILA(dd, par, nothing, 0.0)
-
+    return ActorTEQUILA(dd, par, nothing, 0.0, D[], D[])
 end
 
 """
@@ -63,26 +64,39 @@ function _step(actor::ActorTEQUILA)
     #              For now setting to zero as initial eq1d.psi profile from prepare() can be nonsense
     actor.ψbound = 0.0 #IMAS.interp1d(eq1d.psi_norm, eq1d.psi)(par.psi_norm_boundary_cutoff)
 
-    mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, par.number_of_MXH_harmonics; optimize_fit=true)
-
+    Ip_target = eqt.global_quantities.ip
     rho_pol = sqrt.(eq1d.psi_norm)
     rho_pol[1] = 0.0
     P = TEQUILA.FE(rho_pol, eq1d.pressure)
-    Jt = TEQUILA.FE(rho_pol, eq1d.j_tor)
+    Jt = TEQUILA.FE(rho_pol, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]) # don't allow for negative current
     Pbnd = eq1d.pressure[end]
     Fbnd = eq1d.f[end]
-    Ip = eqt.global_quantities.ip
 
     # TEQUILA shot
-    shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target=Ip)
+    if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
+        mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, par.number_of_MXH_harmonics; optimize_fit=true)
+        actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
+        solve_function = TEQUILA.solve
+        concentric_first = true
+    else
+        # reuse flux surface information if boundary has not changed
+        actor.shot = TEQUILA.Shot(actor.shot; P, Jt, Pbnd, Fbnd, Ip_target)
+        solve_function = TEQUILA.solve!
+        concentric_first = false
+    end
+
+    # solve
     try
-        actor.shot = TEQUILA.solve(shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax)
+        actor.shot = solve_function(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first)
     catch e
         display(plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:dot, aspect_ratio=:equal))
         display(plot(rho_pol, eq1d.pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
         display(plot(rho_pol, eq1d.j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
         rethrow(e)
     end
+
+    actor.old_boundary_outline_r = eqt.boundary.outline.r
+    actor.old_boundary_outline_z == eqt.boundary.outline.z
 
     return actor
 end

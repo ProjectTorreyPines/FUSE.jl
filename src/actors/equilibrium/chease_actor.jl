@@ -67,7 +67,7 @@ function _step(actor::ActorCHEASE)
 
     # pressure and j_tor
     psin = eq1d.psi_norm
-    j_tor = eq1d.j_tor
+    j_tor = [sign(j) == sign(Ip) ? j : 0.0 for j in eq1d.j_tor]
     pressure = eq1d.pressure
     rho_pol = sqrt.(psin)
     pressure_sep = pressure[end]

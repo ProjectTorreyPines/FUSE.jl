@@ -115,9 +115,20 @@ function prepare(actor::ActorEquilibrium)
     ps = dd.pulse_schedule
     pc = ps.position_control
 
-    # freeze core_profiles before wiping eqt and get ip_target
-    ip_target = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
-    cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[])
+    # freeze core_profiles before wiping eqt and get ip
+    ip = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
+    cp1d = dd.core_profiles.profiles_1d[]
+    psi = cp1d.grid.psi
+    if true
+        index = cp1d.grid.psi_norm .> 0.05
+        rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+        j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
+        pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    else
+        rho_pol_norm0 = sqrt.(cp1d.grid.psi_norm)
+        j_tor0 = cp1d.j_tor
+        pressure0 = cp1d.pressure
+    end
 
     # add/clear time-slice
     eqt = resize!(dd.equilibrium.time_slice)
@@ -125,7 +136,7 @@ function prepare(actor::ActorEquilibrium)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
 
     # scalar quantities
-    eqt.global_quantities.ip = ip_target
+    eqt.global_quantities.ip = ip
 
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
     B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference.data) / R0
@@ -157,13 +168,9 @@ function prepare(actor::ActorEquilibrium)
         end
     end
 
-    # set j_tor and pressure
+    # set j_tor and pressure, forcing zero derivative on axis
     eq1d = dd.equilibrium.time_slice[].profiles_1d
-    eq1d.psi = cp1d.grid.psi
-    index = cp1d.grid.psi_norm .> 0.05 # force zero derivative current/pressure on axis
-    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
-    j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
-    pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    eq1d.psi = psi
     eq1d.j_tor = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic).(sqrt.(eq1d.psi_norm))
     eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
 

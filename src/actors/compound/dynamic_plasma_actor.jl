@@ -76,8 +76,7 @@ function _step(actor::ActorDynamicPlasma)
     fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 2.0, η_avg * 0.5, 0.0))
 
     prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
-    backup_actor_logging = logging()[:actors]
-    logging(; actors=Logging.Error)
+    old_logging = actor_logging(dd, false)
     try
         for (kk, tt) in enumerate(LinRange(t0, t1, 2 * par.Nt + 1)[2:end])
             # prepare time dependent arrays of structures
@@ -90,7 +89,7 @@ function _step(actor::ActorDynamicPlasma)
                 # run transport actor
                 ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
                 if par.evolve_transport
-                    _finalize(_step(actor.actor_tr))
+                    finalize(step(actor.actor_tr))
                 end
             else
                 # evolve j_ohmic
@@ -99,26 +98,26 @@ function _step(actor::ActorDynamicPlasma)
                     controller(dd, ctrl_ip, Val{:ip})
                 end
                 if par.evolve_current
-                    _finalize(_step(actor.actor_jt))
+                    finalize(step(actor.actor_jt))
                 end
             end
 
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
             if par.evolve_equilibrium
-                _finalize(_step(actor.actor_eq))
+                finalize(step(actor.actor_eq))
             end
 
             # run HCD to get updated current drive
             ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
             if par.evolve_hcd
-                _finalize(_step(actor.actor_hc))
+                finalize(step(actor.actor_hc))
             end
         end
     catch e
         rethrow(e)
     finally
-        logging(; actors=backup_actor_logging)
+        actor_logging(dd, old_logging)
     end
 
     # run the pf_active actor to get update coil currents
@@ -139,4 +138,98 @@ function showvalues(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
         ("     stage", "$(name(actor)) ($phase/2)"),
         ("        ip", "$(IMAS.get_from(dd, Val{:ip}, :core_profiles)/1E6) [MA]")
     )
+end
+
+"""
+    plot_plasma_overview(dd::IMAS.dd, time0::Float64)
+
+Plot layout useful to get an overview of a time dependent plasma simulation.
+This gets typically used this way:
+
+    #a = @animate for k in 1:length(dd.core_profiles.time)
+    @manipulate for k in 1:length(dd.core_profiles.time)
+        time0 = dd.core_profiles.time[k]
+        FUSE.plot_plasma_overview(dd, time0)
+        #savefig("frame_\$(lpad(k-1, 4, '0')).png")
+    end
+    g = gif(a, "ITER_time_dep.gif", fps=24)
+    display(g)
+
+Inclusinon in BEAMER presentation can then be done with:
+
+    \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
+"""
+function plot_plasma_overview(dd::IMAS.dd, time0::Float64)
+    l = @layout grid(3, 4)
+    p = plot(; layout=l, size=(1600, 1000))
+
+    # Ip and Vloop
+    subplot = 1
+    plot!(
+        dd.pulse_schedule.flux_control.i_plasma.reference.time,
+        dd.pulse_schedule.flux_control.i_plasma.reference.data / 1E6;
+        color=:gray,
+        label="Ip reference [MA]",
+        lw=2.0,
+        ls=:dash,
+        subplot
+    )
+    #plot!(dd.equilibrium.time[4:2:end],[eqt.global_quantities.ip for eqt in dd.equilibrium.time_slice[4:2:end]]/1E6, color=:blue, label="equilibrium", subplot)
+    plot!(dd.core_profiles.time[1:2:end], dd.core_profiles.global_quantities.ip[1:2:end] / 1E6; color=:blue, label="Ip  [MA]", ylabel="Ip [MA]", lw=2.0, subplot)
+    plot!([NaN], [NaN]; color=:red, label="Vloop [mV]", subplot)
+    vline!([time0]; label="", subplot)
+    plot!(
+        twinx(),
+        dd.pulse_schedule.flux_control.loop_voltage.reference.time,
+        dd.pulse_schedule.flux_control.loop_voltage.reference.data * 1E3;
+        color=:red,
+        ylabel="Vloop [mV]",
+        label="",
+        lw=2.0,
+        subplot
+    )
+
+    # equilibrium, build, and pf_active
+    subplot = 2
+    #plot!(dd.equilibrium.time_slice[2]; cx=true, color=:gray, subplot)
+    plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
+    plot!(dd.build; legend=false, subplot)
+    plot!(dd.pf_active; time0, subplot, colorbar=:none, axis=false)
+
+    # core_profiles temperatures
+    subplot = 3
+    plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" before", subplot)
+    plot!(dd.core_profiles.profiles_1d[time0]; only=1, lw=2.0, subplot)
+
+    # core_profiles densities
+    subplot = 4
+    plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" before", subplot)
+    plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot)
+
+    # power scan
+    subplot = 9
+    plot!(dd.summary.time, dd.summary.heating_current_drive.power_launched_total.value / 1E6; label="Total Paux", ylabel="[MW]", subplot, lw=2.0)
+    vline!([time0]; label="", subplot)
+
+    # core_sources
+    subplot = 5
+    plot!(dd.core_sources; time0, only=4, subplot)
+    subplot = 6
+    plot!(dd.core_sources; time0, only=1, subplot)
+    subplot = 7
+    plot!(dd.core_sources; time0, only=2, subplot)
+    subplot = 8
+    plot!(dd.core_sources; time0, only=3, subplot)
+
+    # transport
+    #subplot=9
+    #plot!(dd.core_transport; time0, only=4, subplot)
+    subplot = 10
+    plot!(dd.core_transport; time0, only=1, subplot, ylim=(0, Inf))
+    subplot = 11
+    plot!(dd.core_transport; time0, only=2, subplot, ylim=(0, Inf))
+    subplot = 12
+    plot!(dd.core_transport; time0, only=3, subplot, ylim=(0, Inf))
+
+    return p
 end
