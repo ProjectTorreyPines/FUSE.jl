@@ -142,6 +142,7 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
     outputs = gasc.outputs["current drive"]
 
     cd_powers = Float64[]
+
     ini.nbi.power_launched = Float64[]
     ini.nbi.beam_energy = Float64[]
     ini.nbi.efficiency_conversion = inputs["efficiencyConversionNNBCD"]
@@ -157,21 +158,6 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
         push!(cd_powers, pow)
         push!(ini.nbi.power_launched, pow)
         push!(ini.nbi.beam_energy, 1000e3)
-    end
-
-    ini.lh_antennas.power_launched = Float64[]
-    ini.lh_antennas.efficiency_conversion = inputs["efficiencyConversionLHCD"]
-    ini.lh_antennas.efficiency_transmission = inputs["efficiencyTransmissionLHCD"]
-    ini.lh_antennas.efficiency_coupling = 1.0 # Not in GASC
-    pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
-    if pow > 0
-        push!(cd_powers, pow)
-        push!(ini.lh_antennas.power_launched, pow)
-    end
-    pow = outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"]
-    if pow > 0
-        push!(cd_powers, pow)
-        push!(ini.lh_antennas.power_launched, pow)
     end
 
     ini.ec_launchers.power_launched = Float64[]
@@ -193,6 +179,21 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
         push!(ini.ic_antennas.power_launched, pow)
     end
 
+    ini.lh_antennas.power_launched = Float64[]
+    ini.lh_antennas.efficiency_conversion = inputs["efficiencyConversionLHCD"]
+    ini.lh_antennas.efficiency_transmission = inputs["efficiencyTransmissionLHCD"]
+    ini.lh_antennas.efficiency_coupling = 1.0 # Not in GASC
+    pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
+    if pow > 0
+        push!(cd_powers, pow)
+        push!(ini.lh_antennas.power_launched, pow)
+    end
+    pow = outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"]
+    if pow > 0
+        push!(cd_powers, pow)
+        push!(ini.lh_antennas.power_launched, pow)
+    end
+
     # GASC heating power is assumed to be deposited in the core.
     # We use an NBI source as a proxy, which mostly deposits
     # in the core and heats mostly the ions.
@@ -204,6 +205,16 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
         push!(ini.nbi.power_launched, heating_power)
         push!(ini.nbi.beam_energy, 200e3)
     end
+
+    # set power_launched to missing or scalar if number of actuators is 0 or 1
+    for heating_scheme in (ini.nbi, ini.ec_launchers, ini.ic_antennas, ini.lh_antennas)
+        if isempty(heating_scheme.power_launched)
+            heating_scheme.power_launched = missing
+        elseif length(heating_scheme.power_launched) == 1
+            heating_scheme.power_launched = heating_scheme.power_launched[1]
+        end
+    end
+
     return ini
 end
 
