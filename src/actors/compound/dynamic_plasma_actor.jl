@@ -151,14 +151,14 @@ This gets typically used this way:
     @manipulate for k in 1:length(dd.core_profiles.time)
         time0 = dd.core_profiles.time[k]
         FUSE.plot_plasma_overview(dd, time0)
-        #savefig("frame_$(lpad(k-1, 4, '0')).png")
+        #savefig("frame_\$(lpad(k-1, 4, '0')).png")
     end
     g = gif(a, "ITER_time_dep.gif", fps=24)
     display(g)
 
 Inclusinon in BEAMER presentation can then be done with:
 
-    \animategraphics[loop,autoplay,controls,poster=0,width=\linewidth]{24}{frame_}{0000}{0120}
+    \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
 function plot_plasma_overview(dd::IMAS.dd, time0::Float64)
     l = @layout grid(3, 4)
