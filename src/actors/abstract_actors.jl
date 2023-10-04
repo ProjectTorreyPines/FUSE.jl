@@ -49,7 +49,7 @@ Calls `_step(actor)`
 This is where the main part of the actor calculation gets done
 """
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
-    if !do_logging(actor)
+    if !actor_logging(actor.dd)
         _step(actor, args...; kw...)::T
     else
         memory_time_tag("$(name(actor)) - @step IN")
@@ -87,7 +87,7 @@ Calls `_finalize(actor)`
 This is typically used to update `dd` to whatever the actor has calculated at the `step` function
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
-    if !do_logging(actor)
+    if !actor_logging(actor.dd)
         _finalize_and_freeze_onetime_expressions(actor)::T
     else
         memory_time_tag("$(name(actor)) - finalize IN")
@@ -114,14 +114,10 @@ function _finalize_and_freeze_onetime_expressions(actor::T) where {T<:AbstractAc
     return f_actor
 end
 
-#= ========== =#
-#  do_logging  #
-#= ========== =#
-function do_logging(actor::AbstractActor)
-    return do_logging(actor.dd)
-end
-
-function do_logging(dd::IMAS.dd)
+#= ============= =#
+#  actor_logging  #
+#= ============= =#
+function actor_logging(dd::IMAS.dd)
     aux = getfield(dd, :_aux)
     if :fuse_actor_logging ∉ keys(aux)
         aux[:fuse_actor_logging] = true
@@ -129,13 +125,9 @@ function do_logging(dd::IMAS.dd)
     return aux[:fuse_actor_logging]
 end
 
-function do_logging(actor::AbstractActor, value::Bool)
-    return do_logging(actor.dd, value::Bool)
-end
-
-function do_logging(dd::IMAS.dd, value::Bool)
+function actor_logging(dd::IMAS.dd, value::Bool)
     aux = getfield(dd, :_aux)
-    old_value = do_logging(dd)
+    old_value = actor_logging(dd)
     aux[:fuse_actor_logging] = value
     return old_value
 end

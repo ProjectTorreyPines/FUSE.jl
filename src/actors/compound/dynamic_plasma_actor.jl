@@ -76,7 +76,7 @@ function _step(actor::ActorDynamicPlasma)
     fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 2.0, η_avg * 0.5, 0.0))
 
     prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
-    old_logging = do_logging(actor, false)
+    old_logging = actor_logging(dd, false)
     try
         for (kk, tt) in enumerate(LinRange(t0, t1, 2 * par.Nt + 1)[2:end])
             # prepare time dependent arrays of structures
@@ -117,7 +117,7 @@ function _step(actor::ActorDynamicPlasma)
     catch e
         rethrow(e)
     finally
-        do_logging(actor, old_logging)
+        actor_logging(dd, old_logging)
     end
 
     # run the pf_active actor to get update coil currents

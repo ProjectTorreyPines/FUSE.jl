@@ -65,7 +65,7 @@ function _step(actor::ActorFluxMatcher)
     z_init = pack_z_profiles(dd, par) .* 100
     err_history = Float64[]
     z_history = Vector{Float64}[]
-    old_logging = do_logging(actor, false)
+    old_logging = actor_logging(dd, false)
     res = try
         if par.optimizer_algorithm == :anderson
             res = NLsolve.nlsolve(
@@ -93,7 +93,7 @@ function _step(actor::ActorFluxMatcher)
         end
         res
     finally
-        do_logging(actor, old_logging)
+        actor_logging(dd, old_logging)
     end
 
     if par.verbose
