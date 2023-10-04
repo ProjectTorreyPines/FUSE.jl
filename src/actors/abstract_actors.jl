@@ -49,14 +49,14 @@ Calls `_step(actor)`
 This is where the main part of the actor calculation gets done
 """
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
-    if !actor_logging(actor.dd)
-        _step(actor, args...; kw...)::T
-    else
-        memory_time_tag("$(name(actor)) - @step IN")
-        logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
-        timer_name = name(actor)
-        TimerOutputs.reset_timer!(timer_name)
-        TimerOutputs.@timeit timer timer_name begin
+    timer_name = name(actor)
+    TimerOutputs.reset_timer!(timer_name)
+    TimerOutputs.@timeit timer timer_name begin
+        if !actor_logging(actor.dd)
+            _step(actor, args...; kw...)::T
+        else
+            memory_time_tag("$(name(actor)) - @step IN")
+            logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
             enter_workflow(actor)
             try
                 s_actor = _step(actor, args...; kw...)
@@ -66,8 +66,8 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
             finally
                 exit_workflow(actor)
             end
+            memory_time_tag("$(name(actor)) - @step OUT")
         end
-        memory_time_tag("$(name(actor)) - @step OUT")
     end
     return actor
 end
@@ -87,16 +87,17 @@ Calls `_finalize(actor)`
 This is typically used to update `dd` to whatever the actor has calculated at the `step` function
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
-    if !actor_logging(actor.dd)
-        _finalize_and_freeze_onetime_expressions(actor)::T
-    else
-        memory_time_tag("$(name(actor)) - finalize IN")
-        logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
-
-        f_actor = _finalize_and_freeze_onetime_expressions(actor)
-        @assert f_actor === actor "`$(typeof(T))._finalize(actor)` should return the same actor that is input to the function"
-
-        memory_time_tag("$(name(actor)) - finalize OUT")
+    timer_name = name(actor)
+    TimerOutputs.@timeit timer timer_name begin
+        if !actor_logging(actor.dd)
+            _finalize_and_freeze_onetime_expressions(actor)::T
+        else
+            memory_time_tag("$(name(actor)) - finalize IN")
+            logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
+            f_actor = _finalize_and_freeze_onetime_expressions(actor)
+            @assert f_actor === actor "`$(typeof(T))._finalize(actor)` should return the same actor that is input to the function"
+            memory_time_tag("$(name(actor)) - finalize OUT")
+        end
     end
     return actor
 end
