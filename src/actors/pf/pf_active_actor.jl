@@ -406,7 +406,7 @@ function optimize_coils_rail(
                 end
             end
             # find ψp
-            Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx, fraction_inside=1.0 - 1E-3)
+            Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx, fraction_inside=1.0 - 1E-4)
             push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
             # weight more near the x-points
             h = (maximum(Zp) - minimum(Zp)) / 2.0

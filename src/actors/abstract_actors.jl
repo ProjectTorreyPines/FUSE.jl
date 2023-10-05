@@ -5,7 +5,7 @@ abstract type HCDAbstractActor <: AbstractActor end
 abstract type PlasmaAbstractActor <: AbstractActor end
 
 function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
-    logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
+    return logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
 end
 
 function name(actor::AbstractActor)
@@ -49,22 +49,26 @@ Calls `_step(actor)`
 This is where the main part of the actor calculation gets done
 """
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
-    memory_time_tag("$(name(actor)) - @step IN")
-    logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
     timer_name = name(actor)
     TimerOutputs.reset_timer!(timer_name)
     TimerOutputs.@timeit timer timer_name begin
-        enter_workflow(actor)
-        try
-            s_actor = _step(actor, args...; kw...)
-            @assert s_actor === actor "`$(typeof(T))._step(actor)` should return the same actor that is input to the function"
-        catch e
-            rethrow(e)
-        finally
-            exit_workflow(actor)
+        if !actor_logging(actor.dd)
+            _step(actor, args...; kw...)::T
+        else
+            memory_time_tag("$(name(actor)) - @step IN")
+            logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
+            enter_workflow(actor)
+            try
+                s_actor = _step(actor, args...; kw...)
+                @assert s_actor === actor "`$(typeof(T))._step(actor)` should return the same actor that is input to the function"
+            catch e
+                rethrow(e)
+            finally
+                exit_workflow(actor)
+            end
+            memory_time_tag("$(name(actor)) - @step OUT")
         end
     end
-    memory_time_tag("$(name(actor)) - @step OUT")
     return actor
 end
 
@@ -82,12 +86,24 @@ Calls `_finalize(actor)`
 
 This is typically used to update `dd` to whatever the actor has calculated at the `step` function
 """
-function finalize(actor::T) where {T<:AbstractActor}
-    memory_time_tag("$(name(actor)) - finalize IN")
-    logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
-    f_actor = _finalize(actor)
-    @assert f_actor === actor "_finalize should return the same actor (check if it is actor at all)"
+function finalize(actor::T)::T where {T<:AbstractActor}
+    timer_name = name(actor)
+    TimerOutputs.@timeit timer timer_name begin
+        if !actor_logging(actor.dd)
+            _finalize_and_freeze_onetime_expressions(actor)::T
+        else
+            memory_time_tag("$(name(actor)) - finalize IN")
+            logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
+            f_actor = _finalize_and_freeze_onetime_expressions(actor)
+            @assert f_actor === actor "`$(typeof(T))._finalize(actor)` should return the same actor that is input to the function"
+            memory_time_tag("$(name(actor)) - finalize OUT")
+        end
+    end
+    return actor
+end
 
+function _finalize_and_freeze_onetime_expressions(actor::T) where {T<:AbstractActor}
+    f_actor = _finalize(actor)
     # freeze onetime expressions (ie. grids)
     while !isempty(IMAS.expression_onetime_weakref)
         idsw = pop!(IMAS.expression_onetime_weakref, first(keys(IMAS.expression_onetime_weakref)))
@@ -96,8 +112,25 @@ function finalize(actor::T) where {T<:AbstractActor}
             IMAS.freeze!(idsw.value)
         end
     end
-    memory_time_tag("$(name(actor)) - finalize OUT")
-    return actor
+    return f_actor
+end
+
+#= ============= =#
+#  actor_logging  #
+#= ============= =#
+function actor_logging(dd::IMAS.dd)
+    aux = getfield(dd, :_aux)
+    if :fuse_actor_logging ∉ keys(aux)
+        aux[:fuse_actor_logging] = true
+    end
+    return aux[:fuse_actor_logging]
+end
+
+function actor_logging(dd::IMAS.dd, value::Bool)
+    aux = getfield(dd, :_aux)
+    old_value = actor_logging(dd)
+    aux[:fuse_actor_logging] = value
+    return old_value
 end
 
 #= ======== =#
@@ -112,7 +145,7 @@ end
 Workflow(name::String) = Workflow(name, OrderedCollections.OrderedDict{String,Workflow}())
 
 function AbstractTrees.printnode(io::IO, workflow::Workflow)
-    printstyled(io, workflow._name)
+    return printstyled(io, workflow._name)
 end
 
 function AbstractTrees.children(workflow::Workflow)
@@ -128,11 +161,11 @@ function enter_workflow(actor::AbstractActor)
     h = goto_worflow_depth(aux[:fuse_workflow], aux[:fuse_workflow_depth])
     aux[:fuse_workflow_count] += 1
     aux[:fuse_workflow_depth] += 1
-    h[(name(actor), aux[:fuse_workflow_count])] = Workflow(name(actor))
+    return h[(name(actor), aux[:fuse_workflow_count])] = Workflow(name(actor))
 end
 
 function exit_workflow(actor::AbstractActor)
-    _aux_workflow(actor.dd)[:fuse_workflow_depth] -= 1
+    return _aux_workflow(actor.dd)[:fuse_workflow_depth] -= 1
 end
 
 function goto_worflow_depth(workflow::Workflow, depth::Int)

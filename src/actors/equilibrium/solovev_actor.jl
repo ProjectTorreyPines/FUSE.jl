@@ -85,6 +85,13 @@ function _step(actor::ActorSolovev)
     end
 
     # first run of Solovev
+    # display(plot(mxh))
+    # @show abs(B0)
+    # @show plasma_shape
+    # @show par.alpha
+    # @show par.qstar
+    # @show x_point
+    # @show symmetric
     S0 = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar; B0_dir=Int64(sign(B0)), Ip_dir=1, x_point, symmetric)
 
     # optimize `alpha` and `qstar` to get target_ip and target_pressure_core

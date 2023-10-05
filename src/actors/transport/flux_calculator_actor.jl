@@ -56,8 +56,8 @@ end
 Runs through the selected equilibrium actor's step
 """
 function _step(actor::ActorFluxCalculator)
-    _step(actor.actor_turb)
-    _step(actor.actor_neoc)
+    step(actor.actor_turb)
+    step(actor.actor_neoc)
     return actor
 end
 
@@ -67,7 +67,7 @@ end
 Finalizes the selected equilibrium actor
 """
 function _finalize(actor::ActorFluxCalculator)
-    _finalize(actor.actor_turb)
-    _finalize(actor.actor_neoc)
+    finalize(actor.actor_turb)
+    finalize(actor.actor_neoc)
     return actor
 end

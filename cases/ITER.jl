@@ -109,12 +109,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.ec_launchers.power_launched = 2 * 10e6
     ini.ic_antennas.power_launched = 24 * 1e6
 
-    act.ActorFluxMatcher.evolve_densities = Dict(
-        :Ne => :match_ne_scale,
-        :DT => :quasi_neutrality,
-        :He4 => :match_ne_scale,
-        :He4_fast => :fixed,
-        :electrons => :flux_match)
+    act.ActorFluxMatcher.evolve_densities = :flux_match
 
     set_new_base!(ini)
     set_new_base!(act)
