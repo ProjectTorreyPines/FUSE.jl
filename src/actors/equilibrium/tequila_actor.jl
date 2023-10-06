@@ -37,13 +37,13 @@ end
 Runs the Fixed boundary equilibrium solver TEQUILA
 """
 function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorTEQUILA(dd, par; kw...)
+    actor = ActorTEQUILA(dd, act.ActorTEQUILA; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}; kw...) where {D<:Real, P<:Real}
+function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
     return ActorTEQUILA(dd, par, nothing, 0.0, D[], D[])
@@ -96,7 +96,7 @@ function _step(actor::ActorTEQUILA)
     end
 
     actor.old_boundary_outline_r = eqt.boundary.outline.r
-    actor.old_boundary_outline_z == eqt.boundary.outline.z
+    actor.old_boundary_outline_z = eqt.boundary.outline.z
 
     return actor
 end
