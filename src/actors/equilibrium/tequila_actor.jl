@@ -37,13 +37,13 @@ end
 Runs the Fixed boundary equilibrium solver TEQUILA
 """
 function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorTEQUILA(dd, par; kw...)
+    actor = ActorTEQUILA(dd, act.ActorTEQUILA; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}; kw...) where {D<:Real, P<:Real}
+function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
     return ActorTEQUILA(dd, par, nothing, 0.0, D[], D[])
@@ -96,7 +96,7 @@ function _step(actor::ActorTEQUILA)
     end
 
     actor.old_boundary_outline_r = eqt.boundary.outline.r
-    actor.old_boundary_outline_z == eqt.boundary.outline.z
+    actor.old_boundary_outline_z = eqt.boundary.outline.z
 
     return actor
 end
@@ -157,7 +157,7 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; ψbound::Real=0.
     eq2d.grid.dim1 = Rgrid
     eq2d.grid.dim2 = Zgrid
     eq2d.grid_type.index = 1
-    eq2d.psi = zeros(nr_grid, nz_grid)
+    eq2d.psi = zeros(nr_grid, nz_grid) .+ Inf
 
     if free_boundary
         # # constraints for the private flux region
@@ -172,9 +172,21 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; ψbound::Real=0.
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
 
     else
-        Threads.@threads for (i, r) in enumerate(Rgrid)
+        # to work with a closed boundary equilibrium for now we need
+        # ψ outside of the CLFS to grow out until it touches the computation domain
+        for (i, r) in collect(enumerate(Rgrid))
             for (j, z) in enumerate(Zgrid)
-                eq2d.psi[i, j] = shot(r, z) + ψbound
+                for (r0, z0) in zip(eqt.boundary.outline.r, eqt.boundary.outline.z)
+                    eq2d.psi[i, j] = min(eq2d.psi[i, j], sqrt((r - r0) .^ 2 + (z - z0) .^ 2) * (psib - psia) / 4)
+                end
+            end
+        end
+        Threads.@threads for (i, r) in collect(enumerate(Rgrid))
+            for (j, z) in enumerate(Zgrid)
+                value = shot(r, z)
+                if value != 0.0
+                    eq2d.psi[i, j] = value + ψbound
+                end
             end
         end
         eq1d.psi .+= ψbound
