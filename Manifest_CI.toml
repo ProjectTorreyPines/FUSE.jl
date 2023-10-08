@@ -1954,9 +1954,9 @@ version = "1.2.2"
 
 [[deps.RelocatableFolders]]
 deps = ["SHA", "Scratch"]
-git-tree-sha1 = "90bc7a7c96410424509e4263e277e43250c05691"
+git-tree-sha1 = "ffdaf70d81cf6ff22c2b6e733c900c3321cab864"
 uuid = "05181044-ff0b-4ac5-8273-598c1e38db00"
-version = "1.0.0"
+version = "1.0.1"
 
 [[deps.Requires]]
 deps = ["UUIDs"]
@@ -2029,16 +2029,20 @@ version = "0.6.39"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "ArrayInterface", "ChainRulesCore", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FillArrays", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables", "TruncatedStacktraces", "ZygoteRules"]
-git-tree-sha1 = "cc82f4c0ee2493cb2c1b3df66a2ef7fc45b6eacb"
+git-tree-sha1 = "1e09c5c89f5502eb4e3657730b0fb6817a1bca8d"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.2.0"
+version = "2.3.0"
 
     [deps.SciMLBase.extensions]
-    PyCallExt = "PyCall"
-    ZygoteExt = "Zygote"
+    SciMLBasePyCallExt = "PyCall"
+    SciMLBasePythonCallExt = "PythonCall"
+    SciMLBaseRCallExt = "RCall"
+    SciMLBaseZygoteExt = "Zygote"
 
     [deps.SciMLBase.weakdeps]
     PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
+    PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+    RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
     Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [[deps.SciMLOperators]]
