@@ -5,7 +5,7 @@ import NEO
 Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo], "-", "Neoclassical model to run"; default=:changhinton)
+    model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar], "-", "Neoclassical model to run"; default=:changhinton)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
 end
 
@@ -63,6 +63,13 @@ function _step(actor::ActorNeoclassical)
             actor.input_neos[idx] = NEO.InputNEO(dd, i)
         end
         actor.flux_solutions = asyncmap(input_neo -> NEO.run_neo(input_neo), actor.input_neos)
+    elseif par.model == :hirshmansigmar
+        model.identifier.name = "Hirshman-Sigmar"
+        rho_cp = cp1d.grid.rho_tor_norm
+        gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
+
+        parameter_matrices = NEO.get_ion_electron_parameters(dd)
+        actor.flux_solutions = [NEO.HS_to_GB(NEO.compute_HS(gridpoint_cp,dd,parameter_matrices), dd, gridpoint_cp) for gridpoint_cp in gridpoint_cps]
     end
 
     return actor
@@ -85,6 +92,8 @@ function _finalize(actor::ActorNeoclassical)
     if par.model == :changhinton
         IMAS.flux_gacode_to_fuse([:ion_energy_flux], actor.flux_solutions, m1d, eqt, cp1d)
     elseif par.model == :neo
+        IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux], actor.flux_solutions, m1d, eqt, cp1d)
+    elseif par.model == :hirshmansigmar
         IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux], actor.flux_solutions, m1d, eqt, cp1d)
     end
 
