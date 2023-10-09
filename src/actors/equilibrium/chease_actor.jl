@@ -78,8 +78,8 @@ function _step(actor::ActorCHEASE)
             ϵ, z_geo, pressure_sep, Bt_geo,
             r_geo, Ip, r_bound, z_bound, 82,
             rho_pol, pressure, j_tor;
-            rescale_eq_to_ip=par.rescale_eq_to_ip,
-            clear_workdir=par.clear_workdir)
+            par.rescale_eq_to_ip,
+            par.clear_workdir)
     catch e
         display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
         display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
