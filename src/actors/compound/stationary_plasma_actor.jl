@@ -82,9 +82,10 @@ function _step(actor::ActorStationaryPlasma)
         chease_par.rescale_eq_to_ip = true
     end
 
-    prog = ProgressMeter.Progress(par.max_iter * 5 + 2; dt=0.0, showspeed=true, enabled=!par.do_plot)
+    prog = ProgressMeter.Progress((par.max_iter + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=!par.do_plot)
     old_logging = actor_logging(dd, false)
     total_error = Float64[]
+    cp1d = dd.core_profiles.profiles_1d[]
     try
         # run HCD to get updated current drive
         ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
@@ -94,10 +95,10 @@ function _step(actor::ActorStationaryPlasma)
         ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
         finalize(step(actor.actor_jt))
 
-        while isempty(total_error) || (total_error[end] > par.convergence_error)
+        while length(total_error) < 2 || (total_error[end] > par.convergence_error)
             # get current and pressure profiles before updating them
-            j_tor_before = dd.core_profiles.profiles_1d[].j_tor
-            pressure_before = dd.core_profiles.profiles_1d[].pressure
+            j_tor_before = cp1d.j_tor
+            pressure_before = cp1d.pressure
 
             # core_profiles, core_sources, core_transport grids from latest equilibrium
             latest_equilibrium_grids!(dd)
@@ -123,10 +124,8 @@ function _step(actor::ActorStationaryPlasma)
             finalize(step(actor.actor_eq))
 
             # evaluate change in current and pressure profiles after the update
-            j_tor_after = dd.core_profiles.profiles_1d[].j_tor
-            pressure_after = dd.core_profiles.profiles_1d[].pressure
-            error_jtor = sum((j_tor_after .- j_tor_before) .^ 2) / sum(j_tor_before .^ 2)
-            error_pressure = sum((pressure_after .- pressure_before) .^ 2) / sum(pressure_before .^ 2)
+            error_jtor = integrate(cp1d.grid.area, (cp1d.j_tor .- j_tor_before) .^ 2) / integrate(cp1d.grid.area, j_tor_before .^ 2)
+            error_pressure = integrate(cp1d.grid.volume, (cp1d.pressure .- pressure_before) .^ 2) / integrate(cp1d.grid.volume, pressure_before .^ 2)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
@@ -135,12 +134,12 @@ function _step(actor::ActorStationaryPlasma)
                 plot!(ps, dd.core_sources; label="i=$(length(total_error))")
 
                 @printf("\n")
-                @printf("Jtor0_after = %.2f MA\n", j_tor_after[1] / 1e6)
-                @printf("P0_after = %.2f kPa\n", pressure_after[1] / 1e3)
-                @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
-                @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
-                @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
-                @printf("rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
+                @printf("Jtor0_after = %.2f MA\n", cp1d.j_tor[1] / 1e6)
+                @printf("   P0_after = %.2f kPa\n", cp1d.pressure[1] / 1e3)
+                @printf("     βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
+                @printf("     βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+                @printf("     Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
+                @printf("    rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
@@ -170,9 +169,9 @@ end
 function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::ActorStationaryPlasma, step_actor::Union{Nothing,AbstractActor}=nothing)
     par = actor.par
     tmp = [
-        ("                 iteration", "$(length(total_error))/$(par.max_iter)"),
+        ("         iteration (min 2)", "$(length(total_error))/$(par.max_iter)"),
         ("required convergence error", par.convergence_error),
-        (" current convergence error", isempty(total_error) ? "N/A" : total_error[end])]
+        ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error))]
     if step_actor !== nothing
         push!(tmp, ("                     stage", "$(name(step_actor))"))
     end
