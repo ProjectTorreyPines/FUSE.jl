@@ -87,13 +87,13 @@ function _step(actor::ActorDynamicPlasma)
 
             if mod(kk, 2) == 0
                 # run transport actor
-                ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
                 if par.evolve_transport
                     finalize(step(actor.actor_tr))
                 end
             else
                 # evolve j_ohmic
-                ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
                 if actor.actor_jt.jt_actor.par.solve_for == :vloop
                     controller(dd, ctrl_ip, Val{:ip})
                 end
@@ -103,13 +103,13 @@ function _step(actor::ActorDynamicPlasma)
             end
 
             # run equilibrium actor with the updated beta
-            ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
+            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
             if par.evolve_equilibrium
                 finalize(step(actor.actor_eq))
             end
 
             # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
+            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
             if par.evolve_hcd
                 finalize(step(actor.actor_hc))
             end
@@ -129,7 +129,7 @@ function _step(actor::ActorDynamicPlasma)
     return actor
 end
 
-function showvalues(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
+function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
     dd = actor.dd
     return (
         ("start time", t0),

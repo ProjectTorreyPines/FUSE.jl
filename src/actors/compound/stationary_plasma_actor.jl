@@ -24,12 +24,14 @@ end
     ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs the following actors in succesion:
-* ActorCurrent
-* ActorHCD
-* ActorCoreTransport
-* ActorEquilibrium
+
+  - ActorCurrent
+  - ActorHCD
+  - ActorCoreTransport
+  - ActorEquilibrium
 
 !!! note
+
     Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`, `dd.core_transport`
 """
 function ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -51,7 +53,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
         actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
         actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
     else
-        actor_ped = ActorNoOperation(dd,act.ActorNoOperation)
+        actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
     end
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
 end
@@ -59,15 +61,14 @@ end
 function _step(actor::ActorStationaryPlasma)
     dd = actor.dd
     par = actor.par
-    act = actor.act
 
     if par.do_plot
         pe = plot(dd.equilibrium; color=:gray, label=" (before)", coordinate=:rho_tor_norm)
         pp = plot(dd.core_profiles; color=:gray, label=" (before)")
         ps = plot(dd.core_sources; color=:gray, label=" (before)")
 
-        @printf("Jtor0_before = %.2f MA/m²\n", getproperty(dd.core_profiles.profiles_1d[],:j_tor,[0.0])[1]/1e6)
-        @printf("P0_before = %.2f kPa\n", getproperty(dd.core_profiles.profiles_1d[], :pressure, [0.0])[1]/1e3)
+        @printf("Jtor0_before = %.2f MA/m²\n", getproperty(dd.core_profiles.profiles_1d[], :j_tor, [0.0])[1] / 1e6)
+        @printf("P0_before = %.2f kPa\n", getproperty(dd.core_profiles.profiles_1d[], :pressure, [0.0])[1] / 1e3)
         @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
         @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
         @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
@@ -81,14 +82,18 @@ function _step(actor::ActorStationaryPlasma)
         chease_par.rescale_eq_to_ip = true
     end
 
+    prog = ProgressMeter.Progress(par.max_iter * 5 + 2; dt=0.0, showspeed=true, enabled=!par.do_plot)
+    old_logging = actor_logging(dd, false)
+    total_error = Float64[]
     try
         # run HCD to get updated current drive
+        ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
         finalize(step(actor.actor_hc))
 
         # evolve j_ohmic
+        ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
         finalize(step(actor.actor_jt))
 
-        total_error = Float64[]
         while isempty(total_error) || (total_error[end] > par.convergence_error)
             # get current and pressure profiles before updating them
             j_tor_before = dd.core_profiles.profiles_1d[].j_tor
@@ -98,18 +103,23 @@ function _step(actor::ActorStationaryPlasma)
             latest_equilibrium_grids!(dd)
 
             # run transport actor
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
             finalize(step(actor.actor_tr))
 
             # run pedestal actor
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
 
             # run HCD to get updated current drive
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
             finalize(step(actor.actor_hc))
 
             # evolve j_ohmic
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
 
             # run equilibrium actor with the updated beta
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))
             finalize(step(actor.actor_eq))
 
             # evaluate change in current and pressure profiles after the update
@@ -120,13 +130,13 @@ function _step(actor::ActorStationaryPlasma)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
-                plot!(pe, dd.equilibrium, coordinate=:rho_tor_norm, label="i=$(length(total_error))")
-                plot!(pp, dd.core_profiles, label="i=$(length(total_error))")
-                plot!(ps, dd.core_sources, label="i=$(length(total_error))")
+                plot!(pe, dd.equilibrium; coordinate=:rho_tor_norm, label="i=$(length(total_error))")
+                plot!(pp, dd.core_profiles; label="i=$(length(total_error))")
+                plot!(ps, dd.core_sources; label="i=$(length(total_error))")
 
                 @printf("\n")
-                @printf("Jtor0_after = %.2f MA\n", j_tor_after[1]/1e6)
-                @printf("P0_after = %.2f kPa\n", pressure_after[1]/1e3)
+                @printf("Jtor0_after = %.2f MA\n", j_tor_after[1] / 1e6)
+                @printf("P0_after = %.2f kPa\n", pressure_after[1] / 1e3)
                 @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
                 @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
                 @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
@@ -140,17 +150,13 @@ function _step(actor::ActorStationaryPlasma)
             end
         end
 
-        # run HCD to get updated current drive
-        finalize(step(actor.actor_hc))
-
-        # evolve j_ohmic
-        finalize(step(actor.actor_jt))
-
     finally
         if typeof(actor.actor_eq) <: ActorCHEASE
             actor.actor_eq.eq_actor.par = orig_par_chease
         end
+        actor_logging(dd, old_logging)
     end
+    ProgressMeter.finish!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor))
 
     if par.do_plot
         display(pe)
@@ -159,4 +165,16 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     return actor
+end
+
+function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::ActorStationaryPlasma, step_actor::Union{Nothing,AbstractActor}=nothing)
+    par = actor.par
+    tmp = [
+        ("                 iteration", "$(length(total_error))/$(par.max_iter)"),
+        ("required convergence error", par.convergence_error),
+        (" current convergence error", isempty(total_error) ? "N/A" : total_error[end])]
+    if step_actor !== nothing
+        push!(tmp, ("                     stage", "$(name(step_actor))"))
+    end
+    return tuple(tmp...)
 end
