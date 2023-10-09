@@ -159,7 +159,7 @@ Inclusinon in BEAMER presentation can then be done with:
 
     \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
-function plot_plasma_overview(dd::IMAS.dd, time0::Float64)
+function plot_plasma_overview(dd::IMAS.dd, time0::Float64; min_power::Float64=0.0, aggregate_radiation::Bool=true)
     l = @layout grid(3, 4)
     p = plot(; layout=l, size=(1600, 1000))
 
@@ -213,13 +213,13 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64)
 
     # core_sources
     subplot = 5
-    plot!(dd.core_sources; time0, only=4, subplot)
+    plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation)
     subplot = 6
-    plot!(dd.core_sources; time0, only=1, subplot)
+    plot!(dd.core_sources; time0, only=1, subplot, min_power, aggregate_radiation)
     subplot = 7
-    plot!(dd.core_sources; time0, only=2, subplot)
+    plot!(dd.core_sources; time0, only=2, subplot, min_power, aggregate_radiation)
     subplot = 8
-    plot!(dd.core_sources; time0, only=3, subplot)
+    plot!(dd.core_sources; time0, only=3, subplot, min_power, aggregate_radiation)
 
     # transport
     #subplot=9
