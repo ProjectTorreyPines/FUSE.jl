@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo], "-", "Neoclassical model to run"; default=:changhinton)
-    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.1:0.8)
+    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.2:0.05:0.85)
 end
 
 mutable struct ActorNeoclassical{D,P} <: PlasmaAbstractActor
@@ -55,11 +55,11 @@ function _step(actor::ActorNeoclassical)
         model.identifier.name = "Chang-Hinton"
         eqt = dd.equilibrium.time_slice[]
         actor.flux_solutions = [NEO.changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
-    elseif par.model == :neo 
+    elseif par.model == :neo
         model.identifier.name = "NEO"
         rho_cp = cp1d.grid.rho_tor_norm
         gridpoint_cp = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
-        for (idx,i) in enumerate(gridpoint_cp)
+        for (idx, i) in enumerate(gridpoint_cp)
             actor.input_neos[idx] = NEO.InputNEO(dd, i)
         end
         actor.flux_solutions = asyncmap(input_neo -> NEO.run_neo(input_neo), actor.input_neos)

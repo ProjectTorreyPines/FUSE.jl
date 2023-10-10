@@ -9,9 +9,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Ion temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
     evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Electron temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
     evolve_densities::Entry{Union{AbstractDict,Symbol}} =
-        Entry{Union{AbstractDict,Symbol}}("-", "Densities `:fixed`, or electron flux-match and rest match ne scale `:flux_match`, or Dict to specify which species are `:flux_match`, kept `:fixed`, used to enforce `:quasi_neutrality`, or scaled to `:match_ne_scale`"; default=:fixed)
+        Entry{Union{AbstractDict,Symbol}}(
+            "-",
+            "Densities `:fixed`, or electron flux-match and rest match ne scale `:flux_match`, or Dict to specify which species are `:flux_match`, kept `:fixed`, used to enforce `:quasi_neutrality`, or scaled to `:match_ne_scale`";
+            default=:fixed
+        )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
-    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.2:0.1:0.8)
+    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.2:0.05:0.85)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
@@ -62,6 +66,8 @@ function _step(actor::ActorFluxMatcher)
         cp1d_before = deepcopy(dd.core_profiles.profiles_1d[])
     end
 
+    norms = flux_match_norms(dd, par)
+
     z_init = pack_z_profiles(dd, par) .* 100
     err_history = Float64[]
     z_history = Vector{Float64}[]
@@ -69,7 +75,7 @@ function _step(actor::ActorFluxMatcher)
     res = try
         if par.optimizer_algorithm == :anderson
             res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z; z_history, err_history),
+                z -> flux_match_errors(actor, z, norms; z_history, err_history),
                 z_init;
                 show_trace=par.verbose,
                 store_trace=par.verbose,
@@ -82,7 +88,7 @@ function _step(actor::ActorFluxMatcher)
             )
         elseif par.optimizer_algorithm == :jacobian_based
             res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z; z_history, err_history),
+                z -> flux_match_errors(actor, z, norms; z_history, err_history),
                 z_init;
                 factor=1e-2,
                 show_trace=par.verbose,
@@ -101,7 +107,7 @@ function _step(actor::ActorFluxMatcher)
         parse_and_plot_error(string(res.trace.states))
     end
 
-    flux_match_errors(actor::ActorFluxMatcher, z_history[argmin(err_history)]) # res.zero == z_profiles for the smallest error iteration
+    flux_match_errors(actor::ActorFluxMatcher, z_history[argmin(err_history)], norms) # res.zero == z_profiles for the smallest error iteration
     evolve_densities = evolve_densities_dictionary(dd, par)
     if !isempty(evolve_densities)
         IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality][1])
@@ -149,7 +155,8 @@ Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie ta
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles::AbstractVector{<:Real};
+    z_profiles::AbstractVector{<:Real},
+    norms::Vector{Float64};
     z_history::Vector{Vector{Float64}}=Vector{Float64}[],
     err_history::Vector{Float64}=Float64[]
 )
@@ -175,7 +182,7 @@ function flux_match_errors(
     finalize(step(actor.actor_ct))
 
     # compare fluxes
-    errors = flux_match_errors(dd, par)
+    errors = flux_match_errors(dd, par, norms)
     push!(err_history, norm(errors))
     return errors
 end
@@ -185,13 +192,46 @@ function error_transformation!(target::T, output::T, norm::Real) where {T<:Abstr
     return asinh.(error)
 end
 
+function target_transformation(target::Vector{Float64})
+    return sum(abs.(target)) / length(target)
+end
+
 """
-    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
+    flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
+
+Returns vector of normalizations for the different channels that are evolved
+"""
+function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
+    cp1d = dd.core_profiles.profiles_1d[]
+    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
+    cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
+
+    norms = Float64[]
+    if par.evolve_Ti == :flux_match #[W / m^2]
+        push!(norms, target_transformation(total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
+    end
+    if par.evolve_Te == :flux_match #[W / m^2]
+        push!(norms, target_transformation(total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
+    end
+    if par.evolve_rotation == :flux_match #[kg / m s^2]
+        push!(norms, target_transformation(total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
+    end
+    evolve_densities = evolve_densities_dictionary(dd, par)
+    if evolve_densities[:electrons] == :flux_match #[m^-2 s^-1]
+        push!(norms, target_transformation(total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
+    end
+
+    return norms
+end
+
+"""
+    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64})
 
 Evaluates the flux_matching errors for the :flux_match species and channels
+
 NOTE: flux matching is done in physical units
 """
-function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
+function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64})
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
     total_fluxes = IMAS.total_fluxes(dd.core_transport)
@@ -201,34 +241,39 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 
     error = Float64[]
 
+    n = 0
     if par.evolve_Ti == :flux_match
-        norm = 1E4 #[W / m^2]
+        n += 1
+        norm = 1.0
         target = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.total_ion_energy.flux[cf_gridpoints]
-        append!(error, error_transformation!(target, output, norm))
+        append!(error, norm * error_transformation!(target, output, norms[n]))
     end
 
     if par.evolve_Te == :flux_match
-        norm = 1E4 #[W / m^2]
+        n += 1
+        norm = 1.0
         target = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.electrons.energy.flux[cf_gridpoints]
-        append!(error, error_transformation!(target, output, norm))
+        append!(error, norm * error_transformation!(target, output, norms[n]))
     end
 
     if par.evolve_rotation == :flux_match
-        norm = 1E-3 #[kg / m s^2]
+        n += 1
+        norm = 1.0
         target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.momentum_tor.flux[cf_gridpoints]
-        append!(error, error_transformation!(target, output, norm))
+        append!(error, norm * error_transformation!(target, output, norms[n]))
     end
 
     evolve_densities = evolve_densities_dictionary(dd, par)
     if !isempty(evolve_densities)
-        norm = 1E19 #[m^-2 s^-1]
         if evolve_densities[:electrons] == :flux_match
+            n += 1
+            norm = 1.0
             target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
             output = total_fluxes.electrons.particles.flux[cf_gridpoints]
-            append!(error, error_transformation!(target, output, norm))
+            append!(error, norm * error_transformation!(target, output, norms[n]))
         end
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
