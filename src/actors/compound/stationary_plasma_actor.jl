@@ -14,10 +14,10 @@ mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorStationaryPlasma{P}
     act::ParametersAllActors
     actor_tr::ActorCoreTransport{D,P}
+    actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
-    actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -44,18 +44,26 @@ end
 function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationaryPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorStationaryPlasma)
     par = par(kw...)
+
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
-    actor_hc = ActorHCD(dd, act.ActorHCD, act)
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
+
     if act.ActorCoreTransport.model == :FluxMatcher
-        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:equilibrium)
+        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium)
         actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
         actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
     else
         actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
     end
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_ped)
+
+    actor_hc = ActorHCD(dd, act.ActorHCD, act)
+
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
+    actor_jt.jt_actor.par.solve_for = :ip
+    actor_jt.jt_actor.par.solve_for = :vloop
+
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
+
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq)
 end
 
 function _step(actor::ActorStationaryPlasma)
