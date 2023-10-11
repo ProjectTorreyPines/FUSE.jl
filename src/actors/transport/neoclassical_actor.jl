@@ -51,13 +51,14 @@ function _step(actor::ActorNeoclassical)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
     cp1d = dd.core_profiles.profiles_1d[]
 
+    rho_cp = cp1d.grid.rho_tor_norm
+
     if par.model == :changhinton
         model.identifier.name = "Chang-Hinton"
         eqt = dd.equilibrium.time_slice[]
         actor.flux_solutions = [NEO.changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
     elseif par.model == :neo 
         model.identifier.name = "NEO"
-        rho_cp = cp1d.grid.rho_tor_norm
         gridpoint_cp = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
         for (idx,i) in enumerate(gridpoint_cp)
             actor.input_neos[idx] = NEO.InputNEO(dd, i)
@@ -65,11 +66,8 @@ function _step(actor::ActorNeoclassical)
         actor.flux_solutions = asyncmap(input_neo -> NEO.run_neo(input_neo), actor.input_neos)
     elseif par.model == :hirshmansigmar
         model.identifier.name = "Hirshman-Sigmar"
-        rho_cp = cp1d.grid.rho_tor_norm
         gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
-
-        parameter_matrices = NEO.get_ion_electron_parameters(dd)
-        actor.flux_solutions = [NEO.HS_to_GB(NEO.compute_HS(gridpoint_cp,dd,parameter_matrices), dd, gridpoint_cp) for gridpoint_cp in gridpoint_cps]
+        actor.flux_solutions = asyncmap(gridpoint_cp -> NEO.HS_to_GB(NEO.compute_HS(gridpoint_cp,dd), dd, gridpoint_cp), gridpoint_cps)
     end
 
     return actor
