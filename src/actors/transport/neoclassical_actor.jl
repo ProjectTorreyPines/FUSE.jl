@@ -67,7 +67,9 @@ function _step(actor::ActorNeoclassical)
     elseif par.model == :hirshmansigmar
         model.identifier.name = "Hirshman-Sigmar"
         gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
-        actor.flux_solutions = asyncmap(gridpoint_cp -> NEO.HS_to_GB(NEO.compute_HS(gridpoint_cp,dd), dd, gridpoint_cp), gridpoint_cps)
+
+        parameter_matrices = NEO.get_ion_electron_parameters(dd)
+        actor.flux_solutions = asyncmap(gridpoint_cp -> NEO.HS_to_GB(NEO.compute_HS(gridpoint_cp,dd, parameter_matrices), dd, gridpoint_cp), gridpoint_cps)
     end
 
     return actor
