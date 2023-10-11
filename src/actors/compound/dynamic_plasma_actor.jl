@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T} <: ParametersAc
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution")
     evolve_transport::Entry{Bool} = Entry{Bool}("-", "Evolve the transport"; default=true)
+    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal"; default=true)
     evolve_hcd::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
     evolve_current::Entry{Bool} = Entry{Bool}("-", "Evolve the plasma current"; default=true)
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
@@ -21,6 +22,7 @@ mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorDynamicPlasma{P}
     act::ParametersAllActors
     actor_tr::ActorCoreTransport{D,P}
+    actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
@@ -45,6 +47,14 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
+    if act.ActorCoreTransport.model == :FluxMatcher
+        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium)
+        actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
+        actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
+    else
+        actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
+    end
+
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED, ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
@@ -55,7 +65,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_pf = ActorPFcoilsOpt(dd, act.ActorPFcoilsOpt; optimization_scheme=:currents)
 
-    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_hc, actor_jt, actor_eq, actor_pf)
+    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf)
 end
 
 function _step(actor::ActorDynamicPlasma)
@@ -87,13 +97,19 @@ function _step(actor::ActorDynamicPlasma)
 
             if mod(kk, 2) == 0
                 # run transport actor
-                ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
                 if par.evolve_transport
                     finalize(step(actor.actor_tr))
                 end
+
+                # run pedestal actor
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, mod(kk, 2) + 1))
+                if par.evolve_pedestal
+                    finalize(step(actor.actor_ped))
+                end
             else
                 # evolve j_ohmic
-                ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
                 if actor.actor_jt.jt_actor.par.solve_for == :vloop
                     controller(dd, ctrl_ip, Val{:ip})
                 end
@@ -103,13 +119,13 @@ function _step(actor::ActorDynamicPlasma)
             end
 
             # run equilibrium actor with the updated beta
-            ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
+            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
             if par.evolve_equilibrium
                 finalize(step(actor.actor_eq))
             end
 
             # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=showvalues(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
+            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
             if par.evolve_hcd
                 finalize(step(actor.actor_hc))
             end
@@ -129,7 +145,7 @@ function _step(actor::ActorDynamicPlasma)
     return actor
 end
 
-function showvalues(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
+function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
     dd = actor.dd
     return (
         ("start time", t0),
@@ -199,12 +215,12 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64; min_power::Float64=0.
     # core_profiles temperatures
     subplot = 3
     plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" before", subplot)
-    plot!(dd.core_profiles.profiles_1d[time0]; only=1, lw=2.0, subplot)
+    plot!(dd.core_profiles.profiles_1d[time0]; only=1, lw=2.0, subplot)#, ylim=(0.0, 22.0E3))
 
     # core_profiles densities
     subplot = 4
     plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" before", subplot)
-    plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot)
+    plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot)#, ylim=(0.0, 1.4E20))
 
     # power scan
     subplot = 9
@@ -213,23 +229,23 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64; min_power::Float64=0.
 
     # core_sources
     subplot = 5
-    plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation)
+    plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation, weighted=:area, title="Parallel current source")#, ylim=(0.0, 7E6))
     subplot = 6
-    plot!(dd.core_sources; time0, only=1, subplot, min_power, aggregate_radiation)
+    plot!(dd.core_sources; time0, only=1, subplot, min_power, aggregate_radiation, weighted=:volume, legend=:bottomleft, title="Electron power source")#, ylim=(-3.5E7, 4.1E7))
     subplot = 7
-    plot!(dd.core_sources; time0, only=2, subplot, min_power, aggregate_radiation)
+    plot!(dd.core_sources; time0, only=2, subplot, min_power, aggregate_radiation, weighted=:volume, legend=:bottomleft, title="Ion power source")#, ylim=(-3.5E7, 4.1E7))
     subplot = 8
-    plot!(dd.core_sources; time0, only=3, subplot, min_power, aggregate_radiation)
+    plot!(dd.core_sources; time0, only=3, subplot, min_power, aggregate_radiation, weighted=:volume, title="Electron particle source")#, ylim=(0.0, 1.1E20))
 
     # transport
     #subplot=9
     #plot!(dd.core_transport; time0, only=4, subplot)
     subplot = 10
-    plot!(dd.core_transport; time0, only=1, subplot, ylim=(0, Inf))
+    plot!(dd.core_transport; time0, only=1, subplot)#, ylim=(0.0, 1.6E5))
     subplot = 11
-    plot!(dd.core_transport; time0, only=2, subplot, ylim=(0, Inf))
+    plot!(dd.core_transport; time0, only=2, subplot)#, ylim=(0.0, 2.2E5))
     subplot = 12
-    plot!(dd.core_transport; time0, only=3, subplot, ylim=(0, Inf))
+    plot!(dd.core_transport; time0, only=3, subplot)#, ylim=(0.0, 6.5E17))
 
     return p
 end

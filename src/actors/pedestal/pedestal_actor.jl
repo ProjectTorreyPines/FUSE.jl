@@ -8,8 +8,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     _name::Symbol = :not_set
     #== actor parameters ==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
-    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped in docstring
-    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ratio of ion to electron temperatures"; default=1.0)
+    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
+    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; rho_nml if 0.0)"; default=0.0)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
@@ -113,9 +113,19 @@ function _finalize(actor::ActorPedestal)
     nsum = actor.inputs.neped * 1e19 + nval + nival
     tped = (actor.pped * 1e6) / nsum / constants.e
 
+    if par.T_ratio_pedestal == 0.0
+        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.rho_nml)
+    elseif par.T_ratio_pedestal <= 0.0
+        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.T_ratio_pedestal)
+    else
+        T_ratio_pedestal = par.T_ratio_pedestal
+    end
+    println(T_ratio_pedestal)
+    sleep(1)
+
     dd_ped = dd.summary.local.pedestal
-    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + par.T_ratio_pedestal) * par.ped_factor
-    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * par.T_ratio_pedestal
+    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + T_ratio_pedestal) * par.ped_factor
+    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * T_ratio_pedestal
     @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
 
     if par.update_core_profiles

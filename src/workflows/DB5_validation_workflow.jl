@@ -8,43 +8,6 @@ import ProgressMeter
 ProgressMeter.ijulia_behavior(:clear)
 
 """
-    workflow_simple_stationary_plasma(
-        ini::ParametersAllInits,
-        act::ParametersAllActors;
-        save_directory::String="",
-        do_plot::Bool=false,
-        warn_nn_train_bounds=true,
-        transport_model=:tglfnn,
-        verbose=false)
-
-Initializes and runs simple equilibrium, core_sources and transport actors and stores the resulting dd in <save_directory>
-"""
-function workflow_simple_stationary_plasma(
-    ini::ParametersAllInits,
-    act::ParametersAllActors;
-    save_directory::String="",
-    do_plot::Bool=false,
-    warn_nn_train_bounds=true,
-    transport_model=:tglfnn,
-    verbose=false)
-
-    dd = IMAS.dd()
-    init_equilibrium!(dd, ini, act) # already solves the equilibrium once
-    init_core_profiles!(dd, ini, act)
-    init_core_sources!(dd, ini, act)
-
-    act.ActorTauenn.warn_nn_train_bounds = warn_nn_train_bounds
-    act.ActorTauenn.transport_model = transport_model
-    act.ActorTauenn.verbose = verbose
-    ActorStationaryPlasma(dd, act; do_plot=do_plot)
-
-    if !isempty(save_directory)
-        IMAS.imas2json(dd, joinpath(save_directory, "$(ini.general.casename).json"))
-    end
-    return dd
-end
-
-"""
     workflow_HDB5_validation(;
         tokamak::Union{String,Symbol}=:all,
         n_samples_per_tokamak::Union{Integer,Symbol}=10,
@@ -71,14 +34,10 @@ function workflow_HDB5_validation(;
     # pick cases at random
     if n_samples_per_tokamak !== :all
         tok_list = unique(run_df[:, "TOK"])
-        run_df = DataFrames.reduce(
-            vcat,
-            [
-                run_df[run_df.TOK.==tok, :][
-                    Random.shuffle(1:DataFrames.nrow(run_df[run_df.TOK.==tok, :]))[1:minimum([n_samples_per_tokamak, length(run_df[run_df.TOK.==tok, :][:, "TOK"])])],
-                ] for tok in tok_list
-            ]
-        )
+        tok_count = [length(run_df[run_df.TOK.==tok, :].TOK) for tok in tok_list]
+        run_df = run_df[DataFrames.shuffle(1:length(run_df.TOK)), :]
+        run_df = vcat([run_df[run_df.TOK.==tok, :][1:minimum([n_samples_per_tokamak, tok_count[idx]]), :] for (idx, tok) in enumerate(tok_list)]...)
+        display(run_df)
     end
 
     n_cases = length(run_df.TOK)
@@ -114,13 +73,14 @@ function workflow_HDB5_validation(;
     return run_df, failed_df
 end
 
-function run_HDB5_from_data_row(data_row, act::Union{ParametersActor,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
+function run_HDB5_from_data_row(data_row, act::Union{ParametersActors,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
     try
         ini, ACT = case_parameters(data_row)
         if ismissing(act)
             act = ACT
         end
-        dd = workflow_simple_stationary_plasma(ini, act; warn_nn_train_bounds=verbose, do_plot=do_plot)
+        dd = init(ini, act)
+        ActorStationaryPlasma(dd, act)
         data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
         data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
         data_row[:error_message] = ""
