@@ -6,6 +6,7 @@ using LinearAlgebra
 Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.2:0.05:0.85)
     evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Ion temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
     evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Electron temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
     evolve_densities::Entry{Union{AbstractDict,Symbol}} =
@@ -15,8 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
             default=:fixed
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
-    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.2:0.05:0.85)
-    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=true)
+    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
@@ -29,6 +29,7 @@ mutable struct ActorFluxMatcher{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorFluxMatcher{P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_ped::ActorPedestal{D,P}
+    norms::Vector{Float64}
 end
 
 """
@@ -48,7 +49,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
     par = par(kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
     actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:equilibrium, βn_from=:core_profiles, rho_nml=par.rho_transport[end-1], rho_ped=par.rho_transport[end])
-    return ActorFluxMatcher(dd, par, actor_ct, actor_ped)
+    return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[])
 end
 
 """
@@ -66,7 +67,11 @@ function _step(actor::ActorFluxMatcher)
         cp1d_before = deepcopy(dd.core_profiles.profiles_1d[])
     end
 
-    norms = flux_match_norms(dd, par)
+    if isempty(actor.norms)
+        actor.norms = flux_match_norms(dd, par)
+    else
+        actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
+    end
 
     z_init = pack_z_profiles(dd, par) .* 100
     err_history = Float64[]
@@ -75,7 +80,7 @@ function _step(actor::ActorFluxMatcher)
     res = try
         if par.optimizer_algorithm == :anderson
             res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z, norms; z_history, err_history),
+                z -> flux_match_errors(actor, z; z_history, err_history),
                 z_init;
                 show_trace=par.verbose,
                 store_trace=par.verbose,
@@ -88,7 +93,7 @@ function _step(actor::ActorFluxMatcher)
             )
         elseif par.optimizer_algorithm == :jacobian_based
             res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z, norms; z_history, err_history),
+                z -> flux_match_errors(actor, z; z_history, err_history),
                 z_init;
                 factor=1e-2,
                 show_trace=par.verbose,
@@ -107,7 +112,7 @@ function _step(actor::ActorFluxMatcher)
         parse_and_plot_error(string(res.trace.states))
     end
 
-    flux_match_errors(actor::ActorFluxMatcher, z_history[argmin(err_history)], norms) # res.zero == z_profiles for the smallest error iteration
+    flux_match_errors(actor::ActorFluxMatcher, z_history[argmin(err_history)]) # res.zero == z_profiles for the smallest error iteration
     evolve_densities = evolve_densities_dictionary(dd, par)
     if !isempty(evolve_densities)
         IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality][1])
@@ -155,8 +160,7 @@ Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie ta
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles::AbstractVector{<:Real},
-    norms::Vector{Float64};
+    z_profiles::AbstractVector{<:Real};
     z_history::Vector{Vector{Float64}}=Vector{Float64}[],
     err_history::Vector{Float64}=Float64[]
 )
@@ -182,8 +186,11 @@ function flux_match_errors(
     finalize(step(actor.actor_ct))
 
     # compare fluxes
-    errors = flux_match_errors(dd, par, norms)
+    errors = flux_match_errors(dd, par, actor.norms)
+
+    # update history
     push!(err_history, norm(errors))
+
     return errors
 end
 
