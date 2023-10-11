@@ -14,6 +14,7 @@ mutable struct ActorNeoclassical{D,P} <: PlasmaAbstractActor
     par::FUSEparameters__ActorNeoclassical{P}
     input_neos::Union{Vector{<:NEO.InputNEO},Missing}
     flux_solutions::Vector{<:IMAS.flux_solution}
+    equilibrium_geometry::Union{NEO.equilibrium_geometry,Missing}
 end
 
 """
@@ -21,21 +22,27 @@ end
 
 Evaluates the neoclassical transport fluxes
 """
-function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorNeoclassical(dd, act.ActorNeoclassical; kw...)
+function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; equilibrium_geometry::Union{NEO.equilibrium_geometry,Missing}=missing, kw...)
+    actor = ActorNeoclassical(dd, act.ActorNeoclassical, equilibrium_geometry; kw...)
+    par = actor.par 
+
+    if ismissing(equilibrium_geometry) && par.model == :hirshmansigmar
+        actor.equilibrium_geometry = NEO.get_equilibrium_parameters(actor.dd)
+    end
+
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
+function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical, equilibrium_geometry::Union{NEO.equilibrium_geometry,Missing}; kw...)
     par = par(kw...)
     if par.model == :neo
         input_neos = Vector{NEO.InputNEO}(undef, length(par.rho_transport))
     else
         input_neos = missing
     end
-    return ActorNeoclassical(dd, par, input_neos, IMAS.flux_solution[])
+    return ActorNeoclassical(dd, par, input_neos, IMAS.flux_solution[], equilibrium_geometry)
 end
 
 """
@@ -46,6 +53,7 @@ Runs ActorNeoclassical to evaluate the neoclassical transport flux on a vector o
 function _step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
+    equilibrium_geometry = actor.equilibrium_geometry
     model = resize!(dd.core_transport.model, :neoclassical; wipe=false)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
@@ -69,7 +77,7 @@ function _step(actor::ActorNeoclassical)
         gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
 
         parameter_matrices = NEO.get_ion_electron_parameters(dd)
-        actor.flux_solutions = asyncmap(gridpoint_cp -> NEO.HS_to_GB(NEO.compute_HS(gridpoint_cp,dd, parameter_matrices), dd, gridpoint_cp), gridpoint_cps)
+        actor.flux_solutions = asyncmap(gridpoint_cp -> NEO.HS_to_GB(NEO.compute_HS(gridpoint_cp,dd, parameter_matrices, equilibrium_geometry), dd, gridpoint_cp), gridpoint_cps)
     end
 
     return actor
