@@ -44,8 +44,7 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
         actor_neoc = ActorNoOperation(dd, act.ActorNoOperation)
     elseif par.neoclassical_model == :neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport
-        equilibrium_geometry = NEO.get_equilibrium_parameters(dd)
-        actor_neoc = ActorNeoclassical(dd, act.ActorNeoclassical, equilibrium_geometry)
+        actor_neoc = ActorNeoclassical(dd, act.ActorNeoclassical)
     end
 
     return ActorFluxCalculator(dd, par, actor_turb, actor_neoc)
