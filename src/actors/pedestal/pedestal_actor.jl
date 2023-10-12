@@ -9,7 +9,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     #== actor parameters ==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
-    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; rho_nml if 0.0)"; default=0.0)
+    T_ratio_pedestal::Entry{T} =
+        Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; rho_nml-(rho_ped-rho_nml) if 0.0)"; default=0.0)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
@@ -114,14 +115,12 @@ function _finalize(actor::ActorPedestal)
     tped = (actor.pped * 1e6) / nsum / constants.e
 
     if par.T_ratio_pedestal == 0.0
-        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.rho_nml)
+        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.rho_nml - (par.rho_ped - par.rho_nml))
     elseif par.T_ratio_pedestal <= 0.0
         T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.T_ratio_pedestal)
     else
         T_ratio_pedestal = par.T_ratio_pedestal
     end
-    println(T_ratio_pedestal)
-    sleep(1)
 
     dd_ped = dd.summary.local.pedestal
     @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + T_ratio_pedestal) * par.ped_factor
