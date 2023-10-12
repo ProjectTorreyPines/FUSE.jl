@@ -26,7 +26,7 @@ mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
-    actor_pf::ActorPFcoilsOpt{D,P}
+    actor_pf::ActorPFactive{D,P}
 end
 
 """
@@ -59,11 +59,11 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED, ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
     actor_jt.jt_actor.par.solve_for = :ip
-    #actor_jt.jt_actor.par.solve_for = :vloop
+    actor_jt.jt_actor.par.solve_for = :vloop
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
-    actor_pf = ActorPFcoilsOpt(dd, act.ActorPFcoilsOpt; optimization_scheme=:currents)
+    actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf)
 end
@@ -85,7 +85,7 @@ function _step(actor::ActorDynamicPlasma)
     η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
     fill!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 2.0, η_avg * 0.5, 0.0))
 
-    prog = ProgressMeter.Progress(par.Nt * 6; dt=0.0, showspeed=true)
+    prog = ProgressMeter.Progress(par.Nt * 9; dt=0.0, showspeed=true)
     old_logging = actor_logging(dd, false)
     try
         for (kk, tt) in enumerate(LinRange(t0, t1, 2 * par.Nt + 1)[2:end])
@@ -129,17 +129,17 @@ function _step(actor::ActorDynamicPlasma)
             if par.evolve_hcd
                 finalize(step(actor.actor_hc))
             end
+
+            # run the pf_active actor to get update coil currents
+            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_pf, mod(kk, 2) + 1))
+            if par.evolve_pf_active
+                finalize(step(actor.actor_pf))
+            end
         end
     catch e
         rethrow(e)
     finally
         actor_logging(dd, old_logging)
-    end
-
-    # run the pf_active actor to get update coil currents
-    # NOTE: for the time being this actor works on all time slices at once
-    if par.evolve_pf_active
-        finalize(step(actor.actor_pf))
     end
 
     return actor
