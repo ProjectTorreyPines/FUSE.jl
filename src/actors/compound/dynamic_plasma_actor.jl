@@ -215,12 +215,12 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64; min_power::Float64=0.
     # core_profiles temperatures
     subplot = 3
     plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" before", subplot)
-    plot!(dd.core_profiles.profiles_1d[time0]; only=1, lw=2.0, subplot)#, ylim=(0.0, 22.0E3))
+    plot!(dd.core_profiles.profiles_1d[time0]; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]")#, ylim=(0.0, 25.0))
 
     # core_profiles densities
     subplot = 4
     plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" before", subplot)
-    plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot)#, ylim=(0.0, 1.4E20))
+    plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
 
     # power scan
     subplot = 9
@@ -229,19 +229,19 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64; min_power::Float64=0.
 
     # core_sources
     subplot = 5
-    plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation, weighted=:area, title="Parallel current source")#, ylim=(0.0, 7E6))
+    plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation, weighted=:area, title="Parallel current source", normalization=1E-6, ylabel="[MA]")#, ylim=(0.0, 10.0))
     subplot = 6
-    plot!(dd.core_sources; time0, only=1, subplot, min_power, aggregate_radiation, weighted=:volume, legend=:bottomleft, title="Electron power source")#, ylim=(-3.5E7, 4.1E7))
+    plot!(dd.core_sources; time0, only=1, subplot, min_power, aggregate_radiation, weighted=:volume, legend=:bottomleft, title="Electron power source", normalization=1E-6, ylabel="[MW]")#, ylim=(-40.0, 41.0))
     subplot = 7
-    plot!(dd.core_sources; time0, only=2, subplot, min_power, aggregate_radiation, weighted=:volume, legend=:bottomleft, title="Ion power source")#, ylim=(-3.5E7, 4.1E7))
+    plot!(dd.core_sources; time0, only=2, subplot, min_power, aggregate_radiation, weighted=:volume, legend=:bottomleft, title="Ion power source", normalization=1E-6, ylabel="[MW]")#, ylim=(-40.0, 41.0))
     subplot = 8
-    plot!(dd.core_sources; time0, only=3, subplot, min_power, aggregate_radiation, weighted=:volume, title="Electron particle source")#, ylim=(0.0, 1.1E20))
+    plot!(dd.core_sources; time0, only=3, subplot, min_power, aggregate_radiation, weighted=:volume, title="Electron particle source", ylabel="[s⁻¹]")#, ylim=(0.0, 1.1E20))
 
     # transport
     #subplot=9
     #plot!(dd.core_transport; time0, only=4, subplot)
     subplot = 10
-    plot!(dd.core_transport; time0, only=1, subplot)#, ylim=(0.0, 1.6E5))
+    plot!(dd.core_transport; time0, only=1, subplot)#, ylim=(0.0, 2.2E5))
     subplot = 11
     plot!(dd.core_transport; time0, only=2, subplot)#, ylim=(0.0, 2.2E5))
     subplot = 12
