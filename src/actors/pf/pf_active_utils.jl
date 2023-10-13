@@ -36,6 +36,19 @@ function IMAS_pf_active__coil(
         green_model)
 end
 
+function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
+    coils = GS3_IMAS_pf_active__coil{D,D}[]
+    for (k, coil) in enumerate(dd.pf_active.coil)
+        if k <= dd.build.pf_active.rail[1].coils_number
+            coil_tech = dd.build.oh.technology
+        else
+            coil_tech = dd.build.pf_active.technology
+        end
+        push!(coils, IMAS_pf_active__coil(coil, coil_tech, green_model))
+    end
+    return coils
+end
+
 function imas(coil::GS3_IMAS_pf_active__coil)
     return getfield(coil, :imas)
 end
