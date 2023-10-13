@@ -114,9 +114,10 @@ make chease
 # Install GACODE
 1. Download and Install Xquartz: https://www.xquartz.org
 
-1. Download and Install Xcode: https://developer.apple.com/xcode
-   This will have git: check with `git --version`
-   Typing this will prompt installing of Xcode command line tools
+1. Download and Install Xcode version 14.3.1 or below: https://xcodereleases.com
+
+   This will have git: check with `git --version`.
+   Typing this will prompt installation of Xcode command line tools.
 
 1. Download and Install Macports: https://www.macports.org/install.php
 
