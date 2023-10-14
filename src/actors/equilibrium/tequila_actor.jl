@@ -170,7 +170,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         fraction = 0.5
         Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=Int(ceil(fraction * n_point_shot_boundary)))
 
-        if true || isempty(dd.pf_active.coil)
+        if isempty(dd.pf_active.coil)
             n_coils = 100
             eq2d.psi .= VacuumFields.encircling_fixed2free(shot, n_coils, Rgrid, Zgrid; Rx, Zx, ψbound=psib)
         else

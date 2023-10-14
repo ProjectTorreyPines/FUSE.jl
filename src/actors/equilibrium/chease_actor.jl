@@ -110,7 +110,7 @@ function _finalize(actor::ActorCHEASE)
         # convert from fixed to free boundary equilibrium
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
 
-        if true || isempty(dd.pf_active.coil)
+        if isempty(dd.pf_active.coil)
             n_coils = 100
             psi_free_rz = VacuumFields.encircling_fixed2free(EQ, n_coils; Rx, Zx)
         else
@@ -174,5 +174,7 @@ function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     eq2d.grid_type.index = 1
     eq2d.grid.dim1 = g.r
     eq2d.grid.dim2 = g.z
-    return eq2d.psi = g.psirz .* tc["PSI"]
+    eq2d.psi = g.psirz .* tc["PSI"]
+
+    return nothing
 end

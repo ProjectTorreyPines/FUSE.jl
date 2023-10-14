@@ -17,7 +17,7 @@ mutable struct GS3_IMAS_pf_active__coil{T<:Real,C<:Real} <: VacuumFields.Abstrac
     green_model::Symbol
 end
 
-function IMAS_pf_active__coil(
+function GS3_IMAS_pf_active__coil(
     pfcoil::IMAS.pf_active__coil{T},
     oh_pf_coil_tech::Union{IMAS.build__oh__technology{T},IMAS.build__pf_active__technology{T}},
     green_model::Symbol) where {T<:Real}
@@ -44,7 +44,9 @@ function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Re
         else
             coil_tech = dd.build.pf_active.technology
         end
-        push!(coils, IMAS_pf_active__coil(coil, coil_tech, green_model))
+        imas_pf_active__coil = GS3_IMAS_pf_active__coil(coil, coil_tech, green_model)
+        imas_pf_active__coil.current = 0.0 # initialize coil at global_time
+        push!(coils, imas_pf_active__coil)
     end
     return coils
 end
