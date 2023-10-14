@@ -75,29 +75,27 @@ function _step(actor::ActorQED)
     else
         t0 = dd.global_time
         t1 = dd.global_time + par.Δt
-        δt = par.Δt / par.Nt
 
         if false
             # staircase approach to track current ramps: one QED diffuse call for each time step
-            for tnow in LinRange(t0, t1, par.Nt + 1)[2:end]
-                if par.solve_for == :ip
-                    Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tnow)
-                    Vedge = nothing
-                else
-                    Ip = nothing
-                    Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=tnow)
-                end
-                actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, 1; Vedge, Ip)
-            end
+            δt = par.Δt / par.Nt
+            No = par.Nt
+            Ni = 1
         else
+            δt = t1 - t0
+            No = 1
+            Ni = par.Nt
+        end
+
+        for tnow in LinRange(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1]
             if par.solve_for == :ip
-                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=t0)
+                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tnow)
                 Vedge = nothing
             else
                 Ip = nothing
-                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=t0)
+                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=tnow)
             end
-            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[t0]), par.Δt, par.Nt; Vedge, Ip)
+            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, Ni; Vedge, Ip)
         end
     end
 

@@ -164,11 +164,16 @@ function _step(actor::ActorHFSsizing)
     end
 
     # optimization
-    bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
-    options = Metaheuristics.Options(; seed=1, iterations=50)
-    algorithm = Metaheuristics.ECA(; N=20, options)
-    res = Metaheuristics.optimize(cost, bounds, algorithm)
-    assign_PL_OH_TF(Metaheuristics.minimizer(res))
+    old_logging = FUSE.actor_logging(dd, false)
+    try
+        bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
+        options = Metaheuristics.Options(; seed=1, iterations=50)
+        algorithm = Metaheuristics.ECA(; N=20, options)
+        res = Metaheuristics.optimize(cost, bounds, algorithm)
+        assign_PL_OH_TF(Metaheuristics.minimizer(res))
+    finally
+        FUSE.actor_logging(dd, old_logging)
+    end
     finalize(step(actor.fluxswing_actor))
     finalize(step(actor.stresses_actor))
 

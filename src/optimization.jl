@@ -227,7 +227,13 @@ function optimization_engine(
             save(savedir, save_dd ? dd : nothing, ini, act; timer=true, memtrace=true, freeze=true, overwrite_files=false)
         end
         # evaluate multiple objectives
-        return collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
+        result = collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
+        # need to force garbage collection on dd (memory usage grows otherwise, this is a bug)
+        dd = nothing
+        actor = nothing
+        GC.gc()
+        return result
+
     catch e
         # save empty dd and error to directory
         if !isempty(save_folder)
@@ -239,9 +245,30 @@ function optimization_engine(
             end
         end
         # rethrow(e) # uncomment for debugging purposes
-        return Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
+        result = Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
+        # need to force garbage collection on dd (memory usage grows otherwise, this is a bug)
+        dd = nothing
+        actor = nothing
+        GC.gc()
+        return result
     end
 end
+
+function _optimization_engine(
+    ini::ParametersAllInits,
+    act::ParametersAllActors,
+    actor_or_workflow::Union{Type{<:AbstractActor},Function},
+    x::AbstractVector,
+    objectives_functions::AbstractVector{<:ObjectiveFunction},
+    constraints_functions::AbstractVector{<:ConstraintFunction},
+    save_folder::AbstractString,
+    generation::Int,
+    save_dd::Bool=true)
+
+    return optimization_engine(ini, act, actor_or_workflow, x, objectives_functions,
+        constraints_functions, save_folder, generation, save_dd)
+end
+
 
 """
     optimization_engine(
@@ -271,7 +298,7 @@ function optimization_engine(
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(
-        x -> optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder, p.counter, save_dd),
+        x -> _optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder, p.counter, save_dd),
         [X[k, :] for k in 1:size(X)[1]]
     )
     F = zeros(size(X)[1], length(tmp[1][1]))

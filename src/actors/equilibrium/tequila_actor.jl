@@ -168,7 +168,7 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; ψbound::Real=0.
         lower_x_point = any(x_point.z < Z0 for x_point in eqt.boundary.x_point)
         fraction = 0.5
         Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=Int(ceil(fraction * n_point_shot_boundary)))
-        eq2d.psi .= VacuumFields.fixed2free(shot, n_coils, Rgrid, Zgrid; Rx, Zx, ψbound=psib)
+        eq2d.psi .= VacuumFields.encircling_fixed2free(shot, n_coils, Rgrid, Zgrid; Rx, Zx, ψbound=psib)
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
 
     else
