@@ -79,30 +79,24 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     if par.update_equilibrium || par.do_plot
-        coils = GS3_IMAS_pf_active__coil{D,D}[]
-        for (k, coil) in enumerate(dd.pf_active.coil)
-            if k <= dd.build.pf_active.rail[1].coils_number
-                coil_tech = dd.build.oh.technology
-            else
-                coil_tech = dd.build.pf_active.technology
-            end
-            push!(coils, IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        end
 
         eqt_in = actor.eq_in.time_slice[]
         eqt_out = actor.eq_out.time_slice[dd.global_time]
 
         if !ismissing(eqt_in.global_quantities, :ip)
+            # convert dd.pf_active to coils for VacuumFields calculation
+            coils = IMAS_pf_active__coils(dd; par.green_model)
+
             # convert equilibrium to MXHEquilibrium.jl format, since this is what VacuumFields uses
             EQfixed = IMAS2Equilibrium(eqt_in)
 
             # update ψ map
             scale_eq_domain_size = 1.0
-            R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size; length=length(EQfixed.r))
-            Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size; length=length(EQfixed.z))
-            eqt_out.profiles_2d[1].grid.dim1 = R
-            eqt_out.profiles_2d[1].grid.dim2 = Z
-            eqt_out.profiles_2d[1].psi = VacuumFields.fixed2free(EQfixed, coils, R, Z)
+            Rgrid = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size; length=length(EQfixed.r))
+            Zgrid = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size; length=length(EQfixed.z))
+            eqt_out.profiles_2d[1].grid.dim1 = Rgrid
+            eqt_out.profiles_2d[1].grid.dim2 = Zgrid
+            eqt_out.profiles_2d[1].psi = VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)
         end
     end
 

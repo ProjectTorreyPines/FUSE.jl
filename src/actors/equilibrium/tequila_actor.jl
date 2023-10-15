@@ -104,15 +104,17 @@ end
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
     try
-        tequila2imas(actor.shot, actor.dd.equilibrium; actor.ψbound, actor.par.free_boundary)
+        tequila2imas(actor.shot, actor.dd; actor.ψbound, actor.par.free_boundary)
     catch e
         display(plot(actor.shot))
+        display(contour())
         rethrow(e)
     end
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; ψbound::Real=0.0, free_boundary::Bool=false)
+function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_boundary::Bool=false)
+    eq = dd.equilibrium
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
 
@@ -162,13 +164,19 @@ function tequila2imas(shot::TEQUILA.Shot, eq::IMAS.equilibrium; ψbound::Real=0.
     if free_boundary
         # # constraints for the private flux region
         n_point_shot_boundary = 500 # based on boundary sampling in VacuumFields.ψp_on_fixed_eq_boundary()
-        n_coils = 100
         Rb, Zb = eqt.boundary.outline.r, eqt.boundary.outline.z
         upper_x_point = any(x_point.z > Z0 for x_point in eqt.boundary.x_point)
         lower_x_point = any(x_point.z < Z0 for x_point in eqt.boundary.x_point)
         fraction = 0.5
         Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=Int(ceil(fraction * n_point_shot_boundary)))
-        eq2d.psi .= VacuumFields.encircling_fixed2free(shot, n_coils, Rgrid, Zgrid; Rx, Zx, ψbound=psib)
+
+        if isempty(dd.pf_active.coil)
+            n_coils = 100
+            eq2d.psi .= VacuumFields.encircling_fixed2free(shot, n_coils, Rgrid, Zgrid; Rx, Zx, ψbound=psib)
+        else
+            coils = IMAS_pf_active__coils(dd; green_model=:simple)
+            eq2d.psi .= VacuumFields.encircling_fixed2free(shot, coils, Rgrid, Zgrid; Rx, Zx, ψbound=psib)
+        end
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
 
     else
