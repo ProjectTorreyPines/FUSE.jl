@@ -138,13 +138,13 @@ function fixed_pinned_optim_coils2(actor::ActorPFactive{D,P}, optimization_schem
             coil_tech = dd.build.pf_active.technology
         end
         if coil.identifier == "pinned"
-            push!(pinned_coils, IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+            push!(pinned_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
         elseif (coil.identifier == "optim") && (optimization_scheme == :currents)
-            push!(pinned_coils, IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+            push!(pinned_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
         elseif coil.identifier == "optim"
-            push!(optim_coils, IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+            push!(optim_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
         elseif coil.identifier == "fixed"
-            push!(fixed_coils, IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+            push!(fixed_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
         else
             error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
         end
@@ -196,7 +196,7 @@ function find_currents(
         # weight more near the x-points
         h = (maximum(Zp) - minimum(Zp)) / 2.0
         o = (maximum(Zp) + minimum(Zp)) / 2.0
-        weight = sqrt.(((Zp .- o) ./ h) .^ 2 .+ h) / h
+        weight = sqrt.(((Zp .- o) ./ h) .^ 2 .+ h) / h # asda
         # give each strike point the same weight as the lcfs
         weight[end-length(Rx)+1:end] .= length(Rp) / (1 + length(Rx)) * weight_strike
         if all(weight .== 1.0)
