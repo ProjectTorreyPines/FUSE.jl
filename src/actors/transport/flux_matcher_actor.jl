@@ -18,7 +18,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
-    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :jacobian_based], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :jacobian_based, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the flux matching"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Print trace and optimization result"; default=false)
@@ -60,6 +60,7 @@ ActorFluxMatcher step
 function _step(actor::ActorFluxMatcher)
     dd = actor.dd
     par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
 
@@ -67,13 +68,16 @@ function _step(actor::ActorFluxMatcher)
         cp1d_before = deepcopy(dd.core_profiles.profiles_1d[])
     end
 
+    # normalizations for each of the channels
+    # updated with exponential forget for subsequent step() calls
     if isempty(actor.norms)
         actor.norms = flux_match_norms(dd, par)
     else
         actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
     end
 
-    z_init = pack_z_profiles(dd, par) .* 100
+    z_init = pack_z_profiles(cp1d, par) .* 100 # scale z_profiles to get smaller stepping
+
     err_history = Float64[]
     z_history = Vector{Float64}[]
     old_logging = actor_logging(dd, false)
@@ -84,10 +88,11 @@ function _step(actor::ActorFluxMatcher)
                 z_init;
                 show_trace=par.verbose,
                 store_trace=par.verbose,
-                method=:anderson,
-                m=0,
+                method=:trust_region,
+                # m=1,
                 beta=-par.step_size,
                 iterations=par.max_iterations,
+                autoscale=true,
                 ftol=1E-3,
                 xtol=1E-2
             )
@@ -112,17 +117,12 @@ function _step(actor::ActorFluxMatcher)
         parse_and_plot_error(string(res.trace.states))
     end
 
-    flux_match_errors(actor::ActorFluxMatcher, z_history[argmin(err_history)]) # res.zero == z_profiles for the smallest error iteration
-    evolve_densities = evolve_densities_dictionary(dd, par)
-    if !isempty(evolve_densities)
+    flux_match_errors(actor, z_history[argmin(err_history)]) # res.zero == z_profiles for the smallest error iteration
+
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    if !isempty(evolve_densities) && any(i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality)
         IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality][1])
     end
-
-    """
-    if !IMAS.is_quasi_neutral(dd)
-        IMAS.enforce_quasi_neutrality!(dd,  [i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality][1])
-    end
-    """
 
     if par.do_plot
         cp1d = dd.core_profiles.profiles_1d[]
@@ -164,21 +164,25 @@ function flux_match_errors(
     z_history::Vector{Vector{Float64}}=Vector{Float64}[],
     err_history::Vector{Float64}=Float64[]
 )
-    push!(z_history, z_profiles)
-    z_profiles = z_profiles ./ 100
+
     dd = actor.dd
     par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    # unscale z_profiles
+    z_profiles = z_profiles ./ 100
 
     # evolve pedestal
     if par.evolve_pedestal
         # modify dd with new z_profiles
         actor.actor_ped.par.βn_from = :core_profiles
         finalize(step(actor.actor_ped))
-        unpack_z_profiles(dd, par, z_profiles)
+        unpack_z_profiles(cp1d, par, z_profiles)
     else
         # modify dd with new z_profiles
-        unpack_z_profiles(dd, par, z_profiles)
+        unpack_z_profiles(cp1d, par, z_profiles)
     end
+
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
 
@@ -189,6 +193,7 @@ function flux_match_errors(
     errors = flux_match_errors(dd, par, actor.norms)
 
     # update history
+    push!(z_history, z_profiles)
     push!(err_history, norm(errors))
 
     return errors
@@ -214,16 +219,20 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
 
     norms = Float64[]
+
     if par.evolve_Ti == :flux_match #[W / m^2]
         push!(norms, target_transformation(total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
+
     if par.evolve_Te == :flux_match #[W / m^2]
         push!(norms, target_transformation(total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
+
     if par.evolve_rotation == :flux_match #[kg / m s^2]
         push!(norms, target_transformation(total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
-    evolve_densities = evolve_densities_dictionary(dd, par)
+
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
     if evolve_densities[:electrons] == :flux_match #[m^-2 s^-1]
         push!(norms, target_transformation(total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
@@ -273,7 +282,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
         append!(error, norm * error_transformation!(target, output, norms[n]))
     end
 
-    evolve_densities = evolve_densities_dictionary(dd, par)
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
             n += 1
@@ -292,11 +301,11 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
     return error
 end
 
-function evolve_densities_dictionary(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
+function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
     if par.evolve_densities == :fixed
-        return Dict()
+        return setup_density_evolution_fixed(cp1d)
     elseif par.evolve_densities == :flux_match
-        return setup_density_evolution_electron_flux_match_rest_ne_scale(dd)
+        return setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d)
     elseif typeof(par.evolve_densities) <: AbstractDict
         return par.evolve_densities
     else
@@ -307,14 +316,13 @@ function evolve_densities_dictionary(dd::IMAS.dd, par::FUSEparameters__ActorFlux
 end
 
 """
-    pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
+    pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
 
 Packs the z_profiles based on evolution parameters
 
 NOTE: the order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
-function pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
-    cp1d = dd.core_profiles.profiles_1d[]
+function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
     z_profiles = Float64[]
     cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
 
@@ -333,9 +341,9 @@ function pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
         append!(z_profiles, z_rot)
     end
 
-    evolve_densities = evolve_densities_dictionary(dd, par)
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
-        check_evolve_densities(dd, evolve_densities)
+        check_evolve_densities(cp1d, evolve_densities)
         if evolve_densities[:electrons] == :flux_match
             z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)[cp_gridpoints]
             append!(z_profiles, z_ne)
@@ -352,14 +360,13 @@ function pack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 end
 
 """
-    unpack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
+    unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
 
 Unpacks z_profiles based on evolution parameters
 
 NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
-function unpack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
-    cp1d = dd.core_profiles.profiles_1d[]
+function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
     rho_transport = par.rho_transport
     counter = 0
     N = length(rho_transport)
@@ -382,7 +389,7 @@ function unpack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, z
         counter += N
     end
 
-    evolve_densities = evolve_densities_dictionary(dd, par)
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
             cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
@@ -400,20 +407,14 @@ function unpack_z_profiles(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, z
     end
 
     # Ensure Quasi neutrality if you are evolving densities
-    if !IMAS.is_quasi_neutral(cp1d) && !isempty(evolve_densities)
+    if !IMAS.is_quasi_neutral(cp1d) && !isempty(evolve_densities) && any((evo != :fixed for evo in values(evolve_densities)))
         q_specie = Symbol[i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]
-        @assert q_specie != Symbol[] "no quasi neutrality specie while quasi neutrality is broken"
+        @assert q_specie != Symbol[] "no quasi neutrality specie while quasi neutrality is broken: $(evolve_densities)"
+        @assert length(q_specie) == 1 "only one specie can be set as :quasi_neutrality: $(evolve_densities)"
         IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
     end
 
     return cp1d
-end
-
-"""
-    check_evolve_densities(dd::IMAS.dd, evolve_densities::Dict)
-"""
-function check_evolve_densities(dd::IMAS.dd, evolve_densities::AbstractDict)
-    return check_evolve_densities(dd.core_profiles.profiles_1d[], evolve_densities)
 end
 
 """
@@ -433,18 +434,28 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
 end
 
 """
-    setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
+    setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.core_profiles__profiles_1d)
 
 Sets up the evolve_density dict to evolve only ne and keep the rest matching the ne_scale lengths
 """
-function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
-    dd_thermal = [Symbol(ion.label) for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_thermal) > 0.0]
-    dd_fast = [Symbol(String(ion.label) * "_fast") for ion in dd.core_profiles.profiles_1d[].ion if sum(ion.density_fast) > 0.0]
+function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.core_profiles__profiles_1d)
+    dd_thermal = [item[2] for item in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
+    dd_fast = [item[2] for item in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
     quasi_neutrality_specie = :D
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
     end
     return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie)
+end
+
+"""
+    setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
+
+Sets up the evolve_density dict to keep all species fixed
+"""
+function setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
+    s = [item[2] for item in IMAS.species(cp1d)]
+    return evolve_densities_dict_creation(Symbol[], s, Symbol[]; quasi_neutrality_specie=false)
 end
 
 """
