@@ -88,11 +88,10 @@ function _step(actor::ActorFluxMatcher)
                 z_init;
                 show_trace=par.verbose,
                 store_trace=par.verbose,
-                method=:trust_region,
-                # m=1,
+                method=:anderson,
+                m=0,
                 beta=-par.step_size,
                 iterations=par.max_iterations,
-                autoscale=true,
                 ftol=1E-3,
                 xtol=1E-2
             )
@@ -105,6 +104,19 @@ function _step(actor::ActorFluxMatcher)
                 store_trace=par.verbose,
                 iterations=par.max_iterations,
                 ftol=1E-3
+            )
+        elseif par.optimizer_algorithm == :trust_region
+            res = NLsolve.nlsolve(
+                z -> flux_match_errors(actor, z; z_history, err_history),
+                z_init;
+                show_trace=par.verbose,
+                store_trace=par.verbose,
+                method=:trust_region,
+                beta=-par.step_size,
+                iterations=par.max_iterations,
+                autoscale=true,
+                ftol=1E-3,
+                xtol=1E-2
             )
         end
         res
