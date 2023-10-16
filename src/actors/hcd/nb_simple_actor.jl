@@ -68,7 +68,7 @@ function _step(actor::ActorNBsimple)
 
         eta = TekeV * 0.025
         j_parallel = eta / R0 / ne20 * power_launched
-        j_parallel *= sign(eqt.global_quantities.ip)
+        j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
 
         source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
         gaussian_source(
