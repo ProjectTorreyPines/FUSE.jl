@@ -120,7 +120,7 @@ function _step(actor::ActorFluxMatcher)
     flux_match_errors(actor, z_history[argmin(err_history)]) # res.zero == z_profiles for the smallest error iteration
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
-    if !isempty(evolve_densities) && any(i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality)
+    if !isempty(evolve_densities) && !isempty([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality])
         IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality][1])
     end
 
