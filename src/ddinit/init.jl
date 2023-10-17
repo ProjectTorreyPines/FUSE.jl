@@ -42,6 +42,9 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
 
         # initialize equilibrium
         if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
+            for coil in dd.pf_active.coil
+                empty!(coil.current)
+            end
             init_equilibrium!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.equilibrium.time_slice[end]))

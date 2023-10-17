@@ -228,10 +228,7 @@ function optimization_engine(
         end
         # evaluate multiple objectives
         result = collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
-        # need to force garbage collection on dd (memory usage grows otherwise, this is a bug)
-        dd = nothing
-        actor = nothing
-        GC.gc()
+
         return result
 
     catch e
@@ -247,9 +244,6 @@ function optimization_engine(
         # rethrow(e) # uncomment for debugging purposes
         result = Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
         # need to force garbage collection on dd (memory usage grows otherwise, this is a bug)
-        dd = nothing
-        actor = nothing
-        GC.gc()
         return result
     end
 end
@@ -265,8 +259,10 @@ function _optimization_engine(
     generation::Int,
     save_dd::Bool=true)
 
-    return optimization_engine(ini, act, actor_or_workflow, x, objectives_functions,
+    tmp = optimization_engine(ini,act, actor_or_workflow, x, objectives_functions,
         constraints_functions, save_folder, generation, save_dd)
+    GC.gc()
+    return tmp
 end
 
 
