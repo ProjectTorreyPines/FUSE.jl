@@ -17,7 +17,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         empty!(dd.pulse_schedule)
         empty!(dd.core_sources)
         empty!(dd.summary)
-        
+
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
 
@@ -33,7 +33,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
-        if !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
+        if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
             init_pulse_schedule!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.pulse_schedule))
@@ -41,7 +41,10 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize equilibrium
-        if !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
+        if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
+            for coil in dd.pf_active.coil
+                empty!(coil.current)
+            end
             init_equilibrium!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.equilibrium.time_slice[end]))
@@ -51,7 +54,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize core profiles
-        if !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.core_profiles)
+        if !initialize_hardware || !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.core_profiles)
             init_core_profiles!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_profiles; legend=:bottomleft))
@@ -59,7 +62,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize core sources
-        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) ||
+        if !initialize_hardware || !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) ||
            !ismissing(ini.nbi, :power_launched) || !isempty(dd1.core_sources)
             init_core_sources!(dd, ini, act, dd1)
             if do_plot

@@ -173,13 +173,15 @@ function _step(actor::ActorStationaryPlasma)
 end
 
 function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::ActorStationaryPlasma, step_actor::Union{Nothing,AbstractActor}=nothing)
+    dd = actor.dd
     par = actor.par
     tmp = [
         ("         iteration (min 2)", "$(length(total_error))/$(par.max_iter)"),
         ("required convergence error", par.convergence_error),
-        ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error))]
-    if step_actor !== nothing
-        push!(tmp, ("                     stage", "$(name(step_actor))"))
-    end
+        ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
+        ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
+        ("                   Ip [MA]", @ddtime(dd.summary.global_quantities.ip.value) / 1e6),
+        ("                 Te0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_e.value) / 1E3),
+        ("                 Ti0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_i_average.value) / 1E3) ]
     return tuple(tmp...)
 end
