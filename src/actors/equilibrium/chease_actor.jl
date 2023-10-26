@@ -78,8 +78,8 @@ function _step(actor::ActorCHEASE)
             ϵ, z_geo, pressure_sep, Bt_geo,
             r_geo, Ip, r_bound, z_bound, 82,
             rho_pol, pressure, j_tor;
-            rescale_eq_to_ip=par.rescale_eq_to_ip,
-            clear_workdir=par.clear_workdir)
+            par.rescale_eq_to_ip,
+            par.clear_workdir)
     catch e
         display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
         display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
@@ -97,7 +97,6 @@ function _finalize(actor::ActorCHEASE)
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
         n_point_shot_boundary = 500
-        n_coils = 100
         eqt = dd.equilibrium.time_slice[]
         z_geo = eqt.boundary.geometric_axis.z
         r_bound = eqt.boundary.outline.r
@@ -110,7 +109,15 @@ function _finalize(actor::ActorCHEASE)
 
         # convert from fixed to free boundary equilibrium
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = Float64.(VacuumFields.fixed2free(EQ, n_coils; Rx, Zx))
+
+        if isempty(dd.pf_active.coil)
+            n_coils = 100
+            psi_free_rz = VacuumFields.encircling_fixed2free(EQ, n_coils; Rx, Zx)
+        else
+            coils = IMAS_pf_active__coils(dd; green_model=:simple)
+            psi_free_rz = VacuumFields.encircling_fixed2free(EQ, coils; Rx, Zx)
+        end
+
         actor.chease.gfile.psirz = psi_free_rz
         # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
@@ -167,5 +174,7 @@ function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     eq2d.grid_type.index = 1
     eq2d.grid.dim1 = g.r
     eq2d.grid.dim2 = g.z
-    return eq2d.psi = g.psirz .* tc["PSI"]
+    eq2d.psi = g.psirz .* tc["PSI"]
+
+    return nothing
 end

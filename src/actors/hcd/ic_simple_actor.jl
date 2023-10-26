@@ -65,7 +65,7 @@ function _step(actor::ActorICsimple)
 
         eta = TekeV * 0.063 / (2.0 + zeff) / (1.0 + 0.5 * beta_tor)
         j_parallel = eta / R0 / ne20 * power_launched
-        j_parallel *= sign(eqt.global_quantities.ip)
+        j_parallel *= sign(eqt.global_quantities.ip) .* ion_electron_fraction_cp
 
         source = resize!(cs.source, :ic, "identifier.name" => ica.name; wipe=false)
         gaussian_source(

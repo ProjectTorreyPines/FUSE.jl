@@ -1,5 +1,123 @@
 import VacuumFields
 
+options_green_model = [
+    :point => "one filament per coil",
+    :simple => "like :point, but OH coils have three filaments",
+    :corners => "like :simple, but PF coils have filaments at the four corners",
+    :realistic => "possibly hundreds of filaments per coil (very slow!)"
+]
+
+#= ==================================== =#
+#  IMAS.pf_active__coil to VacuumFields  #
+#= ==================================== =#
+mutable struct GS3_IMAS_pf_active__coil{T<:Real,C<:Real} <: VacuumFields.AbstractCoil{T,C}
+    imas::IMAS.pf_active__coil{T}
+    tech::IMAS.build__pf_active__technology{T}
+    time0::Float64
+    green_model::Symbol
+end
+
+function GS3_IMAS_pf_active__coil(
+    pfcoil::IMAS.pf_active__coil{T},
+    oh_pf_coil_tech::Union{IMAS.build__oh__technology{T},IMAS.build__pf_active__technology{T}},
+    green_model::Symbol) where {T<:Real}
+
+    # convert everything to build__pf_active__technology so that the `coil_tech`
+    # type in GS3_IMAS_pf_active__coil is defined at compile time
+    coil_tech = IMAS.build__pf_active__technology{T}()
+    for field in keys(oh_pf_coil_tech)
+        setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
+    end
+
+    return GS3_IMAS_pf_active__coil{T,T}(
+        pfcoil,
+        coil_tech,
+        IMAS.global_time(pfcoil),
+        green_model)
+end
+
+function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
+    coils = GS3_IMAS_pf_active__coil{D,D}[]
+    for (k, coil) in enumerate(dd.pf_active.coil)
+        if k <= dd.build.pf_active.rail[1].coils_number
+            coil_tech = dd.build.oh.technology
+        else
+            coil_tech = dd.build.pf_active.technology
+        end
+        imas_pf_active__coil = GS3_IMAS_pf_active__coil(coil, coil_tech, green_model)
+        imas_pf_active__coil.current = 0.0 # initialize coil at global_time
+        push!(coils, imas_pf_active__coil)
+    end
+    return coils
+end
+
+function imas(coil::GS3_IMAS_pf_active__coil)
+    return getfield(coil, :imas)
+end
+
+function Base.getproperty(coil::GS3_IMAS_pf_active__coil{T}, field::Symbol)::T where {T<:Real}
+    pfcoil = getfield(coil, :imas)
+    if field ∈ (:r, :z, :width, :height)
+        value = getfield(pfcoil.element[1].geometry.rectangle, field)
+    elseif field == :turns_with_sign
+        value = getfield(pfcoil.element[1], field)
+    elseif field == :current
+        value = IMAS.get_time_array(pfcoil.current, :data, coil.time0)
+    else
+        value = getfield(coil, field)
+    end
+    return value
+end
+
+function Base.setproperty!(coil::GS3_IMAS_pf_active__coil, field::Symbol, value::Real)
+    pfcoil = getfield(coil, :imas)
+    if field == :current
+        return IMAS.set_time_array(pfcoil.current, :data, coil.time0, value)
+    elseif field ∈ (:r, :z, :width, :height)
+        return setfield!(pfcoil.element[1].geometry.rectangle, field, value)
+    elseif field == :turns_with_sign
+        return setfield!(pfcoil.element[1], field, value)
+    else
+        setfield!(coil, field, value)
+    end
+    if field ∈ (:width, :height, :spacing)
+        s = sign(getfield(pfcoil, :turns_with_sign))
+        turns = Int(ceil(pfcoil.width .* pfcoil.height ./ pfcoil.spacing .^ 2))
+        setfield!(pfcoil, :turns_with_sign, s * turns)
+    end
+    return value
+end
+
+"""
+    VacuumFields.Green(coil::GS3_IMAS_pf_active__coil, R::Real, Z::Real)
+
+Calculates coil green function at given R and Z coordinate
+"""
+function VacuumFields.Green(coil::GS3_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
+    green_model = getfield(coil, :green_model)
+    if green_model == :point # fastest
+        return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+
+    elseif green_model ∈ (:corners, :simple) # medium
+        if imas(coil).name == "OH"
+            z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
+            return sum(VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
+
+        elseif green_model == :corners
+            return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
+
+        elseif green_model == :simple
+            return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+        end
+
+    elseif green_model == :realistic # high-fidelity
+        return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+
+    else
+        error("GS3_IMAS_pf_active__coil green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
+    end
+end
+
 #= ==================================== =#
 #  IMAS.pf_active__coil to VacuumFields  #
 #= ==================================== =#
