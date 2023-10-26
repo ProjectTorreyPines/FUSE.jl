@@ -114,6 +114,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.ic_antennas.power_launched = t -> 12e6 + ramp((t - 100) / 100.0) * 12e6
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
+    act.ActorTGLF.user_specified_model = "sat1_em_iter"
 
     set_new_base!(ini)
     set_new_base!(act)
