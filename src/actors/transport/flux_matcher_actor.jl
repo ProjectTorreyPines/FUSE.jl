@@ -76,7 +76,7 @@ function _step(actor::ActorFluxMatcher)
         actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
     end
 
-    z_init = pack_z_profiles(cp1d, par) .* 100 # scale z_profiles to get smaller stepping
+    z_init = scale_z_profiles(pack_z_profiles(cp1d, par)) # scale z_profiles to get smaller stepping
 
     err_history = Float64[]
     z_history = Vector{Float64}[]
@@ -129,7 +129,7 @@ function _step(actor::ActorFluxMatcher)
         parse_and_plot_error(string(res.trace.states))
     end
 
-    flux_match_errors(actor, z_history[argmin(err_history)]) # res.zero == z_profiles for the smallest error iteration
+    flux_match_errors(actor, scale_z_profiles(z_history[argmin(err_history)])) # res.zero == z_profiles for the smallest error iteration
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities) && !isempty([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality])
@@ -166,13 +166,24 @@ function _step(actor::ActorFluxMatcher)
 end
 
 """
+    scale z_profiles to get smaller stepping in nlsolve
+"""
+function scale_z_profiles(z_profiles)
+    return z_profiles .* 100
+end
+
+function unscale_z_profiles(z_profiles_scaled)
+    return z_profiles_scaled ./ 100
+end
+
+"""
     flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles::AbstractVector{<:Real};
+    z_profiles_scaled::AbstractVector{<:Real};
     z_history::Vector{Vector{Float64}}=Vector{Float64}[],
     err_history::Vector{Float64}=Float64[]
 )
@@ -182,7 +193,7 @@ function flux_match_errors(
     cp1d = dd.core_profiles.profiles_1d[]
 
     # unscale z_profiles
-    z_profiles = z_profiles ./ 100
+    z_profiles = unscale_z_profiles(z_profiles_scaled)
 
     # evolve pedestal
     if par.evolve_pedestal
