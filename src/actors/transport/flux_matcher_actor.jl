@@ -1,12 +1,13 @@
 import NLsolve
 using LinearAlgebra
-#= ========================== =#
-#     transport solver actor   #
-#= ========================== =#
+
+#= ================ =#
+#  ActorFluxMatcher  #
+#= ================ =#
 Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.2:0.05:0.85)
+    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.25:0.1:0.85)
     evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Ion temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
     evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Electron temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
     evolve_densities::Entry{Union{AbstractDict,Symbol}} =
@@ -18,8 +19,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
-    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :jacobian_based, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
+    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:trust_region)
+    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.5)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the flux matching"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Print trace and optimization result"; default=false)
 end
@@ -78,48 +79,29 @@ function _step(actor::ActorFluxMatcher)
 
     z_init = scale_z_profiles(pack_z_profiles(cp1d, par)) # scale z_profiles to get smaller stepping
 
+    if par.optimizer_algorithm == :newton
+        opts = Dict(:method => :newton, :factor => par.step_size)
+    elseif par.optimizer_algorithm == :anderson
+        @assert 0.0 < par.step_size <= 1.0
+        opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size)
+    elseif par.optimizer_algorithm == :trust_region
+        opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
+    end
+
     err_history = Float64[]
     z_history = Vector{Float64}[]
     old_logging = actor_logging(dd, false)
     res = try
-        if par.optimizer_algorithm == :anderson
-            res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z; z_history, err_history),
-                z_init;
-                show_trace=par.verbose,
-                store_trace=par.verbose,
-                method=:anderson,
-                m=0,
-                beta=-par.step_size,
-                iterations=par.max_iterations,
-                ftol=1E-3,
-                xtol=1E-2
-            )
-        elseif par.optimizer_algorithm == :jacobian_based
-            res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z; z_history, err_history),
-                z_init;
-                factor=1e-2,
-                show_trace=par.verbose,
-                store_trace=par.verbose,
-                iterations=par.max_iterations,
-                ftol=1E-3
-            )
-        elseif par.optimizer_algorithm == :trust_region
-            res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z; z_history, err_history),
-                z_init;
-                show_trace=par.verbose,
-                store_trace=par.verbose,
-                method=:trust_region,
-                beta=-par.step_size,
-                iterations=par.max_iterations,
-                autoscale=true,
-                ftol=1E-3,
-                xtol=1E-2
-            )
-        end
-        res
+        NLsolve.nlsolve(
+            z -> flux_match_errors(actor, z; z_history, err_history),
+            z_init;
+            show_trace=par.verbose,
+            store_trace=par.verbose,
+            iterations=par.max_iterations,
+            ftol=1E-3,
+            xtol=1E-2,
+            opts...
+        )
     finally
         actor_logging(dd, old_logging)
     end
@@ -129,7 +111,7 @@ function _step(actor::ActorFluxMatcher)
         parse_and_plot_error(string(res.trace.states))
     end
 
-    flux_match_errors(actor, scale_z_profiles(z_history[argmin(err_history)])) # res.zero == z_profiles for the smallest error iteration
+    flux_match_errors(actor, scale_z_profiles(z_history[argmin(err_history)])) # z_profiles for the smallest error iteration
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities) && !isempty([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality])
@@ -223,8 +205,7 @@ function flux_match_errors(
 end
 
 function error_transformation!(target::T, output::T, norm::Real) where {T<:AbstractVector{<:Real}}
-    error = (target .- output) ./ norm
-    return asinh.(error)
+    return (target .- output) ./ norm
 end
 
 function target_transformation(target::Vector{Float64})
@@ -501,5 +482,5 @@ function parse_and_plot_error(data::String)
         filtered_arr = filter(x -> !occursin(r"^\s*$", x), split(line, " "))
         array[idx] = parse(Float64, filtered_arr[3])
     end
-    return display(plot(array; yscale=:log10, ylabel="log of convergence errror", xlabel="iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(array))), ylim=[1e-4, 10]))
+    return display(plot(array; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(array)))))
 end
