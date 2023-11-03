@@ -371,11 +371,12 @@ Unpacks z_profiles based on evolution parameters
 NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
 function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
-    rho_transport = par.rho_transport
+    cp_rho_transport = [cp1d.grid.rho_tor_norm[argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm))] for rho_x in par.rho_transport]
+    N = length(par.rho_transport)
     counter = 0
-    N = length(rho_transport)
+
     if par.evolve_Ti == :flux_match
-        Ti_new = IMAS.profile_from_z_transport(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
+        Ti_new = IMAS.profile_from_z_transport(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
         counter += N
         for ion in cp1d.ion
             ion.temperature = Ti_new
@@ -383,26 +384,26 @@ function unpack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparam
     end
 
     if par.evolve_Te == :flux_match
-        cp1d.electrons.temperature = IMAS.profile_from_z_transport(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
+        cp1d.electrons.temperature = IMAS.profile_from_z_transport(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
         counter += N
     end
 
     if par.evolve_rotation == :flux_match
         cp1d.rotation_frequency_tor_sonic =
-            IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
+            IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
         counter += N
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
+            cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
             counter += N
         end
         z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, rho_transport, z_profiles[counter+1:counter+N])
+                ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
                 counter += N
             elseif evolve_densities[Symbol(ion.label)] == :match_ne_scale
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp1d.grid.rho_tor_norm, z_ne)
