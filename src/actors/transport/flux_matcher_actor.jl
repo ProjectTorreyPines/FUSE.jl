@@ -179,14 +179,12 @@ function flux_match_errors(
 
     # evolve pedestal
     if par.evolve_pedestal
-        # modify dd with new z_profiles
         actor.actor_ped.par.βn_from = :core_profiles
         finalize(step(actor.actor_ped))
-        unpack_z_profiles(cp1d, par, z_profiles)
-    else
-        # modify dd with new z_profiles
-        unpack_z_profiles(cp1d, par, z_profiles)
     end
+
+    # modify dd with new z_profiles
+    unpack_z_profiles(eqt1d, cp1d, par, z_profiles)
 
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
@@ -256,44 +254,40 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
     total_fluxes = IMAS.total_fluxes(dd.core_transport)
 
-    cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
-    cf_gridpoints = [argmin((rho_x .- total_fluxes.grid_flux.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
+    cs_gridpoints = [argmin(abs.(rho_x .- total_sources.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
 
     error = Float64[]
 
     n = 0
     if par.evolve_Ti == :flux_match
         n += 1
-        norm = 1.0
         target = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.total_ion_energy.flux[cf_gridpoints]
-        append!(error, norm * error_transformation!(target, output, norms[n]))
+        append!(error, error_transformation!(target, output, norms[n]))
     end
 
     if par.evolve_Te == :flux_match
         n += 1
-        norm = 1.0
         target = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.electrons.energy.flux[cf_gridpoints]
-        append!(error, norm * error_transformation!(target, output, norms[n]))
+        append!(error, error_transformation!(target, output, norms[n]))
     end
 
     if par.evolve_rotation == :flux_match
         n += 1
-        norm = 1.0
         target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.momentum_tor.flux[cf_gridpoints]
-        append!(error, norm * error_transformation!(target, output, norms[n]))
+        append!(error, error_transformation!(target, output, norms[n]))
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
             n += 1
-            norm = 1.0
             target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
             output = total_fluxes.electrons.particles.flux[cf_gridpoints]
-            append!(error, norm * error_transformation!(target, output, norms[n]))
+            append!(error, error_transformation!(target, output, norms[n]))
         end
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
@@ -328,7 +322,7 @@ NOTE: the order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis.
 """
 function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
     z_profiles = Float64[]
-    cp_gridpoints = [argmin((rho_x .- cp1d.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
 
     if par.evolve_Ti == :flux_match
         z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature)[cp_gridpoints]
