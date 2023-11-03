@@ -88,12 +88,12 @@ function _step(actor::ActorFluxMatcher)
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
+    z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
     err_history = Float64[]
-    z_history = Vector{Float64}[]
     old_logging = actor_logging(dd, false)
     res = try
         NLsolve.nlsolve(
-            z -> flux_match_errors(actor, z; z_history, err_history),
+            z -> flux_match_errors(actor, z; z_scaled_history, err_history),
             z_init;
             show_trace=par.verbose,
             store_trace=par.verbose,
@@ -103,15 +103,18 @@ function _step(actor::ActorFluxMatcher)
             opts...
         )
     finally
+        # @show flux_match_errors(actor, z_scaled_history[end])
         actor_logging(dd, old_logging)
     end
 
     if par.verbose
         display(res)
-        parse_and_plot_error(string(res.trace.states))
+        #parse_and_plot_error(string(res.trace.states))
+        display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
+        display(plot(transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...)); xlabel="Iterations", label=""))
     end
 
-    flux_match_errors(actor, scale_z_profiles(z_history[argmin(err_history)])) # z_profiles for the smallest error iteration
+    flux_match_errors(actor, z_scaled_history[argmin(err_history)]) # z_profiles for the smallest error iteration
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities) && !isempty([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality])
@@ -158,6 +161,15 @@ function unscale_z_profiles(z_profiles_scaled)
     return z_profiles_scaled ./ 100
 end
 
+function flux_match_errors(
+    actor::ActorFluxMatcher,
+    z_profiles_scaled::Tuple;
+    z_scaled_history::Vector=[],
+    err_history::Vector{Float64}=Float64[]
+)
+    return flux_match_errors(actor, collect(z_profiles_scaled); z_scaled_history, err_history)
+end
+
 """
     flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
 
@@ -165,8 +177,8 @@ Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie ta
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles_scaled::AbstractVector{<:Real};
-    z_history::Vector{Vector{Float64}}=Vector{Float64}[],
+    z_profiles_scaled::Vector{<:Real};
+    z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[]
 )
 
@@ -175,6 +187,7 @@ function flux_match_errors(
     cp1d = dd.core_profiles.profiles_1d[]
 
     # unscale z_profiles
+    push!(z_scaled_history, Tuple(z_profiles_scaled))
     z_profiles = unscale_z_profiles(z_profiles_scaled)
 
     # evolve pedestal
@@ -195,8 +208,7 @@ function flux_match_errors(
     # compare fluxes
     errors = flux_match_errors(dd, par, actor.norms)
 
-    # update history
-    push!(z_history, z_profiles)
+    # update error history
     push!(err_history, norm(errors))
 
     return errors
