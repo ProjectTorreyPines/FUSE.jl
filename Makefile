@@ -183,7 +183,10 @@ update_all: install
 	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
 # update, a synonim of clone_pull and develop
-update: clone_pull_all develop
+update: clone_pull_all develop resolve
+
+# resolve the current environment (eg. after manually adding a new package)
+resolve:
 	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.precompile()'
 
 # delete local packages that have become obsolete
