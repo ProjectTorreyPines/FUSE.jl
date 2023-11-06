@@ -1,8 +1,8 @@
 import TAUENN
 
-#= ================ =#
-#     TAUENN actor   #
-#= ================ =#
+#= =========== =#
+#  ActorTauenn  #
+#= =========== =#
 Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
