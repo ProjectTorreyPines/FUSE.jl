@@ -463,18 +463,4 @@ dd:
 formatter:
 	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
 
-# generate milestones for all the FUSE packages
-milestones:
-	@echo "Deleting milestones for repositories..."
-	@$(foreach package,FUSE, \
-		echo "Processing $(package)"; \
-		cd ../$(package); \
-		$(foreach milestone_number,$(shell seq 1 100), \
-			echo gh milestone delete $(milestone_number) -c; \
-			gh milestone delete $(milestone_number) -c; \
-		) \
-		cd -; \
-	)
-	@echo "Milestone deletion complete."
-
 .PHONY:
