@@ -403,10 +403,10 @@ uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 version = "1.6.1"
 
 [[deps.DataInterpolations]]
-deps = ["LinearAlgebra", "RecipesBase", "RecursiveArrayTools", "Reexport", "Requires"]
-git-tree-sha1 = "5d8ddbe1e7e539d3c2f6ae34d32a770e722eec07"
+deps = ["LinearAlgebra", "PrettyTables", "RecipesBase", "RecursiveArrayTools", "Reexport", "Requires"]
+git-tree-sha1 = "97b5c6115165fc9f99908cbdd2ea4c0efda0843e"
 uuid = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
-version = "4.4.0"
+version = "4.5.0"
 
     [deps.DataInterpolations.extensions]
     DataInterpolationsChainRulesCoreExt = "ChainRulesCore"
@@ -1267,9 +1267,9 @@ version = "5.0.0+0"
 
 [[deps.LinearSolve]]
 deps = ["ArrayInterface", "ConcreteStructs", "DocStringExtensions", "EnumX", "EnzymeCore", "FastLapackInterface", "GPUArraysCore", "InteractiveUtils", "KLU", "Krylov", "Libdl", "LinearAlgebra", "MKL", "MKL_jll", "PrecompileTools", "Preferences", "RecursiveFactorization", "Reexport", "Requires", "SciMLBase", "SciMLOperators", "Setfield", "SparseArrays", "Sparspak", "SuiteSparse", "UnPack"]
-git-tree-sha1 = "371e4ece4fc1341f54531dde75ae7d0b19257c2c"
+git-tree-sha1 = "2ebe270c1a035c9b05f36f8114a7484436814816"
 uuid = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
-version = "2.15.0"
+version = "2.16.0"
 
     [deps.LinearSolve.extensions]
     LinearSolveBandedMatricesExt = "BandedMatrices"
@@ -2082,9 +2082,9 @@ version = "2.7.3"
 
 [[deps.SciMLOperators]]
 deps = ["ArrayInterface", "DocStringExtensions", "Lazy", "LinearAlgebra", "Setfield", "SparseArrays", "StaticArraysCore", "Tricks"]
-git-tree-sha1 = "65c2e6ced6f62ea796af251eb292a0e131a3613b"
+git-tree-sha1 = "51ae235ff058a64815e0a2c34b1db7578a06813d"
 uuid = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
-version = "0.3.6"
+version = "0.3.7"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -2386,9 +2386,9 @@ weakdeps = ["Random", "Test"]
 
 [[deps.Transducers]]
 deps = ["Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "ConstructionBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "Setfield", "SplittablesBase", "Tables"]
-git-tree-sha1 = "53bd5978b182fa7c57577bdb452c35e5b4fb73a5"
+git-tree-sha1 = "e579d3c991938fecbb225699e8f611fa3fbf2141"
 uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
-version = "0.4.78"
+version = "0.4.79"
 
     [deps.Transducers.extensions]
     TransducersBlockArraysExt = "BlockArrays"
