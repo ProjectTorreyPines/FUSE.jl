@@ -435,7 +435,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
         end
         np = nworkers + 1
         if Distributed.nprocs() < np
-            Distributed.addprocs(np - Distributed.nprocs(); topology=:master_worker)
+            Distributed.addprocs(np - Distributed.nprocs(); topology=:master_worker, exeflags=["--heap-size-hint=2G"])
         end
 
     else
