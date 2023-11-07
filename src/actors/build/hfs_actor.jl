@@ -165,6 +165,7 @@ function _step(actor::ActorHFSsizing)
 
     # optimization
     old_logging = FUSE.actor_logging(dd, false)
+    res = nothing
     try
         bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
         options = Metaheuristics.Options(; seed=1, iterations=50)
@@ -178,8 +179,10 @@ function _step(actor::ActorHFSsizing)
     finalize(step(actor.stresses_actor))
 
     function print_details()
-        println(cost(Metaheuristics.minimizer(res)))
-        print(res)
+        if res !== nothing
+            println(cost(Metaheuristics.minimizer(res)))
+            print(res)
+        end
 
         if par.verbose
             p = plot(; yscale=:log10, legend=:topright)
