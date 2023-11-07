@@ -111,7 +111,7 @@ LTS_Jcrit(
 )
 
 Calculates the critical current density and fraction of critical magnetic field for either NbTi or Nb3Sn wire, depending on the parameters 
-passed in lts object. 
+passed in the lts object. 
 
 NOTE: this returns the "engineering critical current density", which is the critical current divided by the cross-section of
 the entire Nb3Sn strand. The strands considered in the reference study are approx. 50% Nb3Sn, 50% copper, and so the acutal
@@ -142,62 +142,6 @@ function LTS_Jcrit(lts::LTS_scaling, Bext::Real, strain::Real=0.0, temperature::
 
     # calc critical current density
     J_c = A * Tc * Tc * (1.0 - t * t)^2 * Bc11^(lts.n - 3) * b^(lts.p - 1) * (1 - b)^lts.q # A/m^2   #Equation 5 in Lu et al.
-
-    return J_c, b
-end
-
-"""
-    Nb3Sn_Jcrit(
-        Bext::Real,               # : strength of external magnetic field, Tesla
-        strain::Real=0.0,         # : strain on conductor due to either thermal expansion or JxB stress
-        temperature::Real=4.2,    # : temperature of conductor, Kelvin 
-        )
-
-Calculates the critical current density and fraction of critical magnetic field for internal-tin Nb3Sn LTS superconductor wire.
-This uses the experimental fits from Table 6 in Lu et al., Supercond. Sci. Technol. 21 (2008) 105016.
-
-NOTE: this returns the "engineering critical current density", which is the critical current divided by the cross-section of
-the entire Nb3Sn strand. The strands considered in the reference study are approx. 50% Nb3Sn, 50% copper, and so the acutal
-J_crit of the so-called "non-Cu" part of the wire (i.e. Nb3Sn only) will be approx. twice as large as the value calculated here.
-
-OUTPUTS
-J_c : engineering critical current density, A/m^2
-b   : ratio of external magnetic field at conductor to SC critical magnetic field, T/T
-"""
-function Nb3Sn_Jcrit(Bext::Real, strain::Real=0.0, temperature::Real=4.2)
-    #Table 6 in Lu et al., Supercond. Sci. Technol. 21 (2008) 105016
-    A0 = 29330000
-    Bc00 = 28.45
-    Tc0 = 17.5
-    c2 = -0.7388
-    c3 = -0.5060
-    c4 = -0.0831
-    p = 0.8855
-    q = 2.169
-    n = 2.5
-    v = 1.5
-    w = 2.2
-    u = 0.0
-    epsilon_m = 0.0739
-    epsilon = strain - epsilon_m
-    Bc01 = Bc00 * (1 + c2 * epsilon^2 + c3 * epsilon^3 + c4 * epsilon^4)
-    Tc = Tc0 * (Bc01 / Bc00)^(1 / w)
-    t = temperature / Tc
-    A = A0 * (Bc01 / Bc00)^(u / w)
-    Bc11 = Bc01 * (1 - t^v)
-    b = min(Bext / Bc11, 1)
-
-    # Neutron irradiation correction based on T Baumgartner et al 2014 Supercond. Sci. Technol. 27 015005
-    # if neutronFluence > 0.0
-    #     p2 = 1.
-    #     q2 = 2.
-    #     beta_b = 1.0-exp(-(neutronFluence/1.87e22)^0.656)
-    #     alpha_b = 1. - beta_b
-    #     J_c = 1.0e-6*A*Tc*Tc*(1.0-t*t)^2*Bc11^(n-3)*(alpha_b*(b^(p-1)*(1-b)^q)+beta_b*(b^p2*(1-b)^q2))  # MA/m^2
-    # end
-
-    # calc critical current density
-    J_c = A * Tc * Tc * (1.0 - t * t)^2 * Bc11^(n - 3) * b^(p - 1) * (1 - b)^q # A/m^2   #Equation 5 in Lu et al.
 
     return J_c, b
 end
