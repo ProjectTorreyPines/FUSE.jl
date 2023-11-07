@@ -277,7 +277,6 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
         return Jcrit * fraction_conductor, Inf # A/m^2
     else
         if coil_tech.material == "Nb3Sn"
-            # Jcrit_SC, Bext_Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
             params_Nb3Sn = LTS_scaling(29330000, 28.45, 0.0739, 17.5, -0.7388, -0.5060, -0.0831, 0.8855, 2.169, 2.5,0.0, 1.5, 2.2)
             Jcrit_SC, Bext_Bcrit_ratio = LTS_Jcrit(params_Nb3Sn, Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         elseif coil_tech.material == "NbTi"
