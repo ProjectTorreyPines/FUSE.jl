@@ -85,7 +85,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :ITER
+    ini.pf_active.technology = :NbTi
     act.ActorPFcoilsOpt.symmetric = true
 
     ini.tf.shape = :double_ellipse

@@ -79,7 +79,7 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
-    ini.pf_active.technology = :LTS
+    ini.pf_active.technology = :Nb3Sn
 
     ini.tf.n_coils = 16
     ini.tf.technology = :HTS

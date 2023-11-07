@@ -1,4 +1,4 @@
-const supported_coils_techs = [:copper, :LTS, :ITER, :KDEMO, :HTS]
+const supported_coils_techs = [:copper, :Nb3Sn, :NbTi, :ITER, :KDEMO, :HTS]
 
 """
 Material properties
@@ -40,11 +40,15 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
         coil_tech.fraction_steel = 0.0
         coil_tech.fraction_void = 0.1
 
-    elseif technology ∈ (:LTS, :ITER, :KDEMO, :HTS)
-        if technology ∈ (:LTS, :ITER)
+    elseif technology ∈ (:Nb3Sn, :NbTi, :ITER, :KDEMO, :HTS)
+        if technology ∈ (:Nb3Sn, :ITER)
             coil_tech.temperature = 4.2
             coil_tech.material = "Nb3Sn"
             coil_tech.fraction_void = 0.1
+        elseif technology == :NbTi 
+            coil_tech.temperature =  4.2
+            coil_tech.material = "NbTi"
+            coil_tech.fraction_void = 0.2 # from Supercond. Sci. Technol. 36 (2023) 075009
         elseif technology == :KDEMO
             coil_tech.temperature = 4.2 
             coil_tech.material = "KDEMO Nb3Sn"
@@ -82,8 +86,68 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
     return coil_tech
 end
 
+mutable struct LTS_scaling
+    A0::Real
+    Bc00::Real
+    epsilon_m::Real
+    Tc0::Real
+    c2::Real
+    c3::Real
+    c4::Real
+    p::Real
+    q::Real
+    n::Real
+    u::Real
+    v::Real
+    w::Real
+end
+
 """
-    LTS_Jcrit(
+LTS_Jcrit(
+    lts::LTS_scaling          # : object containing scaling parameters, specific to conductor type
+    Bext::Real,               # : strength of external magnetic field, Tesla
+    strain::Real=0.0,         # : strain on conductor due to either thermal expansion or JxB stress
+    temperature::Real=4.2,    # : temperature of conductor, Kelvin 
+)
+
+Calculates the critical current density and fraction of critical magnetic field for either NbTi or Nb3Sn wire, depending on the parameters 
+passed in lts object. 
+
+NOTE: this returns the "engineering critical current density", which is the critical current divided by the cross-section of
+the entire Nb3Sn strand. The strands considered in the reference study are approx. 50% Nb3Sn, 50% copper, and so the acutal
+J_crit of the so-called "non-Cu" part of the wire (i.e. Nb3Sn only) will be approx. twice as large as the value calculated here.
+
+OUTPUTS
+J_c : engineering critical current density, A/m^2
+b   : ratio of external magnetic field at conductor to SC critical magnetic field, T/T
+"""
+
+function LTS_Jcrit(lts::LTS_scaling, Bext::Real, strain::Real=0.0, temperature::Real=4.2)
+    epsilon = strain - lts.epsilon_m
+    Bc01 = lts.Bc00 * (1 + lts.c2 * epsilon^2 + lts.c3 * epsilon^3 + lts.c4 * epsilon^4)
+    Tc = lts.Tc0 * (Bc01 / lts.Bc00)^(1 / lts.w)
+    t = temperature / Tc
+    A = lts.A0 * (Bc01 / lts.Bc00)^(lts.u / lts.w)
+    Bc11 = Bc01 * (1 - t^lts.v)
+    b = min(Bext / Bc11, 1)
+
+    # Neutron irradiation correction based on T Baumgartner et al 2014 Supercond. Sci. Technol. 27 015005
+    # if neutronFluence > 0.0
+    #     p2 = 1.
+    #     q2 = 2.
+    #     beta_b = 1.0-exp(-(neutronFluence/1.87e22)^0.656)
+    #     alpha_b = 1. - beta_b
+    #     J_c = 1.0e-6*A*Tc*Tc*(1.0-t*t)^2*Bc11^(n-3)*(alpha_b*(b^(p-1)*(1-b)^q)+beta_b*(b^p2*(1-b)^q2))  # MA/m^2
+    # end
+
+    # calc critical current density
+    J_c = A * Tc * Tc * (1.0 - t * t)^2 * Bc11^(lts.n - 3) * b^(lts.p - 1) * (1 - b)^lts.q # A/m^2   #Equation 5 in Lu et al.
+
+    return J_c, b
+end
+
+"""
+    Nb3Sn_Jcrit(
         Bext::Real,               # : strength of external magnetic field, Tesla
         strain::Real=0.0,         # : strain on conductor due to either thermal expansion or JxB stress
         temperature::Real=4.2,    # : temperature of conductor, Kelvin 
@@ -269,7 +333,12 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
         return Jcrit * fraction_conductor, Inf # A/m^2
     else
         if coil_tech.material == "Nb3Sn"
-            Jcrit_SC, Bext_Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
+            # Jcrit_SC, Bext_Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
+            params_Nb3Sn = LTS_scaling(29330000, 28.45, 0.0739, 17.5, -0.7388, -0.5060, -0.0831, 0.8855, 2.169, 2.5,0.0, 1.5, 2.2)
+            Jcrit_SC, Bext_Bcrit_ratio = LTS_Jcrit(params_Nb3Sn, Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
+        elseif coil_tech.material == "NbTi"
+            params_NbTi = LTS_scaling(255.3e6, 14.67, -0.002e-2, 8.89, -0.0025, -0.0003, -0.0001, 1.341, 1.555, 2.274, 0.0, 1.758, 2.2) # Table 1, Journal of Phys: Conf. Series, 1559 (2020) 012063
+            Jcrit_SC, Bext_Bcrit_ratio = LTS_Jcrit(params_NbTi, Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         elseif coil_tech.material == "KDEMO Nb3Sn"
             Jcrit_SC, Bext_Bcrit_ratio = KDEMO_Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature)
         elseif coil_tech.material == "ReBCO"
