@@ -58,10 +58,10 @@ function _step(actor::ActorQED)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # initialization
-    actor.QO = qed_init_from_imas(eqt, cp1d)
-
     if par.Δt == Inf
+        # steady state solution
+        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
+
         if par.solve_for == :ip
             Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
             Vedge = nothing
@@ -69,10 +69,51 @@ function _step(actor::ActorQED)
             Ip = nothing
             Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
         end
+
         actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
-        # actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[]), 1000000.0, 1000; Vedge, Ip)
+
+    elseif par.Δt < 0.0
+        # fake rampup
+        # scales the conductivity and non-inductive sources from zero to current value with some fudge law
+        α_ni_evo_ip = 1.0 / 5.0 # early application of non-inductive current
+        α_η_evo_ip = 5.0 # later transition to H-mode
+
+        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=true)
+
+        t0 = dd.global_time + par.Δt
+        t1 = dd.global_time
+
+        δt = abs(par.Δt / par.Nt)
+        No = par.Nt
+        Ni = 100
+
+        rho = actor.QO.ι.x
+        JBni1 = actor.QO.JBni.(rho)
+        Ip1 = IMAS.get_from(dd, Val{:ip}, :pulse_schedule; time0=t1)
+        η1 = η_imas(dd.core_profiles.profiles_1d[dd.global_time]).(rho)
+        Vedge = nothing
+
+        # start with flat resistivity and zero non-inductive sources
+        η = QED.η_FE(rho, rho .* 0.0 .+ 1.0; use_log=true)
+        actor.QO.JBni = QED.FE(rho, JBni1 .* 0.0)
+        actor.QO = QED.steady_state(actor.QO, η; Vedge, Ip=1E3)
+
+        #p = hline([1.0]; ls=:dash, color=:black, label="")
+        for (k, tnow) in enumerate(LinRange(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1])
+            Ip = IMAS.get_from(dd, Val{:ip}, :pulse_schedule; time0=tnow)
+            evo_t = k / No
+            evo_ip = Ip / Ip1
+            actor.QO.JBni = QED.FE(rho, JBni1 .* evo_ip .^ α_ni_evo_ip) #
+            η = QED.η_FE(rho, η1 ./ evo_ip .^ α_η_evo_ip; use_log=true)
+            actor.QO = QED.diffuse(actor.QO, η, δt, Ni; Vedge, Ip)
+        #    plot!(p, actor.QO; what=:q, label="", xlim=(0, 1), ylim=(0, 10))
+        end
+        #display(p)
 
     else
+        # current diffusion
+        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
+
         t0 = dd.global_time
         t1 = dd.global_time + par.Δt
 
@@ -148,7 +189,7 @@ NOTE: QED is initalized from equilibrium and not core_profiles because
 it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
-function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
+function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Bool=false)
     R0, B0 = IMAS.vacuum_r0_b0(eqt)
 
     rho_tor = eqt.profiles_1d.rho_tor
@@ -174,7 +215,11 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, cp1d.j_non_inductive)
         y .*= ρ_j_non_inductive[2]
     end
-    ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
+    if uniform_rho
+        ρ_grid = collect(LinRange(0.0, 1.0, 101))
+    else
+        ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
+    end
 
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
 end
