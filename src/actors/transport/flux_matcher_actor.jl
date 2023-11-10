@@ -332,23 +332,33 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, i
     end
 
     if prog !== nothing
-        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors), sum(Δq), qmin))
+        if par.optimize_q
+            ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors), sum(Δq), qmin))
+        else
+            ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors), nothing, nothing))
+        end
     end
 
     return errors
 end
 
-function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64, Δq::Float64, qmin::Float64)
+function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64, Δq::Union{Nothing,Float64}, qmin::Union{Nothing,Float64})
     cp1d = dd.core_profiles.profiles_1d[]
-    return (
-        ("         error", error),
-        ("            Δq", Δq),
-        ("          qmin", qmin),
-        ("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
-        ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
-        ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density[1] / 1E20)
-    )
+    tmp = [
+        ("         error", error)
+    ]
+    if Δq !== nothing
+        push!(tmp, ("            Δq", Δq))
+    end
+    if qmin !== nothing
+        push!(tmp, ("          qmin", qmin))
+    end
+    append!(tmp,
+        (("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
+            ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+            ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
+            ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density[1] / 1E20)))
+    return tmp
 end
 
 
