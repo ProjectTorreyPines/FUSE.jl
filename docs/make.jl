@@ -151,7 +151,13 @@ makedocs(;
     root=@__DIR__,
     modules=[FUSE, IMAS, IMASDD],
     sitename="FUSE",
-    format=Documenter.HTML(; prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
+    format=Documenter.HTML(;
+        prettyurls=false,
+        sidebar_sitename=false,
+        assets=["assets/favicon.ico"],
+        disable_git=true,
+        size_threshold=nothing,
+        size_threshold_warn=nothing),
     remotes=nothing,
     warnonly=true,
     pages=[
