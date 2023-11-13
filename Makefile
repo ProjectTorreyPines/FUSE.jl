@@ -91,8 +91,6 @@ Pkg.develop([["FUSE"] ; fuse_packages]);\
 Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
-Pkg.activate("./docs");\
-Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
 	make revise
 
@@ -340,8 +338,19 @@ docker_upload:
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
 
+# 
+develop_docs:
+	julia -e '\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate("./docs");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+Pkg.add(["Documenter", "Pkg", "ProgressMeter", "InteractiveUtils"]);\
+'
+
 # generate documentation
-html:
+html: develop_docs
 	cd docs; julia make.jl
 
 # push documentation to the web
