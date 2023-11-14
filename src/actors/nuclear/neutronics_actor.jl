@@ -23,7 +23,8 @@ end
 
 Estimates the neutron wall loading
 
-!!! note 
+!!! note
+
     Stores data in `dd.neutronics`
 """
 function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -151,8 +152,8 @@ function _step(actor::ActorNeutronics)
 
     # plot neutron wall loading cx
     if do_plot
-        plot!(p, ntt.wall_loading, xlim=[minimum(rwall) * 0.9, maximum(rwall) * 1.1], title="First wall neutron loading")
-        plot!(p, rwall, zwall, color=:black, label="", xlim=[minimum(rwall) * 0.9, maximum(rwall) * 1.1], title="")
+        plot!(p, ntt.wall_loading; xlim=[minimum(rwall) * 0.9, maximum(rwall) * 1.1], title="First wall neutron loading")
+        plot!(p, rwall, zwall; color=:black, label="", xlim=[minimum(rwall) * 0.9, maximum(rwall) * 1.1], title="")
         display(p)
     end
 
@@ -169,38 +170,39 @@ mutable struct neutron_particle{T<:Float64}
 end
 
 function Rcoord(n::neutron_particle)
-    sqrt(n.x^2 + n.y^2)
+    return sqrt(n.x^2 + n.y^2)
 end
 
 function Zcoord(n::neutron_particle)
-    n.z
+    return n.z
 end
 
 function define_neutrons(actor::ActorNeutronics)
-    define_neutrons(actor.dd, actor.par.N)
+    return define_neutrons(actor.dd, actor.par.N)
 end
 
 function define_neutrons(dd::IMAS.dd, N::Int)
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
+    # in-plasma mask
+    r = eqt.profiles_2d[1].grid.dim1
+    z = eqt.profiles_2d[1].grid.dim2
+    R = [rr for rr in r, zz in z] # 2D
+    Z = [zz for rr in r, zz in z] # 2D
+    rz_lcfs = collect(zip(eqt.boundary.outline.r, eqt.boundary.outline.z))
+    mask = [IMAS.PolygonOps.inpolygon((rr, zz), rz_lcfs) for rr in r, zz in z]
+
     # 2D neutron source
     # NOTE: we add power of neutrons coming from (D+D→He3+n) as if they were from (D+D→He4+n)
     # D+T   -> He4 (3.518 MeV)  + n (14.072 MeV) + 17.59MeV
     # D+D   -> He3 (0.8175 MeV) + n (2.4525 MeV) + 3.27MeV
-    # This is OK for calculating wall loading but blanket will need to distinguish between these two
+    # This is OK for calculating wall loading but blanket will need to distinguish between these two to account for different energy
     neutron_source_1d = IMAS.D_T_to_He4_heating(cp1d) .* 4.0 .+ IMAS.D_D_to_He3_heating(cp1d) .* 3.0
-    neutron_source_2d = transpose(IMAS.interp1d(cp1d.grid.psi, neutron_source_1d).(eqt.profiles_2d[1].psi)) # W/m^3
-
-    # 2D neutron source (masked)
-    r = eqt.profiles_2d[1].grid.dim1
-    z = eqt.profiles_2d[1].grid.dim2
-    rz_lcfs = collect(zip(eqt.boundary.outline.r, eqt.boundary.outline.z))
-    mask = [IMAS.PolygonOps.inpolygon((rr, zz), rz_lcfs) for zz in z, rr in r]
-    R = [rr for zz in z, rr in r]
-    Z = [zz for zz in z, rr in r]
-    neutron_source_2d .= neutron_source_2d .* mask
-    neutron_source_2d .*= R .* (2pi * (r[2] - r[1]) * (z[2] - z[1])) # W
+    tmp = eqt.profiles_2d[1].psi .* (mask .== 1) .+ eqt.profiles_2d[1].psi[end] .* .*(mask .== 0) # to avoid extrapolation
+    neutron_source_2d = IMAS.interp1d(cp1d.grid.psi, neutron_source_1d).(tmp) # W/m^3
+    neutron_source_2d .*= mask .== 1 # set things to zero outsize of lcfs
+    neutron_source_2d .*= R .* (2π * (r[2] - r[1]) * (z[2] - z[1])) # W
 
     # cumulative distribution function
     CDF = cumsum(neutron_source_2d[:])
@@ -212,8 +214,8 @@ function define_neutrons(dd::IMAS.dd, N::Int)
     neutrons = Vector{neutron_particle{Float64}}(undef, N)
     for k in eachindex(neutrons)
         dk = Int(ceil(ICDF(rand())))
-        ϕ = rand() * 2pi
-        θv = rand() * 2pi
+        ϕ = rand() * 2π
+        θv = rand() * 2π
         ϕv = acos(rand() * 2.0 - 1.0)
         Rk = R[dk]
         Zk = Z[dk]

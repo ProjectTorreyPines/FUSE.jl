@@ -53,7 +53,7 @@ plot(dd.build; cx=false)
 
 
 ```@julia
-FUSE.ActorStationaryPlasma(dd, act)
+FUSE.ActorEquilibriumTransport(dd, act)
 FUSE.ActorFluxSwing(dd, act);
 ```
 

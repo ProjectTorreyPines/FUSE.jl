@@ -4,7 +4,8 @@
 ITER
 
 Arguments:
-* `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
+
+  - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
 function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits()
@@ -27,7 +28,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
         ini.equilibrium.boundary_from = :ods
-        act.ActorEquilibrium.model = :CHEASE
     else
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.ip = 15e6
@@ -57,8 +57,12 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
         end
 
         act.ActorCXbuild.rebuild_wall = true
-        # act.ActorEquilibrium.model = :CHEASE
     end
+    act.ActorEquilibrium.model = :TEQUILA
+
+    ini.equilibrium.ip = t -> 14e6 + ramp((t - 100) / 100.0) * 1E6
+    ini.time.pulse_shedule_time_basis = LinRange(0, 300, 1000)
+    ini.time.simulation_start = 250.0
 
     # explicitly set thickness of radial build layers
     ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
@@ -104,17 +108,13 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    ini.nbi.power_launched = 2 * 16.7e6
+    ini.nbi.power_launched = t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6
     ini.nbi.beam_energy = 1e6
-    ini.ec_launchers.power_launched = 2 * 10e6
-    ini.ic_antennas.power_launched = 24 * 1e6
+    ini.ec_launchers.power_launched = t -> 10e6 + ramp((t - 100) / 100.0) * 10e6
+    ini.ic_antennas.power_launched = t -> 12e6 + ramp((t - 100) / 100.0) * 12e6
 
-    act.ActorFluxMatcher.evolve_densities = Dict(
-        :Ne => :match_ne_scale,
-        :DT => :quasi_neutrality,
-        :He4 => :match_ne_scale,
-        :He4_fast => :fixed,
-        :electrons => :flux_match)
+    act.ActorFluxMatcher.evolve_densities = :flux_match
+    act.ActorTGLF.user_specified_model = "sat1_em_iter"
 
     set_new_base!(ini)
     set_new_base!(act)

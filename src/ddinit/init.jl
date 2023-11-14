@@ -7,9 +7,16 @@ FUSE provides this high-level `init` function to populate `dd` starting from the
 This function essentially calls all other `FUSE.init...` functions in FUSE.
 For most applications, calling this high level function is sufficient.
 """
-function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
+function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, initialize_hardware::Bool=true)
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
+
+        # always empty non-hardware IDSs
+        empty!(dd.equilibrium)
+        empty!(dd.core_profiles)
+        empty!(dd.pulse_schedule)
+        empty!(dd.core_sources)
+        empty!(dd.summary)
 
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
@@ -26,7 +33,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
-        if !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
+        if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
             init_pulse_schedule!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.pulse_schedule))
@@ -34,29 +41,33 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize equilibrium
-        if !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
+        if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
+            for coil in dd.pf_active.coil
+                empty!(coil.current)
+            end
             init_equilibrium!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.equilibrium.time_slice[end]))
                 plot(dd.equilibrium.time_slice[end]; cx=true, show_x_points=true)
-                display(plot!(dd.equilibrium.time_slice[1].boundary, label="Field null"))
+                display(plot!(dd.equilibrium.time_slice[1].boundary; label="Field null"))
             end
         end
 
         # initialize core profiles
-        if !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.core_profiles)
+        if !initialize_hardware || !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.core_profiles)
             init_core_profiles!(dd, ini, act, dd1)
             if do_plot
-                display(plot(dd.core_profiles, legend=:bottomleft))
+                display(plot(dd.core_profiles; legend=:bottomleft))
             end
         end
 
         # initialize core sources
-        if !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) || !ismissing(ini.nbi, :power_launched) || !isempty(dd1.core_sources)
+        if !initialize_hardware || !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) ||
+           !ismissing(ini.nbi, :power_launched) || !isempty(dd1.core_sources)
             init_core_sources!(dd, ini, act, dd1)
             if do_plot
-                display(plot(dd.core_sources, legend=:topright))
-                display(plot(dd.core_sources, legend=:bottomright; integrated=true))
+                display(plot(dd.core_sources; legend=:topright))
+                display(plot(dd.core_sources; legend=:bottomright, integrated=true))
             end
         end
 
@@ -64,7 +75,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         init_currents!(dd, ini, act, dd1)
 
         # initialize build
-        if !ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || !isempty(dd1.build)
+        if initialize_hardware && (!ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || !isempty(dd1.build))
             init_build!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
@@ -75,7 +86,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize oh and pf coils
-        if !ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active)
+        if initialize_hardware && (!ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active))
             init_pf_active!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)

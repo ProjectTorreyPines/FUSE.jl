@@ -52,8 +52,11 @@ include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
+include(joinpath("actors", "pf", "pf_active_utils.jl"))
+include(joinpath("actors", "pf", "pf_active_actor_simple.jl"))
 include(joinpath("actors", "pf", "pf_active_actor.jl"))
 include(joinpath("actors", "pf", "pf_passive_actor.jl"))
+include(joinpath("actors", "pf", "pf_plots.jl"))
 
 include(joinpath("actors", "build", "oh_magnet.jl"))
 include(joinpath("actors", "build", "tf_magnet.jl"))
@@ -103,6 +106,8 @@ include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
 include(joinpath("actors", "costing", "aries_costing_actor.jl"))
 include(joinpath("actors", "costing", "gasc_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
+
+include(joinpath("actors", "control", "controller_actor.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))

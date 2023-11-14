@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     qstar::Entry{T} = Entry{T}("-", "Initial guess of kink safety factor"; default=1.5)
     alpha::Entry{T} = Entry{T}("-", "Initial guess of constant relating to pressure"; default=0.0)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
@@ -31,13 +31,10 @@ Solovev equilibrium actor, based on:
 “One size fits all” analytic solutions to the Grad–Shafranov equation
 Phys. Plasmas 17, 032502 (2010); https://doi.org/10.1063/1.3328818
 """
-function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
-    actor = ActorSolovev(dd, act.ActorSolovev; ip_from, kw...)
+function ActorSolovev(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSolovev(dd, act.ActorSolovev; kw...)
     step(actor)
     finalize(actor)
-    # record optimized values of qstar and alpha in `act` for subsequent ActorSolovev calls
-    act.ActorSolovev.qstar = actor.S.qstar
-    act.ActorSolovev.alpha = actor.S.alpha
     return actor
 end
 
@@ -88,6 +85,13 @@ function _step(actor::ActorSolovev)
     end
 
     # first run of Solovev
+    # display(plot(mxh))
+    # @show abs(B0)
+    # @show plasma_shape
+    # @show par.alpha
+    # @show par.qstar
+    # @show x_point
+    # @show symmetric
     S0 = MXHEquilibrium.solovev(abs(B0), plasma_shape, par.alpha, par.qstar; B0_dir=Int64(sign(B0)), Ip_dir=1, x_point, symmetric)
 
     # optimize `alpha` and `qstar` to get target_ip and target_pressure_core
@@ -139,6 +143,10 @@ function _finalize(actor::ActorSolovev)
         eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
     end
     IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, mxh_eq.S.R0, mxh_eq.B0)
+
+    # record optimized values of qstar and alpha in `act` for subsequent calls to the same actor
+    actor.par.qstar = actor.S.qstar
+    actor.par.alpha = actor.S.alpha
 
     return actor
 end

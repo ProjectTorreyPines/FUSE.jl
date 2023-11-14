@@ -13,13 +13,13 @@ const timer = TimerOutputs.TimerOutput()
 function TimerOutputs.reset_timer!(to::TimerOutputs.TimerOutput, section::String)
     pop!(to.inner_timers, section, nothing)
     to.prev_timer_label = ""
-    to.prev_timer = nothing
+    return to.prev_timer = nothing
 end
 
 function TimerOutputs.reset_timer!(section::String)
     pop!(timer.inner_timers, section, nothing)
     timer.prev_timer_label = ""
-    timer.prev_timer = nothing
+    return timer.prev_timer = nothing
 end
 
 # ====== #
@@ -32,24 +32,27 @@ end
 const memtrace = MemTrace()
 
 function memory_time_tag(txt::String)
-    push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
+    return push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
 end
 
 """
     plot_memtrace(memtrace::MemTrace, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
 
-Plot the memory usage over time from a `MemTrace` object. 
+Plot the memory usage over time from a `MemTrace` object.
 
 # Arguments
-- `n_big_jumps`: number of significant memory jumps to highlight in the plot.
-- `ignore_first_seconds`: number of initial seconds to ignore in the plot. Memory usage will be plotted relative to the memory after this cutoff. Default is `0` (no seconds are ignored).
+
+  - `n_big_jumps`: number of significant memory jumps to highlight in the plot.
+  - `ignore_first_seconds`: number of initial seconds to ignore in the plot. Memory usage will be plotted relative to the memory after this cutoff. Default is `0` (no seconds are ignored).
 
 # Returns
+
 A plot with the following characteristics:
-- Time is displayed on the x-axis as delta seconds since the first recorded time (after ignoring the specified initial seconds).
-- Memory usage is displayed on the y-axis in MB.
-- Memory usage is shown as a scatter plot.
-- The `n_big_jumps` largest jumps in memory are highlighted in red with annotations indicating the action causing each jump.
+
+  - Time is displayed on the x-axis as delta seconds since the first recorded time (after ignoring the specified initial seconds).
+  - Memory usage is displayed on the y-axis in MB.
+  - Memory usage is shown as a scatter plot.
+  - The `n_big_jumps` largest jumps in memory are highlighted in red with annotations indicating the action causing each jump.
 """
 @recipe function plot_memtrace(memtrace::MemTrace, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
     if isempty(memtrace.data)
@@ -71,7 +74,7 @@ A plot with the following characteristics:
 
     @series begin
         seriestype := scatter
-        label := ""
+        label --> ""
         dates, mem
     end
 
@@ -81,10 +84,14 @@ A plot with the following characteristics:
             primary := false
             series_annotations := Plots.text.([action[i], action[i+1]], 6, :red)
             color := :red
-            xlabel --> "ΔTime [s]"
-            ylabel --> (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
             [dates[i], dates[i+1]], [mem[i], mem[i+1]]
         end
+    end
+    @series begin
+        primary := false
+        xlabel := "ΔTime [s]"
+        ylabel := (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
+        [], []
     end
 end
 
@@ -98,7 +105,7 @@ end
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")
 
-Save a memory trace to file
+Save a FUSE memory trace to file
 """
 function save(memtrace::MemTrace, filename::String="memtrace.txt")
     open(filename, "w") do file
@@ -109,6 +116,26 @@ function save(memtrace::MemTrace, filename::String="memtrace.txt")
 end
 
 """
+    load(memtrace::MemTrace, filename::String="memtrace.txt")
+
+Load a FUSE memory trace from file
+"""
+function load(memtrace::MemTrace, filename::String="memtrace.txt")
+    open(filename, "r") do file
+        for line in eachline(file)
+            m = match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+\"(.*?)\"", line)
+            if m !== nothing
+                date = Dates.DateTime(m[1], "yyyy-mm-ddTHH:MM:SS.sss")
+                kb = parse(Int, m[2])
+                txt = m[3]
+                push!(memtrace.data, (date, txt, kb))
+            end
+        end
+    end
+    return memtrace
+end
+
+"""
     varinfo(m::Module=Main, pattern::Regex=r""; all=false, imported=false, recursive=false, sortby::Symbol=:name, minsize::Int=0)
 
 Return a markdown table giving information about exported global variables in a module, optionally restricted
@@ -116,11 +143,11 @@ to those matching `pattern`.
 
 The memory consumption estimate is an approximate lower bound on the size of the internal structure of the object.
 
-- `all` : also list non-exported objects defined in the module, deprecated objects, and compiler-generated objects.
-- `imported` : also list objects explicitly imported from other modules.
-- `recursive` : recursively include objects in sub-modules, observing the same settings in each.
-- `sortby` : the column to sort results by. Options are `:name` (default), `:size`, and `:summary`.
-- `minsize` : only includes objects with size at least `minsize` bytes. Defaults to `0`.
+  - `all` : also list non-exported objects defined in the module, deprecated objects, and compiler-generated objects.
+  - `imported` : also list objects explicitly imported from other modules.
+  - `recursive` : recursively include objects in sub-modules, observing the same settings in each.
+  - `sortby` : the column to sort results by. Options are `:name` (default), `:size`, and `:summary`.
+  - `minsize` : only includes objects with size at least `minsize` bytes. Defaults to `0`.
 
 The output of `varinfo` is intended for display purposes only.  See also [`names`](@ref) to get an array of symbols defined in
 a module, which is suitable for more general manipulations.
@@ -128,7 +155,7 @@ a module, which is suitable for more general manipulations.
 function varinfo(m::Module=Main, pattern::Regex=r""; all::Bool=false, imported::Bool=false, recursive::Bool=false, sortby::Symbol=:name, minsize::Int=0)
     sortby in (:name, :size, :summary) || throw(ArgumentError("Unrecognized `sortby` value `:$sortby`. Possible options are `:name`, `:size`, and `:summary`"))
     rows = Vector{Any}[]
-    workqueue = [(m, ""),]
+    workqueue = [(m, "")]
     parents = Module[m]
     while !isempty(workqueue)
         m2, prep = popfirst!(workqueue)
@@ -169,12 +196,47 @@ function varinfo(m::Module=Main, pattern::Regex=r""; all::Bool=false, imported::
     return Markdown.MD(Any[Markdown.Table(map(r -> r[1:3], rows), Symbol[:l, :r, :l])])
 end
 
+"""
+    malloc_trim_if_glibc()
+
+Check if the underlying system uses the GNU C Library (GLIBC) and, if so, calls `malloc_trim(0)`
+to attempt to release memory back to the system. This function is primarily useful on Linux systems
+where GLIBC is the standard C library.
+
+On non-Linux systems, or Linux systems not using GLIBC, the function does nothing
+
+## Notes
+
+  - This method uses a heuristic by checking for the presence of "glibc" in `/proc/version`.
+    While this is indicative of GLIBC's presence on many typical systems, it's not a guaranteed check.
+  - The actual `malloc_trim` function is specific to the glibc implementation of the C standard library.
+"""
+function malloc_trim_if_glibc()
+    # Check if on Linux
+    if Sys.islinux()
+        # Check for glibc by reading /proc/version (this is specific to Linux)
+        try
+            version_info = read("/proc/version", String)
+            if occursin("glibc", version_info)
+                ccall(:malloc_trim, Cvoid, (Cint,), 0)
+                #println("malloc_trim called.")
+            else
+                #println("Not using glibc.")
+            end
+        catch e
+            #println("Error reading /proc/version: ", e)
+        end
+    else
+        #println("Not on a Linux system.")
+    end
+end
+
 # ==== #
 # Math #
 # ==== #
 function unwrap(v, inplace=false)
     unwrapped = inplace ? v : copy(v)
-    for i = 2:length(v)
+    for i in 2:length(v)
         while (unwrapped[i] - unwrapped[i-1] >= pi)
             unwrapped[i] -= 2pi
         end
@@ -199,7 +261,7 @@ Returns scalars and vectors as vectors of the same lengths
 For example:
 
     same_length_vectors(1, [2], [3,3,6], [4,4,4,4,4,4])
-    
+
     4-element Vector{Vector{Int64}}:
     [1, 1, 1, 1, 1, 1]
     [2, 2, 2, 2, 2, 2]
@@ -216,7 +278,7 @@ function same_length_vectors(args...)
     end
     n = maximum(map(length2, args))
     args = collect(map(x -> isa(x, Vector) ? x : [x], args))
-    args = map(x -> vcat([x for k = 1:n]...)[1:n], args)
+    return args = map(x -> vcat([x for k in 1:n]...)[1:n], args)
 end
 
 """
@@ -301,55 +363,84 @@ end
 # parallel #
 # ======== #
 """
-    parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...) 
+    parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1, kw...)
 
 Start multiprocessing environment
 
-kw arguments are passed to the Distributed.addprocs
+  - kw arguments are passed to the Distributed.addprocs
+
+  - nworkers == 0 uses as many workers as the number of available CPUs
+
+  - cpus_per_task can be used to control memory usage
 """
-function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...)
+function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1, kw...)
     if cluster == "omega"
         if gethostname() ∈ ("omega-a.gat.com", "omega-b.gat.com")
-            nodes = 4 # omega has 12 ga-ird nodes
-            np = 128 * nodes
-            if nprocs_max > 0
-                np = min(np, nprocs_max)
+            gigamem_per_node = 512
+            cpus_per_node = 128
+            if nworkers > 0
+                nodes = 4 # omega has 12 ga-ird nodes
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
             end
-            np += 1
+            np = nworkers + 1
+            gigamem_per_cpu = Int(round(gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if Distributed.nprocs() < np
-                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), partition="ga-ird", exclusive="", topology=:master_worker, cpus_per_task=2, time="99:99:99")
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    partition="ga-ird",
+                    exclusive="",
+                    topology=:master_worker,
+                    time="99:99:99",
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    kw...
+                )
             end
         else
             error("Not running on omega cluster")
         end
+
     elseif cluster == "saga"
         if gethostname() == "saga.cluster"
-            nodes = 4  # saga has 6 nodes
-            np = 30 * nodes
-            if nprocs_max > 0
-                np = min(np, nprocs_max)
+            gigamem_per_node = 192
+            cpus_per_node = 48
+            if nworkers > 0
+                nodes = 4  # saga has 6 nodes
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
             end
-            np += 1
+            np = nworkers + 1
+            gigamem_per_cpu = Int(round(gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if Distributed.nprocs() < np
-                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()), exclusive="", topology=:master_worker, kw...)
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    exclusive="",
+                    topology=:master_worker,
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    kw...
+                )
             end
         else
             error("Not running on saga cluster")
         end
 
     elseif cluster == "localhost"
-        np = length(Sys.cpu_info()) + 1
-        if nprocs_max > 0
-            np = min(np, nprocs_max)
+        if nworkers > 0
+            nprocs_max = length(Sys.cpu_info())
+            nworkers = min(nworkers, nprocs_max)
         end
+        np = nworkers + 1
         if Distributed.nprocs() < np
-            Distributed.addprocs(np - Distributed.nprocs(), topology=:master_worker)
+            Distributed.addprocs(np - Distributed.nprocs(); topology=:master_worker, exeflags=["--heap-size-hint=2G"])
         end
 
     else
-        error("Cluster $cluster is unknown. Add it to the FUSE.parallel_environment")
+        error("Cluster `$cluster` is unknown. Use `localhost` or add `$cluster` to the FUSE.parallel_environment")
     end
-    println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
+
+    return println("Working with $(Distributed.nprocs()-1) workers on $(gethostname())")
 end

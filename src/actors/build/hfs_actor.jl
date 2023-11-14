@@ -23,10 +23,12 @@ end
     ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Actor that resizes the High Field Side of the tokamak radial build
-* takes into account the OH maximum allowed superconductor current/Field
-* takes into account the stresses on the center stack
-    
-!!! note 
+
+  - takes into account the OH maximum allowed superconductor current/Field
+  - takes into account the stresses on the center stack
+
+!!! note
+
     Manipulates radial build information in `dd.build.layer`
 """
 function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -82,8 +84,8 @@ function _step(actor::ActorHFSsizing)
         c_cst = assign_PL_OH_TF(x0)
 
         # evaluate coils currents and stresses
-        _step(actor.fluxswing_actor)
-        _step(actor.stresses_actor)
+        finalize(step(actor.fluxswing_actor))
+        finalize(step(actor.stresses_actor))
 
         # OH currents and stresses
         if actor.fluxswing_actor.par.operate_oh_at_j_crit && (par.j_tolerance >= 0) && (par.j_tolerance >= 0)
@@ -150,10 +152,10 @@ function _step(actor::ActorHFSsizing)
     # initialize
     old_build = deepcopy(dd.build)
     PL = dd.build.layer[1]
-    OH = IMAS.get_build_layer(dd.build.layer, type=_oh_)
-    TFhfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_hfs_)
-    TFlfs = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_)
-    plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
+    OH = IMAS.get_build_layer(dd.build.layer; type=_oh_)
+    TFhfs = IMAS.get_build_layer(dd.build.layer; type=_tf_, fs=_hfs_)
+    TFlfs = IMAS.get_build_layer(dd.build.layer; type=_tf_, fs=_lfs_)
+    plasma = IMAS.get_build_layer(dd.build.layer; type=_plasma_)
     CPradius = TFhfs.end_radius
     OHTFgap = CPradius - TFhfs.thickness - OH.thickness - PL.thickness
     R0, B0 = IMAS.vacuum_r0_b0(dd.equilibrium.time_slice[])
@@ -170,43 +172,35 @@ function _step(actor::ActorHFSsizing)
     end
 
     # optimization
-    bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
-    options = Metaheuristics.Options(; seed=1, iterations=50)
-    algorithm = Metaheuristics.ECA(; N=20, options)
-    res = Metaheuristics.optimize(cost, bounds, algorithm)
-    assign_PL_OH_TF(Metaheuristics.minimizer(res))
-    step(actor.fluxswing_actor)
-    step(actor.stresses_actor)
-
-    function check_technology()
-        @assert dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance) / dd.build.tf.critical_j * 100)%"
-        @assert dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ par.j_tolerance) / dd.build.oh.critical_j * 100)%"
-        if !ismissing(cs.stress.vonmises, :pl)
-            @assert maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.pl "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.pl * 100)%"
-        end
-        @assert maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.oh "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.oh * 100)%"
-        @assert maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.tf "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.tf * 100)%"
+    old_logging = FUSE.actor_logging(dd, false)
+    res = nothing
+    try
+        bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
+        options = Metaheuristics.Options(; seed=1, iterations=50)
+        algorithm = Metaheuristics.ECA(; N=20, options)
+        res = Metaheuristics.optimize(cost, bounds, algorithm)
+        assign_PL_OH_TF(Metaheuristics.minimizer(res))
+    finally
+        FUSE.actor_logging(dd, old_logging)
     end
-
-    function check_performance()
-        max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
-        @assert target_B0 < max_B0 "TF cannot achieve requested B0 ($target_B0 instead of $max_B0)"
-        @assert dd.build.oh.flattop_duration .* (1.0 .+ par.j_tolerance * 0.9) > dd.requirements.flattop_duration "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) insted of $(dd.requirements.flattop_duration))"
-    end
+    finalize(step(actor.fluxswing_actor))
+    finalize(step(actor.stresses_actor))
 
     function print_details()
-        println(cost(Metaheuristics.minimizer(res)))
-        print(res)
+        if res !== nothing
+            println(cost(Metaheuristics.minimizer(res)))
+            print(res)
+        end
 
         if par.verbose
-            p = plot(yscale=:log10, legend=:topright)
-            plot!(p, C_JOH ./ (C_JOH .> 0.0), label="Jcrit OH constraint")
-            plot!(p, C_JTF ./ (C_JTF .> 0.0), label="Jcrit TF constraint")
-            plot!(p, C_SPL ./ (C_SPL .> 0.0), label="stress PL constraint")
-            plot!(p, C_SOH ./ (C_SOH .> 0.0), label="stress OH constraint")
-            plot!(p, C_STF ./ (C_STF .> 0.0), label="stress TF constraint")
-            plot!(p, C_FLT ./ (C_FLT .> 0.0), label="flattop constraint")
-            plot!(p, C_CST ./ (C_CST .> 0.0), label="small TF & OH cost", color=:black)
+            p = plot(; yscale=:log10, legend=:topright)
+            plot!(p, C_JOH ./ (C_JOH .> 0.0); label="Jcrit OH constraint")
+            plot!(p, C_JTF ./ (C_JTF .> 0.0); label="Jcrit TF constraint")
+            plot!(p, C_SPL ./ (C_SPL .> 0.0); label="stress PL constraint")
+            plot!(p, C_SOH ./ (C_SOH .> 0.0); label="stress OH constraint")
+            plot!(p, C_STF ./ (C_STF .> 0.0); label="stress TF constraint")
+            plot!(p, C_FLT ./ (C_FLT .> 0.0); label="flattop constraint")
+            plot!(p, C_CST ./ (C_CST .> 0.0); label="small TF & OH cost", color=:black)
             display(p)
         end
 
@@ -244,15 +238,57 @@ function _step(actor::ActorHFSsizing)
     end
 
     try
-        if par.error_on_technology
-            check_technology()
+        success = true
+        # technology checks
+        success = assert_conditions(
+            dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j,
+            "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance) / dd.build.tf.critical_j * 100)%",
+            par.error_on_technology,
+            success
+        )
+        success = assert_conditions(
+            dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j,
+            "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ par.j_tolerance) / dd.build.oh.critical_j * 100)%",
+            par.error_on_technology,
+            success
+        )
+        if !ismissing(cs.stress.vonmises, :pl)
+            success = assert_conditions(
+                maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.pl,
+                "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.pl * 100)%",
+                par.error_on_technology,
+                success
+            )
         end
-        if par.error_on_performance
-            check_performance()
-        end
+        success = assert_conditions(
+            maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.oh,
+            "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.oh * 100)%",
+            par.error_on_technology,
+            success
+        )
+        success = assert_conditions(
+            maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.tf,
+            "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.tf * 100)%",
+            par.error_on_technology,
+            success
+        )
+
+        # performance checks
+        max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
+        success = assert_conditions(target_B0 < max_B0, "TF cannot achieve requested B0 ($target_B0 [T] instead of $max_B0 [T])", par.error_on_performance, success)
+        success = assert_conditions(
+            dd.build.oh.flattop_duration > dd.requirements.flattop_duration * 0.9,
+            "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) [s] insted of $(dd.requirements.flattop_duration) [s])",
+            par.error_on_performance,
+            success
+        )
+
+        @assert success "HFS sizing cannot be done within constraints"
+
         if par.verbose
             print_details()
         end
+
     catch e
         print_details()
         plot(old_build)
@@ -262,4 +298,11 @@ function _step(actor::ActorHFSsizing)
     end
 
     return actor
+end
+
+function assert_conditions(passing_condition::Bool, message::String, do_raise::Bool, success::Bool)
+    if !passing_condition
+        @warn message
+    end
+    return success && !(do_raise && !passing_condition)
 end

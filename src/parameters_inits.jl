@@ -16,7 +16,8 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
     casename::Entry{String} = Entry{String}("-", "Mnemonic name of the case being run")
-    init_from::Switch{Symbol} = Switch{Symbol}([
+    init_from::Switch{Symbol} = Switch{Symbol}(
+        [
             :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
             :scalars => "Initialize FUSE run from scalar parameters"
         ], "-", "Initialize run from")
@@ -54,8 +55,8 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the equilibrium grid"; default=129)
     field_null_surface::Entry{T} = Entry{T}("-", "ψn value of the field_null_surface. Disable with 0.0"; default=0.75)
     boundary_from::Switch{Symbol} = Switch{Symbol}([:scalars, :MXH_params, :rz_points, :ods], "-", "The starting r, z boundary taken from")
-    MXH_params::Entry{Vector{<:T}} = Entry{Vector{<:T}}("-", "Vector of MXH flats")
-    rz_points::Entry{Vector{Vector{<:T}}} = Entry{Vector{Vector{<:T}}}("m", "R_Z boundary as Vector{Vector{<:Real}}} : r = rz_points[1], z = rz_points[2]")
+    MXH_params::Entry{Vector{T}} = Entry{Vector{T}}("-", "Vector of MXH flats")
+    rz_points::Entry{Vector{Vector{T}}} = Entry{Vector{Vector{T}}}("m", "R_Z boundary as Vector{Vector{$T}}} : r = rz_points[1], z = rz_points[2]")
 end
 
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit where {T<:Real}
@@ -114,44 +115,45 @@ end
 Base.@kwdef mutable struct FUSEparameters__nbi{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :nbi
-    power_launched::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}("W", "Beam power")
-    beam_energy::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}("eV", "Beam energy")
-    beam_mass::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}("AU", "Beam mass"; default=2.0)
-    toroidal_angle::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}("rad", "toroidal angle of injection"; default=0.0)
-    efficiency_conversion::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.nbi__unit___efficiency, :conversion)
-    efficiency_transmission::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.nbi__unit___efficiency, :transmission)
+    power_launched::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("W", "Beam power")
+    beam_energy::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("eV", "Beam energy")
+    beam_mass::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("AU", "Beam mass"; default=2.0)
+    toroidal_angle::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("rad", "toroidal angle of injection"; default=0.0)
+    efficiency_conversion::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.nbi__unit___efficiency, :conversion)
+    efficiency_transmission::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.nbi__unit___efficiency, :transmission)
 end
 
 Base.@kwdef mutable struct FUSEparameters__ec_launchers{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ec_launchers
-    power_launched::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}("W", "EC launched power")
-    efficiency_conversion::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.ec_launchers__beam___efficiency, :conversion)
-    efficiency_transmission::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.ec_launchers__beam___efficiency, :transmission)
+    power_launched::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("W", "EC launched power")
+    efficiency_conversion::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.ec_launchers__beam___efficiency, :conversion)
+    efficiency_transmission::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.ec_launchers__beam___efficiency, :transmission)
 end
 
 Base.@kwdef mutable struct FUSEparameters__ic_antennas{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ic_antennas
-    power_launched::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}("W", "IC launched power")
-    efficiency_conversion::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.ic_antennas__antenna___efficiency, :conversion)
-    efficiency_transmission::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.ic_antennas__antenna___efficiency, :transmission)
-    efficiency_coupling::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.ic_antennas__antenna___efficiency, :coupling)
+    power_launched::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("W", "IC launched power")
+    efficiency_conversion::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.ic_antennas__antenna___efficiency, :conversion)
+    efficiency_transmission::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.ic_antennas__antenna___efficiency, :transmission)
+    efficiency_coupling::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.ic_antennas__antenna___efficiency, :coupling)
 end
 
 Base.@kwdef mutable struct FUSEparameters__lh_antennas{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :lh_antennas
-    power_launched::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}("W", "LH launched power")
-    efficiency_conversion::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.lh_antennas__antenna___efficiency, :conversion)
-    efficiency_transmission::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.lh_antennas__antenna___efficiency, :transmission)
-    efficiency_coupling::Entry{Union{T,Vector{<:T}}} = Entry{Union{T,Vector{<:T}}}(IMAS.lh_antennas__antenna___efficiency, :coupling)
+    power_launched::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("W", "LH launched power")
+    efficiency_conversion::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.lh_antennas__antenna___efficiency, :conversion)
+    efficiency_transmission::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.lh_antennas__antenna___efficiency, :transmission)
+    efficiency_coupling::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}(IMAS.lh_antennas__antenna___efficiency, :coupling)
 end
 
 Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
-    layers::Entry{OrderedCollections.OrderedDict{Symbol,Float64}} = Entry{OrderedCollections.OrderedDict{Symbol,Float64}}("m", "Sorted dictionary of layers thicknesses in radial build")
+    layers::Entry{OrderedCollections.OrderedDict{Symbol,Float64}} =
+        Entry{OrderedCollections.OrderedDict{Symbol,Float64}}("m", "Sorted dictionary of layers thicknesses in radial build")
     blanket::Entry{T} = Entry{T}("-", "Fraction of blanket in radial build")
     shield::Entry{T} = Entry{T}("-", "Fraction of shield in radial build")
     vessel::Entry{T} = Entry{T}("-", "Fraction of vessel in radial build")
@@ -179,7 +181,8 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     _name::Symbol = :requirements
     power_electric_net::Entry{T} = Entry{T}(IMAS.requirements, :power_electric_net)
     flattop_duration::Entry{T} = Entry{T}(IMAS.requirements, :flattop_duration)
-    log10_flattop_duration::Entry{T} = Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
+    log10_flattop_duration::Entry{T} =
+        Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
     tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio)
     cost::Entry{T} = Entry{T}(IMAS.requirements, :cost)
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking)
@@ -258,40 +261,6 @@ function json2ini(filename::AbstractString)
     return SimulationParameters.json2par(filename, ParametersInits())
 end
 
-@recipe function plot_ini(ini::ParametersAllInits)
-    N = 0
-    for par in SimulationParameters.leaves(ini)
-        if typeof(par.value) <: Function
-            N += 1
-        end
-    end
-
-    mxh = IMAS.MXH(ini)
-
-    if N > 0
-        layout := @layout [N + 1]
-
-        @series begin
-            label := ""
-            subplot := 1
-            aspectratio := :equal
-            mxh
-        end
-
-        k = 1
-        for par in SimulationParameters.leaves(ini)
-            if typeof(par.value) <: Function
-                k += 1
-                @series begin
-                    label := ""
-                    subplot := k
-                    par
-                end
-            end
-        end
-    end
-end
-
 """
     ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
 
@@ -334,7 +303,7 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.κ = mxh.κ
     equilibrium.δ = sin(mxh.s[1])
     equilibrium.ζ = -mxh.s[2]
-    equilibrium.𝚶 = mxh.c[1]
+    return equilibrium.𝚶 = mxh.c[1]
 end
 
 """
@@ -417,5 +386,42 @@ function n_xpoints(xpoints::Symbol)
         return 2
     else
         error("xpoints can only be [:none, :lower, :upper, :double]")
+    end
+end
+
+"""
+    plot_ini(ini::ParametersAllInits)
+
+Plots ini time dependent time traces including plasma boundary
+"""
+@recipe function plot_ini(ini::ParametersAllInits)
+    N = 0
+    for par in SimulationParameters.leaves(ini)
+        if typeof(par.value) <: Function
+            N += 1
+        end
+    end
+
+    layout := @layout [N + 1]
+
+    mxh = IMAS.MXH(ini)
+    @series begin
+        label := ""
+        subplot := 1
+        aspectratio := :equal
+        xlim := (0, mxh.R0 * 2)
+        mxh
+    end
+
+    k = 1
+    for par in SimulationParameters.leaves(ini)
+        if typeof(par.value) <: Function
+            k += 1
+            @series begin
+                label := ""
+                subplot := k
+                par
+            end
+        end
     end
 end

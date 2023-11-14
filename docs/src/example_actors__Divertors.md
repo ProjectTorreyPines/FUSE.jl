@@ -20,7 +20,7 @@ dd, ini, act = FUSE.init(:ITER, init_from=:ods, do_plot=true);
 
 
 ```@julia
-FUSE.ActorStationaryPlasma(dd, act);
+FUSE.ActorEquilibriumTransport(dd, act);
 FUSE.ActorCXbuild(dd, act)
 FUSE.ActorNeutronics(dd, act; do_plot=true);
 ```

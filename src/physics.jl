@@ -76,8 +76,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             end
         elseif shape_index_mod == Int(_spline_)
             n = 1
-            R = range(r_start, r_end, length=2 + n)[2:end-1]
-            Z = range(height / 2.0, height / 2.0, length=2 + n)[2:end-1]
+            R = range(r_start, r_end; length=2 + n)[2:end-1]
+            Z = range(height / 2.0, height / 2.0; length=2 + n)[2:end-1]
             shape_parameters = Float64[0.8]
             for (r, z) in zip(R, Z)
                 append!(shape_parameters, [r, z])
@@ -175,7 +175,17 @@ end
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
-function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Float64}, target_clearance::Float64, func::Function, r_start::Float64, r_end::Float64, shape_parameters::Vector{Float64}; use_curvature::Bool=true, verbose::Bool=false)
+function optimize_shape(
+    r_obstruction::Vector{Float64},
+    z_obstruction::Vector{Float64},
+    target_clearance::Float64,
+    func::Function,
+    r_start::Float64,
+    r_end::Float64,
+    shape_parameters::Vector{Float64};
+    use_curvature::Bool=true,
+    verbose::Bool=false
+)
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
     initial_guess = deepcopy(shape_parameters)
@@ -184,7 +194,19 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
         func(r_start, r_end, shape_parameters...)
 
     else
-        function cost_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Float64}, rz_obstruction::Vector{Tuple{Float64,Float64}}, target_clearance::Float64, target_area::Float64, func::Function, r_start::Float64, r_end::Float64, shape_parameters::Vector{Float64}; use_curvature::Bool, verbose::Bool=false)
+        function cost_shape(
+            r_obstruction::Vector{Float64},
+            z_obstruction::Vector{Float64},
+            rz_obstruction::Vector{Tuple{Float64,Float64}},
+            target_clearance::Float64,
+            target_area::Float64,
+            func::Function,
+            r_start::Float64,
+            r_end::Float64,
+            shape_parameters::Vector{Float64};
+            use_curvature::Bool,
+            verbose::Bool=false
+        )
             R, Z = func(r_start, r_end, shape_parameters...)
 
             cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
@@ -241,7 +263,8 @@ function optimize_shape(r_obstruction::Vector{Float64}, z_obstruction::Vector{Fl
         target_area = IMAS.area(r_obstruction_buffered, z_obstruction_buffered)
 
         initial_guess = copy(shape_parameters)
-        res = Optim.optimize(shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature),
+        res = Optim.optimize(
+            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
         if verbose
             println(res)
@@ -335,7 +358,7 @@ end
 """
     princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
 
-This routine calculates a "shortened" TF coil shape that foregoes the equal-tension "Princeton-Dee" for 
+This routine calculates a "shortened" TF coil shape that foregoes the equal-tension "Princeton-Dee" for
 a squater, more space-efficient shape. It replicates the inboard curve of the equal-tension arc, but
 decreases the height of the coil to match a given value.
 """
@@ -767,6 +790,7 @@ end
 
 """
     P_LH_threshold_from_scalars(Bt0::Real, nel::Real,surface_area::Real)
+
 Calculates the L to H transition threshold according to 2008 scaling law
 """
 function P_LH_threshold_from_scalars(Bt0::Real, nel::Real, surface_area::Real)
@@ -774,7 +798,8 @@ function P_LH_threshold_from_scalars(Bt0::Real, nel::Real, surface_area::Real)
 end
 """
     approximate_surface_area(a::Real, R::Real ,κ::Real, δ::Real)
-Approximation of the surface area of a miller geometry flux surface    
+
+Approximation of the surface area of a miller geometry flux surface
 """
 function approximate_surface_area(a::Real, R::Real, κ::Real, δ::Real)
     return 2pi^2 * R * a^2 * κ * (1.0 - 0.151 * δ * a / R) / (2pi * R) # m²
@@ -795,7 +820,7 @@ end
 """
     line_through_point(m, x0, y0, x)
 
-return `y` values at `x` of line with gradient `m` going through point `(x0,y0)` 
+return `y` values at `x` of line with gradient `m` going through point `(x0,y0)`
 """
 function line_through_point(m::T, x0::T, y0::T, x::Vector{T}) where {T<:Real}
     return @. m * x + y0 - m * x0
@@ -846,14 +871,15 @@ Control of the X-point location can be achieved by modifying R0, Z0.
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
+    # NOTE: when calling curvature we multiply Z by 2 to form x-points preferentially in Z direction (even for circular plasma, for example)
     function cost(points0::Vector, points::Vector, i::Integer, R0::T, Z0::T, α::Float64)
         points .= points0
         if upper
             RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs, IMAS.curvature(R, Z)[(Z.>(Z0+ZX)/2.0)]))^2.0
+            return (1.0 - maximum(abs, IMAS.curvature(R, 2 * Z)[(Z.>(Z0+ZX)/2.0)]))^2.0
         else
             RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs, IMAS.curvature(R, Z)[(Z.<(Z0+ZX)/2.0)]))^2.0
+            return (1.0 - maximum(abs, IMAS.curvature(R, 2 * Z)[(Z.<(Z0+ZX)/2.0)]))^2.0
         end
     end
 
@@ -862,13 +888,13 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     end
 
     if upper
-        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .> Z0))
+        k = argmax(abs.(IMAS.curvature(mr, 2 * mz)) .* (mz .> Z0))
         index = mz .> Z0
         mri = mr[index]
         mzi = mz[index]
         i = findfirst(i -> (mri[i] == mr[k] && mzi[i] == mz[k]), 1:length(mri))
     else
-        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
+        k = argmax(abs.(IMAS.curvature(mr, 2 * mz)) .* (mz .< Z0))
         index = mz .< Z0
         mri = mr[index]
         mzi = mz[index]
@@ -882,7 +908,7 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     points = collect(zip([mri; mri[1]], [mzi; mzi[1]]))
     points0 = deepcopy(points)
 
-    res = Optim.optimize(α -> cost(points0, points, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
+    res = Optim.optimize(α -> cost(points0, points, i, R0, Z0, α), 1.05, 1.5, Optim.GoldenSection())
 
     points = collect(zip([mr; mr[1]], [mz; mz[1]]))
     RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, res.minimizer[1])
@@ -919,7 +945,7 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         empty!(mxhb.ZX)
         mxhb.r_boundary = mr
         mxhb.z_boundary = mz
-        return mxh
+        return mxhb
     end
 
     R0 = mxhb.mxh.R0
@@ -1002,8 +1028,7 @@ end
 
 Find boundary such that the output MXH parametrization (with x-points) matches the input MXH parametrization (without x-points)
 """
-function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0)
-
+function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0, target_area::Float64=0.0, target_volume::Float64=0.0, debug::Bool=false)
     if ~upper_x_point && ~lower_x_point
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     end
@@ -1015,6 +1040,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     i = argmin(pz)
     RXL = pr[i]
     ZXL = pz[i]
+    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=100)
 
     M = 12
     N = min(M, length(mxh.s))
@@ -1035,35 +1061,46 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         return MXHboundary!(mxhb0; upper_x_point, lower_x_point, n_points)
     end
 
-    function cost(params::AbstractVector{<:Real}; mxh, upper_x_point, lower_x_point, n_points)
+    function cost(params::AbstractVector{<:Real}; mxhb0, mxh0, upper_x_point, lower_x_point, n_points, target_area::Float64, target_volume::Float64)
+        # mxhb0: contains the boundary with the x-point
+        # mxhb0.mxh: is the MXH parametrization that leads to mxhb0 once x-points are set
+        # mxh0: is the MHX fit to the mxhb0 boundary
+
         mxhb_from_params!(mxhb0, params; upper_x_point, lower_x_point, n_points)
         IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
-        # X-points and elongation
+        pr0, pz0 = IMAS.resample_2d_path(mxhb0.r_boundary, mxhb0.z_boundary; n_points=100)
+
+        # X-points and non X-points halves
         c = 0.0
         if upper_x_point
             i = argmax(mxhb0.ZX)
-            c += (mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2
+            c += ((mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2) / mxhb0.mxh.R0^2
         else
-            i = argmax(mxhb0.z_boundary)
-            j = argmax(pz)
-            c += (mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2
+            i = pz .< mxhb0.mxh.Z0
+            c += sum((pr0[i] .- pr[i]) .^ 2 .+ (pz0[i] .- pz[i]) .^ 2) / mxhb0.mxh.R0^2 / sum(i)
         end
         if lower_x_point
             i = argmin(mxhb0.ZX)
-            c += (mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2
+            c += ((mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2) / mxhb0.mxh.R0^2
         else
-            i = argmin(mxhb0.z_boundary)
-            j = argmin(pz)
-            c += (mxhb0.r_boundary[i] - pr[j])^2 + (mxhb0.z_boundary[i] - pz[j])^2
+            i = pz .> mxhb0.mxh.Z0
+            c += sum((pr0[i] .- pr[i]) .^ 2 .+ (pz0[i] .- pz[i]) .^ 2) / mxhb0.mxh.R0^2 / sum(i)
         end
 
         # other shape parameters
         c += (mxh0.R0 - mxh.R0)^2
+        c += (mxh0.Z0 - mxh.Z0)^2
+        c += (mxh0.κ - mxh.κ)^2
         c += (mxh0.ϵ - mxh.ϵ)^2
         c += (mxh0.c0 - mxh.c0)^2
         c += sum((mxh0.s[1:N] .- mxh.s[1:N]) .^ 2)
         c += sum((mxh0.c[1:N] .- mxh.c[1:N]) .^ 2)
+
+        # make MXH match boundary of MHXboundary
+        x_point_area = IMAS.area(mxhb0.r_boundary, mxhb0.z_boundary)
+        marea0 = IMAS.area(mxh0()...)
+        c += (abs(x_point_area - marea0) / x_point_area)^2 * 1E3
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
@@ -1072,18 +1109,34 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mzch = [z for (r, z) in hull]
         marea = IMAS.area(mr, mz)
         mareach = IMAS.area(mrch, mzch)
-        c += (abs(mareach - marea) / mareach) * 1E3
+        c += (abs(mareach - marea) / mareach)^2 * 1E3
+
+        # Matching a target area and or volume
+        if target_area > 0
+            c += ((x_point_area - target_area)^2 * 1E2)
+        end
+        if target_volume > 0
+            x_point_volume = IMAS.revolution_volume(mxhb0.r_boundary, mxhb0.z_boundary)
+            c += ((x_point_volume - target_volume)^2 * 1E1)
+        end
 
         return sqrt(c)
     end
-
-    res = Optim.optimize(x -> cost(x; mxh, upper_x_point, lower_x_point, n_points), vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c), Optim.NelderMead(), Optim.Options(iterations=1000))
+    res = Optim.optimize(
+        x -> cost(x; mxhb0, mxh0, upper_x_point, lower_x_point, n_points, target_area, target_volume),
+        vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c),
+        Optim.NelderMead(),
+        Optim.Options(; iterations=1000)
+    )
     mxhb_from_params!(mxhb0, res.minimizer; upper_x_point, lower_x_point, n_points)
     IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
-    # println(res)
-    # println(mxh)
-    # println(mxh0)
-    # println(mxhb0.mxh)
+    if debug
+        println(res)
+        println(mxh)
+        println(mxh0)
+        println(mxhb0.mxh)
+        display(plot(mxh0))
+    end
     return mxhb0
 end
 
@@ -1092,7 +1145,14 @@ end
 
 Given a closed boundary R,Z returns Rp,Zp constraint points on plausible private flux regions
 """
-function free_boundary_private_flux_constraint(R::AbstractVector{T}, Z::AbstractVector{T}; upper_x_point::Bool, lower_x_point::Bool, fraction::Float64=0.25, n_points::Int=10) where {T<:Real}
+function free_boundary_private_flux_constraint(
+    R::AbstractVector{T},
+    Z::AbstractVector{T};
+    upper_x_point::Bool,
+    lower_x_point::Bool,
+    fraction::Float64=0.25,
+    n_points::Int=10
+) where {T<:Real}
     Rp = T[]
     Zp = T[]
     for x_point in [-1, 1]
@@ -1182,13 +1242,17 @@ Plots the profile and fitted profile for pedestal finding (region outside pedest
 """
 function check_ped_finder(profile::AbstractVector{<:Real}, psi_norm::AbstractVector{<:Real})
     ped_height, ped_width = IMAS.pedestal_finder(profile, psi_norm)
-    plot(psi_norm, profile, label="original profile")
-    plot!(psi_norm, IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width), label="fitted profile (pedestal region is important only)")
+    plot(psi_norm, profile; label="original profile")
+    return plot!(
+        psi_norm,
+        IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width);
+        label="fitted profile (pedestal region is important only)"
+    )
 end
-
 
 """
     ip_from_q_star(a::Real, B0::Real, q_star::Real, R0::Real, κ::Real)
+
 Calculate ip from the cylindrical equivalent safety factor
 """
 function ip_from_q_cyl(a::Real, B0::Real, q_cyl::Real, R0::Real, κ::Real)
@@ -1197,6 +1261,7 @@ end
 
 """
     B0_from_Bmax(Bmax::Real, distance_tf_to_plasma::Real, a::Real, R0::Real)
+
 Calculate the on axis magnetic field from the maximum magnetic field at the tf coils
 """
 function B0_from_b_max(b_max::Real, distance_tf_to_plasma::Real, a::Real, R0::Real)

@@ -41,7 +41,7 @@ function workflow_multiobjective_optimization(
     if isempty(objectives_functions)
         error(
             "Must specify objective functions. Available pre-baked functions from ObjectiveFunctionsLibrary:\n  * " *
-            join(keys(ObjectiveFunctionsLibrary), "\n  * "),
+            join(keys(ObjectiveFunctionsLibrary), "\n  * ")
         )
     end
 
@@ -109,7 +109,8 @@ function workflow_multiobjective_optimization(
     flush(stdout)
 
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
-    @time state = Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, save_dd, p), bounds, algorithm_obj)
+    @time state =
+        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, save_dd, p), bounds, algorithm)
     display(state)
 
     return state

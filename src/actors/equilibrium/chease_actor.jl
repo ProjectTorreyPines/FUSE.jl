@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor whe
     clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
     rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
 mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor
@@ -25,8 +25,8 @@ end
 
 Runs the Fixed boundary equilibrium solver CHEASE
 """
-function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:core_profiles, kw...)
-    actor = ActorCHEASE(dd, act.ActorCHEASE; ip_from, kw...)
+function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorCHEASE(dd, act.ActorCHEASE; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -35,7 +35,7 @@ end
 function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; kw...)
     logging_actor_init(ActorCHEASE)
     par = par(kw...)
-    ActorCHEASE(dd, par, nothing)
+    return ActorCHEASE(dd, par, nothing)
 end
 
 """
@@ -67,7 +67,7 @@ function _step(actor::ActorCHEASE)
 
     # pressure and j_tor
     psin = eq1d.psi_norm
-    j_tor = eq1d.j_tor
+    j_tor = [sign(j) == sign(Ip) ? j : 0.0 for j in eq1d.j_tor]
     pressure = eq1d.pressure
     rho_pol = sqrt.(psin)
     pressure_sep = pressure[end]
@@ -77,9 +77,9 @@ function _step(actor::ActorCHEASE)
         actor.chease = CHEASE.run_chease(
             ϵ, z_geo, pressure_sep, Bt_geo,
             r_geo, Ip, r_bound, z_bound, 82,
-            rho_pol, pressure, j_tor,
-            rescale_eq_to_ip=par.rescale_eq_to_ip,
-            clear_workdir=par.clear_workdir)
+            rho_pol, pressure, j_tor;
+            par.rescale_eq_to_ip,
+            par.clear_workdir)
     catch e
         display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
         display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
@@ -96,6 +96,7 @@ function _finalize(actor::ActorCHEASE)
 
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
+        n_point_shot_boundary = 500
         eqt = dd.equilibrium.time_slice[]
         z_geo = eqt.boundary.geometric_axis.z
         r_bound = eqt.boundary.outline.r
@@ -103,10 +104,20 @@ function _finalize(actor::ActorCHEASE)
         # constraints for the private flux region
         upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
         lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
-        Rx, Zx = free_boundary_private_flux_constraint(r_bound, z_bound; upper_x_point, lower_x_point, fraction=0.25, n_points=10)
+        fraction = 0.5
+        Rx, Zx = free_boundary_private_flux_constraint(r_bound, z_bound; upper_x_point, lower_x_point, fraction, n_points=Int(ceil(fraction * n_point_shot_boundary)))
+
         # convert from fixed to free boundary equilibrium
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psi_free_rz = Float64.(VacuumFields.fixed2free(EQ, Int(ceil(length(r_bound) / 2)); Rx, Zx))
+
+        if isempty(dd.pf_active.coil)
+            n_coils = 100
+            psi_free_rz = VacuumFields.encircling_fixed2free(EQ, n_coils; Rx, Zx)
+        else
+            coils = IMAS_pf_active__coils(dd; green_model=:simple)
+            psi_free_rz = VacuumFields.encircling_fixed2free(EQ, coils; Rx, Zx)
+        end
+
         actor.chease.gfile.psirz = psi_free_rz
         # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
@@ -164,4 +175,6 @@ function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     eq2d.grid.dim1 = g.r
     eq2d.grid.dim2 = g.z
     eq2d.psi = g.psirz .* tc["PSI"]
+
+    return nothing
 end

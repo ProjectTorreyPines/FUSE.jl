@@ -144,7 +144,7 @@ function init_core_profiles!(
         return (IMAS.greenwald_fraction(eqt, cp1d) - greenwald_fraction)^2
     end
     ne0_guess = ne_ped * 1.4
-    res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(g_tol=1E-4))
+    res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(; g_tol=1E-4))
     ne_core = res.minimizer[1]
     if ne_core < ne_ped
         @warn "The core density is lower than the pedestal density, lower the pedestal density (ini.core_profiles.ne_ped)"
@@ -161,7 +161,7 @@ function init_core_profiles!(
     niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
     @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
     ni_core = 0.0
-    for i = 1:length(cp1d.ion)
+    for i in 1:length(cp1d.ion)
         cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
         ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
     end
@@ -172,7 +172,7 @@ function init_core_profiles!(
     @ddtime summary.local.pedestal.t_e.value = Te_ped
 
     cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
-    for i = 1:length(cp1d.ion)
+    for i in 1:length(cp1d.ion)
         cp1d.ion[i].temperature = cp1d.electrons.temperature .* T_ratio
     end
 

@@ -4,8 +4,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorLHsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Width of the deposition profile"; default=0.1)
-    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Radial location of the deposition profile"; default=0.8)
+    width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.1)
+    rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.8)
 end
 
 mutable struct ActorLHsimple{D,P} <: HCDAbstractActor
@@ -52,7 +52,8 @@ function _step(actor::ActorLHsimple)
     _, width, rho_0 = same_length_vectors(1:n_antennas, par.width, par.rho_0)
 
     for (idx, lha) in enumerate(dd.lh_antennas.antenna)
-        power_launched = @ddtime(lha.power_launched.data)
+        power_launched = @ddtime(dd.pulse_schedule.lh.power.reference.data)
+        @ddtime(lha.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = zeros(length(rho_cp))
 

@@ -20,7 +20,7 @@ function unit_cost(material::AbstractString, cst::IMAS.costing)
         production_increase = cst.future.learning.hts.production_increase
         learning_rate = cst.future.learning.hts.learning_rate
         return (87.5 / 2) * cost_multiplier(production_increase, learning_rate) # $M/m^3
-    elseif material == "Nb3Sn"
+    elseif contains(lowercase(material), "nb3sn")
         return 1.66 # $M/m^3
     elseif contains(lowercase(material), "steel")
         return 0.36 # $M/m^3
@@ -47,6 +47,8 @@ end
 function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, cst::IMAS.costing)
     if coil_tech.material == "Copper"
         return unit_cost("Copper", cst)
+    elseif contains(lowercase(coil_tech.material), "nb3sn") # Nb3Sn unit cost applies to the formed conductor (including steel and copper)
+        return unit_cost("Nb3Sn", cst)
     else
         fraction_cable = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)

@@ -21,7 +21,7 @@ mutable struct ActorDivertors{D,P} <: ReactorAbstractActor
 end
 
 """
-    ActorSimpleDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Evaluates divertor loading and deposited power
 

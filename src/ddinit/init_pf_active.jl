@@ -51,8 +51,9 @@ end
 
 Use build layers outline to initialize PF coils distribution
 NOTE: n_coils
-* the first element in the array sets the number of coils in the OH
-* any subsequent element sets the number of coils for each of the vacuum regions in the build
+
+  - the first element in the array sets the number of coils in the OH
+  - any subsequent element sets the number of coils for each of the vacuum regions in the build
 """
 function init_pf_active!(
     pf_active::IMAS.pf_active,
@@ -62,7 +63,7 @@ function init_pf_active!(
     coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing,
     coils_elements_area::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
 
-    OH_layer = IMAS.get_build_layer(bd.layer, type=_oh_)
+    OH_layer = IMAS.get_build_layer(bd.layer; type=_oh_)
 
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))
@@ -93,7 +94,7 @@ function init_pf_active!(
     bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
     bd.pf_active.rail[1].outline.r = ones(length(z_ohcoils)) * r_oh
     bd.pf_active.rail[1].outline.z = z_ohcoils
-    bd.pf_active.rail[1].outline.distance = range(-1, 1, length=n_coils[1])
+    bd.pf_active.rail[1].outline.distance = range(-1, 1; length=n_coils[1])
     for z_oh in z_ohcoils
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
@@ -117,8 +118,8 @@ function init_pf_active!(
     end
 
     # Now add actual PF coils to regions of vacuum
-    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer, fs=_out_) if bd.layer[k].material == "Vacuum"][1]
-    lfs_out_indexes = IMAS.get_build_indexes(bd.layer, fs=[_lfs_, _out_])
+    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer; fs=_out_) if bd.layer[k].material == "Vacuum"][1]
+    lfs_out_indexes = IMAS.get_build_indexes(bd.layer; fs=[_lfs_, _out_])
     krail = 1
     ngrid = 257
     rmask, zmask, mask = IMAS.structures_mask(bd; ngrid)
@@ -148,7 +149,7 @@ function init_pf_active!(
         # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
         coil_size = pf_coils_size[krail]
         dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
-        inner_layer = IMAS.get_build_layer(bd.layer, identifier=bd.layer[k-1].identifier, fs=_hfs_)
+        inner_layer = IMAS.get_build_layer(bd.layer; identifier=bd.layer[k-1].identifier, fs=_hfs_)
         rail_r, rail_z = buffer(inner_layer.outline.r, inner_layer.outline.z, dcoil)
         rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3)
 
@@ -212,7 +213,7 @@ function init_pf_active!(
         end
 
         # uniformely distribute coils
-        coils_distance = range(-(1 - 0.25 / nc), 1 - 0.25 / nc, length=nc)
+        coils_distance = range(-(1 - 0.25 / nc), 1 - 0.25 / nc; length=nc)
         r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
         z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
         z_coils = [abs(z) < 1E-6 ? 0.0 : z for z in z_coils]

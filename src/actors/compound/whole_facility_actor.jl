@@ -5,14 +5,17 @@ Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     update_plasma::Entry{Bool} = Entry{Bool}("-", "Run plasma related actors"; default=true)
+    update_build::Entry{Bool} = Entry{Bool}("-", "Optimize tokamak build"; default=true)
 end
 
 mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
-    EquilibriumTransport::Union{Nothing,ActorStationaryPlasma{D,P}}
+    StationaryPlasma::Union{Nothing,ActorStationaryPlasma{D,P}}
     StabilityLimits::Union{Nothing,ActorStabilityLimits{D,P}}
+    FluxSwing::Union{Nothing,ActorFluxSwing{D,P}}
+    Stresses::Union{Nothing,ActorStresses{D,P}}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
     LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
     CXbuild::Union{Nothing,ActorCXbuild{D,P}}
@@ -29,24 +32,24 @@ end
     ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
-* ActorStationaryPlasma
-    * ActorSteadyStateCurrent
-    * ActorHCD
-    * ActorCoreTransport
-    * ActorEquilibrium
-* ActorStabilityLimits
-* ActorHFSsizing
-* ActorLFSsizing
-* ActorCXbuild
-* ActorPFcoilsOpt
-* ActorPassiveStructures
-* ActorNeutronics
-* ActorBlanket
-* ActorDivertors
-* ActorBalanceOfPlant
-* ActorCosting
 
-!!! note 
+  - ActorStationaryPlasma
+  - ActorStabilityLimits
+  - ActorHFSsizing
+  - ActorLFSsizing
+  - ActorCXbuild
+  - ActorFluxSwing
+  - ActorStresses
+  - ActorPFcoilsOpt
+  - ActorPassiveStructures
+  - ActorNeutronics
+  - ActorBlanket
+  - ActorDivertors
+  - ActorBalanceOfPlant
+  - ActorCosting
+
+!!! note
+
     Stores data in `dd`
 """
 function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -60,7 +63,9 @@ function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility
     logging_actor_init(ActorWholeFacility)
     par = par(kw...)
 
-    ActorWholeFacility(dd, par, act,
+    return ActorWholeFacility(dd, par, act,
+        nothing,
+        nothing,
         nothing,
         nothing,
         nothing,
@@ -81,18 +86,20 @@ function _step(actor::ActorWholeFacility)
     act = actor.act
 
     if par.update_plasma
-        actor.EquilibriumTransport = ActorStationaryPlasma(dd, act)
+        actor.StationaryPlasma = ActorStationaryPlasma(dd, act)
         actor.StabilityLimits = ActorStabilityLimits(dd, act)
     end
 
-    actor.HFSsizing = ActorHFSsizing(dd, act)
-
-    actor.LFSsizing = ActorLFSsizing(dd, act)
-
+    if par.update_build
+        actor.HFSsizing = ActorHFSsizing(dd, act)
+        actor.LFSsizing = ActorLFSsizing(dd, act)
+    end
     actor.CXbuild = ActorCXbuild(dd, act)
+    FUSE.ActorFluxSwing(dd, act)
+    FUSE.ActorStresses(dd, act)
 
     actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
-    if act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
+    if par.update_build && act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
         actor.CXbuild = ActorCXbuild(dd, act)
         actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act; update_equilibrium=false)
     end

@@ -1,4 +1,4 @@
-const supported_coils_techs = [:copper, :LTS, :ITER, :HTS]
+const supported_coils_techs = [:copper, :LTS, :ITER, :KDEMO, :HTS]
 
 """
 Material properties
@@ -9,16 +9,16 @@ Base.@kwdef struct MaterialProperties
     poisson_ratio::Float64 = NaN
 end
 
-const stainless_steel = MaterialProperties(
+const stainless_steel = MaterialProperties(;
     yield_strength=800E6, # Pa
     young_modulus=193.103448275E9, # Pa
-    poisson_ratio=0.33,
+    poisson_ratio=0.33
 )
 
-const pure_copper = MaterialProperties(
+const pure_copper = MaterialProperties(;
     yield_strength=70E6, # Pa
     young_modulus=110E9, # Pa
-    poisson_ratio=0.34,
+    poisson_ratio=0.34
 )
 
 """
@@ -40,10 +40,17 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
         coil_tech.fraction_steel = 0.0
         coil_tech.fraction_void = 0.1
 
-    elseif technology ∈ (:LTS, :ITER, :HTS)
+    elseif technology ∈ (:LTS, :ITER, :KDEMO, :HTS)
         if technology ∈ (:LTS, :ITER)
             coil_tech.temperature = 4.2
             coil_tech.material = "Nb3Sn"
+            coil_tech.fraction_void = 0.1
+        elseif technology == :KDEMO
+            coil_tech.temperature = 4.2 
+            coil_tech.material = "KDEMO Nb3Sn"
+            if coil_type == :tf
+                coil_tech.fraction_void = 0.26 # from NF 55 (2015) 053027, Table 2
+            end
         else
             coil_tech.temperature = 4.2
             coil_tech.material = "ReBCO"
@@ -87,7 +94,7 @@ This uses the experimental fits from Table 6 in Lu et al., Supercond. Sci. Techn
 
 NOTE: this returns the "engineering critical current density", which is the critical current divided by the cross-section of
 the entire Nb3Sn strand. The strands considered in the reference study are approx. 50% Nb3Sn, 50% copper, and so the acutal
-J_crit of the so-called "non-Cu" part of the wire (i.e. Nb3Sn only) will be approx. twice as large as the value calculated here. 
+J_crit of the so-called "non-Cu" part of the wire (i.e. Nb3Sn only) will be approx. twice as large as the value calculated here.
 
 OUTPUTS
 J_c : engineering critical current density, A/m^2
@@ -129,6 +136,61 @@ function Nb3Sn_Jcrit(Bext::Real, strain::Real=0.0, temperature::Real=4.2)
     J_c = A * Tc * Tc * (1.0 - t * t)^2 * Bc11^(n - 3) * b^(p - 1) * (1 - b)^q # A/m^2   #Equation 5 in Lu et al.
 
     return J_c, b
+end
+
+"""
+
+KDEMO_Nb3Sn_Jcrit(
+    Bext::Real,         # External magnetic field at conductor, Tesla 
+    strain::Real,       # Strain at conductor, percent 
+    temperature::Real   # Temperature at conductor, K
+)
+
+Calculates critical current density for Nb3Sn conductor according to the ITER 2008 parametrization. The nine free parameters 
+(p, q, C, Ca1, Ca2, epsilon_0a, epsilon_m, Bc20m, Tc0m) have to be determined experimentally and vary between conductors produced 
+by different manufacturers. 
+
+The specific values of the parameters here were determined experimentally for the K-DEMO Nb3Sn conductors. 
+
+"""
+
+function KDEMO_Nb3Sn_Jcrit(Bext::Real, strain::Real, temperature::Real=4.2)
+    strain = strain ./ 1e2 # convert from percent to (mm/mm)
+
+    # Nine free parameters determined experimentally for KDEMO superconductor 
+    p = 0.5
+    q = 2
+    C = 67981.2 * 1e6
+    Ca1 = 56.7401
+    Ca2 = 22.7938
+    epsilon_0a = 0.00420247
+    epsilon_m = 0.00363043
+    Bc20m = 28.9919
+    Tc0m = 16.8
+
+    kdemo_diameter = 0.82 # mm 
+    kdemo_copper_frac = 0.5 # strands are 50% copper, 50% Nb3Sn
+
+    epsilon = strain - epsilon_m 
+    epsilon_sh = (Ca2*epsilon_0a)/(sqrt((Ca1)^2 - (Ca2)^2))
+
+    s1 = Ca1 * (sqrt(epsilon_sh^2 + epsilon_0a^2) - sqrt((epsilon - epsilon_sh)^2 + epsilon_0a^2))
+    s2 = Ca2 * epsilon
+    s3 = 1 - Ca1*epsilon_0a
+    
+    s = 1 + ((s1 - s2)/s3)
+
+    Tc_star = Tc0m * s^(1/3)
+    t = temperature/Tc_star 
+
+    Bc_star = Bc20m * s * (1 - t^1.52)
+    b = Bext/Bc_star
+
+    Ic = (C/Bext) * s * (1.0 - t^1.52) * (1.0 - t^2) * b^p * ((1.0 - b)^q)
+
+    Jc = Ic / (pi*(0.5 * kdemo_diameter)^2 * kdemo_copper_frac)
+
+    return Jc, b
 end
 
 """
@@ -208,6 +270,8 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
     else
         if coil_tech.material == "Nb3Sn"
             Jcrit_SC, Bext_Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
+        elseif coil_tech.material == "KDEMO Nb3Sn"
+            Jcrit_SC, Bext_Bcrit_ratio = KDEMO_Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature)
         elseif coil_tech.material == "ReBCO"
             Jcrit_SC, Bext_Bcrit_ratio = ReBCO_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         end

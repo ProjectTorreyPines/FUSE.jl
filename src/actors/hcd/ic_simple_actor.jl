@@ -4,8 +4,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Width of the deposition profile"; default=0.1)
-    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Radial location of the deposition profile"; default=0.0)
+    width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.1)
+    rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.0)
 end
 
 mutable struct ActorICsimple{D,P} <: HCDAbstractActor
@@ -53,7 +53,8 @@ function _step(actor::ActorICsimple)
     _, width, rho_0 = same_length_vectors(1:n_antennas, par.width, par.rho_0)
 
     for (idx, ica) in enumerate(dd.ic_antennas.antenna)
-        power_launched = @ddtime(ica.power_launched.data)
+        power_launched = @ddtime(dd.pulse_schedule.ic.power.reference.data)
+        @ddtime(ica.power_launched.data = power_launched)
 
         # for FPP cases 80% to ions is reasonable (especially using minority heating)
         ion_electron_fraction_cp = fill(0.8, length(rho_cp))
@@ -64,7 +65,7 @@ function _step(actor::ActorICsimple)
 
         eta = TekeV * 0.063 / (2.0 + zeff) / (1.0 + 0.5 * beta_tor)
         j_parallel = eta / R0 / ne20 * power_launched
-        j_parallel *= sign(eqt.global_quantities.ip)
+        j_parallel *= sign(eqt.global_quantities.ip) .* ion_electron_fraction_cp
 
         source = resize!(cs.source, :ic, "identifier.name" => ica.name; wipe=false)
         gaussian_source(

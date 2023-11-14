@@ -7,13 +7,15 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     #== actor parameters ==#
-    edge_bound::Entry{T} = Entry{T}("-", "Defines rho at which edge starts"; default=0.8)
-    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ratio of ion to electron temperatures"; default=1.0)
+    rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
+    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
+    T_ratio_pedestal::Entry{T} =
+        Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; rho_nml-(rho_ped-rho_nml) if 0.0)"; default=0.0)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
-    ip_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:ip)
-    βn_from::Switch{Union{Symbol,Missing}} = Switch_get_from(:βn)
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
+    βn_from::Switch{Symbol} = switch_get_from(:βn)
     update_core_profiles::Entry{Bool} = Entry{Bool}("-", "Update core_profiles"; default=true)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
@@ -33,8 +35,8 @@ end
 
 Evaluates the pedestal boundary condition (height and width)
 """
-function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; ip_from::Symbol=:equilibrium, βn_from=:core_profiles, kw...)
-    actor = ActorPedestal(dd, act.ActorPedestal; ip_from, βn_from, kw...)
+function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorPedestal(dd, act.ActorPedestal; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -85,7 +87,7 @@ function _step(actor::ActorPedestal)
 
     if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
         actor.pped = 1.5 * sol.pressure.GH.H
-        actor.wped = maximum(sol.width.GH.H, 0.01)
+        actor.wped = max(sol.width.GH.H, 0.01)
         @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.5 = $(round(actor.pped*1e6)) [Pa] assumed "
     else
         actor.pped = sol.pressure.GH.H
@@ -112,13 +114,21 @@ function _finalize(actor::ActorPedestal)
     nsum = actor.inputs.neped * 1e19 + nval + nival
     tped = (actor.pped * 1e6) / nsum / constants.e
 
+    if par.T_ratio_pedestal == 0.0
+        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.rho_nml - (par.rho_ped - par.rho_nml))
+    elseif par.T_ratio_pedestal <= 0.0
+        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.T_ratio_pedestal)
+    else
+        T_ratio_pedestal = par.T_ratio_pedestal
+    end
+
     dd_ped = dd.summary.local.pedestal
-    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + par.T_ratio_pedestal) * par.ped_factor
-    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * par.T_ratio_pedestal
+    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + T_ratio_pedestal) * par.ped_factor
+    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * T_ratio_pedestal
     @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
 
     if par.update_core_profiles
-        IMAS.blend_core_edge_Hmode(cp1d, dd_ped, par.edge_bound)
+        IMAS.blend_core_edge_Hmode(cp1d, dd_ped, par.rho_nml, par.rho_ped)
     end
 
     return actor

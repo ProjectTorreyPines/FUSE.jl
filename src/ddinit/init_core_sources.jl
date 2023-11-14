@@ -6,7 +6,7 @@ import NumericalIntegration: cumul_integrate
 Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
 function init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    init_nbi(dd,
+    return init_nbi(dd,
         ini.nbi.power_launched,
         ini.nbi.beam_energy,
         ini.nbi.beam_mass,
@@ -24,13 +24,13 @@ function init_nbi(
     efficiency_conversion::Union{Missing,Real,AbstractVector{<:Real}},
     efficiency_transmission::Union{Missing,Real,AbstractVector{<:Real}})
 
-    power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission = same_length_vectors(power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission)
+    power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission =
+        same_length_vectors(power_launched, beam_energy, beam_mass, toroidal_angle, efficiency_conversion, efficiency_transmission)
     empty!(dd.nbi.unit)
     resize!(dd.nbi.unit, length(power_launched))
     for (idx, nbu) in enumerate(dd.nbi.unit)
         nbu.name = length(power_launched) > 1 ? "nbi_$idx" : "nbi"
         @ddtime(nbu.energy.data = beam_energy[idx])
-        @ddtime(nbu.power_launched.data = power_launched[idx])
         nbu.available_launch_power = power_launched[idx]
         nbu.species.a = beam_mass[idx]
         # 1 beamlet
@@ -54,7 +54,7 @@ end
 Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
 function init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    init_ec_launchers(dd,
+    return init_ec_launchers(dd,
         ini.ec_launchers.power_launched,
         getproperty(ini.ec_launchers, :efficiency_conversion, missing),
         getproperty(ini.ec_launchers, :efficiency_transmission, missing))
@@ -71,7 +71,6 @@ function init_ec_launchers(
     resize!(dd.ec_launchers.beam, length(power_launched))
     for (idx, ecb) in enumerate(dd.ec_launchers.beam)
         ecb.name = length(power_launched) > 1 ? "ec_$idx" : "ec"
-        @ddtime(ecb.power_launched.data = power_launched[idx])
         ecb.available_launch_power = power_launched[idx]
         if efficiency_conversion[idx] !== missing
             ecb.efficiency.conversion = efficiency_conversion[idx]
@@ -88,7 +87,7 @@ end
 Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
 """
 function init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    init_ic_antennas(dd,
+    return init_ic_antennas(dd,
         ini.ic_antennas.power_launched,
         getproperty(ini.ic_antennas, :efficiency_conversion, missing),
         getproperty(ini.ic_antennas, :efficiency_transmission, missing),
@@ -102,12 +101,12 @@ function init_ic_antennas(
     efficiency_transmission::Union{Real,AbstractVector{<:Real},Missing},
     efficiency_coupling::Union{Real,AbstractVector{<:Real},Missing})
 
-    (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
+    (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) =
+        same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
     empty!(dd.ic_antennas.antenna)
     resize!(dd.ic_antennas.antenna, length(power_launched))
     for (idx, ica) in enumerate(dd.ic_antennas.antenna)
         ica.name = length(power_launched) > 1 ? "ic_$idx" : "ic"
-        @ddtime(ica.power_launched.data = power_launched[idx])
         ica.available_launch_power = power_launched[idx]
         if efficiency_coupling[idx] !== missing
             ica.efficiency.coupling = efficiency_coupling[idx]
@@ -127,7 +126,7 @@ end
 Initialize `dd.lh_antennas` starting from `ini` and `act` parameters
 """
 function init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    init_lh_antennas(dd,
+    return init_lh_antennas(dd,
         ini.lh_antennas.power_launched,
         getproperty(ini.lh_antennas, :efficiency_conversion, missing),
         getproperty(ini.lh_antennas, :efficiency_transmission, missing),
@@ -140,13 +139,13 @@ function init_lh_antennas(
     efficiency_conversion::Union{Real,AbstractVector{<:Real},Missing},
     efficiency_transmission::Union{Real,AbstractVector{<:Real},Missing},
     efficiency_coupling::Union{Real,AbstractVector{<:Real},Missing})
-    (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) = same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
+    (power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling) =
+        same_length_vectors(power_launched, efficiency_conversion, efficiency_transmission, efficiency_coupling)
     empty!(dd.lh_antennas.antenna)
     resize!(dd.lh_antennas.antenna, length(power_launched))
     for (idx, lha) in enumerate(dd.lh_antennas.antenna)
         lha = resize!(dd.lh_antennas.antenna, idx)[idx]
         lha.name = length(power_launched) > 1 ? "lh_$idx" : "lh"
-        @ddtime(lha.power_launched.data = power_launched[idx])
         lha.available_launch_power = power_launched[idx]
         if efficiency_coupling[idx] !== missing
             lha.efficiency.coupling = efficiency_coupling[idx]

@@ -1,16 +1,16 @@
 import TGLFNN
 
-#= ============= =#
-#  ActorTGLF      #
-#= ============= =#
+#= ========= =#
+#  ActorTGLF  #
+#= ========= =#
 Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     nn::Entry{Bool} = Entry{Bool}("-", "Use TGLF-NN"; default=true)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
-    user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default = "")
-    rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.1:0.8)
+    user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
+    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
 end
 
@@ -54,23 +54,15 @@ function _step(actor::ActorTGLF)
     ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
         actor.input_tglfs[k] = TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
+        if par.nn
+            # TGLF-NN has some difficulty with the sign of rotation / shear
+            actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
+            actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
+        end
     end
-
-    if !isempty(par.user_specified_model)
-        model_filename = par.user_specified_model
-    else
-        model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
-        model_filename *= "_d3d" # will be changed to FPP soon
-    end
-
-
-    model = resize!(dd.core_transport.model, :anomalous; wipe=false)
-    model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename
-    m1d = resize!(model.profiles_1d)
-    m1d.grid_flux.rho_tor_norm = par.rho_transport
 
     if par.nn
-        actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename)
+        actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
     else
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
     end
@@ -88,24 +80,23 @@ function _finalize(actor::ActorTGLF)
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
-    model = findfirst(:anomalous, actor.dd.core_transport.model)
-    m1d = model.profiles_1d[]
-    m1d.electrons.energy.flux = zeros(length(par.rho_transport))
-    m1d.total_ion_energy.flux = zeros(length(par.rho_transport))
-    m1d.electrons.particles.flux = zeros(length(par.rho_transport))
-    m1d.momentum_tor.flux = zeros(length(par.rho_transport))
 
-    # TGLF's grid is V` based so we modify the output to the "classical" flux
-    a_minor = (eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard) ./ 2.0
-    volume_prime_miller_correction = IMAS.gradient(a_minor, eqt.profiles_1d.volume) ./ eqt.profiles_1d.surface
-    for (tglf_idx, rho) in enumerate(par.rho_transport)
-        rho_transp_idx = findfirst(i -> i == rho, m1d.grid_flux.rho_tor_norm)
-        rho_cp_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho))
-        rho_eq_idx = argmin(abs.(eqt.profiles_1d.rho_tor_norm .- rho))
-        m1d.electrons.energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_e * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] * volume_prime_miller_correction[rho_eq_idx] # W / m^2
-        m1d.total_ion_energy.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].ENERGY_FLUX_i * IMAS.gyrobohm_energy_flux(cp1d, eqt)[rho_cp_idx] * volume_prime_miller_correction[rho_eq_idx] # W / m^2
-        m1d.electrons.particles.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].PARTICLE_FLUX_e * IMAS.gyrobohm_particle_flux(cp1d, eqt)[rho_cp_idx] * volume_prime_miller_correction[rho_eq_idx] # 1 / m^2 / s
-        m1d.momentum_tor.flux[rho_transp_idx] = actor.flux_solutions[tglf_idx].STRESS_TOR_i * IMAS.gyrobohm_momentum_flux(cp1d, eqt)[rho_cp_idx] * volume_prime_miller_correction[rho_eq_idx] #
-    end
+    model = resize!(dd.core_transport.model, :anomalous; wipe=false)
+    model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename(par)
+    m1d = resize!(model.profiles_1d)
+    m1d.grid_flux.rho_tor_norm = par.rho_transport
+
+    IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux, :momentum_flux], actor.flux_solutions, m1d, eqt, cp1d)
+
     return actor
+end
+
+function model_filename(par::FUSEparameters__ActorTGLF)
+    if !isempty(par.user_specified_model)
+        filename = par.user_specified_model
+    else
+        filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+        filename *= "_d3d" # will be changed to FPP soon
+    end
+    return filename
 end

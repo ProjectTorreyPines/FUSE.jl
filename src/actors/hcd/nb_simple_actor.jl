@@ -4,8 +4,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Width of the deposition profile"; default=0.3)
-    rho_0::Entry{Union{Real,AbstractVector{<:T}}} = Entry{Union{Real,AbstractVector{<:T}}}("-", "Radial location of the deposition profile"; default=0.0)
+    width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.3)
+    rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.0)
 end
 
 mutable struct ActorNBsimple{D,P} <: HCDAbstractActor
@@ -54,7 +54,8 @@ function _step(actor::ActorNBsimple)
     for (idx, nbu) in enumerate(dd.nbi.unit)
         beam_energy = @ddtime (nbu.energy.data)
         beam_mass = nbu.species.a
-        power_launched = @ddtime(nbu.power_launched.data)
+        power_launched = @ddtime(dd.pulse_schedule.nbi.power.reference.data)
+        @ddtime(nbu.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
@@ -67,7 +68,7 @@ function _step(actor::ActorNBsimple)
 
         eta = TekeV * 0.025
         j_parallel = eta / R0 / ne20 * power_launched
-        j_parallel *= sign(eqt.global_quantities.ip)
+        j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
 
         source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
         gaussian_source(
