@@ -28,6 +28,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
         ini.equilibrium.boundary_from = :ods
+        ini.equilibrium.xpoints = :lower
     else
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.ip = 15e6
@@ -86,16 +87,15 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
     ini.pf_active.technology = :ITER
-    act.ActorPFcoilsOpt.symmetric = true
+    act.ActorPFcoilsOpt.symmetric = false
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
     ini.tf.technology = :ITER
 
     ini.oh.technology = :ITER
-    act.ActorFluxSwing.operate_oh_at_j_crit = false
-
     ini.requirements.flattop_duration = 1800.0
+    act.ActorFluxSwing.operate_oh_at_j_crit = false
 
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
@@ -115,6 +115,8 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
+
+    act.ActorWholeFacility.update_build = false
 
     set_new_base!(ini)
     set_new_base!(act)
