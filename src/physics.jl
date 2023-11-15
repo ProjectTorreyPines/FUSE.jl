@@ -983,7 +983,7 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         end
         RR = [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
         ZZ = [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
-        RR, ZZ = IMAS.resample_2d_path(RR, ZZ; n_points=length(R) * 2)
+        RR, ZZ = IMAS.resample_2d_path(RR, ZZ; retain_extrema=true, n_points=length(R) * 2)
         if upper_x_point
             I = ZZ .< Z[1]
         else
@@ -1001,8 +1001,8 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         RR1 = [-(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]; R1[2:end-1]; -(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]]
         ZZ2 = [Z2[2:end-1] .+ ΔZ; Z2[2:end-1]; Z2[2:end-1] .- ΔZ]
         RR2 = [-(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]; R2[2:end-1]; -(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]]
-        RR1, ZZ1 = IMAS.resample_2d_path(RR1, ZZ1; n_points=length(R) * 2)
-        RR2, ZZ2 = IMAS.resample_2d_path(RR2, ZZ2; n_points=length(R) * 2)
+        RR1, ZZ1 = IMAS.resample_2d_path(RR1, ZZ1; retain_extrema=true, n_points=length(R) * 2)
+        RR2, ZZ2 = IMAS.resample_2d_path(RR2, ZZ2; retain_extrema=true, n_points=length(R) * 2)
         I1 = (ZZ1 .< Z1[1]) .&& (ZZ1 .> Z1[end])
         I2 = (ZZ2 .< Z1[1]) .&& (ZZ2 .> Z1[end])
         R = [R1[1]; RR1[I1]; R1[end]; RR2[I2]; R1[1]]
@@ -1040,7 +1040,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     i = argmin(pz)
     RXL = pr[i]
     ZXL = pz[i]
-    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=100)
+    pr, pz = IMAS.resample_2d_path(pr, pz; retain_extrema=true, n_points=100)
 
     M = 12
     N = min(M, length(mxh.s))
@@ -1069,7 +1069,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mxhb_from_params!(mxhb0, params; upper_x_point, lower_x_point, n_points)
         IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
-        pr0, pz0 = IMAS.resample_2d_path(mxhb0.r_boundary, mxhb0.z_boundary; n_points=100)
+        pr0, pz0 = IMAS.resample_2d_path(mxhb0.r_boundary, mxhb0.z_boundary; retain_extrema=true, n_points=length(pr))
 
         # X-points and non X-points halves
         c = 0.0
@@ -1186,7 +1186,7 @@ function free_boundary_private_flux_constraint(
         pz = pz[index]
 
         # resample to give requested number of points
-        pr, pz = IMAS.resample_2d_path(pr, pz; n_points, method=:linear)
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points, retain_extrema=false, method=:linear)
 
         append!(Rp, pr)
         append!(Zp, pz)

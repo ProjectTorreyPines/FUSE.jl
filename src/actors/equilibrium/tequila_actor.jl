@@ -162,13 +162,13 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     eq2d.psi = zeros(nr_grid, nz_grid) .+ Inf
 
     if free_boundary
-        # # constraints for the private flux region
-        n_point_shot_boundary = 500 # based on boundary sampling in VacuumFields.ψp_on_fixed_eq_boundary()
+        # constraints for the private flux region
+        z_geo = eqt.boundary.geometric_axis.z
         Rb, Zb = eqt.boundary.outline.r, eqt.boundary.outline.z
-        upper_x_point = any(x_point.z > Z0 for x_point in eqt.boundary.x_point)
-        lower_x_point = any(x_point.z < Z0 for x_point in eqt.boundary.x_point)
-        fraction = 0.5
-        Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=Int(ceil(fraction * n_point_shot_boundary)))
+        upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
+        lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
+        fraction = 0.05
+        Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=2)
 
         if isempty(dd.pf_active.coil)
             n_coils = 100

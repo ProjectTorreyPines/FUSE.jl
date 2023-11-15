@@ -63,10 +63,7 @@ function _step(actor::ActorSolovev)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
     # plasma shape as MXH
-    pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-    pr, pz = IMAS.resample_2d_path(pr, pz)
-    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-    mxh = IMAS.MXH(pr, pz, 4)
+    mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 4)
     Z0off = mxh.Z0 # Solovev has a bug for Z!=0.0
     mxh.Z0 -= Z0off
     plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)
