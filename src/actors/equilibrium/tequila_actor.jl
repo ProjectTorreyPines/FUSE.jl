@@ -74,7 +74,8 @@ function _step(actor::ActorTEQUILA)
 
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
-        mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, par.number_of_MXH_harmonics; optimize_fit=true)
+        pr, pz = IMAS.resample_2d_path(eqt.boundary.outline.r, eqt.boundary.outline.z; method=:linear, n_points=500)
+        mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve
         concentric_first = true
