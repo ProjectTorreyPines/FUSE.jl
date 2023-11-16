@@ -193,7 +193,7 @@ function init_pulse_schedule_postion_control(
 
     # boundary with x-points parametrized with MXH
     mxh = IMAS.MXH(pr, pz, 2)
-    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=100, retain_extrema=true)
+    pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=100)
     IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
 
     # scalars

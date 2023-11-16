@@ -251,7 +251,7 @@ function define_wall(actor::ActorNeutronics; step::Float64=0.1)
     # resample wall and make sure it's clockwise (for COCOS = 11)
     eqt = actor.dd.equilibrium.time_slice[]
     wall = IMAS.first_wall(actor.dd.wall)
-    rwall, zwall = IMAS.resample_2d_path(wall.r, wall.z; step)
+    rwall, zwall = IMAS.resample_2d_path(wall.r, wall.z; step, method=:linear)
     R0 = eqt.global_quantities.magnetic_axis.r
     Z0 = eqt.global_quantities.magnetic_axis.z
     IMAS.reorder_flux_surface!(rwall, zwall, R0, Z0; force_close=true)
