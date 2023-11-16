@@ -86,7 +86,8 @@ function _finalize(actor::ActorEquilibrium)
     finalize(actor.eq_actor)
 
     # symmetrize equilibrium if requested and number of X-points is even
-    if par.symmetrize && mod(length(dd.pulse_schedule.position_control.x_point), 2) != 1
+    x_points = IMAS.x_points(dd.pulse_schedule.position_control.x_point)
+    if par.symmetrize && mod(length(x_points), 2) != 1
         IMAS.symmetrize_equilibrium!(dd.equilibrium.time_slice[])
     end
 

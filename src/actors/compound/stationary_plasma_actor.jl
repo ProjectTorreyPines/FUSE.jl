@@ -103,6 +103,7 @@ function _step(actor::ActorStationaryPlasma)
         ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
         finalize(step(actor.actor_jt))
 
+        actor_logging(dd, old_logging)
         # uless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
             # get current and pressure profiles before updating them
@@ -156,6 +157,7 @@ function _step(actor::ActorStationaryPlasma)
                 @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(collect(map(x->round(x,digits = 3),total_error))) compared to threshold of $(par.convergence_error)"
                 break
             end
+            actor_logging(dd, false)
         end
 
     finally

@@ -98,10 +98,12 @@ function _step(actor::ActorWholeFacility)
     FUSE.ActorFluxSwing(dd, act)
     FUSE.ActorStresses(dd, act)
 
-    actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
-    if par.update_build && act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
-        actor.CXbuild = ActorCXbuild(dd, act)
-        actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act; update_equilibrium=false)
+    if par.update_build
+        actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
+        if act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
+            actor.CXbuild = ActorCXbuild(dd, act)
+            actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act; update_equilibrium=false)
+        end
     end
 
     actor.PassiveStructures = ActorPassiveStructures(dd, act)

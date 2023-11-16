@@ -74,7 +74,8 @@ function _step(actor::ActorTEQUILA)
 
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
-        mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, par.number_of_MXH_harmonics; optimize_fit=true)
+        pr, pz = IMAS.resample_2d_path(eqt.boundary.outline.r, eqt.boundary.outline.z; method=:linear, n_points=500)
+        mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve
         concentric_first = true
@@ -162,13 +163,13 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     eq2d.psi = zeros(nr_grid, nz_grid) .+ Inf
 
     if free_boundary
-        # # constraints for the private flux region
-        n_point_shot_boundary = 500 # based on boundary sampling in VacuumFields.ψp_on_fixed_eq_boundary()
+        # constraints for the private flux region
+        z_geo = eqt.boundary.geometric_axis.z
         Rb, Zb = eqt.boundary.outline.r, eqt.boundary.outline.z
-        upper_x_point = any(x_point.z > Z0 for x_point in eqt.boundary.x_point)
-        lower_x_point = any(x_point.z < Z0 for x_point in eqt.boundary.x_point)
-        fraction = 0.5
-        Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=Int(ceil(fraction * n_point_shot_boundary)))
+        upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
+        lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
+        fraction = 0.05
+        Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=2)
 
         if isempty(dd.pf_active.coil)
             n_coils = 100
