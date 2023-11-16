@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.3"
+julia_version = "1.9.4"
 manifest_format = "2.0"
 project_hash = "5a6757e15a1c830a846abde3db8202a826888263"
 
@@ -13,9 +13,9 @@ uuid = "f4a0d185-1024-41e7-8ef7-3196bb2f6549"
 version = "0.1.0"
 
 [[deps.ADTypes]]
-git-tree-sha1 = "5d2e21d7b0d8c22f67483ef95ebdc39c0e6b6003"
+git-tree-sha1 = "332e5d7baeff8497b923b730b994fa480601efc7"
 uuid = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
-version = "0.2.4"
+version = "0.2.5"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -948,7 +948,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "3c4d67d26162f4425dee65c637c1fa17888b5369"
+git-tree-sha1 = "7302f4d5ceba249c737334f2589998029abac9a3"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -956,7 +956,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "PCHIPInterpolation", "Printf"]
-git-tree-sha1 = "f93863bcda57586740c585bbb9fb087385142cfe"
+git-tree-sha1 = "6bee68f2042b91d02d1f4b37f3321cdac22a36f4"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1105,9 +1105,9 @@ version = "0.4.1"
 
 [[deps.KernelAbstractions]]
 deps = ["Adapt", "Atomix", "InteractiveUtils", "LinearAlgebra", "MacroTools", "PrecompileTools", "Requires", "SparseArrays", "StaticArrays", "UUIDs", "UnsafeAtomics", "UnsafeAtomicsLLVM"]
-git-tree-sha1 = "95063c5bc98ba0c47e75e05ae71f1fed4deac6f6"
+git-tree-sha1 = "b0737cbbe1c8da6f1139d1c23e35e7cea129c0af"
 uuid = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
-version = "0.9.12"
+version = "0.9.13"
 weakdeps = ["EnzymeCore"]
 
     [deps.KernelAbstractions.extensions]
@@ -1145,9 +1145,9 @@ version = "6.4.0"
 
 [[deps.LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-git-tree-sha1 = "a84f8f1e8caaaa4e3b4c101306b9e801d3883ace"
+git-tree-sha1 = "98eaee04d96d973e79c25d49167668c5c8fb50e2"
 uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
-version = "0.0.27+0"
+version = "0.0.27+1"
 
 [[deps.LLVMOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1210,12 +1210,12 @@ uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-version = "0.6.3"
+version = "0.6.4"
 
 [[deps.LibCURL_jll]]
 deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
 uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
-version = "7.84.0+0"
+version = "8.4.0+0"
 
 [[deps.LibGEOS]]
 deps = ["CEnum", "Extents", "GEOS_jll", "GeoInterface", "GeoInterfaceRecipes"]
@@ -1230,7 +1230,7 @@ uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "Libdl", "MbedTLS_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.10.2+0"
+version = "1.11.0+1"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
@@ -1412,7 +1412,7 @@ version = "0.1.10"
 
 [[deps.MXHEquilibrium]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "FileIO", "ForwardDiff", "Gmsh", "HCubature", "Interpolations", "LRUCache", "LinearAlgebra", "Memoize", "MeshIO", "MeshTools", "Meshes", "MillerExtendedHarmonic", "NetCDF", "Optim", "PolygonOps", "StaticArrays", "Test", "Trapz", "Zygote"]
-git-tree-sha1 = "10ce8f9029177f3c4f80bd1d8cb8b27a54b97cf0"
+git-tree-sha1 = "8849b14a25b06c79dd1d6a774adee9fb90395ebf"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MXHEquilibrium.jl.git"
 uuid = "8efa4e5a-7b9a-4eec-876e-01d13d5b5d75"
@@ -1897,10 +1897,10 @@ uuid = "8162dcfd-2161-5ef2-ae6c-7681170c5f98"
 version = "0.2.0"
 
 [[deps.PrettyTables]]
-deps = ["Crayons", "LaTeXStrings", "Markdown", "Printf", "Reexport", "StringManipulation", "Tables"]
-git-tree-sha1 = "6842ce83a836fbbc0cfeca0b5a4de1a4dcbdb8d1"
+deps = ["Crayons", "LaTeXStrings", "Markdown", "PrecompileTools", "Printf", "Reexport", "StringManipulation", "Tables"]
+git-tree-sha1 = "3f43c2aae6aa4a2503b05587ab74f4f6aeff9fd0"
 uuid = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
-version = "2.2.8"
+version = "2.3.0"
 
 [[deps.Primes]]
 deps = ["IntegerMathUtils"]
@@ -1930,7 +1930,7 @@ version = "1.9.0"
 
 [[deps.QED]]
 deps = ["ArgParse", "BandedMatrices", "FiniteElementHermite", "ForwardDiff", "JSON", "LinearAlgebra", "Requires"]
-git-tree-sha1 = "5c5275405995f35b0278a1b3dadcfa364eaf1b42"
+git-tree-sha1 = "4c1120a5ad0fd917d7a28b849b71436b46230617"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/QED.jl.git"
 uuid = "8bcbec86-48c7-11ec-16a6-c1bc83299373"
@@ -2102,9 +2102,9 @@ version = "0.6.42"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FillArrays", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "Printf", "QuasiMonteCarlo", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables", "TruncatedStacktraces"]
-git-tree-sha1 = "dd2d18b981d09a2376ba49c5fab480f497992c88"
+git-tree-sha1 = "baa0f858af55ea937183c988bd4b3e79e0bf699a"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.8.0"
+version = "2.8.1"
 
     [deps.SciMLBase.extensions]
     SciMLBaseChainRulesCoreExt = "ChainRulesCore"
@@ -2366,7 +2366,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "467cd0c35a43251be53f2443798a12e30567d06f"
+git-tree-sha1 = "99067131390d5f5a98936cd87d3f689329e4e312"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
@@ -2876,7 +2876,7 @@ version = "1.1.6+0"
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
-version = "1.48.0+0"
+version = "1.52.0+1"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
