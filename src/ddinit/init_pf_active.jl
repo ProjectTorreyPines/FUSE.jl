@@ -14,7 +14,7 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !ismissing(dd1.pf_active, :time) && length(dd1.pf_active.time) > 0
+            if length(dd1.pf_active.coil) > 0
                 dd.pf_active = dd1.pf_active
             else
                 init_from = :scalars

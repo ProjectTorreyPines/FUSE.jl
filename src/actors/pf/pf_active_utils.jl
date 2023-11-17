@@ -39,7 +39,7 @@ end
 function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
     coils = GS3_IMAS_pf_active__coil{D,D}[]
     for (k, coil) in enumerate(dd.pf_active.coil)
-        if k <= dd.build.pf_active.rail[1].coils_number
+        if coil.name  == "OH"
             coil_tech = dd.build.oh.technology
         else
             coil_tech = dd.build.pf_active.technology

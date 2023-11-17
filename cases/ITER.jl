@@ -38,7 +38,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
         ini.equilibrium.boundary_from = boundary_from
 
         R0 = 6.2
-        Z0 = 0.0
+        Z0 = 0.4
         ϵ = 0.32
         κ = 1.85
         δ = 0.485
