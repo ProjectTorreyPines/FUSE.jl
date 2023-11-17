@@ -80,6 +80,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 ini.equilibrium(mxh)
                 mxhb = fitMXHboundary(mxh, nx)
 
+                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, -Inf)
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, ini.time.simulation_start)
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
             end
@@ -130,8 +131,8 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
             time, data = IMAS.simplify_2d_path(time, data, simplify_time_traces)
         end
     else
-        time = Float64[SimulationParameters.top(par).time.simulation_start, Inf]
-        data = [value, value]
+        time = Float64[-Inf, SimulationParameters.top(par).time.simulation_start, Inf]
+        data = [value, value, value]
     end
     return time, data
 end
