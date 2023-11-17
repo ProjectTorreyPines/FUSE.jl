@@ -335,7 +335,7 @@ function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
     boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
         pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-        pr, pz = IMAS.resample_2d_path(pr, pz; retain_extrema=true, n_points=101)
+        pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=101)
         pr, pz = IMAS.reorder_flux_surface!(pr, pz)
         mxh = IMAS.MXH(pr, pz, 4)
 
@@ -345,7 +345,7 @@ function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
             error("ini.equilibrium.boundary_from is set as $boundary_from but rz_points wasn't set")
         end
         pr, pz = ini.equilibrium.rz_points[1], ini.equilibrium.rz_points[2]
-        pr, pz = IMAS.resample_2d_path(pr, pz; retain_extrema=true, n_points=101)
+        pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=101)
         pr, pz = IMAS.reorder_flux_surface!(pr, pz)
         mxh = IMAS.MXH(pr, pz, 4)
 
