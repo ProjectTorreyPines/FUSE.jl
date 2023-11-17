@@ -90,7 +90,7 @@ function _step(actor::ActorFluxMatcher)
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
-    prog = ProgressMeter.ProgressUnknown(; desc="Calls:")
+    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose && !par.do_plot)
 
     z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
     err_history = Float64[]
@@ -112,7 +112,7 @@ function _step(actor::ActorFluxMatcher)
         actor_logging(dd, old_logging)
     end
 
-    if par.verbose
+    if par.do_plot
         display(res)
     end
 
@@ -149,7 +149,9 @@ function _step(actor::ActorFluxMatcher)
 end
 
 """
-    scale z_profiles to get smaller stepping in nlsolve
+    scale_z_profiles(z_profiles)
+
+scale z_profiles to get smaller stepping in nlsolve
 """
 function scale_z_profiles(z_profiles)
     return z_profiles .* 100
