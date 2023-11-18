@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
 end
 
-mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor
+mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors

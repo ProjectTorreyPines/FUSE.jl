@@ -43,7 +43,7 @@ function Base.empty!(trace::PFcoilsOptTrace)
     end
 end
 
-mutable struct ActorPFcoilsOpt{D,P} <: ReactorAbstractActor
+mutable struct ActorPFcoilsOpt{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFcoilsOpt{P}
     eq_in::IMAS.equilibrium{D}

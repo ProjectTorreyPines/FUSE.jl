@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorARIESCosting{T} <: ParametersAct
     blanket_lifetime::Entry{T} = Entry{T}("year", "Lifetime of the blanket"; default=6.8)
 end
 
-mutable struct ActorARIESCosting{D,P} <: FacilityAbstractActor
+mutable struct ActorARIESCosting{D,P} <: FacilityAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorARIESCosting{P}
     function ActorARIESCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorARIESCosting{P}; kw...) where {D<:Real,P<:Real}

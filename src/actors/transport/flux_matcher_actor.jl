@@ -26,7 +26,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     verbose::Entry{Bool} = Entry{Bool}("-", "Print trace and optimization result"; default=false)
 end
 
-mutable struct ActorFluxMatcher{D,P} <: PlasmaAbstractActor
+mutable struct ActorFluxMatcher{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxMatcher{P}
     actor_ct::ActorFluxCalculator{D,P}

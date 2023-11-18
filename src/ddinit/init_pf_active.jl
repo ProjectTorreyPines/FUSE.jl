@@ -36,6 +36,8 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
         coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
 
+        IMAS.set_coils_function(dd.pf_active.coil)
+
         return dd
     end
 end

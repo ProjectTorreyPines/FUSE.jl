@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T} <: ParametersAc
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=true)
 end
 
-mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor
+mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorDynamicPlasma{P}
     act::ParametersAllActors

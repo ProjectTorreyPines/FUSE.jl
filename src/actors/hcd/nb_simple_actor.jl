@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor w
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.0)
 end
 
-mutable struct ActorNBsimple{D,P} <: HCDAbstractActor
+mutable struct ActorNBsimple{D,P} <: HCDAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNBsimple{P}
     function ActorNBsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorNBsimple{P}; kw...) where {D<:Real,P<:Real}

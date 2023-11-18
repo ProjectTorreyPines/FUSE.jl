@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor wh
     learning_rate::Entry{T} = Entry{T}("-", "Learning rate for ReBCO technology production"; default=0.85)
 end
 
-mutable struct ActorCosting{D,P} <: FacilityAbstractActor
+mutable struct ActorCosting{D,P} <: FacilityAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCosting{P}
     act::ParametersAllActors

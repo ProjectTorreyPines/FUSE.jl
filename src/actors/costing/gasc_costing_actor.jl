@@ -36,7 +36,7 @@ function FUSEparameters__ActorSheffieldCosting{T}(par::FUSEparameters__ActorGASC
     return sheffield_par
 end
 
-mutable struct ActorGASCCosting{D,P} <: FacilityAbstractActor
+mutable struct ActorGASCCosting{D,P} <: FacilityAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorGASCCosting{P}
     sheffield_actor::ActorSheffieldCosting
