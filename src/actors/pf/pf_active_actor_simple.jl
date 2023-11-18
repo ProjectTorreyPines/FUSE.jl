@@ -55,7 +55,7 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
     actor.eq_out = IMAS.lazycopy(dd.equilibrium)
 
     # Get coils (as GS3_IMAS_pf_active__coil) organized by their function and initialize them
-    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils2(actor, :currents)
+    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor)
 
     weight_strike = 1.0
 
@@ -112,44 +112,6 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     end
 
     return actor
-end
-
-
-"""
-    fixed_pinned_optim_coils2(actor::Union{ActorPFcoilsOpt{D,P},ActorPFactive{D,P}}, optimization_scheme::Symbol) where {D<:Real,P<:Real}
-
-Returns tuple of GS3_IMAS_pf_active__coil coils organized by their function:
-
-  - fixed: fixed position and current
-  - pinned: coils with fixed position but current is optimized
-  - optim: coils that have theri position and current optimized
-"""
-function fixed_pinned_optim_coils2(actor::ActorPFactive{D,P}, optimization_scheme::Symbol) where {D<:Real,P<:Real}
-    dd = actor.dd
-    par = actor.par
-
-    fixed_coils = GS3_IMAS_pf_active__coil{D,D}[]
-    pinned_coils = GS3_IMAS_pf_active__coil{D,D}[]
-    optim_coils = GS3_IMAS_pf_active__coil{D,D}[]
-    for (k, coil) in enumerate(dd.pf_active.coil)
-        if k <= dd.build.pf_active.rail[1].coils_number
-            coil_tech = dd.build.oh.technology
-        else
-            coil_tech = dd.build.pf_active.technology
-        end
-        if coil.identifier == "pinned"
-            push!(pinned_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif (coil.identifier == "optim") && (optimization_scheme == :currents)
-            push!(pinned_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif coil.identifier == "optim"
-            push!(optim_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif coil.identifier == "fixed"
-            push!(fixed_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        else
-            error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
-        end
-    end
-    return fixed_coils, pinned_coils, optim_coils
 end
 
 function find_currents(
