@@ -131,9 +131,9 @@ version = "0.3.7"
 
 [[deps.BandedMatrices]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "PrecompileTools"]
-git-tree-sha1 = "e63330a7d2dcc6245514d9035f4fab798ea6ca74"
+git-tree-sha1 = "67bcff3f50026b6fa952721525d3a04f0570d432"
 uuid = "aae01518-5342-5314-be14-df237901396f"
-version = "1.2.0"
+version = "1.2.1"
 weakdeps = ["SparseArrays"]
 
     [deps.BandedMatrices.extensions]
@@ -948,7 +948,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "efa6da299fcb9b0fa1b3d52a82ddd875cc4ec37e"
+git-tree-sha1 = "68280daf50c03732d7a1402dadd4505878645e94"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
