@@ -1057,9 +1057,9 @@ version = "1.5.0"
 
 [[deps.JMcDM]]
 deps = ["Requires"]
-git-tree-sha1 = "8a0ee381058814a6dd0ba6f117be42c29f0c94e0"
+git-tree-sha1 = "3e61354940109772a01efd25fc0818dd7d411109"
 uuid = "358108f5-d052-4d0a-8344-d5384e00c0e5"
-version = "0.7.9"
+version = "0.7.10"
 
 [[deps.JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
@@ -2370,7 +2370,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "bfc93b83e3a735b72e0806adda243e0d19deaedb"
+git-tree-sha1 = "daa7f7842dd161068f3be97dc234f05123a73517"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
