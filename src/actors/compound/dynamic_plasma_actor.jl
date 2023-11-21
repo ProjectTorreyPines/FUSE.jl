@@ -58,8 +58,6 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED, ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
-    actor_jt.jt_actor.par.solve_for = :ip
-    actor_jt.jt_actor.par.solve_for = :vloop
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
