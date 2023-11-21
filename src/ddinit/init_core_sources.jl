@@ -7,12 +7,12 @@ Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
 function init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     return init_nbi(dd,
-        ini.nbi.power_launched,
-        ini.nbi.beam_energy,
-        ini.nbi.beam_mass,
-        ini.nbi.toroidal_angle,
-        getproperty(ini.nbi, :efficiency_conversion, missing),
-        getproperty(ini.nbi, :efficiency_transmission, missing))
+        ini.nb_unit.power_launched,
+        ini.nb_unit.beam_energy,
+        ini.nb_unit.beam_mass,
+        ini.nb_unit.toroidal_angle,
+        getproperty(ini.nb_unit, :efficiency_conversion, missing),
+        getproperty(ini.nb_unit, :efficiency_transmission, missing))
 end
 
 function init_nbi(
@@ -55,9 +55,9 @@ Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
 function init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     return init_ec_launchers(dd,
-        ini.ec_launchers.power_launched,
-        getproperty(ini.ec_launchers, :efficiency_conversion, missing),
-        getproperty(ini.ec_launchers, :efficiency_transmission, missing))
+        ini.ec_launcher.power_launched,
+        getproperty(ini.ec_launcher, :efficiency_conversion, missing),
+        getproperty(ini.ec_launcher, :efficiency_transmission, missing))
 end
 
 function init_ec_launchers(
@@ -88,10 +88,10 @@ Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
 """
 function init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     return init_ic_antennas(dd,
-        ini.ic_antennas.power_launched,
-        getproperty(ini.ic_antennas, :efficiency_conversion, missing),
-        getproperty(ini.ic_antennas, :efficiency_transmission, missing),
-        getproperty(ini.ic_antennas, :efficiency_coupling, missing))
+        ini.ic_antenna.power_launched,
+        getproperty(ini.ic_antenna, :efficiency_conversion, missing),
+        getproperty(ini.ic_antenna, :efficiency_transmission, missing),
+        getproperty(ini.ic_antenna, :efficiency_coupling, missing))
 end
 
 function init_ic_antennas(
@@ -127,10 +127,10 @@ Initialize `dd.lh_antennas` starting from `ini` and `act` parameters
 """
 function init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     return init_lh_antennas(dd,
-        ini.lh_antennas.power_launched,
-        getproperty(ini.lh_antennas, :efficiency_conversion, missing),
-        getproperty(ini.lh_antennas, :efficiency_transmission, missing),
-        getproperty(ini.lh_antennas, :efficiency_coupling, missing))
+        ini.lh_antenna.power_launched,
+        getproperty(ini.lh_antenna, :efficiency_conversion, missing),
+        getproperty(ini.lh_antenna, :efficiency_transmission, missing),
+        getproperty(ini.lh_antenna, :efficiency_coupling, missing))
 end
 
 function init_lh_antennas(
@@ -218,16 +218,16 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         end
 
         if init_from == :scalars
-            if !ismissing(ini.ec_launchers, :power_launched) && any(ini.ec_launchers.power_launched .> 0)
+            if !ismissing(ini.ec_launcher, :power_launched) && any(ini.ec_launcher.power_launched .> 0)
                 init_ec_launchers(dd, ini, act)
             end
-            if !ismissing(ini.ic_antennas, :power_launched) && any(ini.ic_antennas.power_launched .> 0)
+            if !ismissing(ini.ic_antenna, :power_launched) && any(ini.ic_antenna.power_launched .> 0)
                 init_ic_antennas(dd, ini, act)
             end
-            if !ismissing(ini.lh_antennas, :power_launched) && any(ini.lh_antennas.power_launched .> 0)
+            if !ismissing(ini.lh_antenna, :power_launched) && any(ini.lh_antenna.power_launched .> 0)
                 init_lh_antennas(dd, ini, act)
             end
-            if !ismissing(ini.nbi, :power_launched) && any(ini.nbi.power_launched .> 0)
+            if !ismissing(ini.nb_unit, :power_launched) && any(ini.nb_unit.power_launched .> 0)
                 init_nbi(dd, ini, act)
             end
         end

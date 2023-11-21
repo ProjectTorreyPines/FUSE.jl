@@ -36,10 +36,6 @@ function GS3_IMAS_pf_active__coil(
         green_model)
 end
 
-function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
-    return fixed_pinned_optim_coils(actor, :currents, GS3_IMAS_pf_active__coil)
-end
-
 function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
     coils = GS3_IMAS_pf_active__coil{D,D}[]
     for coil in dd.pf_active.coil
@@ -165,10 +161,6 @@ function GS_IMAS_pf_active__coil(
         pf_active__coil.current.time,
         1,
         green_model)
-end
-
-function fixed_pinned_optim_coils(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
-    return fixed_pinned_optim_coils(actor, actor.par.optimization_scheme, GS_IMAS_pf_active__coil)
 end
 
 function Base.getproperty(coil::GS_IMAS_pf_active__coil, field::Symbol)

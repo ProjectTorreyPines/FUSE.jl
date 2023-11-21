@@ -171,3 +171,7 @@ function find_currents(
 
     return λ_regularize
 end
+
+function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
+    return fixed_pinned_optim_coils(actor, :currents, GS3_IMAS_pf_active__coil)
+end

@@ -4,7 +4,7 @@
 CFS/MIT SPARC design
 """
 function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
     ini.general.casename = "SPARC"
     ini.general.init_from = :scalars
@@ -62,7 +62,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
-    ini.ic_antennas.power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
+    ini.ic_antenna.power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     act.ActorPFcoilsOpt.symmetric = true
     # act.ActorEquilibrium.model = :CHEASE
@@ -77,5 +77,5 @@ function TraceCAD(::Type{Val{:SPARC}})
     x_length = 4.66
     x_offset = -0.58
     y_offset = 0.29
-    TraceCAD(:SPARC, x_length, x_offset, y_offset)
+    return TraceCAD(:SPARC, x_length, x_offset, y_offset)
 end

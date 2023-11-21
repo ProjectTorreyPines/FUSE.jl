@@ -505,3 +505,7 @@ function optimize_coils_rail(
 
     return λ_regularize, trace
 end
+
+function fixed_pinned_optim_coils(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
+    return fixed_pinned_optim_coils(actor, actor.par.optimization_scheme, GS_IMAS_pf_active__coil)
+end
