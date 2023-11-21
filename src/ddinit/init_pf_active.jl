@@ -236,6 +236,8 @@ function init_pf_active!(
         end
     end
 
+    IMAS.set_coils_function(pf_active.coil)
+
     return pf_active
 end
 

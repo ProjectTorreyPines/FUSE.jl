@@ -262,7 +262,7 @@ function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_f
         return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     elseif coil.green_model ∈ (:corners, :simple) # medium
-        if cIMAS.is_ohmic_coil(oil.pf_active__coil)
+        if IMAS.is_ohmic_coil(coil.pf_active__coil)
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
             return sum(VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
 
