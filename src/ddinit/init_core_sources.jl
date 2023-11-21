@@ -1,11 +1,11 @@
 import NumericalIntegration: cumul_integrate
 
 """
-    init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
-function init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     empty!(dd.nbi.unit)
     resize!(dd.nbi.unit, length(ini.nb_unit))
     for (idx, (nbu, ini_nbu)) in enumerate(zip(dd.nbi.unit, ini.nb_unit))
@@ -24,11 +24,11 @@ function init_nbi(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
-function init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     empty!(dd.ec_launchers.beam)
     resize!(dd.ec_launchers.beam, length(ini.ec_launcher))
     for (idx, (ecb, ini_ecb)) in enumerate(zip(dd.ec_launchers.beam, ini.ec_launcher))
@@ -38,14 +38,15 @@ function init_ec_launchers(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         ecb.efficiency.conversion = ini_ecb.efficiency_conversion
         ecb.efficiency.transmission = ini_ecb.efficiency_transmission
     end
+    return dd
 end
 
 """
-    init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
 """
-function init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     empty!(dd.ic_antennas.antenna)
     resize!(dd.ic_antennas.antenna, length(ini.ic_antenna))
     for (idx, (ica, ini_ica)) in enumerate(zip(dd.ic_antennas.antenna, ini.ic_antenna))
@@ -56,14 +57,15 @@ function init_ic_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         ica.efficiency.conversion = ini_ica.efficiency_conversion
         ica.efficiency.transmission = ini_ica.efficiency_transmission
     end
+    return dd
 end
 
 """
-    init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_lh(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.lh_antennas` starting from `ini` and `act` parameters
 """
-function init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_lh(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     empty!(dd.lh_antennas.antenna)
     resize!(dd.lh_antennas.antenna, length(ini.lh_antenna))
     for (idx, (lha, ini_lha)) in enumerate(zip(dd.lh_antennas.antenna, ini.lh_antenna))
@@ -74,6 +76,7 @@ function init_lh_antennas(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersA
         lha.efficiency.conversion = ini_lha.efficiency_conversion
         lha.efficiency.transmission = ini_lha.efficiency_transmission
     end
+    return dd
 end
 
 """
@@ -135,10 +138,10 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         end
 
         if init_from == :scalars
-            init_ec_launchers(dd, ini, act)
-            init_ic_antennas(dd, ini, act)
-            init_lh_antennas(dd, ini, act)
-            init_nbi(dd, ini, act)
+            init_ec(dd, ini, act)
+            init_ic(dd, ini, act)
+            init_lh(dd, ini, act)
+            init_nb(dd, ini, act)
         end
 
         ActorHCD(dd, act)

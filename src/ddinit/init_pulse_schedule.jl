@@ -92,13 +92,15 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 dd.pulse_schedule.nbi.unit[k].power.reference.time = time
                 dd.pulse_schedule.nbi.unit[k].power.reference.data = data
             end
+
             # EC
             resize!(dd.pulse_schedule.ec.launcher, length(ini.ec_launcher))
-            for (k, ini_ecb) in enumerate(ini.nb_unit)
+            for (k, ini_ecb) in enumerate(ini.ec_launcher)
                 time, data = get_time_dependent(ini_ecb, :power_launched; simplify_time_traces)
                 dd.pulse_schedule.ec.launcher[k].power.reference.time = time
                 dd.pulse_schedule.ec.launcher[k].power.reference.data = data
             end
+
             # IC
             resize!(dd.pulse_schedule.ic.antenna, length(ini.ic_antenna))
             for (k, ini_ica) in enumerate(ini.ic_antenna)
@@ -106,6 +108,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 dd.pulse_schedule.ic.antenna[k].power.reference.time = time
                 dd.pulse_schedule.ic.antenna[k].power.reference.data = data
             end
+
             # LH
             resize!(dd.pulse_schedule.lh.antenna, length(ini.lh_antenna))
             for (k, ini_lha) in enumerate(ini.lh_antenna)
