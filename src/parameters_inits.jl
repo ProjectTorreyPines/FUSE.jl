@@ -118,34 +118,34 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit where {T
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0)
     toroidal_angle::Entry{T} = Entry{T}("rad", "toroidal angle of injection"; default=0.0)
-    efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion)
-    efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission)
+    efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0)
+    efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ec_launchers
     power_launched::Entry{T} = Entry{T}("W", "EC launched power")
-    efficiency_conversion::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :conversion)
-    efficiency_transmission::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :transmission)
+    efficiency_conversion::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :conversion; default=1.0)
+    efficiency_transmission::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :transmission; default=1.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ic_antennas
     power_launched::Entry{T} = Entry{T}("W", "IC launched power")
-    efficiency_conversion::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :conversion)
-    efficiency_transmission::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :transmission)
-    efficiency_coupling::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :coupling)
+    efficiency_conversion::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :conversion; default=1.0)
+    efficiency_transmission::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :transmission; default=1.0)
+    efficiency_coupling::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :coupling; default=1.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :lh_antennas
     power_launched::Entry{T} = Entry{T}("W", "LH launched power")
-    efficiency_conversion::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :conversion)
-    efficiency_transmission::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :transmission)
-    efficiency_coupling::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :coupling)
+    efficiency_conversion::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :conversion; default=1.0)
+    efficiency_transmission::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :transmission; default=1.0)
+    efficiency_coupling::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :coupling; default=1.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
@@ -216,7 +216,7 @@ mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(;n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0) where {T<:Real}
+function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0) where {T<:Real}
     ini = ParametersInits{T}(
         WeakRef(nothing),
         :ini,
@@ -237,7 +237,7 @@ function ParametersInits{T}(;n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0)
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}(),
         FUSEparameters__requirements{T}())
-    
+
     for k in 1:n_nb
         push!(ini.nb_unit, FUSEparameters__nb_unit{T}())
     end

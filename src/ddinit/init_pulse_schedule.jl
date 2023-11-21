@@ -86,28 +86,32 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             end
 
             # NB
-            if !ismissing(ini.nb_unit, :power_launched)
-                time, data = get_time_dependent(ini.nb_unit, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.nbi.power.reference.time = time
-                dd.pulse_schedule.nbi.power.reference.data = data
+            resize!(dd.pulse_schedule.nbi.unit, length(ini.nb_unit))
+            for (k, ini_nbu) in enumerate(ini.nb_unit)
+                time, data = get_time_dependent(ini_nbu, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.nbi.unit[k].power.reference.time = time
+                dd.pulse_schedule.nbi.unit[k].power.reference.data = data
             end
             # EC
-            if !ismissing(ini.ec_launcher, :power_launched)
-                time, data = get_time_dependent(ini.ec_launcher, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.ec.power.reference.time = time
-                dd.pulse_schedule.ec.power.reference.data = data
+            resize!(dd.pulse_schedule.ec.launcher, length(ini.ec_launcher))
+            for (k, ini_ecb) in enumerate(ini.nb_unit)
+                time, data = get_time_dependent(ini_ecb, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.ec.launcher[k].power.reference.time = time
+                dd.pulse_schedule.ec.launcher[k].power.reference.data = data
             end
             # IC
-            if !ismissing(ini.ic_antenna, :power_launched)
-                time, data = get_time_dependent(ini.ic_antenna, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.ic.power.reference.time = time
-                dd.pulse_schedule.ic.power.reference.data = data
+            resize!(dd.pulse_schedule.ic.antenna, length(ini.ic_antenna))
+            for (k, ini_ica) in enumerate(ini.ic_antenna)
+                time, data = get_time_dependent(ini_ica, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.ic.antenna[k].power.reference.time = time
+                dd.pulse_schedule.ic.antenna[k].power.reference.data = data
             end
             # LH
-            if !ismissing(ini.lh_antenna, :power_launched)
-                time, data = get_time_dependent(ini.lh_antenna, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.lh.power.reference.time = time
-                dd.pulse_schedule.lh.power.reference.data = data
+            resize!(dd.pulse_schedule.lh.antenna, length(ini.lh_antenna))
+            for (k, ini_lha) in enumerate(ini.lh_antenna)
+                time, data = get_time_dependent(ini_lha, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.lh.antenna[k].power.reference.time = time
+                dd.pulse_schedule.lh.antenna[k].power.reference.data = data
             end
 
         end
