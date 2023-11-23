@@ -38,8 +38,9 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
     time0 = actor.eq_out.time_slice[time_index].time
 
     # if there is no equilibrium then treat this as a field_null plot
+    eqt2d = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
     field_null = false
-    if length(actor.eq_out.time_slice[time_index].profiles_2d) == 0 || ismissing(actor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
+    if eqt2d === nothing || ismissing(eqt2d, :psi)
         coils_flux = equilibrium
         field_null = true
     end

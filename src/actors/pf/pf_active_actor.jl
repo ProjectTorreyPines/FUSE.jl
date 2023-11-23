@@ -182,8 +182,6 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
-    update_equilibrium = par.update_equilibrium
-
     coils = GS_IMAS_pf_active__coil{D,D}[]
     for coil in dd.pf_active.coil
         if IMAS.is_ohmic_coil(coil)
@@ -210,17 +208,19 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
         scale_eq_domain_size = 1.0
         R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size; length=length(EQfixed.r))
         Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size; length=length(EQfixed.z))
-        actor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
-        actor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
-        actor.eq_out.time_slice[time_index].profiles_2d[1].psi = VacuumFields.fixed2free(EQfixed, coils, R, Z)
+        eqt2d_out = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
+        eqt2d_out.grid.dim1 = R
+        eqt2d_out.grid.dim2 = Z
+        eqt2d_out.psi = VacuumFields.fixed2free(EQfixed, coils, R, Z)
     end
 
     # update psi
-    if update_equilibrium
+    if par.update_equilibrium
         for time_index in eachindex(actor.eq_out.time_slice)
             if !ismissing(actor.eq_out.time_slice[time_index].global_quantities, :ip)
-                psi1 = actor.eq_out.time_slice[time_index].profiles_2d[1].psi
-                actor.eq_in.time_slice[time_index].profiles_2d[1].psi = psi1
+                eqt2d_out = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
+                eqt2d_in = findfirst(:rectangular, actor.eq_in.time_slice[time_index].profiles_2d)
+                eqt2d_in.psi = eqt2d_out.psi
                 IMAS.flux_surfaces(actor.eq_in.time_slice[time_index])
             end
         end
