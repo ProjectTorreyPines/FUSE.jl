@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor
+mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHFSsizing{P}
     stresses_actor::ActorStresses{D,P}

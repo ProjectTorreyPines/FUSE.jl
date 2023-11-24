@@ -80,33 +80,41 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 ini.equilibrium(mxh)
                 mxhb = fitMXHboundary(mxh, nx)
 
+                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, -Inf)
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, ini.time.simulation_start)
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
             end
 
             # NB
-            if !ismissing(ini.nbi, :power_launched)
-                time, data = get_time_dependent(ini.nbi, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.nbi.power.reference.time = time
-                dd.pulse_schedule.nbi.power.reference.data = data
+            resize!(dd.pulse_schedule.nbi.unit, length(ini.nb_unit))
+            for (k, ini_nbu) in enumerate(ini.nb_unit)
+                time, data = get_time_dependent(ini_nbu, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.nbi.unit[k].power.reference.time = time
+                dd.pulse_schedule.nbi.unit[k].power.reference.data = data
             end
+
             # EC
-            if !ismissing(ini.ec_launchers, :power_launched)
-                time, data = get_time_dependent(ini.ec_launchers, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.ec.power.reference.time = time
-                dd.pulse_schedule.ec.power.reference.data = data
+            resize!(dd.pulse_schedule.ec.launcher, length(ini.ec_launcher))
+            for (k, ini_ecb) in enumerate(ini.ec_launcher)
+                time, data = get_time_dependent(ini_ecb, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.ec.launcher[k].power.reference.time = time
+                dd.pulse_schedule.ec.launcher[k].power.reference.data = data
             end
+
             # IC
-            if !ismissing(ini.ic_antennas, :power_launched)
-                time, data = get_time_dependent(ini.ic_antennas, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.ic.power.reference.time = time
-                dd.pulse_schedule.ic.power.reference.data = data
+            resize!(dd.pulse_schedule.ic.antenna, length(ini.ic_antenna))
+            for (k, ini_ica) in enumerate(ini.ic_antenna)
+                time, data = get_time_dependent(ini_ica, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.ic.antenna[k].power.reference.time = time
+                dd.pulse_schedule.ic.antenna[k].power.reference.data = data
             end
+
             # LH
-            if !ismissing(ini.lh_antennas, :power_launched)
-                time, data = get_time_dependent(ini.lh_antennas, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.lh.power.reference.time = time
-                dd.pulse_schedule.lh.power.reference.data = data
+            resize!(dd.pulse_schedule.lh.antenna, length(ini.lh_antenna))
+            for (k, ini_lha) in enumerate(ini.lh_antenna)
+                time, data = get_time_dependent(ini_lha, :power_launched; simplify_time_traces)
+                dd.pulse_schedule.lh.antenna[k].power.reference.time = time
+                dd.pulse_schedule.lh.antenna[k].power.reference.data = data
             end
 
         end
@@ -130,8 +138,8 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
             time, data = IMAS.simplify_2d_path(time, data, simplify_time_traces)
         end
     else
-        time = Float64[SimulationParameters.top(par).time.simulation_start, Inf]
-        data = [value, value]
+        time = Float64[-Inf, SimulationParameters.top(par).time.simulation_start, Inf]
+        data = [value, value, value]
     end
     return time, data
 end

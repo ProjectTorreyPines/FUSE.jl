@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor whe
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor
+mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}

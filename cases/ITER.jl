@@ -8,7 +8,7 @@ Arguments:
   - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
 function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(;n_nb=1,n_ec=1,n_ic=1)
     act = ParametersActors()
 
     # checking init_from and boundary_from
@@ -38,7 +38,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
         ini.equilibrium.boundary_from = boundary_from
 
         R0 = 6.2
-        Z0 = 0.0
+        Z0 = 0.4
         ϵ = 0.32
         κ = 1.85
         δ = 0.485
@@ -108,10 +108,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    ini.nbi.power_launched = t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6
-    ini.nbi.beam_energy = 1e6
-    ini.ec_launchers.power_launched = t -> 10e6 + ramp((t - 100) / 100.0) * 10e6
-    ini.ic_antennas.power_launched = t -> 12e6 + ramp((t - 100) / 100.0) * 12e6
+    ini.nb_unit[1].power_launched = t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6
+    ini.nb_unit[1].beam_energy = 1e6
+    ini.ec_launcher[1].power_launched = t -> 10e6 + ramp((t - 100) / 100.0) * 10e6
+    ini.ic_antenna[1].power_launched = t -> 12e6 + ramp((t - 100) / 100.0) * 12e6
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"

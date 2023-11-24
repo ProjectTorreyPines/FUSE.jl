@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T} <: Paramet
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorSteadyStateCurrent{D,P} <: PlasmaAbstractActor
+mutable struct ActorSteadyStateCurrent{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSteadyStateCurrent{P}
 end

@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T} <: ParametersActor
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorNeutronics{D,P} <: PlasmaAbstractActor
+mutable struct ActorNeutronics{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNeutronics{P}
     function ActorNeutronics(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeutronics{P}; kw...) where {D<:Real,P<:Real}
@@ -184,10 +184,11 @@ end
 function define_neutrons(dd::IMAS.dd, N::Int)
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
 
     # in-plasma mask
-    r = eqt.profiles_2d[1].grid.dim1
-    z = eqt.profiles_2d[1].grid.dim2
+    r = eqt2d.grid.dim1
+    z = eqt2d.grid.dim2
     R = [rr for rr in r, zz in z] # 2D
     Z = [zz for rr in r, zz in z] # 2D
     rz_lcfs = collect(zip(eqt.boundary.outline.r, eqt.boundary.outline.z))
@@ -199,7 +200,7 @@ function define_neutrons(dd::IMAS.dd, N::Int)
     # D+D   -> He3 (0.8175 MeV) + n (2.4525 MeV) + 3.27MeV
     # This is OK for calculating wall loading but blanket will need to distinguish between these two to account for different energy
     neutron_source_1d = IMAS.D_T_to_He4_heating(cp1d) .* 4.0 .+ IMAS.D_D_to_He3_heating(cp1d) .* 3.0
-    tmp = eqt.profiles_2d[1].psi .* (mask .== 1) .+ eqt.profiles_2d[1].psi[end] .* .*(mask .== 0) # to avoid extrapolation
+    tmp = eqt2d.psi .* (mask .== 1) .+ eqt2d.psi[end] .* .*(mask .== 0) # to avoid extrapolation
     neutron_source_2d = IMAS.interp1d(cp1d.grid.psi, neutron_source_1d).(tmp) # W/m^3
     neutron_source_2d .*= mask .== 1 # set things to zero outsize of lcfs
     neutron_source_2d .*= R .* (2π * (r[2] - r[1]) * (z[2] - z[1])) # W
@@ -231,8 +232,9 @@ end
 
 @recipe function plot_neutrons(neutrons::Vector{neutron_particle{T}}, eqt::IMAS.equilibrium__time_slice) where {T<:Real}
     N = length(neutrons)
-    r = eqt.profiles_2d[1].grid.dim1
-    z = eqt.profiles_2d[1].grid.dim2
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+    r = eqt2d.grid.dim1
+    z = eqt2d.grid.dim2
 
     # normalization weight to bring bin value in the unitary range
     plot_norm = 0.5 / (N * (r[2] - r[1]) * (z[2] - z[1]) / eqt.profiles_1d.area[end])

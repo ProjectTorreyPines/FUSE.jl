@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorARIESCosting{T} <: ParametersAct
     blanket_lifetime::Entry{T} = Entry{T}("year", "Lifetime of the blanket"; default=6.8)
 end
 
-mutable struct ActorARIESCosting{D,P} <: FacilityAbstractActor
+mutable struct ActorARIESCosting{D,P} <: FacilityAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorARIESCosting{P}
     function ActorARIESCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorARIESCosting{P}; kw...) where {D<:Real,P<:Real}
@@ -241,7 +241,7 @@ function cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust, 
     dd = IMAS.top_dd(pf_active)
     c = Dict("OH" => 0.0, "PF" => 0.0)
     for coil in pf_active.coil
-        if coil.name == "OH"
+        if IMAS.is_ohmic_coil(coil)
             c["OH"] += cost_direct_capital_ARIES(coil, dd.build.oh.technology, da, cst)
         else
             c["PF"] += cost_direct_capital_ARIES(coil, dd.build.pf_active.technology, da, cst)
