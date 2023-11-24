@@ -39,20 +39,10 @@ for actor_abstract_type in subtypes(FUSE.AbstractActor)
                 FUSE.$name(dd::IMAS.dd, act::FUSE.ParametersAllActors; kw...)
                 ```
 
-                ```@eval
-                import Markdown, FUSE
-                if !isempty(keys(FUSE.ParametersActor(:$name)))
-                    return Markdown.parse("Valid `kw...` arguments are based on `FUSE.ParametersActor(:$name)`:")
-                end
-                ```
-
                 ```@example
                 import FUSE # hide
-                act = FUSE.ParametersActor(:$name) # hide
-                act._name=Symbol("act."*string(act._name)) # hide
-                if !isempty(keys(act)) # hide
-                    return act # hide
-                end # hide
+                act = FUSE.ParametersActors() # hide
+                getfield(FUSE.ParametersActors(), :$name) # hide
                 ```
                 """
             )
