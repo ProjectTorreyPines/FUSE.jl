@@ -33,6 +33,8 @@ function AbstractTrees.printnode(io::IO, node_value::SimulationParameters.ParsNo
     location = join(SimulationParameters.path(par), ".")
     if typeof(par) <: SimulationParameters.AbstractParameters
         printstyled(io, field; bold=true)
+    elseif typeof(par) <: SimulationParameters.AbstractParametersVector
+        printstyled(io, field; bold=true)
     elseif typeof(par) <: SimulationParameters.AbstractParameter
         if typeof(par.value) <: AbstractDict
             printstyled(io, "$field[:]"; bold=true)
@@ -72,6 +74,9 @@ end
 function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParameters)
     for leafRepr in AbstractTrees.Leaves(pars)
         leaf = leafRepr.value
+        if typeof(leaf) <: SimulationParameters.ParametersVector
+            error("$(SimulationParameters.path(leaf)) has zero length, which prevents generation of documentation.")
+        end
         if typeof(leaf) <: SimulationParameters.AbstractParameters
             continue
         end
@@ -96,6 +101,7 @@ function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParame
         ```
         !!! $note "$(join(SimulationParameters.path(leaf),"."))"
             $(leaf.description)
+            * **Type:** `$(replace(string(typeof(leaf)),"SimulationParameters."=>""))`
             * **Units:** `$(isempty(leaf.units) ? "-" : leaf.units)`
             $(options)$(default)
 
