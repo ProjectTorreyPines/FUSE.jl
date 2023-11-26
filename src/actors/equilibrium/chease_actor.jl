@@ -149,8 +149,7 @@ function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
 
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
-    resize!(eqt.profiles_2d, 1)
-    eq2d = eqt.profiles_2d[1]
+    eq2d = resize!(eqt.profiles_2d, 1)[1]
 
     @ddtime(eq.vacuum_toroidal_field.b0 = g.bcentr)
     eq.vacuum_toroidal_field.r0 = g.rcentr
