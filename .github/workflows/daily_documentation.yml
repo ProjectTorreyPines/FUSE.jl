@@ -51,6 +51,7 @@ jobs:
       #============
       - run: make blank_examples
       - run: make html
+        timeout-minutes: 30
       - run: make web_ci
       #============
       - name: Debug with tmate if failure + manual triggrer + debug mode
