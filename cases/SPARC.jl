@@ -62,7 +62,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
-    ini.ic_antenna.power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
+    ini.ic_antenna[1].power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     act.ActorPFcoilsOpt.symmetric = true
     # act.ActorEquilibrium.model = :CHEASE

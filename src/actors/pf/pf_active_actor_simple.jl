@@ -81,7 +81,9 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     if par.update_equilibrium || par.do_plot
 
         eqt_in = actor.eq_in.time_slice[]
+        eqt2d_in = findfirst(:rectangular, eqt_in.profiles_2d)
         eqt_out = actor.eq_out.time_slice[dd.global_time]
+        eqt2d_out = findfirst(:rectangular, eqt_out.profiles_2d)
 
         if !ismissing(eqt_in.global_quantities, :ip)
             # convert dd.pf_active to coils for VacuumFields calculation
@@ -94,9 +96,9 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
             scale_eq_domain_size = 1.0
             Rgrid = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size; length=length(EQfixed.r))
             Zgrid = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size; length=length(EQfixed.z))
-            eqt_out.profiles_2d[1].grid.dim1 = Rgrid
-            eqt_out.profiles_2d[1].grid.dim2 = Zgrid
-            eqt_out.profiles_2d[1].psi = VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)
+            eqt2d_out.grid.dim1 = Rgrid
+            eqt2d_out.grid.dim2 = Zgrid
+            eqt2d_out.psi = VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)
         end
     end
 
@@ -106,7 +108,7 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 
     # update equilibrium psi2d and retrace flux surfaces
     if par.update_equilibrium
-        eqt_in.profiles_2d[1].psi = eqt_out.profiles_2d[1].psi
+        eqt2d_in.psi = eqt2d_out.psi
         IMAS.flux_surfaces(eqt_in)
         actor.eq_out = actor.eq_in
     end
