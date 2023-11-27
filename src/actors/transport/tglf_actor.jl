@@ -74,7 +74,7 @@ function _step(actor::ActorTGLF)
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs) 
-        actor.flux_solutions = [IMAS.flux_solution(single[1,1,1],single[1,1,1],single[1,1,1],single[1,1,1]) for single in QL_fluxes_out]
+        actor.flux_solutions = [IMAS.flux_solution(single[1,1,1],single[1,2,3],single[1,1,2],single[1,2,2]) for single in QL_fluxes_out]
     end
 
     return actor
@@ -138,8 +138,6 @@ function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
         inputTJLF.VPAR_SHEAR[i] = getfield(inputTGLF,Symbol("VPAR_SHEAR_",i))
     end
     inputTJLF.WIDTH_SPECTRUM .= 0.0
-#    inputTJLF.WIDTH_SPECTRUM = [1.65, 1.4832394778484315, 1.65, 1.65, 1.5643992899672103, 1.4832394778484315, 1.4062901733317708, 1.4062901733317708, 1.3333329385745984, 1.3333329385745984, 1.65, 1.65, 1.136395763210322, 1.65, 1.65, 1.65, 1.65, 1.65, 1.65, 1.65, 1.5643992899672103]
-#    inputTJLF.GAMMA_SPECTRUM = [0.00032170831306675067, 0.001568377933370766, 0.0005358306082390708, 0.00216237303168175, 0.00274222170719937, 0.0017085022163838416, 0.018338112744796436, 0.020288660286410912, 0.02021631585037002, 0.01904032028739442, 0.006370556219483997, 0.004774048372513259, 0.003254832043512627, 0.003794692468180179, 0.003833098761806608, 0.005671888300532516, 0.006113987519071854, 0.005469714593343174, 0.002779308897649895, 0.05446775278658427, 0.15583818811081657]
 
     # Defaults
     inputTJLF.KY= 0.3
@@ -180,7 +178,7 @@ function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
     
     # for now settings
     inputTJLF.ALPHA_ZF = -1  # smooth   
-#    inputTJLF.NMODES = 1
+
     # check converison
     field_names = fieldnames(TJLF.InputTJLF)
     for field_name in field_names
