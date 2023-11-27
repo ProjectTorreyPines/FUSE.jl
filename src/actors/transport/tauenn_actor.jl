@@ -1,8 +1,8 @@
 import TAUENN
 
-#= ================ =#
-#     TAUENN actor   #
-#= ================ =#
+#= =========== =#
+#  ActorTauenn  #
+#= =========== =#
 Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -20,7 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor whe
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorTauenn{D,P} <: PlasmaAbstractActor
+mutable struct ActorTauenn{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTauenn{P}
     tauenn_parameters::TAUENN.TauennParameters

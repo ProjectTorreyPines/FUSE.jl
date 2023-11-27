@@ -6,7 +6,11 @@ thus simplifying the logic of the init functions after it which only have to loo
 """
 function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
 
-    if ini.general.init_from == :ods
+    if ini.general.init_from != :ods
+        # don't do anything if to ini and return an empty dd
+        dd1 = IMAS.dd()
+
+    else
         dd1 = IMAS.json2imas(ini.ods.filename)
         dd1.global_time = ini.time.simulation_start
 
@@ -45,11 +49,8 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
         # core_profiles
         if !ismissing(dd1.core_profiles.global_quantities, :ejima)
             ini.core_profiles.ejima = @ddtime(dd1.core_profiles.global_quantities.ejima)
-            asdas
         end
 
-    else
-        dd1 = IMAS.dd()
     end
 
     return dd1

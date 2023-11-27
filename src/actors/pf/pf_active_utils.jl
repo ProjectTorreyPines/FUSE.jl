@@ -38,8 +38,8 @@ end
 
 function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
     coils = GS3_IMAS_pf_active__coil{D,D}[]
-    for (k, coil) in enumerate(dd.pf_active.coil)
-        if k <= dd.build.pf_active.rail[1].coils_number
+    for coil in dd.pf_active.coil
+        if IMAS.is_ohmic_coil(coil)
             coil_tech = dd.build.oh.technology
         else
             coil_tech = dd.build.pf_active.technology
@@ -99,7 +99,7 @@ function VacuumFields.Green(coil::GS3_IMAS_pf_active__coil, R::Real, Z::Real; n_
         return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     elseif green_model ∈ (:corners, :simple) # medium
-        if imas(coil).name == "OH"
+        if IMAS.is_ohmic_coil(imas(coil))
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
             return sum(VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
 
@@ -198,7 +198,7 @@ function transfer_info_GS_coil_to_IMAS(bd::IMAS.build, coil::GS_IMAS_pf_active__
     pf_active__coil.current_limit_max =
         [abs(coil_J_B_crit(b, coil.coil_tech)[1] * area(coil) / coil.turns_with_sign) for b in pf_active__coil.b_field_max, t in pf_active__coil.temperature]
     pf_active__coil.b_field_max_timed.time = coil.current_time
-    if pf_active__coil.name == "OH"
+    if IMAS.is_ohmic_coil(pf_active__coil)
         pf_active__coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in eachindex(coil.current_time)]
     else
         pf_active__coil.b_field_max_timed.data = [coil_selfB(coil, time_index) for time_index in eachindex(coil.current_time)]
@@ -262,7 +262,7 @@ function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_f
         return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     elseif coil.green_model ∈ (:corners, :simple) # medium
-        if coil.pf_active__coil.name == "OH"
+        if IMAS.is_ohmic_coil(coil.pf_active__coil)
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
             return sum(VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
 
@@ -279,4 +279,42 @@ function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_f
     else
         error("GS_IMAS_pf_active__coil coil.green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
     end
+end
+
+"""
+    fixed_pinned_optim_coils(actor::ActorPFcoilsOpt{D,P}, optimization_scheme::Symbol, coil_struct::Type) where {D<:Real,P<:Real}
+
+Returns tuple of coil_struct (typically `GS_IMAS_pf_active__coil` or `GS3_IMAS_pf_active__coil`) coils organized by their function:
+
+  - fixed: fixed position and current
+  - pinned: coils with fixed position but current is optimized
+  - optim: coils that have theri position and current optimized
+"""
+function fixed_pinned_optim_coils(actor::AbstractActor{D,P}, optimization_scheme::Symbol, coil_struct) where {D<:Real,P<:Real}
+    dd = actor.dd
+    par = actor.par
+
+    fixed_coils = coil_struct{D,D}[]
+    pinned_coils = coil_struct{D,D}[]
+    optim_coils = coil_struct{D,D}[]
+    for coil in dd.pf_active.coil
+        if IMAS.is_ohmic_coil(coil)
+            coil_tech = dd.build.oh.technology
+        else
+            coil_tech = dd.build.pf_active.technology
+        end
+        if coil.identifier == "pinned"
+            push!(pinned_coils, coil_struct(coil, coil_tech, par.green_model))
+        elseif (coil.identifier == "optim") && (optimization_scheme == :currents)
+            push!(pinned_coils, coil_struct(coil, coil_tech, par.green_model))
+        elseif coil.identifier == "optim"
+            push!(optim_coils, coil_struct(coil, coil_tech, par.green_model))
+        elseif coil.identifier == "fixed"
+            push!(fixed_coils, coil_struct(coil, coil_tech, par.green_model))
+        else
+            push!(pinned_coils, coil_struct(coil, coil_tech, par.green_model))
+            #     error("$(IMAS.location(coil)).identifier=`$(coil.identifier)` is not valid. Accepted values are [\"optim\", \"pinned\", \"fixed\"]")
+        end
+    end
+    return fixed_coils, pinned_coils, optim_coils
 end

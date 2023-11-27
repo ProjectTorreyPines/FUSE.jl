@@ -1,8 +1,8 @@
 import TGLFNN
 
-#= ============= =#
-#  ActorTGLF      #
-#= ============= =#
+#= ========= =#
+#  ActorTGLF  #
+#= ========= =#
 Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -10,11 +10,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
     user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
-    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.2:0.05:0.85)
+    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
 end
 
-mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor
+mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTGLF{P}
     input_tglfs::Vector{<:TGLFNN.InputTGLF}
@@ -61,21 +61,8 @@ function _step(actor::ActorTGLF)
         end
     end
 
-    if !isempty(par.user_specified_model)
-        model_filename = par.user_specified_model
-    else
-        model_filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
-        model_filename *= "_d3d" # will be changed to FPP soon
-    end
-
-
-    model = resize!(dd.core_transport.model, :anomalous; wipe=false)
-    model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename
-    m1d = resize!(model.profiles_1d)
-    m1d.grid_flux.rho_tor_norm = par.rho_transport
-
     if par.nn
-        actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename)
+        actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
     else
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
     end
@@ -93,10 +80,23 @@ function _finalize(actor::ActorTGLF)
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
-    model = findfirst(:anomalous, actor.dd.core_transport.model)
-    m1d = model.profiles_1d[]
+
+    model = resize!(dd.core_transport.model, :anomalous; wipe=false)
+    model.identifier.name = (par.nn ? "TGLF-NN" : "TGLF") * " " * model_filename(par)
+    m1d = resize!(model.profiles_1d)
+    m1d.grid_flux.rho_tor_norm = par.rho_transport
 
     IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux, :momentum_flux], actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
+end
+
+function model_filename(par::FUSEparameters__ActorTGLF)
+    if !isempty(par.user_specified_model)
+        filename = par.user_specified_model
+    else
+        filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+        filename *= "_d3d" # will be changed to FPP soon
+    end
+    return filename
 end

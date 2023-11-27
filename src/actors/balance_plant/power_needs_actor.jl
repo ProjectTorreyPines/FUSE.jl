@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T} <: ParametersActor
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorPowerNeeds{D,P} <: FacilityAbstractActor
+mutable struct ActorPowerNeeds{D,P} <: FacilityAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPowerNeeds{P}
     function ActorPowerNeeds(dd::IMAS.dd{D}, par::FUSEparameters__ActorPowerNeeds{P}; kw...) where {D<:Real,P<:Real}

@@ -114,17 +114,16 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         # divertors
         if ini.build.divertors == :from_x_points
             if ismissing(ini.equilibrium, :xpoints)
-                # if number of divertors is not set explicitly, get it from the ODS
-                n_divertors = length(eqt.boundary.x_point)
-                if n_divertors == 0
+                # if number of x-points is not set explicitly, get it from the pulse_schedule
+                upper = any(x_point.z .> eqt.boundary.geometric_axis.z for x_point in dd.pulse_schedule.position_control.x_point)
+                lower = any(x_point.z .< eqt.boundary.geometric_axis.z for x_point in dd.pulse_schedule.position_control.x_point)
+                if !upper && !lower
                     ini.equilibrium.xpoints = :none
-                elseif n_divertors == 1
-                    if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
-                        ini.equilibrium.xpoints = :upper
-                    else
-                        ini.equilibrium.xpoints = :lower
-                    end
-                elseif n_divertors == 2
+                elseif upper && !lower
+                    ini.equilibrium.xpoints = :upper
+                elseif lower && upper
+                    ini.equilibrium.xpoints = :lower
+                else
                     ini.equilibrium.xpoints = :double
                 end
             end

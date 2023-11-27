@@ -14,7 +14,7 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !ismissing(dd1.pf_active, :time) && length(dd1.pf_active.time) > 0
+            if length(dd1.pf_active.coil) > 0
                 dd.pf_active = dd1.pf_active
             else
                 init_from = :scalars
@@ -35,6 +35,8 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
         coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
         coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+
+        IMAS.set_coils_function(dd.pf_active.coil)
 
         return dd
     end
@@ -233,6 +235,8 @@ function init_pf_active!(
             @ddtime pf_active.coil[k].current.data = 0.0
         end
     end
+
+    IMAS.set_coils_function(pf_active.coil)
 
     return pf_active
 end

@@ -4,7 +4,7 @@
 GA Compact Advanced Tokamak design
 """
 function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(; n_nb=1)
     act = ParametersActors()
 
     ini.general.casename = "CAT"
@@ -46,10 +46,10 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     ini.requirements.flattop_duration = 1000.0
 
-    ini.nbi.power_launched = 20E6
-    ini.nbi.beam_energy = 200e3
-    ini.nbi.beam_mass = 2.0
-    ini.nbi.toroidal_angle = 0.0
+    ini.nb_unit[1].power_launched = 20E6
+    ini.nb_unit[1].beam_energy = 200e3
+    ini.nb_unit[1].beam_mass = 2.0
+    ini.nb_unit[1].toroidal_angle = 0.0
 
     act.ActorPFcoilsOpt.symmetric = true
 

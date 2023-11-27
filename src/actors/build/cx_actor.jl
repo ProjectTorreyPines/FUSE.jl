@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor wh
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorCXbuild{D,P} <: ReactorAbstractActor
+mutable struct ActorCXbuild{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCXbuild{P}
     function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}; kw...) where {D<:Real,P<:Real}
@@ -219,7 +219,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
     try
-        pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1)
+        pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1, method=:linear)
     catch e
         pp = plot(wall_poly; aspect_ratio=:equal)
         for (pr, pz) in private
@@ -429,8 +429,8 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     return nothing
 end
 
-function IMAS.resample_2d_path(layer::IMAS.build__layer; n_points::Int)
-    layer.outline.r, layer.outline.z = IMAS.resample_2d_path(layer.outline.r, layer.outline.z; n_points, method=:linear)
+function IMAS.resample_2d_path(layer::IMAS.build__layer; method::Symbol=:linear, kw...)
+    layer.outline.r, layer.outline.z = IMAS.resample_2d_path(layer.outline.r, layer.outline.z; method, kw...)
     return layer
 end
 
@@ -471,7 +471,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
     # resample
     for k in tf_to_plasma[1:end-1]
         layer = bd.layer[k]
-        IMAS.resample_2d_path(layer; n_points)
+        IMAS.resample_2d_path(layer; n_points, method=:linear)
     end
 
     # _in_

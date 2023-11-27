@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersAc
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the core transport"; default=false)
 end
 
-mutable struct ActorCoreTransport{D,P} <: PlasmaAbstractActor
+mutable struct ActorCoreTransport{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCoreTransport{P}
     tr_actor::Union{ActorFluxMatcher{D,P},ActorTauenn{D,P},ActorFixedProfiles{D,P}}

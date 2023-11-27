@@ -4,12 +4,14 @@
 Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
     max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
+    #== display and debugging parameters ==#
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor
+mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStationaryPlasma{P}
     act::ParametersAllActors
@@ -88,8 +90,8 @@ function _step(actor::ActorStationaryPlasma)
         chease_par.rescale_eq_to_ip = true
     end
 
-    prog = ProgressMeter.Progress((par.max_iter + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=!par.do_plot)
-    old_logging = actor_logging(dd, false)
+    prog = ProgressMeter.Progress((par.max_iter + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
+    old_logging = actor_logging(dd, !(par.verbose && !par.do_plot))
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
@@ -101,6 +103,7 @@ function _step(actor::ActorStationaryPlasma)
         ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
         finalize(step(actor.actor_jt))
 
+        # uless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
             # get current and pressure profiles before updating them
             j_tor_before = cp1d.j_tor
@@ -176,12 +179,12 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
     dd = actor.dd
     par = actor.par
     tmp = [
-        ("         iteration (min 2)", "$(length(total_error))/$(par.max_iter)"),
+        (par.max_iter == 1 ? "                 iteration" : "         iteration (min 2)", "$(length(total_error))/$(par.max_iter)"),
         ("required convergence error", par.convergence_error),
         ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
         ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
         ("                   Ip [MA]", @ddtime(dd.summary.global_quantities.ip.value) / 1e6),
         ("                 Te0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_e.value) / 1E3),
-        ("                 Ti0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_i_average.value) / 1E3) ]
+        ("                 Ti0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_i_average.value) / 1E3)]
     return tuple(tmp...)
 end

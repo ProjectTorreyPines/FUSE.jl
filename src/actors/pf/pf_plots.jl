@@ -38,8 +38,9 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
     time0 = actor.eq_out.time_slice[time_index].time
 
     # if there is no equilibrium then treat this as a field_null plot
+    eqt2d = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
     field_null = false
-    if length(actor.eq_out.time_slice[time_index].profiles_2d) == 0 || ismissing(actor.eq_out.time_slice[time_index].profiles_2d[1], :psi)
+    if eqt2d === nothing || ismissing(eqt2d, :psi)
         coils_flux = equilibrium
         field_null = true
     end
@@ -71,8 +72,8 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
         Z = range(ylim[1], ylim[2]; length=Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
 
         coils = GS_IMAS_pf_active__coil{D,D}[]
-        for (k, coil) in enumerate(dd.pf_active.coil)
-            if k <= dd.build.pf_active.rail[1].coils_number
+        for coil in dd.pf_active.coil
+            if IMAS.is_ohmic_coil(coil)
                 coil_tech = dd.build.oh.technology
             else
                 coil_tech = dd.build.pf_active.technology

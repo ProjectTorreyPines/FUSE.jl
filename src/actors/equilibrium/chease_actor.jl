@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor whe
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor
+mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}
@@ -51,10 +51,9 @@ function _step(actor::ActorCHEASE)
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
-    # uniformely distribute points on the boundary
+    # boundary
     r_bound = eqt.boundary.outline.r
     z_bound = eqt.boundary.outline.z
-    r_bound, z_bound = IMAS.resample_2d_path(r_bound, z_bound; n_points=201)
 
     # scalars
     Ip = eqt.global_quantities.ip
@@ -96,16 +95,14 @@ function _finalize(actor::ActorCHEASE)
 
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
-        n_point_shot_boundary = 500
         eqt = dd.equilibrium.time_slice[]
-        z_geo = eqt.boundary.geometric_axis.z
-        r_bound = eqt.boundary.outline.r
-        z_bound = eqt.boundary.outline.z
         # constraints for the private flux region
+        z_geo = eqt.boundary.geometric_axis.z
+        Rb, Zb = eqt.boundary.outline.r, eqt.boundary.outline.z
         upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
         lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
-        fraction = 0.5
-        Rx, Zx = free_boundary_private_flux_constraint(r_bound, z_bound; upper_x_point, lower_x_point, fraction, n_points=Int(ceil(fraction * n_point_shot_boundary)))
+        fraction = 0.05
+        Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=2)
 
         # convert from fixed to free boundary equilibrium
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
@@ -152,8 +149,7 @@ function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
 
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
-    resize!(eqt.profiles_2d, 1)
-    eq2d = eqt.profiles_2d[1]
+    eq2d = resize!(eqt.profiles_2d, 1)[1]
 
     @ddtime(eq.vacuum_toroidal_field.b0 = g.bcentr)
     eq.vacuum_toroidal_field.r0 = g.rcentr

@@ -19,9 +19,8 @@ function pretty_units(unit)
     return unit
 end
 
-
 function html_link_repr(field::Symbol, location::AbstractString)
-    html_link_repr(string(field), location)
+    return html_link_repr(string(field), location)
 end
 
 function html_link_repr(field::AbstractString, location::AbstractString)
@@ -33,6 +32,8 @@ function AbstractTrees.printnode(io::IO, node_value::SimulationParameters.ParsNo
     par = node_value.value
     location = join(SimulationParameters.path(par), ".")
     if typeof(par) <: SimulationParameters.AbstractParameters
+        printstyled(io, field; bold=true)
+    elseif typeof(par) <: SimulationParameters.AbstractParametersVector
         printstyled(io, field; bold=true)
     elseif typeof(par) <: SimulationParameters.AbstractParameter
         if typeof(par.value) <: AbstractDict
@@ -67,12 +68,15 @@ function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASstructRepr; kwargs...)
     else
         units = " [$(pretty_units(units))]"
     end
-    printstyled(io, "$(html_link_repr(leaf.key, leaf.location))$units")
+    return printstyled(io, "$(html_link_repr(leaf.key, leaf.location))$units")
 end
 
 function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParameters)
     for leafRepr in AbstractTrees.Leaves(pars)
         leaf = leafRepr.value
+        if typeof(leaf) <: SimulationParameters.ParametersVector
+            error("$(SimulationParameters.path(leaf)) has zero length, which prevents generation of documentation.")
+        end
         if typeof(leaf) <: SimulationParameters.AbstractParameters
             continue
         end
@@ -97,6 +101,7 @@ function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParame
         ```
         !!! $note "$(join(SimulationParameters.path(leaf),"."))"
             $(leaf.description)
+            * **Type:** `$(replace(string(typeof(leaf)),"SimulationParameters."=>""))`
             * **Units:** `$(isempty(leaf.units) ? "-" : leaf.units)`
             $(options)$(default)
 
@@ -149,9 +154,18 @@ include("$(@__DIR__)/src/examples.jl")
 # build the docs #
 # ============== #
 makedocs(;
+    root=@__DIR__,
     modules=[FUSE, IMAS, IMASDD],
     sitename="FUSE",
-    format=Documenter.HTML(; prettyurls=false, sidebar_sitename=false, assets=["assets/favicon.ico"]),
+    format=Documenter.HTML(;
+        prettyurls=false,
+        sidebar_sitename=false,
+        assets=["assets/favicon.ico"],
+        disable_git=true,
+        size_threshold=nothing,
+        size_threshold_warn=nothing),
+    remotes=nothing,
+    warnonly=true,
     pages=[
         "Concepts" => "index.md",
         "Data Structure" => "dd.md",
@@ -160,7 +174,7 @@ makedocs(;
         "Examples" => "examples.md",
         "Development" => "develop.md",
         "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
-        "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md"],
+        "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md"]
     ]
 )
 
@@ -168,7 +182,7 @@ makedocs(;
 @info "Converting links"
 for (file, parfile) in (("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd", "dd"))
     local txt = open("$(@__DIR__)/build/$file.html", "r") do io
-        read(io, String)
+        return read(io, String)
     end
     txt = split(txt, "\n")
     for (k, line) in enumerate(txt)
@@ -177,7 +191,7 @@ for (file, parfile) in (("act", "act"), ("ini", "ini"), ("actors", "act"), ("dd"
         txt[k] = replace(txt[k], "©" => parfile)
     end
     open("$(@__DIR__)/build/$file.html", "w") do io
-        write(io, join(txt, "\n"))
+        return write(io, join(txt, "\n"))
     end
 end
 
@@ -185,26 +199,26 @@ end
 @info "Styling examples"
 for css in ("light", "dark")
     open("$(@__DIR__)/build/assets/themes/documenter-$css.css", "a") do io
-        write(
+        return write(
             io,
             """\n
 .nohighlight {
 background-color: transparent !important;
-}""",
+}"""
         )
     end
 end
 files_to_convert = readdir("$(@__DIR__)/build")[findall(x -> startswith(x, "example_") && endswith(x, ".html"), readdir("$(@__DIR__)/build"))]
 for file in files_to_convert
     local txt = open("$(@__DIR__)/build/$file", "r") do io
-        read(io, String)
+        return read(io, String)
     end
     txt = split(txt, "\n")
     for (k, line) in enumerate(txt)
         txt[k] = replace(line, "<pre><code class=\"nohighlight" => "<pre class=\"nohighlight\"><code class=\"nohighlight")
     end
     open("$(@__DIR__)/build/$file", "w") do io
-        write(io, join(txt, "\n"))
+        return write(io, join(txt, "\n"))
     end
 end
 

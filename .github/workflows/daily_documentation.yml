@@ -13,8 +13,6 @@ on:
 env:
   PTP_READ_TOKEN: ${{ secrets.PTP_READ_TOKEN }}
 
-
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -53,6 +51,7 @@ jobs:
       #============
       - run: make blank_examples
       - run: make html
+        timeout-minutes: 30
       - run: make web_ci
       #============
       - name: Debug with tmate if failure + manual triggrer + debug mode

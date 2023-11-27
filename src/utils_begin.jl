@@ -363,21 +363,27 @@ end
 # parallel #
 # ======== #
 """
-    parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...) 
+    parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1, kw...)
 
 Start multiprocessing environment
 
-kw arguments are passed to the Distributed.addprocs
+  - kw arguments are passed to the Distributed.addprocs
+
+  - nworkers == 0 uses as many workers as the number of available CPUs
+  - cpus_per_task can be used to control memory usage
 """
-function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0, kw...)
+function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1, kw...)
     if cluster == "omega"
         if gethostname() ∈ ("omega-a.gat.com", "omega-b.gat.com")
-            nodes = 4 # omega has 12 ga-ird nodes
-            np = 128 * nodes
-            if nprocs_max > 0
-                np = min(np, nprocs_max)
+            gigamem_per_node = 512
+            cpus_per_node = 128
+            if nworkers > 0
+                nodes = 4 # omega has 12 ga-ird nodes
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
             end
-            np += 1
+            np = nworkers + 1
+            gigamem_per_cpu = Int(round(gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if Distributed.nprocs() < np
                 Distributed.addprocs(
@@ -385,40 +391,55 @@ function parallel_environment(cluster::String="localhost", nprocs_max::Integer=0
                     partition="ga-ird",
                     exclusive="",
                     topology=:master_worker,
-                    cpus_per_task=2,
-                    time="99:99:99"
+                    time="99:99:99",
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    kw...
                 )
             end
         else
             error("Not running on omega cluster")
         end
+
     elseif cluster == "saga"
         if gethostname() == "saga.cluster"
-            nodes = 4  # saga has 6 nodes
-            np = 30 * nodes
-            if nprocs_max > 0
-                np = min(np, nprocs_max)
+            gigamem_per_node = 192
+            cpus_per_node = 48
+            if nworkers > 0
+                nodes = 4  # saga has 6 nodes
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
             end
-            np += 1
+            np = nworkers + 1
+            gigamem_per_cpu = Int(round(gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if Distributed.nprocs() < np
-                Distributed.addprocs(ClusterManagers.SlurmManager(np - Distributed.nprocs()); exclusive="", topology=:master_worker, kw...)
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    exclusive="",
+                    topology=:master_worker,
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    kw...
+                )
             end
         else
             error("Not running on saga cluster")
         end
 
     elseif cluster == "localhost"
-        np = length(Sys.cpu_info()) + 1
-        if nprocs_max > 0
-            np = min(np, nprocs_max)
+        if nworkers > 0
+            nprocs_max = length(Sys.cpu_info())
+            nworkers = min(nworkers, nprocs_max)
         end
+        np = nworkers + 1
         if Distributed.nprocs() < np
-            Distributed.addprocs(np - Distributed.nprocs(); topology=:master_worker)
+            Distributed.addprocs(np - Distributed.nprocs(); topology=:master_worker, exeflags=["--heap-size-hint=2G"])
         end
 
     else
-        error("Cluster $cluster is unknown. Add it to the FUSE.parallel_environment")
+        error("Cluster `$cluster` is unknown. Use `localhost` or add `$cluster` to the FUSE.parallel_environment")
     end
-    return println("Working with $(Distributed.nprocs()-1) processes on $(gethostname())")
+
+    return println("Working with $(Distributed.nprocs()-1) workers on $(gethostname())")
 end

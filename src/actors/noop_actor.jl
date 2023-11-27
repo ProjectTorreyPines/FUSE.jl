@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNoOperation{T} <: ParametersActo
     _name::Symbol = :not_set
 end
 
-mutable struct ActorNoOperation{D,P} <: AbstractActor
+mutable struct ActorNoOperation{D,P} <: AbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNoOperation{P}
     function ActorNoOperation(dd::IMAS.dd{D}, par::FUSEparameters__ActorNoOperation{P}; kw...) where {D<:Real,P<:Real}
