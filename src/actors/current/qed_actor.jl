@@ -197,6 +197,7 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     f = eqt.profiles_1d.f
     dvolume_drho_tor = eqt.profiles_1d.dvolume_drho_tor
     q = eqt.profiles_1d.q
+    gm9 = eqt.profiles_1d.gm9
 
     # DO NOT use the equilibrium j_tor, since it's quality depends on the quality/resolution of the equilibrium solver
     # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibirum solver
@@ -205,8 +206,6 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     else
         j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
     end
-
-    gm9 = eqt.profiles_1d.gm9
 
     y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
     if ismissing(cp1d, :j_non_inductive)
