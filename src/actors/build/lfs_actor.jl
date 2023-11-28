@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor 
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorLFSsizing{D,P} <: ReactorAbstractActor
+mutable struct ActorLFSsizing{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorLFSsizing{P}
     function ActorLFSsizing(dd::IMAS.dd{D}, par::FUSEparameters__ActorLFSsizing{P}; kw...) where {D<:Real,P<:Real}

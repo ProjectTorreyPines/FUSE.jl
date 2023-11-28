@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor
+mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHFSsizing{P}
     stresses_actor::ActorStresses{D,P}
@@ -121,8 +121,9 @@ function _step(actor::ActorHFSsizing)
         end
 
         # flattop
+        # Additional 10% of flattop duration for shape control
         if actor.fluxswing_actor.par.operate_oh_at_j_crit
-            c_flt = target_value(dd.requirements.flattop_duration, dd.build.oh.flattop_duration, 0.0)
+            c_flt = target_value(dd.requirements.flattop_duration, dd.build.oh.flattop_duration, 0.1)
         else
             c_flt = 0.0
         end

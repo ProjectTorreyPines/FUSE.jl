@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T} <: Parameter
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor
+mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStationaryPlasma{P}
     act::ParametersAllActors
@@ -91,7 +91,7 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     prog = ProgressMeter.Progress((par.max_iter + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
-    old_logging = actor_logging(dd, false)
+    old_logging = actor_logging(dd, !(par.verbose && !par.do_plot))
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try

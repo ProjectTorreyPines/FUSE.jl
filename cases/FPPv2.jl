@@ -2,7 +2,7 @@
     case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,ParametersAllActors}
 """
 function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(; n_ec=1)
     act = ParametersActors()
 
     #### INI ####
@@ -87,9 +87,9 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.oh.n_coils = 6
     ini.oh.technology = :HTS
 
-    ini.ec_launchers.power_launched = 2.5e7
-    ini.ec_launchers.efficiency_conversion = 0.45
-    ini.ec_launchers.efficiency_transmission = 0.8
+    ini.ec_launcher[1].power_launched = 2.5e7
+    ini.ec_launcher[1].efficiency_conversion = 0.45
+    ini.ec_launcher[1].efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 2.0e8
     ini.requirements.flattop_duration = 40000.0

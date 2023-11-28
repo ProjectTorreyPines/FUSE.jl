@@ -6,7 +6,7 @@ KDEMO
 Arguments:
 """
 function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(; n_ec=1, n_ic=1)
     act = ParametersActors()
 
     ini.general.casename = "K-DEMO"
@@ -38,7 +38,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
         :lfs_gap_low_temp_shield_TF => 0.17230115364434795,
         :lfs_TF => 0.3074802716013334,
         :gap_cryostat => 1.4221989470234107,
-        :cryostat => 0.21209509270084714,
+        :cryostat => 0.21209509270084714
     )
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = false
@@ -76,14 +76,14 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
 
     ini.tf.n_coils = 18
     # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
-    ini.tf.technology = :KDEMO 
+    ini.tf.technology = :KDEMO
 
     ini.oh.n_coils = 6
     ini.oh.technology = :Nb3Sn
 
-    ini.ec_launchers.power_launched = 5.0e7
+    ini.ec_launcher[1].power_launched = 5.0e7
 
-    ini.ic_antennas.power_launched = 5.0e7
+    ini.ic_antenna[1].power_launched = 5.0e7
 
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 1.1

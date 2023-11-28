@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersAc
     update_build::Entry{Bool} = Entry{Bool}("-", "Optimize tokamak build"; default=true)
 end
 
-mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor
+mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
@@ -93,18 +93,15 @@ function _step(actor::ActorWholeFacility)
     if par.update_build
         actor.HFSsizing = ActorHFSsizing(dd, act)
         actor.LFSsizing = ActorLFSsizing(dd, act)
-    end
-    actor.CXbuild = ActorCXbuild(dd, act)
-    FUSE.ActorFluxSwing(dd, act)
-    FUSE.ActorStresses(dd, act)
-
-    actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
-    if par.update_build && act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
         actor.CXbuild = ActorCXbuild(dd, act)
-        actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act; update_equilibrium=false)
-    end
+        actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
-    actor.PassiveStructures = ActorPassiveStructures(dd, act)
+        actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
+        if act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
+            actor.CXbuild = ActorCXbuild(dd, act)
+            actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act; update_equilibrium=false)
+        end
+    end
 
     actor.Neutronics = ActorNeutronics(dd, act)
 

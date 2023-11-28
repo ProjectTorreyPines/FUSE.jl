@@ -14,7 +14,7 @@ which may or may not exceed the OH critical current limit.""";
     j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH current limit"; default=0.4)
 end
 
-mutable struct ActorFluxSwing{D,P} <: ReactorAbstractActor
+mutable struct ActorFluxSwing{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxSwing{P}
     function ActorFluxSwing(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxSwing{P}; kw...) where {D<:Real,P<:Real}

@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
 end
 
-mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor
+mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTGLF{P}
     input_tglfs::Vector{<:TGLFNN.InputTGLF}

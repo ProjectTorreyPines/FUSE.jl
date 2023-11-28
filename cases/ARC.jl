@@ -4,7 +4,7 @@
 CFS/MIT ARC design
 """
 function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
     ini.general.casename = "ARC"
     ini.general.init_from = :scalars
@@ -71,14 +71,14 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
-    ini.ic_antennas.power_launched = 4 * 1e6 #rf power coupled
+    ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled
 
-    act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
+    act.ActorPFcoilsOpt.symmetric = true
     # act.ActorEquilibrium.model = :CHEASE
 
     set_new_base!(ini)
     set_new_base!(act)
-    
+
     return ini, act
 end
 
@@ -86,5 +86,5 @@ function TraceCAD(::Type{Val{:ARC}})
     x_length = 7.23
     x_offset = 0.57
     y_offset = 0.05
-    TraceCAD(:ARC, x_length, x_offset, y_offset)
+    return TraceCAD(:ARC, x_length, x_offset, y_offset)
 end

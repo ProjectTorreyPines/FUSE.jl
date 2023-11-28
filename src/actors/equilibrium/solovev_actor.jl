@@ -18,7 +18,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor
+mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSolovev{P}
     S::Union{Nothing,MXHEquilibrium.SolovevEquilibrium}
@@ -63,10 +63,7 @@ function _step(actor::ActorSolovev)
     target_pressure_core = eqt.profiles_1d.pressure[1]
 
     # plasma shape as MXH
-    pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
-    pr, pz = IMAS.resample_2d_path(pr, pz)
-    pr, pz = IMAS.reorder_flux_surface!(pr, pz)
-    mxh = IMAS.MXH(pr, pz, 4)
+    mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 4)
     Z0off = mxh.Z0 # Solovev has a bug for Z!=0.0
     mxh.Z0 -= Z0off
     plasma_shape = MXHEquilibrium.MillerExtendedHarmonicShape(mxh.R0, mxh.Z0, mxh.ϵ, mxh.κ, mxh.c0, mxh.c, mxh.s)
@@ -133,7 +130,8 @@ function _finalize(actor::ActorSolovev)
     MXHEquilibrium_to_dd!(dd.equilibrium, mxh_eq, par.ngrid, cocos_in=3)
 
     # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
-    eqt.profiles_2d[1].psi = (eqt.profiles_2d[1].psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+    eqt2d.psi = (eqt2d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
     eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
     # match entry target_pressure and target_j_tor as if Solovev could do this
     if !ismissing(target_pressure)
@@ -187,11 +185,11 @@ function MXHEquilibrium_to_dd!(eq::IMAS.equilibrium, mxh_eq::MXHEquilibrium.Abst
     eqt.profiles_1d.f = MXHEquilibrium.poloidal_current.(mxh_eq, orig_psi) .* (tc["F"] * sign_Bt)
     eqt.profiles_1d.f_df_dpsi = MXHEquilibrium.poloidal_current.(mxh_eq, orig_psi) .* MXHEquilibrium.poloidal_current_gradient.(mxh_eq, orig_psi) .* (tc["F_FPRIME"] * sign_Bt * sign_Ip)
 
-    resize!(eqt.profiles_2d, 1)
-    eqt.profiles_2d[1].grid_type.index = 1
-    eqt.profiles_2d[1].grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
-    eqt.profiles_2d[1].grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * mxh_eq.S.κ)))
-    eqt.profiles_2d[1].psi = [mxh_eq(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt.profiles_2d[1].grid.dim1, zz in eqt.profiles_2d[1].grid.dim2]
+    eqt2d = resize!(eqt.profiles_2d, 1)[1]
+    eqt2d.grid_type.index = 1
+    eqt2d.grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
+    eqt2d.grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * mxh_eq.S.κ)))
+    eqt2d.psi = [mxh_eq(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt2d.grid.dim1, zz in eqt2d.grid.dim2]
 
     IMAS.flux_surfaces(eqt)
 

@@ -370,7 +370,6 @@ Start multiprocessing environment
   - kw arguments are passed to the Distributed.addprocs
 
   - nworkers == 0 uses as many workers as the number of available CPUs
-
   - cpus_per_task can be used to control memory usage
 """
 function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1, kw...)

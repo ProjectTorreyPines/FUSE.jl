@@ -43,7 +43,7 @@ function Base.empty!(trace::PFcoilsOptTrace)
     end
 end
 
-mutable struct ActorPFcoilsOpt{D,P} <: ReactorAbstractActor
+mutable struct ActorPFcoilsOpt{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFcoilsOpt{P}
     eq_in::IMAS.equilibrium{D}
@@ -139,7 +139,7 @@ function _step(actor::ActorPFcoilsOpt{T}) where {T<:Real}
     actor.eq_out = IMAS.lazycopy(dd.equilibrium)
 
     # Get coils (as GS_IMAS_pf_active__coil) organized by their function and initialize them
-    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor, par.optimization_scheme)
+    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor)
     coils = vcat(pinned_coils, optim_coils, fixed_coils)
     for coil in coils
         coil.current_time = actor.eq_in.time
@@ -182,11 +182,9 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
-    update_equilibrium = par.update_equilibrium
-
     coils = GS_IMAS_pf_active__coil{D,D}[]
-    for (k, coil) in enumerate(dd.pf_active.coil)
-        if k <= dd.build.pf_active.rail[1].coils_number
+    for coil in dd.pf_active.coil
+        if IMAS.is_ohmic_coil(coil)
             coil_tech = dd.build.oh.technology
         else
             coil_tech = dd.build.pf_active.technology
@@ -210,17 +208,19 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
         scale_eq_domain_size = 1.0
         R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size; length=length(EQfixed.r))
         Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size; length=length(EQfixed.z))
-        actor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim1 = R
-        actor.eq_out.time_slice[time_index].profiles_2d[1].grid.dim2 = Z
-        actor.eq_out.time_slice[time_index].profiles_2d[1].psi = VacuumFields.fixed2free(EQfixed, coils, R, Z)
+        eqt2d_out = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
+        eqt2d_out.grid.dim1 = R
+        eqt2d_out.grid.dim2 = Z
+        eqt2d_out.psi = VacuumFields.fixed2free(EQfixed, coils, R, Z)
     end
 
     # update psi
-    if update_equilibrium
+    if par.update_equilibrium
         for time_index in eachindex(actor.eq_out.time_slice)
             if !ismissing(actor.eq_out.time_slice[time_index].global_quantities, :ip)
-                psi1 = actor.eq_out.time_slice[time_index].profiles_2d[1].psi
-                actor.eq_in.time_slice[time_index].profiles_2d[1].psi = psi1
+                eqt2d_out = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
+                eqt2d_in = findfirst(:rectangular, actor.eq_in.time_slice[time_index].profiles_2d)
+                eqt2d_in.psi = eqt2d_out.psi
                 IMAS.flux_surfaces(actor.eq_in.time_slice[time_index])
             end
         end
@@ -416,7 +416,7 @@ function optimize_coils_rail(
     packed, bounds = pack_rail(bd, λ_regularize, symmetric)
     trace = PFcoilsOptTrace()
 
-    oh_indexes = [coil.pf_active__coil.name == "OH" for coil in vcat(pinned_coils, optim_coils)]
+    oh_indexes = [IMAS.is_ohmic_coil(coil.pf_active__coil) for coil in vcat(pinned_coils, optim_coils)]
 
     function placement_cost(packed::Vector{Float64}; do_trace::Bool=false)
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
@@ -455,7 +455,7 @@ function optimize_coils_rail(
                     if k1 < k2
                         d = sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
                         s = sqrt((c1.width + c2.width)^2 + (c1.height + c2.height)^2)
-                        if c1.pf_active__coil.name == "OH" && c2.pf_active__coil.name == "OH"
+                        if IMAS.is_ohmic_coil(c1.pf_active__coil) && IMAS.is_ohmic_coil(c2.pf_active__coil)
                         else
                             const_spacing = max(const_spacing, s - d)
                         end
@@ -506,39 +506,6 @@ function optimize_coils_rail(
     return λ_regularize, trace
 end
 
-"""
-    fixed_pinned_optim_coils(actor::ActorPFcoilsOpt, optimization_scheme::Symbol)
-
-Returns tuple of GS_IMAS_pf_active__coil coils organized by their function:
-
-  - fixed: fixed position and current
-  - pinned: coils with fixed position but current is optimized
-  - optim: coils that have theri position and current optimized
-"""
-function fixed_pinned_optim_coils(actor::ActorPFcoilsOpt{D,P}, optimization_scheme::Symbol) where {D<:Real,P<:Real}
-    dd = actor.dd
-    par = actor.par
-
-    fixed_coils = GS_IMAS_pf_active__coil{D,D}[]
-    pinned_coils = GS_IMAS_pf_active__coil{D,D}[]
-    optim_coils = GS_IMAS_pf_active__coil{D,D}[]
-    for (k, coil) in enumerate(dd.pf_active.coil)
-        if k <= dd.build.pf_active.rail[1].coils_number
-            coil_tech = dd.build.oh.technology
-        else
-            coil_tech = dd.build.pf_active.technology
-        end
-        if coil.identifier == "pinned"
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif (coil.identifier == "optim") && (optimization_scheme == :currents)
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif coil.identifier == "optim"
-            push!(optim_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif coil.identifier == "fixed"
-            push!(fixed_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        else
-            error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
-        end
-    end
-    return fixed_coils, pinned_coils, optim_coils
+function fixed_pinned_optim_coils(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
+    return fixed_pinned_optim_coils(actor, actor.par.optimization_scheme, GS_IMAS_pf_active__coil)
 end

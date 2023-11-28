@@ -62,8 +62,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize core sources
-        if !initialize_hardware || !ismissing(ini.ec_launchers, :power_launched) || !ismissing(ini.ic_antennas, :power_launched) || !ismissing(ini.lh_antennas, :power_launched) ||
-           !ismissing(ini.nbi, :power_launched) || !isempty(dd1.core_sources)
+        if !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) || !isempty(dd1.core_sources)
             init_core_sources!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_sources; legend=:topright))
