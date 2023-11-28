@@ -94,27 +94,46 @@ end
 Calculates coil green function at given R and Z coordinate
 """
 function VacuumFields.Green(coil::GS3_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
+    return _gfunc(VacuumFields.Green, coil, R, Z; n_filaments)
+end
+function VacuumFields.dG_dR(coil::GS3_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
+    return _gfunc(VacuumFields.dG_dR, coil, R, Z; n_filaments)
+end
+function VacuumFields.dG_dZ(coil::GS3_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
+    return _gfunc(VacuumFields.dG_dZ, coil, R, Z; n_filaments)
+end
+
+function _gfunc(Gfunc::Function, coil::GS3_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
     green_model = getfield(coil, :green_model)
     if green_model == :point # fastest
-        return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+        return Gfunc(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     elseif green_model ∈ (:corners, :simple) # medium
         if IMAS.is_ohmic_coil(imas(coil))
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
-            return sum(VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
+            return sum(Gfunc(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
 
         elseif green_model == :corners
-            return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
+            return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
 
         elseif green_model == :simple
-            return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+            return Gfunc(coil.r, coil.z, R, Z, coil.turns_with_sign)
         end
 
     elseif green_model == :realistic # high-fidelity
-        return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+        return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 
     else
         error("GS3_IMAS_pf_active__coil green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
+    end
+end
+
+@recipe function plot_coil(C::GS3_IMAS_pf_active__coil)
+    @series begin
+        seriestype --> :scatter
+        marker --> :circle
+        markercolor --> :darkgreen
+        [C.r], [C.z]
     end
 end
 
@@ -258,23 +277,33 @@ end
 Calculates coil green function at given R and Z coordinate
 """
 function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
+    return _gfunc(VacuumFields.Green, coil, R, Z,; n_filaments)
+end
+function VacuumFields.dG_dR(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
+    return _gfunc(VacuumFields.dG_dR, coil, R, Z,; n_filaments)
+end
+function VacuumFields.dG_dZ(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
+    return _gfunc(VacuumFields.dG_dZ, coil, R, Z,; n_filaments)
+end
+
+function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real; n_filaments::Int=3)
     if coil.green_model == :point # fastest
-        return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+        return Gfunc(coil.r, coil.z, R, Z, coil.turns_with_sign)
 
     elseif coil.green_model ∈ (:corners, :simple) # medium
         if IMAS.is_ohmic_coil(coil.pf_active__coil)
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
-            return sum(VacuumFields.Green(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
+            return sum(Gfunc(coil.r, z, R, Z, coil.turns_with_sign / n_filaments) for z in z_filaments)
 
         elseif coil.green_model == :corners
-            return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
+            return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, coil.turns_with_sign / 4)
 
         elseif coil.green_model == :simple
-            return VacuumFields.Green(coil.r, coil.z, R, Z, coil.turns_with_sign)
+            return Gfunc(coil.r, coil.z, R, Z, coil.turns_with_sign)
         end
 
     elseif coil.green_model == :realistic # high-fidelity
-        return VacuumFields.Green(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+        return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
 
     else
         error("GS_IMAS_pf_active__coil coil.green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
