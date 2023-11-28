@@ -34,7 +34,7 @@ function default_limits(dd::IMAS.dd)
     collection.identifier.name = "Default Limits"
     collection.identifier.description = "Uses the default set of models"
 
-    models = [:beta_troyon_1984, :model_201, :model_301, :model_401]
+    models = [:beta_troyon_1984, :q95_gt_2, :gw_density, :κ_controllability]
     return run_stability_models(dd, models)
 end
 
@@ -52,7 +52,7 @@ function current_limits(dd::IMAS.dd)
     collection.identifier.name = "Current Limits"
     collection.identifier.description = "Checks all current limit models"
 
-    models = [:model_201]
+    models = [:q95_gt_2]
     return run_stability_models(dd, models)
 end
 
@@ -61,7 +61,7 @@ function density_limits(dd::IMAS.dd)
     collection.identifier.name = "Density Limits"
     collection.identifier.description = "Checks all density limit models"
 
-    models = [:model_301]
+    models = [:gw_density]
     return run_stability_models(dd, models)
 end
 
@@ -72,7 +72,7 @@ end
 
 Limit in normalized beta using Troyon scaling
 
-Model Formulation: βn < 3.5
+Model formulation: `βn < 3.5`
 
 Citation:  F Troyon et al 1984 Plasma Phys. Control. Fusion 26 209
 """
@@ -93,7 +93,7 @@ end
 
 Limit in normalized beta using classical scaling using combined kink and ballooning stability
 
-Model Formulation: βn < 2.8
+Model formulation: `βn < 2.8`
 
 Citation:
 """
@@ -114,7 +114,7 @@ end
 
 Limit in beta_normal using classical scaling using only kink stability
 
-Model Formulation: βn < 3.2
+Model formulation: `βn < 3.2`
 
 Citation:
 """
@@ -135,7 +135,7 @@ end
 
 Limit in normalized beta using classical scaling using only ballooning stability
 
-Model Formulation: βn < 2.8
+Model formulation: `βn < 2.8`
 
 Citation:
 """
@@ -156,7 +156,7 @@ end
 
 Modern limit in normlaized beta normalized by plasma inductance
 
-Model Formulation: βn / li < C_{beta}
+Model formulation: `βn / li < C_{beta}`
 
 Citation:
 """
@@ -178,59 +178,60 @@ end
 ##### CURRENT LIMIT MODELS #####
 
 """
-    model_201(dd::IMAS.dd)
+    q95_gt_2(dd::IMAS.dd)
 
 Standard limit in edge current via the safety factor
 
-Model Formulation: q95 < 2
+Model formulation: `q95 > 2.0`
 
 Citation:
 """
-function model_201(dd::IMAS.dd)
-    model = resize!(dd.stability.model, :model_201)
+function q95_gt_2(dd::IMAS.dd)
+    model = resize!(dd.stability.model, :q95_gt_2)
     model.identifier.name = "Standard::q95"
     model.identifier.description = "q_95 > 2.0"
 
     q95 = dd.equilibrium.time_slice[].global_quantities.q_95
-    model_value = 1 / abs(q95)
-    target_value = 0.5
+    model_value = abs(q95)
+    target_value = 2.0
 
-    @ddtime(model.fraction = model_value / target_value)
+    @ddtime(model.fraction = target_value / model_value)
 end
 
 """
-    safety_factor_rho_08_lt_2(dd::IMAS.dd)
+    q08_gt_2(dd::IMAS.dd)
 
-Avoid opimizer pushing too much plasma current to "q_95 = 2.0"
+Limit in edge current via the safety factor `q(rho=0.8) > 2.0`
+
+Model formulation: `q(rho=0.8) > 2.0`
 """
-function safety_factor_rho_08_lt_2(dd::IMAS.dd)
-    model = resize!(dd.stability.model, :safety_factor_rho_08_lt_2)
+function q08_gt_2(dd::IMAS.dd)
+    model = resize!(dd.stability.model, :q08_gt_2)
     model.identifier.name = "q(rho=0.8) > 2.0"
     model.identifier.description = "q(rho=0.8) > 2.0"
 
     rho_eq = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
     q_08 = abs.(dd.equilibrium.time_slice[].profiles_1d.q)[argmin(abs.(rho_eq .- 0.8))]
 
-    model_value = 1 / abs(q_08)
-    target_value = 0.5
+    model_value = abs(q_08)
+    target_value = 2.0
 
-    @ddtime(model.fraction = model_value / target_value)
-
+    @ddtime(model.fraction = target_value / model_value)
 end
 
 ##### DENSITY LIMIT MODELS #####
 
 """
-    model_301(dd::IMAS.dd)
+    gw_density(dd::IMAS.dd)
 
 Standard limit in density using IMAS greenwald fraction
 
-Model Formulation: f_{GW,IMAS} < 1.0
+Model formulation: `f_{GW,IMAS} < 1.0`
 
 Citation:
 """
-function model_301(dd::IMAS.dd)
-    model = resize!(dd.stability.model, :model_301)
+function gw_density(dd::IMAS.dd)
+    model = resize!(dd.stability.model, :gw_density)
     model.identifier.name = "Standard::IMAS_Greenwald"
     model.identifier.description = "IMAS.greenwald_fraction < 1.0"
 
@@ -246,8 +247,8 @@ end
 
 ##### SHAPE LIMIT MODELS #####
 
-function model_401(dd::IMAS.dd)
-    model = resize!(dd.stability.model, :model_401)
+function κ_controllability(dd::IMAS.dd)
+    model = resize!(dd.stability.model, :κ_controllability)
     model.identifier.name = "Standard elongation limit"
     model.identifier.description = "elongation < IMAS.elongation_limit"
 
