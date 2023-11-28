@@ -61,9 +61,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     end
     act.ActorEquilibrium.model = :TEQUILA
 
-    ini.equilibrium.ip = t -> 14e6 + ramp((t - 100) / 100.0) * 1E6
-    ini.time.pulse_shedule_time_basis = LinRange(0, 300, 1000)
-    ini.time.simulation_start = 250.0
+    ini.equilibrium.ip = t -> ramp(t / 100.0) * 14E6 + ramp((t - 200) / 100.0) * 1E6
+    ini.time.pulse_shedule_time_basis = LinRange(0, 400, 1000)
+    ini.time.simulation_start = 400.0
 
     # explicitly set thickness of radial build layers
     ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
