@@ -110,7 +110,7 @@ function workflow_multiobjective_optimization(
 
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
     @time state =
-        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, save_dd, p), bounds, algorithm)
+        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, save_dd, p), bounds, algorithm_obj)
     display(state)
 
     return state

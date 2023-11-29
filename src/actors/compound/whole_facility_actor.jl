@@ -95,8 +95,8 @@ function _step(actor::ActorWholeFacility)
         actor.LFSsizing = ActorLFSsizing(dd, act)
     end
     actor.CXbuild = ActorCXbuild(dd, act)
-    FUSE.ActorFluxSwing(dd, act)
-    FUSE.ActorStresses(dd, act)
+    #FUSE.ActorFluxSwing(dd, act)
+    #FUSE.ActorStresses(dd, act)
 
     actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
     if par.update_build && act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall

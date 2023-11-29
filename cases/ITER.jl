@@ -66,10 +66,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     # explicitly set thickness of radial build layers
     ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
-    layers[:gap_OH] = 0.80
-    layers[:OH] = 1.275
-    layers[:gap_OH_TF] = 0.05
-    layers[:hfs_TF] = 1.075
+    layers[:gap_OH] = 1.317
+    layers[:OH] = 0.74
+    layers[:gap_OH_TF] = 0.118
+    layers[:hfs_TF] = 0.909
     layers[:hfs_vacuum_vessel] = 0.30
     layers[:hfs_shield] = 0.40
     layers[:hfs_wall] = 0.1
@@ -77,7 +77,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     layers[:lfs_wall] = 0.1
     layers[:lfs_shield] = 0.40
     layers[:lfs_vacuum_vessel] = 1.05
-    layers[:lfs_TF] = 1.10
+    layers[:lfs_TF] = 0.882
     layers[:gap_cryostat] = 2.34
     layers[:cryostat] = 0.30
     ini.build.n_first_wall_conformal_layers = 3
