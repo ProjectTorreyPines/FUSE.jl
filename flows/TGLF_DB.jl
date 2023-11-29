@@ -27,18 +27,17 @@ function FlowTGLF_DB(flw, act)
     return FlowTGLF_DB(flw, act, DataFrames.DataFrame())
 end
 
-function setup(wf::FlowTGLF_DB)
+function _setup(wf::FlowTGLF_DB)
     println("setting up")
     return wf
 end
 
-function run(wf::FlowTGLF_DB)
+function _run(wf::FlowTGLF_DB)
     println("running FlowTGLF_DB")
     return wf
 end
 
-
-function analyze!(wf::FlowTGLF_DB)
+function _analyze(wf::FlowTGLF_DB)
     println("analyzing FlowTGLF_DB")
     return wf
 end
