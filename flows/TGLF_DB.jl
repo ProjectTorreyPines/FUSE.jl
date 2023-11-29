@@ -1,14 +1,13 @@
 """
     flow_parameters(::Type{Val{:TGLF_DB}})::Tuple{ParametersFlowTGLF_DB, ParametersAllActors}
 """
-function flow_parameters(::Type{Val{:TGLF_DB}})::Tuple{ParametersFlowTGLF_DB, ParametersAllActors}
+function flow_parameters(::Type{Val{:TGLF_DB}})::Tuple{ParametersFlowTGLF_DB,ParametersAllActors}
 
     flw = ParametersFlowTGLF_DB{Real}()
     act = ParametersActors()
 
     #### FLW ####
-    flw.ripple = 1.0
-    flw.settings.server=:localhost
+    flw.settings.server = :localhost
 
     # finalize 
     set_new_base!(flw)
@@ -41,3 +40,4 @@ function _analyze(wf::FlowTGLF_DB)
     println("analyzing FlowTGLF_DB")
     return wf
 end
+
