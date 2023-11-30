@@ -36,7 +36,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                 cp1d.pressure = eqt.profiles_1d.pressure
             else
                 # guess pressure and j_tor from input current and peak pressure
-                psin = LinRange(0.0, 1.0, 129)
+                psin = range(0.0, 1.0, 129)
                 cp1d.grid.rho_tor_norm = psin
                 cp1d.grid.psi = psin
                 cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference.data)

@@ -94,8 +94,8 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 
             # update ψ map
             scale_eq_domain_size = 1.0
-            Rgrid = LinRange(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length(EQfixed.r))
-            Zgrid = LinRange(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length(EQfixed.z))
+            Rgrid = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length(EQfixed.r))
+            Zgrid = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length(EQfixed.z))
             eqt2d_out.grid.dim1 = Rgrid
             eqt2d_out.grid.dim2 = Zgrid
             eqt2d_out.psi = VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)

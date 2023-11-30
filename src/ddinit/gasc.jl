@@ -114,7 +114,7 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     Pavg = gasc.outputs["plasma parameters"]["pressureVolAvg"]
     V = gasc.outputs["plasma parameters"]["plasmaVolume"]
     vol = gasc.outputs["numerical profiles"]["volumeProf"] .* V
-    P1 = sum(IMAS.gradient(vol) .* LinRange(1.0, 0.0, length(vol))) / V
+    P1 = sum(IMAS.gradient(vol) .* range(1.0, 0.0, length(vol))) / V
     ini.equilibrium.pressure_core = Pavg / P1
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6

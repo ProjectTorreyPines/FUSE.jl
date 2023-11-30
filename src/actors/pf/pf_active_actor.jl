@@ -206,8 +206,8 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
 
         # update ψ map
         scale_eq_domain_size = 1.0
-        R = LinRange(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length(EQfixed.r))
-        Z = LinRange(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length(EQfixed.z))
+        R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length(EQfixed.r))
+        Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length(EQfixed.z))
         eqt2d_out = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
         eqt2d_out.grid.dim1 = R
         eqt2d_out.grid.dim2 = Z
@@ -237,13 +237,13 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
         if rail.name !== "OH"
             # not symmetric
             if !symmetric
-                coil_distances = collect(LinRange(-1.0, 1.0, rail.coils_number + 2))[2:end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2:end-1]
                 # even symmetric
             elseif mod(rail.coils_number, 2) == 0
-                coil_distances = collect(LinRange(-1.0, 1.0, rail.coils_number + 2))[2+Int(rail.coils_number // 2):end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2+Int(rail.coils_number // 2):end-1]
                 # odd symmetric
             else
-                coil_distances = collect(LinRange(-1.0, 1.0, rail.coils_number + 2))[2+Int((rail.coils_number - 1) // 2)+1:end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2+Int((rail.coils_number - 1) // 2)+1:end-1]
             end
             append!(distances, coil_distances)
             append!(lbounds, coil_distances .* 0.0 .- 1.0)

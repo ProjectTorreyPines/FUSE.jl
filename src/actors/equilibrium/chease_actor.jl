@@ -131,7 +131,7 @@ function _finalize(actor::ActorCHEASE)
         psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
         psi_a = EQ.psi_rz(EQ.axis...)
         delta = (psi_b - psi_a) / 10.0
-        levels = LinRange(psi_b - delta, psi_b + delta, 11)
+        levels = range(psi_b - delta, psi_b + delta, 11)
         display(contour(EQ.r, EQ.z, transpose(actor.chease.gfile.psirz); levels, aspect_ratio=:equal, clim=(levels[1], levels[end])))
         rethrow(e)
     end

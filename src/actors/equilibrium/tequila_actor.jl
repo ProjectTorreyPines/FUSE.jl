@@ -146,7 +146,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     psit = shot.C[2:2:end, 1]
     psia = psit[1]
     psib = psit[end]
-    eq1d.psi = LinRange(psia, psib, nψ_grid)
+    eq1d.psi = range(psia, psib, nψ_grid)
     rhoi = TEQUILA.ρ.(Ref(shot), eq1d.psi)
     eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), eq1d.psi)
     eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), eq1d.psi)
@@ -163,8 +163,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     eq2d.psi = collect(shot.surfaces')
 
     # RZ
-    Rgrid = LinRange(R0 - Rdim, R0 + Rdim, nr_grid)
-    Zgrid = LinRange(Z0 - Zdim, Z0 + Zdim, nz_grid)
+    Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
+    Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
     eq2d = eqt.profiles_2d[2]
     eq2d.grid.dim1 = Rgrid
     eq2d.grid.dim2 = Zgrid

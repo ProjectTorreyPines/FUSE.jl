@@ -345,7 +345,7 @@ mutable struct intercooler <: component
 end
 
 function circle_coords(xcenter::Float64, ycenter::Float64, r::Float64)
-    ang = LinRange(0, 2 * π, 500)
+    ang = range(0, 2 * π, 500)
     x = xcenter .+ r .* cos.(ang)
     y = ycenter .+ r .* sin.(ang)
     return x, y
@@ -430,8 +430,8 @@ function init_hx(name::String, x::Float64, y::Float64, h::Float64, w::Float64)
     zig_height = half_height / 4
     zig_points = 6
 
-    zig_xpoints = LinRange(-zig_offset, zig_offset, 7) .+ x
-    idx_range = LinRange(1, zig_points + 1.0, zig_points + 1)
+    zig_xpoints = range(-zig_offset, zig_offset, 7) .+ x
+    idx_range = range(1, zig_points + 1.0, zig_points + 1)
     zig_ypoints = real((-1 + 0im) .^ idx_range) .* zig_height
 
     x_top = vcat(left_x, zig_xpoints, right_x)

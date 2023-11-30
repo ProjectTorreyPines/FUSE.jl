@@ -78,7 +78,7 @@ function init_core_profiles!(
     cp1d = resize!(cp.profiles_1d)
     eqt = eq.time_slice[]
 
-    cp1d.grid.rho_tor_norm = LinRange(0, 1, ngrid)
+    cp1d.grid.rho_tor_norm = range(0, 1, ngrid)
     cp1d.zeff = ones(ngrid) .* zeff
     cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / 8, rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
 
