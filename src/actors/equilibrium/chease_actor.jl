@@ -138,10 +138,10 @@ function _finalize(actor::ActorCHEASE)
         gEQDSK2IMAS(actor.chease.gfile, dd.equilibrium)
     catch e
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psib = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
-        psia = EQ.psi_rz(EQ.axis...)
-        delta = (psib - psia) / 10.0
-        levels = LinRange(psib - delta, psib + delta, 11)
+        psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
+        psi_a = EQ.psi_rz(EQ.axis...)
+        delta = (psi_b - psi_a) / 10.0
+        levels = range(psi_b - delta, psi_b + delta, 11)
         display(contour(EQ.r, EQ.z, transpose(actor.chease.gfile.psirz); levels, aspect_ratio=:equal, clim=(levels[1], levels[end])))
         rethrow(e)
     end

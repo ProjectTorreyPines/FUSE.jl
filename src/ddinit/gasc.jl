@@ -114,7 +114,7 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     Pavg = gasc.outputs["plasma parameters"]["pressureVolAvg"]
     V = gasc.outputs["plasma parameters"]["plasmaVolume"]
     vol = gasc.outputs["numerical profiles"]["volumeProf"] .* V
-    P1 = sum(IMAS.gradient(vol) .* LinRange(1.0, 0.0, length(vol))) / V
+    P1 = sum(IMAS.gradient(vol) .* range(1.0, 0.0, length(vol))) / V
     ini.equilibrium.pressure_core = Pavg / P1
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
@@ -406,12 +406,12 @@ function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
         coil_tech = :copper
     else
         if gasc.inputs["conductors"]["superConducting"] == "LTS"
-            coil_tech = :LTS
+            coil_tech = :Nb3Sn
         elseif gasc.inputs["conductors"]["superConducting"] == "HTS"
             coil_tech = :HTS
         end
         if coil_type == :PF # assume PF coils are always LTS
-            coil_tech = :LTS
+            coil_tech = :Nb3Sn
         end
     end
     return coil_tech

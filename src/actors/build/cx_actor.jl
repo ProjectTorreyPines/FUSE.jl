@@ -552,7 +552,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
         target_clearance = lfs_thickness * 1.2
         use_curvature = false
     else
-        use_curvature = true
+        use_curvature = shape_enum == IMAS._rectangle_ ? false : true
         if tight
             target_clearance = min(hfs_thickness, lfs_thickness)
         else

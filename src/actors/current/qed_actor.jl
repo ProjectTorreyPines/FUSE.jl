@@ -58,7 +58,10 @@ function _step(actor::ActorQED)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    if par.Δt == Inf
+    if par.Nt == 0
+        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=true)
+
+    elseif par.Δt == Inf
         # steady state solution
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
 
@@ -99,7 +102,7 @@ function _step(actor::ActorQED)
         actor.QO = QED.steady_state(actor.QO, η; Vedge, Ip=1E3)
 
         #p = hline([1.0]; ls=:dash, color=:black, label="")
-        for (k, tnow) in enumerate(LinRange(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1])
+        for (k, tnow) in enumerate(range(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1])
             Ip = IMAS.get_from(dd, Val{:ip}, :pulse_schedule; time0=tnow)
             evo_t = k / No
             evo_ip = Ip / Ip1
@@ -128,7 +131,7 @@ function _step(actor::ActorQED)
             Ni = par.Nt
         end
 
-        for tnow in LinRange(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1]
+        for tnow in range(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1]
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tnow)
                 Vedge = nothing
@@ -215,7 +218,7 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
         y .*= ρ_j_non_inductive[2]
     end
     if uniform_rho
-        ρ_grid = collect(LinRange(0.0, 1.0, 101))
+        ρ_grid = collect(range(0.0, 1.0, 2001))
     else
         ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
     end
