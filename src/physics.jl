@@ -118,7 +118,7 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         elseif shape_index_mod == Int(_double_ellipse_)
             func = circle_ellipse
         elseif shape_index_mod == Int(_rectangle_)
-            func = (r_start, r_end, height) -> rectangle_shape(r_start, r_end, height; n_points=100)
+            func = rectangle_shape
         elseif shape_index_mod == Int(_triple_arc_)
             func = triple_arc
         elseif shape_index_mod == Int(_miller_)
@@ -458,6 +458,8 @@ end
 Asymmetric rectangular shape
 """
 function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5, resolution::Float64=1.0) where {T<:Real}
+    n_points = Int(round(n_points * resolution))
+    n_points = max(5, n_points)
     if n_points == 5
         R = [r_start, r_end, r_end, r_start, r_start]
         Z = [z_low, z_low, z_high, z_high, z_low]
