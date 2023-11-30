@@ -58,7 +58,10 @@ function _step(actor::ActorQED)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    if par.Δt == Inf
+    if par.Nt == 0
+        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=true)
+
+    elseif par.Δt == Inf
         # steady state solution
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
 
