@@ -120,6 +120,7 @@ include(joinpath("actors", "compound", "whole_facility_actor.jl"))
 #= ========== =#
 include("parameters_inits.jl")
 include("parameters_actors.jl")
+include("parameters_workflows.jl")
 include("signal.jl")
 
 #= ============ =#
