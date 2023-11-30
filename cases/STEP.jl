@@ -10,7 +10,9 @@ function case_parameters(::Type{Val{:STEP}})::Tuple{ParametersAllInits,Parameter
     act = ParametersActors()
 
     ini.general.casename = "STEP"
-    ini.general.init_from = :scalars
+    ini.general.init_from = :ods
+    ini.equilibrium.boundary_from = :scalars
+    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "STEP_pf_active.json")
     N = 1 
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_OH => 1.180137712438599/N,
@@ -42,7 +44,7 @@ function case_parameters(::Type{Val{:STEP}})::Tuple{ParametersAllInits,Parameter
     )
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = false
-    ini.build.divertors = :lower
+    ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 2
 
     ini.material.wall = "Tungsten"
@@ -71,15 +73,17 @@ function case_parameters(::Type{Val{:STEP}})::Tuple{ParametersAllInits,Parameter
     ini.core_profiles.helium_fraction = 0.01
 
     ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 6
+    ini.pf_active.n_coils_outside = 12
     ini.pf_active.technology = :HTS
 
     ini.tf.n_coils = 18
     # Table 2, NF 55 (2015) 053027 - STEP TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
     ini.tf.technology = :HTS
 
-    ini.oh.n_coils = 6
+    ini.oh.n_coils = 12
     ini.oh.technology = :HTS
+    act.ActorPFcoilsOpt.symmetric = true
+    act.ActorEquilibrium.symmetrize = true
 
     ini.ec_launcher[1].power_launched = 150.e6 #  some at rho = 0.7 with a 0.2 width
                                                # some in core 

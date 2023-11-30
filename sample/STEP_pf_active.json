@@ -1,0 +1,693 @@
+{
+    "pf_active": {
+        "coil": [
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": -8.87134703196347,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": -7.258374844333748,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": -5.645402656704026,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": -4.0324304690743045,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": -2.4194582814445824,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": -0.8064860938148604,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": 0.8064860938148595,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": 2.4194582814445824,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": 4.0324304690743045,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": 5.645402656704027,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": 7.258374844333748,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 1.503881278538813,
+                                "z": 8.87134703196347,
+                                "r": 0.5,
+                                "width": 0.15038812785388128
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    },
+                    {
+                        "index": 0,
+                        "description": "OH"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": -8.6986301369863,
+                                "r": 2.0257510729613735,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": 8.698630136986301,
+                                "r": 2.060085836909871,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": 9.520547945205479,
+                                "r": 3.948497854077253,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": -9.520547945205479,
+                                "r": 4.085836909871245,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": -9.623287671232877,
+                                "r": 6.798283261802575,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": 9.623287671232875,
+                                "r": 6.832618025751072,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": 6.369863013698629,
+                                "r": 6.832618025751072,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": -6.404109589041095,
+                                "r": 6.832618025751072,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": 2.1232876712328768,
+                                "r": 8.309012875536478,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            },
+            {
+                "element": [
+                    {
+                        "geometry": {
+                            "rectangle": {
+                                "height": 0.3,
+                                "z": -2.089041095890412,
+                                "r": 8.309012875536478,
+                                "width": 0.3
+                            },
+                            "geometry_type": 2
+                        }
+                    }
+                ],
+                "function": [
+                    {
+                        "index": 1,
+                        "description": "PF"
+                    }
+                ],
+                "current": {
+                    "data": [
+                        0.0
+                    ],
+                    "time": [
+                        0.0
+                    ]
+                }
+            }
+        ]
+    },
+    "global_time": 0.0
+}
