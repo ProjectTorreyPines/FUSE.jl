@@ -96,7 +96,7 @@ function init_pf_active!(
     bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
     bd.pf_active.rail[1].outline.r = ones(length(z_ohcoils)) * r_oh
     bd.pf_active.rail[1].outline.z = z_ohcoils
-    bd.pf_active.rail[1].outline.distance = range(-1, 1; length=n_coils[1])
+    bd.pf_active.rail[1].outline.distance = LinRange(-1, 1, n_coils[1])
     for z_oh in z_ohcoils
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
@@ -111,7 +111,7 @@ function init_pf_active!(
         @ddtime pf_active.coil[k].current.data = 0.0
     end
 
-    # coils_cleareance is an array the lenght of the PF rails
+    # coils_cleareance is an array the length of the PF rails
     if pf_coils_size === nothing
         pf_coils_size = sqrt(w_oh * h_oh)
     end
@@ -215,7 +215,7 @@ function init_pf_active!(
         end
 
         # uniformely distribute coils
-        coils_distance = range(-(1 - 0.25 / nc), 1 - 0.25 / nc; length=nc)
+        coils_distance = LinRange(-(1 - 0.25 / nc), 1 - 0.25 / nc, nc)
         r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
         z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
         z_coils = [abs(z) < 1E-6 ? 0.0 : z for z in z_coils]

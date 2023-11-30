@@ -176,7 +176,7 @@ function MXHEquilibrium_to_dd!(eq::IMAS.equilibrium, mxh_eq::MXHEquilibrium.Abst
     eqt.global_quantities.ip = Ip
     eqt.boundary.geometric_axis.r = mxh_eq.S.R0
     eqt.boundary.geometric_axis.z = Z0
-    orig_psi = collect(range(MXHEquilibrium.psi_limits(mxh_eq)..., length=ngrid))
+    orig_psi = collect(LinRange(MXHEquilibrium.psi_limits(mxh_eq)..., ngrid))
     eqt.profiles_1d.psi = orig_psi * (tc["PSI"] * sign_Ip)
 
     eqt.profiles_1d.pressure = MXHEquilibrium.pressure.(mxh_eq, orig_psi)
@@ -187,8 +187,8 @@ function MXHEquilibrium_to_dd!(eq::IMAS.equilibrium, mxh_eq::MXHEquilibrium.Abst
 
     eqt2d = resize!(eqt.profiles_2d, 1)[1]
     eqt2d.grid_type.index = 1
-    eqt2d.grid.dim1 = range(rlims[1], rlims[2], length=ngrid)
-    eqt2d.grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, length=Int(ceil(ngrid * mxh_eq.S.κ)))
+    eqt2d.grid.dim1 = LinRange(rlims[1], rlims[2], ngrid)
+    eqt2d.grid.dim2 = LinRange(zlims[1] + Z0, zlims[2] + Z0, Int(ceil(ngrid * mxh_eq.S.κ)))
     eqt2d.psi = [mxh_eq(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt2d.grid.dim1, zz in eqt2d.grid.dim2]
 
     IMAS.flux_surfaces(eqt)

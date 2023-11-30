@@ -76,8 +76,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             end
         elseif shape_index_mod == Int(_spline_)
             n = 1
-            R = range(r_start, r_end; length=2 + n)[2:end-1]
-            Z = range(height / 2.0, height / 2.0; length=2 + n)[2:end-1]
+            R = LinRange(r_start, r_end, 2 + n)[2:end-1]
+            Z = LinRange(height / 2.0, height / 2.0, 2 + n)[2:end-1]
             shape_parameters = Float64[0.8]
             for (r, z) in zip(R, Z)
                 append!(shape_parameters, [r, z])
@@ -463,16 +463,16 @@ function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::In
         Z = [z_low, z_low, z_high, z_high, z_low]
     else
         R = vcat(
-            range(r_start, r_end; length=n_points),
-            range(r_end, r_end; length=n_points)[2:end],
-            range(r_end, r_start; length=n_points)[2:end],
-            range(r_start, r_start; length=n_points)[2:end],
+            LinRange(r_start, r_end, n_points),
+            LinRange(r_end, r_end, n_points)[2:end],
+            LinRange(r_end, r_start, n_points)[2:end],
+            LinRange(r_start, r_start, n_points)[2:end],
             r_start)
         Z = vcat(
-            range(z_low, z_low; length=n_points),
-            range(z_low, z_high; length=n_points)[2:end],
-            range(z_high, z_high; length=n_points)[2:end],
-            range(z_high, z_low; length=n_points)[2:end],
+            LinRange(z_low, z_low, n_points),
+            LinRange(z_low, z_high, n_points)[2:end],
+            LinRange(z_high, z_high, n_points)[2:end],
+            LinRange(z_high, z_low, n_points)[2:end],
             z_low)
     end
     return R, Z
@@ -570,7 +570,7 @@ Miller shape
 function miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=201, resolution::Float64=1.0) where {T<:Real}
     n_points = Int(floor(n_points * resolution) / 2) * 2 + 1
 
-    θ = range(0, 2 * pi; length=n_points)
+    θ = LinRange(0, 2π, n_points)
     triangularity = mirror_bound(triangularity, -1.0, 1.0)
     δ₀ = asin(triangularity)
     R = R0 * (1 .+ rmin_over_R0 .* cos.(θ .+ δ₀ * sin.(θ)))
