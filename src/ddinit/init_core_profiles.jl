@@ -32,7 +32,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         if init_from == :scalars
 
             # set core_profiles to match P_fusion requested
-            if !ismissing(getproperty(ini.requirements, :power_electric_net, missing)) && act.ActorCoreTransport.model == :FluxMatcher
+            if !ismissing(getproperty(ini.requirements, :power_electric_net, missing)) && !ismissing(getproperty(ini.equilibrium, :pressure_core, missing))
                 Pfusion_estimate = ini.requirements.power_electric_net / 0.4
                 res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd, ini), [ini.equilibrium.pressure_core], Optim.NelderMead(),Optim.Options(g_tol=1E-3))
                 pressure_core = abs(res.minimizer[1])
