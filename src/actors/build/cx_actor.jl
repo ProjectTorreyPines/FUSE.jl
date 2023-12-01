@@ -494,7 +494,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
     iout = IMAS.get_build_indexes(bd.layer, fs=_out_)
     if lowercase(bd.layer[iout[end]].name) == "cryostat"
         olfs = IMAS.get_build_indexes(bd.layer, fs=_lfs_)[end]
-        optimize_shape(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]-1].shape, 1000), 100)))
+        optimize_shape(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]].shape, 1000), 100)))
         for k in reverse(iout[2:end])
             optimize_shape(bd, k, k - 1, _negative_offset_)
         end
