@@ -735,6 +735,20 @@ function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{
 end
 
 """
+    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+
+Limit maximum curvature of a polygon described by x,y arrays
+"""
+function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    @assert max_curvature > 0.0
+    poly = xy_polygon(x, y)
+    poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature), max_curvature)
+    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
+    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    return x_b, y_b
+end
+
+"""
     volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{<:IMAS.build__structure})
 
 Returns volume of the layer without structures

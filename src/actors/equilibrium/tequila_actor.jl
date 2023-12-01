@@ -75,7 +75,13 @@ function _step(actor::ActorTEQUILA)
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z; n_points=500, curvature_weight=0.8)
+        # kmin = argmin(pz)
+        # @views pr[kmin] = sum(pr[kmin-1:kmin+1]) / 3.0
+        # @views pz[kmin] = sum(pz[kmin-1:kmin+1]) / 3.0
         mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
+        # p=scatter(pr, pz)
+        # plot!(p, mxh, lw=2)
+        # display(p)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve
         concentric_first = true
@@ -179,13 +185,23 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         fraction = 0.05
         Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=2)
 
-        if isempty(dd.pf_active.coil)
-            n_coils = 100
-            eq2d.psi .= VacuumFields.encircling_fixed2free(shot, n_coils, Rgrid, Zgrid; Rx, Zx, ψbound=psib)
-        else
-            coils = IMAS_pf_active__coils(dd; green_model=:simple)
-            eq2d.psi .= VacuumFields.encircling_fixed2free(shot, coils, Rgrid, Zgrid; Rx, Zx, ψbound=psib)
-        end
+        # Flux Control Points
+        flux_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
+        append!(flux_cps, VacuumFields.boundary_control_points(shot, 0.999, psib))
+        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib) ])
+
+        # Saddle Control Points
+        saddle_weight = length(flux_cps)
+        saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+
+        n_coils = 100
+        coils = isempty(dd.pf_active.coil) ? VacuumFields.encircling_coils(shot, n_coils) : IMAS_pf_active__coils(dd; green_model=:simple)
+
+        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; flux_cps, saddle_cps, ψbound=psib, λ_regularize=1e-16)
+
+        eq2d.psi .= psi_free_rz'
+
+
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
 
     else
