@@ -45,6 +45,8 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars)::Tuple{
             ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
         end
 
+        ini.equilibrium.pressure_core = 1.175e6
+
         ini.general.dd = dd
         ini.general.init_from = :ods
     end
@@ -99,7 +101,6 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.equilibrium.ϵ = 1 / 1.8
     ini.equilibrium.κ = 2.93
     ini.equilibrium.δ = 0.59
-    ini.equilibrium.pressure_core = 964500.0
     ini.equilibrium.ip = 20.9e6
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
@@ -122,12 +123,13 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.tf.shape = :rectangle
 
     act.ActorPFcoilsOpt.symmetric = true
-    #    act.ActorEquilibrium.symmetrize = true
+    act.ActorEquilibrium.symmetrize = true
 
     ini.ec_launcher[1].power_launched = 150.e6 #  some at rho = 0.7 with a 0.2 width some in core 
 
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 1.1
+    ini.requirements.power_electric_net = 100e6
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
