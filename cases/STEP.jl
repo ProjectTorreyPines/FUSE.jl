@@ -93,10 +93,6 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 5
 
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "lithium-lead"
-    ini.material.shield = "Steel, Stainless 316"
-
     ini.equilibrium.B0 = 3.2
     ini.equilibrium.R0 = 3.6
     ini.equilibrium.ϵ = 1 / 1.8

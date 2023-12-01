@@ -165,63 +165,6 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:
     n_first_wall_conformal_layers::Entry{Int} = Entry{Int}("-", "Number of layers that are conformal to the first wall"; default=1)
 end
 
-"""
-This allows users to initialize layers from a dictionary
-"""
-function Base.setproperty!(parameters_build::FUSE.FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
-    @assert field == :layers
-    for (k, (name, thickness)) in enumerate(layers)
-        layer = FUSEparameters__build_layer{T}()
-        push!(parameters_build.layers, layer)
-
-        # name
-        layer.name = replace(string(name), "_" => " ")
-
-        # thickness
-        layer.thickness = thickness
-
-        # type
-        if occursin("gap ", lowercase(layer.name))
-            layer.type = :gap
-        elseif lowercase(layer.name) == "plasma"
-            layer.type = :plasma
-        elseif uppercase(layer.name) == "OH"
-            layer.type = :oh
-        elseif occursin("TF", uppercase(layer.name))
-            layer.type = :tf
-        elseif occursin("shield", lowercase(layer.name))
-            layer.type = :shield
-        elseif occursin("blanket", lowercase(layer.name))
-            layer.type = :blanket
-        elseif occursin("wall", lowercase(layer.name))
-            layer.type = :wall
-        elseif occursin("vessel", lowercase(layer.name))
-            layer.type = :vessel
-        elseif occursin("cryostat", lowercase(layer.name))
-            layer.type = :cryostat
-        end
-
-        # side
-        if occursin("hfs", lowercase(layer.name))
-            layer.side = :hfs
-        elseif occursin("lfs", lowercase(layer.name))
-            layer.side = :lfs
-        else
-            if layer.type == :plasma
-                layer.side = :lhfs
-            elseif k < length(layers) / 2
-                layer.side = :in
-            elseif k > length(layers) / 2
-                layer.side = :out
-            end
-        end
-    end
-end
-
-function Base.to_index(layers::Vector{FUSE.FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
-    return findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
-end
-
 Base.@kwdef mutable struct FUSEparameters__gasc{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :gasc

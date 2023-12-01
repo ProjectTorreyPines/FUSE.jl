@@ -5,7 +5,7 @@ The purpose of this function is to setting `ini` values based on what is in the 
 thus simplifying the logic of the init functions after it which only have to look at ini values
 """
 function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
-    if !ismissing(ini.general.dd)
+    if !ismissing(ini.general, :dd)
         dd1 = ini.general.dd
 
     elseif ini.general.init_from != :ods

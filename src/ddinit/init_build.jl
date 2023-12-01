@@ -74,7 +74,7 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !isempty(dd1.wall)
+            if !isempty(dd1.wall.description_2d)
                 dd.wall = dd1.wall
             end
             if length(dd1.build.layer) > 0
@@ -201,6 +201,67 @@ function init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_laye
 end
 
 """
+This allows users to initialize layers from a dictionary
+"""
+function Base.setproperty!(parameters_build::FUSE.FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+    @assert field == :layers
+    for (k, (name, thickness)) in enumerate(layers)
+        layer = FUSEparameters__build_layer{T}()
+        push!(parameters_build.layers, layer)
+
+        # name
+        layer.name = replace(string(name), "_" => " ")
+
+        # thickness
+        layer.thickness = thickness
+
+        # type
+        if occursin("gap ", lowercase(layer.name))
+            layer.type = :gap
+        elseif lowercase(layer.name) == "plasma"
+            layer.type = :plasma
+        elseif uppercase(layer.name) == "OH"
+            layer.type = :oh
+        elseif occursin("TF", uppercase(layer.name))
+            layer.type = :tf
+        elseif occursin("shield", lowercase(layer.name))
+            layer.type = :shield
+        elseif occursin("blanket", lowercase(layer.name))
+            layer.type = :blanket
+        elseif occursin("wall", lowercase(layer.name))
+            layer.type = :wall
+        elseif occursin("vessel", lowercase(layer.name))
+            layer.type = :vessel
+        elseif occursin("cryostat", lowercase(layer.name))
+            layer.type = :cryostat
+        end
+
+        # side
+        if occursin("hfs", lowercase(layer.name))
+            layer.side = :hfs
+        elseif occursin("lfs", lowercase(layer.name))
+            layer.side = :lfs
+        else
+            if layer.type == _plasma_
+                layer.side = :lhfs
+            elseif k < length(layers) / 2
+                layer.side = :in
+            elseif k > length(layers) / 2
+                layer.side = :out
+            end
+        end
+    end
+end
+
+function Base.to_index(layers::Vector{FUSE.FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+    tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
+    if tmp === nothing
+        error("Valid ini.build.layers are: $([Symbol(replace(layer.name," " => "_")) for layer in layers])")
+    end
+    return tmp
+end
+
+"""
     scale_build_layers!(layers::Vector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
 
 Scale build layers thicknesses so that the plasma equilibrium is in the middle of the plasma layer
@@ -223,6 +284,28 @@ function scale_build_layers!(layers::Vector{<:FUSEparameters__build_layer}, R0::
             layers[k].thickness = 2.0 * (a + gap)
         else
             layers[k].thickness = layer.thickness * factor
+        end
+    end
+end
+
+function scale_build_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
+    gap = a * gap_fraction
+    plasma_start = R0 - a - gap
+    layer_plasma_start = 0.0
+    for (layer, thickness) in layers
+        if layer == :plasma
+            break
+        end
+        if thickness > 0.0
+            layer_plasma_start += thickness
+        end
+    end
+    factor = plasma_start / layer_plasma_start
+    for (layer, thickness) in layers
+        if layer == :plasma
+            layers[layer] = 2.0 * (a + gap)
+        else
+            layers[layer] = thickness * factor
         end
     end
 end
@@ -287,31 +370,11 @@ function mechanical_technology(dd::IMAS.dd, what::Symbol)
 end
 
 """
-    layers_meters_from_fractions(
-        plasma_rmin::Float64,
-        plasma_rmax::Float64,
-        plasma_gap::Float64;
-        blanket::Float64,
-        shield::Float64,
-        vessel::Float64,
-        pf_inside_tf::Bool,
-        pf_outside_tf::Bool)
+    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
 
 Handy functino for initialization of layers based on few scalars
 """
-function layers_meters_from_fractions(
-    plasma_rmin::Float64,
-    plasma_rmax::Float64,
-    plasma_gap::Float64;
-    blanket::Float64,
-    shield::Float64,
-    vessel::Float64,
-    pf_inside_tf::Bool,
-    pf_outside_tf::Bool)
-
-    gap = (plasma_rmax - plasma_rmin) / 2.0 * plasma_gap
-    rmin = plasma_rmin - gap
-    rmax = plasma_rmax + gap
+function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
 
     # express layer thicknesses as fractions
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
@@ -346,13 +409,12 @@ function layers_meters_from_fractions(
         layers[:lfs_vacuum_vessel_wall_outer] = vessel * 0.1
     end
     layers[:lfs_TF] = 1.0
-    layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 3 : 1)
     if blanket > 0.0
+        layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 3 : 1)
         layers[:cryostat] = 0.5
+    else
+        layers[:gap_world] = 1.0 * (pf_outside_tf ? 3 : 1)
     end
-
-    # from fractions to meters
-    scale_build_layers!(layers, (rmax + rmin) / 2.0, (rmax - rmin) / 2.0, 0.0)
 
     return layers
 end

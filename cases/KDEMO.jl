@@ -45,10 +45,6 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.build.divertors = :lower
     ini.build.n_first_wall_conformal_layers = 2
 
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "lithium-lead"
-    ini.material.shield = "Steel, Stainless 316"
-
     ini.equilibrium.B0 = 7.5
     ini.equilibrium.R0 = 6.8
     ini.equilibrium.ϵ = 0.3088235294117647

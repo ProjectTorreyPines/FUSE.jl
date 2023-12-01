@@ -53,7 +53,7 @@ end
 
 Map GASC inputs and solution to FUSE input scalar parameters
 """
-function case_parameters(gasc::GASC)
+function case_parameters(gasc::GASC; add_wall_layers::Float64=0.0)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -62,7 +62,7 @@ function case_parameters(gasc::GASC)
     ini.general.casename = gasc.data["LABEL"]
     ini.general.init_from = :scalars
 
-    gasc_2_build(gasc, ini, act)
+    gasc_2_build(gasc, ini, act; add_wall_layers)
 
     gasc_2_requirement(gasc, ini, act)
 
@@ -230,8 +230,14 @@ end
 
 Convert radial build information in GASC solution to FUSE `ini` and `act` parameters
 """
-function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    ini.build.layers = gasc_2_layers(gasc)
+function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors; add_wall_layers::Float64)
+    layers = gasc_2_layers(gasc)
+    if add_wall_layers > 0.0
+        gasc_add_wall_layers!(layers; thickness=add_wall_layers)
+        ini.build.n_first_wall_conformal_layers = 2
+    end
+    ini.build.layers = layers
+
     ini.build.symmetric = (mod(gasc.inputs["divertor metrics"]["numberDivertors"], 2) == 0)
 
     ini.tf.technology = gasc_2_coil_technology(gasc, :TF)
