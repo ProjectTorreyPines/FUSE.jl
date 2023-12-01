@@ -19,8 +19,9 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
     init_from::Switch{Symbol} = Switch{Symbol}(
         [
             :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
-            :scalars => "Initialize FUSE run from scalar parameters"
+            :scalars => "Initialize FUSE run from scalar parameters",
         ], "-", "Initialize run from")
+    dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "dd to initialize from after fixes")
 end
 
 Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}
