@@ -1167,10 +1167,15 @@ function free_boundary_private_flux_constraint(
     upper_x_point::Bool,
     lower_x_point::Bool,
     fraction::Float64=0.25,
-    n_points::Int=10
-) where {T<:Real}
+    n_points::Int=10) where {T<:Real}
+
     Rp = T[]
     Zp = T[]
+    
+    if fraction <= 0.0
+        return Rp, Zp
+    end
+
     for x_point in [-1, 1]
 
         if x_point == -1 && !lower_x_point
