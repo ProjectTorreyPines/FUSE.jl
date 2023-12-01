@@ -77,7 +77,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         init_currents!(dd, ini, act, dd1)
 
         # initialize build
-        if initialize_hardware && (!ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || !isempty(dd1.build))
+        if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
             init_build!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)

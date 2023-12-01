@@ -524,13 +524,13 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     obstr = bd.layer[obstr_index]
     # display("Layer $layer_index = $(layer.name)")
     # display("Obstr $obstr_index = $(obstr.name)")
-    if layer.fs == Int(_out_)
+    if layer.side == Int(_out_)
         l_start = 0.0
         l_end = layer.end_radius
         o_start = 0.0
         o_end = obstr.end_radius
     else
-        if obstr.fs in (Int(_lhfs_), Int(_out_))
+        if obstr.side in (Int(_lhfs_), Int(_out_))
             o_start = obstr.start_radius
             o_end = obstr.end_radius
         else
@@ -548,7 +548,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     lfs_thickness = l_end - o_end
     oR = obstr.outline.r
     oZ = obstr.outline.z
-    if layer.fs == Int(_out_)
+    if layer.side == Int(_out_)
         target_clearance = lfs_thickness * 1.2
         use_curvature = false
     else

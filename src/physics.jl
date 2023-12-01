@@ -761,9 +761,9 @@ function layer_structure_intersect_volume(layer::IMAS.build__layer, structure::I
         return layer.volume
     elseif layer.type ∈ (Int(_tf_), Int(_plasma_))
         return layer.volume
-    elseif layer.fs ∈ (Int(_hfs_), Int(_lfs_))
+    elseif layer.side ∈ (Int(_hfs_), Int(_lfs_))
         i = IMAS.index(layer)
-        if layer.fs == Int(_hfs_)
+        if layer.side == Int(_hfs_)
             layer_in = IMAS.parent(layer)[i+1]
         else
             layer_in = IMAS.parent(layer)[i-1]
