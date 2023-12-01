@@ -75,6 +75,7 @@ function _step(actor::ActorTEQUILA)
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z; n_points=500, curvature_weight=0.8)
+        pr, pz = limit_curvature(pr, pz, 0.5)
         # kmin = argmin(pz)
         # @views pr[kmin] = sum(pr[kmin-1:kmin+1]) / 3.0
         # @views pz[kmin] = sum(pz[kmin-1:kmin+1]) / 3.0
@@ -194,13 +195,15 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         saddle_weight = length(flux_cps)
         saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
-        n_coils = 100
-        coils = isempty(dd.pf_active.coil) ? VacuumFields.encircling_coils(shot, n_coils) : IMAS_pf_active__coils(dd; green_model=:simple)
+        if isempty(dd.pf_active.coil)
+            n_coils = 100
+            coils = VacuumFields.encircling_coils(shot, n_coils)
+        else
+            coils = IMAS_pf_active__coils(dd; green_model=:simple)
+        end
 
-        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; flux_cps, saddle_cps, ψbound=psib, λ_regularize=1e-16)
-
+        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; flux_cps, saddle_cps, ψbound=psib, λ_regularize=-1.0)
         eq2d.psi .= psi_free_rz'
-
 
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
 

@@ -152,7 +152,10 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
 
     # boundary
-    eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
+    r_bound, z_bound = IMAS.boundary(pc)
+    #r_bound, z_bound = limit_curvature(r_bound, z_bound, 0.5)
+    eqt.boundary.outline.r = r_bound
+    eqt.boundary.outline.z = z_bound
 
     # x-points
     if length(getproperty(pc, :x_point, [])) >= 1

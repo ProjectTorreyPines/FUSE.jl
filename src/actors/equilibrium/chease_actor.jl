@@ -52,8 +52,9 @@ function _step(actor::ActorCHEASE)
     eq1d = eqt.profiles_1d
 
     # boundary
-    r_bound = eqt.boundary.outline.r
-    z_bound = eqt.boundary.outline.z
+    pr = eqt.boundary.outline.r
+    pz = eqt.boundary.outline.z
+    pr, pz = limit_curvature(pr, pz, 0.5)
 
     # scalars
     Ip = eqt.global_quantities.ip
@@ -75,12 +76,12 @@ function _step(actor::ActorCHEASE)
     try
         actor.chease = CHEASE.run_chease(
             ϵ, z_geo, pressure_sep, Bt_geo,
-            r_geo, Ip, r_bound, z_bound, 82,
+            r_geo, Ip, pr, pz, 82,
             rho_pol, pressure, j_tor;
             par.rescale_eq_to_ip,
             par.clear_workdir)
     catch e
-        display(plot(r_bound, z_bound; marker=:dot, aspect_ratio=:equal))
+        display(plot(pr, pz; marker=:dot, aspect_ratio=:equal))
         display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
         display(plot(rho_pol, j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
         rethrow(e)
@@ -107,7 +108,7 @@ function _finalize(actor::ActorCHEASE)
         Rb, Zb = eqt.boundary.outline.r, eqt.boundary.outline.z
         upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
         lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
-        fraction = 0.05
+        fraction = 0.00
         Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=2)
 
         # Flux Control Points
@@ -119,12 +120,23 @@ function _finalize(actor::ActorCHEASE)
         saddle_weight = length(flux_cps)
         saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
-        n_coils = 100
-        coils = isempty(dd.pf_active.coil) ? VacuumFields.encircling_coils(EQ, n_coils) : IMAS_pf_active__coils(dd; green_model=:simple)
+        # Coils locations
+        if isempty(dd.pf_active.coil)
+            n_coils = 100
+            coils = VacuumFields.encircling_coils(EQ, n_coils)
+        else
+            coils = IMAS_pf_active__coils(dd; green_model=:simple)
+        end
 
-        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; flux_cps, saddle_cps, ψbound=psib, λ_regularize=1e-16)
+        #display(contour(EQ.r, EQ.z,actor.chease.gfile.psirz';aspect_ratio=:equal,levels=range(-7,15,100)))
 
+        # from fixed boundary to free boundary via VacuumFields
+        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; flux_cps, saddle_cps, ψbound=psib, λ_regularize=-1.0)
         actor.chease.gfile.psirz .= psi_free_rz'
+
+        #p=contour(EQ.r, EQ.z,actor.chease.gfile.psirz';aspect_ratio=:equal,levels=range(-7,15,100))
+        #plot!(coils)
+        #display(p)
 
         # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
