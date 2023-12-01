@@ -1,4 +1,4 @@
-const supported_coils_techs = [:copper, :LTS, :ITER, :KDEMO, :HTS]
+const supported_coils_techs = [:copper, :aluminum, :LTS, :ITER, :KDEMO, :HTS]
 
 """
 Material properties
@@ -37,6 +37,12 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
     if technology == :copper
         coil_tech.material = "Copper"
         coil_tech.temperature = 293.0
+        coil_tech.fraction_steel = 0.0
+        coil_tech.fraction_void = 0.1
+
+    elseif technology == :aluminum 
+        coil_tech.material = "Aluminum"
+        coil_tech.temperature = 313.15 # from PROCESS, centerpost coolant inlet temperature
         coil_tech.fraction_steel = 0.0
         coil_tech.fraction_void = 0.1
 
@@ -267,6 +273,9 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
     if coil_tech.material == "Copper"
         Jcrit = 18.5e6 # A/m^2
         return Jcrit * fraction_conductor, Inf # A/m^2
+    elseif coil_tech.material == "Aluminum"
+        Jcrit = 7.4e6 # A/m^2 - the current carrying capacity of aluminum is ~40% that of copper
+        return Jcrit * fraction_conductor, Inf
     else
         if coil_tech.material == "Nb3Sn"
             Jcrit_SC, Bext_Bcrit_ratio = Nb3Sn_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2

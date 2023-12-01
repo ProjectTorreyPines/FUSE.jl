@@ -70,8 +70,9 @@ function _step(actor::ActorPowerNeeds)
             sys = resize!(bop_electric.system, "name" => string(system), "index" => idx)
             if system == :pumping
                 @ddtime(sys.power = electricity(:pumping, dd.balance_of_plant))
+            elseif system == :cryostat
+                @ddtime(sys.power = electricity(Val{:cryostat}, dd))
             else
-
                 @ddtime(sys.power = electricity(system))
             end
         end
@@ -127,8 +128,39 @@ end
 #= =================== =#
 
 # Dummy functions values taken from DEMO 2017  https://iopscience.iop.org/article/10.1088/0029-5515/57/1/016011
-function electricity(::Type{Val{:cryostat}})
-    return 30e6 # We
+function electricity(::Type{Val{:cryostat}}, dd::IMAS.dd)
+    if dd.build.pf_active.technology.material == "Aluminum" || dd.build.oh.technology.material == "Aluminum" || dd.build.tf.technology.material == "Aluminum"
+        shield_fraction_steel = 0.1
+        shield_layers = IMAS.get_build_layers(dd.build.layer, type=IMAS._shield_, fs=IMAS._hfs_)
+        thickness = [layer.thickness for layer in shield_layers]
+        shield_width = sum(thickness)
+        effective_shield_width = shield_width * (1 - shield_fraction_steel)
+
+        neutron_power = sum(dd.neutronics.time_slice[].wall_loading.power) / length(dd.neutronics.time_slice[].wall_loading.power) # does an average make sense here? 
+        centerpost_tf_heating = (neutron_power / 800) * exp(3.882 - 16.69 * effective_shield_width)
+
+        centerpost_average_temperature = 373.15 # 100 degrees Celsius
+        tf_coil_resistivity = (2.00016e-14 * centerpost_average_temperature^3 - 6.75384e-13 * centerpost_average_temperature^2 + 8.89159e-12 * centerpost_average_temperature)
+
+        plasma = IMAS.get_build_layer(dd.build.layer, type=_plasma_)
+        R0 = (plasma.end_radius + plasma.start_radius) / 2.0
+        B0 = maximum(abs, dd.equilibrium.vacuum_toroidal_field.b0)
+
+        # summed current in TF coils
+        tf_total_current = (B0 * R0 * 2π / constants.μ_0 ) / 1e6
+
+        tf_length = 4.7e1 # placeholder
+        tf_leg_conductor_area = 5 # placeholder 
+
+        tf_resistive_power_loss = tf_coil_resistivity * tf_total_current^2 * tf_length / (tf_leg_conductor_area * dd.build.tf.coils_n)
+
+        heat_removal_power_cryoAl = tf_resistive_power_loss + centerpost_tf_heating
+
+        cryo_power = 30e6 + ((293 - 31) / (0.4 * 31)) * (heat_removal_power_cryoAl*1e6)
+    else
+        cryo_power = 30e6 # We
+    end
+    return cryo_power
 end
 
 function electricity(::Type{Val{:tritium_handling}})
