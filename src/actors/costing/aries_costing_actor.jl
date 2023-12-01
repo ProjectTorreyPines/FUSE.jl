@@ -59,7 +59,7 @@ function _step(actor::ActorARIESCosting)
     # build layers
     tokamak = resize!(cost_direct.system, "name" => "tokamak")
     for layer in dd.build.layer
-        if layer.fs == Int(_lfs_)
+        if layer.side == Int(_lfs_)
             continue # avoid double counting of hfs and lfs layers
         elseif layer.type == Int(_oh_)
             continue # avoid double counting of oh

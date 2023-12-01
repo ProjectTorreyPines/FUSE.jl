@@ -28,6 +28,9 @@ include("technology.jl")
 #= ====== =#
 #  DDINIT  #
 #= ====== =#
+include("signal.jl")
+include("parameters_inits.jl")
+
 include(joinpath("ddinit", "init.jl"))
 include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
@@ -89,6 +92,7 @@ include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
+include(joinpath("actors", "transport", "flux_capacitor_actor.jl"))
 include(joinpath("actors", "transport", "fixed_profiles_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
@@ -114,12 +118,7 @@ include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))
 include(joinpath("actors", "compound", "dynamic_plasma_actor.jl"))
 include(joinpath("actors", "compound", "whole_facility_actor.jl"))
 
-#= ========== =#
-#  PARAMETERS  #
-#= ========== =#
-include("parameters_inits.jl")
 include("parameters_actors.jl")
-include("signal.jl")
 
 #= ============ =#
 #  OPTIMIZATION  #
@@ -129,6 +128,7 @@ include("optimization.jl")
 #= ========= =#
 #  WORKFLOWS  #
 #= ========= =#
+include("parameters_workflows.jl")
 include(joinpath("workflows", "optimization_workflow.jl"))
 include(joinpath("workflows", "DB5_validation_workflow.jl"))
 

@@ -1,6 +1,78 @@
 using Weave: Weave
 using DelimitedFiles: DelimitedFiles
 
+# ========== #
+# Checkpoint #
+# ========== #
+"""
+Provides handy checkpoint capabilities of `dd`, `ini`, `act`
+
+It essentially behaves like a ordered dictionary, with the difference that it does deepcopy on getindex and setindex!
+
+Sample usage in a Jupyter notebook:
+
+    chk = FUSE.Checkpoint()
+    ...init...
+    chk[:init] = dd, ini, act; # store
+
+    --------
+
+    dd, ini, act = chk[:init] # restore
+    ...something...
+    chk[:something] = dd, ini, act; # store
+
+    --------
+
+    dd = chk[:something].dd # restore only dd
+    ...something_else...
+    chk[:something_else] = dd # store only dd
+
+    --------
+
+    dd = chk[:something_else].dd # restore only dd
+    ...something_else_more...
+"""
+Base.@kwdef struct Checkpoint
+    history::OrderedCollections.OrderedDict = OrderedCollections.OrderedDict()
+end
+
+function Base.setindex!(chk::Checkpoint, dd::IMAS.dd, key::Symbol)
+    return chk.history[key] = (dd=deepcopy(dd),)
+end
+
+function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd{D},ParametersInits{P},ParametersActors{P}}, key::Symbol) where {D<:Real,P<:Real}
+    return chk.history[key] = (dd=deepcopy(dd_ini_act[1]), ini=deepcopy(dd_ini_act[2]), act=deepcopy(dd_ini_act[3]))
+end
+
+function Base.getindex(chk::Checkpoint, key::Symbol)
+    return deepcopy(chk.history[key])
+end
+
+function Base.show(io::IO, chk::Checkpoint)
+    for (k, v) in chk.history
+        TPs = map(typeof, v)
+        what = String[]
+        if any(tp <: IMAS.dd for tp in TPs)
+            push!(what, "dd")
+        end
+        if any(tp <: ParametersInits for tp in TPs)
+            push!(what, "ini")
+        end
+        if any(tp <: ParametersActors for tp in TPs)
+            push!(what, "act")
+        end
+        println(io, "$(repr(k)) => $(join(what,", "))")
+    end
+    return
+end
+
+# Generate the delegated methods (NOTE: these methods do not require deepcopy)
+for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
+    @eval function Base.$func(chk::Checkpoint, args...; kw...)
+        return $func(chk.history, args...; kw...)
+    end
+end
+
 # ===================================== #
 # extract data from FUSE save folder(s) #
 # ===================================== #

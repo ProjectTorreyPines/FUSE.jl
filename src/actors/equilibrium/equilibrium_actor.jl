@@ -152,7 +152,10 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
 
     # boundary
-    eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
+    r_bound, z_bound = IMAS.boundary(pc)
+    #r_bound, z_bound = limit_curvature(r_bound, z_bound, 0.5)
+    eqt.boundary.outline.r = r_bound
+    eqt.boundary.outline.z = z_bound
 
     # x-points
     if length(getproperty(pc, :x_point, [])) >= 1
@@ -215,11 +218,11 @@ Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
 function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
     eqt2d = findfirst(:rectangular, eqt.profiles_2d)
-    dim1 = range(eqt2d.grid.dim1[1], eqt2d.grid.dim1[end]; length=length(eqt2d.grid.dim1))
+    dim1 = range(eqt2d.grid.dim1[1], eqt2d.grid.dim1[end], length(eqt2d.grid.dim1))
     @assert collect(dim1) ≈ eqt2d.grid.dim1
-    dim2 = range(eqt2d.grid.dim2[1], eqt2d.grid.dim2[end]; length=length(eqt2d.grid.dim2))
+    dim2 = range(eqt2d.grid.dim2[1], eqt2d.grid.dim2[end], length(eqt2d.grid.dim2))
     @assert collect(dim2) ≈ eqt2d.grid.dim2
-    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end]; length=length(eqt.profiles_1d.psi))
+    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length(eqt.profiles_1d.psi))
     @assert collect(psi) ≈ eqt.profiles_1d.psi
 
     return MXHEquilibrium.efit(

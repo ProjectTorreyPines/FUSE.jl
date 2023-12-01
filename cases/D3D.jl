@@ -2,7 +2,7 @@ sample_path = joinpath(@__DIR__, "..", "sample")
 shot_details = Dict(
     :H_mode => Dict(:time0 => 2.7, :filename => joinpath(sample_path, "D3D_standard_Hmode.json")),
     :L_mode => Dict(:time0 => 2.0, :filename => joinpath(sample_path, "D3D_standard_Lmode.json")),
-    :default => Dict(:time0 => 0.0, :filename => joinpath(sample_path, "D3D_eq_ods.json"))
+    :default => Dict(:time0 => 1.0, :filename => joinpath(sample_path, "D3D_eq_ods.json"))
 )
 """
     case_parameters(:D3D)
@@ -11,9 +11,9 @@ DIII-D
 
 Arguments:
 
-  - `scenario`: `:H_mode`, `:L_mode` or :default (loads an experimental d3d case)
+  - scenario: `:H_mode`, `:L_mode` or `:default` (loads an experimental d3d case)
 """
-function case_parameters(::Type{Val{:D3D}}; scenario=:H_mode)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_nb=1)
     act = ParametersActors()
 
@@ -24,11 +24,10 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:H_mode)::Tuple{ParametersA
     ini.ods.filename = shot_details[scenario][:filename]
     ini.time.simulation_start = shot_details[scenario][:time0]
 
-    ini.build.blanket = 0.0
-    ini.build.shield = 0.0
-    ini.build.vessel = 0.0
+    ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
+    ini.build.layers[:hfs_wall].material = "Carbon, Graphite (reactor grade)"
+
     ini.build.n_first_wall_conformal_layers = 2
-    ini.material.wall = "Carbon, Graphite (reactor grade)"
     act.ActorCXbuild.rebuild_wall = false
     ini.build.divertors = :double
 
