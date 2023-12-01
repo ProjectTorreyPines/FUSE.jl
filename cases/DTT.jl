@@ -6,13 +6,12 @@ DTT
 function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1)
     act = ParametersActors()
+
     ini.general.casename = "DTT"
     ini.general.init_from = :scalars
 
     ini.build.symmetric = true
     ini.build.divertors = :double
-    ini.material.wall = "Tungsten"
-    ini.material.shield = "Steel, Stainless 316"
 
     ini.equilibrium.B0 = 5.85
     ini.equilibrium.ip = 5.5e6
@@ -34,7 +33,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     # explicitly set thickness of radial build layers
     # ==============
-    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.45
     layers[:OH] = 0.325
 
@@ -52,6 +51,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     layers[:gap_cryostat] = 0.5
     layers[:cryostat] = 0.10
+    ini.build.layers = layers
     # ==============
     ini.build.n_first_wall_conformal_layers = 2
 

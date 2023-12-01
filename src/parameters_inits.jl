@@ -2,15 +2,14 @@ using FusionMaterials: FusionMaterials
 import OrderedCollections
 import SimulationParameters: SwitchOption
 
-const tf_shape_options = OrderedCollections.OrderedDict{Symbol,SwitchOption}(
-    :princeton_D => SwitchOption(_princeton_D_, "princeton_D"),
-    :princeton_D_scaled => SwitchOption(_princeton_D_scaled_, "princeton_D_scaled"),
-    :rectangle => SwitchOption(_rectangle_, "rectangle"),
-    :double_ellipse => SwitchOption(_double_ellipse_, "double_ellipse"),
-    :triple_arc => SwitchOption(_triple_arc_, "triple_arc"),
-    :miller => SwitchOption(_miller_, "miller"),
-    :square_miller => SwitchOption(_square_miller_, "square_miller"),
-    :spline => SwitchOption(_spline_, "spline"))
+import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_
+import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _triple_arc_,
+    _miller_, _square_miller_, _spline_, _silo_
+
+const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
+const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
+const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerSide))
 
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
@@ -19,8 +18,9 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
     init_from::Switch{Symbol} = Switch{Symbol}(
         [
             :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
-            :scalars => "Initialize FUSE run from scalar parameters"
+            :scalars => "Initialize FUSE run from scalar parameters",
         ], "-", "Initialize run from")
+    dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "dd to initialize from after fixes")
 end
 
 Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}
@@ -28,14 +28,6 @@ Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:R
     _name::Symbol = :time
     pulse_shedule_time_basis::Entry{AbstractRange{Float64}} = Entry{AbstractRange{Float64}}("s", "Time basis used to discretize the pulse schedule")
     simulation_start::Entry{Float64} = Entry{Float64}("s", "Time at which the simulation starts"; default=0.0)
-end
-
-Base.@kwdef mutable struct FUSEparameters__material{T} <: ParametersInit where {T<:Real}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :material
-    wall::Switch{String} = Switch{String}(FusionMaterials.available_materials("wall_materials"), "-", "Material used for the wall")
-    blanket::Switch{String} = Switch{String}(FusionMaterials.available_materials("blanket_materials"), "-", "Material used for blanket coils")
-    shield::Switch{String} = Switch{String}(FusionMaterials.available_materials("shield_materials"), "-", "Material used for the shield")
 end
 
 Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit where {T<:Real}
@@ -91,7 +83,7 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
     n_coils::Entry{Int} = Entry{Int}("-", "Number of TF coils")
-    shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(tf_shape_options, "-", "Shape of the TF coils"; default=:double_ellipse)
+    shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the TF coils"; default=:double_ellipse)
     ripple::Entry{T} = Entry{T}("-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01)
     technology::Switch{Symbol} = Switch{Symbol}(supported_coils_techs, "-", "TF coils technology")
 end
@@ -148,14 +140,25 @@ Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit where
     efficiency_coupling::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :coupling; default=1.0)
 end
 
+Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :layer
+    name::Entry{String} = Entry{String}("-", "Name of the layer")
+    thickness::Entry{Float64} = Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)")
+    material::Switch{String} = Switch{String}(
+        FusionMaterials.available_materials(["blanket_materials", "shield_materials", "structural_materials", "wall_materials", "plasma_material"]),
+        "-",
+        "Material of the layer"
+    )
+    shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the layer")
+    type::Switch{BuildLayerType} = Switch{BuildLayerType}(layer_type_options, "-", "Type of the layer")
+    side::Switch{BuildLayerSide} = Switch{BuildLayerSide}(layer_side_options, "-", "Side of the layer")
+end
+
 Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
-    layers::Entry{OrderedCollections.OrderedDict{Symbol,Float64}} =
-        Entry{OrderedCollections.OrderedDict{Symbol,Float64}}("m", "Sorted dictionary of layers thicknesses in radial build")
-    blanket::Entry{T} = Entry{T}("-", "Fraction of blanket in radial build")
-    shield::Entry{T} = Entry{T}("-", "Fraction of shield in radial build")
-    vessel::Entry{T} = Entry{T}("-", "Fraction of vessel in radial build")
+    layers::ParametersVector{FUSEparameters__build_layer{T}} = ParametersVector{FUSEparameters__build_layer{T}}()
     plasma_gap::Entry{T} = Entry{T}("-", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1)
     symmetric::Entry{Bool} = Entry{Bool}("-", "Is the build up-down symmetric")
     divertors::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none, :from_x_points], "-", "Divertors configuration"; default=:from_x_points)
@@ -202,7 +205,6 @@ mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     gasc::FUSEparameters__gasc{T}
     ods::FUSEparameters__ods{T}
     build::FUSEparameters__build{T}
-    material::FUSEparameters__material{T}
     equilibrium::FUSEparameters__equilibrium{T}
     core_profiles::FUSEparameters__core_profiles{T}
     pf_active::FUSEparameters__pf_active{T}
@@ -225,7 +227,6 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0
         FUSEparameters__gasc{T}(),
         FUSEparameters__ods{T}(),
         FUSEparameters__build{T}(),
-        FUSEparameters__material{T}(),
         FUSEparameters__equilibrium{T}(),
         FUSEparameters__core_profiles{T}(),
         FUSEparameters__pf_active{T}(),

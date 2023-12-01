@@ -241,7 +241,7 @@ end
 
     @series begin
         seriestype --> :histogram2d
-        nbins := (LinRange(minimum(r), maximum(r), length(r) - 1), LinRange(minimum(z), maximum(z), length(z) - 1))
+        nbins := (range(minimum(r), maximum(r), length(r) - 1), range(minimum(z), maximum(z), length(z) - 1))
         aspect_ratio := :equal
         grid := false
         weights := zeros(N) .+ plot_norm

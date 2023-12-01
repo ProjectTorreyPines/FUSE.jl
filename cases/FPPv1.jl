@@ -4,9 +4,10 @@
 GA 2022 FPP design
 
 Arguments:
-* `version`: `:v1` or `:v1_demount`
-* `init_from`: `:scalars` or `:ods`
-* `STEP`: plasma parameters to match STEP modeling
+
+  - `version`: `:v1` or `:v1_demount`
+  - `init_from`: `:scalars` or `:ods`
+  - `STEP`: plasma parameters to match STEP modeling
 """
 function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol, STEP::Bool=true)::Tuple{ParametersAllInits,ParametersAllActors}
     if version == :v1
@@ -19,7 +20,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
 
     # load data from FPP GASC run
     gasc = GASC(joinpath(@__DIR__, "..", "sample", filename), case)
-    ini, act = case_parameters(gasc)
+    ini, act = case_parameters(gasc; add_wall_layers=0.02)
     ini.general.casename = "FPP_$(version)_$(init_from)"
     ini.general.init_from = init_from
 
@@ -51,10 +52,6 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
-
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "lithium-lead"
-    ini.material.shield = "Steel, Stainless 316"
 
     act.ActorPFcoilsOpt.symmetric = true
 
@@ -102,12 +99,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
 
     # set density evolution for ActorFluxMatcher
     act.ActorFluxMatcher.evolve_densities = :flux_match
-
-    # add wall layer
-    if true
-        gasc_add_wall_layers!(ini.build.layers; thickness=0.02)
-        ini.build.n_first_wall_conformal_layers = 2
-    end
+    act.ActorTGLF.user_specified_model = "sat2_em_d3d"
 
     # bucking
     ini.center_stack.bucked = false

@@ -14,14 +14,8 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.ods.filename = joinpath(@__DIR__, "..", "sample", "CAT_eq_ods.json")
     ini.time.simulation_start = 0.006
 
-    ini.build.blanket = 1.0
-    ini.build.shield = 0.5
-    ini.build.vessel = 0.125
+    ini.build.layers = layers_meters_from_fractions(; blanket=1.0, shield=0.5, vessel=0.125, pf_inside_tf=false, pf_outside_tf=true)
     ini.build.n_first_wall_conformal_layers = 2
-
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "lithium-lead"
-    ini.material.shield = "Steel, Stainless 316"
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0

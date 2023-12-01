@@ -50,10 +50,6 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.build.divertors = :lower
     ini.build.n_first_wall_conformal_layers = 2
 
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "lithium-lead"
-    ini.material.shield = "Steel, Stainless 316"
-
     ini.equilibrium.B0 = 4.713171689711136
     ini.equilibrium.R0 = 4.824432302041749
     ini.equilibrium.ϵ = 0.2857142857142857
@@ -79,7 +75,7 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
-    ini.pf_active.technology = :LTS
+    ini.pf_active.technology = :Nb3Sn
 
     ini.tf.n_coils = 16
     ini.tf.technology = :HTS

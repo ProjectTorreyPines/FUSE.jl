@@ -22,7 +22,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
 
     # explicitly set thickness of 
     ini.build.n_first_wall_conformal_layers = 3
-    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.38
     layers[:OH] = 0.30
     layers[:hfs_TF] = 0.40
@@ -33,8 +33,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     layers[:gap_lfs_coils] = 0.34
     layers[:lfs_TF] = 0.60
     layers[:gap_cryostat] = 0.7
-    ini.material.wall = "Tungsten"
-    #ini.material.shield = "Steel, Stainless 316"
+    ini.build.layers = layers
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 6

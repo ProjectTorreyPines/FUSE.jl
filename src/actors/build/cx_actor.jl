@@ -494,7 +494,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
     iout = IMAS.get_build_indexes(bd.layer, fs=_out_)
     if lowercase(bd.layer[iout[end]].name) == "cryostat"
         olfs = IMAS.get_build_indexes(bd.layer, fs=_lfs_)[end]
-        optimize_shape(bd, olfs, iout[end], _silo_)
+        optimize_shape(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]].shape, 1000), 100)))
         for k in reverse(iout[2:end])
             optimize_shape(bd, k, k - 1, _negative_offset_)
         end
@@ -524,13 +524,13 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     obstr = bd.layer[obstr_index]
     # display("Layer $layer_index = $(layer.name)")
     # display("Obstr $obstr_index = $(obstr.name)")
-    if layer.fs == Int(_out_)
+    if layer.side == Int(_out_)
         l_start = 0.0
         l_end = layer.end_radius
         o_start = 0.0
         o_end = obstr.end_radius
     else
-        if obstr.fs in (Int(_lhfs_), Int(_out_))
+        if obstr.side in (Int(_lhfs_), Int(_out_))
             o_start = obstr.start_radius
             o_end = obstr.end_radius
         else
@@ -548,11 +548,11 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     lfs_thickness = l_end - o_end
     oR = obstr.outline.r
     oZ = obstr.outline.z
-    if layer.fs == Int(_out_)
+    if layer.side == Int(_out_)
         target_clearance = lfs_thickness * 1.2
         use_curvature = false
     else
-        use_curvature = true
+        use_curvature = shape_enum == IMAS._rectangle_ ? false : true
         if tight
             target_clearance = min(hfs_thickness, lfs_thickness)
         else
