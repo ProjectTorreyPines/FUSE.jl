@@ -195,6 +195,9 @@ function init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_laye
         if !ismissing(ini_layer, :material)
             layer.material = ini_layer.material
         end
+        if !ismissing(ini_layer, :shape)
+            layer.shape = Int(ini_layer.shape)
+        end
     end
 
     return bd
@@ -234,6 +237,7 @@ function Base.setproperty!(parameters_build::FUSE.FUSEparameters__build{T}, fiel
             layer.type = :vessel
         elseif occursin("cryostat", lowercase(layer.name))
             layer.type = :cryostat
+            layer.shape = :silo
         end
 
         # side

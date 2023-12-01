@@ -10,7 +10,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars)::Tuple{
         rho = cp1d.grid.rho_tor_norm
 
         cp1d.zeff = ones(length(rho)) .* ini.core_profiles.zeff
-        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core , length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
+        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
 
         # Set ions:
         bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
@@ -52,7 +52,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars)::Tuple{
 end
 
 
-
 """
     case_parameters(:STEP)
 
@@ -66,6 +65,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     #### INI ####
 
     ini.general.casename = "STEP"
+    ini.general.init_from = :scalars
     ini.ods.filename = joinpath(@__DIR__, "..", "sample", "STEP_starting_point.json")
 
     ini.build.layers = OrderedCollections.OrderedDict(
@@ -88,6 +88,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
         :gap_cryostat => 1.5,
         :cryostat => 0.2
     )
+    ini.build.layers[:gap_cryostat].shape = :rectangle
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = true
     ini.build.divertors = :double
