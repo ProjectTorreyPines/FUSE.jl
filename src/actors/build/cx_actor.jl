@@ -151,12 +151,13 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         circle_z = sign(Zx) .* divertor_length .* sin.(t) .+ Zx
         circle = collect(zip(circle_r, circle_z))
         circle[1] = circle[end]
-        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
-        pr1 = [rr for (rr, zz) in slot]
-        pz1 = [zz for (rr, zz) in slot]
+        inner_slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
+        pr1 = [rr for (rr, zz) in inner_slot]
+        pz1 = [zz for (rr, zz) in inner_slot]
         if isempty(pr1)
             continue
         end
+        inner_slot_poly = xy_polygon(convex_hull(pr1, pz1; closed_polygon=true))
 
         # do not add more than one private flux region for each of the x-points
         if Zx > Z0
@@ -174,7 +175,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         # remove private flux region from wall (necessary because of Z expansion)
         # this may fail if the private region is small or weirdly shaped
         try
-            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr1, pz1))
+            wall_poly = LibGEOS.difference(wall_poly, inner_slot_poly)
         catch e
             if typeof(e) <: LibGEOS.GEOSError
                 continue
@@ -189,8 +190,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         pz2 = vcat(pz1, Z0 * α + Zx * (1 - α))
 
         slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
-        inner_slot = xy_polygon(convex_hull(pr1, pz1; closed_polygon=true))
-        slot = LibGEOS.difference(slot_convhull, inner_slot)
+        slot = LibGEOS.difference(slot_convhull, inner_slot_poly)
         slot = LibGEOS.buffer(slot, a)
 
         scale = 1.001
