@@ -50,6 +50,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars)::Tuple{
         ini.general.dd = dd
         ini.general.init_from = :ods
     end
+
     return ini, act
 end
 
@@ -111,6 +112,12 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.impurity = :Ne
     ini.core_profiles.helium_fraction = 0.01
 
+    ini.core_profiles.greenwald_fraction = 1.0
+    ini.core_profiles.greenwald_fraction_ped = 0.7
+    ini.core_profiles.T_ratio = 1.0
+    ini.core_profiles.T_shaping = 2.5
+    ini.core_profiles.n_shaping = 1.1
+
     ini.oh.n_coils = 8
     ini.oh.technology = :HTS
 
@@ -129,7 +136,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
 
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.power_electric_net = 100e6
+    ini.requirements.power_electric_net = 1.0E9
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
