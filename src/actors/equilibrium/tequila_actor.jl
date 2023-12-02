@@ -75,7 +75,7 @@ function _step(actor::ActorTEQUILA)
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z; n_points=500, curvature_weight=0.8)
-        pr, pz = limit_curvature(pr, pz, 0.5)
+        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
         # kmin = argmin(pz)
         # @views pr[kmin] = sum(pr[kmin-1:kmin+1]) / 3.0
         # @views pz[kmin] = sum(pz[kmin-1:kmin+1]) / 3.0
@@ -189,7 +189,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         # Flux Control Points
         flux_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
         append!(flux_cps, VacuumFields.boundary_control_points(shot, 0.999, psib))
-        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib) ])
+        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib)])
 
         # Saddle Control Points
         saddle_weight = length(flux_cps)
