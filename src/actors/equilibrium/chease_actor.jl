@@ -54,7 +54,7 @@ function _step(actor::ActorCHEASE)
     # boundary
     pr = eqt.boundary.outline.r
     pz = eqt.boundary.outline.z
-    pr, pz = limit_curvature(pr, pz, 0.5)
+    pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
 
     # scalars
     Ip = eqt.global_quantities.ip
@@ -99,6 +99,7 @@ function _finalize(actor::ActorCHEASE)
 
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psib = 0.0# MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
+        ψbound = 0.0
 
         eqt = dd.equilibrium.time_slice[]
         z_geo = eqt.boundary.geometric_axis.z
@@ -108,13 +109,13 @@ function _finalize(actor::ActorCHEASE)
         Rb, Zb = eqt.boundary.outline.r, eqt.boundary.outline.z
         upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
         lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
-        fraction = 0.00
+        fraction = 0.05
         Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=2)
 
         # Flux Control Points
         flux_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
         append!(flux_cps, VacuumFields.boundary_control_points(EQ, 0.999, psib))
-        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib) ])
+        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib)])
 
         # Saddle Control Points
         saddle_weight = length(flux_cps)
@@ -133,16 +134,6 @@ function _finalize(actor::ActorCHEASE)
         # from fixed boundary to free boundary via VacuumFields
         psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; flux_cps, saddle_cps, ψbound=psib, λ_regularize=-1.0)
         actor.chease.gfile.psirz .= psi_free_rz'
-
-        #p=contour(EQ.r, EQ.z,actor.chease.gfile.psirz';aspect_ratio=:equal,levels=range(-7,15,100))
-        #plot!(coils)
-        #display(p)
-
-        # retrace the last closed flux surface (now with x-point) and scale psirz so to match original psi bounds
-        EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psib = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
-        psia = EQ.psi_rz(EQ.axis...)
-        actor.chease.gfile.psirz = (psi_free_rz' .- psia) * ((actor.chease.gfile.psi[end] - actor.chease.gfile.psi[1]) / (psib - psia)) .+ actor.chease.gfile.psi[1]
     end
 
     # Convert gEQDSK data to IMAS
@@ -156,6 +147,10 @@ function _finalize(actor::ActorCHEASE)
         levels = range(psi_b - delta, psi_b + delta, 11)
         display(contour(EQ.r, EQ.z, transpose(actor.chease.gfile.psirz); levels, aspect_ratio=:equal, clim=(levels[1], levels[end])))
         rethrow(e)
+    end
+
+    if par.free_boundary
+        IMAS.tweak_psi_to_match_psilcfs!(dd.equilibrium.time_slice[]; ψbound)
     end
 
     return actor
