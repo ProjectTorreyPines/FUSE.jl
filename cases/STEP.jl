@@ -134,6 +134,8 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
 
+    act.ActorStabilityLimits.models = Symbol[]
+
     set_new_base!(ini)
     set_new_base!(act)
 
