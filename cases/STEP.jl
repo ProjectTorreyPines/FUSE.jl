@@ -121,7 +121,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.oh.n_coils = 8
     ini.oh.technology = :HTS
 
-    ini.pf_active.n_coils_inside = 10
+    ini.pf_active.n_coils_inside = 6
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :HTS
 

@@ -81,9 +81,30 @@ function _step(actor::ActorCXbuild)
 end
 
 """
+    segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_error::T; symmetric::Bool=false) where {T<:Real}
+
+Generate a segmented first wall outline starting from an equilibrium boundary
+"""
+function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_error::T; symmetric::Bool=false) where {T<:Real}
+    mxh = IMAS.MXH(eq_r, eq_z, 4)
+    Θ = LinRange(-π / 2 * 3 / 2, π / 2 * 3 / 2, 100)
+    R = [r for (r, z) in mxh.(Θ)]
+    Z = [z for (r, z) in mxh.(Θ)]
+    Z = (Z .- mxh.Z0) .* 1.1 .+ mxh.Z0
+    R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
+    R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_error)
+    if symmetric
+        R = (R .+ reverse(R)) / 2.0
+        Z = ((Z .- mxh.Z0) .- reverse(Z .- mxh.Z0)) / 2.0 .+ mxh.Z0
+    end
+    R, Z = FUSE.buffer(R, Z, gap)
+    return R, Z
+end
+
+"""
     wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_divertor_length_fraction_z_plasma::Real=0.2)
 
-Generate first wall outline starting from an equilibrium
+Generate first wall and divertors outline starting from an equilibrium
 """
 function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_divertor_length_fraction_z_plasma::Real=0.2)
     R0 = eqt.global_quantities.magnetic_axis.r
@@ -95,16 +116,13 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
 
     # Set the radial build thickness of the plasma
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
-    a = (minimum(rlcfs) - plasma.start_radius)
-    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2.0 * a
+    gap = (minimum(rlcfs) - plasma.start_radius)
+    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2.0 * gap
     R_hfs_plasma = plasma.start_radius
     R_lfs_plasma = plasma.end_radius
 
     # main chamber (clip elements that go beyond plasma radial build thickness)
-    R, Z = buffer(rlcfs, zlcfs, a)
-    R[R.<R_hfs_plasma] .= R_hfs_plasma
-    R[R.>R_lfs_plasma] .= R_lfs_plasma
-    Z = (Z .- Z0) .* 1.05 .+ Z0
+    R, Z = segmented_wall(rlcfs, zlcfs, gap, 0.3)
     wall_poly = xy_polygon(R, Z)
 
     t = LinRange(0, 2π, 31)
@@ -191,13 +209,13 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
 
         slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
         slot = LibGEOS.difference(slot_convhull, inner_slot_poly)
-        slot = LibGEOS.buffer(slot, a)
+        slot = LibGEOS.buffer(slot, gap)
 
         scale = 1.001
         Rc1, Zc1 = IMAS.centroid(pr1, pz1)
         pr3 = vcat((pr1 .- Rc1) .* scale .+ Rc1, reverse(pr1))
         pz3 = vcat((pz1 .- Zc1) .* scale .+ Zc1, reverse(pz1))
-        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), a))
+        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), gap))
 
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
@@ -215,8 +233,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100.0)...))
 
     # round corners
-    wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
-    wall_poly = LibGEOS.buffer(wall_poly, a / 4)
+    wall_poly = LibGEOS.buffer(wall_poly, -gap / 4)
+    wall_poly = LibGEOS.buffer(wall_poly, gap / 4)
 
     pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
