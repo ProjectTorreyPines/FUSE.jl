@@ -72,8 +72,8 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.ods.filename = joinpath(@__DIR__, "..", "sample", "STEP_starting_point.json")
 
     ini.build.layers = OrderedCollections.OrderedDict(
-        :gap_OH => 0.2984356197352587,
-        :OH => 0.13477737665463296,
+        :gap_OH => 0.233,
+        :OH => 0.133,
         :gap_TF_OH => 0.016847172081829065,
         :hfs_TF => 0.4043321299638989,
         :hfs_gap_coils => 0.0,
@@ -102,15 +102,15 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.equilibrium.ϵ = 1 / 1.8
     ini.equilibrium.κ = 2.93
     ini.equilibrium.δ = 0.59
-    ini.equilibrium.ip = 20.9e6
+    ini.equilibrium.ip = 21.1e6 # from PyTok
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
 
-    ini.core_profiles.zeff = 2.0 # unkown
+    ini.core_profiles.zeff = 2.5 # from PyTok
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = :Ne
-    ini.core_profiles.helium_fraction = 0.01
+    ini.core_profiles.impurity = :Ne #Barium :Ba
+    ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
 
     ini.core_profiles.greenwald_fraction = 1.0
     ini.core_profiles.greenwald_fraction_ped = 0.7
@@ -136,7 +136,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
 
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.power_electric_net = 1.0E9
+    ini.requirements.power_electric_net = 236e6 # from PyTok
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
