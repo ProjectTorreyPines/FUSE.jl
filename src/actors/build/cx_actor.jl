@@ -81,23 +81,32 @@ function _step(actor::ActorCXbuild)
 end
 
 """
-    segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_error::T; symmetric::Bool=false) where {T<:Real}
+    segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_relative_error::T; symmetric::Union{Bool,Nothing}=nothing) where {T<:Real}
 
 Generate a segmented first wall outline starting from an equilibrium boundary
+
+If `symmetric === nothing` then symmetry of the plasma is automatically determined
 """
-function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_error::T; symmetric::Bool=false) where {T<:Real}
+function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_relative_error::T; symmetric::Union{Bool,Nothing}=nothing) where {T<:Real}
     mxh = IMAS.MXH(eq_r, eq_z, 4)
+
+    if symmetric === nothing
+        symmetric = sum(abs.(mxh.c)) < 1E-3
+    end
+
     Θ = LinRange(-π / 2 * 3 / 2, π / 2 * 3 / 2, 100)
     R = [r for (r, z) in mxh.(Θ)]
     Z = [z for (r, z) in mxh.(Θ)]
     Z = (Z .- mxh.Z0) .* 1.1 .+ mxh.Z0
     R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
-    R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_error)
+    R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_relative_error)
     if symmetric
         R = (R .+ reverse(R)) / 2.0
         Z = ((Z .- mxh.Z0) .- reverse(Z .- mxh.Z0)) / 2.0 .+ mxh.Z0
     end
-    R, Z = FUSE.buffer(R, Z, gap)
+    R, Z = FUSE.buffer(R, Z, gap * (1.0 + max_segment_relative_error))
+    R[R.<(minimum(eq_r)-gap)] .= minimum(eq_r) - gap
+    R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
     return R, Z
 end
 
@@ -122,7 +131,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     R_lfs_plasma = plasma.end_radius
 
     # main chamber (clip elements that go beyond plasma radial build thickness)
-    R, Z = segmented_wall(rlcfs, zlcfs, gap, 0.3)
+    R, Z = segmented_wall(rlcfs, zlcfs, gap, 0.5)
     wall_poly = xy_polygon(R, Z)
 
     t = LinRange(0, 2π, 31)
