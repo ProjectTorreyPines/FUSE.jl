@@ -85,7 +85,7 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
 
         # ψ coil currents
         ψbound = actor.eq_out.time_slice[time_index].global_quantities.psi_boundary
-        ψ = VacuumFields.coils_flux(2 * pi, coils, R, Z)
+        ψ = [sum(VacuumFields.ψ(coil, r, z; Bp_fac=2π) for coil in coils) for r in R, z in Z]
 
         ψmin = minimum(x -> isnan(x) ? Inf : x, ψ)
         ψmax = maximum(x -> isnan(x) ? -Inf : x, ψ)

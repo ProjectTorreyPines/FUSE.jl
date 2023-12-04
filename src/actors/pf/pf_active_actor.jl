@@ -365,21 +365,20 @@ function optimize_coils_rail(
     bd = dd.build
     pc = dd.pulse_schedule.position_control
 
-    fixed_eqs = []
-    weights = Vector{Float64}[]
+    eq_cp_psibs = []
     for time_index in eachindex(eq.time_slice)
         eqt = eq.time_slice[time_index]
         # field nulls
         if ismissing(eqt.global_quantities, :ip)
-            # find ψp
-            ψp_constant = eqt.global_quantities.psi_boundary
+            psib = eqt.global_quantities.psi_boundary
             rb, zb = IMAS.boundary(pc, 1)
-            Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(ψp_constant, rb, zb, fixed_coils)
-            push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
-            push!(weights, Float64[])
+            flux_cps = VacuumFields.FluxControlPoints(rb, zb, psib)
+            push!(eq_cp_psibs, (nothing, flux_cps, psib))
             # solutions with plasma
         else
             fixed_eq = IMAS2Equilibrium(eqt)
+            _, psib = MXHEquilibrium.psi_limits(fixed_eq)
+
             # private flux regions
             Rx = Float64[]
             Zx = Float64[]
@@ -387,7 +386,7 @@ function optimize_coils_rail(
                 private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
                 vessel = IMAS.get_build_layer(bd.layer; type=_plasma_)
                 for (pr, pz) in private
-                    indexes, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
+                    _, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
                     for cr in crossings
                         push!(Rx, cr[1])
                         push!(Zx, cr[2])
@@ -397,19 +396,29 @@ function optimize_coils_rail(
                     @warn "weight_strike>0 but no strike point found"
                 end
             end
-            # find ψp
-            Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx, fraction_inside=1.0 - 1E-4)
-            push!(fixed_eqs, (Bp_fac, ψp, Rp, Zp))
+
+            bnd_cps = VacuumFields.boundary_control_points(fixed_eq, 0.999)
+            strike_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
+
             # weight more near the x-points
-            h = (maximum(Zp) - minimum(Zp)) / 2.0
-            o = (maximum(Zp) + minimum(Zp)) / 2.0
-            weight = sqrt.(((Zp .- o) ./ h) .^ 2 .+ h) / h
-            # give each strike point the same weight as the lcfs
-            weight[end-length(Rx)+1:end] .= length(Rp) / (1 + length(Rx)) * weight_strike
-            if all(weight .== 1.0)
-                weight = Float64[]
+            Zmax, Zmin = -Inf, Inf
+            for cp in bnd_cps
+                cp.Z > Zmax && (Zmax = cp.Z)
+                cp.Z < Zmin && (Zmin = cp.Z)
             end
-            push!(weights, weight)
+            h = 0.5 * (Zmax - Zmin)
+            o = 0.5 * (Zmax + Zmin)
+            for cp in bnd_cps
+                cp.weight = sqrt(((cp.Z - o) / h) ^ 2 + h) / h
+            end
+
+            # give each strike point the same weight as the lcfs
+            for cp in strike_cps
+                cp.weight = length(bnd_cps) / (1 + length(strike_cps)) * weight_strike
+            end
+            flux_cps = vcat(bnd_cps, strike_cps)
+
+            push!(eq_cp_psibs, (fixed_eq, flux_cps, psib))
         end
     end
 
@@ -418,19 +427,21 @@ function optimize_coils_rail(
 
     oh_indexes = [IMAS.is_ohmic_coil(coil.pf_active__coil) for coil in vcat(pinned_coils, optim_coils)]
 
+    # MAKE RUN WITH eq_cps
+
     function placement_cost(packed::Vector{Float64}; do_trace::Bool=false)
         λ_regularize = unpack_rail!(packed, optim_coils, symmetric, bd)
         coils = vcat(pinned_coils, optim_coils)
 
         all_cost_lcfs = 0.0
         all_const_currents = Float64[]
-        for (time_index, (fixed_eq, weight)) in enumerate(zip(fixed_eqs, weights))
+        for (time_index, (fixed_eq, flux_cps, psib)) in enumerate(eq_cp_psibs)
             for coil in vcat(pinned_coils, optim_coils, fixed_coils)
                 coil.time_index = time_index
             end
 
             # find best currents to match boundary
-            currents, cost_lcfs0 = VacuumFields.currents_to_match_ψp(fixed_eq..., coils; weights=weight, λ_regularize, return_cost=true)
+            currents, cost_lcfs0 = VacuumFields.optimize_coil_currents!(coils, fixed_eq, flux_cps; ψbound=psib, fixed_coils, λ_regularize, return_cost=true)
 
             # currents cost
             current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]
