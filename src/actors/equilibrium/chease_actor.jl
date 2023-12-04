@@ -97,6 +97,9 @@ function _finalize(actor::ActorCHEASE)
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
 
+        RA = actor.chease.gfile.rmaxis
+        ZA = actor.chease.gfile.zmaxis
+
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psib = 0.0# MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
         ψbound = 0.0
@@ -123,8 +126,7 @@ function _finalize(actor::ActorCHEASE)
 
         # Coils locations
         if isempty(dd.pf_active.coil)
-            n_coils = 100
-            coils = VacuumFields.encircling_coils(EQ, n_coils)
+            coils = encircling_coils(Rb, Zb, RA, ZA, 8)
         else
             coils = IMAS_pf_active__coils(dd; green_model=:simple)
         end

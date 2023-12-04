@@ -73,7 +73,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled
 
     act.ActorPFcoilsOpt.symmetric = true
-    # act.ActorEquilibrium.model = :CHEASE
+    act.ActorEquilibrium.symmetrize = true
 
     set_new_base!(ini)
     set_new_base!(act)

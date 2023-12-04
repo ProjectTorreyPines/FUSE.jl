@@ -29,7 +29,7 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
             if ini.pf_active.n_coils_outside > 0
                 push!(n_coils, ini.pf_active.n_coils_outside)
             end
-            init_pf_active!(dd.pf_active, dd.build, n_coils)
+            init_pf_active!(dd.pf_active, dd.build, dd.equilibrium.time_slice[], n_coils)
         end
 
         coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
@@ -43,13 +43,47 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
 end
 
 """
+    clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Real}
+
+clip rails (rail_r, rail_z) so that they start/end along the intersection with the lines connecting
+the magnetic axis (RA,ZA) and the point of maximum elongation along the equilibrium boundary (pr,pz)
+"""
+function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Real}
+    IMAS.reorder_flux_surface!(rail_r, rail_z)
+    rail_z = circshift(rail_z[1:end-1], argmin(rail_r))
+    rail_r = circshift(rail_r[1:end-1], argmin(rail_r))
+
+    α = 1000.0
+    index = []
+
+    RU = pr[argmax(pz)]
+    ZU = pz[argmax(pz)]
+    ru = [RA, (RU - RA) * α + RA]
+    zu = [ZA, (ZU - ZA) * α + ZA]
+    push!(index, IMAS.intersection(rail_r, rail_z, ru, zu)[1][1][1])
+
+    RL = pr[argmin(pz)]
+    ZL = pz[argmin(pz)]
+    rl = [RA, (RL - RA) * α + RA]
+    zl = [ZA, (ZL - ZA) * α + ZA]
+    push!(index, IMAS.intersection(rail_r, rail_z, rl, zl)[1][1][1])
+
+    sort!(index)
+
+    rail_r = rail_r[index[1]:index[2]]
+    rail_z = rail_z[index[1]:index[2]]
+    return rail_r, rail_z
+end
+
+"""
     init_pf_active!(
         pf_active::IMAS.pf_active,
         bd::IMAS.build,
+        eqt::IMAS.equilibrium__time_slice,
         n_coils::Vector{TI};
-        pf_coils_size::Union{Nothing,TR,Vector{TR}} = nothing,
-        coils_cleareance::Union{Nothing,TR,Vector{TR}} = nothing,
-        coils_elements_area::Union{Nothing,TR,Vector{TR}} = nothing) where {TI<:Int,TR<:Real}
+        pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
+        coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing,
+        coils_elements_area::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
 
 Use build layers outline to initialize PF coils distribution
 NOTE: n_coils
@@ -60,6 +94,7 @@ NOTE: n_coils
 function init_pf_active!(
     pf_active::IMAS.pf_active,
     bd::IMAS.build,
+    eqt::IMAS.equilibrium__time_slice,
     n_coils::Vector{TI};
     pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
     coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing,
@@ -155,52 +190,62 @@ function init_pf_active!(
         rail_r, rail_z = buffer(inner_layer.outline.r, inner_layer.outline.z, dcoil)
         rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3)
 
-        # mark what regions on that rail do not intersect solid structures and can hold coils
-        valid_k = []
-        for (k, (r, z)) in enumerate(zip(rail_r, rail_z))
-            ir = argmin(abs.(rmask .- r))
-            iz = argmin(abs.(zmask .- z))
-            if (ir < 1) || (ir > length(rmask)) || (iz < 1) || (iz > length(zmask))
+        # let rails start along the lines connecting the magnetic axis and the point of maximum elongation
+        rail_r, rail_z = clip_rails(rail_r, rail_z, eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z)
+
+        if true
+            valid_r, valid_z = rail_r, rail_z
+            distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
+
+        else
+            # mark what regions on that rail do not intersect solid structures and can hold coils
+            valid_k = []
+            for (k, (r, z)) in enumerate(zip(rail_r, rail_z))
+                ir = argmin(abs.(rmask .- r))
+                iz = argmin(abs.(zmask .- z))
+                if (ir < 1) || (ir > length(rmask)) || (iz < 1) || (iz > length(zmask))
+                    continue
+                end
+                if (r > (minimum(rail_r) + (maximum(rail_r) - minimum(rail_r)) / 20)) && all(mask[ir, iz] .== 0)
+                    push!(valid_k, k)
+                end
+            end
+            if length(valid_k) == 0
+                bd.pf_active.rail[krail].outline.r = Float64[]
+                bd.pf_active.rail[krail].outline.z = Float64[]
+                bd.pf_active.rail[krail].outline.distance = Float64[]
+                error("Coils on PF rail #$(krail-1) are too big to fit.")
                 continue
             end
-            if (r > (minimum(rail_r) + (maximum(rail_r) - minimum(rail_r)) / 20)) && all(mask[ir, iz] .== 0)
-                push!(valid_k, k)
+            istart = argmax(diff(valid_k)) + 1
+            if istart < (valid_k[1] + (length(rail_r) - valid_k[end]))
+                istart = 0
             end
-        end
-        if length(valid_k) == 0
-            bd.pf_active.rail[krail].outline.r = Float64[]
-            bd.pf_active.rail[krail].outline.z = Float64[]
-            bd.pf_active.rail[krail].outline.distance = Float64[]
-            error("Coils on PF rail #$(krail-1) are too big to fit.")
-            continue
-        end
-        istart = argmax(diff(valid_k)) + 1
-        if istart < (valid_k[1] + (length(rail_r) - valid_k[end]))
-            istart = 0
-        end
-        valid_r = fill(NaN, size(rail_r)...)
-        valid_z = fill(NaN, size(rail_z)...)
-        valid_r[valid_k] = rail_r[valid_k]
-        valid_z[valid_k] = rail_z[valid_k]
-        valid_r = vcat(valid_r[istart+1:end], valid_r[1:istart])
-        valid_z = vcat(valid_z[istart+1:end], valid_z[1:istart])
+            valid_r = fill(NaN, size(rail_r)...)
+            valid_z = fill(NaN, size(rail_z)...)
+            valid_r[valid_k] = rail_r[valid_k]
+            valid_z[valid_k] = rail_z[valid_k]
+            valid_r = vcat(valid_r[istart+1:end], valid_r[1:istart])
+            valid_z = vcat(valid_z[istart+1:end], valid_z[1:istart])
 
-        # evaluate distance along rail
-        d_distance = sqrt.(diff(vcat(valid_r, valid_r[1])) .^ 2.0 .+ diff(vcat(valid_z, valid_z[1])) .^ 2.0)
-        d_distance[isnan.(d_distance)] .= 0.0
-        valid_z = valid_z[d_distance.!=0]
-        valid_r = valid_r[d_distance.!=0]
-        distance = cumsum(d_distance)
-        distance = distance[d_distance.!=0]
-        # remove dcoil/sqrt(2) ends
-        distance = (distance .- distance[1])
-        valid_z = valid_z[distance.>dcoil/sqrt(2)]
-        valid_r = valid_r[distance.>dcoil/sqrt(2)]
-        distance = distance[distance.>dcoil/sqrt(2)]
-        distance = (distance .- distance[end])
-        valid_z = valid_z[distance.<-dcoil/sqrt(2)]
-        valid_r = valid_r[distance.<-dcoil/sqrt(2)]
-        distance = distance[distance.<-dcoil/sqrt(2)]
+            # evaluate distance along rail
+            d_distance = sqrt.(diff(vcat(valid_r, valid_r[1])) .^ 2.0 .+ diff(vcat(valid_z, valid_z[1])) .^ 2.0)
+            d_distance[isnan.(d_distance)] .= 0.0
+            valid_z = valid_z[d_distance.!=0]
+            valid_r = valid_r[d_distance.!=0]
+            distance = cumsum(d_distance)
+            distance = distance[d_distance.!=0]
+            # remove dcoil/sqrt(2) ends
+            distance = (distance .- distance[1])
+            valid_z = valid_z[distance.>dcoil/sqrt(2)]
+            valid_r = valid_r[distance.>dcoil/sqrt(2)]
+            distance = distance[distance.>dcoil/sqrt(2)]
+            distance = (distance .- distance[end])
+            valid_z = valid_z[distance.<-dcoil/sqrt(2)]
+            valid_r = valid_r[distance.<-dcoil/sqrt(2)]
+            distance = distance[distance.<-dcoil/sqrt(2)]
+        end
+
         # normalize distance between -1 and 1
         distance = (distance .- distance[1])
         distance = (distance ./ distance[end]) .* 2.0 .- 1.0
@@ -215,7 +260,7 @@ function init_pf_active!(
         end
 
         # uniformely distribute coils
-        coils_distance = range(-(1 - 0.25 / nc), 1 - 0.25 / nc, nc)
+        coils_distance = range(-1.0, 1.0, nc)
         r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
         z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
         z_coils = [abs(z) < 1E-6 ? 0.0 : z for z in z_coils]

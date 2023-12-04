@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=10)
     number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=4)
     number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=20)
-    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=1.0)
+    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-3)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -195,8 +195,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         if isempty(dd.pf_active.coil)
-            n_coils = 100
-            coils = VacuumFields.encircling_coils(shot, n_coils)
+            coils = encircling_coils(Rb, Zb, RA, ZA, 8)
         else
             coils = IMAS_pf_active__coils(dd; green_model=:simple)
         end
@@ -205,7 +204,6 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         eq2d.psi .= psi_free_rz'
 
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
-
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain
