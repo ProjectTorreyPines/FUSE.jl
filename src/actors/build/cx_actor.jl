@@ -90,23 +90,37 @@ If `symmetric === nothing` then symmetry of the plasma is automatically determin
 function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_relative_error::T; symmetric::Union{Bool,Nothing}=nothing) where {T<:Real}
     mxh = IMAS.MXH(eq_r, eq_z, 4)
 
+    # automatic symmetry detection
     if symmetric === nothing
         symmetric = sum(abs.(mxh.c)) < 1E-3
     end
 
-    Θ = LinRange(-π / 2 * 3 / 2, π / 2 * 3 / 2, 100)
+    # R,Z from theta
+    Θ = LinRange(-π / 2 * 3 / 2, π / 2 * 3 / 2, 100) # overshoot
     R = [r for (r, z) in mxh.(Θ)]
     Z = [z for (r, z) in mxh.(Θ)]
     Z = (Z .- mxh.Z0) .* 1.1 .+ mxh.Z0
+
+    # correct hfs to have a flat center stack wall
     R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
+
+    # flat midplane wall
+    R, Z = FUSE.buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
+    R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
+    R, Z = FUSE.buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
+    circshift!(Z, argmin(R))
+    circshift!(R, argmin(R))
+
+    # segments
     R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_relative_error)
     if symmetric
         R = (R .+ reverse(R)) / 2.0
         Z = ((Z .- mxh.Z0) .- reverse(Z .- mxh.Z0)) / 2.0 .+ mxh.Z0
     end
+
+    # rounded joints
     R, Z = FUSE.buffer(R, Z, gap * (1.0 + max_segment_relative_error))
-    R[R.<(minimum(eq_r)-gap)] .= minimum(eq_r) - gap
-    R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
+
     return R, Z
 end
 
