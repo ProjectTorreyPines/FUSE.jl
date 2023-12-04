@@ -1,0 +1,140 @@
+{
+    "Direct Cost - Buildings": {
+        "Site (including preparation) [million GBP]": 6.4,
+        "Tokamak hall [million GBP]": 204.29,
+        "Hot cells [million GBP]": 52.95,
+        "Decay store [million GBP]": 20.26,
+        "Turbine halls [million GBP]": 93.31,
+        "Heat exchanger building [million GBP]": 248.83,
+        "Assembly hall [million GBP]": 23.1,
+        "Cryo plant building [million GBP]": 16.21,
+        "Cooling water building (including plant) [million GBP]": 4.05,
+        "Delivery bay [million GBP]": 2.5,
+        "Gyrotron hall [million GBP]": 4.05,
+        "Sensors/HVAC/vacuum systems hall [million GBP]": 13.13,
+        "Tritium fuel processing hall [million GBP]": 19.45,
+        "Security building [million GBP]": 0.95,
+        "Office building [million GBP]": 3.8,
+        "Radioactive-waste building [million GBP]": 0.56,
+        "Conventional-waste building [million GBP]": 0.23,
+        "Power-supply building [million GBP]": 6.0,
+        "450 kV switchyard and transformer [million GBP]": 1.44,
+        "33 kV switchyard and transformer [million GBP]": 1.58,
+        "AC/DC converters [million GBP]": 7.5,
+        "Deionised-water plant [million GBP]": 1.25,
+        "Service water building (including plant) [million GBP]": 3.13,
+        "Gas storage [million GBP]": 0.26,
+        "Cooling towers [million GBP]": 1.44,
+        "Service galleries [million GBP]": 4.0,
+        "Total cost of structures [million GBP]": 740.67
+    },
+    "Direct Cost - Tokamak": {
+        "Tokamak structures [million GBP]": 37.69,
+        "HTS TF magnets [million GBP]": 265.35,
+        "HTS PF magnets [million GBP]": 159.21,
+        "HTS solenoid [million GBP]": 26.54,
+        "Radiation shielding [million GBP]": 260.73,
+        "Blanket structure [million GBP]": 22.99,
+        "Liquid lithium [million GBP]": 20.68,
+        "Divertor armour [million GBP]": 2.2,
+        "Total cost of tokamak [million GBP]": 795.39,
+        "Summed material costs [million GBP]": {
+            "HTS Winding": 571.12,
+            "Stainless Steel, 316": 9.2,
+            "Tungsten": 1.18,
+            "Tungsten Alloy, AEM-18C, 80% dense": 4.02,
+            "Tungsten Carbide, 90% dense": 14.93,
+            "Tungsten Boride": 8.7,
+            "Vanadium Alloy, V-4Cr-4Ti": 5.35,
+            "Lithium, Molten": 18.8,
+            "Tungsten Carbide": 37.54
+        }
+    },
+    "Direct Cost - Tokamak Plant": {
+        "Heating and current drive [million GBP]": 556.69,
+        "Cryogenic cooling plant [million GBP]": 200.0,
+        "Remote handling [million GBP]": 125.0,
+        "Tritium reprocessing plant [million GBP]": 75.0,
+        "Pellet injection system [million GBP]": 28.0,
+        "Control and instrumentation [million GBP]": 19.8,
+        "Plasma control system [million GBP]": 21.8,
+        "Machine control system [million GBP]": 8.2,
+        "Disruption prediction and mitigation system [million GBP]": 8.2,
+        "Total cost of tokamak plant [million GBP]": 1042.69
+    },
+    "Direct Cost - Power Systems": {
+        "Gyrotron power supply units [million GBP]": 179.0,
+        "Magnet power supply units [million GBP]": 47.0,
+        "Switchgear [million GBP]": 4.5,
+        "Station service equipment [million GBP]": 7.5,
+        "Switchboards [million GBP]": 0.81,
+        "Protective systems equipment [million GBP]": 1.88,
+        "Electrical raceway systems [million GBP]": 18.0,
+        "Power and control cables and wiring [million GBP]": 12.0,
+        "Total cost of power systems [million GBP]": 270.69
+    },
+    "Direct Cost - Power Extraction Systems": {
+        "Blanket heat removal loop and heat exchangers [million GBP]": 75.0,
+        "Centre column shield heat removal loop and heat exchangers [million GBP]": 25.0,
+        "Divertor heat removal loop and heat exchangers [million GBP]": 40.0,
+        "Mechanical equipment [million GBP]": 25.0,
+        "Primary coolant [million GBP]": 10.0,
+        "Total cost of power extraction systems [million GBP]": 175.0
+    },
+    "Direct Cost - Electrical Power Generating Systems": {
+        "Steam turbine(s) [million GBP]": 284.55,
+        "Condensing system(s) [million GBP]": 57.87,
+        "Feed heating system(s) [million GBP]": 53.05,
+        "Other turbine equipment [million GBP]": 38.58,
+        "Instrumentation and control [million GBP]": 9.65,
+        "Miscellaneous items [million GBP]": 38.58,
+        "Total cost of generating systems [million GBP]": 482.28
+    },
+    "Direct Cost - Miscellaneous Systems": {
+        "Transportation and lift equiment [million GBP]": 5.78,
+        "Air, water, plant fuel oil, steam service [million GBP]": 1.65,
+        "Communication equipment [million GBP]": 1.49,
+        "Total cost of miscellaneous systems [million GBP]": 8.92
+    },
+    "Direct construction cost of FOAK [million GBP]": 3515.64,
+    "Pre-construction Cost": {
+        "Site investigations and impact assessment [million GBP]": 5.0,
+        "Site permitting and permissioning [million GBP]": 10.0,
+        "Site safety case [million GBP]": 10.0,
+        "Site construction planning [million GBP]": 10.0,
+        "Waste management strategy and planning [million GBP]": 2.5,
+        "Commissioing strategy and planning [million GBP]": 2.5,
+        "Total pre-construction costs [million GBP]": 40.0
+    },
+    "Indirect Services Cost": {
+        "Field indirect services [million GBP]": 232.03,
+        "Construction supervision [million GBP]": 216.56,
+        "Commissioning and startup [million GBP]": 11.6,
+        "Design services off site [million GBP]": 270.7,
+        "Project management off site [million GBP]": 11.6,
+        "Design services on site [million GBP]": 11.6,
+        "Project management on site [million GBP]": 19.34,
+        "Total cost of indirect services [million GBP]": 773.43
+    },
+    "Owner's costs of FOAK [million GBP]": 50.0,
+    "Supplementary Costs": {
+        "Tritium inventory for startup [million GBP]": 66.6,
+        "Lithium for breeding loop [million GBP]": 206.78,
+        "Decommissioning costs (capitalised) [million GBP]": 30.0,
+        "Total pre-construction costs [million GBP]": 303.38
+    },
+    "Operating Costs": {
+        "Staff costs [million GBP]": 15.76,
+        "Major plant capital replacements [million GBP]": 63.36,
+        "Helium gas top-up [million GBP]": 0.5,
+        "Total operating costs [million GBP]": 79.62
+    },
+    "Project Contingency for FOAK [million GBP]": 468.25,
+    "Total overnight construction cost of FOAK [million GBP]": 5150.7,
+    "Total adjusted capital cost of FOAK [million GBP]": 6716.51,
+    "Levelised cost of electricity for FOAK [GBP / MW.hr]": 340.0,
+    "Project Contingency for NOAK [million GBP]": 92.19,
+    "Total overnight construction cost of NOAK [million GBP]": 3779.64,
+    "Total adjusted capital cost of NOAK [million GBP]": 4535.57,
+    "Levelised cost of electricity for NOAK [GBP / MW.hr]": 227.0
+}
