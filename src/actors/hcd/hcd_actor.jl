@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T} <: ParametersActor where 
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :none], "-", "NB source actor to run"; default=:NBsimple)
 end
 
-mutable struct ActorHCD{D,P} <: PlasmaAbstractActor
+mutable struct ActorHCD{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHCD{P}
     ec_actor::Union{Missing,ActorECsimple{D,P}}

@@ -4,7 +4,7 @@
 CFS/MIT ARC design
 """
 function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
     ini.general.casename = "ARC"
     ini.general.init_from = :scalars
@@ -21,7 +21,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
 
     # explicitly set thickness of radial build layers
     ini.build.n_first_wall_conformal_layers = 2
-    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.82
     layers[:OH] = 0.3
     layers[:hfs_TF] = 0.55
@@ -36,12 +36,11 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     layers[:gap_cryostat] = 1.119
     layers[:cryostat] = 0.186
     act.ActorCXbuild.rebuild_wall = false
+    ini.build.layers = layers
+    ini.build.layers[:hfs_blanket].material = "FLiBe"
+    ini.build.layers[:lfs_blanket].material = "FLiBe"
 
     ini.equilibrium.xpoints = :double
-
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "FLiBe"
-    ini.material.shield = "Steel, Stainless 316"
 
     ini.oh.n_coils = 4
     ini.pf_active.n_coils_inside = 0
@@ -71,14 +70,14 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
-    ini.ic_antennas.power_launched = 4 * 1e6 #rf power coupled
+    ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled
 
-    act.ActorPFcoilsOpt.symmetric = true #note: symmetric, but not evenly spaced
-    # act.ActorEquilibrium.model = :CHEASE
+    act.ActorPFcoilsOpt.symmetric = true
+    act.ActorEquilibrium.symmetrize = true
 
     set_new_base!(ini)
     set_new_base!(act)
-    
+
     return ini, act
 end
 
@@ -86,5 +85,5 @@ function TraceCAD(::Type{Val{:ARC}})
     x_length = 7.23
     x_offset = 0.57
     y_offset = 0.05
-    TraceCAD(:ARC, x_length, x_offset, y_offset)
+    return TraceCAD(:ARC, x_length, x_offset, y_offset)
 end

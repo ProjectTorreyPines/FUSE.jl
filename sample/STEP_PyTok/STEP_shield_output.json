@@ -1,0 +1,43 @@
+{
+    "Centre Column Shield": {
+        "created": "17/11/2023 15:12:18",
+        "layers": [
+            {
+                "name": "centre_column_armour",
+                "thickness": 0.01,
+                "material": "Tungsten",
+                "density": 19.3,
+                "half_value_layer": 0.05
+            },
+            {
+                "name": "centre_column_shield_1",
+                "thickness": 0.21689039468817298,
+                "material": "Tungsten Alloy, AEM-18C, 80% dense",
+                "density": 14.4,
+                "half_value_layer": 0.046
+            },
+            {
+                "name": "centre_column_shield_2",
+                "thickness": 0.21689039468817298,
+                "material": "Tungsten Carbide, 90% dense",
+                "density": 13.44,
+                "half_value_layer": 0.045
+            },
+            {
+                "name": "centre_column_shield_3",
+                "thickness": 0.2602684736258076,
+                "material": "Tungsten Boride",
+                "density": 9.97,
+                "half_value_layer": 0.042
+            }
+        ],
+        "inner_radius[m]": 0.796,
+        "outer_radius[m]": 1.5,
+        "thickness[m]": 0.704,
+        "half_value_layer[m]": 0.044,
+        "attenuation_factor[#]": 88400.0,
+        "geometry_factor[#]": 1.95,
+        "shielding_factor[#]": 2.2e-05,
+        "coolant_pumping_power[MW]": 0.0
+    }
+}

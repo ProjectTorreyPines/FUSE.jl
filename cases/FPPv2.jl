@@ -2,7 +2,7 @@
     case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,ParametersAllActors}
 """
 function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(; n_ec=1)
     act = ParametersActors()
 
     #### INI ####
@@ -50,10 +50,6 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.build.divertors = :lower
     ini.build.n_first_wall_conformal_layers = 2
 
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "lithium-lead"
-    ini.material.shield = "Steel, Stainless 316"
-
     ini.equilibrium.B0 = 4.713171689711136
     ini.equilibrium.R0 = 4.824432302041749
     ini.equilibrium.ϵ = 0.2857142857142857
@@ -79,7 +75,7 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
-    ini.pf_active.technology = :LTS
+    ini.pf_active.technology = :Nb3Sn
 
     ini.tf.n_coils = 16
     ini.tf.technology = :HTS
@@ -87,9 +83,9 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.oh.n_coils = 6
     ini.oh.technology = :HTS
 
-    ini.ec_launchers.power_launched = 2.5e7
-    ini.ec_launchers.efficiency_conversion = 0.45
-    ini.ec_launchers.efficiency_transmission = 0.8
+    ini.ec_launcher[1].power_launched = 2.5e7
+    ini.ec_launcher[1].efficiency_conversion = 0.45
+    ini.ec_launcher[1].efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 2.0e8
     ini.requirements.flattop_duration = 40000.0
@@ -101,7 +97,7 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
 
     #### ACT ####
 
-    act.ActorStabilityLimits.models = [:model_201, :model_401]
+    act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
     act.ActorPFcoilsOpt.update_equilibrium = false
 

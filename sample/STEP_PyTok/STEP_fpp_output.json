@@ -1,0 +1,20 @@
+{
+    "Power Plant": {
+        "created": "17/11/2023 15:12:18",
+        "operational_period[years]": 4.53,
+        "outage_duration[years]": 0.5,
+        "availability[%]": 90.1,
+        "capacity_factor[%]": 81.1,
+        "high_grade_heat[MWt]": 2190.0,
+        "low_grade_heat[MWt]": 1430.0,
+        "gross_electrical_output[MWe]": 919.0,
+        "auxiliary_heating_wall_power[MWe]": 461.0,
+        "cryogenic_wall_power[MWe]": 18.0,
+        "blanket_wall_coolant_pumping_power[MWe]": 63.96,
+        "blanket_breeder_coolant_pumping_power[MWe]": 1.31,
+        "centre_column_coolant_pumping_power[MWe]": 69.01,
+        "divertor_coolant_pumping_power[MWe]": 14.7,
+        "net_electrical_output[MWe]": 236.0,
+        "Q_engineering[#]": 1.3
+    }
+}

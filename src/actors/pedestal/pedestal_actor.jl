@@ -21,7 +21,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
 end
 
-mutable struct ActorPedestal{D,P} <: PlasmaAbstractActor
+mutable struct ActorPedestal{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPedestal{P}
     epedmod::EPEDNN.EPEDmodel

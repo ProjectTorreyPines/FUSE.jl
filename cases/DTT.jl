@@ -4,15 +4,14 @@
 DTT
 """
 function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+    ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1)
     act = ParametersActors()
+
     ini.general.casename = "DTT"
     ini.general.init_from = :scalars
 
     ini.build.symmetric = true
     ini.build.divertors = :double
-    ini.material.wall = "Tungsten"
-    ini.material.shield = "Steel, Stainless 316"
 
     ini.equilibrium.B0 = 5.85
     ini.equilibrium.ip = 5.5e6
@@ -34,7 +33,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     # explicitly set thickness of radial build layers
     # ==============
-    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.45
     layers[:OH] = 0.325
 
@@ -52,6 +51,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     layers[:gap_cryostat] = 0.5
     layers[:cryostat] = 0.10
+    ini.build.layers = layers
     # ==============
     ini.build.n_first_wall_conformal_layers = 2
 
@@ -83,19 +83,13 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.core_profiles.ejima = 0.4
 
-    ini.nbi.power_launched = 10e6
-    ini.nbi.beam_energy = 0.5e6
-    ini.ec_launchers.power_launched = 29e6 #of 32 installed
-    ini.ic_antennas.power_launched = 6e6   #of 8 installed
+    ini.nb_unit[1].power_launched = 10e6
+    ini.nb_unit[1].beam_energy = 0.5e6
+    ini.ec_launcher[1].power_launched = 29e6 #of 32 installed
+    ini.ic_antenna[1].power_launched = 6e6   #of 8 installed
 
-    act.ActorFluxMatcher.evolve_densities = Dict(
-        :Ne => :match_ne_scale,
-        :D => :quasi_neutrality,
-        # :He4 => :match_ne_scale,
-        # :He4_fast => :fixed,
-        :electrons => :flux_match)
+    act.ActorFluxMatcher.evolve_densities = :flux_match
 
-    consistent_ini_act!(ini, act)
     set_new_base!(ini)
     set_new_base!(act)
 

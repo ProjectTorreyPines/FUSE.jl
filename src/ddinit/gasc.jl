@@ -53,7 +53,7 @@ end
 
 Map GASC inputs and solution to FUSE input scalar parameters
 """
-function case_parameters(gasc::GASC)
+function case_parameters(gasc::GASC; add_wall_layers::Float64=0.0)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -62,7 +62,7 @@ function case_parameters(gasc::GASC)
     ini.general.casename = gasc.data["LABEL"]
     ini.general.init_from = :scalars
 
-    gasc_2_build(gasc, ini, act)
+    gasc_2_build(gasc, ini, act; add_wall_layers)
 
     gasc_2_requirement(gasc, ini, act)
 
@@ -114,7 +114,7 @@ function gasc_2_equilibrium(gasc::GASC, ini::ParametersAllInits, act::Parameters
     Pavg = gasc.outputs["plasma parameters"]["pressureVolAvg"]
     V = gasc.outputs["plasma parameters"]["plasmaVolume"]
     vol = gasc.outputs["numerical profiles"]["volumeProf"] .* V
-    P1 = sum(IMAS.gradient(vol) .* LinRange(1.0, 0.0, length(vol))) / V
+    P1 = sum(IMAS.gradient(vol) .* range(1.0, 0.0, length(vol))) / V
     ini.equilibrium.pressure_core = Pavg / P1
 
     ini.equilibrium.ip = gasc.inputs["plasma parameters"]["plasmaCurrent"] * 1E6
@@ -141,57 +141,59 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
     inputs = gasc.inputs["current drive"]
     outputs = gasc.outputs["current drive"]
 
-    cd_powers = Float64[]
+    T = Float64
+    cd_powers = T[]
 
-    ini.nbi.power_launched = Float64[]
-    ini.nbi.beam_energy = Float64[]
-    ini.nbi.efficiency_conversion = inputs["efficiencyConversionNNBCD"]
-    ini.nbi.efficiency_transmission = inputs["efficiencyTransmissionNNBCD"]
-    pow = outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]
-    if pow > 0
-        push!(cd_powers, pow)
-        push!(ini.nbi.power_launched, pow)
-        push!(ini.nbi.beam_energy, 200e3)
-    end
-    pow = outputs["CDpowerNNBCD"] * 1E6 * inputs["NNBCDFraction"]
-    if pow > 0
-        push!(cd_powers, pow)
-        push!(ini.nbi.power_launched, pow)
-        push!(ini.nbi.beam_energy, 1000e3)
+    push!(ini.nb_unit, )
+
+    for (energy,pow) in ((200e3, outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]), (1000e3, outputs["CDpowerNNBCD"] * 1E6 * inputs["NNBCDFraction"]))
+        if pow > 0.0
+            nb_unit = FUSEparameters__nb_unit{T}()
+            nb_unit.efficiency_conversion = inputs["efficiencyConversionNNBCD"]
+            nb_unit.efficiency_transmission = inputs["efficiencyTransmissionNNBCD"]
+            nb_unit.beam_energy = energy
+            nb_unit.power_launched = pow
+
+            push!(ini.nb_unit, nb_unit)
+            push!(cd_powers, pow)
+        end
     end
 
-    ini.ec_launchers.power_launched = Float64[]
-    ini.ec_launchers.efficiency_conversion = inputs["efficiencyConversionECCD"]
-    ini.ec_launchers.efficiency_transmission = inputs["efficiencyTransmissionECCD"]
     pow = outputs["CDpowerECCD"] * 1E6 * inputs["ECCDFraction"]
-    if pow > 0
+    if pow > 0.0
+        ec_launcher = FUSEparameters__ec_launcher{T}()
+        ec_launcher.efficiency_conversion = inputs["efficiencyConversionECCD"]
+        ec_launcher.efficiency_transmission = inputs["efficiencyTransmissionECCD"]
+        ec_launcher.power_launched = pow
+
+        push!(ini.ec_launcher, ec_launcher)
         push!(cd_powers, pow)
-        push!(ini.ec_launchers.power_launched, pow)
     end
 
-    ini.ic_antennas.power_launched = Float64[]
-    ini.ic_antennas.efficiency_conversion = inputs["efficiencyConversionFWCD"]
-    ini.ic_antennas.efficiency_transmission = inputs["efficiencyTransmissionFWCD"]
-    ini.ic_antennas.efficiency_coupling = 1.0 # Not in GASC
     pow = outputs["CDpowerFWCD"] * 1E6 * inputs["FWCDFraction"]
-    if pow > 0
+    if pow > 0.0
+        ic_antenna = FUSEparameters__ic_antenna{T}()
+        ic_antenna.efficiency_conversion = inputs["efficiencyConversionFWCD"]
+        ic_antenna.efficiency_transmission = inputs["efficiencyTransmissionFWCD"]
+        ic_antenna.efficiency_coupling = 1.0 # Not in GASC
+        ic_antenna.power_launched = pow
+
+        push!(ini.ic_antenna, ic_antenna)
         push!(cd_powers, pow)
-        push!(ini.ic_antennas.power_launched, pow)
     end
 
-    ini.lh_antennas.power_launched = Float64[]
-    ini.lh_antennas.efficiency_conversion = inputs["efficiencyConversionLHCD"]
-    ini.lh_antennas.efficiency_transmission = inputs["efficiencyTransmissionLHCD"]
-    ini.lh_antennas.efficiency_coupling = 1.0 # Not in GASC
-    pow = outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"]
-    if pow > 0
-        push!(cd_powers, pow)
-        push!(ini.lh_antennas.power_launched, pow)
-    end
-    pow = outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"]
-    if pow > 0
-        push!(cd_powers, pow)
-        push!(ini.lh_antennas.power_launched, pow)
+
+    for pow in (outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"], outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"])
+        if pow > 0.0
+            lh_antenna = FUSEparameters__lh_antenna{T}()
+            lh_antenna.efficiency_conversion = inputs["efficiencyConversionLHCD"]
+            lh_antenna.efficiency_transmission = inputs["efficiencyTransmissionLHCD"]
+            lh_antenna.efficiency_coupling = 1.0 # Not in GASC
+            lh_antenna.power_launched = pow
+
+            push!(ini.lh_antenna, lh_antenna)
+            push!(cd_powers, pow)
+        end
     end
 
     # GASC heating power is assumed to be deposited in the core.
@@ -201,19 +203,24 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
     cd_power = sum(cd_powers)
     injected_power = cd_power * inputs["auxCDPowerFactor"]
     heating_power = injected_power - cd_power
-    if heating_power > 0
-        push!(ini.nbi.power_launched, heating_power)
-        push!(ini.nbi.beam_energy, 200e3)
+    if heating_power > 0.0
+        nb_unit = FUSEparameters__nb_unit{T}()
+        nb_unit.efficiency_conversion = inputs["efficiencyConversionNNBCD"]
+        nb_unit.efficiency_transmission = inputs["efficiencyTransmissionNNBCD"]
+        nb_unit.beam_energy = 200e3
+        nb_unit.power_launched = heating_power
+
+        push!(ini.nb_unit, nb_unit)
     end
 
-    # set power_launched to missing or scalar if number of actuators is 0 or 1
-    for heating_scheme in (ini.nbi, ini.ec_launchers, ini.ic_antennas, ini.lh_antennas)
-        if isempty(heating_scheme.power_launched)
-            heating_scheme.power_launched = missing
-        elseif length(heating_scheme.power_launched) == 1
-            heating_scheme.power_launched = heating_scheme.power_launched[1]
-        end
-    end
+    # # set power_launched to missing or scalar if number of actuators is 0 or 1
+    # for heating_scheme in (ini.nb_unit, ini.ec_launcher, ini.ic_antenna, ini.lh_antenna)
+    #     if isempty(heating_scheme.power_launched)
+    #         heating_scheme.power_launched = missing
+    #     elseif length(heating_scheme.power_launched) == 1
+    #         heating_scheme.power_launched = heating_scheme.power_launched[1]
+    #     end
+    # end
 
     return ini
 end
@@ -223,8 +230,14 @@ end
 
 Convert radial build information in GASC solution to FUSE `ini` and `act` parameters
 """
-function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors)
-    ini.build.layers = gasc_2_layers(gasc)
+function gasc_2_build(gasc::GASC, ini::ParametersAllInits, act::ParametersAllActors; add_wall_layers::Float64)
+    layers = gasc_2_layers(gasc)
+    if add_wall_layers > 0.0
+        gasc_add_wall_layers!(layers; thickness=add_wall_layers)
+        ini.build.n_first_wall_conformal_layers = 2
+    end
+    ini.build.layers = layers
+
     ini.build.symmetric = (mod(gasc.inputs["divertor metrics"]["numberDivertors"], 2) == 0)
 
     ini.tf.technology = gasc_2_coil_technology(gasc, :TF)
@@ -399,12 +412,12 @@ function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
         coil_tech = :copper
     else
         if gasc.inputs["conductors"]["superConducting"] == "LTS"
-            coil_tech = :LTS
+            coil_tech = :Nb3Sn
         elseif gasc.inputs["conductors"]["superConducting"] == "HTS"
             coil_tech = :HTS
         end
         if coil_type == :PF # assume PF coils are always LTS
-            coil_tech = :LTS
+            coil_tech = :Nb3Sn
         end
     end
     return coil_tech

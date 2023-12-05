@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
 end
 
-mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor
+mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
@@ -84,14 +84,23 @@ function _finalize(actor::ActorEquilibrium)
 
     # finalize selected equilibrium actor
     finalize(actor.eq_actor)
+    
+    eqt = dd.equilibrium.time_slice[]
 
     # symmetrize equilibrium if requested and number of X-points is even
-    if par.symmetrize && mod(length(dd.pulse_schedule.position_control.x_point), 2) != 1
-        IMAS.symmetrize_equilibrium!(dd.equilibrium.time_slice[])
+    x_points = IMAS.x_points(dd.pulse_schedule.position_control.x_point)
+    if par.symmetrize && mod(length(x_points), 2) != 1
+        IMAS.symmetrize_equilibrium!(eqt)
     end
 
     # add flux surfaces information
-    IMAS.flux_surfaces(dd.equilibrium.time_slice[])
+    try
+        IMAS.flux_surfaces(eqt)
+    catch e
+        eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal))
+        rethrow(e)
+    end
 
     if par.do_plot
         plot!(dd.equilibrium; label="after ActorEquilibrium")
@@ -151,7 +160,10 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
 
     # boundary
-    eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
+    r_bound, z_bound = IMAS.boundary(pc)
+    #r_bound, z_bound = limit_curvature(r_bound, z_bound, 0.5)
+    eqt.boundary.outline.r = r_bound
+    eqt.boundary.outline.z = z_bound
 
     # x-points
     if length(getproperty(pc, :x_point, [])) >= 1
@@ -213,11 +225,12 @@ end
 Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
 function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
-    dim1 = range(eqt.profiles_2d[1].grid.dim1[1], eqt.profiles_2d[1].grid.dim1[end]; length=length(eqt.profiles_2d[1].grid.dim1))
-    @assert collect(dim1) ≈ eqt.profiles_2d[1].grid.dim1
-    dim2 = range(eqt.profiles_2d[1].grid.dim2[1], eqt.profiles_2d[1].grid.dim2[end]; length=length(eqt.profiles_2d[1].grid.dim2))
-    @assert collect(dim2) ≈ eqt.profiles_2d[1].grid.dim2
-    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end]; length=length(eqt.profiles_1d.psi))
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+    dim1 = range(eqt2d.grid.dim1[1], eqt2d.grid.dim1[end], length(eqt2d.grid.dim1))
+    @assert collect(dim1) ≈ eqt2d.grid.dim1
+    dim2 = range(eqt2d.grid.dim2[1], eqt2d.grid.dim2[end], length(eqt2d.grid.dim2))
+    @assert collect(dim2) ≈ eqt2d.grid.dim2
+    psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length(eqt.profiles_1d.psi))
     @assert collect(psi) ≈ eqt.profiles_1d.psi
 
     return MXHEquilibrium.efit(
@@ -225,7 +238,7 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
         dim1, # Radius/R range
         dim2, # Elevation/Z range
         psi, # Polodial Flux range (polodial flux from magnetic axis)
-        eqt.profiles_2d[1].psi, # Polodial Flux on RZ grid (polodial flux from magnetic axis)
+        eqt2d.psi, # Polodial Flux on RZ grid (polodial flux from magnetic axis)
         eqt.profiles_1d.f, # Polodial Current
         eqt.profiles_1d.pressure, # Plasma pressure
         eqt.profiles_1d.q, # Q profile

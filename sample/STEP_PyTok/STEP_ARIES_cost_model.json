@@ -1,0 +1,183 @@
+{
+    "CREATED": "17/11/2023 15:12:17",
+    "COMMENTS": [
+        "ARIES cost model is for a 10th of a kind fusion power plant, with implicit learning rates applied",
+        "Doubling factor for N=10 is 3.3 therefore the following learning factors are estimated for different cost types:",
+        "Learning factor for Process Equipment = 0.81",
+        "Learning factor for Field Indirect Costs = 0.90",
+        "Learning factor for Preconstruction Costs = 0.50",
+        "Learning factor for HTS Magnets = 0.63",
+        "Learning factor for O&M = 0.90",
+        "Learning factor for Tokamak Plant = 0.70",
+        "Learning factor for Structures = 0.87",
+        "Learning factor for None = 1.00",
+        "Learning factor for Owners Cost = 0.48",
+        "Learning factor for Generic = 0.76"
+    ],
+    "20. LAND AND LAND RIGHTS": {
+        "20.01. Land and Privilege Acquisition [million USD]": 12.97,
+        "20.02. Land Preparation and Site Access [million USD]": 2.59,
+        "Total [million USD]": 15.56
+    },
+    "21. STRUCTURES AND SITE FACILITIES": {
+        "21.01. Site Improvements and Facilities [million USD]": 27.0,
+        "21.02. Power Core Building [million USD]": 69.16,
+        "21.03. Turbine - Generator Building [million USD]": 34.36,
+        "21.04. Heat Rejection Structures and Facilities [million USD]": 13.89,
+        "21.05. Electrical Equipment and Power Supply Building [million USD]": 14.84,
+        "21.06. Plant Auxiliary Systems Building [million USD]": 13.34,
+        "21.07. Hot Cell Building [million USD]": 23.52,
+        "21.08. Power Core Service Building [million USD]": 2.8,
+        "21.09. Service Water Building [million USD]": 0.98,
+        "21.10. Fuel Handling and Storage Building [million USD]": 25.03,
+        "21.11. Control Room Building [million USD]": 7.11,
+        "21.12. On-Site AC Power Supply Building [million USD]": 3.05,
+        "21.13. Administrative Building [million USD]": 2.0,
+        "21.14. Site Service Building [million USD]": 2.0,
+        "21.15. Cryogenic and Inert Gas Storage Building [million USD]": 2.09,
+        "21.16. Security Building [million USD]": 0.71,
+        "21.17. Ventilation Stack [million USD]": 4.15,
+        "Total [million USD]": 246.03
+    },
+    "22. POWER CORE EQUIPMENT": {
+        "22.01. Fusion Energy Capture and Conversion [million USD]": {
+            "22.01.01. First Wall and Blanket, Replaceable [million USD]": 33.29,
+            "22.01.02. Second Blanket, Life of Plant [million USD]": 0.0,
+            "22.01.03. Divertor Assembly, Replaceable [million USD]": 49.3,
+            "22.01.04. High Temperature Shielding, Replaceable [million USD]": 309.78,
+            "22.01.05. Low Temperature Shielding, Life of Plant [million USD]": 0.0,
+            "22.01.06. Penetration Shielding, Life of Plant, Low Temperature, Active and Passive [million USD]": 30.98,
+            "Total [million USD]": 423.35
+        },
+        "22.02. Plasma Confinement [million USD]": {
+            "22.02.01. Toroidal Field Coils [million USD]": 160.75,
+            "22.02.02. Poloidal Field Coils [million USD]": 86.05,
+            "22.02.03. Feedback Control Coils [million USD]": 50.0,
+            "22.02.04. Cryogenics for Plasma Confinement [million USD]": 120.0,
+            "22.02.05. Power Supplies for Plasma Confinement [million USD]": 91.6,
+            "Total [million USD]": 508.4
+        },
+        "22.03. Plasma Formation and Sustainment [million USD]": {
+            "22.03.01. Heating and Current Drive [million USD]": 1022.34,
+            "22.03.02. Startup [million USD]": 5.0,
+            "22.03.03. Stability Control [million USD]": 5.0,
+            "22.03.04. Plasma Fueling and Constituent Control [million USD]": 28.0,
+            "Total [million USD]": 1060.34
+        },
+        "22.04. Vacuum, Power Core [million USD]": {
+            "22.04.01. Vacuum Vessel [million USD]": 0.0,
+            "22.04.02. Helium Liquefier-Refrigerators [million USD]": 0.0,
+            "22.04.03. Primary Vacuum Pumps [million USD]": 0.0,
+            "22.04.04. Roughing or Backing Pumps [million USD]": 0.0,
+            "22.04.05. Vacuum Ducts [million USD]": 0.0,
+            "Total [million USD]": 90.0
+        },
+        "22.05. Primary Structure and Support, Power Core [million USD]": {
+            "22.05.01. Carry-Through Structure [million USD]": 0.0,
+            "22.05.02. Structural Pedestal [million USD]": 0.0,
+            "22.05.03. Equipment Support Structure [million USD]": 0.0,
+            "Total [million USD]": 0.0
+        },
+        "22.06. Main Heat Transfer and Transport [million USD]": {
+            "22.06.01. Primary (Water or Liquid Metal) Heat Transfer Loop [million USD]": 88.15,
+            "22.06.02. Primary (Helium) Heat Transfer Loop [million USD]": 80.35,
+            "22.06.03. Limiter or Divertor Primary Heat Transfer Loop [million USD]": 31.02,
+            "22.06.04. Intermediate Heat Transfer Loop [million USD]": 69.29,
+            "Total [million USD]": 268.81
+        },
+        "22.07. Radioactive Materials Treatment and Management [million USD]": {
+            "22.07.01. Liquid Materials Processing Equipment [million USD]": 0.0,
+            "22.07.02. Gaseous Materials Processing Equipment [million USD]": 0.0,
+            "22.07.03. Solid Materials Processing Equipment [million USD]": 0.0,
+            "Total [million USD]": 15.06
+        },
+        "22.08. Fuel Handling and Storage [million USD]": {
+            "22.08.01. Chamber Exhaust Gas Handling and Processing Equipment [million USD]": 0.0,
+            "22.08.02. Purge and Cover Gas Handling and Processing Equipment [million USD]": 0.0,
+            "22.08.03. Primary Coolant Stream Handling and Processing Equipment [million USD]": 0.0,
+            "22.08.04. Other Liquid and Gaseous Coolant Stream Handling and Processing Equipment [million USD]": 0.0,
+            "22.08.05. Purification and Isotope Separation Equipment [million USD]": 0.0,
+            "22.08.06. Tritium, Deuterium, and DT Storage Equipment [million USD]": 0.0,
+            "22.08.07. Atmospheric Tritium Recovery Equipment [million USD]": 0.0,
+            "Total [million USD]": 70.26
+        },
+        "22.09. Maintenance Equipment [million USD]": {
+            "22.09.01. Power Core Maintenance Equipment [million USD]": 0.0,
+            "22.09.02. Hot Cell Maintenance Equipment [million USD]": 0.0,
+            "22.09.03. Fuel Handling Maintenance Equipment [million USD]": 0.0,
+            "22.09.04. Other Plant Maintenance Equipment [million USD]": 0.0,
+            "Total [million USD]": 31.54
+        },
+        "22.10. Instrumentation and Control [million USD]": {
+            "22.10.01. Power Core Instrumentation and Control Equipment [million USD]": 0.0,
+            "22.10.02. Radiation Monitoring Equipment [million USD]": 0.0,
+            "22.10.03. Isolated Indicating and Recording Equipment [million USD]": 0.0,
+            "22.10.04. Data Acquisition and Recording Equipment [million USD]": 0.0,
+            "22.10.04. Communications Equipment [million USD]": 0.0,
+            "Total [million USD]": 60.0
+        },
+        "22.11. Other Power Core Equipment [million USD]": {
+            "22.11.01. Special Heating Equipment [million USD]": 0.0,
+            "22.11.02. Special Cooling Equipment [million USD]": 0.0,
+            "22.11.03. Coolant Receiving, Storage, and Makeup Equipment [million USD]": 0.0,
+            "22.11.04. Gas Systems Equipment [million USD]": 0.0,
+            "22.11.05. Inert Atmosphere Equipment [million USD]": 0.0,
+            "Total [million USD]": 2.52
+        },
+        "Total [million USD]": 2530.28
+    },
+    "23. TURBINE-GENERATOR PLANT EQUIPMENT": {
+        "23.01. Turbine - Generators and Accessories [million USD]": 0.0,
+        "23.02. Main Steam or Other Main Heat Transfer Fluid [million USD]": 0.0,
+        "23.03. Condensing or Heat Sink Heat Exchanger [million USD]": 0.0,
+        "23.04. Feedwater Heating or Heat Recovery System [million USD]": 0.0,
+        "23.05. Other Turbine Plant Equipment [million USD]": 0.0,
+        "23.06. Turbine Plant Instrumentation and Control [million USD]": 0.0,
+        "Total [million USD]": 308.71
+    },
+    "24. ELECTRIC PLANT EQUIPMENT": {
+        "24.01. Switchgear [million USD]": 0.0,
+        "24.02. Station Service Equipment [million USD]": 0.0,
+        "24.03. Switchboards, including Heat Tracing [million USD]": 0.0,
+        "24.04. Protective Equipment [million USD]": 0.0,
+        "24.05. Electrical Structures and Wiring Containers [million USD]": 0.0,
+        "24.06. Power and Control Wiring [million USD]": 0.0,
+        "24.07. Electrical Lighting [million USD]": 0.0,
+        "Total [million USD]": 160.13
+    },
+    "25. HEAT REJECTION EQUIPMENT": {
+        "25.01. Water Intake Common Facilities [million USD]": 0.0,
+        "25.02. Circulating Water Systems [million USD]": 0.0,
+        "25.03. Cooling Towers [million USD]": 0.0,
+        "25.04. Other Heat Rejection Equipment [million USD]": 0.0,
+        "Total [million USD]": 48.36
+    },
+    "26. MISCELLANEOUS PLANT EQUIPMENT": {
+        "26.01. Transportation and Lifting Equipment [million USD]": 0.0,
+        "26.02. Air and Water Service Equipment [million USD]": 0.0,
+        "26.03. Communications Equipment [million USD]": 0.0,
+        "26.04. Furnishing and Fixtures [million USD]": 0.0,
+        "Total [million USD]": 75.74
+    },
+    "26. SPECIAL MATERIALS": {
+        "27.01. Lithium in Primary Coolant Loop [million USD]": 202.58,
+        "Total [million USD]": 202.58
+    },
+    "90. TOTAL DIRECT COST": 3587.39,
+    "91. CONSTRUCTION FACILITIES, EQUIPMENT AND SERVICES": 405.38,
+    "92. HOME OFFICE ENGINEERING AND SERVICES": 186.54,
+    "93. FIELD OFFICE ENGINEERING AND SERVICES": 186.54,
+    "94. OWNERS COSTS": 654.88,
+    "95. PROCESS (DESIGN) CONTINGENCY": 0.0,
+    "96. PROJECT CONTINGENCY": 735.54,
+    "97. INTEREST DURING CONSTRUCTION": 538.09,
+    "99. TOTAL PROJECT CAPITAL COST": 6294.36,
+    "99. TOTAL PROJECT CAPITAL COST ADJUSTED TO 2021 PRICES": 7616.17,
+    "XX. ANNUAL CAPITAL COST CHARGE [million USD]": 1640.55,
+    "XX. ANNUAL O&M COST [million USD]": 35.5,
+    "XX. ANNUALISED COMPONENT REPLACEMENT COST [million USD]": 76.84,
+    "XX. ANNUAL FUEL COST [million USD]": 1.0,
+    "XX. ANNUAL D&D COST [USD/MW.hr]": 0.35,
+    "XX. COST OF ELECTRICITY [USD/MW.hr] (2021 PRICE)": 1068.31,
+    "XX. COST OF ELECTRICITY [USD/kW.hr] (2021 PRICE)": 1.07
+}

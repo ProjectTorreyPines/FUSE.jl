@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor w
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.0)
 end
 
-mutable struct ActorNBsimple{D,P} <: HCDAbstractActor
+mutable struct ActorNBsimple{D,P} <: HCDAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNBsimple{P}
     function ActorNBsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorNBsimple{P}; kw...) where {D<:Real,P<:Real}
@@ -54,7 +54,7 @@ function _step(actor::ActorNBsimple)
     for (idx, nbu) in enumerate(dd.nbi.unit)
         beam_energy = @ddtime (nbu.energy.data)
         beam_mass = nbu.species.a
-        power_launched = @ddtime(dd.pulse_schedule.nbi.power.reference.data)
+        power_launched = @ddtime(dd.pulse_schedule.nbi.unit[idx].power.reference.data)
         @ddtime(nbu.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)

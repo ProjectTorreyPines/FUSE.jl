@@ -22,6 +22,8 @@ function unit_cost(material::AbstractString, cst::IMAS.costing)
         return (87.5 / 2) * cost_multiplier(production_increase, learning_rate) # $M/m^3
     elseif contains(lowercase(material), "nb3sn")
         return 1.66 # $M/m^3
+    elseif contains(lowercase(material), "nbti")
+        return 1.66 / 2 # in PROCESS, the unit cost of NbTi is a factor of 2 smaller than that of Nb3Sn
     elseif contains(lowercase(material), "steel")
         return 0.36 # $M/m^3
     elseif material == "Tungsten"

@@ -18,7 +18,12 @@ function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any,
 end
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
-    ini = ParametersInits()
+
+    n_nb = (data_row[:PNBI] > 0) ? 1 : 0
+    n_ec = (data_row[:PECRH] > 0) ? 1 : 0
+    n_ic = (data_row[:PICRH] > 0) ? 1 : 0
+
+    ini = ParametersInits(; n_nb, n_ec, n_ic)
     act = ParametersActors()
     ini.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     ini.general.init_from = :scalars
@@ -76,23 +81,23 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.core_profiles.impurity = :C
 
     # nbi
-    if data_row[:PNBI] > 0
-        ini.nbi.power_launched = data_row[:PNBI]
+    if n_nb > 0
+        ini.nb_unit[1].power_launched = data_row[:PNBI]
         if data_row[:ENBI] > 0
-            ini.nbi.beam_energy = data_row[:ENBI]
+            ini.nb_unit[1].beam_energy = data_row[:ENBI]
         else
-            ini.nbi.beam_energy = 100e3
+            ini.nb_unit[1].beam_energy = 100e3
         end
-        ini.nbi.beam_mass = 2.0
-        ini.nbi.toroidal_angle = 18.0 / 360.0 * 2pi # 18 degrees assumed like DIII-D
+        ini.nb_unit[1].beam_mass = 2.0
+        ini.nb_unit[1].toroidal_angle = 18.0 / 360.0 * 2pi # 18 degrees assumed like DIII-D
     end
 
-    if data_row[:PECRH] > 0
-        ini.ec_launchers.power_launched = data_row[:PECRH]
+    if n_ec > 0
+        ini.ec_launcher[1].power_launched = data_row[:PECRH]
     end
 
-    if data_row[:PICRH] > 0
-        ini.ic_antennas.power_launched = data_row[:PICRH]
+    if n_ic > 0
+        ini.ic_antenna[1].power_launched = data_row[:PICRH]
     end
 
     set_new_base!(ini)

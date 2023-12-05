@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor 
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorDivertors{D,P} <: ReactorAbstractActor
+mutable struct ActorDivertors{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorDivertors{P}
     boundary_plasma_models::Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}
@@ -48,15 +48,9 @@ function _step(actor::ActorDivertors)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # NOTE: sol levels cannot be too small,
-    # otherwise any small variation from up-down equilibrium asymmetry
-    # may result in configuration (double/upper/lower) which totall screws
-    # up the flux expansion calculation
-    hfs_sol, lfs_sol = IMAS.sol(eqt, dd.wall; levels=[1E-2, 1.1E-2])
+    sol1 = IMAS.sol(eqt, dd.wall; levels=1)[:lfs][1] # first SOL open field line on the lfs
     Psol = IMAS.power_sol(dd.core_sources, cp1d)
     λ_omp = IMAS.widthSOL_eich(eqt, Psol)
-    flux_expansion = IMAS.flux_expansion(lfs_sol)
-    sol1 = lfs_sol[1]
 
     identifiers = IMAS.identify_strike_surface(sol1, dd.divertors)
     identifiers = [(k_divertor, k_target) for (k_divertor, k_target, k_tile) in identifiers]
@@ -86,7 +80,7 @@ function _step(actor::ActorDivertors)
             target.two_point_model[].sol_heat_decay_length = λ_omp
 
             # target flux expansion [-] and wetted area [m^2]
-            flxexp = @ddtime(target.flux_expansion.data = flux_expansion[strike_index == 1 ? 1 : 2])
+            flxexp = @ddtime(target.flux_expansion.data = sol1.total_flux_expansion[strike_index])
             λ_target = flxexp * λ_omp
             wetted_area = @ddtime(target.wetted_area.data = λ_target * 2π * sol1.r[strike_index])
 

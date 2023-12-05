@@ -1,19 +1,20 @@
 sample_path = joinpath(@__DIR__, "..", "sample")
 shot_details = Dict(
     :H_mode => Dict(:time0 => 2.7, :filename => joinpath(sample_path, "D3D_standard_Hmode.json")),
-    :L_mode => Dict(:time0 => 2.0 , :filename => joinpath(sample_path, "D3D_standard_Lmode.json")),
-    :default => Dict(:time0 => 0.0 , :filename => joinpath(sample_path, "D3D_eq_ods.json"))
-    )
+    :L_mode => Dict(:time0 => 2.0, :filename => joinpath(sample_path, "D3D_standard_Lmode.json")),
+    :default => Dict(:time0 => 1.0, :filename => joinpath(sample_path, "D3D_eq_ods.json"))
+)
 """
     case_parameters(:D3D)
 
 DIII-D
 
 Arguments:
-* `scenario`: `:H_mode`, `:L_mode` or :default (loads an experimental d3d case)
+
+  - scenario: `:H_mode`, `:L_mode` or `:default` (loads an experimental d3d case)
 """
-function case_parameters(::Type{Val{:D3D}}; scenario=:H_mode)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits()
+function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{ParametersAllInits,ParametersAllActors}
+    ini = ParametersInits(; n_nb=1)
     act = ParametersActors()
 
     ini.general.casename = "D3D $scenario scenario"
@@ -23,11 +24,10 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:H_mode)::Tuple{ParametersA
     ini.ods.filename = shot_details[scenario][:filename]
     ini.time.simulation_start = shot_details[scenario][:time0]
 
-    ini.build.blanket = 0.0
-    ini.build.shield = 0.0
-    ini.build.vessel = 0.0
+    ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
+    ini.build.layers[:hfs_wall].material = "Carbon, Graphite (reactor grade)"
+
     ini.build.n_first_wall_conformal_layers = 2
-    ini.material.wall = "Carbon, Graphite (reactor grade)"
     act.ActorCXbuild.rebuild_wall = false
     ini.build.divertors = :double
 
@@ -53,10 +53,10 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:H_mode)::Tuple{ParametersA
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
 
-    ini.nbi.power_launched = 5E6
-    ini.nbi.beam_energy = 80e3
-    ini.nbi.beam_mass = 2.0
-    ini.nbi.toroidal_angle = 20.0 / 180 * pi
+    ini.nb_unit[1].power_launched = 5E6
+    ini.nb_unit[1].beam_energy = 80e3
+    ini.nb_unit[1].beam_mass = 2.0
+    ini.nb_unit[1].toroidal_angle = 20.0 / 180 * pi
 
     ini.requirements.flattop_duration = 5.0
 

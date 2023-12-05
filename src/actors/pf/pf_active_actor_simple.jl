@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFactive{T} <: ParametersActor w
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
 end
 
-mutable struct ActorPFactive{D,P} <: ReactorAbstractActor
+mutable struct ActorPFactive{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFactive{P}
     eq_in::IMAS.equilibrium{D}
@@ -55,7 +55,7 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
     actor.eq_out = IMAS.lazycopy(dd.equilibrium)
 
     # Get coils (as GS3_IMAS_pf_active__coil) organized by their function and initialize them
-    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils2(actor, :currents)
+    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor)
 
     weight_strike = 1.0
 
@@ -81,7 +81,9 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     if par.update_equilibrium || par.do_plot
 
         eqt_in = actor.eq_in.time_slice[]
+        eqt2d_in = findfirst(:rectangular, eqt_in.profiles_2d)
         eqt_out = actor.eq_out.time_slice[dd.global_time]
+        eqt2d_out = findfirst(:rectangular, eqt_out.profiles_2d)
 
         if !ismissing(eqt_in.global_quantities, :ip)
             # convert dd.pf_active to coils for VacuumFields calculation
@@ -92,11 +94,11 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 
             # update ψ map
             scale_eq_domain_size = 1.0
-            Rgrid = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size; length=length(EQfixed.r))
-            Zgrid = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size; length=length(EQfixed.z))
-            eqt_out.profiles_2d[1].grid.dim1 = Rgrid
-            eqt_out.profiles_2d[1].grid.dim2 = Zgrid
-            eqt_out.profiles_2d[1].psi = VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)
+            Rgrid = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length(EQfixed.r))
+            Zgrid = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length(EQfixed.z))
+            eqt2d_out.grid.dim1 = Rgrid
+            eqt2d_out.grid.dim2 = Zgrid
+            eqt2d_out.psi = VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)
         end
     end
 
@@ -106,50 +108,12 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 
     # update equilibrium psi2d and retrace flux surfaces
     if par.update_equilibrium
-        eqt_in.profiles_2d[1].psi = eqt_out.profiles_2d[1].psi
+        eqt2d_in.psi = eqt2d_out.psi
         IMAS.flux_surfaces(eqt_in)
         actor.eq_out = actor.eq_in
     end
 
     return actor
-end
-
-
-"""
-    fixed_pinned_optim_coils2(actor::Union{ActorPFcoilsOpt{D,P},ActorPFactive{D,P}}, optimization_scheme::Symbol) where {D<:Real,P<:Real}
-
-Returns tuple of GS3_IMAS_pf_active__coil coils organized by their function:
-
-  - fixed: fixed position and current
-  - pinned: coils with fixed position but current is optimized
-  - optim: coils that have theri position and current optimized
-"""
-function fixed_pinned_optim_coils2(actor::ActorPFactive{D,P}, optimization_scheme::Symbol) where {D<:Real,P<:Real}
-    dd = actor.dd
-    par = actor.par
-
-    fixed_coils = GS3_IMAS_pf_active__coil{D,D}[]
-    pinned_coils = GS3_IMAS_pf_active__coil{D,D}[]
-    optim_coils = GS3_IMAS_pf_active__coil{D,D}[]
-    for (k, coil) in enumerate(dd.pf_active.coil)
-        if k <= dd.build.pf_active.rail[1].coils_number
-            coil_tech = dd.build.oh.technology
-        else
-            coil_tech = dd.build.pf_active.technology
-        end
-        if coil.identifier == "pinned"
-            push!(pinned_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif (coil.identifier == "optim") && (optimization_scheme == :currents)
-            push!(pinned_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif coil.identifier == "optim"
-            push!(optim_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif coil.identifier == "fixed"
-            push!(fixed_coils, GS3_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        else
-            error("Accepted type of coil.identifier are only \"optim\", \"pinned\", or \"fixed\"")
-        end
-    end
-    return fixed_coils, pinned_coils, optim_coils
 end
 
 function find_currents(
@@ -208,4 +172,8 @@ function find_currents(
     currents = VacuumFields.currents_to_match_ψp(Bp_fac, ψp, Rp, Zp, coils; weights=weight, λ_regularize=0.0, return_cost=false)
 
     return λ_regularize
+end
+
+function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
+    return fixed_pinned_optim_coils(actor, :currents, GS3_IMAS_pf_active__coil)
 end

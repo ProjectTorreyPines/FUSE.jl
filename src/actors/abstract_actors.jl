@@ -1,8 +1,8 @@
-abstract type AbstractActor end
-abstract type FacilityAbstractActor <: AbstractActor end
-abstract type ReactorAbstractActor <: AbstractActor end
-abstract type HCDAbstractActor <: AbstractActor end
-abstract type PlasmaAbstractActor <: AbstractActor end
+abstract type AbstractActor{D,P} end
+abstract type FacilityAbstractActor{D,P} <: AbstractActor{D,P} end
+abstract type ReactorAbstractActor{D,P} <: AbstractActor{D,P} end
+abstract type HCDAbstractActor{D,P} <: AbstractActor{D,P} end
+abstract type PlasmaAbstractActor{D,P} <: AbstractActor{D,P} end
 
 function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
     return logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")

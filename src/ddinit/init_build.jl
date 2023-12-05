@@ -3,11 +3,6 @@ import GeoInterface
 import Interpolations
 import OrderedCollections
 
-import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_
-import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _triple_arc_,
-    _miller_, _square_miller_, _spline_, _silo_
-
 #= ========================================== =#
 #  Visualization of IMAS.build.layer as table  #
 #= ========================================== =#
@@ -26,7 +21,7 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
     )
 
     for layer in layers
-        group = replace(string(BuildLayerSide(layer.fs)), "_" => "")
+        group = replace(string(BuildLayerSide(layer.side)), "_" => "")
         type = replace(string(BuildLayerType(layer.type)), "_" => "")
         type = replace(type, r"^gap" => "")
         details = replace(lowercase(layer.name), r"^[hl]fs " => "")
@@ -79,7 +74,7 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !isempty(dd1.wall)
+            if !isempty(dd1.wall.description_2d)
                 dd.wall = dd1.wall
             end
             if length(dd1.build.layer) > 0
@@ -91,25 +86,11 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 
         eqt = dd.equilibrium.time_slice[]
 
-        # if layers are not filled explicitly, then generate them from fractions in ini.build
-        if ismissing(ini.build, :layers)
-            layers = layers_meters_from_fractions(
-                eqt,
-                IMAS.first_wall(dd.wall);
-                shield=ini.build.shield,
-                blanket=ini.build.blanket,
-                vessel=ini.build.vessel,
-                plasma_gap=ini.build.plasma_gap,
-                pf_inside_tf=(ini.pf_active.n_coils_inside > 0),
-                pf_outside_tf=(ini.pf_active.n_coils_outside > 0))
-        else
-            layers = ini.build.layers
-            # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
-            scale_build_layers!(layers, dd.equilibrium.vacuum_toroidal_field.r0, eqt.boundary.minor_radius, ini.build.plasma_gap)
-        end
+        # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
+        scale_build_layers!(ini.build.layers, dd.equilibrium.vacuum_toroidal_field.r0, eqt.boundary.minor_radius, ini.build.plasma_gap)
 
         # populate dd.build with radial build layers
-        init_build!(dd.build, layers)
+        init_build!(dd.build, ini.build.layers)
 
         # divertors
         if ini.build.divertors == :from_x_points
@@ -192,118 +173,212 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 end
 
 """
-    init_build!(bd::IMAS.build; layers...)
+    init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_layer})
 
-Initialize build IDS based on center stack layers (thicknesses)
-
-NOTE: layer[:].type and layer[:].material follows from naming of layers
-
-  - 0 ...gap... : vacuum
-  - 1 OH: ohmic coil
-  - 2 TF: toroidal field coil
-  - 6 vessel...: vacuum vessel
-  - 3 shield...: neutron shield
-  - 4 blanket...: neutron blanket
-  - 5 wall....: first wall
-  - -1 ...plasma...:
-
-layer[:].fs is set depending on if "hfs" or "lfs" appear in the name
-
-layer[:].identifier is handled via IMAS.jl expressions
+Initialize dd.build.layers from ini.build.layers
 """
-function init_build!(bd::IMAS.build; layers...)
-    # empty build IDS
-    empty!(bd)
-    # assign layers
-    resize!(bd.layer, length([layer_name for (layer_name, layer_thickness) in layers if layer_thickness >= 0.0]))
+function init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_layer})
+    empty!(bd.layer)
+
     k = 0
-    radius_start = 0.0
-    radius_end = 0.0
-    for (layer_name, layer_thickness) in layers
-        if layer_thickness < 0.0
+    for ini_layer in layers
+        if ini_layer.thickness < 0.0
             continue
         end
         k += 1
-        layer = bd.layer[k]
-        layer.thickness = layer_thickness
-        layer.name = replace(string(layer_name), "_" => " ")
-        if occursin("gap ", lowercase(layer.name))
-            layer.type = Int(_gap_)
-        elseif lowercase(layer.name) == "plasma"
-            layer.type = Int(_plasma_)
-        elseif uppercase(layer.name) == "OH"
-            layer.type = Int(_oh_)
-        elseif occursin("TF", uppercase(layer.name))
-            layer.type = Int(_tf_)
-        elseif occursin("shield", lowercase(layer.name))
-            layer.type = Int(_shield_)
-        elseif occursin("blanket", lowercase(layer.name))
-            layer.type = Int(_blanket_)
-        elseif occursin("wall", lowercase(layer.name))
-            layer.type = Int(_wall_)
-        elseif occursin("vessel", lowercase(layer.name))
-            layer.type = Int(_vessel_)
-        elseif occursin("cryostat", lowercase(layer.name))
-            layer.type = Int(_cryostat_)
+        layer = resize!(bd.layer, k)[k]
+
+        layer.name = ini_layer.name
+        layer.thickness = ini_layer.thickness
+        layer.type = Int(ini_layer.type)
+        layer.side = Int(ini_layer.side)
+        if !ismissing(ini_layer, :material)
+            layer.material = ini_layer.material
         end
-        if occursin("hfs", lowercase(layer.name))
-            layer.fs = Int(_hfs_)
-        elseif occursin("lfs", lowercase(layer.name))
-            layer.fs = Int(_lfs_)
-        else
-            if layer.type == Int(_plasma_)
-                layer.fs = Int(_lhfs_)
-            elseif k < length(layers) / 2
-                layer.fs = Int(_in_)
-            elseif k > length(layers) / 2
-                layer.fs = Int(_out_)
-            end
+        if !ismissing(ini_layer, :shape)
+            layer.shape = Int(ini_layer.shape)
         end
-        radius_end += layer.thickness
-        radius_start = radius_end
     end
 
     return bd
 end
 
-function init_build!(bd::IMAS.build, layers::AbstractDict)
-    nt = (; zip([Symbol(k) for k in keys(layers)], values(layers))...)
-    return init_build!(bd; nt...)
+"""
+This allows users to initialize layers from a dictionary
+"""
+function Base.setproperty!(parameters_build::FUSE.FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+    @assert field == :layers
+    for (k, (name, thickness)) in enumerate(layers)
+        layer = FUSEparameters__build_layer{T}()
+        push!(parameters_build.layers, layer)
+
+        # name
+        layer.name = replace(string(name), "_" => " ")
+
+        # thickness
+        layer.thickness = thickness
+
+        # type
+        if occursin("gap ", lowercase(layer.name))
+            layer.type = :gap
+        elseif lowercase(layer.name) == "plasma"
+            layer.type = :plasma
+        elseif uppercase(layer.name) == "OH"
+            layer.type = :oh
+        elseif occursin("TF", uppercase(layer.name))
+            layer.type = :tf
+        elseif occursin("shield", lowercase(layer.name))
+            layer.type = :shield
+        elseif occursin("blanket", lowercase(layer.name))
+            layer.type = :blanket
+        elseif occursin("wall", lowercase(layer.name))
+            layer.type = :wall
+        elseif occursin("vessel", lowercase(layer.name))
+            layer.type = :vessel
+        elseif occursin("cryostat", lowercase(layer.name))
+            layer.type = :cryostat
+            layer.shape = :silo
+        end
+
+        # side
+        if occursin("hfs", lowercase(layer.name))
+            layer.side = :hfs
+        elseif occursin("lfs", lowercase(layer.name))
+            layer.side = :lfs
+        else
+            if layer.type == _plasma_
+                layer.side = :lhfs
+            elseif k < length(layers) / 2
+                layer.side = :in
+            elseif k > length(layers) / 2
+                layer.side = :out
+            end
+        end
+    end
+end
+
+function Base.to_index(layers::Vector{FUSE.FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+    tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
+    if tmp === nothing
+        error("Valid ini.build.layers are: $([Symbol(replace(layer.name," " => "_")) for layer in layers])")
+    end
+    return tmp
 end
 
 """
-    function init_build!(
-        bd::IMAS.build,
-        eqt::IMAS.equilibrium__time_slice,
-        wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
-        blanket::Float64 = 1.0,
-        shield::Float64 = 0.5,
-        vessel::Float64 = .125,
-        pf_inside_tf::Bool = false,
-        pf_outside_tf::Bool = true)
+    scale_build_layers!(layers::Vector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
 
-Initialization of build IDS based on equilibrium time_slice
+Scale build layers thicknesses so that the plasma equilibrium is in the middle of the plasma layer
 """
-function layers_meters_from_fractions(
-    eqt::IMAS.equilibrium__time_slice,
-    wall::T where {T<:Union{IMAS.wall__description_2d___limiter__unit___outline,Missing}};
-    blanket::Float64=1.0,
-    shield::Float64=0.5,
-    vessel::Float64=0.125,
-    plasma_gap::Float64=0.1,
-    pf_inside_tf::Bool=false,
-    pf_outside_tf::Bool=true)
-
-    if wall !== missing
-        rmin = minimum(wall.r)
-        rmax = maximum(wall.r)
-    else
-        rmin = eqt.boundary.geometric_axis.r - eqt.boundary.minor_radius
-        rmax = eqt.boundary.geometric_axis.r + eqt.boundary.minor_radius
-        gap = (rmax - rmin) / 2.0 * plasma_gap
-        rmin -= gap
-        rmax += gap
+function scale_build_layers!(layers::Vector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+    gap = a * plasma_gap_fraction
+    plasma_start = R0 - a - gap
+    layer_plasma_start = 0.0
+    for layer in layers
+        if layer.type == _plasma_
+            break
+        end
+        if layer.thickness > 0.0
+            layer_plasma_start += layer.thickness
+        end
     end
+    factor = plasma_start / layer_plasma_start
+    for (k, layer) in enumerate(layers)
+        if layer.type == _plasma_
+            layers[k].thickness = 2.0 * (a + gap)
+        else
+            layers[k].thickness = layer.thickness * factor
+        end
+    end
+end
+
+function scale_build_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
+    gap = a * gap_fraction
+    plasma_start = R0 - a - gap
+    layer_plasma_start = 0.0
+    for (layer, thickness) in layers
+        if layer == :plasma
+            break
+        end
+        if thickness > 0.0
+            layer_plasma_start += thickness
+        end
+    end
+    factor = plasma_start / layer_plasma_start
+    for (layer, thickness) in layers
+        if layer == :plasma
+            layers[layer] = 2.0 * (a + gap)
+        else
+            layers[layer] = thickness * factor
+        end
+    end
+end
+
+function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
+    bd = dd.build
+    for (k, layer) in enumerate(bd.layer)
+        if !ismissing(layer, :material)
+            continue
+        end
+        if k == 1 && ini.center_stack.plug
+            layer.material = "Steel, Stainless 316"
+        elseif layer.type == Int(_plasma_)
+            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in bd.layer)) ? "DT_plasma" : "DD_plasma"
+        elseif layer.type == Int(_gap_)
+            layer.material = "Vacuum"
+        elseif layer.type == Int(_oh_)
+            layer.material = bd.oh.technology.material
+        elseif layer.type == Int(_tf_)
+            layer.material = bd.tf.technology.material
+        elseif layer.type == Int(_shield_)
+            layer.material = "Steel, Stainless 316"
+        elseif layer.type == Int(_blanket_)
+            layer.material = "lithium-lead"
+        elseif layer.type == Int(_wall_)
+            layer.material = "Tungsten"
+        elseif layer.type == Int(_vessel_)
+            layer.material = "Water, Liquid"
+        elseif layer.type == Int(_cryostat_)
+            layer.material = "Steel, Stainless 316"
+        end
+    end
+end
+
+function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
+    # plug
+    if ini.center_stack.plug
+        mechanical_technology(dd, :pl)
+    end
+
+    # oh
+    coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+    mechanical_technology(dd, :oh)
+
+    # tf
+    coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+    mechanical_technology(dd, :tf)
+
+    #pf
+    return coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+end
+
+function mechanical_technology(dd::IMAS.dd, what::Symbol)
+    if what != :pl && getproperty(dd.build, what).technology.material == "Copper"
+        material = pure_copper
+    else
+        material = stainless_steel
+    end
+    setproperty!(dd.solid_mechanics.center_stack.properties.yield_strength, what, material.yield_strength)
+    setproperty!(dd.solid_mechanics.center_stack.properties.poisson_ratio, what, material.poisson_ratio)
+    return setproperty!(dd.solid_mechanics.center_stack.properties.young_modulus, what, material.young_modulus)
+end
+
+"""
+    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
+
+Handy functino for initialization of layers based on few scalars
+"""
+function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
 
     # express layer thicknesses as fractions
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
@@ -338,91 +413,12 @@ function layers_meters_from_fractions(
         layers[:lfs_vacuum_vessel_wall_outer] = vessel * 0.1
     end
     layers[:lfs_TF] = 1.0
-    layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 3 : 1)
     if blanket > 0.0
+        layers[:gap_cryostat] = 1.0 * (pf_outside_tf ? 3 : 1)
         layers[:cryostat] = 0.5
+    else
+        layers[:gap_world] = 1.0 * (pf_outside_tf ? 3 : 1)
     end
-
-    # from fractions to meters
-    scale_build_layers!(layers, (rmax + rmin) / 2.0, (rmax - rmin) / 2.0, 0.0)
 
     return layers
-end
-
-function scale_build_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
-    gap = a * gap_fraction
-    plasma_start = R0 - a - gap
-    layer_plasma_start = 0.0
-    for (layer, thickness) in layers
-        if layer == :plasma
-            break
-        end
-        if thickness > 0.0
-            layer_plasma_start += thickness
-        end
-    end
-    factor = plasma_start / layer_plasma_start
-    for (layer, thickness) in layers
-        if layer == :plasma
-            layers[layer] = 2.0 * (a + gap)
-        else
-            layers[layer] = thickness * factor
-        end
-    end
-end
-
-function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
-    bd = dd.build
-    for (k, layer) in enumerate(bd.layer)
-        if k == 1 && ini.center_stack.plug
-            layer.material = ini.material.wall
-        elseif layer.type == Int(_plasma_)
-            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in bd.layer)) ? "DT_plasma" : "DD_plasma"
-        elseif layer.type == Int(_gap_)
-            layer.material = "Vacuum"
-        elseif layer.type == Int(_oh_)
-            layer.material = bd.oh.technology.material
-        elseif layer.type == Int(_tf_)
-            layer.material = bd.tf.technology.material
-        elseif layer.type == Int(_shield_)
-            layer.material = ini.material.shield
-        elseif layer.type == Int(_blanket_)
-            layer.material = ini.material.blanket
-        elseif layer.type == Int(_wall_)
-            layer.material = ini.material.wall
-        elseif layer.type == Int(_vessel_)
-            layer.material = "Water, Liquid"
-        elseif layer.type == Int(_cryostat_)
-            layer.material = ini.material.wall
-        end
-    end
-end
-
-function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
-    # plug
-    if ini.center_stack.plug
-        mechanical_technology(dd, :pl)
-    end
-
-    # oh
-    coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
-    mechanical_technology(dd, :oh)
-
-    # tf
-    coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
-    mechanical_technology(dd, :tf)
-
-    #pf
-    return coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
-end
-
-function mechanical_technology(dd::IMAS.dd, what::Symbol)
-    if what != :pl && getproperty(dd.build, what).technology.material == "Copper"
-        material = pure_copper
-    else
-        material = stainless_steel
-    end
-    setproperty!(dd.solid_mechanics.center_stack.properties.yield_strength, what, material.yield_strength)
-    setproperty!(dd.solid_mechanics.center_stack.properties.poisson_ratio, what, material.poisson_ratio)
-    return setproperty!(dd.solid_mechanics.center_stack.properties.young_modulus, what, material.young_modulus)
 end

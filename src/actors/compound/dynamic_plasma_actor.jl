@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T} <: ParametersAc
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=true)
 end
 
-mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor
+mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorDynamicPlasma{P}
     act::ParametersAllActors
@@ -58,8 +58,6 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED, ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
-    actor_jt.jt_actor.par.solve_for = :ip
-    actor_jt.jt_actor.par.solve_for = :vloop
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
@@ -88,7 +86,7 @@ function _step(actor::ActorDynamicPlasma)
     prog = ProgressMeter.Progress(par.Nt * 9; dt=0.0, showspeed=true)
     old_logging = actor_logging(dd, false)
     try
-        for (kk, tt) in enumerate(LinRange(t0, t1, 2 * par.Nt + 1)[2:end])
+        for (kk, tt) in enumerate(range(t0, t1, 2 * par.Nt + 1)[2:end])
             # prepare time dependent arrays of structures
             IMAS.new_timeslice!(dd.equilibrium, tt)
             IMAS.new_timeslice!(dd.core_profiles, tt)

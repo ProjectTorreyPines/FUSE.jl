@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T} <: ParametersActor wh
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
 end
 
-mutable struct ActorCurrent{D,P} <: PlasmaAbstractActor
+mutable struct ActorCurrent{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCurrent{P}
     jt_actor::Union{ActorSteadyStateCurrent{D,P},ActorQED{D,P}}
