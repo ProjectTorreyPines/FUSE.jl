@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch{Symbol}([:Tauenn, :FluxMatcher, :FixedProfiles, :none], "-", "Transport actor to run"; default=:FixedProfiles)
+    model::Switch{Symbol} = Switch{Symbol}([:Tauenn, :FluxMatcher, :FixedProfiles, :none], "-", "Transport actor to run"; default=:none)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the core transport"; default=false)
 end
 
