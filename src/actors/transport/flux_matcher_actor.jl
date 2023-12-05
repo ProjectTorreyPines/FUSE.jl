@@ -89,7 +89,7 @@ function _step(actor::ActorFluxMatcher)
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
-    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose && !par.do_plot)
+    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
 
     z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
     err_history = Float64[]
