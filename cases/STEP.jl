@@ -45,6 +45,24 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars)::Tuple{
             ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
         end
 
+        # pf_active
+        pf_rz = [
+            (2.060085836909871, 8.698630136986301),
+            (3.948497854077253, 9.520547945205479),
+            (6.832618025751072, 9.623287671232875),
+            (6.832618025751072, 6.369863013698629),
+            (8.309012875536478, 2.1232876712328768),
+            (8.309012875536478, -2.089041095890412),
+            (6.832618025751072, -6.404109589041095),
+            (6.798283261802575, -9.623287671232877),
+            (4.085836909871245, -9.520547945205479),
+            (2.0257510729613735, -8.6986301369863)]
+
+        r_oh = ini.build.layers[1].thickness + ini.build.layers[2].thickness / 2.0
+        b = ini.equilibrium.ϵ * ini.equilibrium.R0 * ini.equilibrium.κ
+        z_oh = (ini.equilibrium.Z0 - b, ini.equilibrium.Z0 + b)
+        pf_active_from_rz(dd.pf_active.coil, pf_rz, 0.75, r_oh, z_oh, ini.oh.n_coils)
+
         ini.equilibrium.pressure_core = 1.175e6
 
         ini.general.dd = dd
@@ -99,7 +117,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
 
     ini.equilibrium.B0 = 3.2
     ini.equilibrium.R0 = 3.6
-    ini.equilibrium.ϵ = 1 / 1.8
+    ini.equilibrium.ϵ = 2.0 / ini.equilibrium.R0
     ini.equilibrium.κ = 2.93
     ini.equilibrium.δ = 0.59
     ini.equilibrium.ip = 21.1e6 # from PyTok
@@ -117,6 +135,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 1.1
+    ini.core_profiles.ejima = 0.0
 
     ini.oh.n_coils = 8
     ini.oh.technology = :HTS
@@ -147,4 +166,34 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     set_new_base!(act)
 
     return ini, act
+end
+
+function pf_active_from_rz(coils::IMAS.IDSvector{<:IMAS.pf_active__coil}, pf_rz::AbstractArray, size::Real, r_oh::Real, z_oh::Tuple{<:Real,<:Real}, n_oh::Int)
+    empty!(coils)
+    resize!(coils, length(pf_rz) + n_oh)
+
+    z_ohcoils, h_oh = FUSE.size_oh_coils([z_oh[1], z_oh[2]], 0.1, n_oh, 1.0, 0.0)
+
+    for (idx, z) in enumerate(z_ohcoils)
+        resize!(coils[idx].element, 1)
+        pf_geo = coils[idx].element[1].geometry
+        pf_geo.geometry_type = 2
+        pf_geo.rectangle.r = r_oh
+        pf_geo.rectangle.z = z
+        pf_geo.rectangle.height = h_oh
+        pf_geo.rectangle.width = h_oh / 10
+    end
+
+    for (idx, (r, z)) in enumerate(pf_rz)
+        idx += n_oh
+        resize!(coils[idx].element, 1)
+        pf_geo = coils[idx].element[1].geometry
+        pf_geo.geometry_type = 2
+        pf_geo.rectangle.r = r
+        pf_geo.rectangle.z = z
+        pf_geo.rectangle.height = size
+        pf_geo.rectangle.width = size
+    end
+
+    return IMAS.set_coils_function(coils)
 end
