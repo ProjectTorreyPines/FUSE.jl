@@ -121,3 +121,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     return ini, act
 end
+
+function TraceCAD(::Type{Val{:ITER}})
+    x_length = 16.9
+    x_offset = -1.08
+    y_offset = 0.1
+    TraceCAD(:ITER, x_length, x_offset, y_offset)
+end
