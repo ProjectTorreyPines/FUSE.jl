@@ -520,8 +520,8 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
 
     # _in_
     TF = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_)
-    D = minimum(TF.outline.z)
-    U = maximum(TF.outline.z)
+    D = (minimum(plasma.outline.z) * 2 + minimum(TF.outline.z)) / 3.0
+    U = (maximum(plasma.outline.z) * 2 + maximum(TF.outline.z)) / 3.0
     if coils_inside
         # generally the OH does not go higher than the PF coils
         D += 2.0 * TF.thickness
@@ -568,6 +568,7 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     obstr = bd.layer[obstr_index]
     # display("Layer $layer_index = $(layer.name)")
     # display("Obstr $obstr_index = $(obstr.name)")
+
     if layer.side == Int(_out_)
         l_start = 0.0
         l_end = layer.end_radius
@@ -588,10 +589,13 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
             l_end = IMAS.get_build_layer(bd.layer; identifier=layer.identifier, fs=_lfs_).end_radius
         end
     end
+
     hfs_thickness = o_start - l_start
     lfs_thickness = l_end - o_end
+
     oR = obstr.outline.r
     oZ = obstr.outline.z
+
     if layer.side == Int(_out_)
         target_clearance = lfs_thickness * 1.2
         use_curvature = false

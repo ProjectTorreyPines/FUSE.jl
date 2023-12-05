@@ -95,7 +95,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
         if par.do_plot
             # final time slice
             time_index = length(dd.equilibrium.time)
-            display(plot(dd.pf_active, :currents; time0=dd.equilibrium.time[time_index], title="PF coils current limits at t=$(dd.equilibrium.time[time_index]) s"))
+            display(plot(dd.pf_active, :currents; time0=dd.equilibrium.time[time_index], title="PF currents at at t=$(dd.equilibrium.time[time_index]) s"))
             display(plot(actor; equilibrium=true, time_index))
             # field null time slice
             if par.weight_null > 0.0
