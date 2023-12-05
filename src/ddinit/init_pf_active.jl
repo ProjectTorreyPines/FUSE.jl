@@ -30,6 +30,7 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
                 push!(n_coils, ini.pf_active.n_coils_outside)
             end
             init_pf_active!(dd.pf_active, dd.build, dd.equilibrium.time_slice[], n_coils)
+
         end
 
         coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
@@ -82,8 +83,7 @@ end
         eqt::IMAS.equilibrium__time_slice,
         n_coils::Vector{TI};
         pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
-        coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing,
-        coils_elements_area::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
+        coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
 
 Use build layers outline to initialize PF coils distribution
 NOTE: n_coils
@@ -97,21 +97,12 @@ function init_pf_active!(
     eqt::IMAS.equilibrium__time_slice,
     n_coils::Vector{TI};
     pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
-    coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing,
-    coils_elements_area::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
+    coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
 
     OH_layer = IMAS.get_build_layer(bd.layer; type=_oh_)
 
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))
-
-    # coils_cleareance is an array the lenght of the rails
-    if coils_elements_area === nothing
-        coils_elements_area = 0.0025
-    end
-    if isa(coils_elements_area, Number)
-        coils_elements_area = [coils_elements_area for k in 1:length(n_coils)]
-    end
 
     # coils_cleareance is an array the lenght of the rails
     if coils_cleareance === nothing
@@ -127,7 +118,6 @@ function init_pf_active!(
     z_ohcoils, h_oh = size_oh_coils(OH_layer.outline.z, coils_cleareance[1], n_coils[1])
     bd.pf_active.rail[1].name = "OH"
     bd.pf_active.rail[1].coils_number = n_coils[1]
-    bd.pf_active.rail[1].coils_elements_area = coils_elements_area[1]
     bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
     bd.pf_active.rail[1].outline.r = ones(length(z_ohcoils)) * r_oh
     bd.pf_active.rail[1].outline.z = z_ohcoils
@@ -148,7 +138,7 @@ function init_pf_active!(
 
     # coils_cleareance is an array the length of the PF rails
     if pf_coils_size === nothing
-        pf_coils_size = sqrt(w_oh * h_oh)
+        pf_coils_size = sqrt(w_oh * h_oh) * sqrt(2)
     end
     if isa(pf_coils_size, Number)
         pf_coils_size = [NaN, pf_coils_size, 1.5 * pf_coils_size]
@@ -176,7 +166,6 @@ function init_pf_active!(
         # add rail info to build IDS
         bd.pf_active.rail[krail].name = replace(replace(layer.name, "hfs " => ""), "lfs " => "")
         bd.pf_active.rail[krail].coils_number = nc
-        bd.pf_active.rail[krail].coils_elements_area = coils_elements_area[krail]
         bd.pf_active.rail[krail].coils_cleareance = coils_cleareance[krail]
 
         # limit size of the pf_coils to fit in the vacuum region
