@@ -16,6 +16,27 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         if init_from == :ods
             if length(dd1.pf_active.coil) > 0
                 dd.pf_active = dd1.pf_active
+                IMAS.set_coils_function(dd.pf_active.coil)
+
+                # create rails from coils
+                if false
+                    OH = [coil for coil in dd.pf_active.coil if IMAS.is_ohmic_coil(coil)]
+                    PF = [coil for coil in dd.pf_active.coil if !IMAS.is_ohmic_coil(coil)]
+                    empty!(dd.build.pf_active.rail)
+                    for (name, coils) in (("OH", OH), ("PF", PF))
+                        rail = resize!(dd.build.pf_active.rail, length(dd.build.pf_active.rail) + 1)[end]
+                        rail.name = name
+                        rail.coils_cleareance = maximum([norm([coil.element[1].geometry.rectangle.width, coil.element[1].geometry.rectangle.height]) for coil in coils])
+                        rail.coils_number = length(coils)
+                        rail.outline.r = [coil.element[1].geometry.rectangle.r for coil in coils]
+                        rail.outline.z = [coil.element[1].geometry.rectangle.z for coil in coils]
+                        distance = cumsum(sqrt.(IMAS.gradient(rail.outline.r) .^ 2 .+ IMAS.gradient(rail.outline.z) .^ 2))
+                        distance = (distance .- distance[1])
+                        distance = (distance ./ distance[end]) .* 2.0 .- 1.0
+                        rail.outline.distance = distance
+                    end
+                end
+
             else
                 init_from = :scalars
             end
@@ -36,8 +57,6 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
         coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
         coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
-
-        IMAS.set_coils_function(dd.pf_active.coil)
 
         return dd
     end
