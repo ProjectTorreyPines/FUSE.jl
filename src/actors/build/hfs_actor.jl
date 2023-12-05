@@ -176,7 +176,7 @@ function _step(actor::ActorHFSsizing)
     try
         bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
         options = Metaheuristics.Options(; seed=1, iterations=50)
-        algorithm = Metaheuristics.ECA(; N=20, options)
+        algorithm = Metaheuristics.ECA(; N=50, options)
         res = Metaheuristics.optimize(cost, bounds, algorithm)
         assign_PL_OH_TF(Metaheuristics.minimizer(res))
     finally
