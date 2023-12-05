@@ -203,7 +203,7 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     gm9 = eqt.profiles_1d.gm9
 
     # DO NOT use the equilibrium j_tor, since it's quality depends on the quality/resolution of the equilibrium solver
-    # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibirum solver
+    # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibrium solver
     if false
         j_tor = eqt.profiles_1d.j_tor
     else
