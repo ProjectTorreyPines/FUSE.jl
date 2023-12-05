@@ -454,6 +454,15 @@ function digest(
         display(p)
     end
 
+    # SOL
+    sec += 1
+    if !isempty(dd.equilibrium.time_slice) && section ∈ (0, sec)
+        println('\u200B')
+        p = plot(dd.wall)
+        plot!(IMAS.sol(dd); xlim=[0.0, Inf])
+        display(p)
+    end
+
     # center stack stresses
     sec += 1
     if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh) && section ∈ (0, sec)
