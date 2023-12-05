@@ -145,7 +145,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     R_lfs_plasma = plasma.end_radius
 
     # main chamber (clip elements that go beyond plasma radial build thickness)
-    R, Z = segmented_wall(rlcfs, zlcfs, gap, 0.5)
+    R, Z = segmented_wall(rlcfs, zlcfs, gap, 0.75)
     wall_poly = xy_polygon(R, Z)
 
     t = LinRange(0, 2π, 31)
