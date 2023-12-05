@@ -46,7 +46,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
             ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
         end
 
-        act.ActorFixedProfiles.update_pedestal = false
+        act.ActorCoreTransport.model = :none
         ini.equilibrium.pressure_core = 1.175e6
 
         # ===========
