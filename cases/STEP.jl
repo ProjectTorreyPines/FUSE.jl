@@ -193,7 +193,10 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorPFcoilsOpt.symmetric = true
     act.ActorEquilibrium.symmetrize = true
 
-    ini.ec_launcher[1].power_launched = 150.e6 #  some at rho = 0.7 with a 0.2 width some in core 
+    ini.ec_launcher[1].power_launched = 150.e6
+    act.ActorECsimple.width = 0.25
+    act.ActorECsimple.rho_0 = 0.0
+    act.ActorECsimple.ηcd_scale = 0.5
 
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 1.1
