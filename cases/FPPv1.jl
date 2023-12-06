@@ -90,11 +90,11 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
         # higher density
         ini.core_profiles.greenwald_fraction = 1.0
         # limits (default FPP exceeds βn limits and greenwald density)
-        act.ActorStabilityLimits.models = [:model_201,  :model_401] # :model_301, :beta_troyon_1984
+        act.ActorStabilityLimits.models = [:q95_gt_2,  :κ_controllability] # :gw_density, :beta_troyon_1984
         # update initial core
         ini.equilibrium.pressure_core = 1.5E6
     else
-        act.ActorStabilityLimits.models = [:model_201,  :model_301, :model_401] # :beta_troyon_1984
+        act.ActorStabilityLimits.models = [:q95_gt_2,  :gw_density, :κ_controllability] # :beta_troyon_1984
     end
 
     # set density evolution for ActorFluxMatcher

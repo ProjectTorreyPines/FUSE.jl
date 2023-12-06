@@ -11,6 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where
     user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
+    theta_trapped::Entry{T} = Entry{T}("-", "Theta trapped parameter for TGLF";default=0.7)
 end
 
 mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor{D,P}
@@ -55,6 +56,16 @@ function _step(actor::ActorTGLF)
     cp1d = dd.core_profiles.profiles_1d[]
     ix_eq = [argmin(abs.(eq1d.rho_tor_norm .- rho)) for rho in par.rho_transport]
     ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
+    
+    
+    ϵ_st40 = 1 / 1.9
+    ϵ_D3D = 0.67 / 1.67 
+
+    ϵ = dd.equilibrium.time_slice[].boundary.minor_radius / dd.equilibrium.time_slice[].boundary.geometric_axis.r
+    theta_0 = (0.7-0.2)/(ϵ_D3D- ϵ_st40) * (ϵ - ϵ_st40) + 0.2
+    theta_1 = (0.7-0.8)/(ϵ_D3D- ϵ_st40) * (ϵ - ϵ_st40) + 0.8
+    theta_trapped = range(theta_0,theta_1,length(cp1d.grid.rho_tor_norm))
+
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
@@ -65,6 +76,13 @@ function _step(actor::ActorTGLF)
             end
         elseif par.model == :TJLF
             actor.input_tglfs[k] = create_input_tjlf(TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic))
+        end
+        actor.input_tglfs[k].ALPHA_ZF = -1
+        
+    
+        @assert par.theta_trapped == 0.7 || !par.nn "The neural nets are trained with theta_trapped=0.7"
+        if ϵ > ϵ_D3D
+            actor.input_tglfs[k].THETA_TRAPPED = theta_trapped[gridpoint_cp]
         end
     end
 

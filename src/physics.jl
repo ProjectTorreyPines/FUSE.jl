@@ -487,7 +487,7 @@ Symmetric rectangular shape
 """
 function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5, resolution::Float64=1.0) where {T<:Real}
     Δ = height / 2.0
-    return rectangle_shape(r_start, r_end, -Δ, Δ; n_points)
+    return rectangle_shape(r_start, r_end, -Δ, Δ; n_points, resolution)
 end
 
 """

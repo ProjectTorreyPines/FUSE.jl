@@ -42,7 +42,7 @@ function _step(actor::ActorStabilityLimits)
     # run all stability models
     run_stability_models(dd, par.models)
 
-    if par.raise_on_breach
+    if !isempty(par.models) && par.raise_on_breach
         failed = String[]
         desc = String[]
         time_index = findfirst(dd.stability.time .== @ddtime(dd.stability.time))

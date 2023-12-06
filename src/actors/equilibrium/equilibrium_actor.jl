@@ -84,15 +84,23 @@ function _finalize(actor::ActorEquilibrium)
 
     # finalize selected equilibrium actor
     finalize(actor.eq_actor)
+    
+    eqt = dd.equilibrium.time_slice[]
 
     # symmetrize equilibrium if requested and number of X-points is even
     x_points = IMAS.x_points(dd.pulse_schedule.position_control.x_point)
     if par.symmetrize && mod(length(x_points), 2) != 1
-        IMAS.symmetrize_equilibrium!(dd.equilibrium.time_slice[])
+        IMAS.symmetrize_equilibrium!(eqt)
     end
 
     # add flux surfaces information
-    IMAS.flux_surfaces(dd.equilibrium.time_slice[])
+    try
+        IMAS.flux_surfaces(eqt)
+    catch e
+        eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal))
+        rethrow(e)
+    end
 
     if par.do_plot
         plot!(dd.equilibrium; label="after ActorEquilibrium")

@@ -277,9 +277,11 @@ Calculates coil green function at given R and Z coordinate
 function VacuumFields.Green(coil::All_GS_IMAS_pf_active__coil, R::Real, Z::Real)
     return _gfunc(VacuumFields.Green, coil, R, Z)
 end
+
 function VacuumFields.dG_dR(coil::All_GS_IMAS_pf_active__coil, R::Real, Z::Real)
     return _gfunc(VacuumFields.dG_dR, coil, R, Z)
 end
+
 function VacuumFields.dG_dZ(coil::All_GS_IMAS_pf_active__coil, R::Real, Z::Real)
     return _gfunc(VacuumFields.dG_dZ, coil, R, Z)
 end
@@ -311,6 +313,38 @@ function _gfunc(Gfunc::Function, coil::All_GS_IMAS_pf_active__coil, R::Real, Z::
     end
 end
 
+"""
+    encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
+
+Generates VacuumFields.PointCoil around the plasma boundary using some educated guesses for where the pf coils will be
+"""
+function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
+    rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
+    rail_z = (rail_z .- z_axis) .* 1.1 .+ z_axis # give divertors
+
+    valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis)
+
+    # normalized distance between -1 and 1
+    distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
+    distance = (distance .- distance[1])
+    distance = (distance ./ distance[end]) .* 2.0 .- 1.0
+
+    coils_distance = range(-1.0, 1.0, n_coils)
+    r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
+    z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
+
+    r_ohcoils = minimum(bnd_r) / 3.0
+    n_oh = Int(ceil((maximum(bnd_z) - minimum(bnd_z)) / r_ohcoils * 2))
+    r_ohcoils = 0.01 # this seems to work better
+
+    z_ohcoils = range((minimum(bnd_z) * 2 + minimum(rail_z)) / 3.0, (maximum(bnd_z) * 2 + maximum(rail_z)) / 3.0, n_oh)
+
+    return [
+        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
+        [VacuumFields.PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
+    ]
+end
+
 @recipe function plot_coil(coil::All_GS_IMAS_pf_active__coil)
     @series begin
         seriestype := :scatter
@@ -321,7 +355,7 @@ end
 end
 
 @recipe function plot_coil(coils::AbstractVector{<:All_GS_IMAS_pf_active__coil})
-    for (k,coil) in enumerate(coils)
+    for (k, coil) in enumerate(coils)
         @series begin
             primary := (k == 1)
             aspect_ratio := :equal

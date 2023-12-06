@@ -95,7 +95,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
         if par.do_plot
             # final time slice
             time_index = length(dd.equilibrium.time)
-            display(plot(dd.pf_active, :currents; time0=dd.equilibrium.time[time_index], title="PF coils current limits at t=$(dd.equilibrium.time[time_index]) s"))
+            display(plot(dd.pf_active, :currents; time0=dd.equilibrium.time[time_index], title="PF currents at at t=$(dd.equilibrium.time[time_index]) s"))
             display(plot(actor; equilibrium=true, time_index))
             # field null time slice
             if par.weight_null > 0.0
@@ -119,7 +119,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw..
 
     # reset pf coil rails
     n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
-    init_pf_active!(dd.pf_active, dd.build, n_coils)
+    init_pf_active!(dd.pf_active, dd.build, dd.equilibrium.time_slice[], n_coils)
 
     return ActorPFcoilsOpt(dd, par, dd.equilibrium, dd.equilibrium, λ_regularize, trace)
 end

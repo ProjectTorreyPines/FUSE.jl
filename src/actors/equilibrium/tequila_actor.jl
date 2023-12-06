@@ -8,13 +8,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     _name::Symbol = :not_set
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
-    number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=21)
-    number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=20)
-    number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=10)
+    number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=11)
+    number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=10)
+    number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=4)
     number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=20)
-    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=1.0)
-    tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-6)
-    psi_norm_boundary_cutoff::Entry{Float64} = Entry{Float64}("-", "Cutoff psi_norm for determining boundary"; default=0.999)
+    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
+    tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-3)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     #== display and debugging parameters ==#
@@ -62,7 +61,7 @@ function _step(actor::ActorTEQUILA)
 
     # BCL 5/30/23: ψbound should be set time dependently, related to the flux swing of the OH coils
     #              For now setting to zero as initial eq1d.psi profile from prepare() can be nonsense
-    actor.ψbound = 0.0 #IMAS.interp1d(eq1d.psi_norm, eq1d.psi)(par.psi_norm_boundary_cutoff)
+    actor.ψbound = 0.0
 
     Ip_target = eqt.global_quantities.ip
     rho_pol = sqrt.(eq1d.psi_norm)
@@ -75,7 +74,7 @@ function _step(actor::ActorTEQUILA)
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z; n_points=500, curvature_weight=0.8)
-        pr, pz = limit_curvature(pr, pz, 0.5)
+        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
         # kmin = argmin(pz)
         # @views pr[kmin] = sum(pr[kmin-1:kmin+1]) / 3.0
         # @views pz[kmin] = sum(pz[kmin-1:kmin+1]) / 3.0
@@ -147,8 +146,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     Zdim = κ * Rdim
 
     nψ_grid = 129
-    nr_grid = 129
-    nz_grid = Int(ceil(nr_grid * Zdim / Rdim))
+    nz_grid = 129
+    nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
 
     psit = shot.C[2:2:end, 1]
     psia = psit[1]
@@ -189,15 +188,14 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         # Flux Control Points
         flux_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
         append!(flux_cps, VacuumFields.boundary_control_points(shot, 0.999, psib))
-        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib) ])
+        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib)])
 
         # Saddle Control Points
         saddle_weight = length(flux_cps)
         saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         if isempty(dd.pf_active.coil)
-            n_coils = 100
-            coils = VacuumFields.encircling_coils(shot, n_coils)
+            coils = encircling_coils(Rb, Zb, RA, ZA, 8)
         else
             coils = IMAS_pf_active__coils(dd; green_model=:simple)
         end
@@ -206,7 +204,6 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         eq2d.psi .= psi_free_rz'
 
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
-
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain

@@ -97,7 +97,7 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
 
     #### ACT ####
 
-    act.ActorStabilityLimits.models = [:model_201, :model_401]
+    act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
     act.ActorPFcoilsOpt.update_equilibrium = false
 

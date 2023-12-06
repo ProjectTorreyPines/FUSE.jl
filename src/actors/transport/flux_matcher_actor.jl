@@ -18,9 +18,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
-    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
-    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:trust_region)
-    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.5)
+    optimize_q::Entry{Bool} = Entry{Bool}("-", "Optimize q profile to achieve goal"; default=false)
+    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
+    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the flux matching"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Print trace and optimization result"; default=false)
 end
@@ -88,7 +89,7 @@ function _step(actor::ActorFluxMatcher)
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
-    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose && !par.do_plot)
+    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
 
     z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
     err_history = Float64[]
@@ -143,6 +144,21 @@ function _step(actor::ActorFluxMatcher)
         display(p)
     end
 
+    # for completely collapsed cases we don't want it to crash in the optimizer so
+    cp1d = dd.core_profiles.profiles_1d[]
+    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te
+        @warn "Profiles completely collpased due to insufficient source versus turbulence"
+        te=cp1d.electrons.temperature
+        teped = @ddtime(dd.summary.local.pedestal.t_e.value)
+        lowest_profile = IMAS.Hmode_profiles(te[end],teped,teped*1.5,length(te),1.1,1.1,2*(1 - @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)))
+        cp1d.electrons.temperature = lowest_profile
+        if par.evolve_Ti
+            for ion in cp1d.ion
+                ion.temperature = lowest_profile
+            end
+        end
+    end
+        #        
     return actor
 end
 

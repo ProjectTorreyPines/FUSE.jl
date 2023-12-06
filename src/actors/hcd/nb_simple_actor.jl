@@ -6,6 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor w
     _name::Symbol = :not_set
     width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.3)
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.0)
+    ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
 mutable struct ActorNBsimple{D,P} <: HCDAbstractActor{D,P}
@@ -26,6 +27,7 @@ Estimates the NBI ion/electron energy deposition, particle source, rotation and 
 NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
 
 !!! note
+
     Reads data in `dd.nbi` and stores data in `dd.core_sources`
 """
 function ActorNBsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -49,7 +51,7 @@ function _step(actor::ActorNBsimple)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     n_beams = length(dd.nbi.unit)
-    _, width, rho_0 = same_length_vectors(1:n_beams, par.width, par.rho_0)
+    _, width, rho_0, ηcd_scale = same_length_vectors(1:n_beams, par.width, par.rho_0, par.ηcd_scale)
 
     for (idx, nbu) in enumerate(dd.nbi.unit)
         beam_energy = @ddtime (nbu.energy.data)
@@ -66,7 +68,7 @@ function _step(actor::ActorNBsimple)
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
 
-        eta = TekeV * 0.025
+        eta = ηcd_scale[idx] * TekeV * 0.025
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
 
