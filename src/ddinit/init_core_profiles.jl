@@ -13,7 +13,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 dd.core_profiles = dd1.core_profiles
 
                 # also set the pedestal in summary IDS
-                if ismissing(dd1.summary.local.pedestal.n_e.value)
+                if ismissing(getproperty(dd1.summary.local.pedestal.n_e, :value, missing))
                     ne_ped, w_ped = IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)
                     ped_summ = dd.summary.local.pedestal
                     cp1d = dd.core_profiles.profiles_1d[]
