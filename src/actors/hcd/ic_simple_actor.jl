@@ -6,6 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor w
     _name::Symbol = :not_set
     width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.1)
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.0)
+    ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
 mutable struct ActorICsimple{D,P} <: HCDAbstractActor{D,P}
@@ -26,6 +27,7 @@ Estimates the ion-cyclotron electron/ion energy deposition and current drive as 
 NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
 
 !!! note
+
     Reads data in `dd.ic_antennas` and stores data in `dd.core_sources`
 """
 function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -50,7 +52,7 @@ function _step(actor::ActorICsimple)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     n_antennas = length(dd.ic_antennas.antenna)
-    _, width, rho_0 = same_length_vectors(1:n_antennas, par.width, par.rho_0)
+    _, width, rho_0, ηcd_scale = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.ηcd_scale)
 
     for (idx, ica) in enumerate(dd.ic_antennas.antenna)
         power_launched = @ddtime(dd.pulse_schedule.ic.antenna[idx].power.reference.data)
@@ -63,7 +65,7 @@ function _step(actor::ActorICsimple)
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
         zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx])
 
-        eta = TekeV * 0.063 / (2.0 + zeff) / (1.0 + 0.5 * beta_tor)
+        eta = ηcd_scale[idx] * TekeV * 0.063 / (2.0 + zeff) / (1.0 + 0.5 * beta_tor)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip) .* ion_electron_fraction_cp
 

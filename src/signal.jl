@@ -215,7 +215,7 @@ function TrajectoryPerturbation(t_start, t_end, nominal::Function, upper::Functi
 end
 
 function TrajectoryPerturbation(t_start, t_end, nominal, upper, lower, n; method)
-    t = LinRange(0.0, 1.0, n + 2)[2:end-1]
+    t = range(0.0, 1.0, n + 2)[2:end-1]
     v = t .* 0.0
     return TrajectoryPerturbation(t_start, t_end, nominal, upper, lower, t, v; method)
 end

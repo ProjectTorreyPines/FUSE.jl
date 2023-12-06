@@ -76,8 +76,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             end
         elseif shape_index_mod == Int(_spline_)
             n = 1
-            R = range(r_start, r_end; length=2 + n)[2:end-1]
-            Z = range(height / 2.0, height / 2.0; length=2 + n)[2:end-1]
+            R = range(r_start, r_end, 2 + n)[2:end-1]
+            Z = range(height / 2.0, height / 2.0, 2 + n)[2:end-1]
             shape_parameters = Float64[0.8]
             for (r, z) in zip(R, Z)
                 append!(shape_parameters, [r, z])
@@ -118,7 +118,7 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         elseif shape_index_mod == Int(_double_ellipse_)
             func = circle_ellipse
         elseif shape_index_mod == Int(_rectangle_)
-            func = (r_start, r_end, height) -> rectangle_shape(r_start, r_end, height; n_points=100)
+            func = rectangle_shape
         elseif shape_index_mod == Int(_triple_arc_)
             func = triple_arc
         elseif shape_index_mod == Int(_miller_)
@@ -311,7 +311,7 @@ end
 Simple ellipse shape function
 """
 function ellipse(a::T, b::T, t0::T, t1::T, x0::T, z0::T; n_points::Integer=100) where {T<:Real}
-    t = LinRange(t0, t1, n_points)
+    t = range(t0, t1, n_points)
     x = a .* cos.(t) .+ x0
     z = b .* sin.(t) .+ z0
     return x, z
@@ -458,21 +458,23 @@ end
 Asymmetric rectangular shape
 """
 function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5, resolution::Float64=1.0) where {T<:Real}
+    n_points = Int(round(n_points * resolution))
+    n_points = max(5, n_points)
     if n_points == 5
         R = [r_start, r_end, r_end, r_start, r_start]
         Z = [z_low, z_low, z_high, z_high, z_low]
     else
         R = vcat(
-            range(r_start, r_end; length=n_points),
-            range(r_end, r_end; length=n_points)[2:end],
-            range(r_end, r_start; length=n_points)[2:end],
-            range(r_start, r_start; length=n_points)[2:end],
+            range(r_start, r_end, n_points),
+            range(r_end, r_end, n_points)[2:end],
+            range(r_end, r_start, n_points)[2:end],
+            range(r_start, r_start, n_points)[2:end],
             r_start)
         Z = vcat(
-            range(z_low, z_low; length=n_points),
-            range(z_low, z_high; length=n_points)[2:end],
-            range(z_high, z_high; length=n_points)[2:end],
-            range(z_high, z_low; length=n_points)[2:end],
+            range(z_low, z_low, n_points),
+            range(z_low, z_high, n_points)[2:end],
+            range(z_high, z_high, n_points)[2:end],
+            range(z_high, z_low, n_points)[2:end],
             z_low)
     end
     return R, Z
@@ -485,7 +487,7 @@ Symmetric rectangular shape
 """
 function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5, resolution::Float64=1.0) where {T<:Real}
     Δ = height / 2.0
-    return rectangle_shape(r_start, r_end, -Δ, Δ; n_points)
+    return rectangle_shape(r_start, r_end, -Δ, Δ; n_points, resolution)
 end
 
 """
@@ -530,17 +532,17 @@ function triple_arc(
     asum = small_coverage + mid_coverage
 
     # small arc
-    theta = LinRange(0, small_coverage, n_points)
+    theta = range(0, small_coverage, n_points)
     small_arc_R = r_start .+ small_radius .* (1 .- cos.(theta))
     small_arc_Z = height .+ small_radius .* sin.(theta)
 
     # mid arc
-    theta = LinRange(small_coverage, asum, n_points)
+    theta = range(small_coverage, asum, n_points)
     mid_arc_R = small_arc_R[end] .+ mid_radius .* (cos.(small_coverage) .- cos.(theta))
     mid_arc_Z = small_arc_Z[end] .+ mid_radius .* (sin.(theta) .- sin.(small_coverage))
 
     # large arc
-    theta = LinRange(theta[end], pi, n_points)
+    theta = range(theta[end], pi, n_points)
     large_radius = mid_arc_Z[end] / sin(pi - asum)
     large_arc_R = mid_arc_R[end] .+ large_radius .* (cos.(pi .- theta) .- cos.(pi .- asum))
     large_arc_Z = mid_arc_Z[end] .- large_radius .* (sin(asum) .- sin.(pi .- theta))
@@ -551,8 +553,8 @@ function triple_arc(
     Z = vcat(Z, -reverse(Z)[2:end])
 
     # Add vertical
-    R = vcat(LinRange(r_start, r_start, n_points), R)
-    Z = vcat(LinRange(-height, height, n_points), Z)
+    R = vcat(range(r_start, r_start, n_points), R)
+    Z = vcat(range(-height, height, n_points), Z)
 
     # Resize to ensure r_start to r_end
     factor = (r_end - r_start) / (maximum(R) - minimum(R))
@@ -570,7 +572,7 @@ Miller shape
 function miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=201, resolution::Float64=1.0) where {T<:Real}
     n_points = Int(floor(n_points * resolution) / 2) * 2 + 1
 
-    θ = range(0, 2 * pi; length=n_points)
+    θ = range(0, 2π, n_points)
     triangularity = mirror_bound(triangularity, -1.0, 1.0)
     δ₀ = asin(triangularity)
     R = R0 * (1 .+ rmin_over_R0 .* cos.(θ .+ δ₀ * sin.(θ)))
@@ -655,7 +657,7 @@ function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101, resolution:
     itp_r = Interpolations.interpolate(d, r, Interpolations.FritschButlandMonotonicInterpolation())
     itp_z = Interpolations.interpolate(d, z, Interpolations.FritschButlandMonotonicInterpolation())
 
-    D = LinRange(d[1], d[end], n_points)
+    D = range(d[1], d[end], n_points)
     R, Z = itp_r.(D), itp_z.(D)
     R[end] = R[1]
     Z[end] = Z[1]
@@ -733,6 +735,20 @@ function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{
 end
 
 """
+    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+
+Limit maximum curvature of a polygon described by x,y arrays
+"""
+function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    @assert max_curvature > 0.0
+    poly = xy_polygon(x, y)
+    poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature), max_curvature)
+    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
+    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    return x_b, y_b
+end
+
+"""
     volume_no_structures(layer::IMAS.build__layer, structures::IMAS.IDSvector{<:IMAS.build__structure})
 
 Returns volume of the layer without structures
@@ -759,9 +775,9 @@ function layer_structure_intersect_volume(layer::IMAS.build__layer, structure::I
         return layer.volume
     elseif layer.type ∈ (Int(_tf_), Int(_plasma_))
         return layer.volume
-    elseif layer.fs ∈ (Int(_hfs_), Int(_lfs_))
+    elseif layer.side ∈ (Int(_hfs_), Int(_lfs_))
         i = IMAS.index(layer)
-        if layer.fs == Int(_hfs_)
+        if layer.side == Int(_hfs_)
             layer_in = IMAS.parent(layer)[i+1]
         else
             layer_in = IMAS.parent(layer)[i-1]
@@ -1151,10 +1167,15 @@ function free_boundary_private_flux_constraint(
     upper_x_point::Bool,
     lower_x_point::Bool,
     fraction::Float64=0.25,
-    n_points::Int=10
-) where {T<:Real}
+    n_points::Int=10) where {T<:Real}
+
     Rp = T[]
     Zp = T[]
+    
+    if fraction <= 0.0
+        return Rp, Zp
+    end
+
     for x_point in [-1, 1]
 
         if x_point == -1 && !lower_x_point
@@ -1218,10 +1239,10 @@ function private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{
     r_lfs = vcat(mr[il:end-1], mr[1:iu])
     z_lfs = vcat(mz[il:end-1], mz[1:iu])
 
-    zz_u_hfs = LinRange(mz[iu] + len, mz[iu], n_points)
-    zz_u_lfs = LinRange(mz[iu], mz[iu] + len, n_points)
-    zz_l_hfs = LinRange(mz[il] - len, mz[il], n_points)
-    zz_l_lfs = LinRange(mz[il], mz[il] - len, n_points)
+    zz_u_hfs = range(mz[iu] + len, mz[iu], n_points)
+    zz_u_lfs = range(mz[iu], mz[iu] + len, n_points)
+    zz_l_hfs = range(mz[il] - len, mz[il], n_points)
+    zz_l_lfs = range(mz[il], mz[il] - len, n_points)
     rr_u_hfs = IMAS.interp1d(z_lfs, r_lfs).(zz_u_hfs)
     rr_u_lfs = IMAS.interp1d(z_hfs, r_hfs).(zz_u_lfs)
     rr_l_hfs = IMAS.interp1d(z_lfs, r_lfs).(zz_l_hfs)

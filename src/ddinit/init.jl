@@ -42,6 +42,9 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
 
         # initialize equilibrium
         if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
+            if ini.general.init_from == :ods && !isempty(dd1.pf_active.coil)
+                init_pf_active!(dd, ini, act, dd1)
+            end
             for coil in dd.pf_active.coil
                 empty!(coil.current)
             end
@@ -74,7 +77,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         init_currents!(dd, ini, act, dd1)
 
         # initialize build
-        if initialize_hardware && (!ismissing(ini.build, :vessel) || !ismissing(ini.build, :layers) || !isempty(dd1.build))
+        if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
             init_build!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
@@ -85,7 +88,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize oh and pf coils
-        if initialize_hardware && (!ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active))
+        if initialize_hardware && (!ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active.coil))
             init_pf_active!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)

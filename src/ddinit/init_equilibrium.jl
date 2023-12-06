@@ -36,11 +36,19 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                 cp1d.pressure = eqt.profiles_1d.pressure
             else
                 # guess pressure and j_tor from input current and peak pressure
-                psin = LinRange(0.0, 1.0, 129)
+                psin = range(0.0, 1.0, 129)
                 cp1d.grid.rho_tor_norm = psin
                 cp1d.grid.psi = psin
                 cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference.data)
-                cp1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin)
+                if !ismissing(ini.requirements, :power_electric_net) &&  ismissing(ini.equilibrium, :pressure_core)
+                    pressure_core = 1e4 # low pressure that will be overwritten in init_core_profiles based on expected net electric
+                elseif !ismissing(getproperty(ini.equilibrium, :pressure_core))
+                    pressure_core = ini.equilibrium.pressure_core
+                else
+                    error("Specify ini.equilibrium.pressure_core for this case")
+                end
+
+                cp1d.pressure = pressure_core .* (1.0 .- psin)
             end
         end
 

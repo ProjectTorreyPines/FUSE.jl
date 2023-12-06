@@ -95,7 +95,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, act::ParametersAllActors; kw...)
         if par.do_plot
             # final time slice
             time_index = length(dd.equilibrium.time)
-            display(plot(dd.pf_active, :currents; time0=dd.equilibrium.time[time_index], title="PF coils current limits at t=$(dd.equilibrium.time[time_index]) s"))
+            display(plot(dd.pf_active, :currents; time0=dd.equilibrium.time[time_index], title="PF currents at at t=$(dd.equilibrium.time[time_index]) s"))
             display(plot(actor; equilibrium=true, time_index))
             # field null time slice
             if par.weight_null > 0.0
@@ -119,7 +119,7 @@ function ActorPFcoilsOpt(dd::IMAS.dd, par::FUSEparameters__ActorPFcoilsOpt; kw..
 
     # reset pf coil rails
     n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
-    init_pf_active!(dd.pf_active, dd.build, n_coils)
+    init_pf_active!(dd.pf_active, dd.build, dd.equilibrium.time_slice[], n_coils)
 
     return ActorPFcoilsOpt(dd, par, dd.equilibrium, dd.equilibrium, λ_regularize, trace)
 end
@@ -206,8 +206,8 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
 
         # update ψ map
         scale_eq_domain_size = 1.0
-        R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size; length=length(EQfixed.r))
-        Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size; length=length(EQfixed.z))
+        R = range(EQfixed.r[1] / scale_eq_domain_size, EQfixed.r[end] * scale_eq_domain_size, length(EQfixed.r))
+        Z = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size, length(EQfixed.z))
         eqt2d_out = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
         eqt2d_out.grid.dim1 = R
         eqt2d_out.grid.dim2 = Z
@@ -237,13 +237,13 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
         if rail.name !== "OH"
             # not symmetric
             if !symmetric
-                coil_distances = collect(range(-1.0, 1.0; length=rail.coils_number + 2))[2:end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2:end-1]
                 # even symmetric
             elseif mod(rail.coils_number, 2) == 0
-                coil_distances = collect(range(-1.0, 1.0; length=rail.coils_number + 2))[2+Int(rail.coils_number // 2):end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2+Int(rail.coils_number // 2):end-1]
                 # odd symmetric
             else
-                coil_distances = collect(range(-1.0, 1.0; length=rail.coils_number + 2))[2+Int((rail.coils_number - 1) // 2)+1:end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2+Int((rail.coils_number - 1) // 2)+1:end-1]
             end
             append!(distances, coil_distances)
             append!(lbounds, coil_distances .* 0.0 .- 1.0)

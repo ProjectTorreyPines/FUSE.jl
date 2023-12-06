@@ -45,10 +45,6 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.build.divertors = :lower
     ini.build.n_first_wall_conformal_layers = 2
 
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "lithium-lead"
-    ini.material.shield = "Steel, Stainless 316"
-
     ini.equilibrium.B0 = 7.5
     ini.equilibrium.R0 = 6.8
     ini.equilibrium.ϵ = 0.3088235294117647
@@ -72,14 +68,14 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :LTS
+    ini.pf_active.technology = :Nb3Sn
 
     ini.tf.n_coils = 18
     # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
     ini.tf.technology = :KDEMO
 
     ini.oh.n_coils = 6
-    ini.oh.technology = :LTS
+    ini.oh.technology = :Nb3Sn
 
     ini.ec_launcher[1].power_launched = 5.0e7
 
@@ -87,6 +83,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
 
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 1.1
+    ini.requirements.power_electric_net = 400e6 # as example
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
