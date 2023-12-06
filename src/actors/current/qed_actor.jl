@@ -157,11 +157,14 @@ function _finalize(actor::ActorQED)
     ρ = eqt.profiles_1d.rho_tor_norm
     eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
     eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
-    empty!(eqt.profiles_1d, :j_parallel) # restore expression
+
+    _, B0 = IMAS.vacuum_r0_b0(eqt)
+    eqt.profiles_1d.j_parallel = QED.JB(actor.QO; ρ) ./ B0
 
     # update dd.core_profiles
     cp1d = dd.core_profiles.profiles_1d[]
-    cp1d.j_total = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.j_parallel, :cubic).(cp1d.grid.rho_tor_norm)
+    cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+
     if ismissing(cp1d, :j_non_inductive)
         cp1d.j_ohmic = cp1d.j_total
     else
