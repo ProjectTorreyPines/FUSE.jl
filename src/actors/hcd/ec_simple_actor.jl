@@ -6,6 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorECsimple{T} <: ParametersActor w
     _name::Symbol = :not_set
     width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.05)
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.5)
+    ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
 mutable struct ActorECsimple{D,P} <: HCDAbstractActor{D,P}
@@ -26,6 +27,7 @@ Estimates the EC electron energy deposition and current drive as a gaussian.
 NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
 
 !!! note
+
     Reads data in `dd.ec_launchers` and stores data in `dd.core_sources`
 """
 function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -49,7 +51,7 @@ function _step(actor::ActorECsimple)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     n_launchers = length(dd.ec_launchers.beam)
-    _, width, rho_0 = same_length_vectors(1:n_launchers, par.width, par.rho_0)
+    _, width, rho_0, ηcd_scale = same_length_vectors(1:n_launchers, par.width, par.rho_0, par.ηcd_scale)
 
     for (idx, ecl) in enumerate(dd.ec_launchers.beam)
         power_launched = @ddtime(dd.pulse_schedule.ec.launcher[idx].power.reference.data)
@@ -61,7 +63,7 @@ function _step(actor::ActorECsimple)
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
         zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0[idx])
 
-        eta = TekeV * 0.09 / (5.0 + zeff)
+        eta = ηcd_scale[idx] * TekeV * 0.09 / (5.0 + zeff)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 

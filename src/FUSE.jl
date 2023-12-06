@@ -8,6 +8,18 @@ using Plots
 using Printf
 using InteractiveUtils
 import SnoopPrecompile
+import LinearAlgebra
+
+function __init__()
+    # By default we disable use of threads in BLAS if using multiple Julia threads
+    # BLAS threads have a positive effect on larger problem sizes and a unthreaded Julia
+    # (eg. no benefit for matrices < 1000x1000 size)
+    # but can have very detrimental effects when used in conjunction with Julia threads
+    # https://github.com/ProjectTorreyPines/TJLF.jl/issues/8#issuecomment-1837648536
+    if Threads.nthreads() > 1
+        LinearAlgebra.BLAS.set_num_threads(1)
+    end
+end
 
 #= ===== =#
 #  UTILS  #
