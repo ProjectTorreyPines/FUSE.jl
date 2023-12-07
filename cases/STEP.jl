@@ -171,11 +171,11 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.impurity = :Ne #Barium :Ba
     ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
 
-    ini.core_profiles.greenwald_fraction = 1.0
-    ini.core_profiles.greenwald_fraction_ped = 0.7
+    ini.core_profiles.greenwald_fraction = 0.95
+    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction - 0.1
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 2.5
-    ini.core_profiles.n_shaping = 1.1
+    ini.core_profiles.n_shaping = 1.2
     ini.core_profiles.ejima = 0.0
 
     ini.oh.n_coils = 8
@@ -198,12 +198,15 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorECsimple.rho_0 = 0.0
     act.ActorECsimple.ηcd_scale = 0.5
 
-    ini.requirements.flattop_duration = 1800.0
+    ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
     ini.requirements.power_electric_net = 236e6 # from PyTok
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
-    act.ActorTGLF.user_specified_model = "sat1_em_iter"
+    act.ActorFluxMatcher.evolve_densities = :fixed
+    act.ActorFluxMatcher.rho_transport=0.3:0.05:0.8
+    act.ActorTGLF.nn = true
+    act.ActorTGLF.user_specified_model = "sat0_em_d3d"
 
     act.ActorStabilityLimits.models = Symbol[]
 
