@@ -101,6 +101,9 @@ function _step(actor::ActorWholeFacility)
             actor.CXbuild = ActorCXbuild(dd, act)
             actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act; update_equilibrium=false)
         end
+    else
+        FUSE.ActorFluxSwing(dd, act)
+        FUSE.ActorStresses(dd, act)
     end
 
     actor.Neutronics = ActorNeutronics(dd, act)
