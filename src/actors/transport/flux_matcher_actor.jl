@@ -338,8 +338,9 @@ function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
         ("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
         ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
         ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density[1] / 1E20)]
-    return tmp
+        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
+    ]
+    return tuple(tmp...)
 end
 
 function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
@@ -414,8 +415,7 @@ NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis.
 function unpack_z_profiles(
     cp1d::IMAS.core_profiles__profiles_1d,
     par::FUSEparameters__ActorFluxMatcher,
-    z_profiles::AbstractVector{<:Real}
-)
+    z_profiles::AbstractVector{<:Real})
 
     cp_rho_transport = [cp1d.grid.rho_tor_norm[argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm))] for rho_x in par.rho_transport]
 
