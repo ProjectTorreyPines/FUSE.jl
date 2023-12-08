@@ -373,16 +373,19 @@ function digest(
     end
 
     # core profiles
+    # temperatures
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles; only=1))
     end
+    # densities
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles; only=2))
     end
+    # rotation
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
@@ -390,21 +393,25 @@ function digest(
     end
 
     # core sources
+    # electron heat
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=1))
     end
+    # ion heat
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=2))
     end
+    # electron particle
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=3))
     end
+    # parallel current
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')

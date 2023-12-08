@@ -111,7 +111,7 @@ rm_hide:
 
 # install Revise and load it when Julia starts up
 revise:
-	julia -e 'import Pkg; Pkg.add(Pkg.PackageSpec(;name="Revise", version="3.4.0")); Pkg.compat("Revise", "< 3.4.1")'
+	julia -e 'import Pkg; Pkg.rm("Revise"); Pkg.add("Revise")'
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true

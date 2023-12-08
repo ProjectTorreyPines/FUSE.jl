@@ -2,6 +2,7 @@
 function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=:scalars)::Tuple{ParametersAllInits,ParametersAllActors}
     ini, act = case_parameters(:STEP_scalars)
 
+    dd = IMAS.dd()
     if init_from == :ods
         # Fix the core profiles
         dd = IMAS.json2imas(ini.ods.filename)
@@ -49,63 +50,66 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         act.ActorCoreTransport.model = :none
         ini.equilibrium.pressure_core = 1.175e6
 
-        # ===========
-        # pf_active
-        if pf_from == :ods
-            coils = dd.pf_active.coil
-            pf_rz = [
-                (2.0429184549356223, 8.6986301369863),
-                (4.017167381974248, 9.623287671232877),
-                (6.815450643776823, 9.623287671232877),
-                (6.832618025751072, 6.386986301369863),
-                (8.309012875536478, 2.1061643835616444),
-                (8.309012875536478, -2.1061643835616444),
-                (6.832618025751072, -6.386986301369863),
-                (6.815450643776823, -9.623287671232877),
-                (4.017167381974248, -9.623287671232877),
-                (2.0429184549356223, -8.6986301369863)]
+        # -----------------
+        ini.general.dd = dd
+        ini.general.init_from = :ods
+    end
 
-            oh_zh = [
-                (-6.471803481967896, 0.9543053940181108),
-                (-5.000022627813203, 0.9677463150606198),
-                (0.0, 4.9731407857281855),
-                (5.000022627813203, 0.9677463150606198),
-                (6.471803481967896, 0.9543053940181108)]
+    # pf_active
+    if pf_from == :ods
+        coils = dd.pf_active.coil
+        pf_rz = [
+            (2.0429184549356223, 8.6986301369863),
+            (4.017167381974248, 9.623287671232877),
+            (6.815450643776823, 9.623287671232877),
+            (6.832618025751072, 6.386986301369863),
+            (8.309012875536478, 2.1061643835616444),
+            (8.309012875536478, -2.1061643835616444),
+            (6.832618025751072, -6.386986301369863),
+            (6.815450643776823, -9.623287671232877),
+            (4.017167381974248, -9.623287671232877),
+            (2.0429184549356223, -8.6986301369863)]
 
-            r_oh = ini.build.layers[1].thickness + ini.build.layers[2].thickness / 2.0
-            b = ini.equilibrium.ϵ * ini.equilibrium.R0 * ini.equilibrium.κ
-            z_oh = (ini.equilibrium.Z0 - b, ini.equilibrium.Z0 + b)
-            z_ohcoils, h_oh = FUSE.size_oh_coils([z_oh[1], z_oh[2]], 0.1, ini.oh.n_coils, 1.0, 0.0)
-            oh_zh = [(z, h_oh) for z in z_ohcoils]
+        oh_zh = [
+            (-6.471803481967896, 0.9543053940181108),
+            (-5.000022627813203, 0.9677463150606198),
+            (0.0, 4.9731407857281855),
+            (5.000022627813203, 0.9677463150606198),
+            (6.471803481967896, 0.9543053940181108)]
 
-            empty!(coils)
-            resize!(coils, length(oh_zh) .+ length(pf_rz))
+        r_oh = ini.build.layers[1].thickness + ini.build.layers[2].thickness / 2.0
+        b = ini.equilibrium.ϵ * ini.equilibrium.R0 * ini.equilibrium.κ
+        z_oh = (ini.equilibrium.Z0 - b, ini.equilibrium.Z0 + b)
+        z_ohcoils, h_oh = FUSE.size_oh_coils([z_oh[1], z_oh[2]], 0.1, ini.oh.n_coils, 1.0, 0.0)
+        oh_zh = [(z, h_oh) for z in z_ohcoils]
 
-            for (idx, (z, h)) in enumerate(oh_zh)
-                resize!(coils[idx].element, 1)
-                pf_geo = coils[idx].element[1].geometry
-                pf_geo.geometry_type = 2
-                pf_geo.rectangle.r = r_oh
-                pf_geo.rectangle.z = z
-                pf_geo.rectangle.height = h
-                pf_geo.rectangle.width = ini.build.layers[2].thickness
-            end
+        empty!(coils)
+        resize!(coils, length(oh_zh) .+ length(pf_rz))
 
-            for (idx, (r, z)) in enumerate(pf_rz)
-                idx += length(oh_zh)
-                resize!(coils[idx].element, 1)
-                pf_geo = coils[idx].element[1].geometry
-                pf_geo.geometry_type = 2
-                pf_geo.rectangle.r = r
-                pf_geo.rectangle.z = z
-                pf_geo.rectangle.height = 0.61
-                pf_geo.rectangle.width = 0.53
-            end
-
-            IMAS.set_coils_function(coils)
+        for (idx, (z, h)) in enumerate(oh_zh)
+            resize!(coils[idx].element, 1)
+            pf_geo = coils[idx].element[1].geometry
+            pf_geo.geometry_type = 2
+            pf_geo.rectangle.r = r_oh
+            pf_geo.rectangle.z = z
+            pf_geo.rectangle.height = h
+            pf_geo.rectangle.width = ini.build.layers[2].thickness
         end
-        # ===========
 
+        for (idx, (r, z)) in enumerate(pf_rz)
+            idx += length(oh_zh)
+            resize!(coils[idx].element, 1)
+            pf_geo = coils[idx].element[1].geometry
+            pf_geo.geometry_type = 2
+            pf_geo.rectangle.r = r
+            pf_geo.rectangle.z = z
+            pf_geo.rectangle.height = 0.61
+            pf_geo.rectangle.width = 0.53
+        end
+
+        IMAS.set_coils_function(coils)
+
+        # -----------------
         ini.general.dd = dd
         ini.general.init_from = :ods
     end
@@ -171,11 +175,11 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.impurity = :Ne #Barium :Ba
     ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
 
-    ini.core_profiles.greenwald_fraction = 1.0
-    ini.core_profiles.greenwald_fraction_ped = 0.7
+    ini.core_profiles.greenwald_fraction = 0.95
+    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction - 0.1
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 2.5
-    ini.core_profiles.n_shaping = 1.1
+    ini.core_profiles.n_shaping = 1.2
     ini.core_profiles.ejima = 0.0
 
     ini.oh.n_coils = 8
@@ -193,14 +197,21 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorPFcoilsOpt.symmetric = true
     act.ActorEquilibrium.symmetrize = true
 
-    ini.ec_launcher[1].power_launched = 150.e6 #  some at rho = 0.7 with a 0.2 width some in core 
+    ini.ec_launcher[1].power_launched = 150.e6
+    act.ActorECsimple.width = 0.25
+    act.ActorECsimple.rho_0 = 0.0
+    act.ActorECsimple.ηcd_scale = 0.5
 
-    ini.requirements.flattop_duration = 1800.0
+    ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
     ini.requirements.power_electric_net = 236e6 # from PyTok
 
+    act.ActorCoreTransport.model = :FluxMatcher
     act.ActorFluxMatcher.evolve_densities = :flux_match
-    act.ActorTGLF.user_specified_model = "sat1_em_iter"
+    act.ActorFluxMatcher.evolve_densities = :fixed
+    act.ActorFluxMatcher.rho_transport=0.3:0.05:0.8
+    act.ActorTGLF.nn = true
+    act.ActorTGLF.user_specified_model = "sat0_em_d3d"
 
     act.ActorStabilityLimits.models = Symbol[]
 
