@@ -84,7 +84,7 @@ function _step(actor::ActorFixedProfiles)
     # update electron density profile using
     # * new pedestal height & width
     # * existing ne0 & n_shaping 
-    ne = cp1d.electrons.density
+    ne = cp1d.electrons.density_thermal
     ne_ped = @ddtime(dd.summary.local.pedestal.n_e.value)
     # first store ratios of electron density to ion densities
     ion_fractions = zeros(Float64, length(cp1d.ion), length(ne))
@@ -92,7 +92,7 @@ function _step(actor::ActorFixedProfiles)
         ion_fractions[ii, :] = ion.density_thermal ./ ne
     end
     nval = IMAS.Hmode_profiles(ne[end], ne_ped, ne[1], length(cp1d.grid.rho_tor_norm), par.n_shaping, par.n_shaping, 1.0 - w_ped)
-    cp1d.electrons.density = nval
+    cp1d.electrons.density_thermal = nval
     if any(nval .< 0)
         throw("ne profile is negative for n0=$(ne[1]) /m^3 and Tped=$(ne_ped) /m^3")
     end
@@ -100,7 +100,7 @@ function _step(actor::ActorFixedProfiles)
     # update ion density profiles using
     # * existing ratios of electron to ion densities
     for (ii, ion) in enumerate(cp1d.ion)
-        ion.density_thermal = ion_fractions[ii, :] .* cp1d.electrons.density
+        ion.density_thermal = ion_fractions[ii, :] .* cp1d.electrons.density_thermal
     end
 
     return actor
