@@ -373,16 +373,19 @@ function digest(
     end
 
     # core profiles
+    # temperatures
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles; only=1))
     end
+    # densities
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles; only=2))
     end
+    # rotation
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
@@ -390,21 +393,25 @@ function digest(
     end
 
     # core sources
+    # electron heat
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=1))
     end
+    # ion heat
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=2))
     end
+    # electron particle
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=3))
     end
+    # parallel current
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
@@ -454,6 +461,15 @@ function digest(
         display(p)
     end
 
+    # SOL
+    sec += 1
+    if !isempty(dd.equilibrium.time_slice) && section ∈ (0, sec)
+        println('\u200B')
+        p = plot(dd.wall)
+        plot!(IMAS.sol(dd); xlim=[0.0, Inf])
+        display(p)
+    end
+
     # center stack stresses
     sec += 1
     if !ismissing(dd.solid_mechanics.center_stack.grid, :r_oh) && section ∈ (0, sec)
@@ -468,7 +484,7 @@ function digest(
         time0 = dd.equilibrium.time[end]
         l = @layout [a{0.5w} b{0.5w}]
         p = plot(; layout=l, size=(900, 400))
-        plot!(p, dd.pf_active, :currents; time0, title="Current limits at t=$(time0) s", subplot=1)
+        plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false)
         plot!(p, dd.pf_active; time0, subplot=2)

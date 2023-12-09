@@ -13,12 +13,14 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 dd.core_profiles = dd1.core_profiles
 
                 # also set the pedestal in summary IDS
-                ne_ped, w_ped = IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)
-                ped_summ = dd.summary.local.pedestal
-                cp1d = dd.core_profiles.profiles_1d[]
-                @ddtime ped_summ.n_e.value = ne_ped
-                @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - w_ped)
-                @ddtime ped_summ.zeff.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].zeff).(1 - w_ped)
+                if ismissing(dd1.summary.local.pedestal.n_e, :value)
+                    ne_ped, w_ped = IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)
+                    ped_summ = dd.summary.local.pedestal
+                    cp1d = dd.core_profiles.profiles_1d[]
+                    @ddtime ped_summ.n_e.value = ne_ped
+                    @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - w_ped)
+                    @ddtime ped_summ.zeff.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].zeff).(1 - w_ped)
+                end
             else
                 init_from = :scalars
             end
@@ -28,6 +30,18 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         end
 
         if init_from == :scalars
+
+            # if ini.equilibrium.pressure_core is not set, then estimate from ini.requirements.power_electric_net
+            if ismissing(ini.equilibrium, :pressure_core) && !ismissing(ini.requirements, :power_electric_net)
+                Pfusion_estimate = ini.requirements.power_electric_net * 2.0
+                res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd, ini), 1e1, 1e7, Optim.GoldenSection())
+                ini.equilibrium.pressure_core = pressure_core = res.minimizer[1]
+                ActorCurrent(dd, act; ip_from=:pulse_schedule)
+                ActorEquilibrium(dd, act; ip_from=:core_profiles)
+            else
+                pressure_core = ini.equilibrium.pressure_core
+            end
+
             init_core_profiles!(
                 dd.core_profiles,
                 dd.equilibrium,
@@ -35,19 +49,19 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
                 greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
                 ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
-                pressure_core=dd.equilibrium.time_slice[].profiles_1d.pressure[1],
-                helium_fraction=ini.core_profiles.helium_fraction,
-                T_ratio=ini.core_profiles.T_ratio,
-                T_shaping=ini.core_profiles.T_shaping,
-                n_shaping=ini.core_profiles.n_shaping,
-                w_ped=ini.core_profiles.w_ped,
-                zeff=ini.core_profiles.zeff,
-                rot_core=ini.core_profiles.rot_core,
-                ngrid=ini.core_profiles.ngrid,
-                bulk=ini.core_profiles.bulk,
-                impurity=ini.core_profiles.impurity,
+                pressure_core,
+                ini.core_profiles.helium_fraction,
+                ini.core_profiles.T_ratio,
+                ini.core_profiles.T_shaping,
+                ini.core_profiles.n_shaping,
+                ini.core_profiles.w_ped,
+                ini.core_profiles.zeff,
+                ini.core_profiles.rot_core,
+                ini.core_profiles.ngrid,
+                ini.core_profiles.bulk,
+                ini.core_profiles.impurity,
                 ejima=getproperty(ini.core_profiles, :ejima, missing),
-                polarized_fuel_fraction=ini.core_profiles.polarized_fuel_fraction)
+                ini.core_profiles.polarized_fuel_fraction)
         end
 
         return dd
@@ -78,7 +92,7 @@ function init_core_profiles!(
     cp1d = resize!(cp.profiles_1d)
     eqt = eq.time_slice[]
 
-    cp1d.grid.rho_tor_norm = LinRange(0, 1, ngrid)
+    cp1d.grid.rho_tor_norm = range(0, 1, ngrid)
     cp1d.zeff = ones(ngrid) .* zeff
     cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / 8, rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
 
@@ -162,4 +176,29 @@ function init_core_profiles!(
     # set spin polarization
     cp.global_quantities.polarized_fuel_fraction = polarized_fuel_fraction
     return cp
+end
+
+
+function cost_Pfusion_p0(p::Real, target_pfus::Real, dd::IMAS.dd, ini::ParametersAllInits)
+    init_core_profiles!(
+        dd.core_profiles,
+        dd.equilibrium,
+        dd.summary;
+        greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
+        greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
+        ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
+        pressure_core=p,
+        helium_fraction=ini.core_profiles.helium_fraction,
+        T_ratio=ini.core_profiles.T_ratio,
+        T_shaping=ini.core_profiles.T_shaping,
+        n_shaping=ini.core_profiles.n_shaping,
+        w_ped=ini.core_profiles.w_ped,
+        zeff=ini.core_profiles.zeff,
+        rot_core=ini.core_profiles.rot_core,
+        ngrid=ini.core_profiles.ngrid,
+        bulk=ini.core_profiles.bulk,
+        impurity=ini.core_profiles.impurity,
+        ejima=getproperty(ini.core_profiles, :ejima, missing),
+        polarized_fuel_fraction=ini.core_profiles.polarized_fuel_fraction)
+    return abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
 end

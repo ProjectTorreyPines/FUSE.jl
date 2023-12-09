@@ -24,7 +24,8 @@ end
 
 Generates the 2D cross section of the tokamak build
 
-!!! note 
+!!! note
+
     Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -67,7 +68,7 @@ function _step(actor::ActorCXbuild)
     blanket_regions!(bd, eqt)
 
     if wall === missing || par.rebuild_wall
-        plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
+        plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
         resize!(dd.wall.description_2d, 1)
         resize!(dd.wall.description_2d[1].limiter.unit, 1)
         dd.wall.description_2d[1].limiter.unit[1].outline.r = plasma.outline.r
@@ -80,9 +81,53 @@ function _step(actor::ActorCXbuild)
 end
 
 """
+    segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_relative_error::T; symmetric::Union{Bool,Nothing}=nothing) where {T<:Real}
+
+Generate a segmented first wall outline starting from an equilibrium boundary
+
+If `symmetric === nothing` then symmetry of the plasma is automatically determined
+"""
+function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_relative_error::T; symmetric::Union{Bool,Nothing}=nothing) where {T<:Real}
+    mxh = IMAS.MXH(eq_r, eq_z, 4)
+
+    # automatic symmetry detection
+    if symmetric === nothing
+        symmetric = sum(abs.(mxh.c)) < 1E-3
+    end
+
+    # R,Z from theta
+    Θ = LinRange(-π / 2 * 3 / 2, π / 2 * 3 / 2, 100) # overshoot
+    R = [r for (r, z) in mxh.(Θ)]
+    Z = [z for (r, z) in mxh.(Θ)]
+    Z = (Z .- mxh.Z0) .* 1.1 .+ mxh.Z0
+
+    # correct hfs to have a flat center stack wall
+    R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
+
+    # flat midplane wall
+    R, Z = FUSE.buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
+    R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
+    R, Z = FUSE.buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
+    circshift!(Z, argmin(R))
+    circshift!(R, argmin(R))
+
+    # segments
+    R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_relative_error)
+    if symmetric
+        R = (R .+ reverse(R)) / 2.0
+        Z = ((Z .- mxh.Z0) .- reverse(Z .- mxh.Z0)) / 2.0 .+ mxh.Z0
+    end
+
+    # rounded joints
+    R, Z = FUSE.buffer(R, Z, gap * (1.0 + max_segment_relative_error))
+
+    return R, Z
+end
+
+"""
     wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_divertor_length_fraction_z_plasma::Real=0.2)
 
-Generate first wall outline starting from an equilibrium
+Generate first wall and divertors outline starting from an equilibrium
 """
 function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_divertor_length_fraction_z_plasma::Real=0.2)
     R0 = eqt.global_quantities.magnetic_axis.r
@@ -93,17 +138,14 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
 
     # Set the radial build thickness of the plasma
-    plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
-    a = (minimum(rlcfs) - plasma.start_radius)
-    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2.0 * a
+    plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
+    gap = (minimum(rlcfs) - plasma.start_radius)
+    plasma.thickness = maximum(rlcfs) - minimum(rlcfs) + 2.0 * gap
     R_hfs_plasma = plasma.start_radius
     R_lfs_plasma = plasma.end_radius
 
     # main chamber (clip elements that go beyond plasma radial build thickness)
-    R, Z = buffer(rlcfs, zlcfs, a)
-    R[R.<R_hfs_plasma] .= R_hfs_plasma
-    R[R.>R_lfs_plasma] .= R_lfs_plasma
-    Z = (Z .- Z0) .* 1.05 .+ Z0
+    R, Z = segmented_wall(rlcfs, zlcfs, gap, 0.75)
     wall_poly = xy_polygon(R, Z)
 
     t = LinRange(0, 2π, 31)
@@ -150,12 +192,13 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         circle_z = sign(Zx) .* divertor_length .* sin.(t) .+ Zx
         circle = collect(zip(circle_r, circle_z))
         circle[1] = circle[end]
-        slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
-        pr1 = [rr for (rr, zz) in slot]
-        pz1 = [zz for (rr, zz) in slot]
+        inner_slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
+        pr1 = [rr for (rr, zz) in inner_slot]
+        pz1 = [zz for (rr, zz) in inner_slot]
         if isempty(pr1)
             continue
         end
+        inner_slot_poly = xy_polygon(convex_hull(pr1, pz1; closed_polygon=true))
 
         # do not add more than one private flux region for each of the x-points
         if Zx > Z0
@@ -173,7 +216,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         # remove private flux region from wall (necessary because of Z expansion)
         # this may fail if the private region is small or weirdly shaped
         try
-            wall_poly = LibGEOS.difference(wall_poly, xy_polygon(pr1, pz1))
+            wall_poly = LibGEOS.difference(wall_poly, inner_slot_poly)
         catch e
             if typeof(e) <: LibGEOS.GEOSError
                 continue
@@ -188,15 +231,14 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         pz2 = vcat(pz1, Z0 * α + Zx * (1 - α))
 
         slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
-        inner_slot = xy_polygon(pr1, pz1)
-        slot = LibGEOS.difference(slot_convhull, inner_slot)
-        slot = LibGEOS.buffer(slot, a)
+        slot = LibGEOS.difference(slot_convhull, inner_slot_poly)
+        slot = LibGEOS.buffer(slot, gap)
 
         scale = 1.001
         Rc1, Zc1 = IMAS.centroid(pr1, pz1)
         pr3 = vcat((pr1 .- Rc1) .* scale .+ Rc1, reverse(pr1))
         pz3 = vcat((pz1 .- Zc1) .* scale .+ Zc1, reverse(pz1))
-        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), a))
+        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), gap))
 
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
@@ -204,7 +246,9 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     # detect if equilibrium has x-points to define build of divertors
     if detected_upper != 0 || detected_lower != 0
         display(plot(eqt))
-        error("Equilibrium does not allow building the right number of upper ($(bd.divertors.upper.installed)→$(-detected_upper+bd.divertors.upper.installed)) and lower ($(bd.divertors.lower.installed)→$(-detected_lower+bd.divertors.lower.installed)) divertors.")
+        error(
+            "Equilibrium does not allow building the right number of upper ($(bd.divertors.upper.installed)→$(-detected_upper+bd.divertors.upper.installed)) and lower ($(bd.divertors.lower.installed)→$(-detected_lower+bd.divertors.lower.installed)) divertors."
+        )
     end
 
     # vertical clip
@@ -212,8 +256,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100.0)...))
 
     # round corners
-    wall_poly = LibGEOS.buffer(wall_poly, -a / 4)
-    wall_poly = LibGEOS.buffer(wall_poly, a / 4)
+    wall_poly = LibGEOS.buffer(wall_poly, -gap / 4)
+    wall_poly = LibGEOS.buffer(wall_poly, gap / 4)
 
     pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
@@ -223,7 +267,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     catch e
         pp = plot(wall_poly; aspect_ratio=:equal)
         for (pr, pz) in private
-            plot!(pp, pr, pz, label="")
+            plot!(pp, pr, pz; label="")
         end
         display(pp)
         rethrow(e)
@@ -237,7 +281,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     Z0 = eqt.global_quantities.magnetic_axis.z
 
     # plasma poly (this sets the divertor's pfs)
-    ipl = IMAS.get_build_index(bd.layer, type=_plasma_)
+    ipl = IMAS.get_build_index(bd.layer; type=_plasma_)
     plasma_poly = xy_polygon(bd.layer[ipl])
     pl_r = bd.layer[ipl].outline.r
     pl_z = bd.layer[ipl].outline.z
@@ -248,7 +292,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     # wall poly (this sets how back the divertor structure goes)
     wall_poly = xy_polygon(bd.layer[ipl-1])
     for ltype in (_blanket_, _shield_, _wall_)
-        iwls = IMAS.get_build_indexes(bd.layer, type=ltype, fs=_hfs_)
+        iwls = IMAS.get_build_indexes(bd.layer; type=ltype, fs=_hfs_)
         if !isempty(iwls)
             wall_poly = xy_polygon(bd.layer[iwls[1]])
             break
@@ -440,7 +484,7 @@ end
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
 function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_points::Int)
-    plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
+    plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
 
     # _plasma_ outline scaled to match 1D radial build
     start_radius = plasma.start_radius
@@ -459,7 +503,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
     # k-1 means the layer outside (ie. towards the tf)
     # k   is the current layer
     # k+1 means the layer inside (ie. towards the plasma)
-    tf_to_plasma = IMAS.get_build_indexes(bd.layer, fs=_hfs_)
+    tf_to_plasma = IMAS.get_build_indexes(bd.layer; fs=_hfs_)
     plasma_to_tf = reverse(tf_to_plasma)
     for k in plasma_to_tf
         layer = bd.layer[k]
@@ -475,15 +519,15 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
     end
 
     # _in_
-    TF = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_)
-    D = minimum(TF.outline.z)
-    U = maximum(TF.outline.z)
+    TF = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_)
+    D = (minimum(plasma.outline.z) * 2 + minimum(TF.outline.z)) / 3.0
+    U = (maximum(plasma.outline.z) * 2 + maximum(TF.outline.z)) / 3.0
     if coils_inside
         # generally the OH does not go higher than the PF coils
         D += 2.0 * TF.thickness
         U -= 2.0 * TF.thickness
     end
-    for k in IMAS.get_build_indexes(bd.layer, fs=_in_)
+    for k in IMAS.get_build_indexes(bd.layer; fs=_in_)
         layer = bd.layer[k]
         L = layer.start_radius
         R = layer.end_radius
@@ -491,10 +535,10 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
     end
 
     # _out_
-    iout = IMAS.get_build_indexes(bd.layer, fs=_out_)
+    iout = IMAS.get_build_indexes(bd.layer; fs=_out_)
     if lowercase(bd.layer[iout[end]].name) == "cryostat"
-        olfs = IMAS.get_build_indexes(bd.layer, fs=_lfs_)[end]
-        optimize_shape(bd, olfs, iout[end], _silo_)
+        olfs = IMAS.get_build_indexes(bd.layer; fs=_lfs_)[end]
+        optimize_shape(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]].shape, 1000), 100)))
         for k in reverse(iout[2:end])
             optimize_shape(bd, k, k - 1, _negative_offset_)
         end
@@ -524,35 +568,39 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     obstr = bd.layer[obstr_index]
     # display("Layer $layer_index = $(layer.name)")
     # display("Obstr $obstr_index = $(obstr.name)")
-    if layer.fs == Int(_out_)
+
+    if layer.side == Int(_out_)
         l_start = 0.0
         l_end = layer.end_radius
         o_start = 0.0
         o_end = obstr.end_radius
     else
-        if obstr.fs in (Int(_lhfs_), Int(_out_))
+        if obstr.side in (Int(_lhfs_), Int(_out_))
             o_start = obstr.start_radius
             o_end = obstr.end_radius
         else
             o_start = obstr.start_radius
-            o_end = IMAS.get_build_layer(bd.layer, identifier=obstr.identifier, fs=_lfs_).end_radius
+            o_end = IMAS.get_build_layer(bd.layer; identifier=obstr.identifier, fs=_lfs_).end_radius
         end
         l_start = layer.start_radius
         if layer.type == Int(_plasma_)
             l_end = layer.end_radius
         else
-            l_end = IMAS.get_build_layer(bd.layer, identifier=layer.identifier, fs=_lfs_).end_radius
+            l_end = IMAS.get_build_layer(bd.layer; identifier=layer.identifier, fs=_lfs_).end_radius
         end
     end
+
     hfs_thickness = o_start - l_start
     lfs_thickness = l_end - o_end
+
     oR = obstr.outline.r
     oZ = obstr.outline.z
-    if layer.fs == Int(_out_)
+
+    if layer.side == Int(_out_)
         target_clearance = lfs_thickness * 1.2
         use_curvature = false
     else
-        use_curvature = true
+        use_curvature = shape_enum == IMAS._rectangle_ ? false : true
         if tight
             target_clearance = min(hfs_thickness, lfs_thickness)
         else

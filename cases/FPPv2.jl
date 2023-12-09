@@ -50,10 +50,6 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.build.divertors = :lower
     ini.build.n_first_wall_conformal_layers = 2
 
-    ini.material.wall = "Tungsten"
-    ini.material.blanket = "lithium-lead"
-    ini.material.shield = "Steel, Stainless 316"
-
     ini.equilibrium.B0 = 4.713171689711136
     ini.equilibrium.R0 = 4.824432302041749
     ini.equilibrium.ϵ = 0.2857142857142857
@@ -101,7 +97,7 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
 
     #### ACT ####
 
-    act.ActorStabilityLimits.models = [:model_201, :model_401]
+    act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
     act.ActorPFcoilsOpt.update_equilibrium = false
 

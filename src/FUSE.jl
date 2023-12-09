@@ -8,6 +8,18 @@ using Plots
 using Printf
 using InteractiveUtils
 import SnoopPrecompile
+import LinearAlgebra
+
+function __init__()
+    # By default we disable use of threads in BLAS if using multiple Julia threads
+    # BLAS threads have a positive effect on larger problem sizes and a unthreaded Julia
+    # (eg. no benefit for matrices < 1000x1000 size)
+    # but can have very detrimental effects when used in conjunction with Julia threads
+    # https://github.com/ProjectTorreyPines/TJLF.jl/issues/8#issuecomment-1837648536
+    if Threads.nthreads() > 1
+        LinearAlgebra.BLAS.set_num_threads(1)
+    end
+end
 
 #= ===== =#
 #  UTILS  #
@@ -28,6 +40,9 @@ include("technology.jl")
 #= ====== =#
 #  DDINIT  #
 #= ====== =#
+include("signal.jl")
+include("parameters_inits.jl")
+
 include(joinpath("ddinit", "init.jl"))
 include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
@@ -39,6 +54,7 @@ include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
 include(joinpath("ddinit", "gasc.jl"))
+include(joinpath("ddinit", "pytok.jl"))
 
 #= ====== =#
 #  ACTORS  #
@@ -115,13 +131,7 @@ include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))
 include(joinpath("actors", "compound", "dynamic_plasma_actor.jl"))
 include(joinpath("actors", "compound", "whole_facility_actor.jl"))
 
-#= ========== =#
-#  PARAMETERS  #
-#= ========== =#
-include("parameters_inits.jl")
 include("parameters_actors.jl")
-include("parameters_workflows.jl")
-include("signal.jl")
 
 #= ============ =#
 #  OPTIMIZATION  #
@@ -131,6 +141,7 @@ include("optimization.jl")
 #= ========= =#
 #  WORKFLOWS  #
 #= ========= =#
+include("parameters_workflows.jl")
 include(joinpath("workflows", "optimization_workflow.jl"))
 include(joinpath("workflows", "DB5_validation_workflow.jl"))
 

@@ -1,0 +1,437 @@
+{
+	"Description" : "Estimate of STEP design point to see if valid with TE engineering assumptions",
+
+
+	"Commands" : {
+
+		"model_name" : "STEP",
+
+		"execution_mode" : 1,
+		"__execution_mode_comment__" : "1 = radial build based on TF parameters (variable shield thickness); 2 = fixed shield thickness (find maximum Bt); 3 = plasma temperature-density plot for identifying stable operating points",
+
+		"draw3D" : 1,
+		"freecad_path" : "D:\\FreeCAD\\bin",
+		"exportSTL" : 0,
+		"exportSTP": 0,
+		"cad_directory" : "D:\\GEANT4\\models_wsl\\STEP\\geometry\\",
+		"__cad_comment__" : "flags (0 or 1) to use the FreeCAD API to generate a 3D model of a reactor sector and export the full 360 model as STL files",
+
+		"geant4_input" : 0,
+		"geant4_directory" : "D:\\GEANT4\\models_wsl\\",
+		"__geant4_comment__" : "flag (0 or 1) to produce geant4 inputs",
+
+		"mcnp_input" : 0,
+		"mcnp_directory" : "C:\\MCNP_Runs\\ST-E1\\",
+		"__mcnp_comment__" : "flag (0 or 1) to produce an MCNP input deck for the central column, which can be used to calculate heat and particle fluxes",
+
+		"freegs" : 0,
+		"freegs_path" : "D:\\freegs-public\\",
+		"__freegs_comment__" : "flag to call FreeGS to calculate the plasma equilibrium",
+
+		"cost" : 1,
+		"__cost_comment__" : "flag to trigger an assessment of LCOE using the Atkins cost model",
+
+		"sankey" : 1,
+		"__sankey_comment__" : "flag to trigger an interactive Sankey diagram using Plotly",
+
+		"attila_attributes": 0,
+		"__attila_attributes_comment__": ""
+	},
+
+	"Plasma" : {
+
+		"major_radius" : 3.6,
+		"__major_radius_unit__" : "m",
+		"__major_radius_comment__" : "",
+
+		"aspect_ratio" : 1.8,
+		"__aspect_ratio_unit__" : "",
+		"__aspect_ratio_comment__" : "ratio between major and minor radius, A=R0/a",
+
+		"elongation" : 2.93,
+		"__elongation_unit__" : "",
+		"__elongation_comment__" : "ratio of plasma axial length and minor radius, kappa=a/ell",
+
+		"elongation_stability_factor" : 1.00,
+		"__elongation_stability_factor_unit__" : "#",
+		"__elongation_stability_factor_comment__" : "fraction of the maximum elongation that is allowed; value of 1.0 means elongation at the limit of stability",
+
+		"triangularity" : 0.59,
+		"__triangularity_unit__" : "", 
+		"__triangularity_comment__" : "relative position of the apex, where 0=R0 and 1=R0-a. Also known as delta",
+
+		"central_electron_density" : 2.01E20,
+		"__central_electron_density_unit__" : "m^-3",
+		"__central_electron_density_comment__" : "central electron density (also know a ne0)",
+
+		"effective_ion_charge" : 2.5,
+		"__effective_ion_charge_unit__" : "#",
+		"__effective_ion_charge_comment__" : "effective charge of plasma ion species (also known as Zeff)",
+
+		"main_impurity_charge" : 56,
+		"__main_impurity_charge_unit__" : "#",
+		"__main_impurity_charge_comment__" : "average charge of plasma impurities (also known as Zimp)",
+
+		"main_impurity_mass" : 136,
+		"__main_impurity_mass_unit__" : "a.m.u",
+		"__main_impurity_mass_comment__" : "average mass of plasma impurities",
+
+		"main_ion_tritium_fraction" : 0.5,
+		"__main_ion_tritium_fraction_unit__" : "#",
+		"__main_ion_tritium_fraction_comment__" : "fraction of main ions that are tritium (also known as fTritium) =nT0/nD0",
+
+		"density_profile_exponent" : 0.4,
+		"__density_profile_exponent_unit__" : "",
+		"__density_profile_exponent_comment__" : "Density profile exponent, Sn, such that n(r) = (1-r^2)^Sn",
+
+		"central_electron_temperature" : 1.80e4,
+		"__central_electron_temperature_unit__" : "eV",
+		"__central_electron_temperature_comment__" : "central electron temperature (also know a Te0)",
+
+		"temperature_profile_exponent" : 0.5,
+		"__temperature_profile_exponent_unit__" : "",
+		"__temperature_profile_exponent_comment__" : "Temperature profile exponent, ST, such that T(r) = (1-r^2)^ST",
+
+		"normalised_current_drive_efficiency" : 0.22,
+		"__normalised_current_drive_efficiency_unit__" : "",
+		"__normalised_current_drive_efficiency_comment__" : "Normalised current drive efficiency, CD_eff_norm, such that A/W = (0.031*CD_eff_norm*T0)/(R0*ne0)",
+
+		"toroidal_field_on_plasma" : 3.2,
+		"__toroidal_field_on_plasma_unit__" : "T",
+		"__toroidal_field_on_plasma_comment__" : "toroidal magnetic field at the plasma major radius",
+
+		"plasma_wall_gap" : 0.100, 
+		"__plasma_wall_gap_unit__" : "m",
+		"__plasma_wall_gap_comment__" : "gap between the plasma and the first wall",
+
+		"max_neutron_wall_power" : 3.0,
+		"__max_neutron_wall_power_unit__" : "MW/m2",
+		"__max_neutron_wall_power_comment__" : "maximum neutron power on wall",
+
+        "energy_confinement_time_scaling_law" : "ITER98",
+        "__energy_confinement_time_scaling_law_unit__" : "",
+        "__energy_confinement_time_scaling_law_comment__" : "Scaling law to use in energy-confinement time calculation. Options are ITER98; Petty; NSTX; MAST; NSTX-PB; GLOBUS.",
+
+        "confinement_enhancement_factor": 1.6,
+        "__confinement_enhancement_factor_unit__": "",
+        "__confinement_enhancement_factor_comment__": "factor to apply to ITER energy confinement scaling, also known as H-factor",
+
+		"bootstrap_model" : 4,
+        "__bootstrap_model_unit__" : "#",
+		"__bootstrap_model_comment__" : "1 = Andrade equation 18; 2 = Andrade simple; 3 = simple model with user-defined constant; 4 = user defined constant",
+
+		"bootstrap_model_constant" : 0.88,
+
+		"core_radius" : 0.99,
+
+		"scrape_off_layer_radiated_power_fraction" : 0.8,
+        "__scrape_off_layer_radiated_power_fraction_unit__" : "",
+        "__scrape_off_layer_radiated_power_fraction_comment__" : "fraction of power conducted to the scrape-off layer that is radiated by pedestal impurity seeding"
+	},
+
+
+	"TF" : {
+
+        "maximum_field_on_coil" : 21.0,
+        "__maximum_field_on_coil_unit__" : "T",
+        "__maximum_field_on_coil_comment__" : "",
+
+		"operating_temperature" : 20,
+		"__operating_temperature_unit__" : "K",
+		"__operating_temperature_comment__" : "target operating temperature",
+
+		"operating_current" : 30000,
+		"__operating_current_unit__" : "A",
+		"__operating_current_comment__" : "target operating current",
+
+		"field_ripple" : 0.003,
+		"__field_ripple_unit__" : "",
+		"__field_ripple_comment__" : "maximum ripple fraction in the field at the maximum radius of the plasma",
+
+		"apex_offset" : 0.5,
+		"__apex_offset_unit__" : "m",
+		"__apex_offset_comment__" : "offset in the inboard direction for the apex of the coil, also known as cTF",
+
+		"uchannel_width" : 0.018,
+		"__uchannel_width_unit__" : "m",
+		"__uchannel_width_comment__" : "cable width including the u-channel",
+
+		"insulation_thickness" : 0.0002,
+		"__insulation_thickness_unit__" : "m",
+		"__insulation_thickness_comment__" : "insulation thickness between each turn", 
+
+        "eti_thickness" : 0.0005,
+        "sidebar_thickness" : 0.010,
+        "rapid_quench_safety" : 1.0,
+        "pancake_layer_limit": 1,
+		"pack_quench_temperature" : 200,
+
+		"critical_current_recovery" : 0.00,
+		"__critical_current_recovery_comment__" : "fraction of critical current recovered during annealling cycle",
+
+		"artificial_flux_pinning" : true,
+
+		"gamma" : 0.4,
+		"__gamma_unit__" : "",
+		"__gamma_comment__" : "ratio of current density to the critical current density for fresh tape",
+
+		"gamma_end_of_life" : 0.9,
+		"__gamma_end_of_life_unit__" : "",
+		"__gamma_end_of_life_comment__" : "ratio of current density to the critical current density at the end of life",
+
+		"pancake_spacing" : 0.001,
+		"__pancake_spacing_unit__" : "m",
+		"__pancake_spacing_comment__" : "spacing reserved for insulation between two pancakes",
+
+		"tape_type" : "superpower",
+		"__tape_type_unit__" : "",
+		"__tape_type_comment__" : "HTS tape type",
+
+		"critical_current_density_in_tape" : 2E9,
+		"__critical_current_density_in_tape_unit__" : "A/m^2",
+		"__critical_current_density_in_tape_comment__" : "engineering critical current density across a tape; also known as J_eng",
+
+		"tape_thickness" : 7.7E-5,
+		"__tape_thickness_unit__" : "m",
+		"__tape_thickness_comment__" : "thickness of tape",
+
+		"critical_current_density" : 1.0E9,
+		"__critical_current_density_unit__" : "A/m^2",
+		"__critical_current_density_comment__" : "derived cable current density",
+
+		"vacuum_gap" : 0.040,
+		"__vacuum_gap_unit__" : "m",
+		"__vacuum_gap_comment__" : "gap between the core and the vacuum chamber (or other structure) required for thermal insulation"
+	},
+
+    "Central_Solenoid" : {
+
+        "flux_swing" : 0,
+        "__flux_swing_unit__" : "Vs",
+        "__flux_swing_comment__" : "required flux swing at plasma major radius",
+
+		"magnetic_field" : 20.0,
+        "__magnetic_field_unit__" : "T",
+        "__magnetic_field_comment__" : "target magnetic field on coil",
+
+		"operating_temperature" : 20,
+        "__operating_temperature_unit__" : "K",
+        "__operating_temperature_comment__" : "target operating temperature",
+
+		"critical_current_density" : 1.2E8,
+        "__critical_current_density_unit__" : "A/m^2",
+        "__critical_current_density_comment__" : "current density (361E6 in original)",
+
+		"tf_gap" : 0.020, 
+        "__tf_gap_unit__" : "m",
+        "__tf_gap_comment__" : "spacing between the rod radius and the solenoid",
+
+		"turn_spacing" : 0.001, 
+        "__turn_spacing_unit__" : "m",
+        "__turn_spacing_comment__" : "spacing between the turns i.e. the layers, this is filled with insulation",
+
+		"axial_spacing" : 0.004,
+        "__axial_spacing_unit__" : "m",
+        "__axial_spacing_comment__" : "spacing between the turns axially this will become part of the former",
+
+		"former_thickness" : 0.020,
+        "__former_thickness_unit__" : "m",
+        "__former_thickness_comment__" : "thickness of the former onto which the solenoid is wound"
+	},
+
+	"Radiation_Shield" : {
+
+		"layers" : [
+			{ "name": "centre_column_armour",   "thickness":0.010, "material": "Tungsten", "density":19.3, "half_value_layer":0.050 },
+			{ "name": "centre_column_shield_1", "thickness":0.250, "material": "Tungsten Alloy, AEM-18C, 80% dense", "density":14.4, "half_value_layer":0.046 },
+			{ "name": "centre_column_shield_2", "thickness":0.250, "material": "Tungsten Carbide, 90% dense", "density":13.44, "half_value_layer":0.045 },
+			{ "name": "centre_column_shield_3", "thickness":0.300, "material": "Tungsten Boride", "density":9.97, "half_value_layer":0.042 }
+		],
+		"__layers_comment__" : "data for each layer of the centre column shielding starting with the plasma-facing side. Data is used by the 3D model builder and thicknesses should be adjusted based on shield thickness from radial build",
+
+		"shield_power_factor" : 0.31,
+		"__shield_power_factor_unit__" : "",
+		"__shield_power_factor_comment__" : "thermal power deposited in the bulk shield from neutrons, expressed as fraction of neutron power produced by plasma",
+
+		"wall_power_factor" : 0.05,
+		"__wall_power_factor_unit__" : "",
+		"__wall_power_factor_comment__" : "thermal power deposited in the wall/armour from neutrons, expressed as fraction of neutron power produced by plasma",
+
+		"coolant" : {
+			"fluid" : "Helium",
+			"inlet_temperature" : 300,
+			"outlet_temperature" : 500, 
+			"inlet_pressure" : 80, 
+			"outlet_pressure" : 78,
+			"heat_exchanger_delta" : 100 	
+		},	
+		"__coolant_comment__" : "details of the fluid used to extract heat; temperature in Celcius and pressure in bar"
+	},
+
+    "Inner_Vacuum_Chamber": {
+        "layers": [
+            { "name": "ivc_layer_0", "thickness":0.025, "material": "Stainless Steel, 316L", "density":8.00, "half_value_layer":0.050 }
+        ],
+        "__layers_comment__": "data for each layer of the inner vacuum chamber starting with the plasma-facing side. Data is used to estimate the attenuation factor in addition to the centre column shield"
+    },
+
+	"Divertor" : {
+
+        "number_of_xpoints": 2,
+        "__number_of_xpoints_unit__": "#",
+        "__number_of_xpoints_comment__": "defines single (1) or double (2) null divertor configuration",
+
+        "configuration": "long leg",
+        "__configuration_unit__": "",
+        "__configuration_comment__": "short leg; medium leg; long leg",
+
+        "armour_thickness": 0.050,
+        "__armour_thickness_unit__": "m",
+        "__armour_thickness_comment__": "thickness of the armour on the plasma-facing surface",
+
+        "shield_thickness": 0.500,
+        "__shield_thickness_unit__": "m",
+        "__shield_thickness_comment__": "thickness of the shield between the divertor and TF",
+
+        "shield_material" : "Tungsten Carbide, 90% dense",
+        "__shield_material_unit__": "",
+        "__shield_material_comment__": "material composition of the shield, must match an entry in the Materials inputs",
+
+        "coolant": {
+            "fluid": "Lithium",
+            "inlet_temperature": 200,
+            "outlet_temperature": 210,
+            "inlet_pressure": 32,
+            "outlet_pressure": 2,
+            "velocity": 5,
+            "insulated_wall": true
+        },
+        "__coolant_comment__": "details of the fluid used to extract heat; temperature in Celcius and pressure in bar"
+	},
+
+	"Blanket" : {
+
+		"armour_thickness" : 0.005,
+		"__armour_thickness_unit__" : "m",
+		"__armour_thickness_comment__" : "thickness of the armour on the plasma-facing wall",
+
+		"armour_material" : "Tungsten",
+		"__armour_material_unit__" : "",
+		"__armour_material_comment__" : "first-wall armour material",
+
+		"wall_thickness" : 0.020,
+		"__wall_thickness_unit__" : "m",
+		"__wall_thickness_comment__" : "thickness of the vessel containing the breeder",
+
+		"wall_material" : "Vanadium Alloy, V-4Cr-4Ti",
+		"__wall_material_unit__" : "",
+		"__wall_material_comment__" : "vessel material",
+
+        "layers": [
+            { "name": "blanket_breeder_0", "thickness":1.200, "material": "Lithium, Molten", "density":0.52, "half_value_layer":0.100 }
+        ],
+
+		"shield_thickness" : 0.300,
+		"__shield_thickness_unit__" : "m",
+		"__shield_thickness_comment__" : "thickness of the shield on the rear of the blanket",
+
+		"shield_material" : "Tungsten Carbide",
+		"__shield_material_unit__" : "",
+		"__shield_material_comment__" : "shield material",
+
+		"breeder_power_factor" : 0.75,
+		"__breeder_power_factor_unit__" : "",
+		"__breeder_power_factor_comment__" : "ratio of thermal power deposited in blanket to neutron power emitted by plasma",
+
+		"breeder_coolant" : {
+			"fluid" : "Lithium",
+			"inlet_temperature" : 200,
+			"outlet_temperature" : 500, 
+			"inlet_pressure" : 12, 
+			"outlet_pressure" : 2,
+			"velocity" : 0.1,
+			"insulated_wall" : false 	
+		},	
+		"__breeder_coolant_comment__" : "details of the fluid used to extract heat; temperature in Celcius and pressure in bar",
+
+		"wall_power_factor" : 0.15,
+		"__wall_power_factor_unit__" : "",
+		"__wall_power_factor_comment__" : "ratio of thermal power deposited in blanket to neutron power emitted by plasma",
+
+		"wall_coolant" : {
+			"fluid" : "Helium",
+			"inlet_temperature" : 300,
+			"outlet_temperature" : 500, 
+			"inlet_pressure" : 80, 
+			"outlet_pressure" : 78,
+			"heat_exchanger_delta" : 100 	
+		},	
+		"__wall_coolant_comment__" : "details of the fluid used to extract heat; temperature in Celcius and pressure in bar"
+	},
+
+	"Power_Plant" : {
+
+		"power_cycle" : "SubcriticalSteamRankine",
+
+		"turbine_inlet_temperature" : 500,
+
+		"ecrh_power_efficiency" : 0.45,
+		"__ecrh_power_efficiency_unit__" : "", 
+		"__ecrh_power_efficiency_comment__" : "wall-plug to plasma efficiency for Electron Cyclotron Resonance (ECR) heating",
+
+		"plant_base_load" : 5,
+		"__plant_base_load_unit__" : "MWe",
+		"__plant_base_load_comment__" : "electrial power required to run generic plant systems",
+
+		"tritium_plant_load" : 50,
+		"__tritium_plant_load_unit__" : "MWe",
+		"__tritium_plant_load_comment__" : "electrial power required to run the tritium processing plant"
+
+	},
+
+	"Cost_Model" : {
+
+		"dwell_fraction" : 0.1,
+		"__dwell_fraction_unit__" : "",
+		"__dwell_fraction_comment__" : "average time between pulses, expressed as fraction of pulse length",
+
+		"outage_duration" : 0.5,
+		"__outage_duration_unit__" : "years",
+		"__outage_duration_comment__" : "time taken to perform regular maintenance",
+
+		"capacity_factor" : 0.0,
+		"__capacity_factor_unit__" : "",
+		"__capacity_factor_comment__" : "ratio of actual electrical energy output over a given period of time to the theoretical maximum electrical energy output over that period",  
+
+		"discount_period" : 30,
+		"__discount_period_unit__" : "years",
+		"__discount_period_comment__" : "https://www.investopedia.com/terms/d/discounted-payback-period.asp",
+
+		"discount_rate" : 0.053,
+		"__discount_rate_unit__" : "",
+		"__discount_rate_comment__" : "",
+
+		"cost_of_capital" : 0.304,
+		"__cost_of_capital_unit__" : "",
+		"__cost_of_capital_comment__" : "return on capital expected from investment",
+
+		"number_of_tokamaks" : 1
+	},
+
+	"Materials" : [
+		{ "name": "Aluminum, 1060", "g4name" : "G4_Al", "density" : 2.69, "cost_per_kg" : 5.0 },
+		{ "name": "Copper", "g4name" : "G4_Cu", "density" : 8.90, "cost_per_kg" : 10.0  },
+		{ "name": "HTS Winding", "g4name" : "hts_tape_u_channel", "density" : 8.86, "cost_per_kg" : 250.0  },
+		{ "name": "Lithium, Molten", "g4name" : "liquid_lithium", "density" : 0.52, "cost_per_kg" : 60.0  },
+		{ "name": "Steel, EUROFER-97", "g4name" : "eurofer_97", "density" : 8.00, "cost_per_kg" : 10.0  },	
+		{ "name": "Stainless Steel, 316", "g4name" : "stainless_steel_316", "density" : 8.00, "cost_per_kg" : 1.0  },	
+		{ "name": "Stainless Steel, 316L", "g4name" : "stainless_steel_316l", "density" : 8.00, "cost_per_kg" : 1.0  },
+		{ "name": "Tungsten", "g4name" : "G4_W", "density" : 19.3, "cost_per_kg" : 10.0  },
+		{ "name": "Tungsten Alloy, AEM-18C", "g4name" : "tungsten_heavy_alloy", "density" : 18.00, "cost_per_kg" : 15.00  },
+		{ "name": "Tungsten Alloy, AEM-18C, 80% dense", "g4name" : "tungsten_heavy_alloy", "density" : 18.00, "cost_per_kg" : 12.00  },
+		{ "name": "Tungsten Boride", "g4name" : "tungsten_boride_WB4", "density" : 8.97, "cost_per_kg" : 50.0  },
+		{ "name": "Tungsten Carbide", "g4name" : "cemented_tungsten_carbide", "density" : 13.44, "cost_per_kg" : 15.00  },
+		{ "name": "Tungsten Carbide, 90% dense", "g4name" : "cemented_tungsten_carbide", "density" : 13.44, "cost_per_kg" : 13.50  },
+		{ "name": "Vanadium Alloy, V-4Cr-4Ti", "g4name" : "vanadium_alloy", "density" : 6.12, "cost_per_kg" : 25.0  }
+	]
+}

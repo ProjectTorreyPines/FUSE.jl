@@ -129,15 +129,20 @@ function find_currents(
     pc = dd.pulse_schedule.position_control
 
     eqt = eq.time_slice[]
+    coils = vcat(pinned_coils, optim_coils)
+
     # field nulls
     if ismissing(eqt.global_quantities, :ip)
-        # find ψp
-        ψp_constant = eqt.global_quantities.psi_boundary
+        psib = eqt.global_quantities.psi_boundary
         rb, zb = IMAS.boundary(pc, 1)
-        Bp_fac, ψp, Rp, Zp = VacuumFields.field_null_on_boundary(ψp_constant, rb, zb, fixed_coils)
-        # solutions with plasma
+        flux_cps = VacuumFields.FluxControlPoints(rb, zb, psib)
+        fixed_eq = nothing
+
+    # solutions with plasma
     else
         fixed_eq = IMAS2Equilibrium(eqt)
+        _, psib = MXHEquilibrium.psi_limits(fixed_eq)
+
         # private flux regions
         Rx = Float64[]
         Zx = Float64[]
@@ -145,7 +150,7 @@ function find_currents(
             private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
             vessel = IMAS.get_build_layer(bd.layer; type=_plasma_)
             for (pr, pz) in private
-                indexes, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
+                _, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
                 for cr in crossings
                     push!(Rx, cr[1])
                     push!(Zx, cr[2])
@@ -155,21 +160,30 @@ function find_currents(
                 @warn "weight_strike>0 but no strike point found"
             end
         end
-        # find ψp
-        Bp_fac, ψp, Rp, Zp = VacuumFields.ψp_on_fixed_eq_boundary(fixed_eq, fixed_coils; Rx, Zx, fraction_inside=1.0 - 1E-4)
+
+        bnd_cps = VacuumFields.boundary_control_points(fixed_eq, 0.999)
+        strike_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
+
         # weight more near the x-points
-        h = (maximum(Zp) - minimum(Zp)) / 2.0
-        o = (maximum(Zp) + minimum(Zp)) / 2.0
-        weight = sqrt.(((Zp .- o) ./ h) .^ 2 .+ h) / h # asda
-        # give each strike point the same weight as the lcfs
-        weight[end-length(Rx)+1:end] .= length(Rp) / (1 + length(Rx)) * weight_strike
-        if all(weight .== 1.0)
-            weight = Float64[]
+        Zmax, Zmin = -Inf, Inf
+        for cp in bnd_cps
+            cp.Z > Zmax && (Zmax = cp.Z)
+            cp.Z < Zmin && (Zmin = cp.Z)
         end
+        h = 0.5 * (Zmax - Zmin)
+        o = 0.5 * (Zmax + Zmin)
+        for cp in bnd_cps
+            cp.weight = sqrt(((cp.Z - o) / h) ^ 2 + h) / h
+        end
+
+        # give each strike point the same weight as the lcfs
+        for cp in strike_cps
+            cp.weight = length(bnd_cps) / (1 + length(strike_cps)) * weight_strike
+        end
+        flux_cps = vcat(bnd_cps, strike_cps)
     end
 
-    coils = vcat(pinned_coils, optim_coils)
-    currents = VacuumFields.currents_to_match_ψp(Bp_fac, ψp, Rp, Zp, coils; weights=weight, λ_regularize=0.0, return_cost=false)
+    VacuumFields.optimize_coil_currents!(coils, fixed_eq, flux_cps; ψbound=psib, fixed_coils, λ_regularize)
 
     return λ_regularize
 end

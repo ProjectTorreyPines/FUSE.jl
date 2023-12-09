@@ -17,13 +17,6 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.general.casename = "ITER_$(init_from)"
     ini.general.init_from = init_from
 
-    ini.build.blanket = 0.0
-    ini.build.shield = 0.5
-    ini.build.vessel = 0.125
-
-    ini.material.wall = "Tungsten"
-    ini.material.shield = "Steel, Stainless 316"
-
     if init_from == :ods
         ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
@@ -62,11 +55,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     act.ActorEquilibrium.model = :TEQUILA
 
     ini.equilibrium.ip = t -> ramp(t / 100.0) * 14E6 + ramp((t - 200) / 100.0) * 1E6
-    ini.time.pulse_shedule_time_basis = LinRange(0, 400, 1000)
+    ini.time.pulse_shedule_time_basis = range(0, 400, 1000)
     ini.time.simulation_start = 400.0
 
     # explicitly set thickness of radial build layers
-    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.80
     layers[:OH] = 1.275
     layers[:gap_OH_TF] = 0.05
@@ -81,6 +74,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     layers[:lfs_TF] = 1.10
     layers[:gap_cryostat] = 2.34
     layers[:cryostat] = 0.30
+    ini.build.layers = layers
     ini.build.n_first_wall_conformal_layers = 3
 
     ini.oh.n_coils = 6

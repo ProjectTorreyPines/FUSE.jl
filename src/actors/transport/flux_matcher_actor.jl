@@ -18,9 +18,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
-    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=200)
-    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:trust_region)
-    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=0.5)
+    optimize_q::Entry{Bool} = Entry{Bool}("-", "Optimize q profile to achieve goal"; default=false)
+    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
+    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the flux matching"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Print trace and optimization result"; default=false)
 end
@@ -88,13 +89,13 @@ function _step(actor::ActorFluxMatcher)
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
-    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose && !par.do_plot)
+    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
 
     z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
     err_history = Float64[]
     old_logging = actor_logging(dd, false)
     res = try
-        NLsolve.nlsolve(
+        res = NLsolve.nlsolve(
             z -> flux_match_errors(actor, z; z_scaled_history, err_history, prog),
             z_init;
             show_trace=false,
@@ -105,6 +106,7 @@ function _step(actor::ActorFluxMatcher)
             xtol=1E-2,
             opts...
         )
+        flux_match_errors(actor, res.zero) # z_profiles for the smallest error iteration
     finally
         # @show flux_match_errors(actor, z_scaled_history[end])
         actor_logging(dd, old_logging)
@@ -112,16 +114,7 @@ function _step(actor::ActorFluxMatcher)
 
     if par.do_plot
         display(res)
-    end
 
-    flux_match_errors(actor, res.zero) # z_profiles for the smallest error iteration
-
-    evolve_densities = evolve_densities_dictionary(cp1d, par)
-    if !isempty(evolve_densities) && !isempty([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality])
-        IMAS.enforce_quasi_neutrality!(dd, [i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality][1])
-    end
-
-    if par.do_plot
         display(parse_and_plot_error(string(res.trace.states)))
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
         display(plot(transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...)); xlabel="Iterations", label=""))
@@ -141,6 +134,21 @@ function _step(actor::ActorFluxMatcher)
         end
 
         display(p)
+    end
+
+    # for completely collapsed cases we don't want it to crash in the optimizer so
+    cp1d = dd.core_profiles.profiles_1d[]
+    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te
+        @warn "Profiles completely collpased due to insufficient source versus turbulence"
+        te = cp1d.electrons.temperature
+        teped = @ddtime(dd.summary.local.pedestal.t_e.value)
+        lowest_profile = IMAS.Hmode_profiles(te[end], teped, teped * 1.5, length(te), 1.1, 1.1, 2 * (1 - @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)))
+        cp1d.electrons.temperature = lowest_profile
+        if par.evolve_Ti
+            for ion in cp1d.ion
+                ion.temperature = lowest_profile
+            end
+        end
     end
 
     return actor
@@ -322,8 +330,9 @@ function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
         ("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
         ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
         ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density[1] / 1E20)]
-    return tmp
+        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
+    ]
+    return tuple(tmp...)
 end
 
 function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
@@ -398,8 +407,7 @@ NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis.
 function unpack_z_profiles(
     cp1d::IMAS.core_profiles__profiles_1d,
     par::FUSEparameters__ActorFluxMatcher,
-    z_profiles::AbstractVector{<:Real}
-)
+    z_profiles::AbstractVector{<:Real})
 
     cp_rho_transport = [cp1d.grid.rho_tor_norm[argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm))] for rho_x in par.rho_transport]
 
