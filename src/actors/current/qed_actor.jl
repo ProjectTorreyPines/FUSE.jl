@@ -157,11 +157,11 @@ function _finalize(actor::ActorQED)
     ρ = eqt.profiles_1d.rho_tor_norm
     eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
     eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
+    _, B0 = IMAS.vacuum_r0_b0(eqt)
     if true # we prefer using an expression to ensure consistency
         empty!(eqt.profiles_1d, :j_parallel) # restore expression
     else
         # more accurate
-        _, B0 = IMAS.vacuum_r0_b0(eqt)
         eqt.profiles_1d.j_parallel = QED.JB(actor.QO; ρ) ./ B0
     end
 
