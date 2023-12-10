@@ -637,9 +637,9 @@ version = "0.1.1"
 
 [[deps.FastGaussQuadrature]]
 deps = ["LinearAlgebra", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "93ff6a4d5e7bfe27732259bfabbdd19940d8af1f"
+git-tree-sha1 = "8ef0363cffeedb7e73339b664ce6d33cc278a3c4"
 uuid = "442a2c76-b920-505d-bb47-c5924d526838"
-version = "1.0.0"
+version = "1.0.1"
 
 [[deps.FastLapackInterface]]
 deps = ["LinearAlgebra"]
@@ -1153,9 +1153,9 @@ uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
 version = "15.0.4+0"
 
 [[deps.LRUCache]]
-git-tree-sha1 = "d36130483e3b6e4cd88d81633b596563264f15db"
+git-tree-sha1 = "5930ef949f30a9a947c69ef6b069c0b1aa27619d"
 uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
-version = "1.5.0"
+version = "1.6.0"
 
 [[deps.LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
