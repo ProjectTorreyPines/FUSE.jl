@@ -45,7 +45,6 @@ function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Re
             coil_tech = dd.build.pf_active.technology
         end
         imas_pf_active__coil = GS3_IMAS_pf_active__coil(coil, coil_tech, green_model)
-        imas_pf_active__coil.current = 0.0 # initialize coil at global_time
         push!(coils, imas_pf_active__coil)
     end
     return coils
