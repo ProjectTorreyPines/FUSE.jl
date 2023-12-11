@@ -211,7 +211,7 @@ function _finalize(actor::ActorPFcoilsOpt{D,P}) where {D<:Real,P<:Real}
         eqt2d_out = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
         eqt2d_out.grid.dim1 = R
         eqt2d_out.grid.dim2 = Z
-        eqt2d_out.psi = VacuumFields.fixed2free(EQfixed, coils, R, Z)
+        eqt2d_out.psi = collect(VacuumFields.fixed2free(EQfixed, coils, R, Z)')
     end
 
     # update psi

@@ -98,13 +98,13 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
             Zgrid = range(EQfixed.z[1] * scale_eq_domain_size, EQfixed.z[end] * scale_eq_domain_size; length=length(EQfixed.z))
             eqt2d_out.grid.dim1 = Rgrid
             eqt2d_out.grid.dim2 = Zgrid
-            eqt2d_out.psi = VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)
+            eqt2d_out.psi = collect(VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)')
         end
 
         if par.do_plot
             display(plot(actor; equilibrium=true))
         end
-    
+
         # update equilibrium psi2d and retrace flux surfaces
         if par.update_equilibrium
             eqt2d_in.psi = eqt2d_out.psi
