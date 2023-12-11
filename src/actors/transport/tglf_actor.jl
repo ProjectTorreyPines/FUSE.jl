@@ -136,7 +136,8 @@ end
 Creates an TJLF.InputTJLF from a TGLFNN.InputTGLF
 """
 function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
-    inputTJLF = TJLF.InputTJLF{Float64}(inputTGLF.NS, 21)
+    nky = TJLF.get_ky_spectrum_size(inputTGLF.NKY, inputTGLF.KYGRID_MODEL)
+    inputTJLF = TJLF.InputTJLF{Float64}(inputTGLF.NS, nky)
     inputTJLF.NWIDTH = 21
     
     for fieldname in fieldnames(typeof(inputTGLF))
@@ -166,7 +167,7 @@ function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
     inputTJLF.RLNP_CUTOFF = 18.0
     inputTJLF.WIDTH = 1.65
     inputTJLF.WIDTH_MIN = 0.3
-    inputTJLF.BETA_LOC = 1.0
+    inputTJLF.BETA_LOC = 0.0
     inputTJLF.KX0_LOC = 1.0
     inputTJLF.PARK = 1.0
     inputTJLF.GHAT = 1.0
@@ -182,6 +183,7 @@ function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
    
     
     inputTJLF.FIND_WIDTH = true # first case should find the widths
+    inputTJLF.FIND_EIGEN = true
     inputTJLF.NXGRID = 16
 
     inputTJLF.ADIABATIC_ELEC = false
@@ -192,7 +194,7 @@ function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
     inputTJLF.IFLUX = true
     inputTJLF.IBRANCH = -1 
     inputTJLF.WIDTH_SPECTRUM .= inputTJLF.WIDTH
-    
+    inputTJLF.KX0_LOC = 0.0
     
     # for now settings
     inputTJLF.ALPHA_ZF = -1  # smooth   
@@ -206,7 +208,7 @@ function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
              @assert !ismissing(field_value) || !isnan(field_value) "Did not properly populate inputTJLF for $field_name"
          end
 
-        if typeof(field_value)<:Vector && field_name!=:KY_SPECTRUM && field_name!=:GAMMA_SPECTRUM 
+         if typeof(field_value) <: Vector && field_name != :KY_SPECTRUM && field_name != :EIGEN_SPECTRUM && field_name != :EIGEN_SPECTRUM2
             for val in field_value
                 @assert !isnan(val) "Did not properly populate inputTJLF for array $field_name"
             end
