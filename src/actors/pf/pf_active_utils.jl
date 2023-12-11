@@ -316,7 +316,7 @@ end
 """
     encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
 
-Generates VacuumFields.PointCoil around the plasma boundary using some educated guesses for where the pf coils will be
+Generates VacuumFields.PointCoil around the plasma boundary using some educated guesses for where the pf coils should be
 """
 function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
     rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
@@ -343,6 +343,46 @@ function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_
         [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
         [VacuumFields.PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
     ]
+end
+
+"""
+    coil_selfB(coil::IMAS.pf_active__coil{T}, current::T) where {T<:Real}
+
+Evaluates self induced magnetic field of a coil given a current
+"""
+function coil_selfB(coil::IMAS.pf_active__coil{T}, current::T) where {T<:Real}
+    b = abs.(constants.μ_0 * current * coil.element[1].turns_with_sign / (2π * min(coil.element[1].geometry.rectangle.width, coil.element[1].geometry.rectangle.height)))
+    if b < 0.1
+        return 0.1
+    else
+        return b
+    end
+end
+
+"""
+    pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
+
+Evaluates the current limit for all PF/OH superconducting coils
+"""
+function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
+    for coil in pfa.coil
+        coil.b_field_max = range(0.1, 30; step=0.1)
+        if IMAS.is_ohmic_coil(coil)
+            coil_tech = bd.oh.technology
+        else
+            coil_tech = bd.pf_active.technology
+        end
+        coil.temperature = [-1, coil_tech.temperature]
+        coil.current_limit_max = [abs(coil_J_B_crit(b, coil_tech)[1] * IMAS.area(coil) / coil.element[1].turns_with_sign) for b in coil.b_field_max, t in coil.temperature]
+        coil.b_field_max_timed.time = coil.current.time
+        if IMAS.is_ohmic_coil(coil)
+            if !ismissing(bd.oh, :max_b_field)
+                coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in eachindex(coil.current.time)]
+            end
+        else
+            coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index]) for time_index in eachindex(coil.current.time)]
+        end
+    end
 end
 
 @recipe function plot_coil(coil::All_GS_IMAS_pf_active__coil)

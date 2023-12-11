@@ -53,6 +53,7 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
 
     actor.eq_in = dd.equilibrium
     actor.eq_out = IMAS.lazycopy(dd.equilibrium)
+    eqt = actor.eq_in.time_slice[]
 
     # Get coils (as GS3_IMAS_pf_active__coil) organized by their function and initialize them
     fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor)
@@ -61,9 +62,9 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
 
     # run rail type optimizer
     λ_regularize = find_currents(
-        actor.eq_in, dd, pinned_coils, optim_coils, fixed_coils;
-        actor.λ_regularize,
-        weight_strike)
+        eqt, dd, vcat(pinned_coils, optim_coils), fixed_coils;
+        actor.λ_regularize, weight_strike)
+
     actor.λ_regularize = λ_regularize
 
     return actor
@@ -79,7 +80,6 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     if par.update_equilibrium || par.do_plot
-
         eqt_in = actor.eq_in.time_slice[]
         eqt2d_in = findfirst(:rectangular, eqt_in.profiles_2d)
         eqt_out = actor.eq_out.time_slice[dd.global_time]
@@ -100,46 +100,51 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
             eqt2d_out.grid.dim2 = Zgrid
             eqt2d_out.psi = VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)
         end
+
+        if par.do_plot
+            display(plot(actor; equilibrium=true))
+        end
+    
+        # update equilibrium psi2d and retrace flux surfaces
+        if par.update_equilibrium
+            eqt2d_in.psi = eqt2d_out.psi
+            IMAS.flux_surfaces(eqt_in)
+            actor.eq_out = actor.eq_in
+        end
     end
 
-    if par.do_plot
-        display(plot(actor; equilibrium=true))
-    end
-
-    # update equilibrium psi2d and retrace flux surfaces
-    if par.update_equilibrium
-        eqt2d_in.psi = eqt2d_out.psi
-        IMAS.flux_surfaces(eqt_in)
-        actor.eq_out = actor.eq_in
-    end
+    # evaluate current limits
+    pf_current_limits(dd.pf_active, dd.build)
 
     return actor
 end
 
+"""
+    find_currents(
+        eqt::IMAS.equilibrium__time_slice,
+        dd::IMAS.dd{D},
+        coils::Vector{GS3_IMAS_pf_active__coil{D,D}},
+        fixed_coils::Vector{GS3_IMAS_pf_active__coil{D,D}};
+        λ_regularize::Real,
+        weight_strike::Real) where {D<:Real}
+
+Find PF/OH coil currents given an equilibrium time slice
+"""
 function find_currents(
-    eq::IMAS.equilibrium,
+    eqt::IMAS.equilibrium__time_slice,
     dd::IMAS.dd{D},
-    pinned_coils::Vector{GS3_IMAS_pf_active__coil{D,D}},
-    optim_coils::Vector{GS3_IMAS_pf_active__coil{D,D}},
+    coils::Vector{GS3_IMAS_pf_active__coil{D,D}},
     fixed_coils::Vector{GS3_IMAS_pf_active__coil{D,D}};
     λ_regularize::Real,
     weight_strike::Real) where {D<:Real}
 
-    bd = dd.build
-    pc = dd.pulse_schedule.position_control
-
-    eqt = eq.time_slice[]
-    coils = vcat(pinned_coils, optim_coils)
-
-    # field nulls
-    if ismissing(eqt.global_quantities, :ip)
+    if ismissing(eqt.global_quantities, :ip) # field nulls
         psib = eqt.global_quantities.psi_boundary
-        rb, zb = IMAS.boundary(pc, 1)
+        rb, zb = IMAS.boundary(dd.pulse_schedule.position_control, eqt.time)
         flux_cps = VacuumFields.FluxControlPoints(rb, zb, psib)
         fixed_eq = nothing
 
-    # solutions with plasma
-    else
+    else # solutions with plasma
         fixed_eq = IMAS2Equilibrium(eqt)
         _, psib = MXHEquilibrium.psi_limits(fixed_eq)
 
@@ -148,7 +153,7 @@ function find_currents(
         Zx = Float64[]
         if weight_strike > 0.0
             private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-            vessel = IMAS.get_build_layer(bd.layer; type=_plasma_)
+            vessel = IMAS.get_build_layer(dd.build.layer; type=_plasma_)
             for (pr, pz) in private
                 _, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
                 for cr in crossings
@@ -173,7 +178,7 @@ function find_currents(
         h = 0.5 * (Zmax - Zmin)
         o = 0.5 * (Zmax + Zmin)
         for cp in bnd_cps
-            cp.weight = sqrt(((cp.Z - o) / h) ^ 2 + h) / h
+            cp.weight = sqrt(((cp.Z - o) / h)^2 + h) / h
         end
 
         # give each strike point the same weight as the lcfs

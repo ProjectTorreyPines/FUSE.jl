@@ -204,6 +204,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         eq2d.psi .= psi_free_rz'
 
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
+        pf_current_limits(dd.pf_active, dd.build)
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain
