@@ -20,6 +20,8 @@ mutable struct ActorPFactive{D,P} <: ReactorAbstractActor{D,P}
     eq_in::IMAS.equilibrium{D}
     eq_out::IMAS.equilibrium{D}
     λ_regularize::Float64
+    flux_control_points::Vector{VacuumFields.FluxControlPoint{Float64}}
+    saddle_control_points::Vector{VacuumFields.SaddleControlPoint{Float64}}
 end
 
 """
@@ -40,32 +42,24 @@ end
 function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
     logging_actor_init(ActorPFactive)
     par = par(kw...)
-    return ActorPFactive(dd, par, dd.equilibrium, dd.equilibrium, 0.0)
+    return ActorPFactive(dd, par, dd.equilibrium, dd.equilibrium, 0.0, VacuumFields.FluxControlPoint{Float64}[], VacuumFields.SaddleControlPoint{Float64}[])
 end
 
 """
     _step(actor::ActorPFactive)
 
-Optimize coil currents to produce equilibrium at current time
+Find currents that satisfy boundary and flux/saddle constraints in a least-square sense
 """
 function _step(actor::ActorPFactive{T}) where {T<:Real}
-    dd = actor.dd
-
-    actor.eq_in = dd.equilibrium
-    actor.eq_out = IMAS.lazycopy(dd.equilibrium)
     eqt = actor.eq_in.time_slice[]
 
     # Get coils (as GS3_IMAS_pf_active__coil) organized by their function and initialize them
     fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor)
 
-    weight_strike = 1.0
-
-    # run rail type optimizer
-    λ_regularize = find_currents(
-        eqt, dd, vcat(pinned_coils, optim_coils), fixed_coils;
-        actor.λ_regularize, weight_strike)
-
-    actor.λ_regularize = λ_regularize
+    # Find coil currents
+    actor.λ_regularize = VacuumFields.find_coil_currents!(
+        eqt, vcat(pinned_coils, optim_coils), fixed_coils;
+        actor.λ_regularize, actor.flux_control_points, actor.saddle_control_points)
 
     return actor
 end
@@ -73,13 +67,15 @@ end
 """
     _finalize(actor::ActorPFactive)
 
-Update actor.eq_out 2D equilibrium PSI based on coils positions and currents
+Update actor.eq_out 2D equilibrium PSI based on coils currents
 """
 function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
     if par.update_equilibrium || par.do_plot
+        actor.eq_out = IMAS.lazycopy(dd.equilibrium)
+
         eqt_in = actor.eq_in.time_slice[]
         eqt2d_in = findfirst(:rectangular, eqt_in.profiles_2d)
         eqt_out = actor.eq_out.time_slice[dd.global_time]
@@ -120,75 +116,38 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 end
 
 """
-    find_currents(
+    VacuumFields.find_coil_currents!(
         eqt::IMAS.equilibrium__time_slice,
-        dd::IMAS.dd{D},
         coils::Vector{GS3_IMAS_pf_active__coil{D,D}},
         fixed_coils::Vector{GS3_IMAS_pf_active__coil{D,D}};
         λ_regularize::Real,
-        weight_strike::Real) where {D<:Real}
+        flux_control_points::Vector{<:VacuumFields.FluxControlPoint}=VacuumFields.FluxControlPoint{Float64}[],
+        saddle_control_points::Vector{<:VacuumFields.SaddleControlPoint}=VacuumFields.SaddleControlPoint{Float64}[]
+    ) where {D<:Real}
 
 Find PF/OH coil currents given an equilibrium time slice
 """
-function find_currents(
+function VacuumFields.find_coil_currents!(
     eqt::IMAS.equilibrium__time_slice,
-    dd::IMAS.dd{D},
     coils::Vector{GS3_IMAS_pf_active__coil{D,D}},
     fixed_coils::Vector{GS3_IMAS_pf_active__coil{D,D}};
     λ_regularize::Real,
-    weight_strike::Real) where {D<:Real}
+    flux_control_points::Vector{<:VacuumFields.FluxControlPoint}=VacuumFields.FluxControlPoint{Float64}[],
+    saddle_control_points::Vector{<:VacuumFields.SaddleControlPoint}=VacuumFields.SaddleControlPoint{Float64}[]
+) where {D<:Real}
 
     if ismissing(eqt.global_quantities, :ip) # field nulls
         psib = eqt.global_quantities.psi_boundary
-        rb, zb = IMAS.boundary(dd.pulse_schedule.position_control, eqt.time)
-        flux_cps = VacuumFields.FluxControlPoints(rb, zb, psib)
-        fixed_eq = nothing
+        rb, zb = eqt.boundary.outline.r, eqt.boundary.outline.z
+        boundary_control_points = VacuumFields.FluxControlPoints(rb, zb, psib)
 
     else # solutions with plasma
         fixed_eq = IMAS2Equilibrium(eqt)
         _, psib = MXHEquilibrium.psi_limits(fixed_eq)
-
-        # private flux regions
-        Rx = Float64[]
-        Zx = Float64[]
-        if weight_strike > 0.0
-            private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
-            vessel = IMAS.get_build_layer(dd.build.layer; type=_plasma_)
-            for (pr, pz) in private
-                _, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)
-                for cr in crossings
-                    push!(Rx, cr[1])
-                    push!(Zx, cr[2])
-                end
-            end
-            if isempty(Rx)
-                @warn "weight_strike>0 but no strike point found"
-            end
-        end
-
-        bnd_cps = VacuumFields.boundary_control_points(fixed_eq, 0.999)
-        strike_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
-
-        # weight more near the x-points
-        Zmax, Zmin = -Inf, Inf
-        for cp in bnd_cps
-            cp.Z > Zmax && (Zmax = cp.Z)
-            cp.Z < Zmin && (Zmin = cp.Z)
-        end
-        h = 0.5 * (Zmax - Zmin)
-        o = 0.5 * (Zmax + Zmin)
-        for cp in bnd_cps
-            cp.weight = sqrt(((cp.Z - o) / h)^2 + h) / h
-        end
-
-        # give each strike point the same weight as the lcfs
-        for cp in strike_cps
-            cp.weight = length(bnd_cps) / (1 + length(strike_cps)) * weight_strike
-        end
-        flux_cps = vcat(bnd_cps, strike_cps)
+        boundary_control_points = VacuumFields.boundary_control_points(fixed_eq, 0.999)
     end
 
-    VacuumFields.find_coil_currents!(coils, fixed_eq, flux_cps; ψbound=psib, fixed_coils, λ_regularize)
+    VacuumFields.find_coil_currents!(coils, fixed_eq, vcat(boundary_control_points, flux_control_points), saddle_control_points; ψbound=psib, fixed_coils, λ_regularize)
 
     return λ_regularize
 end
