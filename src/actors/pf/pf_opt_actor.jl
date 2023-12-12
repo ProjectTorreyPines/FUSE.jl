@@ -441,7 +441,7 @@ function optimize_coils_rail(
             end
 
             # find best currents to match boundary
-            currents, cost_lcfs0 = VacuumFields.optimize_coil_currents!(coils, fixed_eq, flux_cps; ψbound=psib, fixed_coils, λ_regularize, return_cost=true)
+            currents, cost_lcfs0 = VacuumFields.find_coil_currents!(coils, fixed_eq, flux_cps; ψbound=psib, fixed_coils, λ_regularize, return_cost=true)
 
             # currents cost
             current_densities = currents .* [coil.turns_with_sign / area(coil) for coil in coils]

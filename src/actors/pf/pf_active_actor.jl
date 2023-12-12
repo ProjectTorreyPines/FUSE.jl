@@ -188,7 +188,7 @@ function find_currents(
         flux_cps = vcat(bnd_cps, strike_cps)
     end
 
-    VacuumFields.optimize_coil_currents!(coils, fixed_eq, flux_cps; ψbound=psib, fixed_coils, λ_regularize)
+    VacuumFields.find_coil_currents!(coils, fixed_eq, flux_cps; ψbound=psib, fixed_coils, λ_regularize)
 
     return λ_regularize
 end
