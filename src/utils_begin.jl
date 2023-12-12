@@ -363,7 +363,7 @@ end
 # parallel #
 # ======== #
 """
-    parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1, kw...)
+    function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
 
 Start multiprocessing environment
 
@@ -371,8 +371,9 @@ Start multiprocessing environment
 
   - nworkers == 0 uses as many workers as the number of available CPUs
   - cpus_per_task can be used to control memory usage
+  - memory_usage_fraction is the fraction of peak memory that can be used
 """
-function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1, kw...)
+function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
     if cluster == "omega"
         if gethostname() ∈ ("omega-a.gat.com", "omega-b.gat.com")
             gigamem_per_node = 512
@@ -383,7 +384,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                 nworkers = min(nworkers, nprocs_max)
             end
             np = nworkers + 1
-            gigamem_per_cpu = Int(round(gigamem_per_node / cpus_per_node * cpus_per_task))
+            gigamem_per_cpu = Int(round(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if Distributed.nprocs() < np
                 Distributed.addprocs(
@@ -411,7 +412,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                 nworkers = min(nworkers, nprocs_max)
             end
             np = nworkers + 1
-            gigamem_per_cpu = Int(round(gigamem_per_node / cpus_per_node * cpus_per_task))
+            gigamem_per_cpu = Int(round(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if Distributed.nprocs() < np
                 Distributed.addprocs(
@@ -428,13 +429,15 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
         end
 
     elseif cluster == "localhost"
+        mem_size = Int(ceil(localhost_memory() * memory_usage_fraction))
+
         if nworkers > 0
             nprocs_max = length(Sys.cpu_info())
             nworkers = min(nworkers, nprocs_max)
         end
         np = nworkers + 1
         if Distributed.nprocs() < np
-            Distributed.addprocs(np - Distributed.nprocs(); topology=:master_worker, exeflags=["--heap-size-hint=2G"])
+            Distributed.addprocs(np - Distributed.nprocs(); topology=:master_worker, exeflags=["--heap-size-hint=$(mem_size)G"])
         end
 
     else
@@ -442,4 +445,31 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
     end
 
     return println("Working with $(Distributed.nprocs()-1) workers on $(gethostname())")
+end
+
+"""
+    localhost_memory()
+
+Determines what the maximum memory is based on the device type (apple, windows, unix,linux)
+"""
+function localhost_memory()
+    if Sys.isapple()
+        cmd = `sysctl hw.memsize` # for OSX
+        mem_size = parse(Int, split(readchomp(cmd), " ")[end]) / 1024^3
+    elseif Sys.isunix()
+        # General Unix command (including macOS and Linux)
+        cmd = `free -b` # get memory in bytes
+        mem_size = parse(Int, split(readlines(cmd)[2], " ")[2]) / 1024^3
+    elseif Sys.iswindows()
+        # Windows command
+        cmd = `wmic ComputerSystem get TotalPhysicalMemory`
+        mem_size = parse(Int, split(readchomp(cmd), "\n")[2]) / 1024^3
+    elseif Sys.islinux()
+        # Linux-specific command
+        cmd = `grep MemTotal /proc/meminfo`
+        mem_size = parse(Int, split(readchomp(cmd), " ")[2]) / 1024^2 # Linux reports in KB
+    else
+        error("couldn't determine the mem_size")
+    end
+    return mem_size
 end
