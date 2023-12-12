@@ -375,7 +375,7 @@ Start multiprocessing environment
 """
 function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
     if cluster == "omega"
-        if gethostname() ∈ ("omega-a.gat.com", "omega-b.gat.com")
+        if occursin("omega",gethostname())
             gigamem_per_node = 512
             cpus_per_node = 128
             if nworkers > 0
@@ -403,7 +403,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
         end
 
     elseif cluster == "saga"
-        if gethostname() == "saga.cluster"
+        if occursin("saga",gethostname())
             gigamem_per_node = 192
             cpus_per_node = 48
             if nworkers > 0
@@ -455,19 +455,19 @@ Determines what the maximum memory is based on the device type (apple, windows, 
 function localhost_memory()
     if Sys.isapple()
         cmd = `sysctl hw.memsize` # for OSX
-        mem_size = parse(Int, split(readchomp(cmd), " ")[end]) / 1024^3
+        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3
     elseif Sys.isunix()
         # General Unix command (including macOS and Linux)
         cmd = `free -b` # get memory in bytes
-        mem_size = parse(Int, split(readlines(cmd)[2], " ")[2]) / 1024^3
+        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3
     elseif Sys.iswindows()
         # Windows command
         cmd = `wmic ComputerSystem get TotalPhysicalMemory`
-        mem_size = parse(Int, split(readchomp(cmd), "\n")[2]) / 1024^3
+        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3
     elseif Sys.islinux()
         # Linux-specific command
         cmd = `grep MemTotal /proc/meminfo`
-        mem_size = parse(Int, split(readchomp(cmd), " ")[2]) / 1024^2 # Linux reports in KB
+        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^2 # Linux reports in KB
     else
         error("couldn't determine the mem_size")
     end
