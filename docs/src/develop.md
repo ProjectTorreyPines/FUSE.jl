@@ -288,6 +288,10 @@ IJulia.installkernel("Julia tracecompile", "--trace-compile=stderr")
 
 Then select the `Julia tracecompile` in jupyter-lab
 
+
+!!! note
+    If you want to remove jupyter kernels you don't use anymore you can list them first with ```jupyter kernelspec list``` and remove via ```jupyter kernelspec remove <your kernel>```
+
 ## Running Julia within a Python environment
 
 This can be particularly useful for benchmarking FUSE physics against existing Python routines (eg. in OMFIT)
