@@ -204,9 +204,9 @@ uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.8+0"
 
 [[deps.CEnum]]
-git-tree-sha1 = "eb4cb44a499229b3b8426dcfb5dd85333951ff90"
+git-tree-sha1 = "389ad5c84de1ae7cf0e28e381131c98ea87d54fc"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
-version = "0.4.2"
+version = "0.5.0"
 
 [[deps.CHEASE]]
 deps = ["EFIT", "Fortran90Namelists", "MXHEquilibrium"]
@@ -665,9 +665,9 @@ uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random"]
-git-tree-sha1 = "25a10f2b86118664293062705fd9c7e2eda881a2"
+git-tree-sha1 = "5b93957f6dcd33fc343044af3d48c215be2562f1"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "1.9.2"
+version = "1.9.3"
 weakdeps = ["PDMats", "SparseArrays", "Statistics"]
 
     [deps.FillArrays.extensions]
@@ -944,7 +944,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "3602d45c8046f7f366024341eb50a7de2d9bbbba"
+git-tree-sha1 = "edb4c8e6e45eb6659d6031bb7cd8850ab6199931"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1065,15 +1065,15 @@ version = "0.21.4"
 
 [[deps.JpegTurbo]]
 deps = ["CEnum", "FileIO", "ImageCore", "JpegTurbo_jll", "TOML"]
-git-tree-sha1 = "d65930fa2bc96b07d7691c652d701dcbe7d9cf0b"
+git-tree-sha1 = "fa6d0bcff8583bac20f1ffa708c3913ca605c611"
 uuid = "b835a17e-a41a-41e7-81f0-2f016b05efe0"
-version = "0.1.4"
+version = "0.1.5"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "6f2675ef130a300a112286de91973805fcc5ffbc"
+git-tree-sha1 = "60b1194df0a3298f460063de985eae7b01bc011a"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
-version = "2.1.91+0"
+version = "3.0.1+0"
 
 [[deps.JuMP]]
 deps = ["LinearAlgebra", "MacroTools", "MathOptInterface", "MutableArithmetics", "OrderedCollections", "Printf", "SnoopPrecompile", "SparseArrays"]
@@ -2260,9 +2260,9 @@ version = "0.8.8"
 
 [[deps.StaticArrayInterface]]
 deps = ["ArrayInterface", "Compat", "IfElse", "LinearAlgebra", "PrecompileTools", "Requires", "SparseArrays", "Static", "SuiteSparse"]
-git-tree-sha1 = "03fec6800a986d191f64f5c0996b59ed526eda25"
+git-tree-sha1 = "5d66818a39bb04bf328e92bc933ec5b4ee88e436"
 uuid = "0d7ed370-da01-4f52-bd93-41d350b8b718"
-version = "1.4.1"
+version = "1.5.0"
 weakdeps = ["OffsetArrays", "StaticArrays"]
 
     [deps.StaticArrayInterface.extensions]
@@ -2539,7 +2539,7 @@ version = "0.2.0"
 
 [[deps.VacuumFields]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "FiniteElementHermite", "LinearAlgebra", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic", "PlotUtils", "RecipesBase", "TEQUILA"]
-git-tree-sha1 = "16ed688c1bed8b5c76efaa472c66c2fc70daaf6e"
+git-tree-sha1 = "b3b799f2839bca45f9eabe8ea001b458ec672216"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
