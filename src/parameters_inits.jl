@@ -218,7 +218,7 @@ mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0) where {T<:Real}
+function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
     ini = ParametersInits{T}(
         WeakRef(nothing),
         :ini,
@@ -238,6 +238,10 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}(),
         FUSEparameters__requirements{T}())
+
+    for k in 1:n_layers
+        push!(ini.build.layers, FUSEparameters__build_layer{T}())
+    end
 
     for k in 1:n_nb
         push!(ini.nb_unit, FUSEparameters__nb_unit{T}())
