@@ -1,4 +1,5 @@
-import TGLFNN, TJLF
+import TGLFNN: InputTGLF, run_tglf, run_tglfnn
+import TJLF: InputTJLF, run_tjlf, get_ky_spectrum_size, checkInput
 #= ========= =#
 #  ActorTGLF  #
 #= ========= =#
@@ -11,13 +12,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where
     user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
-    theta_trapped::Entry{T} = Entry{T}("-", "Theta trapped parameter for TGLF";default=0.7)
+    custom_input_file::Entry{Union{InputTGLF, InputTJLF, Bool}}  = Entry{Union{InputTGLF, InputTJLF, Bool}}("-", "Sets up the input file that will be run with the custom input file as a mask";  default=false)
 end
 
 mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.dd{D}  
     par::FUSEparameters__ActorTGLF{P}
-    input_tglfs::Union{Vector{<:TGLFNN.InputTGLF},Vector{<:TJLF.InputTJLF}}
+    input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
     flux_solutions::Union{Vector{<:IMAS.flux_solution},Any}
 end
 
@@ -36,9 +37,9 @@ end
 function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
     par = par(kw...)
     if par.model ∈ [:TGLF, :TGLFNN]
-        input_tglfs = Vector{TGLFNN.InputTGLF}(undef, length(par.rho_transport))
+        input_tglfs = Vector{InputTGLF}(undef, length(par.rho_transport))
     elseif par.model == :TJLF
-        input_tglfs = Vector{TJLF.InputTJLF}(undef, length(par.rho_transport))
+        input_tglfs = Vector{InputTJLF}(undef, length(par.rho_transport))
     end
     return ActorTGLF(dd, par, input_tglfs, IMAS.flux_solution[])
 end
@@ -68,30 +69,37 @@ function _step(actor::ActorTGLF)
 
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
         if par.model ∈ [:TGLF, :TGLFNN]
-            actor.input_tglfs[k] = TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
+            actor.input_tglfs[k] = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
             if par.model == :TGLFNN
                 # TGLF-NN has some difficulty with the sign of rotation / shear
                 actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
                 actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
             end
         elseif par.model == :TJLF
-            actor.input_tglfs[k] = create_input_tjlf(TGLFNN.InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic))
+            actor.input_tglfs[k] = create_input_tjlf(InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic))
         end
-        actor.input_tglfs[k].ALPHA_ZF = -1
-        
-    
-        @assert par.theta_trapped == 0.7 || !par.nn "The neural nets are trained with theta_trapped=0.7"
+
         if ϵ > ϵ_D3D
             actor.input_tglfs[k].THETA_TRAPPED = theta_trapped[gridpoint_cp]
+        end
+
+        # Setting up the TJLF / TGLF run with the custom parameter mask (this overwrites all the above)
+        if par.custom_input_file != false
+            for field_name in fieldnames(typeof(actor.input_tglfs[k]))
+                if !ismissing(getproperty(par.custom_input_file, field_name))
+                    setproperty!(actor.input_tglfs[k], field_name, getproperty(par.custom_input_file, field_name))
+    #                @show getproperty(par.custom_input_file, field_name)
+                end
+            end
         end
     end
 
     if par.model == :TGLFNN
-        actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
+        actor.flux_solutions = run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
     elseif par.model == :TGLF
-        actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
+        actor.flux_solutions = run_tglf(actor.input_tglfs)
     elseif par.model == :TJLF
-        QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs) 
+        QL_fluxes_out = run_tjlf(actor.input_tglfs) 
         actor.flux_solutions = [IMAS.flux_solution(single[1,1,1],single[1,2,3],single[1,1,2],single[1,2,2]) for single in QL_fluxes_out]
     end
 
@@ -131,13 +139,13 @@ end
 
 
 """
-    create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
+    create_input_tjlf(inputTGLF::InputTGLF)
 
-Creates an TJLF.InputTJLF from a TGLFNN.InputTGLF
+Creates an InputTJLF from a InputTGLF
 """
-function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
-    nky = TJLF.get_ky_spectrum_size(inputTGLF.NKY, inputTGLF.KYGRID_MODEL)
-    inputTJLF = TJLF.InputTJLF{Float64}(inputTGLF.NS, nky)
+function create_input_tjlf(inputTGLF::InputTGLF)
+    nky = get_ky_spectrum_size(inputTGLF.NKY, inputTGLF.KYGRID_MODEL)
+    inputTJLF = InputTJLF{Float64}(inputTGLF.NS, nky)
     inputTJLF.NWIDTH = 21
     
     for fieldname in fieldnames(typeof(inputTGLF))
@@ -193,14 +201,15 @@ function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
     inputTJLF.USE_INBOARD_DETRAPPED = false
     inputTJLF.IFLUX = true
     inputTJLF.IBRANCH = -1 
-    inputTJLF.WIDTH_SPECTRUM .= inputTJLF.WIDTH
+    inputTJLF.WIDTH_SPECTRUM .= 0.0
     inputTJLF.KX0_LOC = 0.0
     
     # for now settings
     inputTJLF.ALPHA_ZF = -1  # smooth   
 
+    checkInput(inputTJLF)
     # check converison
-    field_names = fieldnames(TJLF.InputTJLF)
+    field_names = fieldnames(InputTJLF)
     for field_name in field_names
         field_value = getfield(inputTJLF, field_name)
         
@@ -216,4 +225,11 @@ function create_input_tjlf(inputTGLF::TGLFNN.InputTGLF)
     end
 
     return inputTJLF
+end
+
+
+function Base.show(input::Union{InputTGLF,InputTJLF})
+    for field_name in fieldnames(typeof(input))
+        println(" $field_name = $(getfield(input,field_name))")
+    end
 end
