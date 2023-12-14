@@ -383,7 +383,7 @@ function optimize_coils_rail(
             Rx = Float64[]
             Zx = Float64[]
             if weight_strike > 0.0
-                private = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], false)
+                private, _ = IMAS.flux_surface(eqt, eqt.profiles_1d.psi[end], :open)
                 vessel = IMAS.get_build_layer(bd.layer; type=_plasma_)
                 for (pr, pz) in private
                     _, crossings = IMAS.intersection(vessel.outline.r, vessel.outline.z, pr, pz)

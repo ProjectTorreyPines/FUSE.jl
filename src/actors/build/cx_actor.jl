@@ -135,7 +135,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
 
     # lcfs
     ψb = IMAS.find_psi_boundary(eqt)
-    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
+    ((rlcfs, zlcfs),), _ = IMAS.flux_surface(eqt, ψb, :closed)
 
     # Set the radial build thickness of the plasma
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
@@ -158,7 +158,8 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
     detected_lower = bd.divertors.lower.installed
 
     # private flux regions sorted by distance from lcfs
-    private = IMAS.flux_surface(eqt, ψb, false)
+    private, _ = IMAS.flux_surface(eqt, ψb, :open)
+    private = collect(private)
     sort!(private; by=p -> IMAS.minimum_distance_two_shapes(p..., rlcfs, zlcfs))
 
     for (pr, pz) in private
@@ -301,7 +302,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
     ψb = IMAS.find_psi_boundary(eqt)
-    rlcfs, zlcfs, _ = IMAS.flux_surface(eqt, ψb, true)
+    ((rlcfs, zlcfs),), _ = IMAS.flux_surface(eqt, ψb, :closed)
     linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
 
     empty!(divertors)
@@ -309,7 +310,8 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     detected_upper = bd.divertors.upper.installed
     detected_lower = bd.divertors.lower.installed
 
-    private = IMAS.flux_surface(eqt, ψb, false)
+    private, _ = IMAS.flux_surface(eqt, ψb, :open)
+    private = collect(private)
     sort!(private; by=p -> IMAS.minimum_distance_two_shapes(p..., rlcfs, zlcfs))
     for (pr, pz) in private
         if sign(pz[1] - Z0) != sign(pz[end] - Z0)
