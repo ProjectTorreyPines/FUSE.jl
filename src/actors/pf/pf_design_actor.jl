@@ -72,8 +72,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                     if k1 < k2
                         d = sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
                         s = sqrt((c1.width + c2.width)^2 + (c1.height + c2.height)^2)
-                        if IMAS.is_ohmic_coil(imas(c1)) && IMAS.is_ohmic_coil(imas(c2))
-                        else
+                        if !(IMAS.is_ohmic_coil(imas(c1)) && IMAS.is_ohmic_coil(imas(c2)))
                             const_spacing = max(const_spacing, s - d)
                         end
                     end

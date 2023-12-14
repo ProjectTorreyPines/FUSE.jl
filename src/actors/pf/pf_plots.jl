@@ -146,7 +146,7 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
                 seriescolor --> :blue
                 lcfs --> true
                 linestyle --> :dash
-                actor.eq_in.time_slice[time_index]
+                actor.dd.equilibrium.time_slice[time_index]
             end
         end
     end
