@@ -88,8 +88,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.tf.technology = :ITER
 
     ini.oh.technology = :ITER
-    ini.requirements.flattop_duration = 1800.0
-    act.ActorFluxSwing.operate_oh_at_j_crit = false
+    ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
     ini.core_profiles.greenwald_fraction = 0.9
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75

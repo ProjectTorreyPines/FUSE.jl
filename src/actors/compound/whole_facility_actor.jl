@@ -19,7 +19,7 @@ mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor{D,P}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
     LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
     CXbuild::Union{Nothing,ActorCXbuild{D,P}}
-    PFcoilsOpt::Union{Nothing,ActorPFdesign{D,P}}
+    PFdesign::Union{Nothing,ActorPFdesign{D,P}}
     PassiveStructures::Union{Nothing,ActorPassiveStructures{D,P}}
     Neutronics::Union{Nothing,ActorNeutronics{D,P}}
     Blanket::Union{Nothing,ActorBlanket{D,P}}
@@ -96,14 +96,14 @@ function _step(actor::ActorWholeFacility)
         actor.CXbuild = ActorCXbuild(dd, act)
         actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
-        actor.PFcoilsOpt = ActorPFdesign(dd, act)
-        if act.ActorPFdesign.update_equilibrium && act.ActorCXbuild.rebuild_wall
+        actor.PFdesign = ActorPFdesign(dd, act)
+        if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
             actor.CXbuild = ActorCXbuild(dd, act)
-            actor.PFcoilsOpt = ActorPFdesign(dd, act; update_equilibrium=false)
+            ActorPFactive(dd, act; update_equilibrium=false)
         end
     else
-        FUSE.ActorFluxSwing(dd, act)
-        FUSE.ActorStresses(dd, act)
+        ActorFluxSwing(dd, act)
+        ActorStresses(dd, act)
     end
 
     actor.Neutronics = ActorNeutronics(dd, act)

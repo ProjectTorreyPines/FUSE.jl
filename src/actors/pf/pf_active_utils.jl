@@ -158,16 +158,17 @@ function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_
 end
 
 """
-    coil_selfB(coil::IMAS.pf_active__coil{T}, current::T) where {T<:Real}
+    coil_selfB(coil::IMAS.pf_active__coil{T}, total_current::T) where {T<:Real}
 
-Evaluates self induced magnetic field of a coil given the total current flowing in it
+Evaluates self induced magnetic field of a coil given the TOTAL current flowing in it
 """
-function coil_selfB(coil::IMAS.pf_active__coil{T}, current::T) where {T<:Real}
+function coil_selfB(coil::IMAS.pf_active__coil{T}, total_current::T) where {T<:Real}
     if IMAS.is_ohmic_coil(coil)
+        # for the ohmic solenoid we take the maximum b-field used for the flux-swing
         b = IMAS.top_dd(coil).build.oh.max_b_field
     else
         r = sqrt(IMAS.area(coil)) / π
-        b = abs.(constants.μ_0 * current / (2π * r))
+        b = abs.(constants.μ_0 * total_current / (2π * r))
     end
     if b < 0.1
         return 0.1
@@ -209,7 +210,7 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
                 coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in eachindex(coil.current.time)]
             end
         else
-            coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index]) for time_index in eachindex(coil.current.time)]
+            coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index] .* coil.element[1].turns_with_sign) for time_index in eachindex(coil.current.time)]
         end
     end
 end
@@ -241,13 +242,13 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
         if rail.name !== "OH"
             # not symmetric
             if !symmetric
-                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2:end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number))[1:end]
                 # even symmetric
             elseif mod(rail.coils_number, 2) == 0
-                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2+Int(rail.coils_number // 2):end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number))[1+Int(rail.coils_number // 2):end]
                 # odd symmetric
             else
-                coil_distances = collect(range(-1.0, 1.0, rail.coils_number + 2))[2+Int((rail.coils_number - 1) // 2)+1:end-1]
+                coil_distances = collect(range(-1.0, 1.0, rail.coils_number))[1+Int((rail.coils_number - 1) // 2)+1:end]
             end
             append!(distances, coil_distances)
             append!(lbounds, coil_distances .* 0.0 .- 1.0)
@@ -297,7 +298,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                 # mirror OH size when it reaches maximum extent of the rail
                 oh_height_off[1] = mirror_bound(oh_height_off[1], 1.0 - 1.0 / rail.coils_number, 1.0)
                 if !symmetric
-                    offset = mirror_bound(oh_height_off[2], - 1.0 / rail.coils_number, 1.0 / rail.coils_number)
+                    offset = mirror_bound(oh_height_off[2], -1.0 / rail.coils_number, 1.0 / rail.coils_number)
                 else
                     offset = 0.0
                 end
@@ -346,4 +347,39 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     end
 
     return 10^λ_regularize
+end
+
+function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolerance::Float64=0.4)
+    function optimal_area(area; coil)
+        pfcoil = getfield(coil, :imas)
+        area = abs(area[1])
+        height = width = sqrt(area)
+        pfcoil.element[1].geometry.rectangle.height = height
+        pfcoil.element[1].geometry.rectangle.width = width
+
+        max_current_density = coil_J_B_crit(coil_selfB(pfcoil, coil.current), coil.tech)[1]
+        needed_conductor_area = abs(coil.current) / max_current_density
+        needed_area = needed_conductor_area / fraction_conductor(coil.tech) * (1.0 .+ tolerance)
+        return (area - needed_area)^2
+    end
+
+    # find optimal area for each coil
+    areas = Float64[]
+    for coil in coils
+        pfcoil = getfield(coil, :imas)
+        if !IMAS.is_ohmic_coil(pfcoil)
+            res = Optim.optimize(x -> optimal_area(x; coil), [pfcoil.element[1].geometry.rectangle.r], Optim.NelderMead())
+            push!(areas, res.minimizer[1])
+        end
+    end
+
+    # set the area of the coils, with a minimum size given by the norm
+    k = 0
+    for coil in coils
+        pfcoil = getfield(coil, :imas)
+        if !IMAS.is_ohmic_coil(pfcoil)
+            k += 1
+            optimal_area(max(areas[k], norm(areas) / length(areas)); coil)
+        end
+    end
 end

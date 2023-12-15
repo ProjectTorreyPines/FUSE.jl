@@ -8,7 +8,7 @@
         equilibrium=true,
         build=true,
         coils_flux=false,
-        rail=false,
+        rails=false,
         plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
 Plot recipe for ActorPFdesign and ActorPFactive
@@ -19,14 +19,16 @@ Plot recipe for ActorPFdesign and ActorPFactive
     equilibrium=true,
     build=true,
     coils_flux=false,
-    rail=false,
+    rails=false,
+    control_points=true,
     plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
     @assert typeof(time_index) <: Union{Nothing,Integer}
     @assert typeof(equilibrium) <: Bool
     @assert typeof(build) <: Bool
     @assert typeof(coils_flux) <: Bool
-    @assert typeof(rail) <: Bool
+    @assert typeof(rails) <: Bool
+    @assert typeof(control_points) <: Bool
     @assert typeof(plot_r_buffer) <: Real
 
     dd = actor.dd
@@ -61,6 +63,13 @@ Plot recipe for ActorPFdesign and ActorPFactive
     if build
         @series begin
             exclude_layers --> [:oh]
+            alpha --> 0.25
+            label := false
+            dd.build
+        end
+        @series begin
+            exclude_layers --> [:oh]
+            wireframe := true
             dd.build
         end
     end
@@ -130,22 +139,22 @@ Plot recipe for ActorPFdesign and ActorPFactive
             @series begin
                 cx := true
                 label --> "Field null region"
-                seriescolor --> :red
+                color --> :red
                 IMAS.boundary(pc, 1)
             end
         else
             @series begin
                 cx := true
                 label --> "Final"
-                seriescolor --> :red
+                color --> :red
                 actor.eq_out.time_slice[time_index]
             end
             @series begin
                 cx := true
-                label --> "Target"
-                seriescolor --> :blue
+                label --> "Original"
+                color --> :gray
                 lcfs --> true
-                linestyle --> :dash
+                lw := 1
                 actor.dd.equilibrium.time_slice[time_index]
             end
         end
@@ -158,10 +167,42 @@ Plot recipe for ActorPFdesign and ActorPFactive
     end
 
     # plot optimization rails
-    if rail
+    if rails
         @series begin
             label --> (build ? "Coil opt. rail" : "")
             dd.build.pf_active.rail
+        end
+    end
+
+    # plot control points
+    if control_points
+        if !isempty(actor.boundary_control_points)
+            @series begin
+                color := :blue
+                linestyle := :dash
+                linewidth := 1.5
+                label := "Boundary constraint"
+                [cpt.R for cpt in actor.boundary_control_points], [cpt.Z for cpt in actor.boundary_control_points]
+            end
+        end
+        if !isempty(actor.flux_control_points)
+            @series begin
+                color := :blue
+                seriestype := scatter
+                markerstrokewidth := 0
+                label := "Flux constraints"
+                [cpt.R for cpt in actor.flux_control_points], [cpt.Z for cpt in actor.flux_control_points]
+            end
+        end
+        if !isempty(actor.saddle_control_points)
+            @series begin
+                color := :blue
+                seriestype := scatter
+                markerstrokewidth := 0
+                marker := :star
+                label := "Saddle constraints"
+                [cpt.R for cpt in actor.saddle_control_points], [cpt.Z for cpt in actor.saddle_control_points]
+            end
         end
     end
 end

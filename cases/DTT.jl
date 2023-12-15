@@ -66,7 +66,6 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.tf.technology = :ITER
 
     ini.oh.technology = :ITER
-    act.ActorFluxSwing.operate_oh_at_j_crit = false
 
     ini.requirements.flattop_duration = 70.0
 
