@@ -4,7 +4,9 @@
 Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    dr_sep::Entry{T} = Entry{T}("m", "Distance between primary and secondary separatrix evaluated at the midplane")
+    symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
 mutable struct ActorPFdesign{D,P} <: ReactorAbstractActor{D,P}
@@ -16,7 +18,7 @@ end
 """
     ActorPFdesign(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Optimize pf_active to achieve desired equilibrium
+Optimize PF coil locations to achieve desired equilibrium
 
 !!! note
 
@@ -31,7 +33,7 @@ end
 function ActorPFdesign(dd::IMAS.dd, par::FUSEparameters__ActorPFdesign, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPFdesign)
     par = par(kw...)
-    actor_pf = ActorPFactive(dd, act.ActorPFactive)
+    actor_pf = ActorPFactive(dd, act.ActorPFactive; par.do_plot)
     return ActorPFdesign(dd, par, actor_pf)
 end
 
@@ -42,7 +44,7 @@ Find currents that satisfy boundary and flux/saddle constraints in a least-squar
 """
 function _step(actor::ActorPFdesign{T}) where {T<:Real}
     dd = actor.dd
-    eqt=dd.equilibrium.time_slice[]
+    par = actor.par
 
     # reset pf coil rails
     n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
@@ -51,18 +53,18 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
     actor.actor_pf.λ_regularize = -1.0
     step(actor.actor_pf)
 
-    # Get coils (as GS3_IMAS_pf_active__coil) organized by their function and initialize them
-    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor.actor_pf, :rail)
-
-    symmetric = false
-    packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, symmetric)
-
     function placement_cost(packed::Vector{Float64})
         # update dd.pf_active from packed vector
-        actor.actor_pf.λ_regularize = unpack_rail!(packed, optim_coils, symmetric, dd.build)
+        optim_coils = actor.actor_pf.setup_cache.optim_coils
+        actor.actor_pf.λ_regularize = unpack_rail!(packed, optim_coils, par.symmetric, dd.build)
 
         # find currents
         _step(actor.actor_pf)
+
+        # # evaluate current limits
+        # current_densities = [coil.current / (IMAS.area(imas(coil)) * fraction_conductor(coil.tech)) for coil in optim_coils]
+        # max_current_densities = [coil_J_B_crit(coil_selfB(imas(coil), coil.current), coil.tech)[1] for coil in optim_coils]
+        # all_const_currents = log10.(abs.(current_densities) ./ (1.0 .+ max_current_densities))
 
         # make nearby coils more expensive
         const_spacing = 0.0
@@ -80,26 +82,31 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
         end
 
-        @show actor.actor_pf.cost
-        return norm([actor.actor_pf.cost, const_spacing])
-        #return [actor.actor_pf.cost], [const_spacing], [0.0]
+        cost = norm([actor.actor_pf.cost, const_spacing])^2
+        @show sqrt(cost)
+        return cost, [const_spacing], [0.0]
     end
 
     old_logging = actor_logging(dd, false)
+    try
+        packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
 
-    # options = Metaheuristics.Options(; seed=1, iterations=50)
-    # algorithm = Metaheuristics.DE(; N=20, options)
-    # res = Metaheuristics.optimize(x -> placement_cost(x), bounds, algorithm)
-    # packed = Metaheuristics.minimizer(res)
-
-    res = Optim.optimize(placement_cost, packed, Optim.NelderMead(), Optim.Options(g_tol=1E-6))
-    packed = res.minimizer
-
-    #if verbose
-    println(res)
-    #end
-    actor.actor_pf.λ_regularize = unpack_rail!(packed, optim_coils, symmetric, dd.build)
-    actor_logging(dd, old_logging)
+        if true
+            res = Optim.optimize(x -> placement_cost(x)[1], packed, Optim.NelderMead())#, Optim.Options(; g_tol=1E-6))
+            packed = res.minimizer
+        else
+            options = Metaheuristics.Options(; seed=1, iterations=50)
+            algorithm = Metaheuristics.DE(; N=20, options)
+            res = Metaheuristics.optimize(placement_cost, bounds, algorithm)
+            packed = Metaheuristics.minimizer(res)
+        end
+        actor.actor_pf.λ_regularize = unpack_rail!(packed, actor.actor_pf.setup_cache.optim_coils, par.symmetric, dd.build)
+        if par.verbose
+            println(res)
+        end
+    finally
+        actor_logging(dd, old_logging)
+    end
 
     return actor
 end

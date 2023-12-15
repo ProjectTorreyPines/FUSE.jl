@@ -59,7 +59,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
     ini.pf_active.technology = :ITER
-    act.ActorPFcoilsOpt.symmetric = true
+    act.ActorPFdesign.symmetric = true
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18

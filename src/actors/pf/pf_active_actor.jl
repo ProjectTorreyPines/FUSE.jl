@@ -2,7 +2,6 @@ import MXHEquilibrium
 import Optim
 using LinearAlgebra
 import VacuumFields
-import Memoize, LRUCache
 
 #= ============= =#
 #  ActorPFactive  #
@@ -24,6 +23,7 @@ mutable struct ActorPFactive{D,P} <: ReactorAbstractActor{D,P}
     saddle_control_points::Vector{VacuumFields.SaddleControlPoint{Float64}}
     λ_regularize::Float64
     cost::Float64
+    setup_cache::Any
 end
 
 """
@@ -44,7 +44,17 @@ end
 function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
     logging_actor_init(ActorPFactive)
     par = par(kw...)
-    return ActorPFactive(dd, par, dd.equilibrium, VacuumFields.FluxControlPoint{Float64}[], VacuumFields.FluxControlPoint{Float64}[], VacuumFields.SaddleControlPoint{Float64}[], 0.0, NaN)
+    return ActorPFactive(
+        dd,
+        par,
+        dd.equilibrium,
+        VacuumFields.FluxControlPoint{Float64}[],
+        VacuumFields.FluxControlPoint{Float64}[],
+        VacuumFields.SaddleControlPoint{Float64}[],
+        0.0,
+        NaN,
+        nothing
+    )
 end
 
 """
@@ -54,45 +64,39 @@ Find currents that satisfy boundary and flux/saddle constraints in a least-squar
 """
 function _step(actor::ActorPFactive{T}) where {T<:Real}
     dd = actor.dd
-    eqt = dd.equilibrium.time_slice[]
 
-    coils, fixed_eq, image_eq, fixed_coils = setup(actor, eqt)
+    if actor.setup_cache === nothing
+        eqt = dd.equilibrium.time_slice[]
+        actor.setup_cache = setup(actor, eqt)
+    end
+    fixed_eq, image_eq, fixed_coils, pinned_coils, optim_coils, ψbound = actor.setup_cache
 
     # determine a good regularization value
     if actor.λ_regularize < 0.0
-        actor.λ_regularize = VacuumFields.optimal_λ_regularize(coils, fixed_eq, image_eq, vcat(actor.boundary_control_points, actor.flux_control_points), actor.saddle_control_points; ψbound=eqt.global_quantities.psi_boundary, fixed_coils)
+        actor.λ_regularize = VacuumFields.optimal_λ_regularize(
+            vcat(pinned_coils, optim_coils),
+            fixed_eq,
+            image_eq,
+            vcat(actor.boundary_control_points, actor.flux_control_points),
+            actor.saddle_control_points;
+            ψbound,
+            fixed_coils
+        )
     end
 
     # Find coil currents
-    _, actor.cost = VacuumFields.find_coil_currents!(coils, fixed_eq, image_eq, vcat(actor.boundary_control_points, actor.flux_control_points), actor.saddle_control_points; ψbound=eqt.global_quantities.psi_boundary, fixed_coils, actor.λ_regularize)
-
-    # evaluate current limits
-    pf_current_limits(dd.pf_active, dd.build)
+    _, actor.cost = VacuumFields.find_coil_currents!(
+        vcat(pinned_coils, optim_coils),
+        fixed_eq,
+        image_eq,
+        vcat(actor.boundary_control_points, actor.flux_control_points),
+        actor.saddle_control_points;
+        ψbound,
+        fixed_coils,
+        actor.λ_regularize
+    )
 
     return actor
-end
-
-Memoize.@memoize LRUCache.LRU{Tuple{ActorPFactive,IMAS.equilibrium__time_slice},Any}(maxsize=2) function setup(actor::ActorPFactive, eqt::IMAS.equilibrium__time_slice)
-    # Get coils organized by their function and initialize them
-    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor, :currents)
-    coils = vcat(pinned_coils, optim_coils)
-    
-    if ismissing(eqt.global_quantities, :ip) # field nulls
-        fixed_eq = nothing
-        image_eq = nothing
-        rb, zb = eqt.boundary.outline.r, eqt.boundary.outline.z
-        actor.boundary_control_points = VacuumFields.FluxControlPoints(rb, zb, eqt.global_quantities.psi_boundary)
-
-    else # solutions with plasma
-        fixed_eq = IMAS2Equilibrium(eqt)
-        image_eq = VacuumFields.Image(fixed_eq)
-        actor.boundary_control_points = VacuumFields.boundary_control_points(fixed_eq, 0.999)
-    end
-
-    saddle_weight = length(actor.boundary_control_points) / length(eqt.boundary.x_point)
-    actor.saddle_control_points = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
-
-    return coils, fixed_eq, image_eq, fixed_coils
 end
 
 """
@@ -103,6 +107,9 @@ Update actor.eq_out 2D equilibrium PSI based on coils currents
 function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
+
+    # evaluate current limits
+    pf_current_limits(dd.pf_active, dd.build)
 
     if par.update_equilibrium || par.do_plot
         actor.eq_out = IMAS.lazycopy(dd.equilibrium)
@@ -143,6 +150,61 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
-function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}, optimization_scheme::Symbol) where {D<:Real,P<:Real}
-    return fixed_pinned_optim_coils(actor, optimization_scheme, GS3_IMAS_pf_active__coil)
+function setup(actor::ActorPFactive, eqt::IMAS.equilibrium__time_slice)
+    # Get coils organized by their function and initialize them
+    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor)
+
+    if ismissing(eqt.global_quantities, :ip) # field nulls
+        fixed_eq = nothing
+        image_eq = nothing
+        rb, zb = eqt.boundary.outline.r, eqt.boundary.outline.z
+        actor.boundary_control_points = VacuumFields.FluxControlPoints(rb, zb, eqt.global_quantities.psi_boundary)
+
+    else # solutions with plasma
+        fixed_eq = IMAS2Equilibrium(eqt)
+        image_eq = VacuumFields.Image(fixed_eq)
+        actor.boundary_control_points = VacuumFields.boundary_control_points(fixed_eq, 0.999)
+    end
+
+    saddle_weight = length(actor.boundary_control_points) / length(eqt.boundary.x_point)
+    actor.saddle_control_points = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+
+    return (fixed_eq=fixed_eq, image_eq=image_eq, fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils, ψbound=eqt.global_quantities.psi_boundary)
+end
+
+"""
+    fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
+
+Returns tuple of GS_IMAS_pf_active__coil structs organized by their function:
+
+  - fixed: fixed position and current
+  - pinned: coils with fixed position but current is optimized
+  - optim: coils that have theri position and current optimized
+"""
+function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
+    dd = actor.dd
+    par = actor.par
+
+    fixed_coils = GS_IMAS_pf_active__coil{D,D}[]
+    pinned_coils = GS_IMAS_pf_active__coil{D,D}[]
+    optim_coils = GS_IMAS_pf_active__coil{D,D}[]
+    for coil in dd.pf_active.coil
+        if IMAS.is_ohmic_coil(coil)
+            coil_tech = dd.build.oh.technology
+        else
+            coil_tech = dd.build.pf_active.technology
+        end
+        if coil.identifier == "pinned"
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+        elseif coil.identifier == "optim"
+            push!(optim_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+        elseif coil.identifier == "fixed"
+            push!(fixed_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+        else
+            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+            #     error("$(IMAS.location(coil)).identifier=`$(coil.identifier)` is not valid. Accepted values are [\"optim\", \"pinned\", \"fixed\"]")
+        end
+    end
+
+    return fixed_coils, pinned_coils, optim_coils
 end

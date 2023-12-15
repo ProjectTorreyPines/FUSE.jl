@@ -19,7 +19,7 @@ mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor{D,P}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
     LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
     CXbuild::Union{Nothing,ActorCXbuild{D,P}}
-    PFcoilsOpt::Union{Nothing,ActorPFcoilsOpt{D,P}}
+    PFcoilsOpt::Union{Nothing,ActorPFdesign{D,P}}
     PassiveStructures::Union{Nothing,ActorPassiveStructures{D,P}}
     Neutronics::Union{Nothing,ActorNeutronics{D,P}}
     Blanket::Union{Nothing,ActorBlanket{D,P}}
@@ -40,7 +40,7 @@ Compound actor that runs all the physics, engineering and costing actors needed 
   - ActorCXbuild
   - ActorFluxSwing
   - ActorStresses
-  - ActorPFcoilsOpt
+  - ActorPFdesign
   - ActorPassiveStructures
   - ActorNeutronics
   - ActorBlanket
@@ -96,10 +96,10 @@ function _step(actor::ActorWholeFacility)
         actor.CXbuild = ActorCXbuild(dd, act)
         actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
-        actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
-        if act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
+        actor.PFcoilsOpt = ActorPFdesign(dd, act)
+        if act.ActorPFdesign.update_equilibrium && act.ActorCXbuild.rebuild_wall
             actor.CXbuild = ActorCXbuild(dd, act)
-            actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act; update_equilibrium=false)
+            actor.PFcoilsOpt = ActorPFdesign(dd, act; update_equilibrium=false)
         end
     else
         FUSE.ActorFluxSwing(dd, act)
