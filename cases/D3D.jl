@@ -61,10 +61,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     ini.requirements.flattop_duration = 5.0
 
     act.ActorPFdesign.symmetric = true
-    act.ActorFluxMatcher.evolve_densities = Dict(
-        :D => :quasi_neutrality,
-        :electrons => :flux_match,
-        :C => :match_ne_scale)
+    act.ActorFluxMatcher.evolve_densities = :flux_match
 
     set_new_base!(ini)
     set_new_base!(act)

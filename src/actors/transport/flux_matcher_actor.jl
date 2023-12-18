@@ -1,5 +1,6 @@
 import NLsolve
 using LinearAlgebra
+import TJLF: InputTJLF
 
 #= ================ =#
 #  ActorFluxMatcher  #
@@ -210,6 +211,16 @@ function flux_match_errors(
     IMAS.sources!(dd)
 
     # evaludate neoclassical + turbulent fluxes
+    if length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF
+        inps = [InputTJLF() for i in 1:length(actor.actor_ct.actor_turb.input_tglfs)]
+        for k in 1:length(actor.actor_ct.actor_turb.input_tglfs)
+            inps[k].FIND_WIDTH = false
+            inps[k].WIDTH_SPECTRUM = actor.actor_ct.actor_turb.input_tglfs[k].WIDTH_SPECTRUM
+        end
+        actor.actor_ct.actor_turb.par.custom_input_files = inps
+        
+    end
+
     finalize(step(actor.actor_ct))
 
     # compare fluxes
