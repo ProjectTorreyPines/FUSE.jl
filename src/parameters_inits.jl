@@ -7,9 +7,9 @@ import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
 import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _triple_arc_,
     _miller_, _square_miller_, _spline_, _silo_
 
-const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
-const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
-const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerSide))
+const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
+const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
+const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerSide))
 
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)

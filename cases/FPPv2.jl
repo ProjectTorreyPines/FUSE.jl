@@ -99,8 +99,6 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
 
     act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
-    act.ActorPFcoilsOpt.update_equilibrium = false
-
     act.ActorEquilibrium.model = :TEQUILA
 
     act.ActorTEQUILA.relax = 0.25

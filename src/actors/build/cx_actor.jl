@@ -105,9 +105,9 @@ function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T
     R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
 
     # flat midplane wall
-    R, Z = FUSE.buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
+    R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
     R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
-    R, Z = FUSE.buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
+    R, Z = buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
     circshift!(Z, argmin(R))
     circshift!(R, argmin(R))
 
@@ -119,7 +119,7 @@ function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T
     end
 
     # rounded joints
-    R, Z = FUSE.buffer(R, Z, gap * (1.0 + max_segment_relative_error))
+    R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error))
 
     return R, Z
 end

@@ -206,7 +206,7 @@ end
 """
 This allows users to initialize layers from a dictionary
 """
-function Base.setproperty!(parameters_build::FUSE.FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
     @assert field == :layers
     for (k, (name, thickness)) in enumerate(layers)
         layer = FUSEparameters__build_layer{T}()
@@ -257,7 +257,7 @@ function Base.setproperty!(parameters_build::FUSE.FUSEparameters__build{T}, fiel
     end
 end
 
-function Base.to_index(layers::Vector{FUSE.FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
     tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
     if tmp === nothing
         error("Valid ini.build.layers are: $([Symbol(replace(layer.name," " => "_")) for layer in layers])")

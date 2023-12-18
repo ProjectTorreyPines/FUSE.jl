@@ -158,10 +158,8 @@ Calculates critical current density for Nb3Sn conductor according to the ITER 20
 (p, q, C, Ca1, Ca2, epsilon_0a, epsilon_m, Bc20m, Tc0m) have to be determined experimentally and vary between conductors produced 
 by different manufacturers. 
 
-The specific values of the parameters here were determined experimentally for the K-DEMO Nb3Sn conductors. 
-
+The specific values of the parameters here were determined experimentally for the K-DEMO Nb3Sn conductors.
 """
-
 function KDEMO_Nb3Sn_Jcrit(Bext::Real, strain::Real, temperature::Real=4.2)
     strain = strain ./ 1e2 # convert from percent to (mm/mm)
 
@@ -264,17 +262,26 @@ function ReBCO_Jcrit(Bext::Real, strain::Real=0.0, temperature::Real=20.0, ag_c:
     return J_c * fHTSinTape, b
 end
 
+function fraction_conductor(coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
+    fraction_conductor = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void # fraction of coil that is a conductor
+    @assert fraction_conductor > 0.0 "coil_J_B_crit: coil technology has no room for conductor"
+    if coil_tech.material == "Copper"
+        return fraction_conductor
+    else
+        return fraction_conductor * coil_tech.ratio_SC_to_copper / (1.0 + coil_tech.ratio_SC_to_copper) # fraction of coil that is Nb3Sn superconductor
+    end
+end
+
 """
     coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
 
 Returns critical current density and magnetic field given an external magnetic field and coil technology
 """
 function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
-    fraction_conductor = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void # fraction of coil that is a conductor
-    @assert fraction_conductor > 0.0 "coil_J_B_crit: coil technology has no room for conductor"
+    fc = fraction_conductor(coil_tech)
     if coil_tech.material == "Copper"
         Jcrit = 18.5e6 # A/m^2
-        return Jcrit * fraction_conductor, Inf # A/m^2
+        return Jcrit * fc, Inf # A/m^2
     else
         if coil_tech.material == "Nb3Sn"
             params_Nb3Sn = LTS_scaling(29330000, 28.45, 0.0739, 17.5, -0.7388, -0.5060, -0.0831, 0.8855, 2.169, 2.5,0.0, 1.5, 2.2)
@@ -287,8 +294,7 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
         elseif coil_tech.material == "ReBCO"
             Jcrit_SC, Bext_Bcrit_ratio = ReBCO_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         end
-        fraction_SC = fraction_conductor * coil_tech.ratio_SC_to_copper / (1.0 + coil_tech.ratio_SC_to_copper) # fraction of coil that is Nb3Sn superconductor
-        Jcrit = Jcrit_SC * fraction_SC # A/m^2
+        Jcrit = Jcrit_SC * fc # A/m^2
         return Jcrit, Bext / Bext_Bcrit_ratio
     end
 end
