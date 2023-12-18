@@ -1,0 +1,164 @@
+{
+ ":core_profiles": {
+  ":T_shaping": 2.5,
+  ":n_shaping": 2.5,
+  ":ne_ped": null,
+  ":bulk": ":DT",
+  ":rot_core": 0.0,
+  ":helium_fraction": 0.04,
+  ":zeff": 2.0,
+  ":T_ratio": 0.825,
+  ":polarized_fuel_fraction": 0.0,
+  ":greenwald_fraction_ped": 0.67,
+  ":greenwald_fraction": 1.0,
+  ":ngrid": 101,
+  ":w_ped": 0.05,
+  ":ejima": 0.4,
+  ":impurity": ":Kr"
+ },
+ ":tf": {
+  ":n_coils": 16,
+  ":technology": ":HTS",
+  ":shape": 7,
+  ":ripple": 0.01
+ },
+ ":lh_antennas": {
+  ":efficiency_transmission": 0.72,
+  ":efficiency_conversion": 0.5,
+  ":efficiency_coupling": 1.0,
+  ":power_launched": []
+ },
+ ":general": {
+  ":casename": "FPP_v1_demount_scalars",
+  ":init_from": ":scalars"
+ },
+ ":ic_antennas": {
+  ":efficiency_transmission": 0.7,
+  ":efficiency_conversion": 0.9,
+  ":efficiency_coupling": 1.0,
+  ":power_launched": []
+ },
+ ":ec_launchers": {
+  ":efficiency_transmission": 0.8,
+  ":efficiency_conversion": 0.45,
+  ":power_launched": [
+   1.0e7,
+   2.0e7
+  ]
+ },
+ ":gasc": {
+  ":filename": "/fusion/ga/projects/ird/ptp/weisbergd/julia/dev/FUSE/cases/../sample/FPPv1.0_aspectRatio3.5_PBpR35_demount.json",
+  ":case": 0
+ },
+ ":material": {
+  ":wall": "Tungsten",
+  ":blanket": "lithium-lead",
+  ":shield": "Steel, Stainless 316"
+ },
+ ":requirements": {
+  ":βn": null,
+  ":ne_peaking": null,
+  ":hds03": null,
+  ":power_electric_net": 2.0e8,
+  ":h98y2": null,
+  ":q_pol_omp": null,
+  ":coil_j_margin": null,
+  ":log10_flattop_duration": null,
+  ":tritium_breeding_ratio": 1.1,
+  ":cost": null,
+  ":coil_stress_margin": null,
+  ":flattop_duration": 86400.0,
+  ":lh_power_threshold_fraction": null
+ },
+ ":equilibrium": {
+  ":δ": null,
+  ":field_null_surface": 0.8,
+  ":xpoints": ":lower",
+  ":ϵ": null,
+  ":ζ": 0.0,
+  ":Z0": 0.0,
+  ":boundary_from": ":MXH_params",
+  ":rz_points": null,
+  ":κ": null,
+  ":ip": 8.5e6,
+  ":B0": 6.0,
+  ":ngrid": 129,
+  ":pressure_core": 1.5e6,
+  ":R0": null,
+  ":MXH_params": [
+   5.000054394587002,
+   -0.03571428571428559,
+   0.28570029868693436,
+   2.150081866970624,
+   0.056608603983183396,
+   -0.000988820504033002,
+   -0.04585524736352741,
+   0.010834909265654231,
+   0.004952046746392391,
+   0.519409064139471,
+   0.020207963112257255,
+   -0.05255649828095786,
+   0.00893688636155076
+  ]
+ },
+ ":oh": {
+  ":n_coils": 6,
+  ":technology": ":HTS"
+ },
+ ":pf_active": {
+  ":n_coils_outside": 7,
+  ":technology": ":LTS",
+  ":n_coils_inside": 0
+ },
+ ":build": {
+  ":symmetric": false,
+  ":blanket": null,
+  ":n_first_wall_conformal_layers": 2,
+  ":layers": {
+   ":gap_OH": 0.9284758996874078,
+   ":OH": 0.4999522355579897,
+   ":gap_TF_OH": 0.07142857142857144,
+   ":hfs_TF": 0.4999522355579897,
+   ":hfs_gap_low_temp_shield_TF": 0.07142857142857144,
+   ":hfs_low_temp_shield": 0.31814263905127016,
+   ":hfs_gap_vacuum_vessel_low_temp_shield": 0.07142857142857144,
+   ":hfs_vacuum_vessel": 0.1785714285714286,
+   ":hfs_gap_high_temp_shield_vacuum_vessel": 0.07142857142857144,
+   ":hfs_high_temp_shield": 0.1785714285714286,
+   ":hfs_blanket": 0.4834769901453429,
+   ":hfs_first_wall": 0.02,
+   ":plasma": 3.214285714285714,
+   ":lfs_first_wall": 0.02,
+   ":lfs_blanket": 0.785401231180262,
+   ":lfs_high_temp_shield": 0.1785714285714286,
+   ":lfs_gap_high_temp_shield_vacuum_vessel": 1.4285714285714288,
+   ":lfs_vacuum_vessel": 0.1785714285714286,
+   ":lfs_gap_vacuum_vessel_low_temp_shield": 0.07142857142857144,
+   ":lfs_low_temp_shield": 0.31814263905127016,
+   ":lfs_gap_low_temp_shield_TF": 0.07142857142857144,
+   ":lfs_TF": 0.4999522355579897,
+   ":gap_cryostat": 1.4221989470234107,
+   ":cryostat": 0.21209509270084714
+  },
+  ":vessel": null,
+  ":shield": null,
+  ":divertors": ":lower",
+  ":plasma_gap": 0.125
+ },
+ ":center_stack": {
+  ":bucked": false,
+  ":noslip": false,
+  ":plug": false
+ },
+ ":nbi": {
+  ":efficiency_transmission": 0.94,
+  ":efficiency_conversion": 0.4,
+  ":beam_energy": [],
+  ":beam_mass": 2.0,
+  ":toroidal_angle": 0.0,
+  ":power_launched": []
+ },
+ ":ods": {
+  ":filename": null
+ }
+}

@@ -1,0 +1,58 @@
+ ────────────────────────────────────────────────────────────────────────────────
+                                        Time                    Allocations      
+                               ───────────────────────   ────────────────────────
+       Tot / % measured:             835s /  41.5%           81.3GiB /  49.2%    
+
+ Section               ncalls     time    %tot     avg     alloc    %tot      avg
+ ────────────────────────────────────────────────────────────────────────────────
+ init                       1     246s   71.0%    246s   30.8GiB   77.1%  30.8GiB
+   init_equilibrium         1     225s   65.0%    225s   28.0GiB   70.1%  28.0GiB
+     Equilibrium            1     201s   58.0%    201s   24.4GiB   60.9%  24.4GiB
+       Solovev              1     175s   50.6%    175s   20.1GiB   50.2%  20.1GiB
+   init_pulse_schedule      1    4.69s    1.4%   4.69s   1.36GiB    3.4%  1.36GiB
+   init_build               1    4.46s    1.3%   4.46s    432MiB    1.1%   432MiB
+     CXbuild                1    4.07s    1.2%   4.07s    421MiB    1.0%   421MiB
+   init_core_sources        1    4.24s    1.2%   4.24s    375MiB    0.9%   375MiB
+     HCD                    1    1.29s    0.4%   1.29s    111MiB    0.3%   111MiB
+       ECsimple             1    853ms    0.2%   853ms    108MiB    0.3%   108MiB
+       ICsimple             1   25.1ms    0.0%  25.1ms   1.86MiB    0.0%  1.86MiB
+       LHsimple             1    236μs    0.0%   236μs   16.9KiB    0.0%  16.9KiB
+       NBsimple             1    220μs    0.0%   220μs   16.9KiB    0.0%  16.9KiB
+   init_currents            1    4.07s    1.2%   4.07s    509MiB    1.2%   509MiB
+     SteadyStateCur...      1    3.85s    1.1%   3.85s    509MiB    1.2%   509MiB
+   init_pf_active           1    2.05s    0.6%   2.05s   73.4MiB    0.2%  73.4MiB
+   init_core_profiles       1    813ms    0.2%   813ms   58.6MiB    0.1%  58.6MiB
+   init_requirements        1   33.5μs    0.0%  33.5μs   5.25KiB    0.0%  5.25KiB
+   init_missing_fro...      1   2.56μs    0.0%  2.56μs     56.0B    0.0%    56.0B
+ WholeFacility              1     100s   29.0%    100s   9.14GiB   22.9%  9.14GiB
+   StationaryPlasma         1    23.9s    6.9%   23.9s   3.41GiB    8.5%  3.41GiB
+     Equilibrium            3    13.0s    3.7%   4.32s   2.77GiB    6.9%   945MiB
+       Solovev              3    11.3s    3.3%   3.75s   2.52GiB    6.3%   859MiB
+     CoreTransport          3    2.54s    0.7%   846ms    174MiB    0.4%  57.9MiB
+       FixedProfiles        3    2.25s    0.6%   750ms    173MiB    0.4%  57.7MiB
+         Pedestal           3    1.68s    0.5%   559ms    172MiB    0.4%  57.2MiB
+     HCD                    4    1.50s    0.4%   374ms   3.38MiB    0.0%   865KiB
+       ECsimple             4   4.28ms    0.0%  1.07ms    687KiB    0.0%   172KiB
+       ICsimple             4    934μs    0.0%   234μs   73.2KiB    0.0%  18.3KiB
+       NBsimple             4    841μs    0.0%   210μs   72.9KiB    0.0%  18.2KiB
+       LHsimple             4    826μs    0.0%   206μs   72.9KiB    0.0%  18.2KiB
+     Current                4    412ms    0.1%   103ms   7.10MiB    0.0%  1.78MiB
+       SteadyStateC...      4   34.2ms    0.0%  8.56ms   6.45MiB    0.0%  1.61MiB
+   Blanket                  1    15.1s    4.4%   15.1s   1.08GiB    2.7%  1.08GiB
+     CXbuild                1    537ms    0.2%   537ms   80.6MiB    0.2%  80.6MiB
+   HFSsizing                1    13.0s    3.8%   13.0s   1.30GiB    3.3%  1.30GiB
+     FluxSwing              1   1.30ms    0.0%  1.30ms    216KiB    0.0%   216KiB
+     Stresses               1   1.06ms    0.0%  1.06ms    164KiB    0.0%   164KiB
+   BalanceOfPlant           1    3.55s    1.0%   3.55s    304MiB    0.7%   304MiB
+     PowerNeeds             1    830ms    0.2%   830ms    119MiB    0.3%   119MiB
+     ThermalCycle           1    378ms    0.1%   378ms   28.4MiB    0.1%  28.4MiB
+     HeatTransfer           1   1.42ms    0.0%  1.42ms    218KiB    0.0%   218KiB
+   Costing                  1    2.20s    0.6%   2.20s    159MiB    0.4%   159MiB
+     GASCCosting            1    2.09s    0.6%   2.09s    158MiB    0.4%   158MiB
+   Divertors                1    2.09s    0.6%   2.09s    156MiB    0.4%   156MiB
+   StabilityLimits          1    1.76s    0.5%   1.76s    184MiB    0.5%   184MiB
+   CXbuild                  1    532ms    0.2%   532ms   80.6MiB    0.2%  80.6MiB
+   Neutronics               1    306ms    0.1%   306ms   13.9MiB    0.0%  13.9MiB
+   PassiveStructures        1   56.6ms    0.0%  56.6ms   12.7MiB    0.0%  12.7MiB
+   LFSsizing                1   8.62ms    0.0%  8.62ms   2.05MiB    0.0%  2.05MiB
+ ────────────────────────────────────────────────────────────────────────────────

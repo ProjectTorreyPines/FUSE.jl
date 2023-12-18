@@ -1,0 +1,57 @@
+ ────────────────────────────────────────────────────────────────────────────────
+                                        Time                    Allocations      
+                               ───────────────────────   ────────────────────────
+       Tot / % measured:            2.94h /   4.8%            396GiB /  29.7%    
+
+ Section               ncalls     time    %tot     avg     alloc    %tot      avg
+ ────────────────────────────────────────────────────────────────────────────────
+ WholeFacility              1     470s   93.3%    470s    110GiB   93.4%   110GiB
+   HFSsizing                1     225s   44.8%    225s   86.0GiB   73.2%  86.0GiB
+     FluxSwing              1    190ms    0.0%   190ms   54.6MiB    0.0%  54.6MiB
+     Stresses               1    146ms    0.0%   146ms   58.7MiB    0.0%  58.7MiB
+   StationaryPlasma         1     168s   33.4%    168s   20.5GiB   17.4%  20.5GiB
+     Equilibrium            5    44.8s    8.9%   8.97s   8.00GiB    6.8%  1.60GiB
+       TEQUILA              5    35.0s    7.0%   7.01s   4.50GiB    3.8%   922MiB
+     Current                6    16.5s    3.3%   2.75s   5.45GiB    4.6%   930MiB
+       SteadyStateC...      6    16.2s    3.2%   2.69s   5.45GiB    4.6%   930MiB
+     CoreTransport          5    3.46s    0.7%   692ms    548MiB    0.5%   110MiB
+       FixedProfiles        5    3.19s    0.6%   637ms    547MiB    0.5%   109MiB
+         Pedestal           5    2.61s    0.5%   522ms    545MiB    0.5%   109MiB
+     HCD                    6    1.26s    0.2%   209ms   4.87MiB    0.0%   831KiB
+       ECsimple             6   5.15ms    0.0%   859μs    828KiB    0.0%   138KiB
+       ICsimple             6   1.21ms    0.0%   202μs    107KiB    0.0%  17.8KiB
+       NBsimple             6   1.11ms    0.0%   185μs    106KiB    0.0%  17.7KiB
+       LHsimple             6   1.02ms    0.0%   170μs    106KiB    0.0%  17.7KiB
+   Blanket                  1    3.07s    0.6%   3.07s    639MiB    0.5%   639MiB
+     CXbuild                1    621ms    0.1%   621ms   85.7MiB    0.1%  85.7MiB
+   PFcoilsOpt               2    2.61s    0.5%   1.30s    863MiB    0.7%   431MiB
+   CXbuild                  2    1.42s    0.3%   710ms    186MiB    0.2%  92.8MiB
+   Divertors                1    432ms    0.1%   432ms    130MiB    0.1%   130MiB
+   BalanceOfPlant           1    347ms    0.1%   347ms   5.26MiB    0.0%  5.26MiB
+     ThermalCycle           1   26.6ms    0.0%  26.6ms   0.97MiB    0.0%  0.97MiB
+     PowerNeeds             1   12.2ms    0.0%  12.2ms   3.24MiB    0.0%  3.24MiB
+     HeatTransfer           1   5.53ms    0.0%  5.53ms    179KiB    0.0%   179KiB
+   Neutronics               1    320ms    0.1%   320ms   13.8MiB    0.0%  13.8MiB
+   Costing                  1    109ms    0.0%   109ms   15.0MiB    0.0%  15.0MiB
+     GASCCosting            1   58.8ms    0.0%  58.8ms   14.9MiB    0.0%  14.9MiB
+   PassiveStructures        1   21.1ms    0.0%  21.1ms   5.96MiB    0.0%  5.96MiB
+   StabilityLimits          1   18.5ms    0.0%  18.5ms   63.5KiB    0.0%  63.5KiB
+   LFSsizing                1   8.45ms    0.0%  8.45ms   2.28MiB    0.0%  2.28MiB
+ init                       1    33.7s    6.7%   33.7s   7.71GiB    6.6%  7.71GiB
+   init_equilibrium         1    29.2s    5.8%   29.2s   6.55GiB    5.6%  6.55GiB
+     Equilibrium            1    7.73s    1.5%   7.73s   1.08GiB    0.9%  1.08GiB
+       TEQUILA              1    6.82s    1.4%   6.82s    907MiB    0.8%   907MiB
+   init_currents            1    2.74s    0.5%   2.74s    924MiB    0.8%   924MiB
+     SteadyStateCur...      1    2.62s    0.5%   2.62s    924MiB    0.8%   924MiB
+   init_core_sources        1    957ms    0.2%   957ms    164MiB    0.1%   164MiB
+     HCD                    1    216ms    0.0%   216ms    841KiB    0.0%   841KiB
+       ECsimple             1   7.84ms    0.0%  7.84ms    178KiB    0.0%   178KiB
+       ICsimple             1    199μs    0.0%   199μs   16.0KiB    0.0%  16.0KiB
+       NBsimple             1    169μs    0.0%   169μs   15.9KiB    0.0%  15.9KiB
+       LHsimple             1    163μs    0.0%   163μs   15.9KiB    0.0%  15.9KiB
+   init_build               1    640ms    0.1%   640ms   88.3MiB    0.1%  88.3MiB
+     CXbuild                1    527ms    0.1%   527ms   87.6MiB    0.1%  87.6MiB
+   init_pf_active           1    118ms    0.0%   118ms   12.3MiB    0.0%  12.3MiB
+   init_core_profiles       1   9.49ms    0.0%  9.49ms    475KiB    0.0%   475KiB
+   init_missing_fro...      1   26.5μs    0.0%  26.5μs   3.72KiB    0.0%  3.72KiB
+ ────────────────────────────────────────────────────────────────────────────────

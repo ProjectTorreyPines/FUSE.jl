@@ -1,0 +1,156 @@
+{
+ ":core_profiles": {
+  ":T_shaping": 2.5,
+  ":n_shaping": 2.5,
+  ":ne_ped": null,
+  ":bulk": ":DT",
+  ":rot_core": 0.0,
+  ":ne_coreped_ratio": 3.0,
+  ":helium_fraction": 0.04,
+  ":zeff": 1.5,
+  ":T_ratio": 0.825,
+  ":polarized_fuel_fraction": 0.0,
+  ":greenwald_fraction_ped": null,
+  ":greenwald_fraction": 1.1,
+  ":ngrid": 101,
+  ":w_ped": 0.05,
+  ":ejima": 0.4,
+  ":impurity": ":Kr"
+ },
+ ":tf": {
+  ":n_coils": 16,
+  ":technology": ":HTS",
+  ":shape": 7,
+  ":ripple": 0.01
+ },
+ ":time": {
+  ":pulse_shedule_time_basis": null,
+  ":simulation_start": 0.0
+ },
+ ":lh_antennas": {
+  ":efficiency_transmission": 0.72,
+  ":efficiency_conversion": 0.5,
+  ":efficiency_coupling": 1.0,
+  ":power_launched": []
+ },
+ ":general": {
+  ":casename": "FPP_v1_demount_scalars",
+  ":init_from": ":scalars"
+ },
+ ":ic_antennas": {
+  ":efficiency_transmission": 0.7,
+  ":efficiency_conversion": 0.9,
+  ":efficiency_coupling": 1.0,
+  ":power_launched": []
+ },
+ ":ec_launchers": {
+  ":efficiency_transmission": 0.8,
+  ":efficiency_conversion": 0.45,
+  ":power_launched": [
+   5.0e6,
+   1.5e7
+  ]
+ },
+ ":gasc": {
+  ":filename": "/fusion/ga/projects/ird/ptp/weisbergd/julia/dev/FUSE/cases/../sample/FPPv1.0_aspectRatio3.5_PBpR35_demount.json",
+  ":case": 0
+ },
+ ":material": {
+  ":wall": "Tungsten",
+  ":blanket": "lithium-lead",
+  ":shield": "Steel, Stainless 316"
+ },
+ ":requirements": {
+  ":βn": null,
+  ":ne_peaking": 1.5,
+  ":hds03": 1.0,
+  ":power_electric_net": 2.0e8,
+  ":h98y2": null,
+  ":q_pol_omp": 2.75e9,
+  ":coil_j_margin": 1.5,
+  ":log10_flattop_duration": null,
+  ":tritium_breeding_ratio": 1.1,
+  ":cost": null,
+  ":coil_stress_margin": 1.0,
+  ":flattop_duration": 86400.0,
+  ":lh_power_threshold_fraction": 1.0
+ },
+ ":equilibrium": {
+  ":δ": 0.7,
+  ":field_null_surface": 0.75,
+  ":xpoints": ":lower",
+  ":ϵ": 0.2857142857142857,
+  ":ζ": 0.0,
+  ":Z0": 0.0,
+  ":boundary_from": ":scalars",
+  ":rz_points": null,
+  ":κ": 0.8826,
+  ":ip": 6.65e6,
+  ":B0": 6.0,
+  ":ngrid": 129,
+  ":pressure_core": 1.475e6,
+  ":R0": 4.0,
+  ":MXH_params": null,
+  ":𝚶": 0.0
+ },
+ ":oh": {
+  ":n_coils": 6,
+  ":technology": ":HTS"
+ },
+ ":pf_active": {
+  ":n_coils_outside": 8,
+  ":technology": ":LTS",
+  ":n_coils_inside": 0
+ },
+ ":build": {
+  ":symmetric": false,
+  ":blanket": null,
+  ":n_first_wall_conformal_layers": 2,
+  ":layers": {
+   ":gap_OH": 0.8814488377343044,
+   ":OH": 0.47518464959602186,
+   ":gap_TF_OH": 0.06892046145773927,
+   ":hfs_TF": 0.47518464959602186,
+   ":hfs_gap_low_temp_shield_TF": 0.06892046145773927,
+   ":hfs_low_temp_shield": 0.31814263905127016,
+   ":hfs_gap_vacuum_vessel_low_temp_shield": 0.06892046145773927,
+   ":hfs_vacuum_vessel": 0.17230115364434817,
+   ":hfs_gap_high_temp_shield_vacuum_vessel": 0.06892046145773927,
+   ":hfs_high_temp_shield": 0.17230115364434817,
+   ":hfs_blanket": 0.4834769901453429,
+   ":hfs_first_wall": 0.02,
+   ":plasma": 3.101420765598267,
+   ":lfs_first_wall": 0.02,
+   ":lfs_blanket": 0.785401231180262,
+   ":lfs_high_temp_shield": 0.17230115364434817,
+   ":lfs_gap_high_temp_shield_vacuum_vessel": 0.6892046145773927,
+   ":lfs_vacuum_vessel": 0.17230115364434817,
+   ":lfs_gap_vacuum_vessel_low_temp_shield": 0.06892046145773927,
+   ":lfs_low_temp_shield": 0.31814263905127016,
+   ":lfs_gap_low_temp_shield_TF": 0.06892046145773927,
+   ":lfs_TF": 0.47518464959602186,
+   ":gap_cryostat": 1.4221989470234107,
+   ":cryostat": 0.21209509270084714
+  },
+  ":vessel": null,
+  ":shield": null,
+  ":divertors": ":lower",
+  ":plasma_gap": 0.125
+ },
+ ":center_stack": {
+  ":bucked": false,
+  ":noslip": false,
+  ":plug": false
+ },
+ ":nbi": {
+  ":efficiency_transmission": 0.94,
+  ":efficiency_conversion": 0.4,
+  ":beam_energy": [],
+  ":beam_mass": 2.0,
+  ":toroidal_angle": 0.0,
+  ":power_launched": []
+ },
+ ":ods": {
+  ":filename": null
+ }
+}
