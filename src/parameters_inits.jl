@@ -7,9 +7,9 @@ import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
 import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _triple_arc_,
     _miller_, _square_miller_, _spline_, _silo_
 
-const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
-const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
-const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => FUSE.SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerSide))
+const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
+const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
+const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerSide))
 
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
@@ -220,7 +220,7 @@ mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0) where {T<:Real}
+function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
     ini = ParametersInits{T}(
         WeakRef(nothing),
         :ini,
@@ -240,6 +240,10 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}(),
         FUSEparameters__requirements{T}())
+
+    for k in 1:n_layers
+        push!(ini.build.layers, FUSEparameters__build_layer{T}())
+    end
 
     for k in 1:n_nb
         push!(ini.nb_unit, FUSEparameters__nb_unit{T}())

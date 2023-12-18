@@ -53,7 +53,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
 
-    act.ActorPFcoilsOpt.symmetric = true
+    act.ActorPFdesign.symmetric = true
 
     set_new_base!(ini)
     set_new_base!(act)
