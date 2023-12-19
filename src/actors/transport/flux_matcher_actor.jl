@@ -1,5 +1,7 @@
 import NLsolve
 using LinearAlgebra
+import Surrogates
+import Statistics
 
 #= ================ =#
 #  ActorFluxMatcher  #
@@ -111,6 +113,32 @@ function _step(actor::ActorFluxMatcher)
         # @show flux_match_errors(actor, z_scaled_history[end])
         actor_logging(dd, old_logging)
     end
+
+    #### SURROGATES ####
+    old_logging = actor_logging(dd, false)
+    try
+        tmp = hcat(map(collect, z_scaled_history)...)
+
+        # Calculate the mean and standard deviation for each set of corresponding elements.
+        means = Statistics.mean(tmp; dims=2)  # Result is a 1-row matrix
+        std_devs = Statistics.std(tmp; dims=2)  # Result is a 1-row matrix
+
+        N = 5  # Number of sigmas (change this to your specific number of sigmas)
+
+        # Calculate the lower and upper bounds.
+        lower_bound = means .- N * std_devs
+        upper_bound = means .+ N * std_devs
+        lower_bound = scale_z_profiles(means .* 0.0 .- 4.0)
+        upper_bound = scale_z_profiles(means .* 0.0 .+ 0.0)
+        @show lower_bound
+        @show upper_bound
+
+        radial_basis = Surrogates.SecondOrderPolynomialSurrogate(z_scaled_history, err_history, lower_bound, upper_bound)
+        Surrogates.surrogate_optimize(z -> norm(flux_match_errors(actor, z)), Surrogates.SRBF(), lower_bound, upper_bound, radial_basis, Surrogates.SobolSample(); maxiters=50)
+    finally
+        actor_logging(dd, old_logging)
+    end
+    #### SURROGATES ####
 
     if par.do_plot
         display(res)
