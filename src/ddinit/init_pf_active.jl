@@ -1,5 +1,3 @@
-const coils_turns_spacing = 0.03
-
 #= ================== =#
 #  init pf_active IDS  #
 #= ================== =#
@@ -123,7 +121,7 @@ function init_pf_active!(
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))
 
-    # coils_cleareance is an array the lenght of the rails
+    # coils_cleareance is an array the length of the rails
     if coils_cleareance === nothing
         coils_cleareance = (maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r)) / 8.0
     end
@@ -151,7 +149,6 @@ function init_pf_active!(
         pf_active.coil[k].element[1].geometry.rectangle.z = z_oh
         pf_active.coil[k].element[1].geometry.rectangle.width = w_oh
         pf_active.coil[k].element[1].geometry.rectangle.height = h_oh
-        set_turns_from_spacing!(pf_active.coil[k], coils_turns_spacing, +1)
         @ddtime pf_active.coil[k].current.data = 0.0
     end
 
@@ -284,7 +281,6 @@ function init_pf_active!(
             pf_active.coil[k].element[1].geometry.rectangle.z = z
             pf_active.coil[k].element[1].geometry.rectangle.width = coil_size
             pf_active.coil[k].element[1].geometry.rectangle.height = coil_size
-            set_turns_from_spacing!(pf_active.coil[k], coils_turns_spacing, +1)
             @ddtime pf_active.coil[k].current.data = 0.0
         end
     end

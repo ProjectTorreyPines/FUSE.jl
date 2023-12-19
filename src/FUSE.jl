@@ -70,7 +70,7 @@ include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
 include(joinpath("actors", "pf", "pf_active_utils.jl"))
 include(joinpath("actors", "pf", "pf_active_actor.jl"))
-include(joinpath("actors", "pf", "pf_opt_actor.jl"))
+include(joinpath("actors", "pf", "pf_design_actor.jl"))
 include(joinpath("actors", "pf", "pf_passive_actor.jl"))
 include(joinpath("actors", "pf", "pf_plots.jl"))
 

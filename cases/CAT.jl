@@ -45,7 +45,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].beam_mass = 2.0
     ini.nb_unit[1].toroidal_angle = 0.0
 
-    act.ActorPFcoilsOpt.symmetric = true
+    act.ActorPFdesign.symmetric = true
 
     act.ActorStabilityLimits.raise_on_breach = false
 

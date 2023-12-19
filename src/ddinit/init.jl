@@ -159,6 +159,6 @@ function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
     end
 
     if !ismissing(ini.equilibrium, :xpoints)
-        act.ActorPFcoilsOpt.symmetric = ini.equilibrium.xpoints in [:none, :double]
+        act.ActorPFdesign.symmetric = ini.equilibrium.xpoints in [:none, :double]
     end
 end
