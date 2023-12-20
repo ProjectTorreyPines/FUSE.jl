@@ -52,7 +52,7 @@ function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
         boundary_control_points,
         flux_control_points,
         saddle_control_points,
-        0.0,
+        -1.0,
         NaN,
         nothing
     )
