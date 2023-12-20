@@ -30,7 +30,7 @@ CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED ServeFUSE SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields 
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields 
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -109,9 +109,8 @@ rm_hide:
 	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
 	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
 
-# install Revise and load it when Julia starts up
+# load Revise when Julia starts up
 revise:
-	julia -e 'import Pkg; Pkg.rm("Revise"); Pkg.add("Revise")'
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
@@ -268,6 +267,13 @@ NNeutronics:
 
 ServeFUSE:
 	$(call clone_pull_repo,$@)
+	julia -e '\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate("../ServeFUSE");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+'
 
 SimulationParameters:
 	$(call clone_pull_repo,$@)
