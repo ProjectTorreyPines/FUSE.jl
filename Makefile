@@ -479,6 +479,11 @@ dd:
 
 # copy .JuliaFormatter.toml to all dependencies
 formatter:
+	julia -e '\
+using Pkg;\
+Pkg.activate();\
+Pkg.add(["JuliaFormatter"]);\
+'
 	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
 
 .PHONY:
