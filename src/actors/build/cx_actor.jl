@@ -48,7 +48,7 @@ function _step(actor::ActorCXbuild)
 
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
     wall = IMAS.first_wall(dd.wall)
-    if wall === missing || par.rebuild_wall
+    if isempty(wall.r) || par.rebuild_wall
         pr, pz = wall_from_eq(bd, eqt)
     else
         pr = wall.r
