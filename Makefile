@@ -119,7 +119,7 @@ revise:
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
-	@cd $(CURRENTDIR); $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+	@cd $(CURRENTDIR); $(foreach package,FUSE WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 https_add:
@@ -199,12 +199,9 @@ end;\
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
+	make -i $(PARALLELISM) WarmupFUSE FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
 
 ADAS:
-	$(call clone_pull_repo,$@)
-
-WarmupFUSE:
 	$(call clone_pull_repo,$@)
 
 FUSE:
@@ -265,6 +262,25 @@ TEQUILA:
 NNeutronics:
 	$(call clone_pull_repo,$@)
 
+SimulationParameters:
+	$(call clone_pull_repo,$@)
+
+BoundaryPlasmaModels:
+	$(call clone_pull_repo,$@)
+
+NEO:
+	$(call clone_pull_repo,$@)
+
+WarmupFUSE:
+	$(call clone_pull_repo,$@)
+	julia -e '\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate("../WarmupFUSE");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+'
+
 ServeFUSE:
 	$(call clone_pull_repo,$@)
 	julia -e '\
@@ -274,15 +290,6 @@ using Pkg;\
 Pkg.activate("../ServeFUSE");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
-
-SimulationParameters:
-	$(call clone_pull_repo,$@)
-
-BoundaryPlasmaModels:
-	$(call clone_pull_repo,$@)
-
-NEO:
-	$(call clone_pull_repo,$@)
 
 # Install IJulia
 IJulia:
@@ -484,6 +491,6 @@ using Pkg;\
 Pkg.activate();\
 Pkg.add(["JuliaFormatter"]);\
 '
-	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
+	$(foreach package,WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
 
 .PHONY:
