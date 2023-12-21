@@ -335,7 +335,7 @@ return ini.equilibrium boundary expressed in MHX independenty of how the user in
 function IMAS.MXH(ini::ParametersAllInits)
     init_from = ini.general.init_from
     if init_from == :ods
-        dd = IMAS.json2imas(replace(ini.ods.filename), r"^__FUSE__" => __FUSE__)
+        dd = IMAS.json2imas(replace(ini.ods.filename, r"^__FUSE__" => __FUSE__))
     else
         dd = IMAS.dd()
     end
