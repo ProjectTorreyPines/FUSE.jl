@@ -1,4 +1,4 @@
-sample_path = joinpath(@__DIR__, "..", "sample")
+sample_path = joinpath("__FUSE__", "sample")
 shot_details = Dict(
     :H_mode => Dict(:time0 => 2.7, :filename => joinpath(sample_path, "D3D_standard_Hmode.json")),
     :L_mode => Dict(:time0 => 2.0, :filename => joinpath(sample_path, "D3D_standard_Lmode.json")),

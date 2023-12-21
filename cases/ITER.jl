@@ -18,7 +18,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.general.init_from = init_from
 
     if init_from == :ods
-        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "ITER_eq_ods.json")
+        ini.ods.filename = joinpath("__FUSE__", "sample", "ITER_eq_ods.json")
         act.ActorCXbuild.rebuild_wall = false
         ini.equilibrium.boundary_from = :ods
         ini.equilibrium.xpoints = :lower

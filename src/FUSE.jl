@@ -21,6 +21,8 @@ function __init__()
     end
 end
 
+const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
+
 #= ===== =#
 #  UTILS  #
 #= ===== =#
