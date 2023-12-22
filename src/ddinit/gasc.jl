@@ -31,7 +31,7 @@ function GASC(filename::String, case::Int)
     # from python to julia indexing
     case_j = case + 1
     # parse data
-    data = JSON.parsefile(filename)
+    data = JSON.parsefile(replace(filename, r"__FUSE__" => __FUSE__))
     # identify version of GASC output
     version = 0
     if "boundaryInnerTF" in keys(data["SOLUTIONS"][case_j]["OUTPUTS"]["numerical profiles"])

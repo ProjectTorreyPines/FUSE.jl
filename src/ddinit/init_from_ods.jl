@@ -13,7 +13,7 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
         dd1 = IMAS.dd()
 
     else
-        dd1 = IMAS.json2imas(ini.ods.filename)
+        dd1 = IMAS.json2imas(replace(ini.ods.filename, r"^__FUSE__" => __FUSE__))
         dd1.global_time = ini.time.simulation_start
 
         # equilibrium

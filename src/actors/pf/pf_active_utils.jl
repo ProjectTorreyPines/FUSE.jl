@@ -251,7 +251,11 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
                 coil_distances = collect(range(-1.0, 1.0, rail.coils_number))[1+Int((rail.coils_number - 1) // 2)+1:end]
             end
             append!(distances, coil_distances)
-            append!(lbounds, coil_distances .* 0.0 .- 1.0)
+            if !symmetric
+                append!(lbounds, coil_distances .* 0.0 .- 1.0)
+            else
+                append!(lbounds, coil_distances .* 0.0  )
+            end
             append!(ubounds, coil_distances .* 0.0 .+ 1.0)
         end
     end
@@ -263,8 +267,8 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
             push!(ubounds, 1.0)
             if !symmetric
                 push!(oh_height_off, 0.0)
-                push!(lbounds, -1.0 / rail.coils_number)
-                push!(ubounds, 1.0 / rail.coils_number)
+                push!(lbounds, -2.0 / rail.coils_number)
+                push!(ubounds, 2.0 / rail.coils_number)
             end
         end
     end
@@ -298,11 +302,12 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                 # mirror OH size when it reaches maximum extent of the rail
                 oh_height_off[1] = mirror_bound(oh_height_off[1], 1.0 - 1.0 / rail.coils_number, 1.0)
                 if !symmetric
-                    offset = mirror_bound(oh_height_off[2], -1.0 / rail.coils_number, 1.0 / rail.coils_number)
+                    offset = mirror_bound(oh_height_off[2], -2.0 / rail.coils_number, 2.0 / rail.coils_number)
                 else
                     offset = 0.0
                 end
-                z_oh, height_oh = size_oh_coils(rail.outline.z, rail.coils_cleareance, rail.coils_number, oh_height_off[1], offset)
+                z_oh, height_oh = size_oh_coils(rail.outline.z, rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
+                z_oh = z_oh .+ offset # allow offset to move the whole CS stack independently of the CS rail
                 for k in 1:rail.coils_number
                     koptim += 1
                     koh += 1

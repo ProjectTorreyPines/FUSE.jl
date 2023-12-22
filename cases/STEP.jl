@@ -132,7 +132,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
 
     ini.general.casename = "STEP"
     ini.general.init_from = :scalars
-    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "STEP_starting_point.json")
+    ini.ods.filename = joinpath("__FUSE__", "sample", "STEP_starting_point.json")
 
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_OH => 0.233,

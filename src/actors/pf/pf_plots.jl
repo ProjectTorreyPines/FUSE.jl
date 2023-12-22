@@ -145,7 +145,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
         else
             @series begin
                 cx := true
-                label --> "Final"
+                label --> "Final (λ_regularize=$(log10(actor.λ_regularize)))"
                 color --> :red
                 actor.eq_out.time_slice[time_index]
             end

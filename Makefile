@@ -109,9 +109,8 @@ rm_hide:
 	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
 	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
 
-# install Revise and load it when Julia starts up
+# load Revise when Julia starts up
 revise:
-	julia -e 'import Pkg; Pkg.rm("Revise"); Pkg.add("Revise")'
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
@@ -120,7 +119,7 @@ revise:
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
-	@cd $(CURRENTDIR); $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+	@cd $(CURRENTDIR); $(foreach package,FUSE WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 https_add:
@@ -200,12 +199,9 @@ end;\
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
+	make -i $(PARALLELISM) WarmupFUSE FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
 
 ADAS:
-	$(call clone_pull_repo,$@)
-
-WarmupFUSE:
 	$(call clone_pull_repo,$@)
 
 FUSE:
@@ -274,6 +270,26 @@ BoundaryPlasmaModels:
 
 NEO:
 	$(call clone_pull_repo,$@)
+
+WarmupFUSE:
+	$(call clone_pull_repo,$@)
+	julia -e '\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate("../WarmupFUSE");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+'
+
+ServeFUSE:
+	$(call clone_pull_repo,$@)
+	julia -e '\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate("../ServeFUSE");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+'
 
 # Install IJulia
 IJulia:
@@ -470,6 +486,11 @@ dd:
 
 # copy .JuliaFormatter.toml to all dependencies
 formatter:
-	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
+	julia -e '\
+using Pkg;\
+Pkg.activate();\
+Pkg.add(["JuliaFormatter"]);\
+'
+	$(foreach package,WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
 
 .PHONY:
