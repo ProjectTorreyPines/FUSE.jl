@@ -246,19 +246,21 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
 
     # detect if equilibrium has x-points to define build of divertors
     if detected_upper != 0 || detected_lower != 0
-        display(plot(eqt))
-        error(
+        # plot(wall_poly)
+        # display(plot!(eqt; cx=true, show_x_points=true))
+        @warn(
             "Equilibrium does not allow building the right number of upper ($(bd.divertors.upper.installed)→$(-detected_upper+bd.divertors.upper.installed)) and lower ($(bd.divertors.lower.installed)→$(-detected_lower+bd.divertors.lower.installed)) divertors."
         )
     end
 
+    # round corners
+    corner_radius = gap / 4
+    wall_poly = LibGEOS.buffer(wall_poly, -corner_radius)
+    wall_poly = LibGEOS.buffer(wall_poly, corner_radius)
+
     # vertical clip
     wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(0.0, R_hfs_plasma, 100.0)...))
     wall_poly = LibGEOS.difference(wall_poly, xy_polygon(rectangle_shape(R_lfs_plasma, 10 * R_lfs_plasma, 100.0)...))
-
-    # round corners
-    wall_poly = LibGEOS.buffer(wall_poly, -gap / 4)
-    wall_poly = LibGEOS.buffer(wall_poly, gap / 4)
 
     pr = [v[1] for v in GeoInterface.coordinates(wall_poly)[1]]
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
