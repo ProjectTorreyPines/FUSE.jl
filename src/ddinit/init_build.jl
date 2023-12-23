@@ -173,11 +173,11 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 end
 
 """
-    init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_layer})
+    init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__build_layer})
 
 Initialize dd.build.layers from ini.build.layers
 """
-function init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_layer})
+function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__build_layer})
     empty!(bd.layer)
 
     k = 0
@@ -204,7 +204,9 @@ function init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_laye
 end
 
 """
-This allows users to initialize layers from a dictionary
+    setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+
+Allows users to initialize layers from a dictionary
 """
 function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
     @assert field == :layers
@@ -257,6 +259,37 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
     end
 end
 
+"""
+    dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+
+Custom reading from file of FUSEparameters__build_layer
+"""
+function SimulationParameters.dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+    return parent(par).layers = dct
+end
+
+
+"""
+    par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String})
+
+Custom writing to file for FUSEparameters__build_layer
+"""
+function SimulationParameters.par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String}; show_info::Bool=true, skip_defaults::Bool=false)
+    for parameter in par
+        p = SimulationParameters.path(parameter)
+        sp = SimulationParameters.spath(p)
+        depth = (count(".", sp) + count("[", sp) - 1) * 2
+        pre = " "^depth
+        push!(txt, string(pre, replace(parameter.name, " " => "_"), ": ", repr(parameter.thickness)))
+    end
+    return txt
+end
+
+"""
+    to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+
+Allows accesing parameters layers by their Symbol
+"""
 function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
     tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
     if tmp === nothing
@@ -266,11 +299,11 @@ function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Sym
 end
 
 """
-    scale_build_layers!(layers::Vector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+    scale_build_layers!(layers::ParametersVector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
 
 Scale build layers thicknesses so that the plasma equilibrium is in the middle of the plasma layer
 """
-function scale_build_layers!(layers::Vector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+function scale_build_layers!(layers::ParametersVector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
     gap = a * plasma_gap_fraction
     plasma_start = R0 - a - gap
     layer_plasma_start = 0.0
