@@ -33,6 +33,11 @@ include("utils_begin.jl")
 #= =================== =#
 include("parameters.jl")
 
+#= ===== =#
+#  CASES  #
+#= ===== =#
+include("../cases/_cases.jl")
+
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
 #= ====================== =#
