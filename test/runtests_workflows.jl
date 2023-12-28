@@ -23,9 +23,6 @@ end
             FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
                 println("== $(testname) ==")
                 ini, act = FUSE.case_parameters(args...; kw...)
-                if testname == "SPARC"
-                    act.ActorEquilibrium.model = :Solovev # The CI tool doesn't work with SPARC & TEQUILA for unexplainable reasons
-                end
                 FUSE.init(ini, act)
             end
         end
