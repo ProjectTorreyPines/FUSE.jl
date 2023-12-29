@@ -29,6 +29,34 @@ end
     end
 end
 
+@testset "yaml_ini_act" begin
+    for (testname, (args, kw)) in FUSE.test_cases
+        @testset "$testname" begin
+            FUSE.TimerOutputs.reset_timer!(FUSE.timer, testname)
+            FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
+                println("== $(testname) ==")
+                ini, act = FUSE.case_parameters(args...; kw...)
+
+                ini_str = FUSE.SimulationParameters.par2ystr(ini; skip_defaults=true, show_info=false)
+                ini2 = try
+                    FUSE.SimulationParameters.ystr2par(ini_str, FUSE.ParametersInits())
+                catch e
+                    println(ini_str)
+                    rethrow(e)
+                end
+
+                act_str = FUSE.SimulationParameters.par2ystr(act; skip_defaults=true, show_info=false)
+                act2 = try
+                    FUSE.SimulationParameters.ystr2par(act_str, FUSE.ParametersActors())
+                catch e
+                    println(act_str)
+                    rethrow(e)
+                end
+            end
+        end
+    end
+end
+
 @testset "optimization" begin
     ini = FUSE.ParametersInits()
 
