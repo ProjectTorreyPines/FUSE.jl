@@ -14,13 +14,14 @@ const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, st
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
-    casename::Entry{String} = Entry{String}("-", "Mnemonic name of the case being run")
+    casename::Entry{String} = Entry{String}("-", "Sort mnemonic name of the case being run")
+    description::Entry{String} = Entry{String}("-", "Longer description of the case being run")
     init_from::Switch{Symbol} = Switch{Symbol}(
         [
             :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
-            :scalars => "Initialize FUSE run from scalar parameters",
+            :scalars => "Initialize FUSE run from scalar parameters"
         ], "-", "Initialize run from")
-    dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "dd to initialize from after fixes")
+    dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "dd to initialize from")
 end
 
 Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}

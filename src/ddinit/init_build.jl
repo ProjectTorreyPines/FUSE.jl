@@ -280,7 +280,7 @@ function SimulationParameters.par2ystr(par::ParametersVector{<:FUSEparameters__b
         sp = SimulationParameters.spath(p)
         depth = (count(".", sp) + count("[", sp) - 1) * 2
         pre = " "^depth
-        push!(txt, string(pre, replace(parameter.name, " " => "_"), ": ", repr(parameter.thickness)))
+        push!(txt, string(pre, replace(getproperty(parameter, :name, "_each_layer_name_and_thickness_"), " " => "_"), ": ", repr(getproperty(parameter, :thickness, 0.0))))
     end
     return txt
 end

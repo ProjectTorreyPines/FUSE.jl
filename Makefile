@@ -111,6 +111,7 @@ rm_hide:
 
 # load Revise when Julia starts up
 revise:
+	julia -e 'using Pkg; Pkg.add("Revise")'
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true

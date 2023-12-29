@@ -17,34 +17,12 @@ end
 end
 
 @testset "init" begin
-    tests = FUSE.OrderedCollections.OrderedDict()
-    tests["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
-    tests["ITER_scalars"] = ([:ITER], Dict(:init_from => :scalars))
-    tests["D3D_Hmode"] = ([:D3D], Dict(:scenario => :H_mode))
-    tests["D3D_Lmode"] = ([:D3D], Dict(:scenario => :L_mode))
-    tests["D3D"] = ([:D3D], Dict(:scenario => :default))
-    tests["FPP_v1_demount_ods"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :ods))
-    tests["FPP_v1_demount_scalars"] = ([:FPP], Dict(:version => :v1_demount, :init_from => :scalars))
-    tests["FPP_v1_ods"] = ([:FPP], Dict(:version => :v1, :init_from => :ods))
-    tests["FPP_v1_scalars"] = ([:FPP], Dict(:version => :v1, :init_from => :scalars))
-    tests["FPP_v2_ods"] = ([:FPP], Dict(:version => :v2, :init_from => :ods))
-    tests["FPP_v2_scalars"] = ([:FPP], Dict(:version => :v2, :init_from => :scalars))
-    tests["CAT"] = ([:CAT], Dict())
-    tests["JET_HDB5"] = ([:HDB5], Dict(:tokamak => :JET, :case => 500))
-    tests["ARC"] = ([:ARC], Dict())
-    tests["SPARC"] = ([:SPARC], Dict())
-    tests["KDEMO"] = ([:KDEMO], Dict())
-    tests["DTT"] = ([:DTT], Dict())
-
-    for (testname, (args, kw)) in tests
+    for (testname, (args, kw)) in FUSE.test_cases
         @testset "$testname" begin
             FUSE.TimerOutputs.reset_timer!(FUSE.timer, testname)
             FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
                 println("== $(testname) ==")
                 ini, act = FUSE.case_parameters(args...; kw...)
-                if testname == "SPARC"
-                    act.ActorEquilibrium.model = :Solovev # The CI tool doesn't work with SPARC & TEQUILA for unexplainable reasons
-                end
                 FUSE.init(ini, act)
             end
         end

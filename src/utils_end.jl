@@ -525,8 +525,9 @@ function digest(dd::IMAS.dd,
     ini::Union{Nothing,ParametersAllInits}=nothing,
     act::Union{Nothing,ParametersAllActors}=nothing
 )
-    title = replace(title, r".pdf$" => "")
+    title = replace(title, r".pdf$" => "", "_" => " ")
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
+
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)
     try
