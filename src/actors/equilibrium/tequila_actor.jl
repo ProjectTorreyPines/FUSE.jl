@@ -144,7 +144,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     κ = shot.surfaces[4, end]
     a = R0 * ϵ
     Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
-    Zdim = κ * 2.0 * a
+    Zdim = κ * 1.6 * a
 
     nψ_grid = 129
     nz_grid = 129
