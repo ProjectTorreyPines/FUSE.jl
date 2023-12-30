@@ -67,7 +67,7 @@ function _step(actor::ActorCXbuild)
 
     blanket_regions!(bd, eqt)
 
-    if wall === missing || par.rebuild_wall
+    if isempty(wall.r) || par.rebuild_wall
         plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
         resize!(dd.wall.description_2d, 1)
         resize!(dd.wall.description_2d[1].limiter.unit, 1)
