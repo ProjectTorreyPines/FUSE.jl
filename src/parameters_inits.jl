@@ -284,6 +284,20 @@ function json2ini(filename::AbstractString)
 end
 
 """
+    ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
+
+Save the FUSE parameters to a YAML file with give `filename`
+`kw` arguments are passed to the YAML.print function
+"""
+function ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
+    return SimulationParameters.par2yaml(ini, filename; kw...)
+end
+
+function yaml2ini(filename::AbstractString)
+    return SimulationParameters.yaml2par(filename, ParametersInits())
+end
+
+"""
     ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
 
 if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
