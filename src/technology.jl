@@ -38,7 +38,8 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
         coil_tech.material = "Copper"
         coil_tech.temperature = 293.0
         coil_tech.fraction_steel = 0.0
-        coil_tech.fraction_void = 0.1
+        coil_tech.ratio_SC_to_copper = 0.0
+        coil_tech.fraction_void = 0.2
 
     elseif technology ∈ (:Nb3Sn, :NbTi, :ITER, :KDEMO, :HTS)
         if technology ∈ (:Nb3Sn, :ITER)
