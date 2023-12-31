@@ -79,10 +79,10 @@ function _step(actor::ActorHFSsizing)
         # keeping them of similar size is a hint for the optimizer to achieve convergence
         # for all things being equal, maximizing steel is good to keep the cost of the magnets down
         return 1E-3 * (
-            ((OH.thickness + TFhfs.thickness) / CPradius)^2 + # minimize thickness
-            ((OH.thickness - TFhfs.thickness) / CPradius)^2 + # make OH and TF similiar thickness
-            (1.0 - dd.build.tf.technology.fraction_steel)^2 + # favor steel over superconductor
-            (1.0 - dd.build.tf.technology.fraction_steel)^2)  # favor steel over superconductor
+            ((OH.thickness + TFhfs.thickness) / CPradius)^2 + # favor small OH and TF thicknesses
+            10.0 * ((OH.thickness - TFhfs.thickness) / CPradius)^2 + # favor OH and TF similiar thickness
+            0.1 * (1.0 - dd.build.tf.technology.fraction_steel)^2 + # favor steel over superconductor
+            0.1 * (1.0 - dd.build.tf.technology.fraction_steel)^2)  # favor steel over superconductor
     end
 
     function cost(x0)

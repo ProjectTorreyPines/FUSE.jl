@@ -67,7 +67,7 @@ function _step(actor::ActorCXbuild)
 
     blanket_regions!(bd, eqt)
 
-    if wall === missing || par.rebuild_wall
+    if isempty(wall.r) || par.rebuild_wall
         plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
         resize!(dd.wall.description_2d, 1)
         resize!(dd.wall.description_2d[1].limiter.unit, 1)
@@ -199,7 +199,7 @@ function wall_from_eq(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice; max_div
         if isempty(pr1)
             continue
         end
-        inner_slot_poly = xy_polygon(convex_hull(pr1, pz1; closed_polygon=true))
+        inner_slot_poly = xy_polygon(convex_hull(pr, pz; closed_polygon=true))
 
         # do not add more than one private flux region for each of the x-points
         if Zx > Z0

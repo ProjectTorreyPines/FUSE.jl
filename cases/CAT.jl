@@ -22,6 +22,9 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.pf_active.n_coils_outside = 6
     ini.pf_active.technology = :ITER
 
+    ini.center_stack.bucked = true
+    ini.center_stack.plug = true
+
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
     ini.tf.technology = :ITER
@@ -39,6 +42,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.impurity = :Ne
 
     ini.requirements.flattop_duration = 1000.0
+    ini.requirements.tritium_breeding_ratio = 1.1
 
     ini.nb_unit[1].power_launched = 20E6
     ini.nb_unit[1].beam_energy = 200e3
@@ -46,6 +50,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].toroidal_angle = 0.0
 
     act.ActorPFdesign.symmetric = true
+    act.ActorEquilibrium.symmetrize = true
 
     act.ActorStabilityLimits.raise_on_breach = false
 
