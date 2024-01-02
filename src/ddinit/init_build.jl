@@ -3,63 +3,6 @@ import GeoInterface
 import Interpolations
 import OrderedCollections
 
-#= ========================================== =#
-#  Visualization of IMAS.build.layer as table  #
-#= ========================================== =#
-function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
-
-    df = DataFrames.DataFrame(;
-        group=String[],
-        details=String[],
-        type=String[],
-        ΔR=Float64[],
-        R_start=Float64[],
-        R_end=Float64[],
-        material=String[],
-        area=Float64[],
-        volume=Float64[]
-    )
-
-    for layer in layers
-        group = replace(string(BuildLayerSide(layer.side)), "_" => "")
-        type = replace(string(BuildLayerType(layer.type)), "_" => "")
-        type = replace(type, r"^gap" => "")
-        details = replace(lowercase(layer.name), r"^[hl]fs " => "")
-        details = replace(details, r"^gap .*" => "")
-        details = replace(details, r"\b" * type * r"\b" => "")
-        material = getproperty(layer, :material, "?")
-        material = split(material, ",")[1]
-        material = replace(material, "Vacuum" => "")
-        area = getproperty(layer, :area, NaN)
-        volume = getproperty(layer, :volume, NaN)
-        push!(df, [group, details, type, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume])
-    end
-
-    return df
-end
-
-function Base.show(io::IO, ::MIME"text/plain", layers::IMAS.IDSvector{<:IMAS.build__layer})
-    old_lines = get(ENV, "LINES", missing)
-    old_columns = get(ENV, "COLUMNS", missing)
-    df = DataFrames.DataFrame(layers)
-    try
-        ENV["LINES"] = 1000
-        ENV["COLUMNS"] = 1000
-        return show(io::IO, df)
-    finally
-        if old_lines === missing
-            delete!(ENV, "LINES")
-        else
-            ENV["LINES"] = old_lines
-        end
-        if old_columns === missing
-            delete!(ENV, "COLUMNS")
-        else
-            ENV["COLUMNS"] = old_columns
-        end
-    end
-end
-
 #= ========== =#
 #  init build  #
 #= ========== =#
