@@ -61,7 +61,7 @@ function _step(actor::ActorCXbuild)
     end
     empty!(bd.structure)
 
-    build_cx!(bd, pr, pz; par.n_points)
+    build_cx!(bd, dd.pf_active, pr, pz; par.n_points)
 
     divertor_regions!(bd, eqt, dd.divertors)
 
@@ -483,11 +483,11 @@ function IMAS.resample_2d_path(layer::IMAS.build__layer; method::Symbol=:linear,
 end
 
 """
-    build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_points::Int)
+    build_cx!(bd::IMAS.build, pfa::IMAS.pf_active, pr::Vector{Float64}, pz::Vector{Float64}; n_points::Int)
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_points::Int)
+function build_cx!(bd::IMAS.build, pfa::IMAS.pf_active, pr::Vector{Float64}, pz::Vector{Float64}; n_points::Int)
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
 
     # _plasma_ outline scaled to match 1D radial build
@@ -501,8 +501,6 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
     plasma.outline.r = pr
     plasma.outline.z = pz
 
-    coils_inside = any([contains(lowercase(l.name), "coils") for l in bd.layer])
-
     # all layers between plasma and TF
     # k-1 means the layer outside (ie. towards the tf)
     # k   is the current layer
@@ -513,7 +511,18 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
         layer = bd.layer[k]
         layer_shape = BuildLayerShape(mod(mod(layer.shape, 1000), 100))
         @debug "$(layer.name) $(layer_shape)"
-        layer.shape, layer.shape_parameters = optimize_shape(bd, k + 1, k, layer_shape; tight=!coils_inside, resolution=n_points / 201.0)
+
+        obstruction_outline = nothing
+        vertical_clearance = 1.0
+        if contains(lowercase(layer.name), "coils")
+            coils = pfa.coil
+            if !isempty(coils)
+                obstruction_outline = convex_outline(pfa.coil)#collect(findall(:shaping, pfa.coil)))   
+                vertical_clearance = 0.2
+            end
+        end
+
+        layer.shape, layer.shape_parameters = optimize_shape(bd, k + 1, k, layer_shape; vertical_clearance, resolution=n_points / 201.0, obstruction_outline)
     end
 
     # resample
@@ -526,11 +535,7 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
     TF = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_)
     D = (minimum(plasma.outline.z) * 2 + minimum(TF.outline.z)) / 3.0
     U = (maximum(plasma.outline.z) * 2 + maximum(TF.outline.z)) / 3.0
-    if coils_inside
-        # generally the OH does not go higher than the PF coils
-        D += 2.0 * TF.thickness
-        U -= 2.0 * TF.thickness
-    end
+
     for k in IMAS.get_build_indexes(bd.layer; fs=_in_)
         layer = bd.layer[k]
         L = layer.start_radius
@@ -561,11 +566,19 @@ function build_cx!(bd::IMAS.build, pr::Vector{Float64}, pz::Vector{Float64}; n_p
 end
 
 """
-    optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape::BuildLayerShape; tight::Bool=true, resolution::Float64=1.0)
+    optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape_enum::BuildLayerShape; vertical_clearance::Float64=1.0, resolution::Float64=1.0, obstruction_outline=nothing)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
-function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape_enum::BuildLayerShape; tight::Bool=true, resolution::Float64=1.0)
+function optimize_shape(
+    bd::IMAS.build,
+    obstr_index::Int,
+    layer_index::Int,
+    shape_enum::BuildLayerShape;
+    vertical_clearance::Float64=1.0,
+    resolution::Float64=1.0,
+    obstruction_outline=nothing
+)
     shape = Int(shape_enum)
 
     layer = bd.layer[layer_index]
@@ -599,17 +612,19 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
 
     oR = obstr.outline.r
     oZ = obstr.outline.z
+    if obstruction_outline !== nothing
+        hull = convex_hull(vcat(oR, obstruction_outline.r), vcat(oZ, obstruction_outline.z); closed_polygon=true)
+        oR = [r for (r, z) in hull]
+        oZ = [z for (r, z) in hull]
+    end
 
     if layer.side == Int(_out_)
-        target_clearance = lfs_thickness * 1.2
+        target_clearance = lfs_thickness * 1.3 * vertical_clearance
         use_curvature = false
     else
         use_curvature = shape_enum == IMAS._rectangle_ ? false : true
-        if tight
-            target_clearance = min(hfs_thickness, lfs_thickness)
-        else
-            target_clearance = sqrt(hfs_thickness^2 + lfs_thickness^2) / 2.0
-        end
+        target_clearance = min(hfs_thickness, lfs_thickness) * vertical_clearance
+        target_clearance = min(hfs_thickness, lfs_thickness) * vertical_clearance
     end
     r_offset = (lfs_thickness .- hfs_thickness) / 2.0
 
@@ -679,6 +694,34 @@ function optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shap
     IMAS.reorder_flux_surface!(layer.outline.r, layer.outline.z)
 
     return Int(shape_enum), shape_parameters
+end
+
+
+"""
+    convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
+
+returns convex-hull outline of all the pf coils elements in the input array
+"""
+function convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
+    out = IMAS.pf_active__coil___element___geometry__outline()
+    out.r = T[]
+    out.z = T[]
+
+    for coil in coils
+        for element in coil.element
+            oute = IMAS.outline(element)
+            append!(out.r, oute.r)
+            append!(out.z, oute.z)
+        end
+    end
+
+    points = convex_hull(out.r, out.z; closed_polygon=true)
+    empty!(out.z)
+    empty!(out.r)
+    out.r = [p[1] for p in points]
+    out.z = [p[2] for p in points]
+
+    return out
 end
 
 #= ========================================== =#

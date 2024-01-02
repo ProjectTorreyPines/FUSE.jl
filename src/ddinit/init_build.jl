@@ -168,7 +168,7 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
             layer.type = :gap
         elseif lowercase(layer.name) == "plasma"
             layer.type = :plasma
-        elseif uppercase(layer.name) == "OH"
+        elseif occursin("OH", uppercase(layer.name))
             layer.type = :oh
         elseif occursin("TF", uppercase(layer.name))
             layer.type = :tf
