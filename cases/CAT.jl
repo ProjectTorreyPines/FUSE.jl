@@ -14,7 +14,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.ods.filename = joinpath("__FUSE__", "sample", "CAT_eq_ods.json")
     ini.time.simulation_start = 0.006
 
-    ini.build.layers = layers_meters_from_fractions(; blanket=1.0, shield=0.5, vessel=0.125, pf_inside_tf=false, pf_outside_tf=true)
+    ini.build.layers = layers_meters_from_fractions(; blanket=1.0, shield=0.5, vessel=0.25, pf_inside_tf=false, pf_outside_tf=true, thin_vessel_walls=true)
     ini.build.n_first_wall_conformal_layers = 2
 
     ini.oh.n_coils = 6

@@ -350,11 +350,11 @@ function mechanical_technology(dd::IMAS.dd, what::Symbol)
 end
 
 """
-    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
+    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
 
-Handy functino for initialization of layers based on few scalars
+Handy function for initializing layers based on few scalars
 """
-function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
+function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
 
     # express layer thicknesses as fractions
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
@@ -362,9 +362,13 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
     if vessel > 0.0
-        layers[:hfs_vacuum_vessel_wall_outer] = vessel * 0.1
-        layers[:gap_hfs_vacuum_vessel] = vessel * 0.8
-        layers[:hfs_vacuum_vessel_wall_inner] = vessel * 0.1
+        if thin_vessel_walls
+            layers[:hfs_vacuum_vessel_wall_outer] = 0.1
+            layers[:hfs_vacuum_vessel] = vessel
+            layers[:hfs_vacuum_vessel_wall_inner] = 0.1
+        else
+            layers[:hfs_vacuum_vessel] = vessel
+        end
     end
     layers[:gap_hfs_coils] = pf_inside_tf ? 0 : -1
     if shield > 0.0
@@ -373,9 +377,9 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
     if blanket > 0.0
         layers[:hfs_blanket] = blanket
     end
-    layers[:hfs_wall] = 0.5
+    layers[:hfs_wall] = 0.1
     layers[:plasma] = 0.0 # this number does not matter
-    layers[:lfs_wall] = 0.5
+    layers[:lfs_wall] = 0.1
     if blanket > 0.0
         layers[:lfs_blanket] = blanket * 2.0
     end
@@ -384,9 +388,13 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
     end
     layers[:gap_lfs_coils] = 1.0 * (pf_inside_tf ? 2.25 : -1)
     if vessel > 0.0
-        layers[:lfs_vacuum_vessel_wall_inner] = vessel * 0.1
-        layers[:gap_lfs_vacuum_vessel] = vessel * 0.8
-        layers[:lfs_vacuum_vessel_wall_outer] = vessel * 0.1
+        if thin_vessel_walls
+            layers[:lfs_vacuum_vessel_wall_inner] = 0.1
+            layers[:lfs_vacuum_vessel] = vessel
+            layers[:lfs_vacuum_vessel_wall_outer] = 0.1
+        else
+            layers[:lfs_vacuum_vessel] = vessel
+        end
     end
     layers[:lfs_TF] = 1.0
     if blanket > 0.0
