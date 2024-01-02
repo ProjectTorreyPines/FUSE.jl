@@ -388,3 +388,44 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
         end
     end
 end
+
+#= ============================================= =#
+#  Visualization of IMAS.pf_active.coil as table  #
+#= ============================================= =#
+function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
+
+    df = DataFrames.DataFrame(;
+        var"function"=Vector{Symbol}[],
+        n_elements=Int[],
+        name=String[],
+    )
+
+    for coil in coils
+        func = [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
+        push!(df, [func, length(coil.element), coil.name])
+    end
+
+    return df
+end
+
+function Base.show(io::IO, ::MIME"text/plain", coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
+    old_lines = get(ENV, "LINES", missing)
+    old_columns = get(ENV, "COLUMNS", missing)
+    df = DataFrames.DataFrame(coils)
+    try
+        ENV["LINES"] = 1000
+        ENV["COLUMNS"] = 1000
+        return show(io::IO, df)
+    finally
+        if old_lines === missing
+            delete!(ENV, "LINES")
+        else
+            ENV["LINES"] = old_lines
+        end
+        if old_columns === missing
+            delete!(ENV, "COLUMNS")
+        else
+            ENV["COLUMNS"] = old_columns
+        end
+    end
+end
