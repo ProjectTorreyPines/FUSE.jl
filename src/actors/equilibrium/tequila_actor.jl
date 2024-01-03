@@ -184,6 +184,11 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
 
         # Flux Control Points
         flux_cps = VacuumFields.boundary_control_points(shot, 0.999, psib)
+        if length(eqt.boundary.strike_point) > 0
+            strike_weight = length(flux_cps) / length(eqt.boundary.strike_point)
+            strike_cps = [VacuumFields.FluxControlPoint(sp.r, sp.z, psib, strike_weight) for sp in eqt.boundary.strike_point]
+            append!(flux_cps, strike_cps)
+        end
 
         # Saddle Control Points
         saddle_weight = length(flux_cps) / length(eqt.boundary.x_point)
