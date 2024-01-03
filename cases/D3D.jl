@@ -15,18 +15,15 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     ini.general.init_from = :ods
     ini.equilibrium.boundary_from = :ods
 
+    maschine_description = joinpath(__FUSE__, "sample", "D3D_machine.json")
     shot_mappings = Dict(
-        :H_mode => Dict(:time0 => 2.7, :filename => joinpath(__FUSE__, "sample", "D3D_standard_Hmode.json")),
-        :L_mode => Dict(:time0 => 2.0, :filename => joinpath(__FUSE__, "sample", "D3D_standard_Lmode.json")),
-        :default => Dict(:time0 => 1.0, :filename => joinpath(__FUSE__, "sample", "D3D_eq_ods.json"))
+        :H_mode => Dict(:time0 => 2.7, :filename => "$(maschine_description),$(joinpath(__FUSE__, "sample", "D3D_standard_Hmode.json"))"),
+        :L_mode => Dict(:time0 => 2.0, :filename => "$(maschine_description),$(joinpath(__FUSE__, "sample", "D3D_standard_Lmode.json"))"),
+        :default => Dict(:time0 => 1.0, :filename => "$(maschine_description),$(joinpath(__FUSE__, "sample", "D3D_eq_ods.json"))")
     )
 
-    dd = IMAS.json2imas(joinpath(__FUSE__, "sample", "D3D_machine.json"))
-    merge!(dd, IMAS.json2imas(shot_mappings[scenario][:filename]))
-    ini.general.dd = dd
-
+    ini.ods.filename = shot_mappings[scenario][:filename]
     ini.time.simulation_start = shot_mappings[scenario][:time0]
-    dd.global_time = shot_mappings[scenario][:time0]
 
     #ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
     ini.build.layers = OrderedCollections.OrderedDict(

@@ -14,7 +14,7 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
         if !ismissing(ini.general, :dd)
             dd1 = ini.general.dd
         else
-            dd1 = IMAS.json2imas(replace(ini.ods.filename, r"^__FUSE__" => __FUSE__))
+            dd1 = load_ODSs_from_string(ini.ods.filename)
             dd1.global_time = ini.time.simulation_start
         end
 

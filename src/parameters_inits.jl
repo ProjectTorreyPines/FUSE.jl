@@ -176,7 +176,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ods
-    filename::Entry{String} = Entry{String}("-", "ODS.json file from which equilibrium is loaded")
+    filename::Entry{String} = Entry{String}("-", "ODS.json file(s) from which equilibrium is loaded. Multiple comma-separated ODSs can be specified.")
 end
 
 Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit where {T<:Real}
@@ -348,9 +348,8 @@ end
 return ini.equilibrium boundary expressed in MHX independenty of how the user input it
 """
 function IMAS.MXH(ini::ParametersAllInits)
-    init_from = ini.general.init_from
-    if init_from == :ods
-        dd = IMAS.json2imas(replace(ini.ods.filename, r"^__FUSE__" => __FUSE__))
+    if ini.general.init_from == :ods
+        dd = load_ODSs_from_string(ini.ods.filename)
     else
         dd = IMAS.dd()
     end
@@ -460,4 +459,19 @@ Plots ini time dependent time traces including plasma boundary
             end
         end
     end
+end
+
+"""
+    load_ODSs_from_string(filenames::String)
+
+Load multiple comma-separated filenames into a single dd
+"""
+function load_ODSs_from_string(filenames::String)
+    dd = IMAS.dd()
+    for filename in split(filenames, ",")
+        filename = replace(filename, r"^__FUSE__" => __FUSE__)
+        dd1 = IMAS.json2imas(filename)
+        merge!(dd, dd1)
+    end
+    return dd
 end
