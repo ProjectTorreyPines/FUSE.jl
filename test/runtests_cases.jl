@@ -34,9 +34,9 @@ using Test
                     FUSE.init(dd, ini, act)
                 end
 
-                # @testset "whole_facility" begin
-                #     FUSE.ActorWholeFacility(dd, act)
-                # end
+                @testset "whole_facility" begin
+                    FUSE.ActorWholeFacility(dd, act)
+                end
             end
         end
     end

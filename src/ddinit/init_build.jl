@@ -164,7 +164,10 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
         layer.thickness = thickness
 
         # type
-        if occursin("gap ", lowercase(layer.name))
+        @show layer.name
+        if occursin("OH", uppercase(layer.name)) && occursin("hfs", lowercase(layer.name))
+            layer.type = :oh
+        elseif occursin("gap ", lowercase(layer.name))
             layer.type = :gap
         elseif lowercase(layer.name) == "plasma"
             layer.type = :plasma

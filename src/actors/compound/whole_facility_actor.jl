@@ -90,31 +90,36 @@ function _step(actor::ActorWholeFacility)
         actor.StabilityLimits = ActorStabilityLimits(dd, act)
     end
 
-    if par.update_build
-        actor.HFSsizing = ActorHFSsizing(dd, act)
-        actor.LFSsizing = ActorLFSsizing(dd, act)
-        actor.CXbuild = ActorCXbuild(dd, act)
-        actor.PassiveStructures = ActorPassiveStructures(dd, act)
+    if isempty(dd.build.layer)
+        @warn "ActorWholeFacility: skipping engineering/costing actors since build is missing"
 
-        actor.PFdesign = ActorPFdesign(dd, act)
-        if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
-            actor.CXbuild = ActorCXbuild(dd, act)
-            ActorPFactive(dd, act; update_equilibrium=false)
-        end
     else
-        ActorFluxSwing(dd, act)
-        ActorStresses(dd, act)
+        if par.update_build
+            actor.HFSsizing = ActorHFSsizing(dd, act)
+            actor.LFSsizing = ActorLFSsizing(dd, act)
+            actor.CXbuild = ActorCXbuild(dd, act)
+            actor.PassiveStructures = ActorPassiveStructures(dd, act)
+
+            actor.PFdesign = ActorPFdesign(dd, act)
+            if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
+                actor.CXbuild = ActorCXbuild(dd, act)
+                ActorPFactive(dd, act; update_equilibrium=false)
+            end
+        else
+            ActorFluxSwing(dd, act)
+            ActorStresses(dd, act)
+        end
+
+        actor.Neutronics = ActorNeutronics(dd, act)
+
+        actor.Blanket = ActorBlanket(dd, act)
+
+        actor.Divertors = ActorDivertors(dd, act)
+
+        actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
+
+        actor.Costing = ActorCosting(dd, act)
     end
-
-    actor.Neutronics = ActorNeutronics(dd, act)
-
-    actor.Blanket = ActorBlanket(dd, act)
-
-    actor.Divertors = ActorDivertors(dd, act)
-
-    actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
-
-    actor.Costing = ActorCosting(dd, act)
 
     return actor
 end
