@@ -5,6 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T} <: ParametersActor w
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
+    update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
@@ -33,7 +34,7 @@ end
 function ActorPFdesign(dd::IMAS.dd, par::FUSEparameters__ActorPFdesign, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPFdesign)
     par = par(kw...)
-    actor_pf = ActorPFactive(dd, act.ActorPFactive)
+    actor_pf = ActorPFactive(dd, act.ActorPFactive; par.update_equilibrium)
     return ActorPFdesign(dd, par, actor_pf)
 end
 
