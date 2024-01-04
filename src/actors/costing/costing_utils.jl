@@ -19,16 +19,19 @@ function unit_cost(material::AbstractString, cst::IMAS.costing)
     elseif material == "ReBCO"
         production_increase = cst.future.learning.hts.production_increase
         learning_rate = cst.future.learning.hts.learning_rate
-        cost_per_unit_volume = FusionMaterials.material(material)["unit_cost"] * (FusionMaterials.material(material)["density"] * 1e3) * cost_multiplier(production_increase, learning_rate)
+        cost_per_unit_volume =
+            FusionMaterials.material(material)["unit_cost"] * (FusionMaterials.material(material)["density"] * 1e3) * cost_multiplier(production_increase, learning_rate)
     elseif contains(lowercase(material), "nb3sn")
         cost_per_unit_volume = FusionMaterials.material("Nb3Sn")["unit_cost"] * (FusionMaterials.material("Nb3Sn")["density"] * 1e3)
-    elseif material == "lithium-lead" || material == "FLiBe"
+        # multiplier_and_breeder_materials
+    elseif material in ["lithium-lead", "FLiBe"]
         materials = FusionMaterials.material_group("multiplier_and_breeder_materials")
         cost_per_unit_volume = materials[material]["unit_cost"] * (materials[material]["density"] * 1e3)
-    elseif material == "Tungsten"
+        # structural_materials
+    elseif material in ["Tungsten", "Steel, Stainless 316"]
         materials = FusionMaterials.material_group("structural_materials")
         cost_per_unit_volume = materials[material]["unit_cost"] * (materials[material]["density"] * 1e3)
-    else 
+    else
         cost_per_unit_volume = FusionMaterials.material(material)["unit_cost"] * (FusionMaterials.material(material)["density"] * 1e3)
     end
 
