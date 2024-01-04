@@ -84,7 +84,7 @@ function _finalize(actor::ActorEquilibrium)
 
     # finalize selected equilibrium actor
     finalize(actor.eq_actor)
-    
+
     eqt = dd.equilibrium.time_slice[]
 
     # symmetrize equilibrium if requested and number of X-points is even
@@ -179,6 +179,22 @@ function prepare(actor::ActorEquilibrium)
             end
         end
     end
+
+    # stike-points
+    if length(getproperty(pc, :strike_point, [])) >= 1
+        n = 0
+        for k in eachindex(pc.strike_point)
+            rs = @ddtime(pc.strike_point[k].r.reference.data)
+            zs = @ddtime(pc.strike_point[k].z.reference.data)
+            if rs > 0.0 && !isnan(rs) && !isnan(zs)
+                n += 1
+                resize!(eqt.boundary.strike_point, n)
+                eqt.boundary.strike_point[n].r = rs
+                eqt.boundary.strike_point[n].z = zs
+            end
+        end
+    end
+
 
     # set j_tor and pressure, forcing zero derivative on axis
     eq1d = dd.equilibrium.time_slice[].profiles_1d
