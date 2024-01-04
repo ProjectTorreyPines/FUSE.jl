@@ -1,5 +1,5 @@
-using CSV
-using DataFrames
+import CSV
+import DataFrames
 import Memoize
 import Dates
 
@@ -73,19 +73,41 @@ function DollarAdjust(dd::IMAS.dd)
     return DollarAdjust(dd.costing.future.inflation_rate, dd.costing.construction_start_year, missing, missing)
 end
 
+"""
+    load_inflation_rate()
+
+Inflation of past costs according to U.S. Bureau of Labor Statistics CPI data
+
+Source: https://data.bls.gov/cgi-bin/surveymost?cu (Dataset CUUR0000SA0)
+
+NOTE: To update simply copy-paste the table at the website in the "CPI.csv" file
+"""
 Memoize.@memoize function load_inflation_rate()
+    months = [:Jan, :Feb, :Mar, :Apr, :May, :Jun, :Jul, :Aug, :Sep, :Oct, :Nov, :Dec]
+    types = Dict(
+        :Year => Int64,
+        :HALF1 => Union{Float64,Missing},
+        :HALF2 => Union{Float64,Missing}
+    )
+    for month in months
+        types[month] = Union{Float64,Missing}
+    end
+
     csv_loc = abspath(joinpath(@__DIR__, "CPI.csv"))
-    CPI = DataFrame(CSV.File(csv_loc))
+
+    CPI = DataFrames.DataFrame(CSV.File(csv_loc; types, missingstring=" ", silencewarnings=true))
+    DataFrames.select!(CPI, Not(:HALF1))
+    DataFrames.select!(CPI, Not(:HALF2))
+
+    CPI[!, "Year Avg"] = [sum([x for x in row[months] if x !== missing]) / length([x for x in row[months] if x !== missing]) for row in eachrow(CPI)]
+
     return CPI
 end
 
 """
-	future_dollars(dollars::Real, da::DollarAdjust)
+    future_dollars(dollars::Real, da::DollarAdjust)
 
-Adjusts costs assessed in a previous year to current or future dollar amount 
-
-NOTE: Inflation of past costs according to U.S. Bureau of Labor Statistics CPI data 
-Source: https://data.bls.gov/cgi-bin/surveymost?cu (Dataset CUUR0000SA0)
+Adjusts costs assessed in a previous year to current or future dollar amount
 """
 function future_dollars(dollars::Real, da::DollarAdjust)
     CPI = load_inflation_rate()

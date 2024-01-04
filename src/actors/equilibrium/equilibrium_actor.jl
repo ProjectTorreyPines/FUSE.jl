@@ -58,7 +58,7 @@ function _step(actor::ActorEquilibrium)
 
     if par.do_plot
         if !isempty(dd.equilibrium.time_slice)
-            plot(dd.equilibrium; cx=true, label="before ActorEquilibrium")
+            plot(dd.equilibrium; label="before ActorEquilibrium")
         else
             plot()
         end
@@ -84,7 +84,7 @@ function _finalize(actor::ActorEquilibrium)
 
     # finalize selected equilibrium actor
     finalize(actor.eq_actor)
-    
+
     eqt = dd.equilibrium.time_slice[]
 
     # symmetrize equilibrium if requested and number of X-points is even
@@ -103,7 +103,7 @@ function _finalize(actor::ActorEquilibrium)
     end
 
     if par.do_plot
-        plot!(dd.equilibrium; label="after ActorEquilibrium")
+        display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
     end
 
     return actor
@@ -123,21 +123,16 @@ function prepare(actor::ActorEquilibrium)
     dd = actor.dd
     ps = dd.pulse_schedule
     pc = ps.position_control
-
-    # freeze core_profiles before wiping eqt and get ip
-    ip = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
     cp1d = dd.core_profiles.profiles_1d[]
-    psi = cp1d.grid.psi
-    if true
-        index = cp1d.grid.psi_norm .> 0.05
-        rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
-        j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
-        pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-    else
-        rho_pol_norm0 = sqrt.(cp1d.grid.psi_norm)
-        j_tor0 = cp1d.j_tor
-        pressure0 = cp1d.pressure
-    end
+
+    # NOTE: We freeze cp1d.j_tor and cp1d.pressure in the data structure!
+    #       cp1d.grid.... should all be frozen already because they are one-time expressions
+    #       This is to ensure that calling ActorEquilibrium multiple times returns the same solution
+    cp1d.j_tor = cp1d.j_tor
+    cp1d.pressure = cp1d.pressure
+
+    # get ip before wiping eqt in case ip_from=:equilibrium
+    ip = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
 
     # add/clear time-slice
     eqt = resize!(dd.equilibrium.time_slice)
@@ -146,12 +141,14 @@ function prepare(actor::ActorEquilibrium)
 
     # scalar quantities
     eqt.global_quantities.ip = ip
-
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
     B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference.data) / R0
     @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)
 
-    # position control
+    # boundary from position control
+    eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
+
+    # boundary scalars from position control
     eqt.boundary.minor_radius = @ddtime(pc.minor_radius.reference.data)
     eqt.boundary.geometric_axis.r = @ddtime(pc.geometric_axis.r.reference.data)
     eqt.boundary.geometric_axis.z = @ddtime(pc.geometric_axis.z.reference.data)
@@ -159,14 +156,8 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.triangularity = @ddtime(pc.triangularity.reference.data)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
 
-    # boundary
-    r_bound, z_bound = IMAS.boundary(pc)
-    #r_bound, z_bound = limit_curvature(r_bound, z_bound, 0.5)
-    eqt.boundary.outline.r = r_bound
-    eqt.boundary.outline.z = z_bound
-
-    # x-points
-    if length(getproperty(pc, :x_point, [])) >= 1
+    # x-points from position control
+    if !isempty(getproperty(pc, :x_point, []))
         n = 0
         for k in eachindex(pc.x_point)
             rx = @ddtime(pc.x_point[k].r.reference.data)
@@ -180,9 +171,36 @@ function prepare(actor::ActorEquilibrium)
         end
     end
 
+    # stike-points from position control
+    if !isempty(getproperty(pc, :strike_point, []))
+        n = 0
+        for k in eachindex(pc.strike_point)
+            rs = @ddtime(pc.strike_point[k].r.reference.data)
+            zs = @ddtime(pc.strike_point[k].z.reference.data)
+            if rs > 0.0 && !isnan(rs) && !isnan(zs)
+                n += 1
+                resize!(eqt.boundary.strike_point, n)
+                eqt.boundary.strike_point[n].r = rs
+                eqt.boundary.strike_point[n].z = zs
+            end
+        end
+    end
+
+    # make sure j_tor and pressure on axis come in with zero gradient
+    if true
+        index = cp1d.grid.psi_norm .> 0.05
+        rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+        j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
+        pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    else
+        rho_pol_norm0 = sqrt.(cp1d.grid.psi_norm)
+        j_tor0 = cp1d.j_tor
+        pressure0 = cp1d.pressure
+    end
+
     # set j_tor and pressure, forcing zero derivative on axis
     eq1d = dd.equilibrium.time_slice[].profiles_1d
-    eq1d.psi = psi
+    eq1d.psi = cp1d.grid.psi
     eq1d.j_tor = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic).(sqrt.(eq1d.psi_norm))
     eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
 

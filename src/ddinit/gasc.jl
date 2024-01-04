@@ -31,7 +31,7 @@ function GASC(filename::String, case::Int)
     # from python to julia indexing
     case_j = case + 1
     # parse data
-    data = JSON.parsefile(filename)
+    data = JSON.parsefile(replace(filename, r"__FUSE__" => __FUSE__))
     # identify version of GASC output
     version = 0
     if "boundaryInnerTF" in keys(data["SOLUTIONS"][case_j]["OUTPUTS"]["numerical profiles"])
@@ -144,8 +144,6 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
     T = Float64
     cd_powers = T[]
 
-    push!(ini.nb_unit, )
-
     for (energy,pow) in ((200e3, outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]), (1000e3, outputs["CDpowerNNBCD"] * 1E6 * inputs["NNBCDFraction"]))
         if pow > 0.0
             nb_unit = FUSEparameters__nb_unit{T}()
@@ -181,7 +179,6 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
         push!(ini.ic_antenna, ic_antenna)
         push!(cd_powers, pow)
     end
-
 
     for pow in (outputs["CDpowerLHCD"] * 1E6 * inputs["LHCDFraction"], outputs["CDpowerHICD"] * 1E6 * inputs["HICDFraction"])
         if pow > 0.0

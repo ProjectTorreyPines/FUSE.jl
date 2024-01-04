@@ -52,7 +52,7 @@ function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
         boundary_control_points,
         flux_control_points,
         saddle_control_points,
-        0.0,
+        -1.0,
         NaN,
         nothing
     )
@@ -140,9 +140,8 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 
     # update equilibrium psi2d and retrace flux surfaces
     if par.update_equilibrium
-        eqt2d_in.psi = eqt2d_out.psi
+        eqt2d_in.psi = collect(VacuumFields.fixed2free(EQfixed, coils, eqt2d_in.grid.dim1, eqt2d_in.grid.dim2)')
         IMAS.flux_surfaces(eqt_in)
-        actor.eq_out = eq_in
     end
 
     return actor

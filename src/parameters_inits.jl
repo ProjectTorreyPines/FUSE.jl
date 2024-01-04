@@ -14,13 +14,14 @@ const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, st
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
-    casename::Entry{String} = Entry{String}("-", "Mnemonic name of the case being run")
+    casename::Entry{String} = Entry{String}("-", "Sort mnemonic name of the case being run")
+    description::Entry{String} = Entry{String}("-", "Longer description of the case being run")
     init_from::Switch{Symbol} = Switch{Symbol}(
         [
             :ods => "Load data from ODS saved in .json format (where possible, and fallback on scalars otherwise)",
-            :scalars => "Initialize FUSE run from scalar parameters",
+            :scalars => "Initialize FUSE run from scalar parameters"
         ], "-", "Initialize run from")
-    dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "dd to initialize from after fixes")
+    dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "dd to initialize from")
 end
 
 Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}
@@ -40,7 +41,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     κ::Entry{T} = Entry{T}("-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
     δ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :triangularity)
     ζ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
-    𝚶::Entry{T} = Entry{T}("-", "Plasma ovality for up-down asymmetric plasmas"; default=0.0)
+    𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary for up-down asymmetric plasmas"; default=0.0)
     pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure")
     ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
@@ -117,7 +118,7 @@ end
 
 Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :ec_launchers
+    _name::Symbol = :ec_launcher
     power_launched::Entry{T} = Entry{T}("W", "EC launched power")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :conversion; default=1.0)
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :transmission; default=1.0)
@@ -125,7 +126,7 @@ end
 
 Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :ic_antennas
+    _name::Symbol = :ic_antenna
     power_launched::Entry{T} = Entry{T}("W", "IC launched power")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :conversion; default=1.0)
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :transmission; default=1.0)
@@ -134,7 +135,7 @@ end
 
 Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :lh_antennas
+    _name::Symbol = :lh_antenna
     power_launched::Entry{T} = Entry{T}("W", "LH launched power")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :conversion; default=1.0)
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :transmission; default=1.0)
@@ -176,7 +177,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ods
-    filename::Entry{String} = Entry{String}("-", "ODS.json file from which equilibrium is loaded")
+    filename::Entry{String} = Entry{String}("-", "ODS.json file(s) from which equilibrium is loaded. Multiple comma-separated ODSs can be specified.")
 end
 
 Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit where {T<:Real}
@@ -285,6 +286,20 @@ function json2ini(filename::AbstractString)
 end
 
 """
+    ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
+
+Save the FUSE parameters to a YAML file with give `filename`
+`kw` arguments are passed to the YAML.print function
+"""
+function ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
+    return SimulationParameters.par2yaml(ini, filename; kw...)
+end
+
+function yaml2ini(filename::AbstractString)
+    return SimulationParameters.yaml2par(filename, ParametersInits())
+end
+
+"""
     ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
 
 if elongation <1.0 then expresses elongation as fraction of maximum controllable elongation estimate
@@ -335,9 +350,8 @@ end
 return ini.equilibrium boundary expressed in MHX independenty of how the user input it
 """
 function IMAS.MXH(ini::ParametersAllInits)
-    init_from = ini.general.init_from
-    if init_from == :ods
-        dd = IMAS.json2imas(ini.ods.filename)
+    if ini.general.init_from == :ods
+        dd = load_ODSs_from_string(ini.ods.filename)
     else
         dd = IMAS.dd()
     end
@@ -447,4 +461,19 @@ Plots ini time dependent time traces including plasma boundary
             end
         end
     end
+end
+
+"""
+    load_ODSs_from_string(filenames::String)
+
+Load multiple comma-separated filenames into a single dd
+"""
+function load_ODSs_from_string(filenames::String)
+    dd = IMAS.dd()
+    for filename in split(filenames, ",")
+        filename = replace(filename, r"^__FUSE__" => __FUSE__)
+        dd1 = IMAS.json2imas(filename)
+        merge!(dd, dd1)
+    end
+    return dd
 end

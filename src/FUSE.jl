@@ -21,6 +21,8 @@ function __init__()
     end
 end
 
+const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
+
 #= ===== =#
 #  UTILS  #
 #= ===== =#
@@ -30,6 +32,11 @@ include("utils_begin.jl")
 #  ABSTRACT PARAMETERS  #
 #= =================== =#
 include("parameters.jl")
+
+#= ===== =#
+#  CASES  #
+#= ===== =#
+include("../cases/_cases.jl")
 
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
