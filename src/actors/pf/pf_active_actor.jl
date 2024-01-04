@@ -140,7 +140,7 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 
     # update equilibrium psi2d and retrace flux surfaces
     if par.update_equilibrium
-        eqt2d_in.psi = eqt2d_out.psi
+        eqt2d_in.psi = collect(VacuumFields.fixed2free(EQfixed, coils, eqt2d_in.grid.dim1, eqt2d_in.grid.dim2)')
         IMAS.flux_surfaces(eqt_in)
     end
 
