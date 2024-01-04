@@ -109,7 +109,8 @@ function future_dollars(dollars::Real, da::DollarAdjust)
     if CPI.Year[1] <= da.year_assessed <= CPI.Year[end-1]
         CPI_past_year = CPI[findfirst(x -> x == da.year_assessed, CPI.Year), "Year Avg"]
         val_today = CPI[end, "Year Avg"] ./ CPI_past_year .* dollars
-    elseif da.year_assessed == CPI.Year[end]
+    elseif da.year_assessed == CPI.Year[end] || da.year_assessed == CPI.Year[end] + 1
+        # allow one year of slack before raising warning that inflation data is not available
         val_today = dollars
     else
         @warn "Inflation data not available for $(da.year_assessed)"
