@@ -142,7 +142,6 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     if par.update_equilibrium
         eqt2d_in.psi = eqt2d_out.psi
         IMAS.flux_surfaces(eqt_in)
-        actor.eq_out = eq_in
     end
 
     return actor
