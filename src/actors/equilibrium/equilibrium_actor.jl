@@ -157,7 +157,7 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
 
     # x-points from position control
-    if length(getproperty(pc, :x_point, [])) >= 1
+    if !isempty(getproperty(pc, :x_point, []))
         n = 0
         for k in eachindex(pc.x_point)
             rx = @ddtime(pc.x_point[k].r.reference.data)
@@ -167,6 +167,21 @@ function prepare(actor::ActorEquilibrium)
                 resize!(eqt.boundary.x_point, n)
                 eqt.boundary.x_point[n].r = rx
                 eqt.boundary.x_point[n].z = zx
+            end
+        end
+    end
+
+    # stike-points from position control
+    if !isempty(getproperty(pc, :strike_point, []))
+        n = 0
+        for k in eachindex(pc.strike_point)
+            rs = @ddtime(pc.strike_point[k].r.reference.data)
+            zs = @ddtime(pc.strike_point[k].z.reference.data)
+            if rs > 0.0 && !isnan(rs) && !isnan(zs)
+                n += 1
+                resize!(eqt.boundary.strike_point, n)
+                eqt.boundary.strike_point[n].r = rs
+                eqt.boundary.strike_point[n].z = zs
             end
         end
     end
