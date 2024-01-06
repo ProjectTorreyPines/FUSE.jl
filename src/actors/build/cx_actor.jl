@@ -179,7 +179,7 @@ function wall_from_eq!(
         Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
         Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
         d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
-        if d > linear_plasma_size / 5
+        if d > linear_z_plasma_size / 5
             continue
         end
 

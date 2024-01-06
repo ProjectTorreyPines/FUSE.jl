@@ -66,30 +66,32 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 
         # set the TF shape
         tf_to_plasma = IMAS.get_build_indexes(dd.build.layer; fs=_hfs_)
-        plama_to_tf = collect(reverse(tf_to_plasma))
-        # set all shapes to convex hull by default
+        plasma_to_tf = collect(reverse(tf_to_plasma))
+        # set all layers with missing shapes to convex hull by default
         for k in tf_to_plasma
-            dd.build.layer[k].shape = Int(_convex_hull_)
+            if dd.build.layer[k].shape == -10
+                dd.build.layer[k].shape = Int(_convex_hull_)
+            end
         end
         # set TF (shape is set by inner)
         dd.build.layer[tf_to_plasma[2]].shape = Int(ini.tf.shape)
         # first layer is a offset
-        k = plama_to_tf[1]
+        k = plasma_to_tf[1]
         if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k-1].type == Int(_blanket_)) || (dd.build.layer[k-1].type == Int(_shield_)))
             dd.build.layer[k].shape = Int(_offset_)
         end
 
-        if ini.build.n_first_wall_conformal_layers >= 0
-            # for k in plama_to_tf[ini.build.n_first_wall_conformal_layers:end-1]
+        #if ini.build.n_first_wall_conformal_layers >= 0
+            # for k in plasma_to_tf[ini.build.n_first_wall_conformal_layers:end-1]
             #     dd.build.layer[k+1].shape = Int(_offset_)
             # end
-            dd.build.layer[plama_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
-        end
+            #dd.build.layer[plasma_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
+        #end
 
         # if ini.build.n_first_wall_conformal_layers >= 0
         #     dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
         #     dd.build.layer[tf_to_plasma[2]].shape = Int(_offset_)
-        #     dd.build.layer[plama_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
+        #     dd.build.layer[plasma_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
         # end
 
         # 2D build cross-section
@@ -140,6 +142,8 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
         end
         if !ismissing(ini_layer, :shape)
             layer.shape = Int(ini_layer.shape)
+        else
+            layer.shape = -10
         end
     end
 
@@ -315,7 +319,7 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         elseif layer.type == Int(_wall_)
             layer.material = "Tungsten"
         elseif layer.type == Int(_vessel_)
-            layer.material = "Water, Liquid"
+            layer.material = "Steel, Stainless 316"
         elseif layer.type == Int(_cryostat_)
             layer.material = "Steel, Stainless 316"
         end
