@@ -1,317 +1,322 @@
 {
- ":ActorNeutronics": {
-  ":N": 100000,
-  ":do_plot": false
- },
- ":ActorCHEASE": {
-  ":clear_workdir": true,
-  ":free_boundary": true,
-  ":rescale_eq_to_ip": true
- },
- ":ActorWholeFacility": {
-  ":update_plasma": true
- },
- ":ActorCXbuild": {
-  ":n_points": 101,
-  ":rebuild_wall": true,
-  ":do_plot": false
- },
- ":ActorLHsimple": {
-  ":width": 0.1,
-  ":rho_0": 0.8
- },
- ":ActorGASCCosting": {
-  ":fixed_charge_rate": 0.078,
-  ":blanket_fluence_lifetime": 15.0,
-  ":capitalize_divertor": true,
-  ":capitalize_blanket": true,
-  ":divertor_fluence_lifetime": 10.0,
-  ":construction_lead_time": 8.0
- },
- ":ActorStationaryPlasma": {
-  ":max_iter": 10,
-  ":convergence_error": 0.01,
-  ":do_plot": true
- },
- ":ActorTGLF": {
-  ":nn": true,
-  ":rho_transport": [
-   0.2,
-   0.3,
-   0.4,
-   0.5,
-   0.6,
-   0.7,
-   0.8
-  ],
-  ":warn_nn_train_bounds": false,
-  ":sat_rule": ":sat1",
-  ":electromagnetic": true
- },
- ":ActorHFSsizing": {
-  ":error_on_performance": false,
-  ":stress_tolerance": 0.01,
-  ":error_on_technology": false,
-  ":verbose": true,
-  ":j_tolerance": 0.5,
-  ":do_plot": true
- },
- ":ActorNeoclassical": {
-  ":neoclassical_model": ":changhinton",
-  ":rho_transport": [
-   0.2,
-   0.3,
-   0.4,
-   0.5,
-   0.6,
-   0.7,
-   0.8
-  ]
- },
- ":ActorPFcoilsOpt": {
-  ":update_equilibrium": true,
-  ":verbose": false,
-  ":do_plot": true,
-  ":symmetric": false,
-  ":weight_currents": 2.0,
-  ":optimization_scheme": ":rail",
-  ":weight_lcfs": 1.0,
-  ":green_model": ":simple",
-  ":weight_strike": 0.1,
-  ":weight_null": 0.1,
-  ":maxiter": 1000
- },
- ":ActorThermalCycle": {
-  ":Nt": 1,
-  ":rp": 3.0,
-  ":regen": null,
-  ":Tmax": 1223.15,
-  ":fixed_cycle_efficiency": 0.4,
-  ":Pmax": 8.0e6,
-  ":Nc": 3,
-  ":power_cycle_type": ":fixed_cycle_efficiency",
-  ":Tmin": 308.15,
-  ":do_plot": false
- },
- ":ActorBlanket": {
-  ":blanket_multiplier": 1.2,
-  ":thermal_power_extraction_efficiency": 1.0,
-  ":verbose": false,
-  ":minimum_first_wall_thickness": 0.02
- },
- ":ActorStresses": {
-  ":n_points": 5,
-  ":do_plot": false
- },
- ":ActorSteadyStateCurrent": {},
- ":ActorFluxCalculator": {
-  ":turbulence_model": ":TGLF",
-  ":neoclassical_model": ":neoclassical",
-  ":rho_transport": [
-   0.2,
-   0.3,
-   0.4,
-   0.5,
-   0.6,
-   0.7,
-   0.8
-  ]
- },
- ":ActorHeatTransfer": {
-  ":breeder_pressure": 1.0e6,
-  ":blanket_η_pump": 0.89,
-  ":breeder_hi_temp": 1373.15,
-  ":blanket_max_temp": 723.15,
-  ":divertor_coolant": ":He",
-  ":blanket_coolant": ":He",
-  ":breeder_fluid": ":PbLi",
-  ":divertor_HX_ϵ": 0.9,
-  ":coolant_pressure": 1.0e7,
-  ":divertor_max_temp": 923.15,
-  ":divertor_η_pump": 0.89,
-  ":breeder_HX_ϵ": 0.9,
-  ":breeder_low_temp": 973.15,
-  ":coolant_ΔP": 300000.0,
-  ":blanket_HX_ϵ": 0.9,
-  ":breeder_ΔP": 250000.0,
-  ":breeder_η_pump": 0.7
- },
- ":ActorStabilityLimits": {
-  ":raise_on_breach": false,
-  ":models": [
-   ":beta_troyon_1984",
-   ":model_201",
-   ":model_401"
-  ]
- },
- ":ActorHCD": {
-  ":ec_model": ":ECsimple",
-  ":lh_model": ":LHsimple",
-  ":nb_model": ":NBsimple",
-  ":ic_model": ":ICsimple"
- },
- ":ActorTEQUILA": {
-  ":tolerance": 1.0e-6,
-  ":relax": 0.25,
-  ":psi_norm_boundary_cutoff": 0.999,
-  ":number_of_radial_grid_points": 21,
-  ":number_of_iterations": 20,
-  ":debug": false,
-  ":number_of_fourier_modes": 20,
-  ":free_boundary": true,
-  ":number_of_MXH_harmonics": 10
- },
- ":ActorDivertors": {
-  ":heat_flux_model": ":lengyel",
-  ":impurities": [],
-  ":heat_spread_factor": 1.0,
-  ":thermal_power_extraction_efficiency": 1.0,
-  ":verbose": false,
-  ":impurities_fraction": []
+ ":ActorARIESCosting": {
+  ":land_space": 1000.0,
+  ":building_volume": 140000.0,
+  ":interest_rate": 0.05,
+  ":indirect_cost_rate": 0.4,
+  ":escalation_fraction": 0.05,
+  ":blanket_lifetime": 6.8
  },
  ":ActorBalanceOfPlant": {
   ":generator_conversion_efficiency": 0.95,
   ":do_plot": false
  },
+ ":ActorBlanket": {
+  ":minimum_first_wall_thickness": 0.02,
+  ":blanket_multiplier": 1.2,
+  ":thermal_power_extraction_efficiency": 1.0,
+  ":verbose": false
+ },
+ ":ActorCHEASE": {
+  ":free_boundary": true,
+  ":clear_workdir": true,
+  ":rescale_eq_to_ip": true
+ },
+ ":ActorCXbuild": {
+  ":rebuild_wall": false,
+  ":n_points": 101,
+  ":do_plot": false
+ },
+ ":ActorCoreTransport": {
+  ":model": ":FixedProfiles",
+  ":do_plot": false
+ },
  ":ActorCosting": {
+  ":model": ":GASC",
+  ":construction_start_year": 2024,
   ":future_inflation_rate": 0.025,
-  ":learning_rate": 0.616,
-  ":construction_start_year": 2023,
-  ":availability": 0.8,
   ":plant_lifetime": 40,
+  ":availability": 0.8,
   ":production_increase": 10.0,
-  ":model": ":GASC"
- },
- ":ActorPedestal": {
-  ":T_ratio_pedestal": 1.0,
-  ":ped_factor": 1.0,
-  ":update_core_profiles": false,
-  ":warn_nn_train_bounds": false,
-  ":edge_bound": 0.8,
-  ":only_powerlaw": false
- },
- ":ActorFluxMatcher": {
-  ":verbose": false,
-  ":do_plot": false,
-  ":step_size": 1.0,
-  ":optimizer_algorithm": ":anderson",
-  ":evolve_densities": {
-   ":DT": ":quasi_neutrality",
-   ":He4": ":match_ne_scale",
-   ":Ar": ":match_ne_scale",
-   ":electrons": ":flux_match",
-   ":He4_fast": ":constant"
-  },
-  ":evolve_rotation": ":fixed",
-  ":evolve_pedestal": true,
-  ":rho_transport": [
-   0.2,
-   0.3,
-   0.4,
-   0.5,
-   0.6,
-   0.7,
-   0.8
-  ],
-  ":max_iterations": 200,
-  ":evolve_Te": ":flux_match",
-  ":evolve_Ti": ":flux_match"
+  ":learning_rate": 0.616
  },
  ":ActorCurrent": {
   ":model": ":SteadyStateCurrent"
  },
- ":ActorLFSsizing": {
-  ":verbose": false,
+ ":ActorDivertors": {
+  ":heat_flux_model": ":lengyel",
+  ":impurities": [],
+  ":impurities_fraction": [],
+  ":heat_spread_factor": 1.0,
+  ":thermal_power_extraction_efficiency": 1.0,
+  ":verbose": false
+ },
+ ":ActorDynamicPlasma": {
+  ":evolve_transport": true,
+  ":evolve_pedestal": true,
+  ":evolve_hcd": true,
+  ":evolve_current": true,
+  ":evolve_equilibrium": true,
+  ":evolve_pf_active": true
+ },
+ ":ActorECsimple": {
+  ":width": [
+   0.05
+  ],
+  ":rho_0": [
+   0.5
+  ],
+  ":ηcd_scale": 1.0
+ },
+ ":ActorEquilibrium": {
+  ":model": ":TEQUILA",
+  ":symmetrize": false,
   ":do_plot": false
  },
- ":ActorPassiveStructures": {
-  ":do_plot": false
+ ":ActorFixedProfiles": {
+  ":T_shaping": 2.5,
+  ":n_shaping": 2.5,
+  ":T_ratio_pedestal": 1.0,
+  ":T_ratio_core": 0.825,
+  ":update_pedestal": true
+ },
+ ":ActorFluxCalculator": {
+  ":rho_transport": [
+   0.25,
+   0.35,
+   0.45,
+   0.55,
+   0.65,
+   0.75,
+   0.85
+  ],
+  ":turbulence_model": ":TGLF",
+  ":neoclassical_model": ":neoclassical"
+ },
+ ":ActorFluxCapacitor": {},
+ ":ActorFluxMatcher": {
+  ":rho_transport": [
+   0.25,
+   0.35,
+   0.45,
+   0.55,
+   0.65,
+   0.75,
+   0.85
+  ],
+  ":evolve_Ti": ":flux_match",
+  ":evolve_Te": ":flux_match",
+  ":evolve_densities": ":fixed",
+  ":evolve_rotation": ":fixed",
+  ":evolve_pedestal": false,
+  ":optimize_q": false,
+  ":max_iterations": 300,
+  ":optimizer_algorithm": ":anderson",
+  ":step_size": 1.0,
+  ":do_plot": false,
+  ":verbose": false
  },
  ":ActorFluxSwing": {
   ":operate_oh_at_j_crit": true,
   ":j_tolerance": 0.4
  },
- ":ActorDynamicPlasma": {
-  ":Nt": null,
-  ":Δt": null
- },
- ":ActorEquilibrium": {
-  ":symmetrize": false,
-  ":model": ":TEQUILA",
-  ":do_plot": false
- },
- ":ActorSolovev": {
-  ":alpha": 0.0,
-  ":ngrid": 129,
-  ":verbose": false,
-  ":qstar": 1.5
- },
- ":ActorECsimple": {
-  ":width": [
-   0.05,
-   0.05
-  ],
-  ":rho_0": [
-   0.0,
-   0.6
-  ]
- },
- ":ActorQED": {
-  ":Nt": 100,
-  ":solve_for": ":ip",
-  ":Δt": null
- },
- ":ActorNBsimple": {
-  ":width": 0.3,
-  ":rho_0": 0.0
- },
- ":ActorFixedProfiles": {
-  ":T_ratio_pedestal": 1.0,
-  ":T_shaping": 2.5,
-  ":update_pedestal": true,
-  ":n_shaping": 2.5,
-  ":T_ratio_core": 0.825
- },
- ":ActorTauenn": {
-  ":T_shaping": 1.8,
-  ":rho_fluxmatch": 0.6,
-  ":verbose": false,
-  ":do_plot": false,
-  ":eped_only_powerlaw": false,
-  ":error": 0.001,
-  ":update_pedestal": true,
-  ":eped_factor": 1.0,
-  ":T_ratio_pedestal": 1.0,
-  ":transport_model": ":tglfnn",
-  ":warn_nn_train_bounds": false,
-  ":confinement_factor": 1.0
- },
- ":ActorSheffieldCosting": {
+ ":ActorGASCCosting": {
+  ":construction_lead_time": 8.0,
   ":fixed_charge_rate": 0.078,
-  ":blanket_fluence_lifetime": 15.0,
-  ":capitalize_divertor": false,
-  ":capitalize_blanket": false,
+  ":capitalize_blanket": true,
+  ":capitalize_divertor": true,
   ":divertor_fluence_lifetime": 10.0,
-  ":construction_lead_time": 8.0
+  ":blanket_fluence_lifetime": 15.0
  },
- ":ActorPowerNeeds": {
-  ":thermal_power_fraction": 0.2,
-  ":model": ":thermal_power_fraction",
-  ":do_plot": false
+ ":ActorHCD": {
+  ":ec_model": ":ECsimple",
+  ":ic_model": ":ICsimple",
+  ":lh_model": ":LHsimple",
+  ":nb_model": ":NBsimple"
+ },
+ ":ActorHFSsizing": {
+  ":j_tolerance": 0.5,
+  ":stress_tolerance": 0.01,
+  ":error_on_technology": false,
+  ":error_on_performance": false,
+  ":do_plot": true,
+  ":verbose": true
+ },
+ ":ActorHeatTransfer": {
+  ":breeder_pressure": 1.0e6,
+  ":breeder_ΔP": 250000.0,
+  ":breeder_low_temp": 973.15,
+  ":breeder_hi_temp": 1373.15,
+  ":breeder_η_pump": 0.7,
+  ":coolant_pressure": 1.0e7,
+  ":coolant_ΔP": 300000.0,
+  ":divertor_η_pump": 0.89,
+  ":divertor_max_temp": 923.15,
+  ":blanket_η_pump": 0.89,
+  ":blanket_max_temp": 723.15,
+  ":breeder_HX_ϵ": 0.9,
+  ":divertor_HX_ϵ": 0.9,
+  ":blanket_HX_ϵ": 0.9,
+  ":breeder_fluid": ":PbLi",
+  ":blanket_coolant": ":He",
+  ":divertor_coolant": ":He"
  },
  ":ActorICsimple": {
   ":width": 0.1,
-  ":rho_0": 0.0
+  ":rho_0": 0.0,
+  ":ηcd_scale": 1.0
  },
- ":ActorCoreTransport": {
-  ":model": ":FixedProfiles"
+ ":ActorLFSsizing": {
+  ":do_plot": false,
+  ":verbose": false
  },
- ":ActorARIESCosting": {
-  ":indirect_cost_rate": 0.4,
-  ":interest_rate": 0.05,
-  ":building_volume": 140000.0,
-  ":blanket_lifetime": 6.8,
-  ":land_space": 1000.0,
-  ":escalation_fraction": 0.05
+ ":ActorLHsimple": {
+  ":width": 0.1,
+  ":rho_0": 0.8,
+  ":ηcd_scale": 1.0
+ },
+ ":ActorNBsimple": {
+  ":width": 0.3,
+  ":rho_0": 0.0,
+  ":ηcd_scale": 1.0
+ },
+ ":ActorNeoclassical": {
+  ":model": ":hirshmansigmar",
+  ":rho_transport": [
+   0.25,
+   0.35,
+   0.45,
+   0.55,
+   0.65,
+   0.75,
+   0.85
+  ]
+ },
+ ":ActorNeutronics": {
+  ":N": 100000,
+  ":do_plot": false
+ },
+ ":ActorNoOperation": {},
+ ":ActorPFactive": {
+  ":green_model": ":simple",
+  ":update_equilibrium": false,
+  ":do_plot": true
+ },
+ ":ActorPFdesign": {
+  ":symmetric": false,
+  ":update_equilibrium": false,
+  ":do_plot": true,
+  ":verbose": false
+ },
+ ":ActorPassiveStructures": {
+  ":do_plot": false
+ },
+ ":ActorPedestal": {
+  ":T_ratio_pedestal": 1.0,
+  ":ped_factor": 1.0,
+  ":only_powerlaw": false,
+  ":update_core_profiles": false,
+  ":warn_nn_train_bounds": false
+ },
+ ":ActorPowerNeeds": {
+  ":model": ":thermal_power_fraction",
+  ":thermal_power_fraction": 0.2,
+  ":do_plot": false
+ },
+ ":ActorQED": {
+  ":Δt": Infinity,
+  ":Nt": 100,
+  ":solve_for": ":ip"
+ },
+ ":ActorSheffieldCosting": {
+  ":construction_lead_time": 8.0,
+  ":fixed_charge_rate": 0.078,
+  ":capitalize_blanket": false,
+  ":capitalize_divertor": false,
+  ":divertor_fluence_lifetime": 10.0,
+  ":blanket_fluence_lifetime": 15.0
+ },
+ ":ActorSolovev": {
+  ":ngrid": 129,
+  ":qstar": 1.5,
+  ":alpha": 0.0,
+  ":verbose": false
+ },
+ ":ActorStabilityLimits": {
+  ":models": [
+   ":q95_gt_2",
+   ":κ_controllability"
+  ],
+  ":raise_on_breach": false
+ },
+ ":ActorStationaryPlasma": {
+  ":max_iter": 8,
+  ":convergence_error": 0.005,
+  ":do_plot": true,
+  ":verbose": false
+ },
+ ":ActorSteadyStateCurrent": {
+  ":allow_floating_plasma_current": false
+ },
+ ":ActorStresses": {
+  ":do_plot": false,
+  ":n_points": 5
+ },
+ ":ActorTEQUILA": {
+  ":free_boundary": true,
+  ":number_of_radial_grid_points": 11,
+  ":number_of_fourier_modes": 10,
+  ":number_of_MXH_harmonics": 4,
+  ":number_of_iterations": 20,
+  ":relax": 0.25,
+  ":tolerance": 0.001,
+  ":do_plot": false,
+  ":debug": false
+ },
+ ":ActorTGLF": {
+  ":nn": true,
+  ":sat_rule": ":sat1",
+  ":electromagnetic": true,
+  ":user_specified_model": "",
+  ":rho_transport": [
+   0.25,
+   0.35,
+   0.45,
+   0.55,
+   0.65,
+   0.75,
+   0.85
+  ],
+  ":warn_nn_train_bounds": false,
+  ":theta_trapped": 0.7
+ },
+ ":ActorTauenn": {
+  ":error": 0.001,
+  ":eped_factor": 1.0,
+  ":rho_fluxmatch": 0.6,
+  ":T_shaping": 1.8,
+  ":T_ratio_pedestal": 1.0,
+  ":transport_model": ":tglfnn",
+  ":warn_nn_train_bounds": false,
+  ":eped_only_powerlaw": false,
+  ":update_pedestal": true,
+  ":confinement_factor": 1.0,
+  ":do_plot": false,
+  ":verbose": false
+ },
+ ":ActorThermalCycle": {
+  ":power_cycle_type": ":fixed_cycle_efficiency",
+  ":rp": 3.0,
+  ":Pmax": 8.0e6,
+  ":Tmax": 1223.15,
+  ":Tmin": 308.15,
+  ":Nt": 1,
+  ":Nc": 3,
+  ":fixed_cycle_efficiency": 0.4,
+  ":do_plot": false
+ },
+ ":ActorWholeFacility": {
+  ":update_plasma": true,
+  ":update_build": true
  }
 }
