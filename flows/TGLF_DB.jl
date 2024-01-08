@@ -22,7 +22,6 @@ function flow_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersFlowTGLFdb,Param
 end
 
 
-
 mutable struct FlowTGLFdb <: AbstractWorkflow
     flw::ParametersFlowTGLFdb
     act::ParametersAllActors
@@ -40,9 +39,8 @@ function _setup(wf::FlowTGLFdb)
 
     @assert !ismissing(getproperty(flw, :database_folder, missing)) "Specify the database_folder in flw"
     @assert !ismissing(readdir(flw.database_folder)) "There are no input cases in $(flw.database_folder)"
-    @assert !ismissing(getproperty(flw, :save_folder, missing)) && !isfile(flw.save_folder) && !isdir(flw.save_folder) "Make sure flw.save_folder = $(flw.save_folder) isn't empty, a file or already a directory"
 
-    mkdir(flw.save_folder)
+    check_and_create_file_save_mode(flw)
 
     preparse_input(flw.database_folder)
 
@@ -74,23 +72,14 @@ function _run(wf::FlowTGLFdb)
         item in readdir(joinpath(flw.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
     ]
 
-    # if ismissing(getproperty(flw, :select_subset, missing))
-    #     cases_files = [
-    #         joinpath(flw.database_folder, "fuse_prepared_inputs", item) for
-    #         item in readdir(joinpath(flw.database_folder, "fuse_prepared_inputs")) if split(item, ".")[end] == "json"
-    #     ]
-    # else
-    #     error("have to implement still")
-    #     #cases_files = [joinpath(flw.database_folder,item) item for item in readdir(flw.database_folder) if split(item,".")[end] == "json"]
-    # end
     mylock = ReentrantLock()
     for sat_rule in flw.sat_rules
         act.ActorTGLF.sat_rule = sat_rule
         results = pmap(filename -> run_case(filename, wf, mylock), cases_files)
         for row in results
-            push!(wf.dataframes_dict[sat_rule],row)
+            push!(wf.dataframes_dict[sat_rule], row)
         end
-        
+
         # Save JSON to a file
         json_data = JSON.json(wf.dataframes_dict[sat_rule])
         open("$(flw.save_folder)/data_frame_$(sat_rule).json", "w") do f
@@ -98,9 +87,6 @@ function _run(wf::FlowTGLFdb)
         end
 
     end
-
-
-
 
     return wf
 end
@@ -140,7 +126,6 @@ function run_case(filename, wf, lock)
 
     name = split(splitpath(filename)[end], ".")[1]
     output_case = joinpath(flw.save_folder, name)
-    
 
     try
         if !isdir(output_case)
@@ -160,7 +145,7 @@ function run_case(filename, wf, lock)
         return create_data_frame_row(dd, exp_values)
     catch e
         open("$output_case/error.txt", "w") do file
-            showerror(file, e, catch_backtrace())
+            return showerror(file, e, catch_backtrace())
         end
     end
 end
