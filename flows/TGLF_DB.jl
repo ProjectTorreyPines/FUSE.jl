@@ -1,5 +1,5 @@
 import TGLFNN
-
+using LaTeXStrings
 """
     flow_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersFlowTGLFdb, ParametersAllActors}
 """
@@ -58,6 +58,7 @@ function _setup(wf::FlowTGLFdb)
 
     wf.dataframes_dict = Dict(name => deepcopy(output_df) for name in flw.sat_rules)
     parallel_environment(flw.server, flw.n_workers)
+    # XXE load of FUSE should be implemetned here @orso importFUSEdistributed()
 
     return wf
 end
@@ -65,13 +66,15 @@ end
 function _run(wf::FlowTGLFdb)
     flw = wf.flw
     act = wf.act
-    println("running FlowTGLFdb")
+
+
+    @assert flw.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(flw.n_workers)"
 
     cases_files = [
         joinpath(flw.database_folder, "fuse_prepared_inputs", item) for
         item in readdir(joinpath(flw.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
     ]
-
+    println("running FlowTGLFdb on $(length(cases_files)) cases on $(length(flw.sat_rules)) sat rules with $(flw.n_workers) workers on $(flw.server)")
     mylock = ReentrantLock()
     for sat_rule in flw.sat_rules
         act.ActorTGLF.sat_rule = sat_rule
@@ -88,11 +91,17 @@ function _run(wf::FlowTGLFdb)
 
     end
 
+    # Release workers after run
+    if flw.release_workers_after_run
+        Distributed.rmprocs(Distributed.workers())
+        @info "released workers"
+    end
+
     return wf
 end
 
 function _analyze(wf::FlowTGLFdb)
-    println("analyzing FlowTGLFdb")
+    plot_xy_wth_hist2d(wf; quantity=:WTH, save_fig=false, save_path="")
     return wf
 end
 
@@ -246,3 +255,45 @@ function preparse_input(database_folder)
 end
 
 
+function plot_xy_wth_hist2d(wf; quantity=:WTH, save_fig=false, save_path="")
+
+    if wf.act.ActorTGLF.electromagnetic
+        EM_contribution = :EM
+    else
+        EM_contribution = :ES
+    end
+
+    for sat_rule in wf.flw.sat_rules
+        plot_xy_wth_hist2d(wf.dataframes_dict[sat_rule], sat_rule, EM_contribution, quantity, save_fig, save_path)
+    end
+end
+
+function plot_xy_wth_hist2d(df::DataFrame, satrule::Symbol, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::String)
+
+    x = df[!, "$(quantity)_exp"]
+    y = df[!, "$(quantity)"]
+
+    MRE = round(100 * mean_relative_error(x, y); digits=2)
+
+    bins = 10 .^ (4:0.05:7)
+
+    ticks = ([10^4, 10^5, 10^6, 10^7, 10^8], [L"10^4", L"10^5", L"10^6", L"10^7", L"10^8"])
+    xy_lim = [bins[1], bins[end]]
+
+    p = histogram2d(x, y; xscale=:log10, yscale=:log10, bins=(bins, bins), xticks=ticks, yticks=ticks,
+        clims=(1, 400), color=cgrad(:magma; rev=true), colorbar=true, show_empty_bins=true,
+        ylabel="Thermal stored energy predicted [J]", xlabel="Thermal stored energy experiment [J]",
+        ylim=xy_lim, xlim=xy_lim, tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern",
+        xguidefontsize=15, yguidefontsize=14)
+
+    plot!(xy_lim, xy_lim; linestyle=:dash, color=:black, label=nothing, title="SAT$satrule $EM_contribution")
+
+
+    println("MRE SAT$satrule $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
+
+    if save_fig
+        savefig(p, save_path)
+    else
+        display(p)
+    end
+end
