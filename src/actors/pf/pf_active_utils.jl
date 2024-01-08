@@ -254,7 +254,7 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
             if !symmetric
                 append!(lbounds, coil_distances .* 0.0 .- 1.0)
             else
-                append!(lbounds, coil_distances .* 0.0  )
+                append!(lbounds, coil_distances .* 0.0)
             end
             append!(ubounds, coil_distances .* 0.0 .+ 1.0)
         end
@@ -354,10 +354,12 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolerance::Float64=0.4)
-    function optimal_area(area; coil)
+function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolerance::Float64=0.4, min_size::Float64=1.0)
+    function optimal_area(x; coil)
+        area = abs(x[1])
+
         pfcoil = getfield(coil, :imas)
-        area = abs(area[1])
+
         height = width = sqrt(area)
         pfcoil.element[1].geometry.rectangle.height = height
         pfcoil.element[1].geometry.rectangle.width = width
@@ -365,7 +367,9 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
         max_current_density = coil_J_B_crit(coil_selfB(pfcoil, coil.current), coil.tech)[1]
         needed_conductor_area = abs(coil.current) / max_current_density
         needed_area = needed_conductor_area / fraction_conductor(coil.tech) * (1.0 .+ tolerance)
-        return (area - needed_area)^2
+
+        cost = (area - needed_area)^2
+        return cost
     end
 
     # find optimal area for each coil
@@ -373,8 +377,8 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
     for coil in coils
         pfcoil = getfield(coil, :imas)
         if !IMAS.is_ohmic_coil(pfcoil)
-            res = Optim.optimize(x -> optimal_area(x; coil), [pfcoil.element[1].geometry.rectangle.r], Optim.NelderMead())
-            push!(areas, res.minimizer[1])
+            res = Optim.optimize(x -> optimal_area(x; coil), [0.1], Optim.NelderMead())
+            push!(areas, abs(res.minimizer[1]))
         end
     end
 
@@ -384,7 +388,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
         pfcoil = getfield(coil, :imas)
         if !IMAS.is_ohmic_coil(pfcoil)
             k += 1
-            optimal_area(max(areas[k], norm(areas) / length(areas)); coil)
+            optimal_area(max(areas[k], min_size * norm(areas) / length(areas)); coil)
         end
     end
 end
@@ -397,7 +401,7 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
     df = DataFrames.DataFrame(;
         var"function"=Vector{Symbol}[],
         n_elements=Int[],
-        name=String[],
+        name=String[]
     )
 
     for coil in coils
