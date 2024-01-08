@@ -106,7 +106,9 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
         actor_logging(dd, old_logging)
     end
 
-    size_pf_active(actor.actor_pf.setup_cache.optim_coils)
+    # size the PF coils based on the currents they are carrying
+    size_pf_active(actor.actor_pf.setup_cache.optim_coils; min_size=1.0)#; tolerance=dd.requirements.coil_j_margin)
+    _step(actor.actor_pf) # this is required to update the current limits in the dd
 
     return actor
 end

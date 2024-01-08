@@ -34,6 +34,10 @@ using Test
                     FUSE.init(dd, ini, act)
                 end
 
+                @testset "sol" begin
+                    IMAS.sol(dd)
+                end
+
                 @testset "whole_facility" begin
                     FUSE.ActorWholeFacility(dd, act)
                 end
