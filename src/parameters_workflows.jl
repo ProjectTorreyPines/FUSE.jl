@@ -1,6 +1,11 @@
 abstract type ParametersFlow <: AbstractParameters end
 abstract type AbstractWorkflow end
 
+"""
+    flow_common_parameters(name::Symbol)
+
+Returns commonly used parameters as a switch or entry
+"""
 function flow_common_parameters(name::Symbol)
     if name == :server
         return Switch{String}(["localhost", "omega", "saga"], "-", "Where to run"; default="localhost")
@@ -13,8 +18,12 @@ function flow_common_parameters(name::Symbol)
             "The policy to implement when saving files, safe_write only writen when the folder is empty, overwrite overwrites";
             default=:safe_write
         )
+    elseif name == :release_workers_after_run
+        return Entry{Bool}("-", "releases the workers after running the workflow"; default=true)
     elseif name == :keep_output_dd
         return Entry{Bool}("-", "Store the output dds of the workflow run"; default=true)
+    else
+        error("There is no flow_common_parameter for name = $name")
     end
 end
 
@@ -24,6 +33,7 @@ Base.@kwdef mutable struct ParametersFlowTGLFdb{T} <: ParametersFlow where {T<:R
     server::Switch{String} = flow_common_parameters(:server)
     n_workers::Entry{Int} = flow_common_parameters(:n_workers)
     file_save_mode::Switch{Symbol} = flow_common_parameters(:file_save_mode)
+    release_workers_after_run::Entry{Bool} = flow_common_parameters(:release_workers_after_run)
     keep_output_dd::Entry{Bool} = flow_common_parameters(:keep_output_dd)
     sat_rules::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "TGLF saturation rules to run")
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
@@ -82,11 +92,11 @@ end
 
 
 """
-    check_and_create_file_save_mode(flw::ParametersFlow)
+    check_and_create_file_save_mode(flw)
 
 Checks the selected file_save_mode and creates the folder accordingly
 """
-function check_and_create_file_save_mode(flw::ParametersFlow)
+function check_and_create_file_save_mode(flw)
     @assert !ismissing(getproperty(flw, :save_folder, missing)) "Make sure flw.save_folder = $(flw.save_folder) is set"
     if flw.file_save_mode == :safe_write
         if isdir(flw.save_folder)
@@ -95,5 +105,7 @@ function check_and_create_file_save_mode(flw::ParametersFlow)
             @assert !isfile(flw.save_folder) "$(flw.save_folder) can't be a file"
             mkdir(flw.save_folder)
         end
+    elseif flw.file_save_mode == :overwrite && !isdir(flw.save_folder)
+        mkdir(flw.save_folder)
     end
 end
