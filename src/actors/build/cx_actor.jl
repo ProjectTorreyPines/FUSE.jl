@@ -143,6 +143,15 @@ function wall_from_eq!(
     upper_divertor = Int(upper_divertor)
     lower_divertor = Int(lower_divertor)
 
+    # domain of the equilibrium includes some buffer for divertor slots
+    div_gap = gap
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+    req = eqt2d.grid.dim1
+    req = [req[1] + div_gap, req[end] - div_gap, req[end] - div_gap, req[1] + div_gap, req[1] + div_gap]
+    zeq = eqt2d.grid.dim2
+    zeq = [zeq[1] + div_gap, zeq[1] + div_gap, zeq[end] - div_gap, zeq[end] - div_gap, zeq[1] + div_gap]
+    eq_domain = collect(zip(req, zeq))
+
     # lcfs and magnetic axis
     ((rlcfs, zlcfs),), ψb = IMAS.flux_surface(eqt, eqt.global_quantities.psi_boundary, :closed)
     RA = eqt.global_quantities.magnetic_axis.r
@@ -199,7 +208,7 @@ function wall_from_eq!(
         circle_z = sign(Zx) .* divertor_length .* sin.(t) .+ Zx
         circle = collect(zip(circle_r, circle_z))
         circle[1] = circle[end]
-        inner_slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
+        inner_slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && PolygonOps.inpolygon((rr, zz), eq_domain) == 1]
         pr1 = [rr for (rr, zz) in inner_slot]
         pz1 = [zz for (rr, zz) in inner_slot]
         if isempty(pr1)
@@ -239,13 +248,13 @@ function wall_from_eq!(
 
         slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
         slot = LibGEOS.difference(slot_convhull, inner_slot_poly)
-        slot = LibGEOS.buffer(slot, gap)
+        slot = LibGEOS.buffer(slot, div_gap)
 
-        scale = 1.001
+        scale = 1.00
         Rc1, Zc1 = IMAS.centroid(pr1, pz1)
         pr3 = vcat((pr1 .- Rc1) .* scale .+ Rc1, reverse(pr1))
         pz3 = vcat((pz1 .- Zc1) .* scale .+ Zc1, reverse(pz1))
-        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), gap))
+        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), div_gap))
 
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
@@ -260,7 +269,7 @@ function wall_from_eq!(
     end
 
     # round corners
-    corner_radius = gap / 4
+    corner_radius = div_gap / 4
     wall_poly = LibGEOS.buffer(wall_poly, -corner_radius)
     wall_poly = LibGEOS.buffer(wall_poly, corner_radius)
 
