@@ -94,9 +94,6 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         #     dd.build.layer[plasma_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
         # end
 
-        # 2D build cross-section
-        ActorCXbuild(dd, act)
-
         # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
         # target TF ripple
@@ -106,6 +103,9 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         dd.solid_mechanics.center_stack.bucked = Int(ini.center_stack.bucked)
         dd.solid_mechanics.center_stack.noslip = Int(ini.center_stack.noslip)
         dd.solid_mechanics.center_stack.plug = Int(ini.center_stack.plug)
+
+        # 2D build cross-section
+        ActorCXbuild(dd, act)
 
         # assign coils and CS technologies
         assign_technologies(dd, ini)

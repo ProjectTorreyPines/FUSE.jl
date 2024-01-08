@@ -6,6 +6,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor 
     _name::Symbol = :not_set
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    maintenance::Switch{Symbol} = Switch{Symbol}([:vertical, :horizontal, :none], "-", "Scheme for installation/removal of in-vessel components"; default=:none)
+    tor_modularity::Entry{Int} = Entry{Int}("-", "Number of toroidal modules of blanket normalized to number of TF coils (must be >= 1)"; default=2)
+    pol_modularity::Entry{Int} = Entry{Int}("-", "Number of poloidal modules of each toroidal blanket sector (must be >= 1)"; default=1)
 end
 
 mutable struct ActorLFSsizing{D,P} <: ReactorAbstractActor{D,P}
@@ -48,8 +51,12 @@ function _step(actor::ActorLFSsizing)
     # calculate TF leg radius that gives required TF field ripple
     new_TF_radius = IMAS.R_tf_ripple(IMAS.get_build_layer(dd.build.layer, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
 
-    # calculate vertical maintenance port geometry
-    rVP_hfs_ib, rVP_hfs_ob, rVP_lfs_ib, rVP_lfs_ob = IMAS.vertical_maintenance(dd.build)
+    # calculate vacuum port geometry for maintenance
+    rVP_hfs_ib, rVP_hfs_ob, rVP_lfs_ib, rVP_lfs_ob = IMAS.vertical_maintenance(dd.build; par.tor_modularity, par.pol_modularity)
+
+    # if vertical maintenance
+
+    # if horizontal maintenance
 
     # resize layers proportionally
     # start from the vacuum gaps before resizing the material layers

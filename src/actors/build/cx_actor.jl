@@ -12,10 +12,11 @@ end
 mutable struct ActorCXbuild{D,P} <: ReactorAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCXbuild{P}
-    function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}; kw...) where {D<:Real,P<:Real}
+    parLFSsizing::FUSEparameters__ActorLFSsizing{P}
+    function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}, parLFSsizing::FUSEparameters__ActorLFSsizing{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCXbuild)
         par = par(kw...)
-        return new{D,P}(dd, par)
+        return new{D,P}(dd, par, parLFSsizing)
     end
 end
 
@@ -29,7 +30,7 @@ Generates the 2D cross section of the tokamak build
     Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorCXbuild(dd, act.ActorCXbuild; kw...)
+    actor = ActorCXbuild(dd, act.ActorCXbuild, act.ActorLFSsizing; kw...)
     step(actor)
     finalize(actor)
     if actor.par.do_plot
@@ -42,6 +43,7 @@ end
 function _step(actor::ActorCXbuild)
     dd = actor.dd
     par = actor.par
+    parLFSsizing = actor.parLFSsizing
 
     bd = dd.build
     eqt = dd.equilibrium.time_slice[]
@@ -64,6 +66,8 @@ function _step(actor::ActorCXbuild)
     divertor_regions!(bd, eqt, dd.divertors)
 
     blanket_regions!(bd, eqt)
+
+    port_regions!(bd; parLFSsizing.maintenance, parLFSsizing.tor_modularity, parLFSsizing.pol_modularity)
 
     IMAS.find_strike_points!(eqt, dd.divertors)
 
@@ -482,6 +486,61 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
         structure.outline.z = pz
         structure.toroidal_extent = 2pi
     end
+
+    return nothing
+end
+
+function port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity::Int=2, pol_modularity::Int=1)
+
+    vessel = IMAS.get_build_layer(bd.layer; name="lfs vacuum vessel")
+    cryostat = IMAS.get_build_layer(bd.layer; name="cryostat")
+
+    # calculate radial port locations
+    rVP_hfs_ib, rVP_hfs_ob, rVP_lfs_ib, rVP_lfs_ob = IMAS.vertical_maintenance(bd; tor_modularity, pol_modularity)
+
+    vessel_maxz = maximum(vessel.outline.z)
+    vessel_minz = minimum(vessel.outline.z)
+    horz_port_maxr = maximum(cryostat.outline.r)*1.1
+    horz_port_maxz = 0.25*(vessel_maxz - vessel_minz) + vessel_minz
+    vert_port_maxz = maximum(cryostat.outline.z)
+
+    # build port structure based on maintenance type
+    if maintenance == :none
+        return nothing
+
+    elseif maintenance == :vertical
+        vvi = (vessel.outline.r .> rVP_hfs_ib) .&& (vessel.outline.r .< rVP_lfs_ob) .&& (vessel.outline.z .> vessel_minz)
+        vR = vessel.outline.r[vvi]
+        vZ = vessel.outline.z[vvi]
+        s = sortperm(-vZ ./ vR)
+        vR = vR[s]
+        vZ = vZ[s]
+
+        pr = vcat(rVP_hfs_ib, rVP_hfs_ib, vR, vR[end], horz_port_maxr, horz_port_maxr, rVP_lfs_ob, rVP_lfs_ob, rVP_hfs_ib)
+        pz = vcat(vert_port_maxz, vZ[1], vZ, vessel_minz, vessel_minz, horz_port_maxz, horz_port_maxz, vert_port_maxz, vert_port_maxz)
+
+        name = "vertical maintenance port"
+
+    elseif maintenance == :horizontal
+        vvi = (vessel.outline.r .> vessel_minr*1.1) .&& (vessel.outline.z .< vessel_maxz) .&& (vessel.outline.z .> vessel_minz)
+
+        vR = vessel.outline.r[vvi]
+        vZ = vessel.outline.z[vvi]
+        s = sortperm(-vZ ./ vR)
+
+        vR = vR[s]
+        vZ = vZ[s]
+
+        pr = vcat(vR, vR[end], horz_port_maxr, horz_port_maxr, vR[1])
+        pz = vcat(vZ, vessel_minz, vessel_minz, vessel_maxz, vessel_maxz)
+
+        name = "horizontal maintenance port"
+
+    end
+
+    structure = resize!(bd.structure, "type" => Int(_port_), "name" => name)
+    structure.outline.r = pr
+    structure.outline.z = pz
 
     return nothing
 end

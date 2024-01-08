@@ -196,7 +196,8 @@ function init_pf_active!(
         rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3)
 
         # let rails start along the lines connecting the magnetic axis and the point of maximum elongation
-        rail_r, rail_z = clip_rails(rail_r, rail_z, eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z)
+        #rail_r, rail_z = clip_rails(rail_r, rail_z, eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z)
+        rail_r, rail_z = clip_rails(rail_r, rail_z, OH_layer.outline.r, OH_layer.outline.z, eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z)
 
         if true
             valid_r, valid_z = rail_r, rail_z
