@@ -2,26 +2,24 @@ abstract type ParametersFlow <: AbstractParameters end
 abstract type AbstractWorkflow end
 
 """
-    flow_common_parameters(name::Symbol)
+    flow_common_parameters(; kw...)
 
-Returns commonly used parameters as a switch or entry
+Returns commonly used parameters as a switch or entry, example: flow_common_parameters(server="localhost")
 """
-function flow_common_parameters(name::Symbol)
+function flow_common_parameters(; kw...)
+    @assert length(kw) == 1 "flow_common_parameters only takes one argument"
+    name = first(keys(kw))
+    default = first(values(kw))
     if name == :server
-        return Switch{String}(["localhost", "omega", "saga"], "-", "Where to run"; default="localhost")
+        return Switch{String}(["localhost", "omega", "saga"], "-", "Where to run"; default)
     elseif name == :n_workers
-        return Entry{Int}("-", "number of workers to run with")
+        return Entry{Int}("-", "number of workers to run with"; default)
     elseif name == :file_save_mode
-        return Switch{Symbol}(
-            [:safe_write, :overwrite],
-            "-",
-            "The policy to implement when saving files, safe_write only writen when the folder is empty, overwrite overwrites";
-            default=:safe_write
-        )
+        return Switch{Symbol}([:safe_write, :overwrite], "-", "Saving file policy, safe_write only writes when the folder is empty"; default)
     elseif name == :release_workers_after_run
-        return Entry{Bool}("-", "releases the workers after running the workflow"; default=true)
+        return Entry{Bool}("-", "releases the workers after running the workflow"; default)
     elseif name == :keep_output_dd
-        return Entry{Bool}("-", "Store the output dds of the workflow run"; default=true)
+        return Entry{Bool}("-", "Store the output dds of the workflow run"; default)
     else
         error("There is no flow_common_parameter for name = $name")
     end
@@ -30,11 +28,11 @@ end
 Base.@kwdef mutable struct ParametersFlowTGLFdb{T} <: ParametersFlow where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :FlowTGLFdb
-    server::Switch{String} = flow_common_parameters(:server)
-    n_workers::Entry{Int} = flow_common_parameters(:n_workers)
-    file_save_mode::Switch{Symbol} = flow_common_parameters(:file_save_mode)
-    release_workers_after_run::Entry{Bool} = flow_common_parameters(:release_workers_after_run)
-    keep_output_dd::Entry{Bool} = flow_common_parameters(:keep_output_dd)
+    server::Switch{String} = flow_common_parameters(; server="localhost")
+    n_workers::Entry{Int} = flow_common_parameters(; n_workers=missing)
+    file_save_mode::Switch{Symbol} = flow_common_parameters(; file_save_mode=:safe_write)
+    release_workers_after_run::Entry{Bool} = flow_common_parameters(; release_workers_after_run=true)
+    keep_output_dd::Entry{Bool} = flow_common_parameters(; keep_output_dd=true)
     sat_rules::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "TGLF saturation rules to run")
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
 

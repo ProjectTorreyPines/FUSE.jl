@@ -281,7 +281,7 @@ function plot_xy_wth_hist2d(df::DataFrame, satrule::Symbol, EM_contribution::Sym
     xy_lim = [bins[1], bins[end]]
 
     p = histogram2d(x, y; xscale=:log10, yscale=:log10, bins=(bins, bins), xticks=ticks, yticks=ticks,
-        clims=(1, 400), color=cgrad(:magma; rev=true), colorbar=true, show_empty_bins=true,
+        color=cgrad(:magma; rev=true), colorbar=true, show_empty_bins=true,
         ylabel="Thermal stored energy predicted [J]", xlabel="Thermal stored energy experiment [J]",
         ylim=xy_lim, xlim=xy_lim, tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern",
         xguidefontsize=15, yguidefontsize=14)
