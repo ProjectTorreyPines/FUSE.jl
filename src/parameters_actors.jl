@@ -76,3 +76,21 @@ end
 function yaml2act(filename::AbstractString)
     return SimulationParameters.yaml2par(filename, ParametersActors())
 end
+
+"""
+    act_common_parameters(; kw...)
+
+Returns commonly used act parameters as a switch or entry, example: act_common_parameters(do_plot=true)
+"""
+function act_common_parameters(; kw...)
+    @assert length(kw) == 1 "act_common_parameters only takes one argument"
+    name = first(keys(kw))
+    default = first(values(kw))
+    if name == :do_plot
+        return Entry{Bool}("-", "Store the output dds of the workflow run"; default)
+    elseif name == :verbose
+        return  Entry{Bool}("-", "Verbose"; default)
+    else
+        error("There is no act_common_parameter for name = $name")
+    end
+end

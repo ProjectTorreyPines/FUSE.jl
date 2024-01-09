@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor 
     impurities_fraction::Entry{Vector{T}} = Entry{Vector{T}}("-", "Vector of impurity fractions"; default=T[])
     heat_spread_factor::Entry{T} = Entry{T}("-", "Heat flux expansion factor in the private flux region (eg. due to transport) should be >= 1.0"; default=1.0)
     thermal_power_extraction_efficiency::Entry{T} = Entry{T}("-", "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures."; default=1.0)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorDivertors{D,P} <: ReactorAbstractActor{D,P}

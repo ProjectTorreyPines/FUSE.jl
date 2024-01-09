@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     #== display and debugging parameters ==#
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor{D,P}
