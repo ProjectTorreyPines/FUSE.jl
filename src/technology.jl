@@ -296,7 +296,7 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
             Jcrit_SC, Bext_Bcrit_ratio = ReBCO_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
         end
         Jcrit = Jcrit_SC * fc # A/m^2
-        return Jcrit, Bext / Bext_Bcrit_ratio
+        return (Jcrit=Jcrit, Bcrit=Bext / Bext_Bcrit_ratio)
     end
 end
 
