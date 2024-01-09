@@ -492,14 +492,15 @@ end
 
 function port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity::Int=2, pol_modularity::Int=1)
 
-    vessel = IMAS.get_build_layer(bd.layer; name="lfs vacuum vessel")
-    cryostat = IMAS.get_build_layer(bd.layer; name="cryostat")
+    vessel = IMAS.get_build_layer(bd.layer; type=_vessel_, fs=_lfs_)
+    cryostat = IMAS.get_build_layer(bd.layer; type=_cryostat_)
 
     # calculate radial port locations
     rVP_hfs_ib, rVP_hfs_ob, rVP_lfs_ib, rVP_lfs_ob = IMAS.vertical_maintenance(bd; tor_modularity, pol_modularity)
 
     vessel_maxz = maximum(vessel.outline.z)
     vessel_minz = minimum(vessel.outline.z)
+    vessel_minr = minimum(vessel.outline.r)
     horz_port_maxr = maximum(cryostat.outline.r)*1.1
     horz_port_maxz = 0.25*(vessel_maxz - vessel_minz) + vessel_minz
     vert_port_maxz = maximum(cryostat.outline.z)

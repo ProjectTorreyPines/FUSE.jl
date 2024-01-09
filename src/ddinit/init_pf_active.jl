@@ -154,7 +154,7 @@ function init_pf_active!(
 
     # coils_cleareance is an array the length of the PF rails
     if pf_coils_size === nothing
-        pf_coils_size = sqrt(w_oh * h_oh) * sqrt(2)
+        pf_coils_size = sqrt(w_oh * h_oh) #* sqrt(2)
     end
     if isa(pf_coils_size, Number)
         pf_coils_size = [NaN, pf_coils_size, 1.5 * pf_coils_size]

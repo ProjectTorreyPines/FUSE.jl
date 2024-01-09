@@ -106,7 +106,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
         actor_logging(dd, old_logging)
     end
 
-    size_pf_active(actor.actor_pf.setup_cache.optim_coils)
+    #size_pf_active(actor.actor_pf.setup_cache.optim_coils)
 
     return actor
 end

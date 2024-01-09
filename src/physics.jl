@@ -379,7 +379,7 @@ function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=1
     centerpost_maxz = 2 * pi * r0 * k * SpecialFunctions.besseli(1, k) / 2 # Gralnick Eq. 28
     coil_maxz = pi * r0 * k * (SpecialFunctions.besseli(1, k) + struveL(1, k) + 2 / pi) / 2  # Gralnick Eq. 34
 
-    centerpost_height = height - (coil_maxz - centerpost_maxz) * 2
+    centerpost_height = height #- (coil_maxz - centerpost_maxz) * 2
 
     inboard_curve_dz = coil_maxz - centerpost_maxz
     centerpost_maxz = centerpost_height / 2
