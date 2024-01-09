@@ -383,12 +383,13 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
     end
 
     # set the area of the coils, with a minimum size given by the norm
+    msa = norm(areas) / length(areas)
     k = 0
     for coil in coils
         pfcoil = getfield(coil, :imas)
         if !IMAS.is_ohmic_coil(pfcoil)
             k += 1
-            optimal_area(max(areas[k], min_size * norm(areas) / length(areas)); coil)
+            optimal_area(max(areas[k], min_size * msa); coil)
         end
     end
 end
@@ -399,14 +400,16 @@ end
 function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
 
     df = DataFrames.DataFrame(;
+        name=String[],
         var"function"=Vector{Symbol}[],
         n_elements=Int[],
-        name=String[]
+        n_total_turns=Int[]
     )
 
     for coil in coils
         func = [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
-        push!(df, [func, length(coil.element), coil.name])
+        turns = sum(getproperty(element, :turns_with_sign, 1.0) for element in coil.element)
+        push!(df, [coil.name, func, length(coil.element), sum(turns)])
     end
 
     return df
