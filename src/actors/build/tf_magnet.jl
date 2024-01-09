@@ -17,7 +17,7 @@ function tf_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
         currentDensityTF = abs(x[1])
         current_TF = currentDensityTF * TF_cx_area
         max_b_field = current_TF / hfsTF.end_radius / 2π * constants.μ_0 * bd.tf.coils_n
-        critical_j = coil_J_B_crit(max_b_field, bd.tf.technology)[1]
+        critical_j = coil_J_B_crit(max_b_field, bd.tf.technology).Jcrit
         # do not use relative error here. Absolute error tells optimizer to lower currentDensityTF if critical_j==0
         return abs(critical_j - currentDensityTF * (1.0 + j_tolerance))
     end
