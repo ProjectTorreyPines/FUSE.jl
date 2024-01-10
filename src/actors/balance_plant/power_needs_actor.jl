@@ -60,25 +60,20 @@ function _step(actor::ActorPowerNeeds)
     if par.model == :thermal_power_fraction
         idx = IMAS.name_2_index(bop_electric.system)[:plant]
         sys = resize!(bop_electric.system, "name" => "BOP", "index" => idx)
-        sys.power = par.thermal_power_fraction .* bop.thermal_cycle.power_electric_generated
+        sys.power = par.thermal_power_fraction .* bop.power_plant.power_electric_generated
 
     elseif par.model == :FUSE
         # For now electrical needs same as DEMO but with self-consistent pumping
-        bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active]
+        bop_systems = [:cryostat, :tritium_handling, :pf_active]
         for system in bop_systems
             idx = IMAS.name_2_index(bop_electric.system)[system]
             sys = resize!(bop_electric.system, "name" => string(system), "index" => idx)
-            if system == :pumping
-                @ddtime(sys.power = electricity(:pumping, dd.balance_of_plant))
-            else
-
-                @ddtime(sys.power = electricity(system))
-            end
+            @ddtime(sys.power = electricity(system))
         end
 
     elseif par.model == :EU_DEMO
         # More realistic DEMO numbers
-        bop_systems = [:cryostat, :tritium_handling, :pumping, :pf_active]
+        bop_systems = [:cryostat, :tritium_handling, :pf_active]
         for system in bop_systems
             idx = IMAS.name_2_index(bop_electric.system)[system]
             sys = resize!(bop_electric.system, "name" => string(system), "index" => idx)
@@ -135,10 +130,6 @@ function electricity(::Type{Val{:tritium_handling}})
     return 15e6# We
 end
 
-function electricity(::Type{Val{:pumping}})
-    return 80e6 # We    (Note this should not be a constant!)
-end
-
 function electricity(::Type{Val{:pf_active}})
     return 0.0 # We    (Note this should not be a constant!)
 end
@@ -146,10 +137,6 @@ end
 #= =================== =#
 #  FUSE electricity     #
 #= =================== =#
-
-function electricity(::Type{Val{:pumping}}, bop::IMAS.balance_of_plant)
-    return @ddtime(bop.heat_transfer.breeder.circulator_power) + @ddtime(bop.heat_transfer.divertor.circulator_power) + @ddtime(bop.heat_transfer.wall.circulator_power)
-end
 
 function electricity(symbol::Symbol, bop::IMAS.balance_of_plant)
     return electricity(Val{symbol}, bop)

@@ -119,11 +119,9 @@ include(joinpath("actors", "transport", "core_transport_actor.jl"))
 include(joinpath("actors", "stability", "limits_actor.jl"))
 include(joinpath("actors", "stability", "limit_models.jl"))
 
-include(joinpath("actors", "balance_plant", "heat_transfer_actor.jl"))
-include(joinpath("actors", "balance_plant", "thermal_cycle_actor.jl"))
+include(joinpath("actors", "balance_plant", "thermal_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "power_needs_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
-include(joinpath("actors", "balance_plant", "balance_of_plant_plot.jl"))
 
 include(joinpath("actors", "costing", "costing_utils.jl"))
 include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
