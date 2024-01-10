@@ -525,14 +525,16 @@ function digest(dd::IMAS.dd,
     ini::Union{Nothing,ParametersAllInits}=nothing,
     act::Union{Nothing,ParametersAllActors}=nothing
 )
-    title = replace(title, r".pdf$" => "")
+    title = replace(title, r".pdf$" => "", "_" => " ")
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
+
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)
     try
         filename = redirect_stdout(Base.DevNull()) do
             filename = with_logger(logger) do
                 return Weave.weave(joinpath(@__DIR__, "digest.jmd");
+                    latex_cmd=["xelatex"],
                     mod=@__MODULE__,
                     doctype="md2pdf",
                     template=joinpath(@__DIR__, "digest.tpl"),
@@ -548,7 +550,7 @@ function digest(dd::IMAS.dd,
         cp(filename, outfilename; force=true)
         return outfilename
     catch e
-        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir")
+        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir\n$e")
     else
         rm(tmpdir; recursive=true, force=true)
     end

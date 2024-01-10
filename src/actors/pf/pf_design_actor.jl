@@ -5,6 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T} <: ParametersActor w
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
+    update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
@@ -33,7 +34,7 @@ end
 function ActorPFdesign(dd::IMAS.dd, par::FUSEparameters__ActorPFdesign, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPFdesign)
     par = par(kw...)
-    actor_pf = ActorPFactive(dd, act.ActorPFactive)
+    actor_pf = ActorPFactive(dd, act.ActorPFactive; par.update_equilibrium)
     return ActorPFdesign(dd, par, actor_pf)
 end
 
@@ -78,10 +79,14 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
         end
 
-        cost = norm([actor.actor_pf.cost, cost_spacing])^2
+        eqt = dd.equilibrium.time_slice[]
+        coils = [coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils)]
+        cost_currents = norm([coil.current for coil in coils]) / eqt.global_quantities.ip
+
+        cost = norm([actor.actor_pf.cost, cost_spacing])^2 * (1 .+ cost_currents)
 
         if prog !== nothing
-            ProgressMeter.next!(prog; showvalues=[("constraints", actor.actor_pf.cost), ("spacing", cost_spacing)])
+            ProgressMeter.next!(prog; showvalues=[("constraints", actor.actor_pf.cost), ("spacing", cost_spacing), ("currents", cost_currents)])
         end
 
         return cost
@@ -101,7 +106,9 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
         actor_logging(dd, old_logging)
     end
 
-    size_pf_active(actor.actor_pf.setup_cache.optim_coils)
+    # size the PF coils based on the currents they are carrying
+    size_pf_active(actor.actor_pf.setup_cache.optim_coils; min_size=1.0)#; tolerance=dd.requirements.coil_j_margin)
+    _step(actor.actor_pf) # this is required to update the current limits in the dd
 
     return actor
 end

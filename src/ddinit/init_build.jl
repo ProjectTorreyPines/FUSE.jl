@@ -3,63 +3,6 @@ import GeoInterface
 import Interpolations
 import OrderedCollections
 
-#= ========================================== =#
-#  Visualization of IMAS.build.layer as table  #
-#= ========================================== =#
-function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
-
-    df = DataFrames.DataFrame(;
-        group=String[],
-        details=String[],
-        type=String[],
-        ΔR=Float64[],
-        R_start=Float64[],
-        R_end=Float64[],
-        material=String[],
-        area=Float64[],
-        volume=Float64[]
-    )
-
-    for layer in layers
-        group = replace(string(BuildLayerSide(layer.side)), "_" => "")
-        type = replace(string(BuildLayerType(layer.type)), "_" => "")
-        type = replace(type, r"^gap" => "")
-        details = replace(lowercase(layer.name), r"^[hl]fs " => "")
-        details = replace(details, r"^gap .*" => "")
-        details = replace(details, r"\b" * type * r"\b" => "")
-        material = getproperty(layer, :material, "?")
-        material = split(material, ",")[1]
-        material = replace(material, "Vacuum" => "")
-        area = getproperty(layer, :area, NaN)
-        volume = getproperty(layer, :volume, NaN)
-        push!(df, [group, details, type, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume])
-    end
-
-    return df
-end
-
-function Base.show(io::IO, ::MIME"text/plain", layers::IMAS.IDSvector{<:IMAS.build__layer})
-    old_lines = get(ENV, "LINES", missing)
-    old_columns = get(ENV, "COLUMNS", missing)
-    df = DataFrames.DataFrame(layers)
-    try
-        ENV["LINES"] = 1000
-        ENV["COLUMNS"] = 1000
-        return show(io::IO, df)
-    finally
-        if old_lines === missing
-            delete!(ENV, "LINES")
-        else
-            ENV["LINES"] = old_lines
-        end
-        if old_columns === missing
-            delete!(ENV, "COLUMNS")
-        else
-            ENV["COLUMNS"] = old_columns
-        end
-    end
-end
-
 #= ========== =#
 #  init build  #
 #= ========== =#
@@ -173,18 +116,16 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 end
 
 """
-    init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_layer})
+    init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__build_layer})
 
 Initialize dd.build.layers from ini.build.layers
 """
-function init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_layer})
+function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__build_layer})
     empty!(bd.layer)
 
     k = 0
     for ini_layer in layers
-        if ini_layer.thickness < 0.0
-            continue
-        end
+        @assert ini_layer.thickness >= 0.0
         k += 1
         layer = resize!(bd.layer, k)[k]
 
@@ -204,7 +145,9 @@ function init_build!(bd::IMAS.build, layers::Vector{<:FUSEparameters__build_laye
 end
 
 """
-This allows users to initialize layers from a dictionary
+    setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+
+Allows users to initialize layers from a dictionary
 """
 function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
     @assert field == :layers
@@ -219,11 +162,13 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
         layer.thickness = thickness
 
         # type
-        if occursin("gap ", lowercase(layer.name))
+        if occursin("OH", uppercase(layer.name)) && occursin("hfs", lowercase(layer.name))
+            layer.type = :oh
+        elseif occursin("gap ", lowercase(layer.name))
             layer.type = :gap
         elseif lowercase(layer.name) == "plasma"
             layer.type = :plasma
-        elseif uppercase(layer.name) == "OH"
+        elseif occursin("OH", uppercase(layer.name))
             layer.type = :oh
         elseif occursin("TF", uppercase(layer.name))
             layer.type = :tf
@@ -257,6 +202,37 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
     end
 end
 
+"""
+    dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+
+Custom reading from file of FUSEparameters__build_layer
+"""
+function SimulationParameters.dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+    return parent(par).layers = dct
+end
+
+
+"""
+    par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String})
+
+Custom writing to file for FUSEparameters__build_layer
+"""
+function SimulationParameters.par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String}; show_info::Bool=true, skip_defaults::Bool=false)
+    for parameter in par
+        p = SimulationParameters.path(parameter)
+        sp = SimulationParameters.spath(p)
+        depth = (count(".", sp) + count("[", sp) - 1) * 2
+        pre = " "^depth
+        push!(txt, string(pre, replace(getproperty(parameter, :name, "_each_layer_name_and_thickness_"), " " => "_"), ": ", repr(getproperty(parameter, :thickness, 0.0))))
+    end
+    return txt
+end
+
+"""
+    to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+
+Allows accesing parameters layers by their Symbol
+"""
 function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
     tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
     if tmp === nothing
@@ -266,11 +242,11 @@ function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Sym
 end
 
 """
-    scale_build_layers!(layers::Vector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+    scale_build_layers!(layers::ParametersVector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
 
 Scale build layers thicknesses so that the plasma equilibrium is in the middle of the plasma layer
 """
-function scale_build_layers!(layers::Vector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+function scale_build_layers!(layers::ParametersVector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
     gap = a * plasma_gap_fraction
     plasma_start = R0 - a - gap
     layer_plasma_start = 0.0
@@ -374,11 +350,11 @@ function mechanical_technology(dd::IMAS.dd, what::Symbol)
 end
 
 """
-    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
+    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
 
-Handy functino for initialization of layers based on few scalars
+Handy function for initializing layers based on few scalars
 """
-function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
+function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
 
     # express layer thicknesses as fractions
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
@@ -386,31 +362,43 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
     if vessel > 0.0
-        layers[:hfs_vacuum_vessel_wall_outer] = vessel * 0.1
-        layers[:gap_hfs_vacuum_vessel] = vessel * 0.8
-        layers[:hfs_vacuum_vessel_wall_inner] = vessel * 0.1
+        if thin_vessel_walls
+            layers[:hfs_vacuum_vessel_wall_outer] = 0.1
+            layers[:hfs_vacuum_vessel] = vessel
+            layers[:hfs_vacuum_vessel_wall_inner] = 0.1
+        else
+            layers[:hfs_vacuum_vessel] = vessel
+        end
     end
-    layers[:gap_hfs_coils] = pf_inside_tf ? 0 : -1
+    if pf_inside_tf
+        layers[:gap_hfs_coils] = 0.0
+    end
     if shield > 0.0
         layers[:hfs_shield] = shield
     end
     if blanket > 0.0
         layers[:hfs_blanket] = blanket
     end
-    layers[:hfs_wall] = 0.5
+    layers[:hfs_wall] = 0.1
     layers[:plasma] = 0.0 # this number does not matter
-    layers[:lfs_wall] = 0.5
+    layers[:lfs_wall] = 0.1
     if blanket > 0.0
         layers[:lfs_blanket] = blanket * 2.0
     end
     if shield > 0.0
         layers[:lfs_shield] = shield
     end
-    layers[:gap_lfs_coils] = 1.0 * (pf_inside_tf ? 2.25 : -1)
+    if pf_inside_tf
+        layers[:gap_lfs_coils] = 2.25
+    end
     if vessel > 0.0
-        layers[:lfs_vacuum_vessel_wall_inner] = vessel * 0.1
-        layers[:gap_lfs_vacuum_vessel] = vessel * 0.8
-        layers[:lfs_vacuum_vessel_wall_outer] = vessel * 0.1
+        if thin_vessel_walls
+            layers[:lfs_vacuum_vessel_wall_inner] = 0.1
+            layers[:lfs_vacuum_vessel] = vessel
+            layers[:lfs_vacuum_vessel_wall_outer] = 0.1
+        else
+            layers[:lfs_vacuum_vessel] = vessel
+        end
     end
     layers[:lfs_TF] = 1.0
     if blanket > 0.0

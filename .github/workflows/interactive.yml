@@ -19,6 +19,8 @@ jobs:
           - ubuntu-latest
         arch:
           - x64
+    env:
+        GKSwstype: 100 # disable Plots.jl interactive output
     steps:
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1

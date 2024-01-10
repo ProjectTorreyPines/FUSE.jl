@@ -57,7 +57,7 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
 
     #ini.requirements.power_electric_net = 50E6 ?
     ini.requirements.flattop_duration = 1800.0
-    #ini.requirements.tritium_breeding_ratio = 1.0 ?
+    ini.requirements.tritium_breeding_ratio = 1.1
 
     ini.core_profiles.greenwald_fraction = 0.49
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
@@ -74,6 +74,10 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorPFdesign.symmetric = true
     act.ActorEquilibrium.symmetrize = true
+    act.ActorCXbuild.rebuild_wall = true
+
+    act.ActorHFSsizing.j_tolerance = 0.1
+    act.ActorHFSsizing.stress_tolerance = 0.1
 
     set_new_base!(ini)
     set_new_base!(act)

@@ -1,9 +1,3 @@
-sample_path = joinpath(@__DIR__, "..", "sample")
-shot_details = Dict(
-    :H_mode => Dict(:time0 => 2.7, :filename => joinpath(sample_path, "D3D_standard_Hmode.json")),
-    :L_mode => Dict(:time0 => 2.0, :filename => joinpath(sample_path, "D3D_standard_Lmode.json")),
-    :default => Dict(:time0 => 1.0, :filename => joinpath(sample_path, "D3D_eq_ods.json"))
-)
 """
     case_parameters(:D3D)
 
@@ -21,10 +15,28 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     ini.general.init_from = :ods
     ini.equilibrium.boundary_from = :ods
 
-    ini.ods.filename = shot_details[scenario][:filename]
-    ini.time.simulation_start = shot_details[scenario][:time0]
+    maschine_description = joinpath(__FUSE__, "sample", "D3D_machine.json")
+    shot_mappings = Dict(
+        :H_mode => Dict(:time0 => 2.7, :filename => "$(maschine_description),$(joinpath(__FUSE__, "sample", "D3D_eq_ods.json")),$(joinpath(__FUSE__, "sample", "D3D_standard_Hmode.json"))"),
+        :L_mode => Dict(:time0 => 2.0, :filename => "$(maschine_description),$(joinpath(__FUSE__, "sample", "D3D_eq_ods.json")),$(joinpath(__FUSE__, "sample", "D3D_standard_Lmode.json"))"),
+        :default => Dict(:time0 => 1.0, :filename => "$(maschine_description),$(joinpath(__FUSE__, "sample", "D3D_eq_ods.json"))")
+    )
 
-    ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
+    ini.ods.filename = shot_mappings[scenario][:filename]
+    ini.time.simulation_start = shot_mappings[scenario][:time0]
+
+    #ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
+    ini.build.layers = OrderedCollections.OrderedDict(
+        :gap_plug => 1.2,
+        :hfs_TF => 1.5,
+        :hfs_gap_OH_coils => 1.5,
+        :hfs_wall => 0.5,
+        :plasma => 0.0,
+        :lfs_wall => 0.5,
+        :lfs_gap_OH_coils => 1.9,
+        :lfs_TF => 0.75,
+        :gap_world => 1.0
+    )
     ini.build.layers[:hfs_wall].material = "Carbon, Graphite (reactor grade)"
 
     ini.build.n_first_wall_conformal_layers = 2
@@ -62,6 +74,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
 
     act.ActorPFdesign.symmetric = true
     act.ActorFluxMatcher.evolve_densities = :flux_match
+    act.ActorWholeFacility.update_build = false
 
     set_new_base!(ini)
     set_new_base!(act)

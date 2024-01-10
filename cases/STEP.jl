@@ -5,7 +5,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     dd = IMAS.dd()
     if init_from == :ods
         # Fix the core profiles
-        dd = IMAS.json2imas(ini.ods.filename)
+        dd = load_ODSs_from_string(ini.ods.filename)
         cp1d = dd.core_profiles.profiles_1d[]
 
         rho = cp1d.grid.rho_tor_norm
@@ -132,7 +132,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
 
     ini.general.casename = "STEP"
     ini.general.init_from = :scalars
-    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "STEP_starting_point.json")
+    ini.ods.filename = joinpath("__FUSE__", "sample", "STEP_starting_point.json")
 
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_OH => 0.233,

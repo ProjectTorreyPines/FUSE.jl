@@ -118,7 +118,7 @@ function _step(actor::ActorBlanket)
             dl.material = "vacuum"
         end
         for (kl, dl) in enumerate([d1, d2, d3])
-            if dl !== missing
+            if !isempty(dl)
                 bm.layer[kl].name = dl.name
                 bm.layer[kl].midplane_thickness = dl.thickness
                 bm.layer[kl].material = dl.material

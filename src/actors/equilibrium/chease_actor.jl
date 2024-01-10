@@ -113,6 +113,11 @@ function _finalize(actor::ActorCHEASE)
 
         # Flux Control Points
         flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, psib)
+        if !isempty(eqt.boundary.strike_point)
+            strike_weight = length(flux_cps) / length(eqt.boundary.strike_point)
+            strike_cps = [VacuumFields.FluxControlPoint(sp.r, sp.z, psib, strike_weight) for sp in eqt.boundary.strike_point]
+            append!(flux_cps, strike_cps)
+        end
 
         # Saddle Control Points
         saddle_weight = length(flux_cps) / length(eqt.boundary.x_point)

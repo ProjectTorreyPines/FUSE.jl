@@ -1,6 +1,12 @@
 #= ======== =#
 #  plotting  #
 #= ======== =#
+@recipe function plot_ActorPFdesign_cx(actor::ActorPFdesign)
+    @series begin
+        actor.actor_pf
+    end
+end
+
 """
     plot_ActorPF_cx(
         actor::ActorPFactive{D,P};
@@ -13,7 +19,7 @@
 
 Plot recipe for ActorPFdesign and ActorPFactive
 """
-@recipe function plot_ActorPF_cx(
+@recipe function plot_ActorPFactive_cx(
     actor::ActorPFactive{D,P};
     time_index=nothing,
     equilibrium=true,
@@ -145,7 +151,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
         else
             @series begin
                 cx := true
-                label --> "Final"
+                label --> "Final (λ_reg=$(round(log10(actor.λ_regularize);digits=1)))"
                 color --> :red
                 actor.eq_out.time_slice[time_index]
             end
@@ -181,7 +187,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 color := :blue
                 linestyle := :dash
                 linewidth := 1.5
-                label := "Boundary constraint"
+                label := "Boundary constraints"
                 [cpt.R for cpt in actor.boundary_control_points], [cpt.Z for cpt in actor.boundary_control_points]
             end
         end
