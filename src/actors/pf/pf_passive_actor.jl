@@ -141,7 +141,7 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     R1, Z1 = IMAS.split_long_segments(R1, Z1, max_seg_length)
 
     # radiate lines from polygon vertices
-    rays = IMAS.polygon_rays(collect(zip(R1, Z1)), 100.0, 100.0)
+    rays = IMAS.polygon_rays(collect(zip(R1, Z1)), -100.0, 100.0)
 
     # generate vertices of inner and outer surfaces
     qR1 = Float64[]
@@ -149,22 +149,25 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     qR2 = Float64[]
     qZ2 = Float64[]
     for (k, ray) in enumerate(rays)
-        _, crossings = IMAS.intersection(inner_outline.r, inner_outline.z, [ray[1][1], ray[2][1]], [ray[1][2], ray[2][2]])
-        d = [sqrt.((c[1] - R1[k])^2 + (c[2] - Z1[k])^2) for c in crossings]
+        _, inner_crossings = IMAS.intersection(inner_outline.r, inner_outline.z, [ray[1][1], ray[2][1]], [ray[1][2], ray[2][2]])
+        _, outer_crossings = IMAS.intersection(outer_outline.r, outer_outline.z, [ray[1][1], ray[2][1]], [ray[1][2], ray[2][2]])
+        if isempty(inner_crossings) || isempty(outer_crossings)
+            continue
+        end
+        d = [sqrt.((c[1] - R1[k])^2 + (c[2] - Z1[k])^2) for c in inner_crossings]
         i = argmin(d)
-        push!(qR1, crossings[i][1])
-        push!(qZ1, crossings[i][2])
-        _, crossings = IMAS.intersection(outer_outline.r, outer_outline.z, [ray[1][1], ray[2][1]], [ray[1][2], ray[2][2]])
-        d = [sqrt.((c[1] - R1[k])^2 + (c[2] - Z1[k])^2) for c in crossings]
+        push!(qR1, inner_crossings[i][1])
+        push!(qZ1, inner_crossings[i][2])
+        d = [sqrt.((c[1] - R1[k])^2 + (c[2] - Z1[k])^2) for c in outer_crossings]
         i = argmin(d)
-        push!(qR2, crossings[i][1])
-        push!(qZ2, crossings[i][2])
+        push!(qR2, outer_crossings[i][1])
+        push!(qZ2, outer_crossings[i][2])
     end
 
     # define quads
     quads = []
-    for ka in eachindex(R1)
-        kb = IMAS.getindex_circular(1:length(R1), ka + 1)
+    for ka in eachindex(qR1)
+        kb = IMAS.getindex_circular(1:length(qR1), ka + 1)
         rr = [qR1[ka], qR1[kb], qR2[kb], qR2[ka]]
         zz = [qZ1[ka], qZ1[kb], qZ2[kb], qZ2[ka]]
         RC = sum(rr) * 0.25
