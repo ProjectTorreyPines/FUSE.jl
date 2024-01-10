@@ -121,11 +121,16 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     inner_outline = inner_layer.outline
     outer_outline = outer_layer.outline
 
-    # reorder surface so that starts on the hfs
-    pr = deepcopy(outer_outline.r)
-    pz = deepcopy(outer_outline.z)
-
-    IMAS.reorder_flux_surface!(pr, pz; force_close=true)
+    # reorder surface so that it starts on the hfs
+    pr = outer_outline.r
+    pz = outer_outline.z
+    R0 = (maximum(pr) + minimum(pr)) * 0.5
+    Z0 = (maximum(pz) + minimum(pz)) * 0.5
+    indexes, crossings = IMAS.intersection(pr, pz, [0.0, R0], [Z0, Z0])
+    pr = [pr[1:indexes[1][1]]; crossings[1][1]; pr[indexes[1][1]+1:end]]
+    pz = [pz[1:indexes[1][1]]; crossings[1][2]; pz[indexes[1][1]+1:end]]
+    istart = indexes[1][1] + 1
+    IMAS.reorder_flux_surface!(pr, pz, istart; force_close=true)
 
     # simplify surface polygon
     R1, Z1 = IMAS.rdp_simplify_2d_path(pr[1:end-1], pz[1:end-1], precision)
