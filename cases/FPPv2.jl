@@ -78,10 +78,10 @@ function case_parameters(::Type{Val{:FPPv2}})::Tuple{ParametersAllInits,Paramete
     ini.pf_active.technology = :Nb3Sn
 
     ini.tf.n_coils = 16
-    ini.tf.technology = :HTS
+    ini.tf.technology = :ReBCO
 
     ini.oh.n_coils = 6
-    ini.oh.technology = :HTS
+    ini.oh.technology = :ReBCO
 
     ini.ec_launcher[1].power_launched = 2.5e7
     ini.ec_launcher[1].efficiency_conversion = 0.45

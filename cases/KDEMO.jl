@@ -1,7 +1,7 @@
 """
     case_parameters(:KDEMO)
 
-KDEMO
+
 
 Arguments:
 """
@@ -69,7 +69,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
 
     ini.tf.n_coils = 18
     # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
-    ini.tf.technology = :KDEMO
+    ini.tf.technology = :KDEMO_Nb3Sn
 
     ini.center_stack.bucked = true
     ini.center_stack.plug = true

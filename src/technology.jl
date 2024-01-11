@@ -1,5 +1,3 @@
-const supported_coils_techs = [:copper, :Nb3Sn, :NbTi, :ITER, :KDEMO, :HTS]
-
 """
 Material properties
 """
@@ -30,19 +28,18 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
     if coil_type ∉ (:oh, :tf, :pf_active)
         error("Supported coil type are [:oh, :tf, :pf_active]")
     end
-    if technology ∉ supported_coils_techs
-        error("Supported coil technology are $(repr(supported_coils_techs))")
-    end
+    
+    FusionMaterials.is_supported_material(technology, IMAS._tf_)
 
-    if technology == :copper
+    if technology == :Copper
         coil_tech.material = "Copper"
         coil_tech.temperature = 293.0
         coil_tech.fraction_steel = 0.0
         coil_tech.ratio_SC_to_copper = 0.0
         coil_tech.fraction_void = 0.2
 
-    elseif technology ∈ (:Nb3Sn, :NbTi, :ITER, :KDEMO, :HTS)
-        if technology ∈ (:Nb3Sn, :ITER)
+    elseif technology ∈ (:Nb3Sn, :NbTi, :ITER_Nb3Sn, :KDEMO_Nb3Sn, :ReBCO)
+        if technology == :Nb3Sn
             coil_tech.temperature = 4.2
             coil_tech.material = "Nb3Sn"
             coil_tech.fraction_void = 0.1
@@ -50,9 +47,13 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
             coil_tech.temperature =  4.2
             coil_tech.material = "NbTi"
             coil_tech.fraction_void = 0.2 # from Supercond. Sci. Technol. 36 (2023) 075009
-        elseif technology == :KDEMO
+        elseif technology == :ITER_Nb3Sn
+            coil_tech.temperature = 4.2
+            coil_tech.material = "ITER_Nb3Sn"
+            coil_tech.fraction_void = 0.1 
+        elseif technology == :KDEMO_Nb3Sn
             coil_tech.temperature = 4.2 
-            coil_tech.material = "KDEMO Nb3Sn"
+            coil_tech.material = "KDEMO_Nb3Sn"
             if coil_type == :tf
                 coil_tech.fraction_void = 0.26 # from NF 55 (2015) 053027, Table 2
             end
@@ -65,7 +66,7 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
         coil_tech.fraction_void = 0.1
     end
 
-    if technology == :ITER
+    if technology == :ITER_Nb3Sn
         if coil_type == :oh
             coil_tech.thermal_strain = -0.64
             coil_tech.JxB_strain = -0.05
@@ -95,20 +96,19 @@ Returns critical current density and magnetic field given an external magnetic f
 function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
     if coil_tech.material == "Copper"
         mat = FusionMaterials.Material(:Copper)
-        Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
     elseif coil_tech.material == "Nb3Sn"
         mat = FusionMaterials.Material(:Nb3Sn; coil_tech, Bext)
-        Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
     elseif coil_tech.material == "NbTi"
         mat = FusionMaterials.Material(:NbTi; coil_tech, Bext)
-        Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
-    elseif coil_tech.material == "KDEMO Nb3Sn"
-        mat = FusionMaterials.Material(:Nb3Sn; coil_tech, Bext)
-        Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
+    elseif coil_tech.material == "KDEMO_Nb3Sn"
+        mat = FusionMaterials.Material(:KDEMO_Nb3Sn; coil_tech, Bext)
+    elseif coil_tech.material == "ITER_Nb3Sn"
+        mat = FusionMaterials.Material(:ITER_Nb3Sn; coil_tech, Bext)
     elseif coil_tech.material == "ReBCO"
         mat = FusionMaterials.Material(:ReBCO; coil_tech, Bext)
-        Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
     end
+    Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
+
     return Jcrit, Bcrit
 end
 

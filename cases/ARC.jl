@@ -45,12 +45,12 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.oh.n_coils = 4
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 4
-    ini.pf_active.technology = :HTS
+    ini.pf_active.technology = :ReBCO
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 18
-    ini.tf.technology = :HTS
-    ini.oh.technology = :HTS
+    ini.tf.technology = :ReBCO
+    ini.oh.technology = :ReBCO
 
     ini.center_stack.bucked = true
     ini.center_stack.plug = true

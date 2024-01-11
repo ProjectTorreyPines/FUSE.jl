@@ -46,13 +46,13 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     ini.oh.n_coils = 10
     ini.pf_active.n_coils_inside = 8
     ini.pf_active.n_coils_outside = 0
-    ini.pf_active.technology = :copper
+    ini.pf_active.technology = :Copper
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 24
-    ini.tf.technology = :copper
+    ini.tf.technology = :Copper
 
-    ini.oh.technology = :copper
+    ini.oh.technology = :Copper
 
     ini.core_profiles.greenwald_fraction = 0.7
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75

@@ -183,14 +183,14 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.ejima = 0.0
 
     ini.oh.n_coils = 8
-    ini.oh.technology = :HTS
+    ini.oh.technology = :ReBCO
 
     ini.pf_active.n_coils_inside = 6
     ini.pf_active.n_coils_outside = 0
-    ini.pf_active.technology = :ITER
+    ini.pf_active.technology = :ITER_Nb3Sn
 
     ini.tf.n_coils = 12
-    ini.tf.technology = :HTS
+    ini.tf.technology = :ReBCO
     ini.tf.shape = :rectangle
     ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
 
