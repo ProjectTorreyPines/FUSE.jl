@@ -54,6 +54,25 @@ define clone_pull_repo
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 endef
 
+define feature_or_master_julia
+function feature_or_master(package, feature_branch) ;\
+	token = "$(PTP_READ_TOKEN)" ;\
+	url = "https://api.github.com/repos/ProjectTorreyPines/$$(package).jl/branches/$$(feature_branch)" ;\
+	;\
+	curl_cmd = `curl -s -o /dev/null -w "%{http_code}" -L -H "Authorization: Bearer $$token" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" $$url` ;\
+	;\
+	http_status = chomp(read(`$$curl_cmd`, String)) ;\
+	;\
+	if http_status == "200" ;\
+		return feature_branch ;\
+	elseif http_status == "404" ;\
+		return "master" ;\
+	else ;\
+		error("GitHub API returned status code: $$http_status") ;\
+	end ;\
+end
+endef
+
 # =========================
 
 # simple test to see how many threads julia will run on (set by JULIA_NUM_THREADS)
@@ -124,36 +143,39 @@ branch: .PHONY
 
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 https_add:
-	julia -e ';\
-fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
+	@julia -e ';\
+$(feature_or_master_julia);\
+fuse_master_packages = $(FUSE_MASTER_PACKAGES);\
+println(fuse_master_packages);\
 using Pkg;\
 Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
-for package in fuse_packages;\
-	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+for package in fuse_master_packages;\
+	branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
+	println("$$(package) $$(branch)");\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
 end;\
-Pkg.add(dependencies);\
-'
+Pkg.add(dependencies)'
 
 # Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
 https_dev:
-	mkdir -p ~/.julia/dev
-	ln -sf $(PWD) ~/.julia/dev/FUSE
-	julia -e ';\
+	@mkdir -p ~/.julia/dev
+	@ln -sf $(PWD) ~/.julia/dev/FUSE
+	@julia -e ';\
+$(feature_or_master_julia);\
 fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
 for package in fuse_packages;\
-	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+	branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
+	println("$$(package) $$(branch)");\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
 end;\
 Pkg.develop(dependencies);\
 Pkg.develop(fuse_packages);\
 Pkg.activate("./docs");\
-Pkg.develop(["FUSE"; fuse_packages]);\
-'
+Pkg.develop(["FUSE"; fuse_packages])'
 
 # install FUSE without using the registry
 install_no_registry: forward_compatibility clone_pull_all develop special_dependencies
