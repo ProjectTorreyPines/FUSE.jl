@@ -30,7 +30,13 @@ CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_LOCAL_BRANCH := $(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+ifdef GITHUB_HEAD_REF
+  # For pull_request events
+  FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
+else
+  # For push events and others
+  FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+endif
 
 FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields 
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
