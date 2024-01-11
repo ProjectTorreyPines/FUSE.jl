@@ -64,22 +64,29 @@ end
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
-function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; doplot = false,verbose = false, kw...)
+function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; stepkw, kw...)
     par = act.ActorThermalPlant(kw...)
     actor = ActorThermalPlant(dd, par)
-    actor = step(actor; doplot = doplot, verbose = verbose)
+    actor = step(actor; stepkw...)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorThermalPlant; doplot = false, ddwrite = true, verbose = true)
+function _step(actor::ActorThermalPlant; doplot = false, 
+                                            verbose = true,
+                                            use_actor_u = false,
+                                            ddwrite = true)
+
+    # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
+
     dd  = actor.dd
     par = actor.par
 
-    breeder_heat_load   = isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module);
-    divertor_heat_load  = isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor);
-    wall_heat_load      = abs.(IMAS.radiation_losses(dd.core_sources));
-    actor.u             = [breeder_heat_load, divertor_heat_load, wall_heat_load]
+    breeder_heat_load   = (use_actor_u == false) ? (isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)) : actor.u[1];
+    divertor_heat_load  = (use_actor_u == false) ? (isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)) : actor.u[2];
+    wall_heat_load      = (use_actor_u == false) ?  abs.(IMAS.radiation_losses(dd.core_sources)) : actor.u[3];
+    
+    actor.u             =  [breeder_heat_load, divertor_heat_load, wall_heat_load]
 
     # Buidling the TSM System
     if actor.buildstatus == false
@@ -393,7 +400,9 @@ function _step(actor::ActorThermalPlant; doplot = false, ddwrite = true, verbose
     soln = plant_wrapper(actor)
     TSMD.updateGraphSoln(actor.G,soln);
     TSMD.updateGraphSoln(actor.gplot,soln);
-    initddbop(actor; soln = soln)
+
+    # write to dd if ddwrite = true
+    ddwrite && initddbop(actor; soln = soln)
 
     if doplot == true
         sysnamedict = Dict([
@@ -453,6 +462,7 @@ function _step(actor::ActorThermalPlant; doplot = false, ddwrite = true, verbose
     end
     return actor
 end
+
 
 function getval(v,act::ActorThermalPlant)
     return act.var2val[act.sym2var[v]]
@@ -649,4 +659,17 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
     @ddtime(bop_plant.power_electric_generated = soln(act.odedict[:Electric].Ẇ))
     @ddtime(bop.thermal_efficiency_plant = soln(:η_bop))
     @ddtime(bop.thermal_efficiency_cycle = soln(:η_cycle))
+end
+
+# ATP = ActorThermalPlant
+#
+function setxATP!(x,actorATP::ActorThermalPlant)
+
+    # @assert length(x)==length(actorATP.x) "x incorrect length for actor.x"
+
+    for i =1:length(x)
+        actorATP.x[i] = x[i]
+        actorATP.var2val[actorATP.sym2var[actorATP.optpar[i]]] = x[i]
+    end
+    return actorATP
 end

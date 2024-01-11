@@ -42,7 +42,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     return ActorBalanceOfPlant(dd, par, act, thermal_plant_actor, power_needs_actor)
 end
 
-function _step(actor::ActorBalanceOfPlant)
+function _step(actor::ActorBalanceOfPlant; kw...)
     dd  = actor.dd
     par = actor.par
     bop = dd.balance_of_plant
@@ -50,7 +50,7 @@ function _step(actor::ActorBalanceOfPlant)
     bop_thermal = bop.power_plant
     @ddtime(bop_thermal.generator_conversion_efficiency = par.generator_conversion_efficiency)
 
-    finalize(step(actor.thermal_plant_actor; doplot = par.do_plot))
+    finalize(step(actor.thermal_plant_actor; doplot = par.do_plot, kw...))
     finalize(step(actor.power_needs_actor))
 
     return actor
