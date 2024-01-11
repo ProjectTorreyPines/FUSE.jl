@@ -145,12 +145,12 @@ branch: .PHONY
 https_add:
 	@julia -e ';\
 $(feature_or_master_julia);\
-fuse_master_packages = $(FUSE_MASTER_PACKAGES);\
-println(fuse_master_packages);\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
-for package in fuse_master_packages;\
+for package in fuse_packages;\
 	branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
 	println("$$(package) $$(branch)");\
 	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
