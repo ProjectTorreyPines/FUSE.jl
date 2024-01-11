@@ -141,9 +141,9 @@ revise:
 branch: .PHONY
 	@cd $(CURRENTDIR); $(foreach package,FUSE WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
-# Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
+# install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 https_add:
-	@julia -e ';\
+	julia -e ';\
 $(feature_or_master_julia);\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
@@ -157,7 +157,7 @@ for package in fuse_packages;\
 end;\
 Pkg.add(dependencies)'
 
-# Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
+# install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
 https_dev:
 	@mkdir -p ~/.julia/dev
 	@ln -sf $(PWD) ~/.julia/dev/FUSE
