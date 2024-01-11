@@ -5,16 +5,18 @@ The purpose of this function is to setting `ini` values based on what is in the 
 thus simplifying the logic of the init functions after it which only have to look at ini values
 """
 function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
-    if !ismissing(ini.general, :dd)
-        dd1 = ini.general.dd
-
-    elseif ini.general.init_from != :ods
+    if ini.general.init_from != :ods
         # don't do anything if to ini and return an empty dd
         dd1 = IMAS.dd()
 
     else
-        dd1 = IMAS.json2imas(replace(ini.ods.filename, r"^__FUSE__" => __FUSE__))
-        dd1.global_time = ini.time.simulation_start
+        # ini.general.dd takes priority
+        if !ismissing(ini.general, :dd)
+            dd1 = ini.general.dd
+        else
+            dd1 = load_ODSs_from_string(ini.ods.filename)
+            dd1.global_time = ini.time.simulation_start
+        end
 
         # equilibrium
         if !isempty(dd1.equilibrium.time_slice)

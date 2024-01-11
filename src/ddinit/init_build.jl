@@ -3,63 +3,6 @@ import GeoInterface
 import Interpolations
 import OrderedCollections
 
-#= ========================================== =#
-#  Visualization of IMAS.build.layer as table  #
-#= ========================================== =#
-function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
-
-    df = DataFrames.DataFrame(;
-        group=String[],
-        details=String[],
-        type=String[],
-        ΔR=Float64[],
-        R_start=Float64[],
-        R_end=Float64[],
-        material=String[],
-        area=Float64[],
-        volume=Float64[]
-    )
-
-    for layer in layers
-        group = replace(string(BuildLayerSide(layer.side)), "_" => "")
-        type = replace(string(BuildLayerType(layer.type)), "_" => "")
-        type = replace(type, r"^gap" => "")
-        details = replace(lowercase(layer.name), r"^[hl]fs " => "")
-        details = replace(details, r"^gap .*" => "")
-        details = replace(details, r"\b" * type * r"\b" => "")
-        material = getproperty(layer, :material, "?")
-        material = split(material, ",")[1]
-        material = replace(material, "Vacuum" => "")
-        area = getproperty(layer, :area, NaN)
-        volume = getproperty(layer, :volume, NaN)
-        push!(df, [group, details, type, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume])
-    end
-
-    return df
-end
-
-function Base.show(io::IO, ::MIME"text/plain", layers::IMAS.IDSvector{<:IMAS.build__layer})
-    old_lines = get(ENV, "LINES", missing)
-    old_columns = get(ENV, "COLUMNS", missing)
-    df = DataFrames.DataFrame(layers)
-    try
-        ENV["LINES"] = 1000
-        ENV["COLUMNS"] = 1000
-        return show(io::IO, df)
-    finally
-        if old_lines === missing
-            delete!(ENV, "LINES")
-        else
-            ENV["LINES"] = old_lines
-        end
-        if old_columns === missing
-            delete!(ENV, "COLUMNS")
-        else
-            ENV["COLUMNS"] = old_columns
-        end
-    end
-end
-
 #= ========== =#
 #  init build  #
 #= ========== =#
@@ -182,9 +125,7 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
 
     k = 0
     for ini_layer in layers
-        if ini_layer.thickness < 0.0
-            continue
-        end
+        @assert ini_layer.thickness >= 0.0
         k += 1
         layer = resize!(bd.layer, k)[k]
 
@@ -221,11 +162,13 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
         layer.thickness = thickness
 
         # type
-        if occursin("gap ", lowercase(layer.name))
+        if occursin("OH", uppercase(layer.name)) && occursin("hfs", lowercase(layer.name))
+            layer.type = :oh
+        elseif occursin("gap ", lowercase(layer.name))
             layer.type = :gap
         elseif lowercase(layer.name) == "plasma"
             layer.type = :plasma
-        elseif uppercase(layer.name) == "OH"
+        elseif occursin("OH", uppercase(layer.name))
             layer.type = :oh
         elseif occursin("TF", uppercase(layer.name))
             layer.type = :tf
@@ -407,11 +350,11 @@ function mechanical_technology(dd::IMAS.dd, what::Symbol)
 end
 
 """
-    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
+    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
 
-Handy functino for initialization of layers based on few scalars
+Handy function for initializing layers based on few scalars
 """
-function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool)
+function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
 
     # express layer thicknesses as fractions
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
@@ -419,31 +362,43 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
     if vessel > 0.0
-        layers[:hfs_vacuum_vessel_wall_outer] = vessel * 0.1
-        layers[:gap_hfs_vacuum_vessel] = vessel * 0.8
-        layers[:hfs_vacuum_vessel_wall_inner] = vessel * 0.1
+        if thin_vessel_walls
+            layers[:hfs_vacuum_vessel_wall_outer] = 0.1
+            layers[:hfs_vacuum_vessel] = vessel
+            layers[:hfs_vacuum_vessel_wall_inner] = 0.1
+        else
+            layers[:hfs_vacuum_vessel] = vessel
+        end
     end
-    layers[:gap_hfs_coils] = pf_inside_tf ? 0 : -1
+    if pf_inside_tf
+        layers[:gap_hfs_coils] = 0.0
+    end
     if shield > 0.0
         layers[:hfs_shield] = shield
     end
     if blanket > 0.0
         layers[:hfs_blanket] = blanket
     end
-    layers[:hfs_wall] = 0.5
+    layers[:hfs_wall] = 0.1
     layers[:plasma] = 0.0 # this number does not matter
-    layers[:lfs_wall] = 0.5
+    layers[:lfs_wall] = 0.1
     if blanket > 0.0
         layers[:lfs_blanket] = blanket * 2.0
     end
     if shield > 0.0
         layers[:lfs_shield] = shield
     end
-    layers[:gap_lfs_coils] = 1.0 * (pf_inside_tf ? 2.25 : -1)
+    if pf_inside_tf
+        layers[:gap_lfs_coils] = 2.25
+    end
     if vessel > 0.0
-        layers[:lfs_vacuum_vessel_wall_inner] = vessel * 0.1
-        layers[:gap_lfs_vacuum_vessel] = vessel * 0.8
-        layers[:lfs_vacuum_vessel_wall_outer] = vessel * 0.1
+        if thin_vessel_walls
+            layers[:lfs_vacuum_vessel_wall_inner] = 0.1
+            layers[:lfs_vacuum_vessel] = vessel
+            layers[:lfs_vacuum_vessel_wall_outer] = 0.1
+        else
+            layers[:lfs_vacuum_vessel] = vessel
+        end
     end
     layers[:lfs_TF] = 1.0
     if blanket > 0.0

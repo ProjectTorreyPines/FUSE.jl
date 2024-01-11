@@ -115,6 +115,10 @@ function _finalize_and_freeze_onetime_expressions(actor::T) where {T<:AbstractAc
     return f_actor
 end
 
+@recipe function plot_actor(actor::AbstractActor, args...)
+    error("No plot recipe defined for ator $(typeof(actor))")
+end
+
 #= ============= =#
 #  actor_logging  #
 #= ============= =#

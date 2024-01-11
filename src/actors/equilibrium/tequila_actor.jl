@@ -177,6 +177,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     eq2d.grid.dim2 = Zgrid
     eq2d.grid_type.index = 1
     eq2d.psi = fill(Inf, (length(eq2d.grid.dim1), length(eq2d.grid.dim2)))
+
     if free_boundary
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
@@ -184,6 +185,11 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
 
         # Flux Control Points
         flux_cps = VacuumFields.boundary_control_points(shot, 0.999, psib)
+        if !isempty(eqt.boundary.strike_point)
+            strike_weight = length(flux_cps) / length(eqt.boundary.strike_point)
+            strike_cps = [VacuumFields.FluxControlPoint(sp.r, sp.z, psib, strike_weight) for sp in eqt.boundary.strike_point]
+            append!(flux_cps, strike_cps)
+        end
 
         # Saddle Control Points
         saddle_weight = length(flux_cps) / length(eqt.boundary.x_point)
@@ -200,6 +206,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
 
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
         pf_current_limits(dd.pf_active, dd.build)
+
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain
