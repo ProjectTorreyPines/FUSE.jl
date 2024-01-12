@@ -140,6 +140,15 @@ Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit where
     efficiency_coupling::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :coupling; default=1.0)
 end
 
+Base.@kwdef mutable struct FUSEparameters__pellets_launchers{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :pellets_launchers
+    frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched")
+    geometry_type::Switch{Symbol} = Switch{Symbol}([:sphere, :cylinder],"-","The pellet geometry"; default=:sphere)
+    material::Switch{Symbol} = Switch{Symbol}([:DT_ice],"-","Pellet material";default=:DT_ice)
+    geometry_parameters::Entry{Vector{T}} = Entry{Vector{T}}("m", "Vector of geometry parameters")
+end
+
 Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :layer
@@ -213,12 +222,13 @@ mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     center_stack::FUSEparameters__center_stack{T}
     nb_unit::ParametersVector{FUSEparameters__nb_unit{T}}
     ec_launcher::ParametersVector{FUSEparameters__ec_launcher{T}}
+    pellets_launchers::ParametersVector{FUSEparameters__pellets_launchers{T}}
     ic_antenna::ParametersVector{FUSEparameters__ic_antenna{T}}
     lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0) where {T<:Real}
+function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0,n_pel::Int=0, n_ic::Int=0, n_lh::Int=0) where {T<:Real}
     ini = ParametersInits{T}(
         WeakRef(nothing),
         :ini,
@@ -235,6 +245,7 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0
         FUSEparameters__center_stack{T}(),
         ParametersVector{FUSEparameters__nb_unit{T}}(),
         ParametersVector{FUSEparameters__ec_launcher{T}}(),
+        ParametersVector{FUSEparameters__pellets_launchers{T}}(),
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}(),
         FUSEparameters__requirements{T}())
@@ -245,6 +256,10 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_ic::Int=0, n_lh::Int=0
 
     for k in 1:n_ec
         push!(ini.ec_launcher, FUSEparameters__ec_launcher{T}())
+    end
+
+    for k in 1:n_pel
+        push!(ini.pellets_launchers, FUSEparameters__pellets_launchers{T}())
     end
 
     for k in 1:n_ic
