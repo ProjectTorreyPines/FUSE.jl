@@ -67,6 +67,7 @@ jobs:
           path: |
             ~/.julia/artifacts
             ~/.julia/packages
+            ~/.julia/compiled
           key: ${{ runner.os }}-julia-${{ matrix.version }}-${{ steps.cache-date.outputs.date }}
       - run: make install_ci_add
       - uses: julia-actions/julia-buildpkg@v1
