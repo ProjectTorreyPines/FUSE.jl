@@ -7,6 +7,10 @@ on:
         type: boolean
         required: false
         default: false
+      bypass-cache:
+        type: boolean
+        required: false
+        default: false
   push:
     branches:
       - master
@@ -53,15 +57,17 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
+      - name: Generate cache key with date
+        id: cache-date
+        run: echo "::set-output name=date::$(date +%Y-%m-%d)"
       - name: Cache Julia artifacts
         uses: actions/cache@v2
+        if: github.event.inputs.bypass-cache != 'true'
         with:
           path: |
             ~/.julia/artifacts
             ~/.julia/packages
-          key: ${{ runner.os }}-julia-${{ matrix.version }}-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-julia-${{ matrix.version }}-
+          key: ${{ runner.os }}-julia-${{ matrix.version }}-${{ steps.cache-date.outputs.date }}
       - run: make install_ci_add
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
