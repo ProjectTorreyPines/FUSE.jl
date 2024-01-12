@@ -297,7 +297,7 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
             continue
         end
         if k == 1 && ini.center_stack.plug
-            layer.material = "Steel, Stainless 316"
+            layer.material = "Steel"
         elseif layer.type == Int(_plasma_)
             layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in bd.layer)) ? "DT_plasma" : "DD_plasma"
         elseif layer.type == Int(_gap_)
@@ -307,15 +307,15 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         elseif layer.type == Int(_tf_)
             layer.material = bd.tf.technology.material
         elseif layer.type == Int(_shield_)
-            layer.material = "Steel, Stainless 316"
+            layer.material = "Steel"
         elseif layer.type == Int(_blanket_)
-            layer.material = "lithium-lead"
+            layer.material = "Lithium_Lead"
         elseif layer.type == Int(_wall_)
             layer.material = "Tungsten"
         elseif layer.type == Int(_vessel_)
-            layer.material = "Water, Liquid"
+            layer.material = "Water"
         elseif layer.type == Int(_cryostat_)
-            layer.material = "Steel, Stainless 316"
+            layer.material = "Steel"
         end
     end
 end

@@ -249,7 +249,7 @@ end
 function cost_direct_capital_Sheffield(::Type{Val{:structure}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
     primary_coils_hfs = IMAS.get_build_layer(bd.layer; type=IMAS._tf_, fs=_hfs_)
-    cost = 0.75 * primary_coils_hfs.volume * unit_cost("Steel, Stainless 316", cst)
+    cost = 0.75 * primary_coils_hfs.volume * unit_cost("Steel", cst)
     return future_dollars(cost, da)
 end
 
