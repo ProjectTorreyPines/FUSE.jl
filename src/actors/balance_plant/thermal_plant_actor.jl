@@ -38,6 +38,7 @@ mutable struct ActorThermalPlant{D,P} <: FacilityAbstractActor{D,P}
     function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlant{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorThermalPlant)
         par = par(kw...)
+        dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
         return new{D,P}(dd, 
                         par, 
                         ModelingToolkit.ODESystem[],
@@ -67,6 +68,7 @@ end
 function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; stepkw, kw...)
     par = act.ActorThermalPlant(kw...)
     actor = ActorThermalPlant(dd, par)
+    dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
     actor = step(actor; stepkw...)
     finalize(actor)
     return actor
@@ -87,10 +89,22 @@ function _step(actor::ActorThermalPlant; doplot = false,
     wall_heat_load      = (use_actor_u == false) ?  abs.(IMAS.radiation_losses(dd.core_sources)) : actor.u[3];
     
     actor.u             =  [breeder_heat_load, divertor_heat_load, wall_heat_load]
-
     # Buidling the TSM System
     if actor.buildstatus == false
-        verbose==true && println("Rebuilding ActorThermalPlant")
+        @info "Rebuilding ActorThermalPlant"
+
+        # This is for graph construction which currently relies on the heat flow trajectory through the full BOP 
+        # In one of the steps to to plot the graph, (TSMD.create_plot_graph()) there is a routine which 
+        # has to take a directed cyclic graph and convert it into a directed acyclic graph, to do this correctly TSM
+        # relies on the heat flow (solution) trajectory through the entire plant in order to find the correct edge direction ( within the MetaGraph object), 
+        # since balance equations are directionless without context, 
+        # This only matters for the first step since that is when TSMD builds the graph object, afterwards 0 values are not an issue
+        if 0 ∈ actor.u 
+            @warn "Invalid initial thermal loading is [Qbreeder, Qdivertor, Qwall] = $(actor.u), \n Setting load to default for construction step, resetting to [500e6,100e6,100e6]), \n Rerun FUSE.step(act.ActorThermalPlant) to update loading to the correct value"
+            breeder_heat_load = 500e6;
+            divertor_heat_load = 100e6;
+            wall_heat_load = 100e6;
+        end
 
         # default parameters
         tspan = (0.0,10)
@@ -238,7 +252,7 @@ function _step(actor::ActorThermalPlant; doplot = false,
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan);
 
-            ode_sol  = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rodas4());
+            ode_sol  = DifferentialEquations.solve(actor.prob, DifferentialEquations.ImplicitEuler());
             soln(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric];
@@ -298,7 +312,7 @@ function _step(actor::ActorThermalPlant; doplot = false,
             ),
             η_cycle ~ 1 - abs((cdict[:cycle_cooler].q.Q̇+cdict[:cycle_intercooler_1].Q̇ + cdict[:cycle_intercooler_2].Q̇) / cdict[:cycle_heat].q.Q̇),
             η_bop ~ 1 - abs(edict[:ColdUtility].Q̇ / edict[:HotUtility].Q̇))
-            # 
+            
             plant_params = vcat(wparams, dparams, bparams, iparams, cparams)
             plant_connections = vcat(
                 cconnections,
@@ -368,7 +382,7 @@ function _step(actor::ActorThermalPlant; doplot = false,
             tspan    = (0.0, 10)
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan);
 
-            ode_sol  = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rodas4());
+            ode_sol  = DifferentialEquations.solve(actor.prob, DifferentialEquations.ImplicitEuler());
             sol(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric];
@@ -463,21 +477,59 @@ function _step(actor::ActorThermalPlant; doplot = false,
     return actor
 end
 
+"""
+    getval(v,act::ActorThermalPlant)
 
+Returns the value of a system parameter identified by symbol v.
+Inputs:
+    v::Symbol corresponding to model parameters
+    act::ActorThermalPlant
+Outputs:
+    The actors default value for that parameter
+"""
 function getval(v,act::ActorThermalPlant)
     return act.var2val[act.sym2var[v]]
 end
 
+"""
+    getvar(v,act::ActorThermalPlant)
+
+Returns the variable object of a system parameter identified by symbol v.
+Inputs:
+    v::Symbol corresponding to model parameters
+    act::ActorThermalPlant
+Outputs:
+    The variable object associated with symbol v 
+Example:
+    getvar(:η_bop, actor) === actor.plant.η_bop
+    getvar(:Electric₊Ẇ) === actor.plant.Electric.Ẇ ===  actor.odedict[:Electric].Ẇ
+"""  
 function getvar(v,act::ActorThermalPlant)
     return act.sym2var[v]
 end
 
+"""
+    getsol(act::ActorThermalPlant)
+
+Returns the current solution object of a the ThermalPlantActor. The returned function will output the solution point for any VARIABLE object within the plant.
+"""
 function getsol(act::ActorThermalPlant)
     return act.gplot.gprops[:soln]
 end
 
-# plant_wrappers are functions that can be used to evaluate the thermal plant outside of dd
-# returns soln
+
+"""
+    plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan = (0,10))
+
+Evaluates the system described by simple_sys::ODESystem.
+Inputs:
+    u = heat loading [Q_breeder, Q_divertor, Q_wall] (Watts)
+    x = parameters values to use during evaluation, these are identified in keypara, 
+    keypara = variabels associated with the data in indices of x
+    var2val and sym2var are dicts for getting the actual variable objects, they are the same as in the actor structure
+Ouput: 
+    soln = solution object
+"""
 function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan = (0,10))
     # x are parameters 
     # u are heat loads 
@@ -500,12 +552,20 @@ function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan = (0,1
     end
 
     node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped);
-    node_sol  = DifferentialEquations.solve(node_prob);
+    node_sol  = DifferentialEquations.solve(node_prob, DifferentialEquations.ImplicitEuler());
     soln(v) = node_sol[v][end]
     return soln
 end
 
-# returns soln(yvars)
+"""
+    plant_wrapper(x, u, ``yvars``, simple_sys, keypara, var2val, sym2var; tspan = (0,10))
+
+Evaluates the system described by simple_sys::ODESystem.
+Inputs:
+    yvars = vector of output variable objects
+Ouput: 
+    soln.(yvars)
+"""
 function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan = (0,10))
     # x are parameters 
     # u are heat loads 
@@ -528,32 +588,57 @@ function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan
     end
 
     node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped);
-    node_sol  = DifferentialEquations.solve(node_prob);
+    node_sol  = DifferentialEquations.solve(node_prob,DifferentialEquations.ImplicitEuler());
     soln(v) = node_sol[v][end]
     return soln.(yvars)
 end
 
-# returns soln
+"""
+    plant_wrapper(act::ActorThermalPlant)
+
+Evaluates the system described by act.plant
+Ouput: 
+    soln, the updated solution object
+"""
 function plant_wrapper(act::ActorThermalPlant)
     return plant_wrapper(act.x, act.u, act.plant, act.optpar, act.var2val, act.sym2var)
 end
 
-# returns soln(yvars) the updated solution for the vars stored in yvars
+"""
+    plant_wrapper(act::ActorThermalPlant, yvars)
+
+Evaluates the system described by act.plant
+Ouput: 
+    soln.(yvars) at the updated solution for the vars stored in yvars
+"""
 function plant_wrapper(act::ActorThermalPlant,yvars)
     return plant_wrapper(act.x, act.u, yvars, act.plant, act.optpar, act.var2val, act.sym2var)
 end
 
-# returns yfunc(soln(yvars)) , for optimization
+"""
+    plant_wrapper(act::ActorThermalPlant,yvars,yfunc)
+
+Evaluates the system described by act.plant and returns objective function value of yfunc. This function can be used during optimization trials.
+Ouput: 
+    yfunc(soln.(yvars))
+"""
 function plant_wrapper(act::ActorThermalPlant,yvars,yfunc)
     y = plant_wrapper(act,yvars);
     return yfunc(y)
 end
 
+"""
+    initddbop(act::ActorThermalPlant; soln = nothing)
+
+Maps data stored in the TSM objects and metagraph to dd. By default the function will use 
+the internal solution value in the actor, which is updated during every step call and plant_wrapper call.
+If you want to write to dd based off a different solution object, it can be passed in the kwargs 
+"""
 function initddbop(act::ActorThermalPlant; soln = nothing)
     gcopy = act.gplot;
     dd = act.dd;
     syslabs = TSMD.get_prop(gcopy, :system_labels)
-    empty!(dd.balance_of_plant);
+    # empty!(dd.balance_of_plant);
     # begin
     bop       = dd.balance_of_plant;
     bop_plant = bop.power_plant;
@@ -657,12 +742,17 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
     end
 
     @ddtime(bop_plant.power_electric_generated = soln(act.odedict[:Electric].Ẇ))
+    @ddtime(bop_plant.total_heat_rejected =  soln(act.odedict[:ColdUtility].Q̇))
+    @ddtime(bop_plant.total_heat_supplied = -soln(act.odedict[:HotUtility].Q̇))
     @ddtime(bop.thermal_efficiency_plant = soln(:η_bop))
     @ddtime(bop.thermal_efficiency_cycle = soln(:η_cycle))
 end
 
-# ATP = ActorThermalPlant
-#
+"""
+    setxATP!(x,actorATP::ActorThermalPlant)
+
+Setter for actor.x
+"""
 function setxATP!(x,actorATP::ActorThermalPlant)
 
     # @assert length(x)==length(actorATP.x) "x incorrect length for actor.x"
