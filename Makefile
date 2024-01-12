@@ -524,4 +524,9 @@ Pkg.add(["JuliaFormatter"]);\
 '
 	$(foreach package,WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
 
+# create an empty commit
+empty_commit:
+	git reset HEAD
+	git commit --allow-empty -m 'empty commit'
+
 .PHONY:
