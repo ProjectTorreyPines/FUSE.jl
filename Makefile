@@ -150,6 +150,7 @@ branch: .PHONY
 	@cd $(CURRENTDIR); $(foreach package,FUSE WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
 # install (add) FUSE via HTTPS and $PTP_READ_TOKEN
+# looks for same branch name for all repositories otherwise falls back to master
 https_add:
 	julia -e ';\
 $(feature_or_master_julia);\
@@ -166,19 +167,17 @@ end;\
 Pkg.add(dependencies)'
 
 # install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
+# all repos are on the master branch (this should be the case for generating documentation)
 https_dev:
 	@mkdir -p ~/.julia/dev
 	@ln -sf $(PWD) ~/.julia/dev/FUSE
 	@julia -e ';\
-$(feature_or_master_julia);\
 fuse_packages = $(FUSE_PACKAGES);\
 using Pkg;\
 Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
 for package in fuse_packages;\
-	branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
-	println("$$(package) $$(branch)");\
-	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
 end;\
 Pkg.develop(dependencies);\
 Pkg.develop(fuse_packages);\
