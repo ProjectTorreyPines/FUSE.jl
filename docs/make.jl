@@ -157,6 +157,7 @@ makedocs(;
     root=@__DIR__,
     modules=[FUSE, IMAS, IMASDD],
     sitename="FUSE",
+    build=joinpath(@__DIR__,"pages"),
     format=Documenter.HTML(;
         prettyurls=false,
         sidebar_sitename=false,
