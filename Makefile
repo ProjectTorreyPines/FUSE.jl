@@ -318,7 +318,7 @@ ServeFUSE:
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
-Pkg.activate("../ServeFUSE");\
+Pkg.activate("../ServeFUSE/task_tiller");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
 
