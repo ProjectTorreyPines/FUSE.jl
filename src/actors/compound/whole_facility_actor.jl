@@ -19,7 +19,7 @@ mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor{D,P}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
     LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
     CXbuild::Union{Nothing,ActorCXbuild{D,P}}
-    PFcoilsOpt::Union{Nothing,ActorPFcoilsOpt{D,P}}
+    PFdesign::Union{Nothing,ActorPFdesign{D,P}}
     PassiveStructures::Union{Nothing,ActorPassiveStructures{D,P}}
     Neutronics::Union{Nothing,ActorNeutronics{D,P}}
     Blanket::Union{Nothing,ActorBlanket{D,P}}
@@ -40,7 +40,7 @@ Compound actor that runs all the physics, engineering and costing actors needed 
   - ActorCXbuild
   - ActorFluxSwing
   - ActorStresses
-  - ActorPFcoilsOpt
+  - ActorPFdesign
   - ActorPassiveStructures
   - ActorNeutronics
   - ActorBlanket
@@ -90,28 +90,36 @@ function _step(actor::ActorWholeFacility)
         actor.StabilityLimits = ActorStabilityLimits(dd, act)
     end
 
-    if par.update_build
-        actor.HFSsizing = ActorHFSsizing(dd, act)
-        actor.LFSsizing = ActorLFSsizing(dd, act)
-        actor.CXbuild = ActorCXbuild(dd, act)
-        actor.PassiveStructures = ActorPassiveStructures(dd, act)
+    if isempty(dd.build.layer)
+        @warn "ActorWholeFacility: skipping engineering/costing actors since build is missing"
 
-        actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act)
-        if act.ActorPFcoilsOpt.update_equilibrium && act.ActorCXbuild.rebuild_wall
+    else
+        if par.update_build
+            actor.HFSsizing = ActorHFSsizing(dd, act)
+            actor.LFSsizing = ActorLFSsizing(dd, act)
             actor.CXbuild = ActorCXbuild(dd, act)
-            actor.PFcoilsOpt = ActorPFcoilsOpt(dd, act; update_equilibrium=false)
+            actor.PassiveStructures = ActorPassiveStructures(dd, act)
+
+            actor.PFdesign = ActorPFdesign(dd, act)
+            if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
+                actor.CXbuild = ActorCXbuild(dd, act)
+                ActorPFactive(dd, act; update_equilibrium=false)
+            end
+        else
+            ActorFluxSwing(dd, act)
+            ActorStresses(dd, act)
         end
+
+        actor.Neutronics = ActorNeutronics(dd, act)
+
+        actor.Blanket = ActorBlanket(dd, act)
+
+        actor.Divertors = ActorDivertors(dd, act)
+
+        actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
+
+        actor.Costing = ActorCosting(dd, act)
     end
-
-    actor.Neutronics = ActorNeutronics(dd, act)
-
-    actor.Blanket = ActorBlanket(dd, act)
-
-    actor.Divertors = ActorDivertors(dd, act)
-
-    actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
-
-    actor.Costing = ActorCosting(dd, act)
 
     return actor
 end

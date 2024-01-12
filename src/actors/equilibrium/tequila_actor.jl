@@ -73,7 +73,8 @@ function _step(actor::ActorTEQUILA)
 
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
-        pr, pz = IMAS.resample_plasma_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z; n_points=500, curvature_weight=0.8)
+        pr = eqt.boundary.outline.r
+        pz = eqt.boundary.outline.z
         pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
         # kmin = argmin(pz)
         # @views pr[kmin] = sum(pr[kmin-1:kmin+1]) / 3.0
@@ -143,7 +144,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     κ = shot.surfaces[4, end]
     a = R0 * ϵ
     Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
-    Zdim = κ * Rdim
+    Zdim = κ * 1.6 * a
 
     nψ_grid = 129
     nz_grid = 129
@@ -176,26 +177,26 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     eq2d.grid.dim2 = Zgrid
     eq2d.grid_type.index = 1
     eq2d.psi = fill(Inf, (length(eq2d.grid.dim1), length(eq2d.grid.dim2)))
+
     if free_boundary
-        # constraints for the private flux region
-        z_geo = eqt.boundary.geometric_axis.z
-        Rb, Zb = eqt.boundary.outline.r, eqt.boundary.outline.z
-        upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
-        lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
-        fraction = 0.05
-        Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=2)
+        pr = eqt.boundary.outline.r
+        pz = eqt.boundary.outline.z
+        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
 
         # Flux Control Points
-        flux_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
-        append!(flux_cps, VacuumFields.boundary_control_points(shot, 0.999, psib))
-        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib)])
+        flux_cps = VacuumFields.boundary_control_points(shot, 0.999, psib)
+        if !isempty(eqt.boundary.strike_point)
+            strike_weight = length(flux_cps) / length(eqt.boundary.strike_point)
+            strike_cps = [VacuumFields.FluxControlPoint(sp.r, sp.z, psib, strike_weight) for sp in eqt.boundary.strike_point]
+            append!(flux_cps, strike_cps)
+        end
 
         # Saddle Control Points
-        saddle_weight = length(flux_cps)
+        saddle_weight = length(flux_cps) / length(eqt.boundary.x_point)
         saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         if isempty(dd.pf_active.coil)
-            coils = encircling_coils(Rb, Zb, RA, ZA, 8)
+            coils = encircling_coils(pr, pz, RA, ZA, 8)
         else
             coils = IMAS_pf_active__coils(dd; green_model=:simple)
         end
@@ -204,6 +205,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         eq2d.psi .= psi_free_rz'
 
         IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
+        pf_current_limits(dd.pf_active, dd.build)
+
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain

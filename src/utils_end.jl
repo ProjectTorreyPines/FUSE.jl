@@ -373,16 +373,19 @@ function digest(
     end
 
     # core profiles
+    # temperatures
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles; only=1))
     end
+    # densities
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_profiles; only=2))
     end
+    # rotation
     sec += 1
     if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
         println('\u200B')
@@ -390,21 +393,25 @@ function digest(
     end
 
     # core sources
+    # electron heat
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=1))
     end
+    # ion heat
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=2))
     end
+    # electron particle
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
         display(plot(dd.core_sources; only=3))
     end
+    # parallel current
     sec += 1
     if !isempty(dd.core_sources.source) && section ∈ (0, sec)
         println('\u200B')
@@ -518,14 +525,16 @@ function digest(dd::IMAS.dd,
     ini::Union{Nothing,ParametersAllInits}=nothing,
     act::Union{Nothing,ParametersAllActors}=nothing
 )
-    title = replace(title, r".pdf$" => "")
+    title = replace(title, r".pdf$" => "", "_" => " ")
     outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
+
     tmpdir = mktempdir()
     logger = SimpleLogger(stderr, Logging.Warn)
     try
         filename = redirect_stdout(Base.DevNull()) do
             filename = with_logger(logger) do
                 return Weave.weave(joinpath(@__DIR__, "digest.jmd");
+                    latex_cmd=["xelatex"],
                     mod=@__MODULE__,
                     doctype="md2pdf",
                     template=joinpath(@__DIR__, "digest.tpl"),
@@ -541,7 +550,7 @@ function digest(dd::IMAS.dd,
         cp(filename, outfilename; force=true)
         return outfilename
     catch e
-        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir")
+        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir\n$e")
     else
         rm(tmpdir; recursive=true, force=true)
     end

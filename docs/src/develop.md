@@ -8,6 +8,15 @@ All FUSE-related development occurs under the [GitHub ProjectTorreyPines organiz
 
 We use a GitHub to [track progress with FUSE developments](https://github.com/orgs/ProjectTorreyPines/projects/2/views/1) and have a birds-eye view across the different repositories used by the FUSE project.
 
+### Managing Pull Requests on GitHub: A Collaborative Approach
+
+We handle updates to our main master branch – be it new features or bug fixes – through Pull Requests (PRs). You can check out all the ongoing and past PRs over at our GitHub page, [FUSE PRs](https://github.com/ProjectTorreyPines/FUSE.jl/pulls) pull requests. When you submit a PR, don't forget to add relevant labels like enhancement for new features or bug for bug fixes. This helps in categorizing the updates and makes things clearer for everyone.
+
+Also, a crucial part of our PR process is code review. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
+
+!!! note 
+    If you're working on a new feature that involves changes in several repositories, like in FUSE and IMAS, you'll want to use the same branch name across these repositories. For example, if you're working on a branch named `my_new_feature` in both FUSE and IMAS, that's great because for the feature to function correctly in FUSE, regression testing will be performed using the 'my_new_feature' branches in both of these repositories, along with the master branches in all other repositories. Just remember, this approach only works if the branch names in your different repositories are exactly the same, like `IMAS/my_new_feature` and `FUSE/my_new_feature`.
+
 ### Packages organization
 
 The FUSE project is built upon different Julia packages. Several of these are managed by GA-MFE, and they all reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) repository.
@@ -287,6 +296,10 @@ IJulia.installkernel("Julia tracecompile", "--trace-compile=stderr")
 ```
 
 Then select the `Julia tracecompile` in jupyter-lab
+
+
+!!! note
+    If you want to remove jupyter kernels you don't use anymore you can list them first with ```jupyter kernelspec list``` and remove via ```jupyter kernelspec remove <your kernel>```
 
 ## Running Julia within a Python environment
 

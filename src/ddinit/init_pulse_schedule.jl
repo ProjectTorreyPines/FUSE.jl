@@ -147,14 +147,14 @@ end
 """
     init_pulse_schedule_postion_control(
         pc::IMAS.pulse_schedule__position_control,
-        mxhb::FUSE.MXHboundary,
+        mxhb::MXHboundary,
         time0::Float64)
 
 Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
 function init_pulse_schedule_postion_control(
     pc::IMAS.pulse_schedule__position_control,
-    mxhb::FUSE.MXHboundary,
+    mxhb::MXHboundary,
     time0::Float64)
 
     # MXHboundary adds x-points

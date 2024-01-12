@@ -1,32 +1,40 @@
 #= ======== =#
 #  plotting  #
 #= ======== =#
+@recipe function plot_ActorPFdesign_cx(actor::ActorPFdesign)
+    @series begin
+        actor.actor_pf
+    end
+end
+
 """
     plot_ActorPF_cx(
-        actor::Union{ActorPFactive{D,P},ActorPFcoilsOpt{D,P}};
+        actor::ActorPFactive{D,P};
         time_index=nothing,
         equilibrium=true,
         build=true,
         coils_flux=false,
-        rail=false,
+        rails=false,
         plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
-Plot recipe for ActorPFcoilsOpt and ActorPFactive
+Plot recipe for ActorPFdesign and ActorPFactive
 """
-@recipe function plot_ActorPF_cx(
-    actor::Union{ActorPFactive{D,P},ActorPFcoilsOpt{D,P}};
+@recipe function plot_ActorPFactive_cx(
+    actor::ActorPFactive{D,P};
     time_index=nothing,
     equilibrium=true,
     build=true,
     coils_flux=false,
-    rail=false,
+    rails=false,
+    control_points=true,
     plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
     @assert typeof(time_index) <: Union{Nothing,Integer}
     @assert typeof(equilibrium) <: Bool
     @assert typeof(build) <: Bool
     @assert typeof(coils_flux) <: Bool
-    @assert typeof(rail) <: Bool
+    @assert typeof(rails) <: Bool
+    @assert typeof(control_points) <: Bool
     @assert typeof(plot_r_buffer) <: Real
 
     dd = actor.dd
@@ -61,6 +69,13 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
     if build
         @series begin
             exclude_layers --> [:oh]
+            alpha --> 0.25
+            label := false
+            dd.build
+        end
+        @series begin
+            exclude_layers --> [:oh]
+            wireframe := true
             dd.build
         end
     end
@@ -71,21 +86,21 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
         R = range(xlim[1], xlim[2], ngrid)
         Z = range(ylim[1], ylim[2], Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
 
-        coils = GS_IMAS_pf_active__coil{D,D}[]
+        coils = GS4_IMAS_pf_active__coil{D,D}[]
         for coil in dd.pf_active.coil
             if IMAS.is_ohmic_coil(coil)
                 coil_tech = dd.build.oh.technology
             else
                 coil_tech = dd.build.pf_active.technology
             end
-            coil = GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model)
+            coil = GS4_IMAS_pf_active__coil(coil, coil_tech, par.green_model)
             coil.time_index = time_index
             push!(coils, coil)
         end
 
         # ψ coil currents
         ψbound = actor.eq_out.time_slice[time_index].global_quantities.psi_boundary
-        ψ = VacuumFields.coils_flux(2 * pi, coils, R, Z)
+        ψ = [sum(VacuumFields.ψ(coil, r, z; Bp_fac=2π) for coil in coils) for r in R, z in Z]
 
         ψmin = minimum(x -> isnan(x) ? Inf : x, ψ)
         ψmax = maximum(x -> isnan(x) ? -Inf : x, ψ)
@@ -130,23 +145,23 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
             @series begin
                 cx := true
                 label --> "Field null region"
-                seriescolor --> :red
+                color --> :red
                 IMAS.boundary(pc, 1)
             end
         else
             @series begin
                 cx := true
-                label --> "Final"
-                seriescolor --> :red
+                label --> "Final (λ_reg=$(round(log10(actor.λ_regularize);digits=1)))"
+                color --> :red
                 actor.eq_out.time_slice[time_index]
             end
             @series begin
                 cx := true
-                label --> "Target"
-                seriescolor --> :blue
+                label --> "Original"
+                color --> :gray
                 lcfs --> true
-                linestyle --> :dash
-                actor.eq_in.time_slice[time_index]
+                lw := 1
+                actor.dd.equilibrium.time_slice[time_index]
             end
         end
     end
@@ -158,110 +173,42 @@ Plot recipe for ActorPFcoilsOpt and ActorPFactive
     end
 
     # plot optimization rails
-    if rail
+    if rails
         @series begin
             label --> (build ? "Coil opt. rail" : "")
             dd.build.pf_active.rail
         end
     end
 
-end
-
-"""
-    plot_ActorPFcoilsOpt_trace(
-        trace::PFcoilsOptTrace,
-        what::Symbol=:cost;
-        start_at=1)
-
-Plot recipe for ActorPFcoilsOpt optimization trace
-
-Attributes:
-
-  - what::Symbol=:cost or :currents or individual fields of the PFcoilsOptTrace structure
-  - start_at=::Int=1 index of the first element of the trace to start plotting
-"""
-@recipe function plot_ActorPFcoilsOpt_trace(
-    trace::PFcoilsOptTrace,
-    what::Symbol=:cost;
-    start_at=1)
-
-    @assert typeof(start_at) <: Integer
-
-    start_at = minimum([start_at, length(trace.cost_total)])
-    x = start_at:length(trace.cost_total)
-    legend --> :bottomleft
-    if what == :cost
-        if sum(trace.cost_lcfs[start_at:end]) > 0.0
-            data = trace.cost_lcfs[start_at:end]
-            index = data .> 0.0
+    # plot control points
+    if control_points
+        if !isempty(actor.boundary_control_points)
             @series begin
-                label --> "ψ"
-                yscale --> :log10
-                x[index], data[index]
+                color := :blue
+                linestyle := :dash
+                linewidth := 1.5
+                label := "Boundary constraints"
+                [cpt.R for cpt in actor.boundary_control_points], [cpt.Z for cpt in actor.boundary_control_points]
             end
         end
-        if sum(trace.cost_currents[start_at:end]) > 0.0
-            data = trace.cost_currents[start_at:end]
-            index = data .> 0.0
+        if !isempty(actor.flux_control_points)
             @series begin
-                label --> "currents"
-                yscale --> :log10
-                x[index], data[index]
+                color := :blue
+                seriestype := scatter
+                markerstrokewidth := 0
+                label := "Flux constraints"
+                [cpt.R for cpt in actor.flux_control_points], [cpt.Z for cpt in actor.flux_control_points]
             end
         end
-        if sum(trace.cost_oh[start_at:end]) > 0.0
-            data = trace.cost_oh[start_at:end]
-            index = data .> 0.0
+        if !isempty(actor.saddle_control_points)
             @series begin
-                label --> "oh"
-                yscale --> :log10
-                x[index], data[index]
+                color := :blue
+                seriestype := scatter
+                markerstrokewidth := 0
+                marker := :star
+                label := "Saddle constraints"
+                [cpt.R for cpt in actor.saddle_control_points], [cpt.Z for cpt in actor.saddle_control_points]
             end
-        end
-        if sum(trace.cost_1to1[start_at:end]) > 0.0
-            data = trace.cost_1to1[start_at:end]
-            index = data .> 0.0
-            @series begin
-                label --> "1to1"
-                yscale --> :log10
-                x[index], data[index]
-            end
-        end
-        if sum(trace.cost_spacing[start_at:end]) > 0.0
-            data = trace.cost_spacing[start_at:end]
-            index = data .> 0.0
-            @series begin
-                label --> "spacing"
-                yscale --> :log10
-                x[index], data[index]
-            end
-        end
-        @series begin
-            label --> "total"
-            yscale --> :log10
-            linestyle --> :dash
-            color --> :black
-            # ylim --> [minimum(trace.cost_total[start_at:end]) / 10,maximum(trace.cost_total[start_at:end])]
-            x, trace.cost_total[start_at:end]
-        end
-
-    elseif what == :params
-        nparams = length(getfield(trace, what)[1]) - 1
-
-        for k in 1:nparams
-            @series begin
-                label --> "#$k"
-                x, [getfield(trace, what)[i][k] for i in eachindex(trace.cost_total)][start_at:end]
-            end
-        end
-
-    else
-        @series begin
-            if occursin("cost_", String(what))
-                yscale --> :log10
-            end
-            label --> String(what)
-            x, getfield(trace, what)[start_at:end]
         end
     end
 end
