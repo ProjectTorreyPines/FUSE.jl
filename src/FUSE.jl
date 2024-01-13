@@ -149,6 +149,7 @@ include("optimization.jl")
 #  WORKFLOWS  #
 #= ========= =#
 include("parameters_workflows.jl")
+include(joinpath("workflows", "yaml_workflow.jl"))
 include(joinpath("workflows", "optimization_workflow.jl"))
 include(joinpath("workflows", "DB5_validation_workflow.jl"))
 
