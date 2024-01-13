@@ -248,9 +248,9 @@ version = "1.58.1"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra"]
-git-tree-sha1 = "2118cb2765f8197b08e5958cdd17c165427425ee"
+git-tree-sha1 = "c1deebd76f7a443d527fc0430d5758b8b2112ed8"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.19.0"
+version = "1.19.1"
 weakdeps = ["SparseArrays"]
 
     [deps.ChainRulesCore.extensions]
@@ -332,9 +332,9 @@ version = "0.3.0"
 
 [[deps.Compat]]
 deps = ["TOML", "UUIDs"]
-git-tree-sha1 = "ed2ebb1ff7550226ddb584ba8352facf8d9ffb22"
+git-tree-sha1 = "75bd5b6fc5089df449b5d35fa501c846c9b6549b"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.11.0"
+version = "4.12.0"
 weakdeps = ["Dates", "LinearAlgebra"]
 
     [deps.Compat.extensions]
@@ -391,7 +391,7 @@ uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.2"
 
 [[deps.CoordinateConventions]]
-git-tree-sha1 = "0840834eb37a77ca6e17169af821bb3fb9af4947"
+git-tree-sha1 = "14c556f7f202cce529187c7e1059dc6340ef0692"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/CoordinateConventions.jl.git"
 uuid = "7204ce3a-f536-43d2-be4a-fbed74e90d86"
@@ -944,7 +944,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "3f009dda0089ebf86aeb27042bb3584a873fbd50"
+git-tree-sha1 = "4133992fcc0e09c42f27ae5af2d8081fa7a196d5"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1030,9 +1030,9 @@ version = "1.0.0"
 
 [[deps.JLD2]]
 deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "PrecompileTools", "Printf", "Reexport", "Requires", "TranscodingStreams", "UUIDs"]
-git-tree-sha1 = "e65d2bd5754885e97407ff686da66a58b1e20df8"
+git-tree-sha1 = "853b9e0b876e8c7093a824c4f83c619d23525e64"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.41"
+version = "0.4.43"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -1433,9 +1433,9 @@ uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[deps.MathOptInterface]]
 deps = ["BenchmarkTools", "CodecBzip2", "CodecZlib", "DataStructures", "ForwardDiff", "JSON", "LinearAlgebra", "MutableArithmetics", "NaNMath", "OrderedCollections", "PrecompileTools", "Printf", "SparseArrays", "SpecialFunctions", "Test", "Unicode"]
-git-tree-sha1 = "372dfbc815ddd820ae9a83990e4f625d95c9bca9"
+git-tree-sha1 = "e2ae8cf5ac6daf5a3959f7f6ded9c2028b61d09d"
 uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-version = "1.25.0"
+version = "1.25.1"
 
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "NetworkOptions", "Random", "Sockets"]
@@ -2088,9 +2088,9 @@ version = "0.6.42"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FillArrays", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "Printf", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables", "TruncatedStacktraces"]
-git-tree-sha1 = "e54bd4dbce5e7081ba429f4800f21d0414d46636"
+git-tree-sha1 = "b2714ddd879525c825f427e861f5059a96b287f7"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.17.1"
+version = "2.18.0"
 
     [deps.SciMLBase.extensions]
     SciMLBaseChainRulesCoreExt = "ChainRulesCore"
@@ -2170,7 +2170,7 @@ version = "0.9.4"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections", "RecipesBase", "YAML"]
-git-tree-sha1 = "8a6394db10b27e380b205f43390fb5e6b526309f"
+git-tree-sha1 = "b7e5802379ecc2ab8c30285be15457287cec8dbf"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
@@ -2249,9 +2249,9 @@ weakdeps = ["OffsetArrays", "StaticArrays"]
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "4e17a790909b17f7bf1496e3aec138cf01b60b3b"
+git-tree-sha1 = "f68dd04d131d9a8a8eb836173ee8f105c360b0c5"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.0"
+version = "1.9.1"
 weakdeps = ["ChainRulesCore", "Statistics"]
 
     [deps.StaticArrays.extensions]
@@ -2339,7 +2339,7 @@ version = "0.1.0"
 
 [[deps.TEQUILA]]
 deps = ["BSON", "FFTW", "FiniteElementHermite", "JuMP", "LinearAlgebra", "LinearSolve", "MXHEquilibrium", "MillerExtendedHarmonic", "NLopt", "Optim", "PlotUtils", "PreallocationTools", "QuadGK", "RecipesBase", "Roots", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "a732068cdc55ff7d1bdbfc62c07bb3c9a4d8b935"
+git-tree-sha1 = "6aab6b5239898d31978e7b3a9b4994aaacfca0b9"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TEQUILA.jl.git"
 uuid = "a60c9cbd-e72f-4185-96b6-b8fc312c4d37"
@@ -2516,8 +2516,8 @@ uuid = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
 version = "0.2.0"
 
 [[deps.VacuumFields]]
-deps = ["Contour", "CoordinateConventions", "EFIT", "FiniteElementHermite", "LinearAlgebra", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic", "PlotUtils", "RecipesBase", "TEQUILA"]
-git-tree-sha1 = "f19de96d8e8b70a914b0dcc213cf311f705233c9"
+deps = ["Contour", "CoordinateConventions", "EFIT", "FastGaussQuadrature", "FiniteElementHermite", "LinearAlgebra", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic", "PlotUtils", "RecipesBase", "StaticArrays", "TEQUILA"]
+git-tree-sha1 = "84a37f176c2b92f6df1eb0dbeb7f3902ad4a65f5"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
