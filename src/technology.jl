@@ -22,7 +22,7 @@ const pure_copper = MaterialProperties(;
 """
     coil_technology(technology::Symbol, coil_type::Symbol)
 
-Return coil parameters from technology $(supported_coils_techs) and coil type [:oh, :tf, :pf_active]"
+Return coil parameters from technology and coil type [:oh, :tf, :pf_active]"
 """
 function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology}, technology::Symbol, coil_type::Symbol)
     if coil_type ∉ (:oh, :tf, :pf_active)
