@@ -68,15 +68,22 @@ function _step(actor::ActorTGLF)
     theta_trapped = range(theta_0,theta_1,length(cp1d.grid.rho_tor_norm))
 
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
+        input_tglf = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
         if par.model ∈ [:TGLF, :TGLFNN]
-            actor.input_tglfs[k] = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
             if par.model == :TGLFNN
                 # TGLF-NN has some difficulty with the sign of rotation / shear
+                actor.input_tglfs[k] = input_tglf
                 actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
                 actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
             end
         elseif par.model == :TJLF
-            actor.input_tglfs[k] = create_input_tjlf(InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic))
+            if !isassigned(actor.input_tglfs, k)
+                nky = get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
+                actor.input_tglfs[k] = InputTJLF{Float64}(input_tglf.NS, nky)
+                actor.input_tglfs[k].WIDTH_SPECTRUM .= 0.0
+                actor.input_tglfs[k].FIND_WIDTH = true # first case should find the widths
+            end
+            update_input_tjlf!(actor.input_tglfs[k], input_tglf)
         end
 
         if ϵ > ϵ_D3D
@@ -140,92 +147,87 @@ end
 
 
 """
-    create_input_tjlf(inputTGLF::InputTGLF)
+    update_input_tjlf!(input_tglf::InputTGLF)
 
-Creates an InputTJLF from a InputTGLF
+Modifies an InputTJLF from a InputTGLF
 """
-function create_input_tjlf(inputTGLF::InputTGLF)
-    nky = get_ky_spectrum_size(inputTGLF.NKY, inputTGLF.KYGRID_MODEL)
-    inputTJLF = InputTJLF{Float64}(inputTGLF.NS, nky)
-    inputTJLF.NWIDTH = 21
+function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
+    input_tjlf.NWIDTH = 21
     
-    for fieldname in fieldnames(typeof(inputTGLF))
+    for fieldname in fieldnames(typeof(input_tglf))
         if occursin(r"\d",String(fieldname)) || fieldname==:_Qgb # species parameter
             continue
         end
-        setfield!(inputTJLF,fieldname,getfield(inputTGLF,fieldname))
+        setfield!(input_tjlf,fieldname,getfield(input_tglf,fieldname))
     end
-    for i in 1:inputTGLF.NS
-        inputTJLF.ZS[i] = getfield(inputTGLF,Symbol("ZS_",i))
-        inputTJLF.AS[i] = getfield(inputTGLF,Symbol("AS_",i))
-        inputTJLF.MASS[i] = getfield(inputTGLF,Symbol("MASS_",i))
-        inputTJLF.RLNS[i] = getfield(inputTGLF,Symbol("RLNS_",i))
-        inputTJLF.RLTS[i] = getfield(inputTGLF,Symbol("RLTS_",i))
-        inputTJLF.TAUS[i] = getfield(inputTGLF,Symbol("TAUS_",i))
-        inputTJLF.VPAR[i] = getfield(inputTGLF,Symbol("VPAR_",i))
-        inputTJLF.VPAR_SHEAR[i] = getfield(inputTGLF,Symbol("VPAR_SHEAR_",i))
+    for i in 1:input_tglf.NS
+        input_tjlf.ZS[i] = getfield(input_tglf,Symbol("ZS_",i))
+        input_tjlf.AS[i] = getfield(input_tglf,Symbol("AS_",i))
+        input_tjlf.MASS[i] = getfield(input_tglf,Symbol("MASS_",i))
+        input_tjlf.RLNS[i] = getfield(input_tglf,Symbol("RLNS_",i))
+        input_tjlf.RLTS[i] = getfield(input_tglf,Symbol("RLTS_",i))
+        input_tjlf.TAUS[i] = getfield(input_tglf,Symbol("TAUS_",i))
+        input_tjlf.VPAR[i] = getfield(input_tglf,Symbol("VPAR_",i))
+        input_tjlf.VPAR_SHEAR[i] = getfield(input_tglf,Symbol("VPAR_SHEAR_",i))
     end
-    inputTJLF.WIDTH_SPECTRUM .= 0.0
+
 
     # Defaults
-    inputTJLF.KY= 0.3
-    inputTJLF.ALPHA_E = 1.0
-    inputTJLF.ALPHA_P= 1.0
-    inputTJLF.XNU_FACTOR = 1.0
-    inputTJLF.DEBYE_FACTOR = 1.0
-    inputTJLF.RLNP_CUTOFF = 18.0
-    inputTJLF.WIDTH = 1.65
-    inputTJLF.WIDTH_MIN = 0.3
-    inputTJLF.BETA_LOC = 0.0
-    inputTJLF.KX0_LOC = 1.0
-    inputTJLF.PARK = 1.0
-    inputTJLF.GHAT = 1.0
-    inputTJLF.GCHAT = 1.0
-    inputTJLF.WD_ZERO = 0.1
-    inputTJLF.LINSKER_FACTOR = 0.0
-    inputTJLF.GRADB_FACTOR = 0.0
-    inputTJLF.FILTER = 2.0
-    inputTJLF.THETA_TRAPPED = 0.7
-    inputTJLF.ETG_FACTOR = 1.25
-    inputTJLF.DAMP_PSI = 0.0
-    inputTJLF.DAMP_SIG = 0.0
+    input_tjlf.KY= 0.3
+    input_tjlf.ALPHA_E = 1.0
+    input_tjlf.ALPHA_P= 1.0
+    input_tjlf.XNU_FACTOR = 1.0
+    input_tjlf.DEBYE_FACTOR = 1.0
+    input_tjlf.RLNP_CUTOFF = 18.0
+    input_tjlf.WIDTH = 1.65
+    input_tjlf.WIDTH_MIN = 0.3
+    input_tjlf.BETA_LOC = 0.0
+    input_tjlf.KX0_LOC = 1.0
+    input_tjlf.PARK = 1.0
+    input_tjlf.GHAT = 1.0
+    input_tjlf.GCHAT = 1.0
+    input_tjlf.WD_ZERO = 0.1
+    input_tjlf.LINSKER_FACTOR = 0.0
+    input_tjlf.GRADB_FACTOR = 0.0
+    input_tjlf.FILTER = 2.0
+    input_tjlf.THETA_TRAPPED = 0.7
+    input_tjlf.ETG_FACTOR = 1.25
+    input_tjlf.DAMP_PSI = 0.0
+    input_tjlf.DAMP_SIG = 0.0
    
-    
-    inputTJLF.FIND_WIDTH = true # first case should find the widths
-    inputTJLF.FIND_EIGEN = true
-    inputTJLF.NXGRID = 16
+    input_tjlf.FIND_EIGEN = true
+    input_tjlf.NXGRID = 16
 
-    inputTJLF.ADIABATIC_ELEC = false
-    inputTJLF.VPAR_MODEL = 0
-    inputTJLF.NEW_EIKONAL = true
-    inputTJLF.USE_BISECTION= true
-    inputTJLF.USE_INBOARD_DETRAPPED = false
-    inputTJLF.IFLUX = true
-    inputTJLF.IBRANCH = -1 
-    inputTJLF.WIDTH_SPECTRUM .= 0.0
-    inputTJLF.KX0_LOC = 0.0
+    input_tjlf.ADIABATIC_ELEC = false
+    input_tjlf.VPAR_MODEL = 0
+    input_tjlf.NEW_EIKONAL = true
+    input_tjlf.USE_BISECTION= true
+    input_tjlf.USE_INBOARD_DETRAPPED = false
+    input_tjlf.IFLUX = true
+    input_tjlf.IBRANCH = -1 
+    input_tjlf.KX0_LOC = 0.0
     
     # for now settings
-    inputTJLF.ALPHA_ZF = -1  # smooth   
+    input_tjlf.ALPHA_ZF = -1  # smooth   
 
-    checkInput(inputTJLF)
+    checkInput(input_tjlf)
     # check converison
     field_names = fieldnames(InputTJLF)
     for field_name in field_names
-        field_value = getfield(inputTJLF, field_name)
+        field_value = getfield(input_tjlf, field_name)
         
          if typeof(field_value)<:Missing || typeof(field_value)<:Real
-             @assert !ismissing(field_value) || !isnan(field_value) "Did not properly populate inputTJLF for $field_name"
+             @assert !ismissing(field_value) || !isnan(field_value) "Did not properly populate input_tjlf for $field_name"
          end
 
          if typeof(field_value) <: Vector && field_name != :KY_SPECTRUM && field_name != :EIGEN_SPECTRUM && field_name != :EIGEN_SPECTRUM2
             for val in field_value
-                @assert !isnan(val) "Did not properly populate inputTJLF for array $field_name"
+                @assert !isnan(val) "Did not properly populate input_tjlf for array $field_name"
             end
         end
     end
 
-    return inputTJLF
+    return input_tjlf
 end
 
 
