@@ -31,42 +31,42 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
     
     FusionMaterials.is_supported_material(technology, IMAS._tf_)
 
-    if technology == :Copper
-        coil_tech.material = "Copper"
+    if technology == :copper
+        coil_tech.material = "copper"
         coil_tech.temperature = 293.0
         coil_tech.fraction_steel = 0.0
         coil_tech.ratio_SC_to_copper = 0.0
         coil_tech.fraction_void = 0.2
 
-    elseif technology ∈ (:Nb3Sn, :NbTi, :ITER_Nb3Sn, :KDEMO_Nb3Sn, :ReBCO)
-        if technology == :Nb3Sn
+    elseif technology ∈ (:nb3sn, :nbti, :iter_nb3sn, :kdemo_nb3sn, :rebco)
+        if technology == :nb3sn
             coil_tech.temperature = 4.2
-            coil_tech.material = "Nb3Sn"
+            coil_tech.material = "nb3sn"
             coil_tech.fraction_void = 0.1
-        elseif technology == :NbTi 
+        elseif technology == :nbti 
             coil_tech.temperature =  4.2
-            coil_tech.material = "NbTi"
+            coil_tech.material = "nbti"
             coil_tech.fraction_void = 0.2 # from Supercond. Sci. Technol. 36 (2023) 075009
-        elseif technology == :ITER_Nb3Sn
+        elseif technology == :iter_nb3sn
             coil_tech.temperature = 4.2
-            coil_tech.material = "ITER_Nb3Sn"
+            coil_tech.material = "iter_nb3sn"
             coil_tech.fraction_void = 0.1 
-        elseif technology == :KDEMO_Nb3Sn
+        elseif technology == :kdemo_nb3sn
             coil_tech.temperature = 4.2 
-            coil_tech.material = "KDEMO_Nb3Sn"
+            coil_tech.material = "kdemo_nb3sn"
             if coil_type == :tf
                 coil_tech.fraction_void = 0.26 # from NF 55 (2015) 053027, Table 2
             end
         else
             coil_tech.temperature = 4.2
-            coil_tech.material = "ReBCO"
+            coil_tech.material = "rebco"
         end
         coil_tech.fraction_steel = 0.5
         coil_tech.ratio_SC_to_copper = 1.0
         coil_tech.fraction_void = 0.1
     end
 
-    if technology == :ITER_Nb3Sn
+    if technology == :iter_nb3sn
         if coil_type == :oh
             coil_tech.thermal_strain = -0.64
             coil_tech.JxB_strain = -0.05
@@ -94,18 +94,18 @@ end
 Returns critical current density and magnetic field given an external magnetic field and coil technology
 """
 function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
-    if coil_tech.material == "Copper"
-        mat = FusionMaterials.Material(:Copper)
-    elseif coil_tech.material == "Nb3Sn"
-        mat = FusionMaterials.Material(:Nb3Sn; coil_tech, Bext)
-    elseif coil_tech.material == "NbTi"
-        mat = FusionMaterials.Material(:NbTi; coil_tech, Bext)
-    elseif coil_tech.material == "KDEMO_Nb3Sn"
-        mat = FusionMaterials.Material(:KDEMO_Nb3Sn; coil_tech, Bext)
-    elseif coil_tech.material == "ITER_Nb3Sn"
-        mat = FusionMaterials.Material(:ITER_Nb3Sn; coil_tech, Bext)
-    elseif coil_tech.material == "ReBCO"
-        mat = FusionMaterials.Material(:ReBCO; coil_tech, Bext)
+    if coil_tech.material == "copper"
+        mat = FusionMaterials.Material(:copper)
+    elseif coil_tech.material == "nb3sn"
+        mat = FusionMaterials.Material(:nb3sn; coil_tech, Bext)
+    elseif coil_tech.material == "nbti"
+        mat = FusionMaterials.Material(:nbti; coil_tech, Bext)
+    elseif coil_tech.material == "kdemo_nb3sn"
+        mat = FusionMaterials.Material(:kdemo_nb3sn; coil_tech, Bext)
+    elseif coil_tech.material == "iter_nb3sn"
+        mat = FusionMaterials.Material(:iter_nb3sn; coil_tech, Bext)
+    elseif coil_tech.material == "rebco"
+        mat = FusionMaterials.Material(:rebco; coil_tech, Bext)
     end
     Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
 
@@ -117,7 +117,7 @@ function GAMBL_blanket(bm::IMAS.blanket__module)
 
     n = 1
     layers[n].name = "First wall"
-    layers[n].material = "Tungsten"
+    layers[n].material = "tungsten"
     layers[n].thickness = 0.02
 
     n = n + 1
@@ -127,7 +127,7 @@ function GAMBL_blanket(bm::IMAS.blanket__module)
 
     n = n + 1
     layers[n].name = "Shield"
-    layers[n].material = "Tungsten"
+    layers[n].material = "tungsten"
     layers[n].thickness = 0.05
 
     return bm

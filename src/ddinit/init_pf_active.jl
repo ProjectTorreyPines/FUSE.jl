@@ -161,7 +161,7 @@ function init_pf_active!(
     end
 
     # Now add actual PF coils to regions of vacuum
-    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer; fs=_out_) if bd.layer[k].material == "Vacuum"][1]
+    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer; fs=_out_) if bd.layer[k].material == "vacuum"][1]
     lfs_out_indexes = IMAS.get_build_indexes(bd.layer; fs=[_lfs_, _out_])
     krail = 1
     ngrid = 257

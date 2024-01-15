@@ -406,15 +406,15 @@ function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
         error("Supported coil type are [:OH, :TF, :PF]")
     end
     if gasc.inputs["conductors"]["superConducting"] == "copper"
-        coil_tech = :Copper
+        coil_tech = :copper
     else
         if gasc.inputs["conductors"]["superConducting"] == "LTS"
-            coil_tech = :Nb3Sn
+            coil_tech = :nb3sn
         elseif gasc.inputs["conductors"]["superConducting"] == "HTS"
-            coil_tech = :ReBCO
+            coil_tech = :rebco
         end
         if coil_type == :PF # assume PF coils are always LTS
-            coil_tech = :Nb3Sn
+            coil_tech = :nb3sn
         end
     end
     return coil_tech

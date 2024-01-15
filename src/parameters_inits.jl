@@ -155,7 +155,7 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit wher
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
     material::Switch{String} = Switch{String}(
-        FusionMaterials.available_materials(["blanket_materials", "shield_materials", "structural_materials", "wall_materials", "plasma_material"]),
+        FusionMaterials.all_available_materials(),
         "-",
         "Material of the layer"
     )

@@ -37,7 +37,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
         :lfs_TF => 0.75,
         :gap_world => 1.0
     )
-    ini.build.layers[:hfs_wall].material = "Carbon, Graphite (reactor grade)"
+    ini.build.layers[:hfs_wall].material = "graphite"
 
     ini.build.n_first_wall_conformal_layers = 2
     act.ActorCXbuild.rebuild_wall = false
@@ -46,13 +46,13 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     ini.oh.n_coils = 10
     ini.pf_active.n_coils_inside = 8
     ini.pf_active.n_coils_outside = 0
-    ini.pf_active.technology = :Copper
+    ini.pf_active.technology = :copper
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 24
-    ini.tf.technology = :Copper
+    ini.tf.technology = :copper
 
-    ini.oh.technology = :Copper
+    ini.oh.technology = :copper
 
     ini.core_profiles.greenwald_fraction = 0.7
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75

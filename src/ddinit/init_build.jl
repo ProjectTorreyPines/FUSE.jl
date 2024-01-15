@@ -297,25 +297,25 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
             continue
         end
         if k == 1 && ini.center_stack.plug
-            layer.material = "Steel"
+            layer.material = "steel"
         elseif layer.type == Int(_plasma_)
-            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in bd.layer)) ? "DT_plasma" : "DD_plasma"
+            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in bd.layer)) ? "dt_plasma" : "dd_plasma"
         elseif layer.type == Int(_gap_)
-            layer.material = "Vacuum"
+            layer.material = "vacuum"
         elseif layer.type == Int(_oh_)
             layer.material = bd.oh.technology.material
         elseif layer.type == Int(_tf_)
             layer.material = bd.tf.technology.material
         elseif layer.type == Int(_shield_)
-            layer.material = "Steel"
+            layer.material = "steel"
         elseif layer.type == Int(_blanket_)
-            layer.material = "Lithium_Lead"
+            layer.material = "lithium_lead"
         elseif layer.type == Int(_wall_)
-            layer.material = "Tungsten"
+            layer.material = "tungsten"
         elseif layer.type == Int(_vessel_)
-            layer.material = "Water"
+            layer.material = "water"
         elseif layer.type == Int(_cryostat_)
-            layer.material = "Steel"
+            layer.material = "steel"
         end
     end
 end
@@ -339,7 +339,7 @@ function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
 end
 
 function mechanical_technology(dd::IMAS.dd, what::Symbol)
-    if what != :pl && getproperty(dd.build, what).technology.material == "Copper"
+    if what != :pl && getproperty(dd.build, what).technology.material == "copper"
         material = pure_copper
     else
         material = stainless_steel

@@ -37,20 +37,20 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     layers[:cryostat] = 0.186
     act.ActorCXbuild.rebuild_wall = false
     ini.build.layers = layers
-    ini.build.layers[:hfs_blanket].material = "FLiBe"
-    ini.build.layers[:lfs_blanket].material = "FLiBe"
+    ini.build.layers[:hfs_blanket].material = "flibe"
+    ini.build.layers[:lfs_blanket].material = "flibe"
 
     ini.equilibrium.xpoints = :double
 
     ini.oh.n_coils = 4
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 4
-    ini.pf_active.technology = :ReBCO
+    ini.pf_active.technology = :rebco
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 18
-    ini.tf.technology = :ReBCO
-    ini.oh.technology = :ReBCO
+    ini.tf.technology = :rebco
+    ini.oh.technology = :rebco
 
     ini.center_stack.bucked = true
     ini.center_stack.plug = true

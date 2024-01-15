@@ -180,17 +180,17 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 1.2
-    ini.core_profiles.ejima = 0.0
+    ini.core_profiles.ejima = 0.1
 
     ini.oh.n_coils = 8
-    ini.oh.technology = :ReBCO
+    ini.oh.technology = :rebco
 
     ini.pf_active.n_coils_inside = 6
     ini.pf_active.n_coils_outside = 0
-    ini.pf_active.technology = :ITER_Nb3Sn
+    ini.pf_active.technology = :iter_nb3sn
 
     ini.tf.n_coils = 12
-    ini.tf.technology = :ReBCO
+    ini.tf.technology = :rebco
     ini.tf.shape = :rectangle
     ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
 
