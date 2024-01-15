@@ -20,6 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     optimize_q::Entry{Bool} = Entry{Bool}("-", "Optimize q profile to achieve goal"; default=false)
+    find_widths::Entry{Bool} = Entry{Bool}("-", "Runs Turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
@@ -114,9 +115,6 @@ function _step(actor::ActorFluxMatcher)
     end
 
     if par.do_plot
-        display(res)
-
-        display(parse_and_plot_error(string(res.trace.states)))
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
         display(plot(transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...)); xlabel="Iterations", label=""))
 
@@ -210,17 +208,12 @@ function flux_match_errors(
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
 
-    # evaludate neoclassical + turbulent fluxes
-    if length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF
-        inps = [InputTJLF() for i in 1:length(actor.actor_ct.actor_turb.input_tglfs)]
-        for k in 1:length(actor.actor_ct.actor_turb.input_tglfs)
-            inps[k].FIND_WIDTH = false
-            inps[k].WIDTH_SPECTRUM = actor.actor_ct.actor_turb.input_tglfs[k].WIDTH_SPECTRUM
+    if !par.find_widths && length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF
+        for input_tglf in actor.actor_ct.actor_turb.input_tglfs
+            input_tglf.FIND_WIDTH = false
         end
-        actor.actor_ct.actor_turb.par.custom_input_files = inps
-        
     end
-
+    # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
     # compare fluxes
@@ -504,6 +497,11 @@ function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.co
     return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie)
 end
 
+function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
+    return setup_density_evolution_electron_flux_match_rest_ne_scale(dd.core_profiles.profiles_1d[])
+end
+
+
 """
     setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
 
@@ -525,14 +523,4 @@ function evolve_densities_dict_creation(flux_match_species::Vector, fixed_specie
         parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
     end
     return Dict(sym => evolve for (sym, evolve) in parse_list)
-end
-
-function parse_and_plot_error(data::String)
-    data = split(data, "\n")[2:end-1]
-    array = zeros(length(data))
-    for (idx, line) in enumerate(data)
-        filtered_arr = filter(x -> !occursin(r"^\s*$", x), split(line, " "))
-        array[idx] = parse(Float64, filtered_arr[3])
-    end
-    return plot(array; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(array))))
 end
