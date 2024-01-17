@@ -6,7 +6,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorPelletsimple{T} <: ParametersAct
     _name::Symbol = :not_set
     width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.05)
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.5)
-    ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
 mutable struct ActorPelletsimple{D,P} <: HCDAbstractActor{D,P}
@@ -43,7 +42,6 @@ function _step(actor::ActorPelletsimple)
     cp1d = dd.core_profiles.profiles_1d[]
     cs = dd.core_sources
 
-    R0 = eqt.boundary.geometric_axis.r
     rho_cp = cp1d.grid.rho_tor_norm
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
@@ -66,7 +64,6 @@ function _step(actor::ActorPelletsimple)
         elseif species == "Ne"
             return material_density["Ne"]*avog/atomic_weigth["Ne"]
         end
-        # return is atoms / cubic centimeter 
     end
     
     _, width, rho_0 = same_length_vectors(1:length(dd.pellets.time_slice[].pellet), par.width, par.rho_0)
