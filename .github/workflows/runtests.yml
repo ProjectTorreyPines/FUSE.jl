@@ -7,6 +7,10 @@ on:
         type: boolean
         required: false
         default: false
+      bypass-cache:
+        type: boolean
+        required: false
+        default: false
   push:
     branches:
       - master
@@ -40,9 +44,7 @@ jobs:
         id: cpu-cores
       - name: Set JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}
         run: echo "JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}" >> $GITHUB_ENV
-      #============      
       - uses: actions/checkout@v2
-      #============
       - name: Check if fuse bot commit
         run: |
           author=$(git log -1 --pretty=format:'%an')
@@ -50,19 +52,27 @@ jobs:
             echo "Skipping action due to commit made by 'fuse bot'."
             exit 78
           fi
-      #============
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - uses: julia-actions/cache@v1
+      - name: Generate cache key with date
+        id: cache-date
+        run: echo "::set-output name=date::$(date +%Y-%m-%d)"
+      - name: Cache Julia artifacts
+        uses: actions/cache@v2
+        if: github.event.inputs.bypass-cache != 'true'
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/packages
+            ~/.julia/compiled
+          key: ${{ runner.os }}-julia-${{ matrix.version }}-${{ steps.cache-date.outputs.date }}
       - run: make install_ci_add
       - uses: julia-actions/julia-buildpkg@v1
-      #============
       - uses: julia-actions/julia-runtest@v1
-      #============
-      - name: Debug with tmate if failure + manual triggrer + debug mode
+      - name: Debug with tmate if failure + manual trigger + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 120
