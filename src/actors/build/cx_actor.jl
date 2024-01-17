@@ -67,7 +67,9 @@ function _step(actor::ActorCXbuild)
 
     blanket_regions!(bd, eqt)
 
-    port_regions!(bd; parLFSsizing.maintenance, parLFSsizing.tor_modularity, parLFSsizing.pol_modularity)
+    if parLFSsizing.maintenance != :none
+        port_regions!(bd; parLFSsizing.maintenance, parLFSsizing.tor_modularity, parLFSsizing.pol_modularity)
+    end
 
     IMAS.find_strike_points!(eqt, dd.divertors)
 
