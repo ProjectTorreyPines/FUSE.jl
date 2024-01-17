@@ -101,6 +101,36 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 dd.pulse_schedule.ec.launcher[k].power.reference.data = data
             end
 
+            # PEL
+            resize!(dd.pulse_schedule.pellets.launchers, length(ini.pellets_launchers))
+            for (k, ini_peln) in enumerate(ini.pellets_launchers)
+
+                time, data = get_time_dependent(ini_peln, :frequency; simplify_time_traces)
+                dd.pulse_schedule.pellets.launchers[k].frequency.reference.time = time
+                dd.pulse_schedule.pellets.launchers[k].frequency.reference.data = data
+
+                number_of_params = Dict(:spherical=>1, :cylinderical=>2, :rectangular=>3)        
+                n_params = number_of_params[ini_peln.shape]
+                
+                size_params = zeros(Float64, length(time), n_params)
+                
+                for i in 1:length(time)
+                    for j in 1:n_params
+                        size_params[i, j] = ini_peln.size[j]
+                    end
+                end
+                
+                dd.pulse_schedule.pellets.launchers[k].size.reference.time = time
+                dd.pulse_schedule.pellets.launchers[k].size.reference.data = size_params
+
+                
+                dd.pulse_schedule.pellets.launchers[k].shape.reference.time = time
+                dd.pulse_schedule.pellets.launchers[k].shape.reference.data = [string(ini_peln.shape) for t in 1:length(time)]
+
+                dd.pulse_schedule.pellets.launchers[k].species.label.reference.time = time
+                dd.pulse_schedule.pellets.launchers[k].species.label.reference.data = [string(ini_peln.material) for t in 1:length(time)]
+            end
+
             # IC
             resize!(dd.pulse_schedule.ic.antenna, length(ini.ic_antenna))
             for (k, ini_ica) in enumerate(ini.ic_antenna)

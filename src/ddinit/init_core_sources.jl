@@ -42,6 +42,27 @@ function init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 end
 
 """
+    init_pellets(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+
+Initialize `dd.pellets_launchers` starting from `ini` and `act` parameters
+"""
+function init_pellets(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    empty!(dd.pellets)
+    resize!(dd.pellets.time_slice,ini.time.simulation_start)
+    resize!(dd.pellets.time_slice[].pellet, length(ini.pellets_launchers))
+    for (idx, (pel, ini_pel)) in enumerate(zip(dd.pellets.time_slice[].pellet, ini.pellets_launchers))
+        pel.frequency = ini_pel.frequency
+        pel.shape.type.name = string(ini_pel.shape)
+        pel.shape.type.index = IMAS.name_2_index(IMAS.pellets__time_slice___pellet___shape__type())[ini_pel.shape]
+
+        pel.shape.size = ini_pel.size
+        resize!(pel.species,1)
+        pel.species[1].label=ini_pel.material
+    end
+    return dd
+end
+
+"""
     init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 
 Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
@@ -123,6 +144,12 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 if isempty(dd1.ec_launchers.beam) && findfirst(:ec, dd.core_sources.source) !== missing
                     @assert act.ActorHCD.ec_model == :none "Init using sources from ODS requires `act.ActorHCD.ec_model = :none` or data in `dd.ec_launchers.beam`"
                 end
+                if isempty(dd1.ec_launchers.beam) && findfirst(:ec, dd.core_sources.source) !== missing
+                    @assert act.ActorHCD.ec_model == :none "Init using sources from ODS requires `act.ActorHCD.ec_model = :none` or data in `dd.ec_launchers.beam`"
+                end
+                if isempty(dd1.pellets.time_slice[].pellet) && findfirst(:pellet, dd.core_sources.source) !== missing
+                    @assert act.ActorHCD.pellet_model == :none "Init using sources from ODS requires `act.ActorHCD.pellet_model = :none` or data in `dd.pellet_launchers.beam`"
+                end
                 if isempty(dd1.ic_antennas.antenna) && findfirst(:ic, dd.core_sources.source) !== missing
                     @assert act.ActorHCD.ic_model == :none "Init using sources from ODS requires `act.ActorHCD.ic_model = :none` or data in `dd.ic_launchers.antenna`"
                 end
@@ -142,6 +169,7 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             init_ic(dd, ini, act)
             init_lh(dd, ini, act)
             init_nb(dd, ini, act)
+            init_pellets(dd,ini,act)
         end
 
         ActorHCD(dd, act)

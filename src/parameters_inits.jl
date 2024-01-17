@@ -152,9 +152,10 @@ Base.@kwdef mutable struct FUSEparameters__pellets_launchers{T} <: ParametersIni
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pellets_launchers
     frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched")
-    geometry_type::Switch{Symbol} = Switch{Symbol}([:sphere, :cylinder],"-","The pellet geometry"; default=:sphere)
-    material::Switch{Symbol} = Switch{Symbol}([:DT_ice],"-","Pellet material";default=:DT_ice)
-    geometry_parameters::Entry{Vector{T}} = Entry{Vector{T}}("m", "Vector of geometry parameters")
+    shape::Switch{Symbol} = Switch{Symbol}([:spherical, :cylinderical, :rectangular],"-","The pellet geometry"; default=:spherical)
+    material::Entry{String} = Entry{String}("-","Pellet material(eg. DT,H,D,T,...)")
+    size::Entry{Vector{T}} = Entry{Vector{T}}("m", "Vector of geometry parameters")
+    density::Entry{T} = Entry{T}("atoms.m^-3", "Material density of the species in the pellet")
 end
 
 Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit where {T<:Real}
