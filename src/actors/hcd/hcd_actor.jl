@@ -8,6 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T} <: ParametersActor where 
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :none], "-", "NB source actor to run"; default=:NBsimple)
+    pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
 end
 
 mutable struct ActorHCD{D,P} <: PlasmaAbstractActor{D,P}
@@ -17,6 +18,7 @@ mutable struct ActorHCD{D,P} <: PlasmaAbstractActor{D,P}
     ic_actor::Union{Missing,ActorICsimple{D,P}}
     lh_actor::Union{Missing,ActorLHsimple{D,P}}
     nb_actor::Union{Missing,ActorNBsimple{D,P}}
+    pellet_actor::Union{Missing,ActorPelletsimple{D,P}}
 end
 
 """
@@ -54,7 +56,12 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     else
         nb_actor = missing
     end
-    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor)
+    if par.pellet_model == :Pelletsimple
+        pellet_actor = ActorPelletsimple(dd, act.ActorPelletsimple)
+    else
+        pellet_actor = missing
+    end
+    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor,pellet_actor)
 end
 
 """
@@ -74,6 +81,9 @@ function _step(actor::ActorHCD)
     end
     if actor.nb_actor !== missing
         step(actor.nb_actor)
+    end
+    if actor.pellet_actor !== missing
+        step(actor.pellet_actor)
     end
     return actor
 end
@@ -95,6 +105,9 @@ function _finalize(actor::ActorHCD)
     end
     if actor.nb_actor !== missing
         finalize(actor.nb_actor)
+    end
+    if actor.pellet_actor !== missing
+        finalize(actor.pellet_actor)
     end
     return actor
 end
