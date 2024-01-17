@@ -324,7 +324,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     end
     wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
-    ψb = IMAS.find_psi_boundary(eqt)
+    ψb, _ = IMAS.find_psi_boundary(eqt)
     ((rlcfs, zlcfs),), _ = IMAS.flux_surface(eqt, ψb, :closed)
     linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
 

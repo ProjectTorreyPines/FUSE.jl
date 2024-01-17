@@ -20,7 +20,7 @@ function oh_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
     function max_J_OH(x)
         currentDensityOH = abs(x[1])
         magneticFieldSolenoidBore = currentDensityOH / 1E6 * (0.4 * π * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
-        critical_j = coil_J_B_crit(magneticFieldSolenoidBore, bd.oh.technology)[1]
+        critical_j = coil_J_B_crit(magneticFieldSolenoidBore, bd.oh.technology).Jcrit
         # do not use relative error here. Absolute error tells optimizer to lower currentDensityOH if critical_j==0
         return abs(critical_j - currentDensityOH * (1.0 + j_tolerance))
     end
