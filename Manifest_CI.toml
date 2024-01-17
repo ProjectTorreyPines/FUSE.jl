@@ -1030,9 +1030,9 @@ version = "1.0.0"
 
 [[deps.JLD2]]
 deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "PrecompileTools", "Printf", "Reexport", "Requires", "TranscodingStreams", "UUIDs"]
-git-tree-sha1 = "853b9e0b876e8c7093a824c4f83c619d23525e64"
+git-tree-sha1 = "315b508ec5df53936532097ffe6e5deacbf41861"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.43"
+version = "0.4.44"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -1495,9 +1495,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Transducers", "TransformsBase", "Unitful"]
-git-tree-sha1 = "fbef71587a6053fe5cecdb37e8fbe2921d1be2c8"
+git-tree-sha1 = "c5c6316c5b531275b71575ec9334e7547f66a762"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.39.1"
+version = "0.39.3"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
