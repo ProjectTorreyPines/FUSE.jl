@@ -109,7 +109,7 @@ function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,
     end
     Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
 
-    return Jcrit, Bcrit
+    return (Jcrit=Jcrit, Bcrit=Bcrit)
 end
 
 function GAMBL_blanket(bm::IMAS.blanket__module)
