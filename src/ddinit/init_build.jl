@@ -202,6 +202,24 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
     end
 end
 
+function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, value::String) where {T<:Real}
+    par = getfield(parameters_layer, field)
+
+    if field == :material 
+        layer_type = parameters_layer.type 
+
+        pretty_layer_type = replace("$layer_type", "_" => "")
+        allowed_materials = FusionMaterials.supported_material_list(layer_type)
+
+        if value ∉ allowed_materials
+            error("$value is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+        end
+    end
+
+    setfield!(par, :value, value)
+
+end
+
 """
     dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
 
