@@ -1,11 +1,11 @@
 import TGLFNN
 using LaTeXStrings
 """
-    flow_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersFlowTGLFdb, ParametersAllActors}
+    application_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersApplicationTGLFdb, ParametersAllActors}
 """
-function flow_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersFlowTGLFdb,ParametersAllActors}
+function application_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersApplicationTGLFdb,ParametersAllActors}
 
-    flw = ParametersFlowTGLFdb{Real}()
+    app = ParametersApplicationTGLFdb{Real}()
     act = ParametersActors()
 
 
@@ -15,34 +15,34 @@ function flow_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersFlowTGLFdb,Param
     act.ActorTGLF.warn_nn_train_bounds = false
 
     # finalize 
-    set_new_base!(flw)
+    set_new_base!(app)
     set_new_base!(act)
 
-    return flw, act
+    return app, act
 end
 
 
-mutable struct FlowTGLFdb <: AbstractWorkflow
-    flw::ParametersFlowTGLFdb
+mutable struct ApplicationTGLFdb <: AbstractApplication
+    app::ParametersApplicationTGLFdb
     act::ParametersAllActors
     dataframes_dict::Union{Dict{Symbol,DataFrame},Missing}
 end
 
-function FlowTGLFdb(flw, act; kw...)
-    flw = flw(kw...)
-    wf = FlowTGLFdb(flw, act, missing)
-    return setup(wf)
+function ApplicationTGLFdb(app, act; kw...)
+    app = app(kw...)
+    application = ApplicationTGLFdb(app, act, missing)
+    return setup(application)
 end
 
-function _setup(wf::FlowTGLFdb)
-    flw = wf.flw
+function _setup(application::ApplicationTGLFdb)
+    app = application.app
 
-    @assert !ismissing(getproperty(flw, :database_folder, missing)) "Specify the database_folder in flw"
-    @assert !ismissing(readdir(flw.database_folder)) "There are no input cases in $(flw.database_folder)"
+    @assert !ismissing(getproperty(app, :database_folder, missing)) "Specify the database_folder in app"
+    @assert !ismissing(readdir(app.database_folder)) "There are no input cases in $(app.database_folder)"
 
-    check_and_create_file_save_mode(flw)
+    check_and_create_file_save_mode(app)
 
-    preparse_input(flw.database_folder)
+    preparse_input(app.database_folder)
 
     output_df = DataFrame(;
         shot=Int[], time=Int[], ne0=Float64[],
@@ -56,53 +56,53 @@ function _setup(wf::FlowTGLFdb)
         Q_GB=Vector{Float64}[], particle_GB=Vector{Float64}[], momentum_GB=Vector{Float64}[])
 
 
-    wf.dataframes_dict = Dict(name => deepcopy(output_df) for name in flw.sat_rules)
-    parallel_environment(flw.server, flw.n_workers)
+    application.dataframes_dict = Dict(name => deepcopy(output_df) for name in app.sat_rules)
+    parallel_environment(app.server, app.n_workers)
     # XXE load of FUSE should be implemetned here @orso importFUSEdistributed()
 
-    return wf
+    return application
 end
 
-function _run(wf::FlowTGLFdb)
-    flw = wf.flw
-    act = wf.act
+function _run(application::ApplicationTGLFdb)
+    app = application.app
+    act = application.act
 
 
-    @assert flw.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(flw.n_workers)"
+    @assert app.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(app.n_workers)"
 
     cases_files = [
-        joinpath(flw.database_folder, "fuse_prepared_inputs", item) for
-        item in readdir(joinpath(flw.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
+        joinpath(app.database_folder, "fuse_prepared_inputs", item) for
+        item in readdir(joinpath(app.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
     ]
-    println("running FlowTGLFdb on $(length(cases_files)) cases on $(length(flw.sat_rules)) sat rules with $(flw.n_workers) workers on $(flw.server)")
+    println("running ApplicationTGLFdb on $(length(cases_files)) cases on $(length(app.sat_rules)) sat rules with $(app.n_workers) workers on $(app.server)")
     mylock = ReentrantLock()
-    for sat_rule in flw.sat_rules
+    for sat_rule in app.sat_rules
         act.ActorTGLF.sat_rule = sat_rule
-        results = pmap(filename -> run_case(filename, wf, mylock), cases_files)
+        results = map(filename -> run_case(filename, application, mylock), cases_files)
         for row in results
-            push!(wf.dataframes_dict[sat_rule], row)
+            push!(application.dataframes_dict[sat_rule], row)
         end
 
         # Save JSON to a file
-        json_data = JSON.json(wf.dataframes_dict[sat_rule])
-        open("$(flw.save_folder)/data_frame_$(sat_rule).json", "w") do f
+        json_data = JSON.json(application.dataframes_dict[sat_rule])
+        open("$(app.save_folder)/data_frame_$(sat_rule).json", "w") do f
             return write(f, json_data)
         end
 
     end
 
     # Release workers after run
-    if flw.release_workers_after_run
+    if app.release_workers_after_run
         Distributed.rmprocs(Distributed.workers())
         @info "released workers"
     end
 
-    return wf
+    return application
 end
 
-function _analyze(wf::FlowTGLFdb)
-    plot_xy_wth_hist2d(wf; quantity=:WTH, save_fig=false, save_path="")
-    return wf
+function _analyze(application::ApplicationTGLFdb)
+    plot_xy_wth_hist2d(application; quantity=:WTH, save_fig=false, save_path="")
+    return application
 end
 
 function preprocess_dd(filename)
@@ -120,9 +120,9 @@ function preprocess_dd(filename)
 end
 
 
-function run_case(filename, wf, lock)
-    act = wf.act
-    flw = wf.flw
+function run_case(filename, application, lock)
+    act = application.act
+    app = application.app
 
     sat_rule = act.ActorTGLF.sat_rule
     dd = preprocess_dd(filename)
@@ -134,7 +134,7 @@ function run_case(filename, wf, lock)
         cp1d.rotation_frequency_tor_sonic[1]]
 
     name = split(splitpath(filename)[end], ".")[1]
-    output_case = joinpath(flw.save_folder, name)
+    output_case = joinpath(app.save_folder, name)
 
     try
         if !isdir(output_case)
@@ -145,7 +145,7 @@ function run_case(filename, wf, lock)
 
         empty!(dd.summary.global_quantities)
 
-        if flw.keep_output_dd
+        if app.keep_output_dd
             IMAS.imas2json(dd, joinpath(output_case, "result_dd_$(sat_rule).json"))
             save_inputtglfs(actor_transport, output_case, name, sat_rule)
             save(FUSE.memtrace, joinpath(output_case, "memtrace.txt"))
@@ -255,16 +255,16 @@ function preparse_input(database_folder)
 end
 
 
-function plot_xy_wth_hist2d(wf; quantity=:WTH, save_fig=false, save_path="")
+function plot_xy_wth_hist2d(application; quantity=:WTH, save_fig=false, save_path="")
 
-    if wf.act.ActorTGLF.electromagnetic
+    if application.act.ActorTGLF.electromagnetic
         EM_contribution = :EM
     else
         EM_contribution = :ES
     end
 
-    for sat_rule in wf.flw.sat_rules
-        plot_xy_wth_hist2d(wf.dataframes_dict[sat_rule], sat_rule, EM_contribution, quantity, save_fig, save_path)
+    for sat_rule in application.app.sat_rules
+        plot_xy_wth_hist2d(application.dataframes_dict[sat_rule], sat_rule, EM_contribution, quantity, save_fig, save_path)
     end
 end
 
