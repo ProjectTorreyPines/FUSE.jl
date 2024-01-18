@@ -78,7 +78,7 @@ function _run(application::ApplicationTGLFdb)
     mylock = ReentrantLock()
     for sat_rule in app.sat_rules
         act.ActorTGLF.sat_rule = sat_rule
-        results = map(filename -> run_case(filename, application, mylock), cases_files)
+        results = pmap(filename -> run_case(filename, application, mylock), cases_files)
         for row in results
             push!(application.dataframes_dict[sat_rule], row)
         end
