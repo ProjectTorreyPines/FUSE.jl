@@ -281,7 +281,7 @@ function wall_from_eq!(
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
     try
-        pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1, method=:linear)
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101, method=:linear)
     catch e
         pp = plot(wall_poly; aspect_ratio=:equal)
         for (pr, pz) in private
@@ -662,6 +662,7 @@ function optimize_shape(
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
         end
+        R, Z = IMAS.split_long_segments(R, Z, IMAS.perimeter(oR, oZ) / length(oR))
         layer.outline.r, layer.outline.z = R, Z
         shape_parameters = Float64[]
 
