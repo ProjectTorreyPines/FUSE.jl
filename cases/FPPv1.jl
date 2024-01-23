@@ -35,6 +35,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
         act.ActorHCD.ic_model = :none
         act.ActorHCD.lh_model = :none
         act.ActorHCD.nb_model = :none
+        act.ActorPelletsimple.pellet_model = :none
         act.ActorWholeFacility.update_plasma = false
         STEP = true
     end
