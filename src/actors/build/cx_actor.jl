@@ -281,7 +281,7 @@ function wall_from_eq!(
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
     try
-        pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1, method=:linear)
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101, method=:linear)
     catch e
         pp = plot(wall_poly; aspect_ratio=:equal)
         for (pr, pz) in private
@@ -552,15 +552,13 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
 
     # resample
     for k in tf_to_plasma[1:end-1]
-        layer = bd.layer[k]
-        IMAS.resample_2d_path(layer; n_points, method=:linear)
+        IMAS.resample_2d_path(bd.layer[k]; n_points, method=:linear)
     end
 
     # _in_
     TF = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_)
     D = (minimum(plasma.outline.z) * 2 + minimum(TF.outline.z)) / 3.0
     U = (maximum(plasma.outline.z) * 2 + maximum(TF.outline.z)) / 3.0
-
     for k in IMAS.get_build_indexes(bd.layer; fs=_in_)
         layer = bd.layer[k]
         L = layer.start_radius
@@ -720,7 +718,6 @@ function optimize_shape(
 
     return Int(shape_enum), shape_parameters
 end
-
 
 """
     convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
