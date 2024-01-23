@@ -70,9 +70,9 @@ function _step(actor::ActorTGLF)
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
         input_tglf = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
         if par.model ∈ [:TGLF, :TGLFNN]
+            actor.input_tglfs[k] = input_tglf
             if par.model == :TGLFNN
                 # TGLF-NN has some difficulty with the sign of rotation / shear
-                actor.input_tglfs[k] = input_tglf
                 actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
                 actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
             end
