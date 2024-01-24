@@ -25,21 +25,6 @@ function application_common_parameters(; kw...)
     end
 end
 
-Base.@kwdef mutable struct ParametersApplicationTGLFdb{T} <: ParametersApplication where {T<:Real}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :ApplicationTGLFdb
-    server::Switch{String} = application_common_parameters(; server="localhost")
-    n_workers::Entry{Int} = application_common_parameters(; n_workers=missing)
-    file_save_mode::Switch{Symbol} = application_common_parameters(; file_save_mode=:safe_write)
-    release_workers_after_run::Entry{Bool} = application_common_parameters(; release_workers_after_run=true)
-    keep_output_dd::Entry{Bool} = application_common_parameters(; keep_output_dd=true)
-    sat_rules::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "TGLF saturation rules to run")
-    save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
-
-    database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
-end
-
-
 #= ============ =#
 #  applications  #
 #= ============ =#

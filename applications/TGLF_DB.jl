@@ -1,13 +1,16 @@
-import TGLFNN
 using LaTeXStrings
-"""
-    application_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersApplicationTGLFdb, ParametersAllActors}
-"""
-function application_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersApplicationTGLFdb,ParametersAllActors}
+#= ================= =#
+#  ApplicationTGLFdb  #
+#= ================= =#
 
-    app = ParametersApplicationTGLFdb{Real}()
+"""
+FUSEparameters__ActorFluxMatcher
+application_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersApplicationTGLFdb,ParametersAllActors}
+"""
+function application_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersApplicationTGLFdb,ParametersAllActors}
+
+    app = FUSEparameters__ParametersApplicationTGLFdb{Real}()
     act = ParametersActors()
-
 
     # Change act for the default TGLFdb run
     act.ActorCoreTransport.model = :FluxMatcher
@@ -21,9 +24,22 @@ function application_parameters(::Type{Val{:TGLFdb}})::Tuple{ParametersApplicati
     return app, act
 end
 
+Base.@kwdef mutable struct FUSEparameters__ParametersApplicationTGLFdb{T} <: ParametersApplication where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :ApplicationTGLFdb
+    server::Switch{String} = application_common_parameters(; server="localhost")
+    n_workers::Entry{Int} = application_common_parameters(; n_workers=missing)
+    file_save_mode::Switch{Symbol} = application_common_parameters(; file_save_mode=:safe_write)
+    release_workers_after_run::Entry{Bool} = application_common_parameters(; release_workers_after_run=true)
+    keep_output_dd::Entry{Bool} = application_common_parameters(; keep_output_dd=true)
+    sat_rules::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "TGLF saturation rules to run")
+    save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
+
+    database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
+end
 
 mutable struct ApplicationTGLFdb <: AbstractApplication
-    app::ParametersApplicationTGLFdb
+    app::FUSEparameters__ParametersApplicationTGLFdb
     act::ParametersAllActors
     dataframes_dict::Union{Dict{Symbol,DataFrame},Missing}
 end
@@ -67,7 +83,6 @@ function _run(application::ApplicationTGLFdb)
     app = application.app
     act = application.act
 
-
     @assert app.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(app.n_workers)"
 
     cases_files = [
@@ -96,7 +111,6 @@ function _run(application::ApplicationTGLFdb)
         Distributed.rmprocs(Distributed.workers())
         @info "released workers"
     end
-
     return application
 end
 
@@ -111,8 +125,6 @@ function preprocess_dd(filename)
     dd.summary.local.pedestal.n_e.value =
         [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
     dd.summary.local.pedestal.zeff.value = [2.2] # [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].zeff, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
-
-
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.time = dd.summary.time
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = dd.equilibrium.vacuum_toroidal_field.b0
 
@@ -142,7 +154,6 @@ function run_case(filename, application, lock)
         end
 
         actor_transport = workflow_actor(dd, act)
-
         empty!(dd.summary.global_quantities)
 
         if app.keep_output_dd
@@ -172,7 +183,7 @@ end
 function save_inputtglfs(actor_transport, output_dir, name, sat_rule)
     rho_transport = actor_transport.tr_actor.actor_ct.par.rho_transport
     for k in 1:length(rho_transport)
-        TGLFNN.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(sat_rule)"))
+        FUSE.TGLFNN.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(sat_rule)"))
     end
 end
 
@@ -235,9 +246,7 @@ function preparse_input(database_folder)
 
         json_data["core_profiles"]["profiles_1d"][1]["time"] = time
         json_data["core_profiles"]["time"] = timea
-
         json_data["dataset_description"] = Dict("data_entry" => Dict("pulse" => pulse, "machine" => machine))
-
 
         for source in keys(json_data["core_sources"]["source"])
             json_data["core_sources"]["source"][source]["profiles_1d"][1]["time"] = time
@@ -245,7 +254,6 @@ function preparse_input(database_folder)
 
 
         json_data["summary"]["time"] = [time]
-
         json_string = JSON.json(json_data)
 
         open("$(joinpath(fuse_prepared_inputs,item))", "w") do file
