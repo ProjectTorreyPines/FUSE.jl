@@ -43,7 +43,7 @@ mutable struct StudyTGLFdb <: AbstractStudy
     sty::FUSEparameters__ParametersStudyTGLFdb
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
-    iterator::Union{Vector{String},Missing}
+    iterator::Union{Vector{Union{String,Symbol}},Missing}
 end
 
 function TGLF_dataframe()
@@ -114,7 +114,9 @@ function _run(study::StudyTGLFdb)
             
         results = pmap(filename -> run_case(filename, study, mylock, item), cases_files)
         for row in results
-            push!(study.dataframes_dict[item], row)
+            if !isnothing(row)
+                push!(study.dataframes_dict[item], row)
+            end
         end
 
         # Save JSON to a file
