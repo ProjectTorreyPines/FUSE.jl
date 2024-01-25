@@ -37,7 +37,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
         :lfs_TF => 0.75,
         :gap_world => 1.0
     )
-    ini.build.layers[:hfs_wall].material = "graphite"
+    ini.build.layers[:hfs_wall].material = :graphite
 
     ini.build.n_first_wall_conformal_layers = 2
     act.ActorCXbuild.rebuild_wall = false

@@ -95,17 +95,17 @@ Returns critical current density and magnetic field given an external magnetic f
 """
 function coil_J_B_crit(Bext, coil_tech::Union{IMAS.build__pf_active__technology,IMAS.build__oh__technology,IMAS.build__tf__technology})
     if coil_tech.material == "copper"
-        mat = FusionMaterials.Material(:copper)
+        mat = Material(:copper)
     elseif coil_tech.material == "nb3sn"
-        mat = FusionMaterials.Material(:nb3sn; coil_tech, Bext)
+        mat = Material(:nb3sn; coil_tech, Bext)
     elseif coil_tech.material == "nbti"
-        mat = FusionMaterials.Material(:nbti; coil_tech, Bext)
+        mat = Material(:nbti; coil_tech, Bext)
     elseif coil_tech.material == "kdemo_nb3sn"
-        mat = FusionMaterials.Material(:kdemo_nb3sn; coil_tech, Bext)
+        mat = Material(:kdemo_nb3sn; coil_tech, Bext)
     elseif coil_tech.material == "iter_nb3sn"
-        mat = FusionMaterials.Material(:iter_nb3sn; coil_tech, Bext)
+        mat = Material(:iter_nb3sn; coil_tech, Bext)
     elseif coil_tech.material == "rebco"
-        mat = FusionMaterials.Material(:rebco; coil_tech, Bext)
+        mat = Material(:rebco; coil_tech, Bext)
     end
     Jcrit, Bcrit = mat.critical_current_density, mat.critical_magnetic_field
 

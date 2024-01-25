@@ -2,6 +2,8 @@ import CSV
 import DataFrames
 import Memoize
 import Dates
+import FusionMaterials 
+import FusionMaterials: Material
 
 #= ================================= =#
 #  Learning rate for HTS - from GASC  #
@@ -14,7 +16,7 @@ end
 #  materials cost  #
 #= ============== =#
 function unit_cost(material::FusionMaterials.Material, cst::IMAS.costing)
-    cost_per_unit_volume = material.unit_cost * (material.density * 1e3)
+    cost_per_unit_volume = material.unit_cost * material.density
     
     if material.name == "rebco"
         production_increase = cst.future.learning.hts.production_increase
@@ -30,12 +32,12 @@ end
 #= ====================== =#
 function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, cst::IMAS.costing)
     if coil_tech.material == "copper"
-        return unit_cost(FusionMaterials.Material(:copper), cst)
+        return unit_cost(Material(:copper), cst)
     else
         fraction_cable = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)
         fraction_copper = fraction_cable - fraction_SC
-        return (coil_tech.fraction_steel * unit_cost(FusionMaterials.Material(:steel), cst) + fraction_copper * unit_cost(FusionMaterials.Material(:copper), cst) + fraction_SC * unit_cost(FusionMaterials.Material(coil_tech.material), cst))
+        return (coil_tech.fraction_steel * unit_cost(Material(:steel), cst) + fraction_copper * unit_cost(Material(:copper), cst) + fraction_SC * unit_cost(Material(coil_tech.material), cst))
     end
 end
 

@@ -134,7 +134,7 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
         layer.type = Int(ini_layer.type)
         layer.side = Int(ini_layer.side)
         if !ismissing(ini_layer, :material)
-            layer.material = ini_layer.material
+            layer.material = String(ini_layer.material)
         end
         if !ismissing(ini_layer, :shape)
             layer.shape = Int(ini_layer.shape)
@@ -202,7 +202,7 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
     end
 end
 
-function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, value::String) where {T<:Real}
+function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, val::Symbol) where {T<:Real}
     par = getfield(parameters_layer, field)
 
     if field == :material 
@@ -211,12 +211,12 @@ function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, fie
         pretty_layer_type = replace("$layer_type", "_" => "")
         allowed_materials = FusionMaterials.supported_material_list(layer_type)
 
-        if value ∉ allowed_materials
-            error("$value is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+        if val ∉ allowed_materials
+            error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
         end
     end
 
-    setfield!(par, :value, value)
+    setproperty!(par, :value, val)
 
 end
 
