@@ -50,7 +50,7 @@ function _step(actor::ActorBalanceOfPlant; kw...)
     bop_thermal = bop.power_plant
     @ddtime(bop_thermal.generator_conversion_efficiency = par.generator_conversion_efficiency)
 
-    finalize(step(actor.thermal_plant_actor; doplot = par.do_plot, kw...))
+    finalize(step(actor.thermal_plant_actor; doplot = par.do_plot))
     finalize(step(actor.power_needs_actor))
 
     return actor
