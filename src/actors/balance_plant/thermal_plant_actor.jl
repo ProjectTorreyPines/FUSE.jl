@@ -80,15 +80,15 @@ function _step(actor::ActorThermalPlant; doplot = false,
                                             ddwrite = true)
 
     # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
-
+    # println("Actor run - use u $(use_actor_u)")
     dd  = actor.dd
     par = actor.par
-
     breeder_heat_load   = (use_actor_u == false) ? (isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)) : actor.u[1];
     divertor_heat_load  = (use_actor_u == false) ? (isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)) : actor.u[2];
     wall_heat_load      = (use_actor_u == false) ?  abs.(IMAS.radiation_losses(dd.core_sources)) : actor.u[3];
     
     actor.u             =  [breeder_heat_load, divertor_heat_load, wall_heat_load]
+    # println("Actor u = $(actor.u)")
     # Buidling the TSM System
     if actor.buildstatus == false
         @info "Rebuilding ActorThermalPlant"
@@ -416,7 +416,9 @@ function _step(actor::ActorThermalPlant; doplot = false,
     TSMD.updateGraphSoln(actor.gplot,soln);
 
     # write to dd if ddwrite = true
-    ddwrite && initddbop(actor; soln = soln)
+    if ddwrite == true
+        initddbop(actor; soln = soln)
+    end
 
     if doplot == true
         sysnamedict = Dict([
@@ -637,11 +639,12 @@ If you want to write to dd based off a different solution object, it can be pass
 function initddbop(act::ActorThermalPlant; soln = nothing)
     gcopy = act.gplot;
     dd = act.dd;
-    syslabs = TSMD.get_prop(gcopy, :system_labels)
+    # syslabs = TSMD.get_prop(gcopy, :system_labels)
     # empty!(dd.balance_of_plant);
     # begin
     bop       = dd.balance_of_plant;
-    bop_plant = bop.power_plant;
+    bop_plant   = bop.power_plant;
+    bopsys      = bop_plant.system; 
 
     compnamesubs = Dict(
         "enfw" => "en fw",
@@ -655,9 +658,7 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
 
     gp = getproperty(gcopy,:gprops);
     np = getproperty(gcopy,:vprops);
-
     nv_g = maximum(collect(keys(np)))
-
     soln = (isnothing(soln) ? gp[:soln] : soln)
 
     # names of the internal subgraph objects
@@ -665,11 +666,18 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
     format_name(x) = titlecase(replace(lowercase(string(x)),compnamesubs...))
 
     # initializing the 1st level of dd
-    resize!(bop_plant.system,length(syslabs))
-    bopsys = bop_plant.system;
-    true && [bopsys[i].name = syslabs[i] for i =1:length(syslabs)]; # adding to system
+    if length(bop_plant.system) != length(syslabs)
+        empty!(dd.balance_of_plant.power_plant.system)
+        resize!(bop_plant.system,length(syslabs))
+        for i =1:length(syslabs)
+            bop_plant.system[i].name  = syslabs[i] 
+        end
+    end
+    bopsys = bop_plant.system; 
     bops_dict = Dict(bopsys[i].name => i for i =1:length(syslabs)); # dict where name => index
-    valid_s   = collect(keys(bops_dict));                           # valid system names
+    valid_s   = collect(keys(bops_dict)); 
+    # bops_dict = Dict(bopsys[i].name => i for i =1:length(syslabs)); # dict where name => index
+    # valid_s   = collect(keys(bops_dict));                           # valid system names
 
 
     nparent_dict = TSMD.node_propdict(gcopy,:parent);
@@ -685,23 +693,45 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
         parent_ = format_name(string(nparent_dict[i]))
 
         if parent_ ∈ valid_s
+            # parent index in dd
             dd_sys_idx = bops_dict[parent_]
-            resize!(bopsys[dd_sys_idx].component,length(bopsys[dd_sys_idx].component)+1);
-
-            comp        = sysdict[i];
-            compname = string(nname_dict[i]);
             
-            bopsys[dd_sys_idx].component[end].name = format_name(nname_dict[i]) != parent_ ?  format_name(nname_dict[i]) : titlecase(string(nname_dict[i]))
+            component_names = [c.name for c in bopsys[dd_sys_idx].component[:]]
+            comp        = sysdict[i];
+            compname = format_name(nname_dict[i]) != parent_ ?  format_name(nname_dict[i]) : titlecase(string(nname_dict[i]))
+            
+            # if it is not already within the system
+            if !(compname ∈ component_names)
+                resize!(bopsys[dd_sys_idx].component,length(bopsys[dd_sys_idx].component)+1);
+                bopsys[dd_sys_idx].component[end].name = compname
+            end
+
+            component_names = [c.name for c in bopsys[dd_sys_idx].component[:]]
+    
+            # index of component in parent system
+            idx     = findfirst(x -> x == compname, component_names)
+            bopcomp =  bopsys[dd_sys_idx].component[idx];
+        
+            # comp        = sysdict[i];
+            # compname = string(nname_dict[i]);
+            # bopsys[dd_sys_idx].component[end].name = format_name(nname_dict[i]) != parent_ ?  format_name(nname_dict[i]) : titlecase(string(nname_dict[i]))
 
             pps         = propertynames(comp);
             hasnext     = [hasproperty(getproperty(comp,p),:ṁ) for p in pps];    # has a fluid port
-            toadd       = pps[findall(x -> x == true, hasnext)];                # fluid port names
-            bopcomp = bopsys[dd_sys_idx].component[end];
-            flow2add = length(toadd);
-            empty!(bopcomp.port)
-            resize!(bopcomp.port,flow2add)
+            toadd       = pps[findall(x -> x == true, hasnext)];                 # fluid port names
+            # bopcomp     = bopsys[dd_sys_idx].component[end];
+            flow2add    = length(toadd);
+
+            # if length(bopcomp.port) < flow2add
+            #     empty!(bopcomp.port)
+            #     resize!(bopcomp.port,flow2add)
+            # end
+
             for j =1:flow2add
-                bopcomp.port[j].name = string(toadd[j])
+                if length(bopcomp.port) < j
+                    resize!(bopcomp.port,flow2add)
+                    bopcomp.port[j].name = string(toadd[j])
+                end
 
                 sysp = getproperty(comp, toadd[j])
                 sysT = soln(getproperty(sysp, :T))
@@ -714,30 +744,43 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
             end
 
             if hasproperty(comp,:w) 
-                resize!(bopcomp.port,flow2add+1) 
-                bopcomp.port[end].name = "Pdv_Conserving"
+                if length(bopcomp.port) < flow2add+1
+                    resize!(bopcomp.port,flow2add+1) 
+                    bopcomp.port[end].name = "Pdv_Conserving"
+                end
                 @ddtime(bopcomp.port[end].mechanicalPower = soln(getproperty(getproperty(comp,:w),:Ẇ)));
                 # println("PORT $(compname) . w")
             elseif hasproperty(comp,:Ẇ)
-                resize!(bopcomp.port,flow2add+1) 
-                bopcomp.port[end].name = "Pdv_Conserving"
+                if length(bopcomp.port) < flow2add+1
+                    resize!(bopcomp.port,flow2add+1) 
+                    bopcomp.port[end].name = "Pdv_Conserving"
+                end
                 @ddtime(bopcomp.port[end].mechanicalPower = soln(getproperty(comp,:Ẇ)));
             end
 
             
             if hasproperty(comp,:q) 
-                resize!(bopcomp.port,length(bopcomp.port)+1) 
-                bopcomp.port[end].name = "Tds_Conserving"
+                if length(bopcomp.port) < flow2add+1
+                    resize!(bopcomp.port,length(bopcomp.port)+1) 
+                    bopcomp.port[end].name = "Tds_Conserving"
+                end
+                # println("-- $(compname) --")
                 @ddtime(bopcomp.port[end].thermalPower = soln(getproperty(getproperty(comp,:q),:Q̇)));
+                # println("--> @ddtime set to: $(soln(getproperty(getproperty(comp,:q),:Q̇))))")
+                # println("--> @ddtime post check: $(@ddtime(bopcomp.port[end].thermalPower))")
+                # println("--> @ddtime pre-check $(@ddtime(bopcomp.port[end].thermalPower))")
             elseif hasproperty(comp,:Q̇)
-                resize!(bopcomp.port,flow2add+1) 
-                bopcomp.port[end].name = "Tds_Conserving"
+                if length(bopcomp.port) < flow2add+1
+                    resize!(bopcomp.port,length(bopcomp.port)+1) 
+                    bopcomp.port[end].name = "Tds_Conserving"
+                end
                 @ddtime(bopcomp.port[end].thermalPower = soln(getproperty(comp,:Q̇)))
+                # println("--> $(compname) Q = $(soln(getproperty(comp,:Q̇)))")
                 # @ddtime(bopcomp.port[end].mechanicalPower = soln(getproperty(comp,:Ẇ)/10^6));
             end
         #     # hasproperty(comp,:q) ? resize!(bopcomp.port,flowadd+1)
         else
-            disp("Failed to find parent system for $(nname_dict[i]), invalid parent $(parent_)")
+            display("Failed to find parent system for $(nname_dict[i]), invalid parent $(parent_)")
         end
     end
 
