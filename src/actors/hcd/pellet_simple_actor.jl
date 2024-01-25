@@ -48,21 +48,21 @@ function _step(actor::ActorPelletsimple)
 
     #the number of particle/cm^3 # the data of mass density and atomic weight is sourced from PAM model within OMFIT
     function density_of_pellet(species::String)
-        avog=6.022e23
+        #avog=6.022e23
         material_density=Dict("DT" => 0.257, "D" => 0.2, "T" => 0.318, "C" => 3.3, "Ne" => 1.44)
-
         atomic_weigth=Dict("DT" => 2.515, "D" => 2.014, "T" => 3.016, "C" => 12.011, "Ne" => 20.183)
-
+        charge_number=Dict("DT" => 1., "D" => 1., "T" => 1., "C" => 6., "Ne" => 10.)
         if species == "DT"
             return material_density["DT"]*avog/atomic_weigth["DT"]
+            #return FusionMaterials.Material(:DT).density
         elseif species == "D"
-            return material_density["D"]*avog/atomic_weigth["D"]
+            return material_density["D"]*constants.avog/atomic_weigth["D"]
         elseif species == "T"
-            return material_density["T"]*avog/atomic_weigth["T"]
+            return material_density["T"]*constants.avog/atomic_weigth["T"]
         elseif species == "C"
-            return material_density["C"]*avog/atomic_weigth["C"]
+            return material_density["C"]*constants.avog/atomic_weigth["C"]
         elseif species == "Ne"
-            return material_density["Ne"]*avog/atomic_weigth["Ne"]
+            return material_density["Ne"]*constants.avog/atomic_weigth["Ne"]
         end
     end
     
