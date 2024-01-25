@@ -93,7 +93,7 @@ function _run(study::StudyTGLFdb)
     ]
     mylock = ReentrantLock()
 
-    @assert !ismissing(getproperty(sty, :sat_rules,missing)) || !ismissing(getproperty(sty, :custom_tglf_models,missing)) "Specify either sat_rules or custom_tglf_models"
+    @assert ismissing(getproperty(sty, :sat_rules,missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models,missing)) "Specify either sat_rules or custom_tglf_models"
 
     if !ismissing(getproperty(sty, :sat_rules,missing))
         iterator = sty.sat_rules
@@ -115,12 +115,12 @@ function _run(study::StudyTGLFdb)
         results = pmap(filename -> run_case(filename, study, mylock, item), cases_files)
         for row in results
             if !isnothing(row)
-                push!(study.dataframes_dict[item], row)
+                push!(study.dataframes_dict[string(item)], row)
             end
         end
 
         # Save JSON to a file
-        json_data = JSON.json(study.dataframes_dict[item])
+        json_data = JSON.json(study.dataframes_dict[string(item)])
         open("$(sty.save_folder)/data_frame_$(item).json", "w") do f
             return write(f, json_data)
         end
@@ -292,7 +292,7 @@ function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
     end
 
     for item in study.iterator
-        plot_xy_wth_hist2d(study.dataframes_dict[item], string(item), EM_contribution, quantity, save_fig, save_path)
+        plot_xy_wth_hist2d(study.dataframes_dict[string(item)], string(item), EM_contribution, quantity, save_fig, save_path)
     end
 end
 
