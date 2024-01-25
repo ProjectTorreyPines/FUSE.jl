@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     #== display and debugging parameters ==#
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
 

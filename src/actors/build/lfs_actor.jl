@@ -4,8 +4,8 @@
 Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorLFSsizing{D,P} <: ReactorAbstractActor{D,P}
