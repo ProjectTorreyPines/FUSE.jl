@@ -149,7 +149,7 @@ include("optimization.jl")
 #= ============ =#
 #  APPLICATIONS  #
 #= ============ =#
-include("parameters_applications.jl")
+include("parameters_studies.jl")
 
 
 #= ========= =#
