@@ -33,20 +33,35 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T} <: Parameter
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
     keep_output_dd::Entry{Bool} = study_common_parameters(; keep_output_dd=true)
     sat_rules::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "TGLF saturation rules to run")
-    save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
+    custom_tglf_models::Entry{Vector{String}} = Entry{Vector{String}}("-", "This will run custom TGLFNN models stored in TGLFNN/models")
 
+    save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
 end
 
 mutable struct StudyTGLFdb <: AbstractStudy
     sty::FUSEparameters__ParametersStudyTGLFdb
     act::ParametersAllActors
-    dataframes_dict::Union{Dict{Symbol,DataFrame},Missing}
+    dataframes_dict::Union{Dict{String,DataFrame},Missing}
+    iterator::Union{Vector{String},Missing}
+end
+
+function TGLF_dataframe()
+    return DataFrame(;
+    shot=Int[], time=Int[], ne0=Float64[],
+    Te0=Float64[], Ti0=Float64[], ne0_exp=Float64[],
+    Te0_exp=Float64[], Ti0_exp=Float64[], WTH_exp=Float64[],
+    rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], rho=Vector{Float64}[],
+    Qe_target=Vector{Float64}[], Qe_TGLF=Vector{Float64}[], Qe_neoc=Vector{Float64}[],
+    Qi_target=Vector{Float64}[], Qi_TGLF=Vector{Float64}[], Qi_neoc=Vector{Float64}[],
+    particle_target=Vector{Float64}[], particle_TGLF=Vector{Float64}[], particle_neoc=Vector{Float64}[],
+    momentum_target=Vector{Float64}[], momentum_TGLF=Vector{Float64}[],
+    Q_GB=Vector{Float64}[], particle_GB=Vector{Float64}[], momentum_GB=Vector{Float64}[])
 end
 
 function StudyTGLFdb(sty, act; kw...)
     sty = sty(kw...)
-    study = StudyTGLFdb(sty, act, missing)
+    study = StudyTGLFdb(sty, act, missing, missing)
     return setup(study)
 end
 
@@ -60,19 +75,6 @@ function _setup(study::StudyTGLFdb)
 
     preparse_input(sty.database_folder)
 
-    output_df = DataFrame(;
-        shot=Int[], time=Int[], ne0=Float64[],
-        Te0=Float64[], Ti0=Float64[], ne0_exp=Float64[],
-        Te0_exp=Float64[], Ti0_exp=Float64[], WTH_exp=Float64[],
-        rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], rho=Vector{Float64}[],
-        Qe_target=Vector{Float64}[], Qe_TGLF=Vector{Float64}[], Qe_neoc=Vector{Float64}[],
-        Qi_target=Vector{Float64}[], Qi_TGLF=Vector{Float64}[], Qi_neoc=Vector{Float64}[],
-        particle_target=Vector{Float64}[], particle_TGLF=Vector{Float64}[], particle_neoc=Vector{Float64}[],
-        momentum_target=Vector{Float64}[], momentum_TGLF=Vector{Float64}[],
-        Q_GB=Vector{Float64}[], particle_GB=Vector{Float64}[], momentum_GB=Vector{Float64}[])
-
-
-    study.dataframes_dict = Dict(name => deepcopy(output_df) for name in sty.sat_rules)
     parallel_environment(sty.server, sty.n_workers)
     # XXE load of FUSE should be implemetned here @orso importFUSEdistributed()
 
@@ -84,23 +86,40 @@ function _run(study::StudyTGLFdb)
     act = study.act
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
-
+    
     cases_files = [
         joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
         item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
     ]
-    println("running StudyTGLFdb on $(length(cases_files)) cases on $(length(sty.sat_rules)) sat rules with $(sty.n_workers) workers on $(sty.server)")
     mylock = ReentrantLock()
-    for sat_rule in sty.sat_rules
-        act.ActorTGLF.sat_rule = sat_rule
-        results = pmap(filename -> run_case(filename, study, mylock), cases_files)
+
+    @assert !ismissing(getproperty(sty, :sat_rules,missing)) || !ismissing(getproperty(sty, :custom_tglf_models,missing)) "Specify either sat_rules or custom_tglf_models"
+
+    if !ismissing(getproperty(sty, :sat_rules,missing))
+        iterator = sty.sat_rules
+    elseif !ismissing(sty.custom_tglf_models)
+        iterator = sty.custom_tglf_models
+    end
+    study.iterator = iterator
+    study.dataframes_dict = Dict(string(name) => TGLF_dataframe() for name in study.iterator)
+
+    println("running StudyTGLFdb on $(length(cases_files)) cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
+
+    for item in iterator
+        if !ismissing(getproperty(sty, :sat_rules,missing))
+            act.ActorTGLF.sat_rule = item
+        else
+            act.ActorTGLF.user_specified_model = item
+        end
+            
+        results = pmap(filename -> run_case(filename, study, mylock, item), cases_files)
         for row in results
-            push!(study.dataframes_dict[sat_rule], row)
+            push!(study.dataframes_dict[item], row)
         end
 
         # Save JSON to a file
-        json_data = JSON.json(study.dataframes_dict[sat_rule])
-        open("$(sty.save_folder)/data_frame_$(sat_rule).json", "w") do f
+        json_data = JSON.json(study.dataframes_dict[item])
+        open("$(sty.save_folder)/data_frame_$(item).json", "w") do f
             return write(f, json_data)
         end
 
@@ -132,11 +151,10 @@ function preprocess_dd(filename)
 end
 
 
-function run_case(filename, study, lock)
+function run_case(filename, study, lock, item)
     act = study.act
     sty = study.sty
 
-    sat_rule = act.ActorTGLF.sat_rule
     dd = preprocess_dd(filename)
 
     cp1d = dd.core_profiles.profiles_1d[]
@@ -157,8 +175,8 @@ function run_case(filename, study, lock)
         empty!(dd.summary.global_quantities)
 
         if sty.keep_output_dd
-            IMAS.imas2json(dd, joinpath(output_case, "result_dd_$(sat_rule).json"))
-            save_inputtglfs(actor_transport, output_case, name, sat_rule)
+            IMAS.imas2json(dd, joinpath(output_case, "result_dd_$(item).json"))
+            save_inputtglfs(actor_transport, output_case, name, item)
             save(FUSE.memtrace, joinpath(output_case, "memtrace.txt"))
         end
 
@@ -180,10 +198,10 @@ function workflow_actor(dd, act)
 end
 
 
-function save_inputtglfs(actor_transport, output_dir, name, sat_rule)
+function save_inputtglfs(actor_transport, output_dir, name, item)
     rho_transport = actor_transport.tr_actor.actor_ct.par.rho_transport
     for k in 1:length(rho_transport)
-        FUSE.TGLFNN.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(sat_rule)"))
+        FUSE.TGLFNN.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(item)"))
     end
 end
 
@@ -271,12 +289,12 @@ function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
         EM_contribution = :ES
     end
 
-    for sat_rule in study.sty.sat_rules
-        plot_xy_wth_hist2d(study.dataframes_dict[sat_rule], sat_rule, EM_contribution, quantity, save_fig, save_path)
+    for item in study.iterator
+        plot_xy_wth_hist2d(study.dataframes_dict[item], string(item), EM_contribution, quantity, save_fig, save_path)
     end
 end
 
-function plot_xy_wth_hist2d(df::DataFrame, satrule::Symbol, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::String)
+function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::String)
 
     x = df[!, "$(quantity)_exp"]
     y = df[!, "$(quantity)"]
@@ -294,10 +312,10 @@ function plot_xy_wth_hist2d(df::DataFrame, satrule::Symbol, EM_contribution::Sym
         ylim=xy_lim, xlim=xy_lim, tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern",
         xguidefontsize=15, yguidefontsize=14)
 
-    plot!(xy_lim, xy_lim; linestyle=:dash, color=:black, label=nothing, title="SAT$satrule $EM_contribution")
+    plot!(xy_lim, xy_lim; linestyle=:dash, color=:black, label=nothing, title="SAT$name $EM_contribution")
 
 
-    println("MRE SAT$satrule $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
+    println("MRE SAT$name $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
 
     if save_fig
         savefig(p, save_path)
