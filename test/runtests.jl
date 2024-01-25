@@ -14,6 +14,6 @@ include("runtests_cases.jl")
 
 include("runtests_actors.jl")
 
-include("runtests_optimization.jl")
+include("runtests_workflow.jl")
 
 println(FUSE.timer)
