@@ -491,6 +491,13 @@ function digest(
         display(p)
     end
 
+    # tf
+    sec += 1
+    if !ismissing(dd.build.tf, :coils_n) && !isempty(dd.build.layer) && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.build.tf; title="TF coils -- Top view"))
+    end
+
     # balance of plant (cannot be plotted right now plotting can only be done when running actor and not from data in dd)
     # sec += 1
     # if !missing(dd.balance_of_plant, :Q_plant) && section ∈ (0, sec)
