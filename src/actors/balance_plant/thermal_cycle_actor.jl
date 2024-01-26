@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersAct
     Nc::Entry{Int} = Entry{Int}("-", "Number of compression stages"; default=3)
     regen::Entry{T} = Entry{T}("-", "Regeneration fraction")
     fixed_cycle_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `power_cycle_type=:fixed_cycle_efficiency`)")
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
 mutable struct ActorThermalCycle{D,P} <: FacilityAbstractActor{D,P}
