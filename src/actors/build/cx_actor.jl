@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor wh
     _name::Symbol = :not_set
     rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium"; default=true)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
 mutable struct ActorCXbuild{D,P} <: ReactorAbstractActor{D,P}

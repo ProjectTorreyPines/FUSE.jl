@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     #== display and debugging parameters ==#
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot before and after actor"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
 mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor{D,P}
