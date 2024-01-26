@@ -53,7 +53,7 @@ function _step(actor::ActorPelletsimple)
         atomic_weigth=Dict("DT" => 2.515, "D" => 2.014, "T" => 3.016, "C" => 12.011, "Ne" => 20.183)
         charge_number=Dict("DT" => 1., "D" => 1., "T" => 1., "C" => 6., "Ne" => 10.)
         if species == "DT"
-            return material_density["DT"]*avog/atomic_weigth["DT"]
+            return material_density["DT"]*constants.avog/atomic_weigth["DT"]
             #return FusionMaterials.Material(:DT).density
         elseif species == "D"
             return material_density["D"]*constants.avog/atomic_weigth["D"]
@@ -63,6 +63,8 @@ function _step(actor::ActorPelletsimple)
             return material_density["C"]*constants.avog/atomic_weigth["C"]
         elseif species == "Ne"
             return material_density["Ne"]*constants.avog/atomic_weigth["Ne"]
+        else
+            error("Species '$species' is not yet supported as a pellet.")
         end
     end
     
