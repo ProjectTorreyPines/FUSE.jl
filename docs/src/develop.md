@@ -161,9 +161,7 @@ end
 
 Material properties for supported fusion-relevant materials are stored in the FusionMaterials package, specifically in `FusionMaterials/src/materials.jl`. Properties of each material can be accessed by calling the `Material` function with the material name as a symbol passed as the function argument. 
 
-There are two steps to adding a new material: 
-
-1. Add a function to `materials.jl` called Material with the function argument being the material name. In the body of the function, assign the material's name (as a string, all lowercase, and with any spaces filled by underscores), type (as a list containing each possible IMAS BuildLayerType the material could be assigned to), density (in kg/m^3) and unit cost (in US dollars per kilogram). Include a comment providing a link to the source from which the unit cost was taken. 
+To add a new material whose properties can be accessed in FUSE, first add a function to `materials.jl` called Material with the function argument being your material's name. In the body of the function, assign the material's name (as a string, all lowercase, and with any spaces filled by underscores), type (as a list containing each possible IMAS BuildLayerType the material could be assigned to), density (in kg/m^3) and unit cost (in US dollars per kilogram). Include a comment providing a link to the source from which the unit cost was taken. 
 
 Below is an example of a complete Material function for a non-superconductor material (more about superconductor materials below): 
 
@@ -201,8 +199,6 @@ function Material(::Type{Val{:rebco}}; coil_tech::Union{Missing, IMAS.build__pf_
 end
 ```
 The function `ReBCO_Jcrit` is the critical current density function for this material. 
-
-2. Add the name of the newly added material to the list called all_materials within `FusionMaterials/src/materials_utils.jl`. 
 
 You can then access the parameters of your material by calling the function you've created. For example, access the material's density anywhere in FUSE by calling: 
 
