@@ -28,7 +28,7 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
     if coil_type ∉ (:oh, :tf, :pf_active)
         error("Supported coil type are [:oh, :tf, :pf_active]")
     end
-    
+
     FusionMaterials.is_supported_material(technology, IMAS._tf_)
 
     if technology == :copper
@@ -43,16 +43,16 @@ function coil_technology(coil_tech::Union{IMAS.build__pf_active__technology,IMAS
             coil_tech.temperature = 4.2
             coil_tech.material = "nb3sn"
             coil_tech.fraction_void = 0.1
-        elseif technology == :nbti 
-            coil_tech.temperature =  4.2
+        elseif technology == :nbti
+            coil_tech.temperature = 4.2
             coil_tech.material = "nbti"
             coil_tech.fraction_void = 0.2 # from Supercond. Sci. Technol. 36 (2023) 075009
         elseif technology == :iter_nb3sn
             coil_tech.temperature = 4.2
             coil_tech.material = "iter_nb3sn"
-            coil_tech.fraction_void = 0.1 
+            coil_tech.fraction_void = 0.1
         elseif technology == :kdemo_nb3sn
-            coil_tech.temperature = 4.2 
+            coil_tech.temperature = 4.2
             coil_tech.material = "kdemo_nb3sn"
             if coil_type == :tf
                 coil_tech.fraction_void = 0.26 # from NF 55 (2015) 053027, Table 2

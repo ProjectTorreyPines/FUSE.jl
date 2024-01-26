@@ -8,7 +8,7 @@ Arguments:
   - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
 function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(;n_nb=1,n_ec=1,n_ic=1)
+    ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1)
     act = ParametersActors()
 
     # checking init_from and boundary_from

@@ -17,8 +17,14 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
 
     machine_description = joinpath("__FUSE__", "sample", "D3D_machine.json")
     shot_mappings = Dict(
-        :H_mode => Dict(:time0 => 2.7, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"),
-        :L_mode => Dict(:time0 => 2.0, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"),
+        :H_mode => Dict(
+            :time0 => 2.7,
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"
+        ),
+        :L_mode => Dict(
+            :time0 => 2.0,
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"
+        ),
         :default => Dict(:time0 => 1.0, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
     )
 
