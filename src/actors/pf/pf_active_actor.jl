@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFactive{T} <: ParametersActor w
     _name::Symbol = :not_set
     green_model::Switch{Symbol} = Switch{Symbol}(options_green_model, "-", "Model used for the coils Green function calculations"; default=:simple)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
 mutable struct ActorPFactive{D,P} <: ReactorAbstractActor{D,P}

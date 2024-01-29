@@ -16,8 +16,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor whe
     eped_only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     update_pedestal::Entry{Bool} = Entry{Bool}("-","update pedestal with eped_nn inside TAUENN" ;default=true)
     confinement_factor::Entry{T} = Entry{T}("-", "Confinement multiplier"; default=1.0)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorTauenn{D,P} <: PlasmaAbstractActor{D,P}
