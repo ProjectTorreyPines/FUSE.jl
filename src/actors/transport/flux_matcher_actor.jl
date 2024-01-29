@@ -288,6 +288,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
         n += 1
         target = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.total_ion_energy.flux[cf_gridpoints]
+        check_output_fluxes(output, "total_ion_energy")
         append!(errors, error_transformation(target, output, norms[n]))
     end
 
@@ -295,6 +296,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
         n += 1
         target = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.electrons.energy.flux[cf_gridpoints]
+        check_output_fluxes(output, "electrons.energy")
         append!(errors, error_transformation(target, output, norms[n]))
     end
 
@@ -302,6 +304,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
         n += 1
         target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.momentum_tor.flux[cf_gridpoints]
+        check_output_fluxes(output, "momentum_tor")
         append!(errors, error_transformation(target, output, norms[n]))
     end
 
@@ -311,6 +314,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
             n += 1
             target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
             output = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            check_output_fluxes(output, "electrons.particles")
             append!(errors, error_transformation(target, output, norms[n]))
         end
         for ion in cp1d.ion
@@ -523,4 +527,13 @@ function evolve_densities_dict_creation(flux_match_species::Vector, fixed_specie
         parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
     end
     return Dict(sym => evolve for (sym, evolve) in parse_list)
+end
+
+"""
+    function check_output_fluxes(output::Vector{Float64}, what::String)
+
+Checks if there are any NaNs in the output
+"""
+function check_output_fluxes(output::Vector{Float64}, what::String)
+    @assert isnothing(findfirst(x -> isnan(x), output)) "The output flux is NaN check your transport model fluxes in core_transport ($(what))"
 end
