@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
 mutable struct ActorPassiveStructures{D,P} <: ReactorAbstractActor{D,P}
@@ -38,7 +38,7 @@ function _step(actor::ActorPassiveStructures)
     empty!(dd.pf_passive)
 
     # all LFS layers that do not intersect with structures
-    ilayers = IMAS.get_build_indexes(dd.build.layer, fs=IMAS._lfs_)
+    ilayers = IMAS.get_build_indexes(dd.build.layer; fs=IMAS._lfs_)
     ilayers = vcat(ilayers[1] - 1, ilayers)
     for k in ilayers
         l = dd.build.layer[k]
@@ -100,4 +100,81 @@ function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, 
         pf_passive.loop[end].element[end].identifier = identifier
     end
     return pf_passive.loop[end]
+end
+
+"""
+    wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
+
+Build quads between first wall and the next layer
+"""
+function wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
+    plasma_index = IMAS.get_build_index(bd.layer; type=_plasma_)
+    return layer_quads(bd.layer[plasma_index], bd.layer[plasma_index+1], precision, max_seg_length)
+end
+
+"""
+    layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
+
+Build quads between two layers
+"""
+function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
+    inner_outline = inner_layer.outline
+    outer_outline = outer_layer.outline
+
+    # reorder surface so that it starts on the hfs
+    pr = outer_outline.r
+    pz = outer_outline.z
+    R0 = (maximum(pr) + minimum(pr)) * 0.5
+    Z0 = (maximum(pz) + minimum(pz)) * 0.5
+    indexes, crossings = IMAS.intersection(pr, pz, [0.0, R0], [Z0, Z0])
+    pr = [pr[1:indexes[1][1]]; crossings[1][1]; pr[indexes[1][1]+1:end]]
+    pz = [pz[1:indexes[1][1]]; crossings[1][2]; pz[indexes[1][1]+1:end]]
+    istart = indexes[1][1] + 1
+    IMAS.reorder_flux_surface!(pr, pz, istart; force_close=true)
+
+    # simplify surface polygon
+    R1, Z1 = IMAS.rdp_simplify_2d_path(pr[1:end-1], pz[1:end-1], precision)
+    R1 = R1[2:end]
+    Z1 = Z1[2:end]
+
+    # split long segments
+    R1, Z1 = IMAS.split_long_segments(R1, Z1, max_seg_length)
+
+    # radiate lines from polygon vertices
+    rays = IMAS.polygon_rays(collect(zip(R1, Z1)), -100.0, 100.0)
+
+    # generate vertices of inner and outer surfaces
+    qR1 = Float64[]
+    qZ1 = Float64[]
+    qR2 = Float64[]
+    qZ2 = Float64[]
+    for (k, ray) in enumerate(rays)
+        _, inner_crossings = IMAS.intersection(inner_outline.r, inner_outline.z, [ray[1][1], ray[2][1]], [ray[1][2], ray[2][2]])
+        _, outer_crossings = IMAS.intersection(outer_outline.r, outer_outline.z, [ray[1][1], ray[2][1]], [ray[1][2], ray[2][2]])
+        if isempty(inner_crossings) || isempty(outer_crossings)
+            continue
+        end
+        d = [sqrt.((c[1] - R1[k])^2 + (c[2] - Z1[k])^2) for c in inner_crossings]
+        i = argmin(d)
+        push!(qR1, inner_crossings[i][1])
+        push!(qZ1, inner_crossings[i][2])
+        d = [sqrt.((c[1] - R1[k])^2 + (c[2] - Z1[k])^2) for c in outer_crossings]
+        i = argmin(d)
+        push!(qR2, outer_crossings[i][1])
+        push!(qZ2, outer_crossings[i][2])
+    end
+
+    # define quads
+    quads = []
+    for ka in eachindex(qR1)
+        kb = IMAS.getindex_circular(1:length(qR1), ka + 1)
+        rr = [qR1[ka], qR1[kb], qR2[kb], qR2[ka]]
+        zz = [qZ1[ka], qZ1[kb], qZ2[kb], qZ2[ka]]
+        RC = sum(rr) * 0.25
+        ZC = sum(zz) * 0.25
+        index = sortperm(atan.(zz .- ZC, rr .- RC))
+        push!(quads, (rr[index], zz[index]))
+    end
+
+    return quads
 end

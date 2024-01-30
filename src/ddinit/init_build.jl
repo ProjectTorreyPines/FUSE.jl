@@ -127,9 +127,7 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
 
     k = 0
     for ini_layer in layers
-        if ini_layer.thickness < 0.0
-            continue
-        end
+        @assert ini_layer.thickness >= 0.0
         k += 1
         layer = resize!(bd.layer, k)[k]
 
@@ -376,7 +374,9 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
             layers[:hfs_vacuum_vessel] = vessel
         end
     end
-    layers[:gap_hfs_coils] = pf_inside_tf ? 0 : -1
+    if pf_inside_tf
+        layers[:gap_hfs_coils] = 0.0
+    end
     if shield > 0.0
         layers[:hfs_shield] = shield
     end
@@ -392,7 +392,9 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
     if shield > 0.0
         layers[:lfs_shield] = shield
     end
-    layers[:gap_lfs_coils] = 1.0 * (pf_inside_tf ? 2.25 : -1)
+    if pf_inside_tf
+        layers[:gap_lfs_coils] = 2.25
+    end
     if vessel > 0.0
         if thin_vessel_walls
             layers[:lfs_vacuum_vessel_wall_inner] = 0.1

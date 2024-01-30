@@ -14,33 +14,28 @@ end
 #  materials cost  #
 #= ============== =#
 function unit_cost(material::AbstractString, cst::IMAS.costing)
-    if material == "Vacuum"
-        return 0.0 # $M/m^3
+    if material == "Vacuum" || material == "Water, Liquid" || contains(lowercase(material), "plasma")
+        cost_per_unit_volume = 0.0
     elseif material == "ReBCO"
         production_increase = cst.future.learning.hts.production_increase
         learning_rate = cst.future.learning.hts.learning_rate
-        return (87.5 / 2) * cost_multiplier(production_increase, learning_rate) # $M/m^3
+        cost_per_unit_volume =
+            FusionMaterials.material(material)["unit_cost"] * (FusionMaterials.material(material)["density"] * 1e3) * cost_multiplier(production_increase, learning_rate)
     elseif contains(lowercase(material), "nb3sn")
-        return 1.66 # $M/m^3
-    elseif contains(lowercase(material), "nbti")
-        return 1.66 / 2 # in PROCESS, the unit cost of NbTi is a factor of 2 smaller than that of Nb3Sn
-    elseif contains(lowercase(material), "steel")
-        return 0.36 # $M/m^3
-    elseif material == "Tungsten"
-        return 0.36 # $M/m^3
-    elseif material == "Copper"
-        return 0.5 # $M/m^3
-    elseif material == "Water, Liquid"
-        return 0.0 # $M/m^3
-    elseif material == "lithium-lead"
-        return 0.75 # $M/m^3
-    elseif material == "FLiBe"
-        return 0.75 * 3 # $M/m^3
-    elseif contains(lowercase(material), "plasma")
-        return 0.0 # $M/m^3
+        cost_per_unit_volume = FusionMaterials.material("Nb3Sn")["unit_cost"] * (FusionMaterials.material("Nb3Sn")["density"] * 1e3)
+        # multiplier_and_breeder_materials
+    elseif material in ["lithium-lead", "FLiBe"]
+        materials = FusionMaterials.material_group("multiplier_and_breeder_materials")
+        cost_per_unit_volume = materials[material]["unit_cost"] * (materials[material]["density"] * 1e3)
+        # structural_materials
+    elseif material in ["Tungsten", "Steel, Stainless 316"]
+        materials = FusionMaterials.material_group("structural_materials")
+        cost_per_unit_volume = materials[material]["unit_cost"] * (materials[material]["density"] * 1e3)
     else
-        error("Material `$material` has no price \$M/m³")
+        cost_per_unit_volume = FusionMaterials.material(material)["unit_cost"] * (FusionMaterials.material(material)["density"] * 1e3)
     end
+
+    return cost_per_unit_volume / 1e6 # costs in $M/m^3
 end
 
 #= ====================== =#
@@ -49,8 +44,6 @@ end
 function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, cst::IMAS.costing)
     if coil_tech.material == "Copper"
         return unit_cost("Copper", cst)
-    elseif contains(lowercase(coil_tech.material), "nb3sn") # Nb3Sn unit cost applies to the formed conductor (including steel and copper)
-        return unit_cost("Nb3Sn", cst)
     else
         fraction_cable = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)
@@ -113,10 +106,11 @@ function future_dollars(dollars::Real, da::DollarAdjust)
     CPI = load_inflation_rate()
 
     # from old dollars to current dollars
-    if CPI.Year[1] <= da.year_assessed <= CPI.Year[end-1]
+    if CPI.Year[1] <= da.year_assessed <= CPI.Year[end]
         CPI_past_year = CPI[findfirst(x -> x == da.year_assessed, CPI.Year), "Year Avg"]
         val_today = CPI[end, "Year Avg"] ./ CPI_past_year .* dollars
-    elseif da.year_assessed == CPI.Year[end]
+    elseif da.year_assessed == CPI.Year[end] + 1
+        # allow one year of slack before raising warning that inflation data is not available
         val_today = dollars
     else
         @warn "Inflation data not available for $(da.year_assessed)"

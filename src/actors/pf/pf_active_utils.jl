@@ -10,9 +10,9 @@ options_green_model = [
 #= ==================================== =#
 #  IMAS.pf_active__coil to VacuumFields  #
 #= ==================================== =#
-mutable struct GS_IMAS_pf_active__coil{T<:Real,C<:Real} <: VacuumFields.AbstractCoil{T,C}
-    imas::IMAS.pf_active__coil{T}
-    tech::IMAS.build__pf_active__technology{T}
+mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real} <: VacuumFields.AbstractCoil{T1,T2,T3}
+    imas::IMAS.pf_active__coil{T1}
+    tech::IMAS.build__pf_active__technology{T1}
     time0::Float64
     green_model::Symbol
 end
@@ -29,7 +29,7 @@ function GS_IMAS_pf_active__coil(
         setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
     end
 
-    return GS_IMAS_pf_active__coil{T,T}(
+    return GS_IMAS_pf_active__coil{T,T,T}(
         pfcoil,
         coil_tech,
         IMAS.global_time(pfcoil),
@@ -199,7 +199,7 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
 
         # current limit evaluated at all magnetic fields and temperatures
         coil.current_limit_max = [
-            abs(coil_J_B_crit(b, coil_tech)[1] * IMAS.area(coil) * fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for b in coil.b_field_max,
+            abs(coil_J_B_crit(b, coil_tech).Jcrit * IMAS.area(coil) * fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for b in coil.b_field_max,
             t in coil.temperature
         ]
 
@@ -254,7 +254,7 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
             if !symmetric
                 append!(lbounds, coil_distances .* 0.0 .- 1.0)
             else
-                append!(lbounds, coil_distances .* 0.0  )
+                append!(lbounds, coil_distances .* 0.0)
             end
             append!(ubounds, coil_distances .* 0.0 .+ 1.0)
         end
@@ -354,18 +354,22 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolerance::Float64=0.4)
-    function optimal_area(area; coil)
+function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolerance::Float64=0.4, min_size::Float64=1.0)
+    function optimal_area(x; coil)
+        area = abs(x[1])
+
         pfcoil = getfield(coil, :imas)
-        area = abs(area[1])
+
         height = width = sqrt(area)
         pfcoil.element[1].geometry.rectangle.height = height
         pfcoil.element[1].geometry.rectangle.width = width
 
-        max_current_density = coil_J_B_crit(coil_selfB(pfcoil, coil.current), coil.tech)[1]
+        max_current_density = coil_J_B_crit(coil_selfB(pfcoil, coil.current), coil.tech).Jcrit
         needed_conductor_area = abs(coil.current) / max_current_density
         needed_area = needed_conductor_area / fraction_conductor(coil.tech) * (1.0 .+ tolerance)
-        return (area - needed_area)^2
+
+        cost = (area - needed_area)^2
+        return cost
     end
 
     # find optimal area for each coil
@@ -373,18 +377,19 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
     for coil in coils
         pfcoil = getfield(coil, :imas)
         if !IMAS.is_ohmic_coil(pfcoil)
-            res = Optim.optimize(x -> optimal_area(x; coil), [pfcoil.element[1].geometry.rectangle.r], Optim.NelderMead())
-            push!(areas, res.minimizer[1])
+            res = Optim.optimize(x -> optimal_area(x; coil), [0.1], Optim.NelderMead())
+            push!(areas, abs(res.minimizer[1]))
         end
     end
 
     # set the area of the coils, with a minimum size given by the norm
+    msa = norm(areas) / length(areas)
     k = 0
     for coil in coils
         pfcoil = getfield(coil, :imas)
         if !IMAS.is_ohmic_coil(pfcoil)
             k += 1
-            optimal_area(max(areas[k], norm(areas) / length(areas)); coil)
+            optimal_area(max(areas[k], min_size * msa); coil)
         end
     end
 end
@@ -395,14 +400,16 @@ end
 function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
 
     df = DataFrames.DataFrame(;
+        name=String[],
         var"function"=Vector{Symbol}[],
         n_elements=Int[],
-        name=String[],
+        n_total_turns=Int[]
     )
 
     for coil in coils
         func = [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
-        push!(df, [func, length(coil.element), coil.name])
+        turns = sum(getproperty(element, :turns_with_sign, 1.0) for element in coil.element)
+        push!(df, [coil.name, func, length(coil.element), sum(turns)])
     end
 
     return df

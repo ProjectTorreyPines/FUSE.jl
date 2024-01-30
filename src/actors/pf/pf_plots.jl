@@ -1,6 +1,12 @@
 #= ======== =#
 #  plotting  #
 #= ======== =#
+@recipe function plot_ActorPFdesign_cx(actor::ActorPFdesign)
+    @series begin
+        actor.actor_pf
+    end
+end
+
 """
     plot_ActorPF_cx(
         actor::ActorPFactive{D,P};
@@ -13,7 +19,7 @@
 
 Plot recipe for ActorPFdesign and ActorPFactive
 """
-@recipe function plot_ActorPF_cx(
+@recipe function plot_ActorPFactive_cx(
     actor::ActorPFactive{D,P};
     time_index=nothing,
     equilibrium=true,

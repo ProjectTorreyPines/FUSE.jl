@@ -144,7 +144,7 @@ make chease
    git clone git@github.com:gafusion/gacode.git
    ```
 
-1. Set-up gacode settings in $HOME/.zshrc:
+1. Set-up gacode settings in `$HOME/.zshrc`:
    ```bash
    export GACODE_PLATFORM=OSX_MONTEREY
    export GACODE_ROOT=$HOME/gacode

@@ -375,7 +375,7 @@ Start multiprocessing environment
 """
 function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
     if cluster == "omega"
-        if occursin("omega",gethostname())
+        if occursin("omega", gethostname())
             gigamem_per_node = 512
             cpus_per_node = 128
             if nworkers > 0
@@ -403,7 +403,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
         end
 
     elseif cluster == "saga"
-        if occursin("saga",gethostname())
+        if occursin("saga", gethostname())
             gigamem_per_node = 192
             cpus_per_node = 48
             if nworkers > 0

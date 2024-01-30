@@ -1,8 +1,8 @@
 using SimulationParameters
 
-function SimulationParameters.Entry{T}(ids::Type, field::Symbol; default=missing) where {T}
+function SimulationParameters.Entry{T}(ids::Type, field::Symbol; default=missing, check=nothing) where {T}
     txt = IMAS.info(ids, field)
-    return Entry{T}(get(txt, "units", "-"), get(txt, "documentation", ""); default)
+    return Entry{T}(get(txt, "units", "-"), get(txt, "documentation", ""); default, check)
 end
 
 function SimulationParameters.Switch{T}(options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing) where {T}

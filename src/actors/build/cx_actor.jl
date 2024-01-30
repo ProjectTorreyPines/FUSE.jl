@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor wh
     _name::Symbol = :not_set
     rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium"; default=true)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
 mutable struct ActorCXbuild{D,P} <: ReactorAbstractActor{D,P}
@@ -149,6 +149,15 @@ function wall_from_eq!(
     upper_divertor = Int(upper_divertor)
     lower_divertor = Int(lower_divertor)
 
+    # domain of the equilibrium includes some buffer for divertor slots
+    div_gap = gap
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+    req = eqt2d.grid.dim1
+    req = [req[1] + div_gap, req[end] - div_gap, req[end] - div_gap, req[1] + div_gap, req[1] + div_gap]
+    zeq = eqt2d.grid.dim2
+    zeq = [zeq[1] + div_gap, zeq[1] + div_gap, zeq[end] - div_gap, zeq[end] - div_gap, zeq[1] + div_gap]
+    eq_domain = collect(zip(req, zeq))
+
     # lcfs and magnetic axis
     ((rlcfs, zlcfs),), ψb = IMAS.flux_surface(eqt, eqt.global_quantities.psi_boundary, :closed)
     RA = eqt.global_quantities.magnetic_axis.r
@@ -202,7 +211,7 @@ function wall_from_eq!(
         # limit extent of private flux regions
         circle = collect(zip(divertor_length .* cos.(t) .+ Rx, sign(Zx) .* divertor_length .* sin.(t) .+ Zx))
         circle[1] = circle[end]
-        inner_slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1]
+        inner_slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && PolygonOps.inpolygon((rr, zz), eq_domain) == 1]
         pr1 = [rr for (rr, zz) in inner_slot]
         pz1 = [zz for (rr, zz) in inner_slot]
         if isempty(pr1)
@@ -242,13 +251,13 @@ function wall_from_eq!(
 
         slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
         slot = LibGEOS.difference(slot_convhull, inner_slot_poly)
-        slot = LibGEOS.buffer(slot, gap)
+        slot = LibGEOS.buffer(slot, div_gap)
 
-        scale = 1.001
+        scale = 1.00
         Rc1, Zc1 = IMAS.centroid(pr1, pz1)
         pr3 = vcat((pr1 .- Rc1) .* scale .+ Rc1, reverse(pr1))
         pz3 = vcat((pz1 .- Zc1) .* scale .+ Zc1, reverse(pz1))
-        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), gap))
+        slot = LibGEOS.union(slot, LibGEOS.buffer(xy_polygon(pr3, pz3), div_gap))
 
         wall_poly = LibGEOS.union(wall_poly, slot)
     end
@@ -263,7 +272,7 @@ function wall_from_eq!(
     end
 
     # round corners
-    corner_radius = gap / 4
+    corner_radius = div_gap / 4
     wall_poly = LibGEOS.buffer(wall_poly, -corner_radius)
     wall_poly = LibGEOS.buffer(wall_poly, corner_radius)
 
@@ -275,7 +284,7 @@ function wall_from_eq!(
     pz = [v[2] for v in GeoInterface.coordinates(wall_poly)[1]]
 
     try
-        pr, pz = IMAS.resample_2d_path(pr, pz; step=0.1, method=:linear)
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101, method=:linear)
     catch e
         pp = plot(wall_poly; aspect_ratio=:equal)
         for (pr, pz) in private
@@ -318,7 +327,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     end
     wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
-    ψb = IMAS.find_psi_boundary(eqt)
+    ψb, _ = IMAS.find_psi_boundary(eqt)
     ((rlcfs, zlcfs),), _ = IMAS.flux_surface(eqt, ψb, :closed)
     linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
 
@@ -602,15 +611,13 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
 
     # resample
     for k in tf_to_plasma[1:end-1]
-        layer = bd.layer[k]
-        IMAS.resample_2d_path(layer; n_points, method=:linear)
+        IMAS.resample_2d_path(bd.layer[k]; n_points, method=:linear)
     end
 
     # _in_
     TF = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_)
     D = (minimum(plasma.outline.z) * 2 + minimum(TF.outline.z)) / 3.0
     U = (maximum(plasma.outline.z) * 2 + maximum(TF.outline.z)) / 3.0
-
     for k in IMAS.get_build_indexes(bd.layer; fs=_in_)
         layer = bd.layer[k]
         L = layer.start_radius
@@ -770,7 +777,6 @@ function optimize_shape(
 
     return Int(shape_enum), shape_parameters
 end
-
 
 """
     convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}

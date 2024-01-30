@@ -7,8 +7,12 @@ using Test
             FUSE.TimerOutputs.reset_timer!(FUSE.timer, testname)
             FUSE.TimerOutputs.@timeit FUSE.timer "$testname" begin
                 println("== $(testname) ==")
+
                 ini, act = FUSE.case_parameters(args...; kw...)
                 dd = IMAS.dd()
+
+                # speedup the tests
+                act.ActorStationaryPlasma.max_iter = 1
 
                 @testset "ini_yaml" begin
                     ini_str = FUSE.SimulationParameters.par2ystr(ini; skip_defaults=true, show_info=false)
@@ -32,6 +36,10 @@ using Test
 
                 @testset "init" begin
                     FUSE.init(dd, ini, act)
+                end
+
+                @testset "sol" begin
+                    IMAS.sol(dd)
                 end
 
                 @testset "whole_facility" begin

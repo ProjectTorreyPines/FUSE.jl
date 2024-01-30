@@ -6,8 +6,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T} <: ParametersActor w
     _name::Symbol = :not_set
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorPFdesign{D,P} <: ReactorAbstractActor{D,P}
@@ -106,7 +106,9 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
         actor_logging(dd, old_logging)
     end
 
-    #size_pf_active(actor.actor_pf.setup_cache.optim_coils)
+    # size the PF coils based on the currents they are carrying
+    size_pf_active(actor.actor_pf.setup_cache.optim_coils; min_size=1.0)#; tolerance=dd.requirements.coil_j_margin)
+    _step(actor.actor_pf) # this is required to update the current limits in the dd
 
     return actor
 end
