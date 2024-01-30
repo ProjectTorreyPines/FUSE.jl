@@ -147,12 +147,16 @@ end
 
 function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
     dd = actor.dd
+    cp1d = dd.core_profiles.profiles_1d[]
     return (
-        ("start time", t0),
-        ("  end time", t1),
-        ("      time", dd.global_time),
-        ("     stage", "$(name(actor)) ($phase/2)"),
-        ("        ip", "$(IMAS.get_from(dd, Val{:ip}, :core_profiles)/1E6) [MA]")
+        ("    start time", t0),
+        ("      end time", t1),
+        ("          time", dd.global_time),
+        ("         stage", "$(name(actor)) ($phase/2)"),
+        ("       Ip [MA]", IMAS.get_from(dd, Val{:ip}, :core_profiles) / 1E6),
+        ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
+        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
     )
 end
 
