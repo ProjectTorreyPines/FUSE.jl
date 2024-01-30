@@ -92,11 +92,9 @@ function _step(actor::ActorTGLF)
 
         # Setting up the TJLF / TGLF run with the custom parameter mask (this overwrites all the above)
         if !ismissing(par, :custom_input_files)
-            for k in 1:length(actor.input_tglfs)
-                for field_name in fieldnames(typeof(actor.input_tglfs[k]))
-                    if !ismissing(getproperty(par.custom_input_files[k], field_name))
-                        setproperty!(actor.input_tglfs[k], field_name, getproperty(par.custom_input_files[k], field_name))
-                    end
+            for field_name in fieldnames(typeof(actor.input_tglfs[k]))
+                if !ismissing(getproperty(par.custom_input_files[k], field_name))
+                    setproperty!(actor.input_tglfs[k], field_name, getproperty(par.custom_input_files[k], field_name))
                 end
             end
         end
