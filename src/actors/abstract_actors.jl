@@ -116,7 +116,7 @@ function _finalize_and_freeze_onetime_expressions(actor::T) where {T<:AbstractAc
 end
 
 @recipe function plot_actor(actor::AbstractActor, args...)
-    error("No plot recipe defined for ator $(typeof(actor))")
+    return error("No plot recipe defined for ator $(typeof(actor))")
 end
 
 #= ============= =#
@@ -135,6 +135,15 @@ function actor_logging(dd::IMAS.dd, value::Bool)
     old_value = actor_logging(dd)
     aux[:fuse_actor_logging] = value
     return old_value
+end
+
+#= ==== =#
+#  show  #
+#= ==== =#
+function Base.show(io::IO, actor::AbstractActor)
+    actorname = replace(string(typeof(actor)), "{Float64, Float64}" => "", r"^FUSE."=>"")
+    fields = join([fieldname for fieldname in fieldnames(typeof(actor))], ", ")
+    return print(io, "$actorname($fields)")
 end
 
 #= ======== =#
