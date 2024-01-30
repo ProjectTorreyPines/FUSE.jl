@@ -59,9 +59,12 @@ function _step(actor::ActorQED)
     cp1d = dd.core_profiles.profiles_1d[]
 
     if par.Nt == 0
+        # @info("QED: initialize")
+        # initialize
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=true)
 
     elseif par.Δt == Inf
+        # @info("QED: steady state")
         # steady state solution
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
 
@@ -76,7 +79,7 @@ function _step(actor::ActorQED)
         actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
 
     elseif par.Δt < 0.0
-        # fake rampup
+        # @info("QED: fake rampup for $(par.Δt) [s]")
         # scales the conductivity and non-inductive sources from zero to current value with some fudge law
         α_ni_evo_ip = 1.0 / 5.0 # early application of non-inductive current
         α_η_evo_ip = 5.0 # later transition to H-mode
@@ -114,7 +117,7 @@ function _step(actor::ActorQED)
         #display(p)
 
     else
-        # current diffusion
+        # @info("QED: current diffusion for $(par.Δt) [s]")
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
 
         t0 = dd.global_time
@@ -139,7 +142,7 @@ function _step(actor::ActorQED)
                 Ip = nothing
                 Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=tnow)
             end
-            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, Ni; Vedge, Ip)
+            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, Ni; Vedge, Ip, debug=false)
         end
     end
 
