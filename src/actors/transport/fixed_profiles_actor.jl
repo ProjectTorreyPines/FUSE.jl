@@ -8,6 +8,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorFixedProfiles{T} <: ParametersAc
     n_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile"; default=1.8)
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core"; default=1.0)
+    n_ITB_height::Entry{T} = Entry{T}("-", "Density ITB height as a ratio of core-ped different"; default=0.0)
+    T_ITB_height::Entry{T} = Entry{T}("-", "Temperature ITB height as a ratio of core-ped different"; default=0.0)
+    ITB_width::Entry{T} = Entry{T}("rho", "ITB width"; default=0.1)
+    ITB_radius::Entry{T} = Entry{T}("rho", "ITB radial location"; default=0.6)
     update_pedestal::Entry{Bool} = Entry{Bool}("-", "Update pedestal with EPED-NN and modify profiles accordingly"; default=true)
 end
 
@@ -53,10 +57,26 @@ function _step(actor::ActorFixedProfiles)
     # update electron temperature profile using
     # * new pedestal height & width
     # * existing Te0 & T_shaping 
+    # * ITB parameters 
+
     Te = cp1d.electrons.temperature
     Te_ped = @ddtime(dd.summary.local.pedestal.t_e.value)
     w_ped = @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)
-    tval = IMAS.Hmode_profiles(Te[end], Te_ped, Te[1], length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, 1.0 - w_ped)
+
+    Te_ITB_height = (Te[1] - Te_ped) * par.T_ITB_height
+
+    tval = IMAS.ITB_profiles(
+        Te[end], 
+        Te_ped, 
+        Te[1], 
+        length(cp1d.grid.rho_tor_norm), 
+        par.T_shaping, 
+        par.T_shaping, 
+        1.0 - w_ped,
+        par.ITB_radius,
+        par.ITB_width,
+        Te_ITB_height,
+    )
     cp1d.electrons.temperature = tval
     if any(tval .< 0)
         throw("Te profile is negative for T0=$(Te[1]) eV and Tped=$(Te_ped) eV")
@@ -65,14 +85,21 @@ function _step(actor::ActorFixedProfiles)
     # update ion temperature profiles using:
     # * new pedestal height & width
     # * existing Te0 & T_shaping, and T_ratio_pedestal & T_ratio_core
-    tval_ions = IMAS.Hmode_profiles(
+    # * ITB parameters 
+
+    Ti_ITB_height = (Te[1] * par.T_ratio_core - Te_ped * par.T_ratio_pedestal) * par.T_ITB_height
+
+    tval_ions = IMAS.ITB_profiles(
         Te[end] * par.T_ratio_pedestal,
         Te_ped * par.T_ratio_pedestal,
         Te[1] * par.T_ratio_core,
         length(cp1d.grid.rho_tor_norm),
         par.T_shaping,
         par.T_shaping,
-        1.0 - w_ped
+        1.0 - w_ped,
+        par.ITB_radius,
+        par.ITB_width,
+        Ti_ITB_height,
     )
     if any(tval_ions .< 0)
         throw("Ti profile is negative for T0=$(Te[1]*par.T_ratio_core) eV and Tped=$(Te_ped*par.T_ratio_pedestal) eV")
@@ -91,7 +118,21 @@ function _step(actor::ActorFixedProfiles)
     for (ii, ion) in enumerate(cp1d.ion)
         ion_fractions[ii, :] = ion.density_thermal ./ ne
     end
-    nval = IMAS.Hmode_profiles(ne[end], ne_ped, ne[1], length(cp1d.grid.rho_tor_norm), par.n_shaping, par.n_shaping, 1.0 - w_ped)
+
+    ne_ITB_height = (ne[1] - ne_ped) * par.n_ITB_height
+
+    nval = IMAS.ITB_profiles(
+        ne[end], 
+        ne_ped, 
+        ne[1], 
+        length(cp1d.grid.rho_tor_norm), 
+        par.n_shaping, 
+        par.n_shaping, 
+        1.0 - w_ped,
+        par.ITB_radius,
+        par.ITB_width,
+        ne_ITB_height,
+        )
     cp1d.electrons.density_thermal = nval
     if any(nval .< 0)
         throw("ne profile is negative for n0=$(ne[1]) /m^3 and Tped=$(ne_ped) /m^3")
