@@ -1,11 +1,11 @@
 import NumericalIntegration: cumul_integrate
 
 """
-    init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
-function init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.nbi.unit)
     resize!(dd.nbi.unit, length(ini.nb_unit))
     for (idx, (nbu, ini_nbu)) in enumerate(zip(dd.nbi.unit, ini.nb_unit))
@@ -24,11 +24,11 @@ function init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 end
 
 """
-    init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
-function init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.ec_launchers.beam)
     resize!(dd.ec_launchers.beam, length(ini.ec_launcher))
     for (idx, (ecb, ini_ecb)) in enumerate(zip(dd.ec_launchers.beam, ini.ec_launcher))
@@ -42,11 +42,11 @@ function init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 end
 
 """
-    init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
 """
-function init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.ic_antennas.antenna)
     resize!(dd.ic_antennas.antenna, length(ini.ic_antenna))
     for (idx, (ica, ini_ica)) in enumerate(zip(dd.ic_antennas.antenna, ini.ic_antenna))
@@ -61,11 +61,11 @@ function init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
 end
 
 """
-    init_lh(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    init_lh(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.lh_antennas` starting from `ini` and `act` parameters
 """
-function init_lh(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+function init_lh(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.lh_antennas.antenna)
     resize!(dd.lh_antennas.antenna, length(ini.lh_antenna))
     for (idx, (lha, ini_lha)) in enumerate(zip(dd.lh_antennas.antenna, ini.lh_antenna))
@@ -107,11 +107,11 @@ function unique_core_sources_names!(cs::IMAS.core_sources)
 end
 
 """
-    init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from `ini` and `act` parameters
 """
-function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_core_sources")
     TimerOutputs.@timeit timer "init_core_sources" begin
         init_from = ini.general.init_from
@@ -121,16 +121,16 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 dd.core_sources = dd1.core_sources
                 unique_core_sources_names!(dd.core_sources)
                 if isempty(dd1.ec_launchers.beam) && findfirst(:ec, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.ec_model == :none "Init using sources from ODS requires `act.ActorHCD.ec_model = :none` or data in `dd.ec_launchers.beam`"
+                    @assert act.ActorHCD.ec_model == :none "Init using sources from ODS requires `act.ActorHCD.ec_model = :none` or data in `ods.ec_launchers.beam`"
                 end
                 if isempty(dd1.ic_antennas.antenna) && findfirst(:ic, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.ic_model == :none "Init using sources from ODS requires `act.ActorHCD.ic_model = :none` or data in `dd.ic_launchers.antenna`"
+                    @assert act.ActorHCD.ic_model == :none "Init using sources from ODS requires `act.ActorHCD.ic_model = :none` or data in `ods.ic_launchers.antenna`"
                 end
                 if isempty(dd1.lh_antennas.antenna) && findfirst(:lh, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.lh_model == :none "Init using sources from ODS requires `act.ActorHCD.lc_model = :none` or data in `dd.lh_antennas.antenna`"
+                    @assert act.ActorHCD.lh_model == :none "Init using sources from ODS requires `act.ActorHCD.lc_model = :none` or data in `ods.lh_antennas.antenna`"
                 end
                 if isempty(dd1.nbi.unit) && findfirst(:nbi, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.nb_model == :none "Init using sources from ODS requires `act.ActorHCD.nb_model = :none` or data in `dd.nbi.unit`"
+                    @assert act.ActorHCD.nb_model == :none "Init using sources from ODS requires `act.ActorHCD.nb_model = :none` or data in `ods.nbi.unit`"
                 end
             else
                 init_from = :scalars
@@ -138,10 +138,10 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         end
 
         if init_from == :scalars
-            init_ec(dd, ini, act)
-            init_ic(dd, ini, act)
-            init_lh(dd, ini, act)
-            init_nb(dd, ini, act)
+            init_ec(dd, ini, act, dd1)
+            init_ic(dd, ini, act, dd1)
+            init_lh(dd, ini, act, dd1)
+            init_nb(dd, ini, act, dd1)
         end
 
         ActorHCD(dd, act)
