@@ -87,6 +87,10 @@ function _step(actor::ActorDynamicPlasma)
 
     prog = ProgressMeter.Progress(par.Nt * 9; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
+
+    # this is to fix an issue where having data at the base layer prevents the evaluation of expressions on the lazy copied IDSs
+    empty!(dd.core_profiles.profiles_1d[], :j_tor)
+
     try
         for (kk, tt) in enumerate(range(t0, t1, 2 * par.Nt + 1)[2:end])
             # prepare time dependent arrays of structures
