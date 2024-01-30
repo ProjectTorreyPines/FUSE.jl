@@ -1,5 +1,6 @@
 import NLsolve
 using LinearAlgebra
+import TJLF: InputTJLF
 
 #= ================ =#
 #  ActorFluxMatcher  #
@@ -19,6 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     optimize_q::Entry{Bool} = Entry{Bool}("-", "Optimize q profile to achieve goal"; default=false)
+    find_widths::Entry{Bool} = Entry{Bool}("-", "Runs Turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
@@ -113,9 +115,6 @@ function _step(actor::ActorFluxMatcher)
     end
 
     if par.do_plot
-        display(res)
-
-        display(parse_and_plot_error(string(res.trace.states)))
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
         display(plot(transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...)); xlabel="Iterations", label=""))
 
@@ -209,6 +208,11 @@ function flux_match_errors(
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
 
+    if !par.find_widths && length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF
+        for input_tglf in actor.actor_ct.actor_turb.input_tglfs
+            input_tglf.FIND_WIDTH = false
+        end
+    end
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
@@ -284,6 +288,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
         n += 1
         target = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.total_ion_energy.flux[cf_gridpoints]
+        check_output_fluxes(output, "total_ion_energy")
         append!(errors, error_transformation(target, output, norms[n]))
     end
 
@@ -291,6 +296,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
         n += 1
         target = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.electrons.energy.flux[cf_gridpoints]
+        check_output_fluxes(output, "electrons.energy")
         append!(errors, error_transformation(target, output, norms[n]))
     end
 
@@ -298,6 +304,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
         n += 1
         target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
         output = total_fluxes.momentum_tor.flux[cf_gridpoints]
+        check_output_fluxes(output, "momentum_tor")
         append!(errors, error_transformation(target, output, norms[n]))
     end
 
@@ -307,6 +314,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
             n += 1
             target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
             output = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            check_output_fluxes(output, "electrons.particles")
             append!(errors, error_transformation(target, output, norms[n]))
         end
         for ion in cp1d.ion
@@ -493,6 +501,11 @@ function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.co
     return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie)
 end
 
+function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
+    return setup_density_evolution_electron_flux_match_rest_ne_scale(dd.core_profiles.profiles_1d[])
+end
+
+
 """
     setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
 
@@ -516,12 +529,11 @@ function evolve_densities_dict_creation(flux_match_species::Vector, fixed_specie
     return Dict(sym => evolve for (sym, evolve) in parse_list)
 end
 
-function parse_and_plot_error(data::String)
-    data = split(data, "\n")[2:end-1]
-    array = zeros(length(data))
-    for (idx, line) in enumerate(data)
-        filtered_arr = filter(x -> !occursin(r"^\s*$", x), split(line, " "))
-        array[idx] = parse(Float64, filtered_arr[3])
-    end
-    return plot(array; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(array))))
+"""
+    function check_output_fluxes(output::Vector{Float64}, what::String)
+
+Checks if there are any NaNs in the output
+"""
+function check_output_fluxes(output::Vector{Float64}, what::String)
+    @assert isnothing(findfirst(x -> isnan(x), output)) "The output flux is NaN check your transport model fluxes in core_transport ($(what))"
 end

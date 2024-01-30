@@ -210,7 +210,6 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorFluxMatcher.evolve_densities = :fixed
     act.ActorFluxMatcher.rho_transport=0.3:0.05:0.8
-    act.ActorTGLF.nn = true
     act.ActorTGLF.user_specified_model = "sat0_em_d3d"
 
     act.ActorStabilityLimits.models = Symbol[]
