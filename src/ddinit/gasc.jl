@@ -144,7 +144,7 @@ function gasc_2_sources(gasc::GASC, ini::ParametersAllInits, act::ParametersAllA
     T = Float64
     cd_powers = T[]
 
-    for (energy,pow) in ((200e3, outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]), (1000e3, outputs["CDpowerNNBCD"] * 1E6 * inputs["NNBCDFraction"]))
+    for (energy, pow) in ((200e3, outputs["CDpowerNBCD"] * 1E6 * inputs["NBCDFraction"]), (1000e3, outputs["CDpowerNNBCD"] * 1E6 * inputs["NNBCDFraction"]))
         if pow > 0.0
             nb_unit = FUSEparameters__nb_unit{T}()
             nb_unit.efficiency_conversion = inputs["efficiencyConversionNNBCD"]
@@ -409,12 +409,12 @@ function gasc_2_coil_technology(gasc::GASC, coil_type::Symbol)
         coil_tech = :copper
     else
         if gasc.inputs["conductors"]["superConducting"] == "LTS"
-            coil_tech = :Nb3Sn
+            coil_tech = :nb3sn
         elseif gasc.inputs["conductors"]["superConducting"] == "HTS"
-            coil_tech = :HTS
+            coil_tech = :rebco
         end
         if coil_type == :PF # assume PF coils are always LTS
-            coil_tech = :Nb3Sn
+            coil_tech = :nb3sn
         end
     end
     return coil_tech

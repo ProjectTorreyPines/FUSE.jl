@@ -152,7 +152,7 @@ function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_
     z_ohcoils = range((minimum(bnd_z) * 2 + minimum(rail_z)) / 3.0, (maximum(bnd_z) * 2 + maximum(rail_z)) / 3.0, n_oh)
 
     return [
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
+        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)]
         [VacuumFields.PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
     ]
 end
@@ -199,7 +199,8 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
 
         # current limit evaluated at all magnetic fields and temperatures
         coil.current_limit_max = [
-            abs(coil_J_B_crit(b, coil_tech).Jcrit * IMAS.area(coil) * fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for b in coil.b_field_max,
+            abs(coil_J_B_crit(b, coil_tech).Jcrit * IMAS.area(coil) * FusionMaterials.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
+            b in coil.b_field_max,
             t in coil.temperature
         ]
 
@@ -366,7 +367,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
 
         max_current_density = coil_J_B_crit(coil_selfB(pfcoil, coil.current), coil.tech).Jcrit
         needed_conductor_area = abs(coil.current) / max_current_density
-        needed_area = needed_conductor_area / fraction_conductor(coil.tech) * (1.0 .+ tolerance)
+        needed_area = needed_conductor_area / FusionMaterials.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
 
         cost = (area - needed_area)^2
         return cost

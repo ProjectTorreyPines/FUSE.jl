@@ -20,16 +20,16 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :ITER
+    ini.pf_active.technology = :iter_nb3sn
 
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
-    ini.tf.technology = :ITER
+    ini.tf.technology = :iter_nb3sn
 
-    ini.oh.technology = :ITER
+    ini.oh.technology = :iter_nb3sn
     ini.core_profiles.greenwald_fraction = 0.8
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
     ini.core_profiles.helium_fraction = 0.01

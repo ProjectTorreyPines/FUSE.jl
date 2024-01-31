@@ -8,7 +8,7 @@ Arguments:
   - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
 function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(;n_nb=1,n_ec=1,n_ic=1)
+    ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1)
     act = ParametersActors()
 
     # checking init_from and boundary_from
@@ -80,14 +80,14 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :NbTi
+    ini.pf_active.technology = :nbti
     act.ActorPFdesign.symmetric = false
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
-    ini.tf.technology = :ITER
+    ini.tf.technology = :iter_nb3sn
 
-    ini.oh.technology = :ITER
+    ini.oh.technology = :iter_nb3sn
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
     ini.core_profiles.greenwald_fraction = 0.9
