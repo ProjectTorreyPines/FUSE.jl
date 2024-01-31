@@ -5,7 +5,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     dd = IMAS.dd()
     if init_from == :ods
         # Fix the core profiles
-        dd = IMAS.json2imas(ini.ods.filename)
+        dd = load_ODSs_from_string(ini.ods.filename)
         cp1d = dd.core_profiles.profiles_1d[]
 
         rho = cp1d.grid.rho_tor_norm
@@ -132,7 +132,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
 
     ini.general.casename = "STEP"
     ini.general.init_from = :scalars
-    ini.ods.filename = joinpath(@__DIR__, "..", "sample", "STEP_starting_point.json")
+    ini.ods.filename = joinpath("__FUSE__", "sample", "STEP_starting_point.json")
 
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_OH => 0.233,
@@ -194,7 +194,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.tf.shape = :rectangle
     ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
 
-    act.ActorPFcoilsOpt.symmetric = true
+    act.ActorPFdesign.symmetric = true
     act.ActorEquilibrium.symmetrize = true
 
     ini.ec_launcher[1].power_launched = 150.e6
@@ -210,7 +210,6 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorFluxMatcher.evolve_densities = :fixed
     act.ActorFluxMatcher.rho_transport=0.3:0.05:0.8
-    act.ActorTGLF.nn = true
     act.ActorTGLF.user_specified_model = "sat0_em_d3d"
 
     act.ActorStabilityLimits.models = Symbol[]

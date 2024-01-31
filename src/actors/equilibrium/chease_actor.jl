@@ -101,32 +101,31 @@ function _finalize(actor::ActorCHEASE)
         ZA = actor.chease.gfile.zmaxis
 
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psib = 0.0# MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
+        psib = 0.0
         ψbound = 0.0
 
         eqt = dd.equilibrium.time_slice[]
-        z_geo = eqt.boundary.geometric_axis.z
 
         # constraints for the private flux region
-        z_geo = eqt.boundary.geometric_axis.z
-        Rb, Zb = eqt.boundary.outline.r, eqt.boundary.outline.z
-        upper_x_point = any(x_point.z > z_geo for x_point in eqt.boundary.x_point)
-        lower_x_point = any(x_point.z < z_geo for x_point in eqt.boundary.x_point)
-        fraction = 0.05
-        Rx, Zx = free_boundary_private_flux_constraint(Rb, Zb; upper_x_point, lower_x_point, fraction, n_points=2)
+        pr = eqt.boundary.outline.r
+        pz = eqt.boundary.outline.z
+        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
 
         # Flux Control Points
-        flux_cps = VacuumFields.FluxControlPoints(Rx, Zx, psib)
-        append!(flux_cps, VacuumFields.boundary_control_points(EQ, 0.999, psib))
-        append!(flux_cps, [VacuumFields.FluxControlPoint(eqt.boundary.x_point[1].r, eqt.boundary.x_point[1].z, psib)])
+        flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, psib)
+        if !isempty(eqt.boundary.strike_point)
+            strike_weight = length(flux_cps) / length(eqt.boundary.strike_point)
+            strike_cps = [VacuumFields.FluxControlPoint(sp.r, sp.z, psib, strike_weight) for sp in eqt.boundary.strike_point]
+            append!(flux_cps, strike_cps)
+        end
 
         # Saddle Control Points
-        saddle_weight = length(flux_cps)
+        saddle_weight = length(flux_cps) / length(eqt.boundary.x_point)
         saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
         if isempty(dd.pf_active.coil)
-            coils = encircling_coils(Rb, Zb, RA, ZA, 8)
+            coils = encircling_coils(pr, pz, RA, ZA, 8)
         else
             coils = IMAS_pf_active__coils(dd; green_model=:simple)
         end

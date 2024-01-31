@@ -30,7 +30,15 @@ CURRENTDIR := $(shell (pwd -P))
 TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields 
+ifdef GITHUB_HEAD_REF
+  # For pull_request events
+  FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
+else
+  # For push events and others
+  FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+endif
+
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN TJLF VacuumFields 
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -52,6 +60,25 @@ DOCKER_PLATFORM := amd64
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+endef
+
+define feature_or_master_julia
+function feature_or_master(package, feature_branch) ;\
+	token = "$(PTP_READ_TOKEN)" ;\
+	url = "https://api.github.com/repos/ProjectTorreyPines/$$(package).jl/branches/$$(feature_branch)" ;\
+	;\
+	curl_cmd = `curl -s -o /dev/null -w "%{http_code}" -L -H "Authorization: Bearer $$token" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" $$url` ;\
+	;\
+	http_status = chomp(read(`$$curl_cmd`, String)) ;\
+	;\
+	if http_status == "200" ;\
+		return feature_branch ;\
+	elseif http_status == "404" ;\
+		return "master" ;\
+	else ;\
+		error("GitHub API returned status code: $$http_status") ;\
+	end ;\
+end
 endef
 
 # =========================
@@ -109,9 +136,9 @@ rm_hide:
 	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
 	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
 
-# install Revise and load it when Julia starts up
+# load Revise when Julia starts up
 revise:
-	julia -e 'import Pkg; Pkg.rm("Revise"); Pkg.add("Revise")'
+	julia -e 'using Pkg; Pkg.add("Revise")'
 	mkdir -p $(JULIA_DIR)/config
 	touch $(JULIA_CONF)
 	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
@@ -120,29 +147,32 @@ revise:
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
-	@cd $(CURRENTDIR); $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+	@cd $(CURRENTDIR); $(foreach package,FUSE WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
-# Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
+# install (add) FUSE via HTTPS and $PTP_READ_TOKEN
+# looks for same branch name for all repositories otherwise falls back to master
 https_add:
 	julia -e ';\
+$(feature_or_master_julia);\
 fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
 for package in fuse_packages;\
-	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
+	branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
+	println("$$(package) $$(branch)");\
+	push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
 end;\
-Pkg.add(dependencies);\
-'
+Pkg.add(dependencies)'
 
-# Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
+# install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
+# all repos are on the master branch (this should be the case for generating documentation)
 https_dev:
-	mkdir -p ~/.julia/dev
-	ln -sf $(PWD) ~/.julia/dev/FUSE
-	julia -e ';\
+	@mkdir -p ~/.julia/dev
+	@ln -sf $(PWD) ~/.julia/dev/FUSE
+	@julia -e ';\
 fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
@@ -152,8 +182,7 @@ end;\
 Pkg.develop(dependencies);\
 Pkg.develop(fuse_packages);\
 Pkg.activate("./docs");\
-Pkg.develop(["FUSE"; fuse_packages]);\
-'
+Pkg.develop(["FUSE"; fuse_packages])'
 
 # install FUSE without using the registry
 install_no_registry: forward_compatibility clone_pull_all develop special_dependencies
@@ -200,12 +229,9 @@ end;\
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) WarmupFUSE FUSE $(FUSE_PACKAGES_MAKEFILE)
+	make -i $(PARALLELISM) WarmupFUSE FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
 
 ADAS:
-	$(call clone_pull_repo,$@)
-
-WarmupFUSE:
 	$(call clone_pull_repo,$@)
 
 FUSE:
@@ -245,6 +271,9 @@ TAUENN:
 TGLFNN:
 	$(call clone_pull_repo,$@)
 
+TJLF:
+	$(call clone_pull_repo,$@)
+
 EPEDNN:
 	$(call clone_pull_repo,$@)
 
@@ -274,6 +303,26 @@ BoundaryPlasmaModels:
 
 NEO:
 	$(call clone_pull_repo,$@)
+
+WarmupFUSE:
+	$(call clone_pull_repo,$@)
+	julia -e '\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate("../WarmupFUSE");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+'
+
+ServeFUSE:
+	$(call clone_pull_repo,$@)
+	julia -e '\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate("../ServeFUSE/task_tiller");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+'
 
 # Install IJulia
 IJulia:
@@ -470,6 +519,16 @@ dd:
 
 # copy .JuliaFormatter.toml to all dependencies
 formatter:
-	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
+	julia -e '\
+using Pkg;\
+Pkg.activate();\
+Pkg.add(["JuliaFormatter"]);\
+'
+	$(foreach package,WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
+
+# create an empty commit
+empty_commit:
+	git reset HEAD
+	git commit --allow-empty -m 'empty commit'
 
 .PHONY:

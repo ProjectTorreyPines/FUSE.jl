@@ -21,6 +21,8 @@ function __init__()
     end
 end
 
+const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
+
 #= ===== =#
 #  UTILS  #
 #= ===== =#
@@ -30,6 +32,11 @@ include("utils_begin.jl")
 #  ABSTRACT PARAMETERS  #
 #= =================== =#
 include("parameters.jl")
+
+#= ===== =#
+#  CASES  #
+#= ===== =#
+include("../cases/_cases.jl")
 
 #= ====================== =#
 #  PHYSICS and TECHNOLOGY  #
@@ -70,7 +77,7 @@ include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
 include(joinpath("actors", "pf", "pf_active_utils.jl"))
 include(joinpath("actors", "pf", "pf_active_actor.jl"))
-include(joinpath("actors", "pf", "pf_opt_actor.jl"))
+include(joinpath("actors", "pf", "pf_design_actor.jl"))
 include(joinpath("actors", "pf", "pf_passive_actor.jl"))
 include(joinpath("actors", "pf", "pf_plots.jl"))
 
@@ -138,10 +145,17 @@ include("parameters_actors.jl")
 #= ============ =#
 include("optimization.jl")
 
+
+#= ============ =#
+#  APPLICATIONS  #
+#= ============ =#
+include("parameters_studies.jl")
+
+
 #= ========= =#
 #  WORKFLOWS  #
 #= ========= =#
-include("parameters_workflows.jl")
+include(joinpath("workflows", "yaml_workflow.jl"))
 include(joinpath("workflows", "optimization_workflow.jl"))
 include(joinpath("workflows", "DB5_validation_workflow.jl"))
 

@@ -174,81 +174,14 @@ function beta(t::T, t_start::Float64, Δt::Float64, mode::Float64)::T where {T}
     return beta((t - t_start) / Δt, mode)
 end
 
-# ====================== #
-# TrajectoryPerturbation #
-# ====================== #
-mutable struct TrajectoryPerturbation
-    t_start::Float64
-    t_end::Float64
-    nominal::Function
-    upper::Function
-    lower::Function
-    t_perturb::Vector{Float64}
-    v_perturb::Vector{Float64}
-    correction::Any
+function boom(t::T, α::Float64=1.0)::T where {T}
+    return min((1.0 - ramp(t)), min(ramp(t), sin(t * pi)^α / pi))
 end
 
-"""
-    TrajectoryPerturbation(t_start, t_end, nominal::Function, upper::Function, lower::Function, tt::Vector{Float64}, v::Vector{Float64}; method::Symbol=:linear)
-
-Perturbation of time trace with vector of time `t` and values `v`
-
-The perturbations are done as deviations from a nominal case and are all expressed in normalized way (between 0.0 and 1.0):
-
-  - in time: between `t_start` and `t_end`
-
-  - in value: between `upper` and `lower`
-"""
-function TrajectoryPerturbation(t_start, t_end, nominal::Function, upper::Function, lower::Function, t::AbstractVector{Float64}, v::AbstractVector{Float64}; method::Symbol=:linear)
-    @assert length(t) == length(v)
-    t_perturb = [0.0, t..., 1.0, 1E6] .* (t_end - t_start) .+ t_start
-    nn = nominal.(t_perturb)
-    uu = upper.(t_perturb)
-    ll = lower.(t_perturb)
-
-    vv = [0.0, v..., 0.0, 0.0]
-    v_perturb = vv .* (uu .- nn) .* (vv .> 0) .- vv .* (ll .- nn) .* (vv .< 0)
-
-    correction = IMAS.interp1d(t_perturb, v_perturb, method)
-
-    return TrajectoryPerturbation(t_start, t_end, nominal, upper, lower, t_perturb, v_perturb, correction)
+function ubox(t::T)::T where {T}
+    return (1.0 - ramp(t))
 end
 
-function TrajectoryPerturbation(t_start, t_end, nominal, upper, lower, n; method)
-    t = range(0.0, 1.0, n + 2)[2:end-1]
-    v = t .* 0.0
-    return TrajectoryPerturbation(t_start, t_end, nominal, upper, lower, t, v; method)
-end
-
-function (tp::TrajectoryPerturbation)(t)
-    out = tp.nominal.(t) + tp.correction.(t) .* (t .> tp.t_start) .* (t .< tp.t_end)
-    out = max.(tp.lower.(t), min.(tp.upper.(t), out))
-    return out
-end
-
-@recipe function plot_TrajectoryPerturbation(tp::TrajectoryPerturbation)
-    @series begin
-        label := "perturbed"
-        lw := 2.0
-        t -> tp(t)
-    end
-    @series begin
-        primary := false
-        seriestype := :scatter
-        tp.t_perturb, tp.nominal.(tp.t_perturb) .+ tp.v_perturb
-    end
-    @series begin
-        primary := false
-        label := "upper/lower"
-        ribbon := t -> (tp.upper(t) .- tp.lower(t)) / 2.0
-        linewidth := 0.0
-        t -> (tp.upper(t) .+ tp.lower(t)) / 2.0
-    end
-    @series begin
-        label := "nominal"
-        lw := 2.0
-        xlim --> (tp.t_start, tp.t_end)
-        linestyle := :dash
-        tp.nominal
-    end
+function lbox(t::T)::T where {T}
+    return -ramp(t)
 end

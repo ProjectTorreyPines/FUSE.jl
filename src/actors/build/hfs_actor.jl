@@ -8,8 +8,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     stress_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
     error_on_technology::Entry{Bool} = Entry{Bool}("-", "Error if build stresses and current limits are not met"; default=true)
     error_on_performance::Entry{Bool} = Entry{Bool}("-", "Error if requested Bt and flattop duration are not met"; default=true)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor{D,P}
@@ -79,10 +79,10 @@ function _step(actor::ActorHFSsizing)
         # keeping them of similar size is a hint for the optimizer to achieve convergence
         # for all things being equal, maximizing steel is good to keep the cost of the magnets down
         return 1E-3 * (
-            ((OH.thickness + TFhfs.thickness) / CPradius)^2 + # minimize thickness
-            ((OH.thickness - TFhfs.thickness) / CPradius)^2 + # make OH and TF similiar thickness
-            (1.0 - dd.build.tf.technology.fraction_steel)^2 + # favor steel over superconductor
-            (1.0 - dd.build.tf.technology.fraction_steel)^2)  # favor steel over superconductor
+            ((OH.thickness + TFhfs.thickness) / CPradius)^2 + # favor small OH and TF thicknesses
+            10.0 * ((OH.thickness - TFhfs.thickness) / CPradius)^2 + # favor OH and TF similiar thickness
+            0.1 * (1.0 - dd.build.tf.technology.fraction_steel)^2 + # favor steel over superconductor
+            0.1 * (1.0 - dd.build.tf.technology.fraction_steel)^2)  # favor steel over superconductor
     end
 
     function cost(x0)
@@ -171,7 +171,7 @@ function _step(actor::ActorHFSsizing)
     end
 
     # optimization
-    old_logging = FUSE.actor_logging(dd, false)
+    old_logging = actor_logging(dd, false)
     res = nothing
     try
         bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
@@ -180,7 +180,7 @@ function _step(actor::ActorHFSsizing)
         res = Metaheuristics.optimize(cost, bounds, algorithm)
         assign_PL_OH_TF(Metaheuristics.minimizer(res))
     finally
-        FUSE.actor_logging(dd, old_logging)
+        actor_logging(dd, old_logging)
     end
     finalize(step(actor.fluxswing_actor))
     finalize(step(actor.stresses_actor))

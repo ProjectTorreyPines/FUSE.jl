@@ -5,7 +5,7 @@ Initialize `dd` starting from `ini` and `act` parameters
 
 FUSE provides this high-level `init` function to populate `dd` starting from the `ini` parameters.
 This function essentially calls all other `FUSE.init...` functions in FUSE.
-For most applications, calling this high level function is sufficient.
+For most studies, calling this high level function is sufficient.
 """
 function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, initialize_hardware::Bool=true)
     TimerOutputs.reset_timer!("init")
@@ -159,6 +159,6 @@ function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
     end
 
     if !ismissing(ini.equilibrium, :xpoints)
-        act.ActorPFcoilsOpt.symmetric = ini.equilibrium.xpoints in [:none, :double]
+        act.ActorPFdesign.symmetric = ini.equilibrium.xpoints in [:none, :double]
     end
 end

@@ -4,7 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED], "-", "Current actor to run"; default=:SteadyStateCurrent)
+    model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED, :none], "-", "Current actor to run"; default=:SteadyStateCurrent)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
@@ -13,7 +13,7 @@ end
 mutable struct ActorCurrent{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCurrent{P}
-    jt_actor::Union{ActorSteadyStateCurrent{D,P},ActorQED{D,P}}
+    jt_actor::Union{ActorSteadyStateCurrent{D,P},ActorQED{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -31,7 +31,9 @@ end
 function ActorCurrent(dd::IMAS.dd, par::FUSEparameters__ActorCurrent, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCurrent)
     par = par(kw...)
-    if par.model == :SteadyStateCurrent
+    if par.model == :none
+        jt_actor = ActorNoOperation(dd, act.ActorNoOperation)
+    elseif par.model == :SteadyStateCurrent
         jt_actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; par.ip_from)
     elseif par.model == :QED
         jt_actor = ActorQED(dd, act.ActorQED; par.ip_from, par.vloop_from)

@@ -62,3 +62,35 @@ end
 function json2act(filename::AbstractString)
     return SimulationParameters.json2par(filename, ParametersActors())
 end
+
+"""
+    act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
+
+Save the FUSE parameters to a YAML file with give `filename`
+`kw` arguments are passed to the YAML.print function
+"""
+function act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
+    return SimulationParameters.par2yaml(act, filename; kw...)
+end
+
+function yaml2act(filename::AbstractString)
+    return SimulationParameters.yaml2par(filename, ParametersActors())
+end
+
+"""
+    act_common_parameters(; kw...)
+
+Returns commonly used act parameters as a switch or entry, example: act_common_parameters(do_plot=true)
+"""
+function act_common_parameters(; kw...)
+    @assert length(kw) == 1 "act_common_parameters only takes one argument"
+    name = first(keys(kw))
+    default = first(values(kw))
+    if name == :do_plot
+        return Entry{Bool}("-", "Store the output dds of the workflow run"; default)
+    elseif name == :verbose
+        return  Entry{Bool}("-", "Verbose"; default)
+    else
+        error("There is no act_common_parameter for name = $name")
+    end
+end

@@ -19,13 +19,13 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
     end
 
     # load data from FPP GASC run
-    gasc = GASC(joinpath(@__DIR__, "..", "sample", filename), case)
+    gasc = GASC(joinpath("__FUSE__", "sample", filename), case)
     ini, act = case_parameters(gasc; add_wall_layers=0.02)
     ini.general.casename = "FPP_$(version)_$(init_from)"
     ini.general.init_from = init_from
 
     if init_from == :ods
-        ini.ods.filename = joinpath(@__DIR__, "..", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
+        ini.ods.filename = joinpath("__FUSE__", "sample", "highbatap_fpp_8MA_adhoc_EC.json")
         ini.time.simulation_start = 1.0
         act.ActorCXbuild.rebuild_wall = true # false to use wall from ODS
         ini.equilibrium.boundary_from = :scalars
@@ -53,7 +53,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
 
-    act.ActorPFcoilsOpt.symmetric = true
+    act.ActorPFdesign.symmetric = true
 
     set_new_base!(ini)
     set_new_base!(act)

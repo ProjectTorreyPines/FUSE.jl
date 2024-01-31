@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor wh
     thermal_power_extraction_efficiency::Entry{T} = Entry{T}("-",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorBlanket{D,P} <: ReactorAbstractActor{D,P}
@@ -118,7 +118,7 @@ function _step(actor::ActorBlanket)
             dl.material = "vacuum"
         end
         for (kl, dl) in enumerate([d1, d2, d3])
-            if dl !== missing
+            if !isempty(dl)
                 bm.layer[kl].name = dl.name
                 bm.layer[kl].midplane_thickness = dl.thickness
                 bm.layer[kl].material = dl.material

@@ -73,7 +73,7 @@ function _step(actor::ActorFluxCapacitor)
         # NOTE: Technically we should reset cp1d but we don't because so long as the FluxMatcher converges,
         # then the starting profiles going into FluxMatcher do not affect the inputs-outputs relationship that the optimizer sees.
         # Using the previous cp1d (ie. without reset) makes the FluxMatcher start from a closer solution, which improves convergence.
-        # fill!(cp1d, deepcopy(actor.cp1d_history[1]))
+        # merge!(cp1d, actor.cp1d_history[1])
 
         # update the q profile
         eq_gridpoints = [argmin(abs.(rho_x .- eqt1d.rho_tor_norm)) for rho_x in rho_q_optimization]

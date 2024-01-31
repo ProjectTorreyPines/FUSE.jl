@@ -2,11 +2,11 @@
 #  init pulse_schedule IDS  #
 #= ======================= =#
 """
-    init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd; simplify_time_traces::Float64=0.1)
+    init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_time_traces::Float64=0.1)
 
 Initialize `dd.pulse_schedule` starting from `ini` and `act` parameters
 """
-function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd; simplify_time_traces::Float64=0.1)
+function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_time_traces::Float64=0.1)
     TimerOutputs.reset_timer!("init_pulse_schedule")
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from
@@ -147,14 +147,14 @@ end
 """
     init_pulse_schedule_postion_control(
         pc::IMAS.pulse_schedule__position_control,
-        mxhb::FUSE.MXHboundary,
+        mxhb::MXHboundary,
         time0::Float64)
 
 Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
 function init_pulse_schedule_postion_control(
     pc::IMAS.pulse_schedule__position_control,
-    mxhb::FUSE.MXHboundary,
+    mxhb::MXHboundary,
     time0::Float64)
 
     # MXHboundary adds x-points

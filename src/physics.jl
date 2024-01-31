@@ -461,21 +461,21 @@ function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::In
     n_points = Int(round(n_points * resolution))
     n_points = max(5, n_points)
     if n_points == 5
-        R = [r_start, r_end, r_end, r_start, r_start]
-        Z = [z_low, z_low, z_high, z_high, z_low]
+        R = [r_start, r_start, r_end, r_end, r_start]
+        Z = [z_low, z_high, z_high, z_low, z_low]
     else
         R = vcat(
-            range(r_start, r_end, n_points),
-            range(r_end, r_end, n_points)[2:end],
-            range(r_end, r_start, n_points)[2:end],
+            r_start,
             range(r_start, r_start, n_points)[2:end],
-            r_start)
+            range(r_end, r_start, n_points)[2:end],
+            range(r_end, r_end, n_points)[2:end],
+            range(r_start, r_end, n_points))
         Z = vcat(
-            range(z_low, z_low, n_points),
-            range(z_low, z_high, n_points)[2:end],
-            range(z_high, z_high, n_points)[2:end],
+            z_low,
             range(z_high, z_low, n_points)[2:end],
-            z_low)
+            range(z_high, z_high, n_points)[2:end],
+            range(z_low, z_high, n_points)[2:end],
+            range(z_low, z_low, n_points))
     end
     return R, Z
 end

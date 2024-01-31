@@ -15,10 +15,8 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_OH => 1.180137712438599,
         :OH => 0.35554973675585266,
-        :gap_TF_OH => 0.068920461457739,
         :hfs_TF => 0.3074802716013343,
-        :hfs_gap_low_temp_shield_TF => 0.06892046145773922,
-        :hfs_gap_vacuum_vessel_low_temp_shield => 0.06892046145773945,
+        :hfs_gap_TF_vacuum_vessel => 0.13784092291547867,
         :hfs_vacuum_vessel_wall_outer => 0.02,
         :hfs_vacuum_vessel => 0.13230115364434794,
         :hfs_vacuum_vessel_wall_inner => 0.02,
@@ -34,8 +32,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
         :lfs_vacuum_vessel_wall_inner => 0.02,
         :lfs_vacuum_vessel => 0.13230115364434794,
         :lfs_vacuum_vessel_wall_outer => 0.02,
-        :lfs_gap_vacuum_vessel_low_temp_shield => 0.068920461457739,
-        :lfs_gap_low_temp_shield_TF => 0.17230115364434795,
+        :lfs_gap_TF_vacuum_vessel => 0.13784092291547867,
         :lfs_TF => 0.3074802716013334,
         :gap_cryostat => 1.4221989470234107,
         :cryostat => 0.21209509270084714
@@ -55,7 +52,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
 
-    ini.core_profiles.greenwald_fraction = 1.0
+    ini.core_profiles.greenwald_fraction = 0.95
     ini.core_profiles.greenwald_fraction_ped = 0.675
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
@@ -73,6 +70,9 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.tf.n_coils = 18
     # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
     ini.tf.technology = :KDEMO
+
+    ini.center_stack.bucked = true
+    ini.center_stack.plug = true
 
     ini.oh.n_coils = 6
     ini.oh.technology = :Nb3Sn
