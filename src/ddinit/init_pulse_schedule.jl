@@ -48,10 +48,10 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 end
                 all_times = sort!(unique(all_times))
 
-                simulation_start_bkp = ini.time.simulation_start
+                simulation_start_bkp = global_time(ini)
                 try
                     for (k, time) in enumerate(all_times)
-                        ini.time.simulation_start = time
+                        global_time(ini, time)
                         R0 = ini.equilibrium.R0
                         Z0 = ini.equilibrium.Z0
                         ϵ = ini.equilibrium.ϵ
@@ -70,7 +70,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                         end
                     end
                 finally
-                    ini.time.simulation_start = simulation_start_bkp
+                    global_time(ini, simulation_start_bkp)
                 end
 
             else
@@ -81,7 +81,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 mxhb = fitMXHboundary(mxh, nx)
 
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, -Inf)
-                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, ini.time.simulation_start)
+                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, global_time(ini))
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
             end
 
@@ -138,7 +138,7 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
             time, data = IMAS.simplify_2d_path(time, data, simplify_time_traces)
         end
     else
-        time = Float64[-Inf, SimulationParameters.top(par).time.simulation_start, Inf]
+        time = Float64[-Inf, global_time(par), Inf]
         data = [value, value, value]
     end
     return time, data

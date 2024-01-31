@@ -6,6 +6,7 @@ import TAUENN
 Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     error::Entry{T} = Entry{T}("-", "Target convergence error"; default=1e-3)
     eped_factor::Entry{T} = Entry{T}("-", "Scaling parameter for EPED-NN prediction"; default=1.0)
     rho_fluxmatch::Entry{T} = Entry{T}("-", "Radial location where flux-macthing is done"; default=0.6)

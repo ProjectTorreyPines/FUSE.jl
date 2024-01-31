@@ -6,6 +6,7 @@ import EPEDNN
 Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped

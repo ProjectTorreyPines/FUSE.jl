@@ -11,6 +11,36 @@ const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, s
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
 const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerSide))
 
+# ==== #
+# time #
+# ==== #
+function SimulationParameters.global_time(parameters::ParametersInit)
+    return SimulationParameters.global_time(SimulationParameters.top(parameters))
+end
+
+function SimulationParameters.global_time(parameters::ParametersInits)
+    return parameters.time.simulation_start
+end
+
+function SimulationParameters.time_range(parameters::ParametersInit)
+    return SimulationParameters.time_range(SimulationParameters.top(parameters))
+end
+
+function SimulationParameters.time_range(parameters::ParametersInits)
+    return parameters.time.pulse_shedule_time_basis
+end
+
+Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :time
+    pulse_shedule_time_basis::Entry{AbstractRange{Float64}} = Entry{AbstractRange{Float64}}("s", "Time basis used to discretize the pulse schedule")
+    simulation_start::Entry{Float64} = Entry{Float64}("s", "Time at which the simulation starts"; default=0.0)
+end
+
+# ===== #
+# other #
+# ===== #
+
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
@@ -22,13 +52,6 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
             :scalars => "Initialize FUSE run from scalar parameters"
         ], "-", "Initialize run from")
     dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "`dd` to initialize from")
-end
-
-Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :time
-    pulse_shedule_time_basis::Entry{AbstractRange{Float64}} = Entry{AbstractRange{Float64}}("s", "Time basis used to discretize the pulse schedule")
-    simulation_start::Entry{Float64} = Entry{Float64}("s", "Time at which the simulation starts"; default=0.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit where {T<:Real}

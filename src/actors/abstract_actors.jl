@@ -38,6 +38,22 @@ function switch_get_from(quantity::Symbol)::Switch{Symbol}
     return swch
 end
 
+#= ==================== =#
+#  ParametersActor time  #
+#= ==================== =#
+function SimulationParameters.global_time(par::ParametersActor)
+    return getfield(par, :_time)
+end
+
+function SimulationParameters.global_time(par::ParametersActor, time::Float64)
+    return setfield!(par, :_time, time)
+end
+
+function SimulationParameters.time_range(par::ParametersActor)
+    return missing
+end
+
+
 #= ==== =#
 #  step  #
 #= ==== =#
@@ -52,6 +68,7 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
     timer_name = name(actor)
     TimerOutputs.reset_timer!(timer_name)
     TimerOutputs.@timeit timer timer_name begin
+        global_time(actor.par, global_time(actor.dd)) # syncrhonize global_time of `par` with the one of `dd`
         if !actor_logging(actor.dd)
             _step(actor, args...; kw...)::T
         else

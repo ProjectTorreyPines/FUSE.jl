@@ -5,6 +5,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorARIESCosting{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     land_space::Entry{T} = Entry{T}("acres", "Plant site space required"; default=1000.0)
     building_volume::Entry{T} = Entry{T}("m^3", "Volume of the tokmak building"; default=140.0e3)
     interest_rate::Entry{T} = Entry{T}("-", "Annual interest rate fraction of direct capital cost"; default=0.05)

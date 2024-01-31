@@ -4,6 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     update_plasma::Entry{Bool} = Entry{Bool}("-", "Run plasma related actors"; default=true)
     update_build::Entry{Bool} = Entry{Bool}("-", "Optimize tokamak build"; default=true)
 end

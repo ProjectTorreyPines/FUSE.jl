@@ -7,6 +7,7 @@ using DataFrames
 Base.@kwdef mutable struct FUSEparameters__ActorCosting{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:FUSE, :ARIES, :Sheffield, :GASC], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{Int} = Entry{Int}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()))
     future_inflation_rate::Entry{T} = Entry{T}("-", "Predicted average rate of future inflation"; default=0.025)

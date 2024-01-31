@@ -7,6 +7,7 @@ ProgressMeter.ijulia_behavior(:clear)
 Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution")
     evolve_transport::Entry{Bool} = Entry{Bool}("-", "Evolve the transport"; default=true)

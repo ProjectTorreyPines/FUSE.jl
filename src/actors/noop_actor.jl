@@ -4,6 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorNoOperation{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
 end
 
 mutable struct ActorNoOperation{D,P} <: AbstractActor{D,P}

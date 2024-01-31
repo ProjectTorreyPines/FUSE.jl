@@ -32,7 +32,7 @@ function GS_IMAS_pf_active__coil(
     return GS_IMAS_pf_active__coil{T,T,T}(
         pfcoil,
         coil_tech,
-        IMAS.global_time(pfcoil),
+        global_time(pfcoil),
         green_model)
 end
 
