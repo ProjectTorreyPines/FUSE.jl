@@ -531,4 +531,12 @@ empty_commit:
 	git reset HEAD
 	git commit --allow-empty -m 'empty commit'
 
+# merge branch `orso` into `master`
+orso_master:
+	@curl -X POST \
+-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+-H "Accept: application/vnd.github.v3+json" \
+https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/merges \
+-d '{"base": "master", "head": "orso", "commit_message": "merging orso into master"}'
+
 .PHONY:
