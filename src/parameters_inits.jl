@@ -103,7 +103,7 @@ Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where 
     _name::Symbol = :pf_active
     n_coils_inside::Entry{Int} = Entry{Int}("-", "Number of PF coils inside of the TF"; check=x -> @assert x >= 0 "must be: n_coils_inside >= 0")
     n_coils_outside::Entry{Int} = Entry{Int}("-", "Number of PF coils outside of the TF"; check=x -> @assert x >= 0 "must be: n_coils_outside >= 0")
-    technology::Switch{Symbol} = Switch{Symbol}(supported_coils_techs, "-", "PF coils technology")
+    technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "PF coils technology")
 end
 
 Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Real}
@@ -113,14 +113,14 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
     shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the TF coils"; default=:double_ellipse)
     ripple::Entry{T} =
         Entry{T}("-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01, check=x -> @assert x > 0.0 "must be: ripple > 0.0")
-    technology::Switch{Symbol} = Switch{Symbol}(supported_coils_techs, "-", "TF coils technology")
+    technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "TF coils technology")
 end
 
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :oh
     n_coils::Entry{Int} = Entry{Int}("-", "Number of OH coils"; check=x -> @assert x >= 0 "must be: n_coils >= 0")
-    technology::Switch{Symbol} = Switch{Symbol}(supported_coils_techs, "-", "OH coils technology")
+    technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "OH coils technology")
 end
 
 Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit where {T<:Real}
@@ -177,8 +177,8 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit wher
     name::Entry{String} = Entry{String}("-", "Name of the layer")
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
-    material::Switch{String} = Switch{String}(
-        FusionMaterials.available_materials(["blanket_materials", "shield_materials", "structural_materials", "wall_materials", "plasma_material"]),
+    material::Switch{Symbol} = Switch{Symbol}(
+        FusionMaterials.all_materials(),
         "-",
         "Material of the layer"
     )

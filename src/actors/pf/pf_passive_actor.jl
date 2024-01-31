@@ -44,7 +44,7 @@ function _step(actor::ActorPassiveStructures)
     for k in ilayers
         l = dd.build.layer[k]
         l1 = dd.build.layer[k+1]
-        if l1.material == "Vacuum"
+        if l1.material == "vacuum"
             continue
         end
         if all(l1.type != structure.type for structure in dd.build.structure)
@@ -60,7 +60,7 @@ function _step(actor::ActorPassiveStructures)
 
     # OH and plug
     add_pf_passive_loop(dd.pf_passive, dd.build.layer[2])
-    if dd.build.layer[1].material != "Vacuum"
+    if dd.build.layer[1].material != "vacuum"
         add_pf_passive_loop(dd.pf_passive, dd.build.layer[1])
     end
 

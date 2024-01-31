@@ -399,7 +399,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         # Assign to build structure
         coords = GeoInterface.coordinates(divertor_poly)
         structure = resize!(bd.structure, "type" => Int(_divertor_), "name" => "$ul_name divertor")
-        structure.material = "Tungsten"
+        structure.material = "tungsten"
         try
             structure.outline.r = [v[1] for v in coords[1]]
             structure.outline.z = [v[2] for v in coords[1]]

@@ -58,14 +58,14 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :ITER
+    ini.pf_active.technology = :iter_nb3sn
     act.ActorPFdesign.symmetric = true
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
-    ini.tf.technology = :ITER
+    ini.tf.technology = :iter_nb3sn
 
-    ini.oh.technology = :ITER
+    ini.oh.technology = :iter_nb3sn
 
     ini.requirements.flattop_duration = 70.0
 
