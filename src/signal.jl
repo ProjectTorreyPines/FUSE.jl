@@ -173,15 +173,3 @@ The `mode` [-1.0, 1.0] defines how skewed the distribution is
 function beta(t::T, t_start::Float64, Δt::Float64, mode::Float64)::T where {T}
     return beta((t - t_start) / Δt, mode)
 end
-
-function boom(t::T, α::Float64=1.0)::T where {T}
-    return min((1.0 - ramp(t)), min(ramp(t), sin(t * pi)^α / pi))
-end
-
-function ubox(t::T)::T where {T}
-    return (1.0 - ramp(t))
-end
-
-function lbox(t::T)::T where {T}
-    return -ramp(t)
-end
