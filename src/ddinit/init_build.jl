@@ -7,11 +7,11 @@ import OrderedCollections
 #  init build  #
 #= ========== =#
 """
-    init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.build` starting from `ini` and `act` parameters
 """
-function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_build")
     TimerOutputs.@timeit timer "init_build" begin
         init_from = ini.general.init_from

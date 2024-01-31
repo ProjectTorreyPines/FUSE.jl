@@ -2,11 +2,11 @@
 #  init pf_active IDS  #
 #= ================== =#
 """
-    init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.pf_active` starting from `ini` and `act` parameters
 """
-function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_pf_active")
     TimerOutputs.@timeit timer "init_pf_active" begin
         init_from = ini.general.init_from

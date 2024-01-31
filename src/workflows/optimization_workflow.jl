@@ -58,8 +58,8 @@ function workflow_multiobjective_optimization(
         println(cnst)
     end
 
-    # optimization boundaries
-    bounds = [[float_bounds(optpar)[1] for optpar in opt_ini] [float_bounds(optpar)[2] for optpar in opt_ini]]'
+    # optimization floating point boundaries
+    bounds = float_bounds(opt_ini)
 
     # # test running function once with nominal parameters useful to catch bugs quickly.
     # # Use Distributed.@everywhere to trigger compilation on all worker nodes.

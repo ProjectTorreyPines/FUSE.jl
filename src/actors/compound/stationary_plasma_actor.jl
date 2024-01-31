@@ -180,13 +180,16 @@ end
 function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::ActorStationaryPlasma, step_actor::Union{Nothing,AbstractActor}=nothing)
     dd = actor.dd
     par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
     tmp = [
         (par.max_iter == 1 ? "                 iteration" : "         iteration (min 2)", "$(length(total_error))/$(par.max_iter)"),
         ("required convergence error", par.convergence_error),
         ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
         ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
-        ("                   Ip [MA]", @ddtime(dd.summary.global_quantities.ip.value) / 1e6),
-        ("                 Te0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_e.value) / 1E3),
-        ("                 Ti0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_i_average.value) / 1E3)]
+        ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
+        ("                 Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
+        ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
+    ]
     return tuple(tmp...)
 end
