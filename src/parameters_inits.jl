@@ -150,12 +150,15 @@ end
 
 Base.@kwdef mutable struct FUSEparameters__pellets_launchers{T} <: ParametersInit where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :pellets_launchers
-    frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched")
-    shape::Switch{Symbol} = Switch{Symbol}([:spherical, :cylinderical, :rectangular],"-","The pellet geometry"; default=:spherical)
-    material::Entry{String} = Entry{String}("-","Pellet material(eg. DT,H,D,T,...)")
-    size::Entry{Vector{T}} = Entry{Vector{T}}("m", "Vector of geometry parameters")
-    density::Entry{T} = Entry{T}("atoms.m^-3", "Material density of the species in the pellet")
+    _name::Symbol = :pellet_launcher
+    frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched"; check=x -> @assert x >= 0.0 "pellet frequency must be >= 0.0")
+    shape::Switch{Symbol} = Switch{Symbol}([:spherical, :cylindrical, :rectangular], "-", "The pellet geometry"; default=:spherical)
+    species::Switch{Symbol} = Switch{Symbol}([:H, :D, :T, :DT, :C, :Ne], "-", "Pellet species")
+    size::Entry{Vector{T}} = Entry{Vector{T}}(
+        "m",
+        "Vector of geometric dimensions describing the pellet shape (spherical: [r], cylindrical: [r, l], rectangular: [x,y,z])";
+        check=x -> @assert all(x .> 0.0) "All pellet shape dimensions must be > 0.0"
+    )
 end
 
 Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit where {T<:Real}
@@ -234,13 +237,13 @@ mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
     center_stack::FUSEparameters__center_stack{T}
     nb_unit::ParametersVector{FUSEparameters__nb_unit{T}}
     ec_launcher::ParametersVector{FUSEparameters__ec_launcher{T}}
-    pellets_launchers::ParametersVector{FUSEparameters__pellets_launchers{T}}
+    pellet_launcher::ParametersVector{FUSEparameters__pellets_launchers{T}}
     ic_antenna::ParametersVector{FUSEparameters__ic_antenna{T}}
     lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0,n_pel::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
+function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
     ini = ParametersInits{T}(
         WeakRef(nothing),
         :ini,
@@ -274,8 +277,8 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0,n_pel::Int=0, n_ic::Int=0
         push!(ini.ec_launcher, FUSEparameters__ec_launcher{T}())
     end
 
-    for k in 1:n_pel
-        push!(ini.pellets_launchers, FUSEparameters__pellets_launchers{T}())
+    for k in 1:n_pl
+        push!(ini.pellet_launcher, FUSEparameters__pellets_launchers{T}())
     end
 
     for k in 1:n_ic

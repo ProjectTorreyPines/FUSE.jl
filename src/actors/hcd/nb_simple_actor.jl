@@ -1,7 +1,7 @@
 #= === =#
 #  NBI  #
 #= === =#
-Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -10,18 +10,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor w
     ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
-mutable struct ActorNBsimple{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimpleNB{D,P} <: HCDAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorNBsimple{P}
-    function ActorNBsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorNBsimple{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorNBsimple)
+    par::FUSEparameters__ActorSimpleNB{P}
+    function ActorSimpleNB(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleNB{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSimpleNB)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorNBsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
@@ -31,14 +31,14 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
     Reads data in `dd.nbi` and stores data in `dd.core_sources`
 """
-function ActorNBsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorNBsimple(dd, act.ActorNBsimple; kw...)
+function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSimpleNB(dd, act.ActorSimpleNB; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorNBsimple)
+function _step(actor::ActorSimpleNB)
     dd = actor.dd
     par = actor.par
 

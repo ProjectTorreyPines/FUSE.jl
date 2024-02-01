@@ -42,22 +42,20 @@ function init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors,
 end
 
 """
-    init_pellets(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_pl(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
-Initialize `dd.pellets_launchers` starting from `ini` and `act` parameters
+Initialize `dd.pellet_launcher` starting from `ini` and `act` parameters
 """
-function init_pellets(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_pl(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.pellets)
-    resize!(dd.pellets.time_slice,ini.time.simulation_start)
-    resize!(dd.pellets.time_slice[].pellet, length(ini.pellets_launchers))
-    for (idx, (pel, ini_pel)) in enumerate(zip(dd.pellets.time_slice[].pellet, ini.pellets_launchers))
-        pel.frequency = ini_pel.frequency
-        pel.shape.type.name = string(ini_pel.shape)
-        pel.shape.type.index = IMAS.name_2_index(IMAS.pellets__time_slice___pellet___shape__type())[ini_pel.shape]
-
-        pel.shape.size = ini_pel.size
-        resize!(pel.species,1)
-        pel.species[1].label=ini_pel.material
+    resize!(dd.pellets.launcher, length(ini.pellet_launcher))
+    for (idx, (pll, ini_pll)) in enumerate(zip(dd.pellets.launcher, ini.pellet_launcher))
+        pll.name = length(ini.pellet_launcher) > 1 ? "pellet_$idx" : "pellet"
+        pll.shape.type.name = string(ini_pll.shape)
+        pll.shape.type.index = IMAS.name_2_index(pll.shape)[ini_pll.shape]
+        pll.shape.size = ini_pll.size
+        resize!(pll.species, 1)
+        pll.species[1].label = string(ini_pll.species)
     end
     return dd
 end
@@ -166,7 +164,7 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             init_ic(dd, ini, act, dd1)
             init_lh(dd, ini, act, dd1)
             init_nb(dd, ini, act, dd1)
-            init_pellets(dd,ini,act, dd1)
+            init_pl(dd, ini, act, dd1)
         end
 
         ActorHCD(dd, act)

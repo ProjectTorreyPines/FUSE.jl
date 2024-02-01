@@ -15,11 +15,11 @@ end
 mutable struct ActorHCD{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHCD{P}
-    ec_actor::Union{Missing,ActorECsimple{D,P}}
-    ic_actor::Union{Missing,ActorICsimple{D,P}}
-    lh_actor::Union{Missing,ActorLHsimple{D,P}}
-    nb_actor::Union{Missing,ActorNBsimple{D,P}}
-    pellet_actor::Union{Missing,ActorPelletsimple{D,P}}
+    ec_actor::Union{Missing,ActorSimpleEC{D,P}}
+    ic_actor::Union{Missing,ActorSimpleIC{D,P}}
+    lh_actor::Union{Missing,ActorSimpleLH{D,P}}
+    nb_actor::Union{Missing,ActorSimpleNB{D,P}}
+    pellet_actor::Union{Missing,ActorSimplePellet{D,P}}
 end
 
 """
@@ -38,27 +38,27 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     logging_actor_init(ActorHCD)
     par = par(kw...)
     if par.ec_model == :ECsimple
-        ec_actor = ActorECsimple(dd, act.ActorECsimple)
+        ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
     else
         ec_actor = missing
     end
     if par.ic_model == :ICsimple
-        ic_actor = ActorICsimple(dd, act.ActorICsimple)
+        ic_actor = ActorSimpleIC(dd, act.ActorSimpleIC)
     else
         ic_actor = missing
     end
     if par.lh_model == :LHsimple
-        lh_actor = ActorLHsimple(dd, act.ActorLHsimple)
+        lh_actor = ActorSimpleLH(dd, act.ActorSimpleLH)
     else
         lh_actor = missing
     end
     if par.nb_model == :NBsimple
-        nb_actor = ActorNBsimple(dd, act.ActorNBsimple)
+        nb_actor = ActorSimpleNB(dd, act.ActorSimpleNB)
     else
         nb_actor = missing
     end
     if par.pellet_model == :Pelletsimple
-        pellet_actor = ActorPelletsimple(dd, act.ActorPelletsimple)
+        pellet_actor = ActorSimplePellet(dd, act.ActorSimplePellet)
     else
         pellet_actor = missing
     end

@@ -1,7 +1,7 @@
 #= == =#
 #  IC  #
 #= == =#
-Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleIC{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -10,18 +10,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorICsimple{T} <: ParametersActor w
     ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
-mutable struct ActorICsimple{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimpleIC{D,P} <: HCDAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorICsimple{P}
-    function ActorICsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorICsimple{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorICsimple)
+    par::FUSEparameters__ActorSimpleIC{P}
+    function ActorSimpleIC(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleIC{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSimpleIC)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleIC(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
 
@@ -31,14 +31,14 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
     Reads data in `dd.ic_antennas` and stores data in `dd.core_sources`
 """
-function ActorICsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorICsimple(dd, act.ActorICsimple; kw...)
+function ActorSimpleIC(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSimpleIC(dd, act.ActorSimpleIC; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorICsimple)
+function _step(actor::ActorSimpleIC)
     dd = actor.dd
     par = actor.par
 

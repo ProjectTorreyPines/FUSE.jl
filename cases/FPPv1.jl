@@ -85,7 +85,7 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
         # zeff
         ini.core_profiles.zeff = 2.0
         # ech aiming
-        act.ActorECsimple.rho_0 = 0.6
+        act.ActorSimpleEC.rho_0 = 0.6
         # lower ip
         ini.equilibrium.ip = 8.0E6
         # higher density
