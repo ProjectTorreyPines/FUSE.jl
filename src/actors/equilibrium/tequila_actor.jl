@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     #== display and debugging parameters ==#
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
 
@@ -210,19 +210,9 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain
-        for (i, r) in collect(enumerate(Rgrid))
-            for (j, z) in enumerate(Zgrid)
-                for (r0, z0) in zip(eqt.boundary.outline.r, eqt.boundary.outline.z)
-                    eq2d.psi[i, j] = min(eq2d.psi[i, j], sqrt((r - r0) .^ 2 + (z - z0) .^ 2) * (psib - psia) / 4)
-                end
-            end
-        end
         Threads.@threads for (i, r) in collect(enumerate(Rgrid))
             for (j, z) in enumerate(Zgrid)
-                value = shot(r, z)
-                if value != 0.0
-                    eq2d.psi[i, j] = value + ψbound
-                end
+                eq2d.psi[i, j] = shot(r, z; extrapolate=true) + ψbound
             end
         end
         eq1d.psi .+= ψbound
