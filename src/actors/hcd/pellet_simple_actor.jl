@@ -70,7 +70,7 @@ function _step(actor::ActorSimplePellet)
 
         source = resize!(cs.source, :pellet, "identifier.name" => pll.name; wipe=false)
 
-        mode = -0.75
+        mode = -0.9
         α = 2.0
         β = ((α - 1) / mode) - (α - 2)
         ρ_peak = (α - 1) / (α + β - 2) / 2 + 0.5
