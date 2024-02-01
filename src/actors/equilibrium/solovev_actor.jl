@@ -8,6 +8,7 @@ import Optim
 Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     ngrid::Entry{Int} = Entry{Int}("-", "Grid size (for R, Z follows proportionally to plasma elongation)"; default=129)
     qstar::Entry{T} = Entry{T}("-", "Initial guess of kink safety factor"; default=1.5)

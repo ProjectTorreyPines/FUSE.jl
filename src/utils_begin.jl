@@ -4,6 +4,27 @@ import ClusterManagers
 import TimerOutputs
 import Dates
 using InteractiveUtils: summarysize, format_bytes, Markdown
+using SimulationParameters
+
+# =========== #
+# global_time #
+# =========== #
+# this is used to disambiguate between global_time of SimulationParameters and IMAS
+function global_time(par::Union{<:SimulationParameters.AbstractParameters,<:SimulationParameters.AbstractParameter})::Float64
+    return SimulationParameters.global_time(par)
+end
+
+function global_time(par::Union{<:SimulationParameters.AbstractParameters,<:SimulationParameters.AbstractParameter}, time0::Float64)::Float64
+    return SimulationParameters.global_time(par, time0)
+end
+
+function global_time(@nospecialize(ids::Union{IMAS.IDS,IMAS.IDSvector}))::Float64
+    return IMAS.global_time(ids)
+end
+
+function global_time(@nospecialize(ids::Union{IMAS.IDS,IMAS.IDSvector}), time0::Float64)
+    return IMAS.global_time(ids, time0)
+end
 
 # ====== #
 # Timing #

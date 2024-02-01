@@ -1,26 +1,27 @@
 #= == =#
 #  EC  #
 #= == =#
-Base.@kwdef mutable struct FUSEparameters__ActorECsimple{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleEC{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.05)
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.5)
     ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
-mutable struct ActorECsimple{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimpleEC{D,P} <: HCDAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorECsimple{P}
-    function ActorECsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorECsimple{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorECsimple)
+    par::FUSEparameters__ActorSimpleEC{P}
+    function ActorSimpleEC(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleEC{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSimpleEC)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleEC(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the EC electron energy deposition and current drive as a gaussian.
 
@@ -28,16 +29,16 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.ec_launchers` and stores data in `dd.core_sources`
+    Reads data in `dd.ec_launchers`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
-function ActorECsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorECsimple(dd, act.ActorECsimple; kw...)
+function ActorSimpleEC(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSimpleEC(dd, act.ActorSimpleEC; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorECsimple)
+function _step(actor::ActorSimpleEC)
     dd = actor.dd
     par = actor.par
 
@@ -68,7 +69,7 @@ function _step(actor::ActorECsimple)
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source = resize!(cs.source, :ec, "identifier.name" => ecl.name; wipe=false)
-        gaussian_source(
+        shaped_source(
             source,
             ecl.name,
             source.identifier.index,
@@ -77,10 +78,8 @@ function _step(actor::ActorECsimple)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            rho_0[idx],
-            width[idx],
-            1.0;
-            j_parallel=j_parallel
+            ρ -> gaus(ρ, rho_0[idx], width[idx], 1.0);
+            j_parallel
         )
     end
     return actor
