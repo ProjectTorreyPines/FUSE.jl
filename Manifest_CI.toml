@@ -801,8 +801,8 @@ uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
 version = "0.4.5"
 
 [[deps.FusionMaterials]]
-deps = ["JSON"]
-git-tree-sha1 = "906fde3f867716455686a72045922191cbec241b"
+deps = ["IMAS", "JSON"]
+git-tree-sha1 = "a7f620822d17e8520b174392a0a502b399094994"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/FusionMaterials.jl.git"
 uuid = "4c86da02-02c8-4634-8460-96566129f8e0"
@@ -962,7 +962,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "IMASDD", "Interpolations", "JSON", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "7a52ef6796d57aff3d10e37a0705ec2e2596df7b"
+git-tree-sha1 = "f3eeec09d06a00d7450c6001dc488da6849ad473"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -970,7 +970,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "PCHIPInterpolation", "Printf"]
-git-tree-sha1 = "723180fd4bc16c672e488752d2f8ca684b3cf3a3"
+git-tree-sha1 = "ff2292544c17a444136f75435d6eb1796dc64992"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -2212,7 +2212,7 @@ version = "0.9.4"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections", "RecipesBase", "YAML"]
-git-tree-sha1 = "580aa4bc49b7ad4f79be4eacad58b5f07411bff8"
+git-tree-sha1 = "835cf2572339a554f74c91b23804d3f689082695"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
