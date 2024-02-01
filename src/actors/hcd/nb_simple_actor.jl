@@ -29,7 +29,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.nbi` and stores data in `dd.core_sources`
+    Reads data in `dd.nbi`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
 function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleNB(dd, act.ActorSimpleNB; kw...)
@@ -62,9 +62,9 @@ function _step(actor::ActorSimpleNB)
 
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
-        beam_particles = power_launched / (beam_energy * constants.e)
-        momentum_source =
-            sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+        electrons_particles = power_launched / (beam_energy * constants.e)
+        momentum_tor =
+            sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
@@ -74,7 +74,7 @@ function _step(actor::ActorSimpleNB)
         j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
 
         source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
-        gaussian_source(
+        shaped_source(
             source,
             nbu.name,
             source.identifier.index,
@@ -83,12 +83,10 @@ function _step(actor::ActorSimpleNB)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            rho_0[idx],
-            width[idx],
-            2.0;
-            electrons_particles=beam_particles,
-            momentum_tor=momentum_source,
-            j_parallel=j_parallel
+            ρ -> gaus(ρ, rho_0[idx], width[idx], 2.0);
+            electrons_particles,
+            momentum_tor,
+            j_parallel
         )
 
         # add nbi fast ion particles source

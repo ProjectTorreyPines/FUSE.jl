@@ -156,7 +156,7 @@ Base.@kwdef mutable struct FUSEparameters__pellets_launchers{T} <: ParametersIni
     species::Switch{Symbol} = Switch{Symbol}([:H, :D, :T, :DT, :C, :Ne], "-", "Pellet species")
     size::Entry{Vector{T}} = Entry{Vector{T}}(
         "m",
-        "Vector of geometric dimensions describing the pellet shape (spherical: [r], cylindrical: [r, l], rectangular: [x,y,z])";
+        "Vector of geometric dimensions describing the pellet size for a given shape (spherical: [r], cylindrical: [r, l], rectangular: [x,y,z])";
         check=x -> @assert all(x .> 0.0) "All pellet shape dimensions must be > 0.0"
     )
 end

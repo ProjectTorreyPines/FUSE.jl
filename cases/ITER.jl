@@ -105,9 +105,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.nb_unit[1].beam_energy = 1e6
     ini.ec_launcher[1].power_launched = t -> 10e6 + ramp((t - 100) / 100.0) * 10e6
     ini.ic_antenna[1].power_launched = t -> 12e6 + ramp((t - 100) / 100.0) * 12e6
+    ini.pellet_launcher[1].shape = :cylindrical
     ini.pellet_launcher[1].species = :T
-    ini.pellet_launcher[1].size = Float64[0.01]
-    ini.pellet_launcher[1].frequency = 10.0 # Hz
+    ini.pellet_launcher[1].size = Float64[0.003, 0.004]
+    ini.pellet_launcher[1].frequency = 0.01 # Hz
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"

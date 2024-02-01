@@ -106,21 +106,21 @@ function trap(t::T, t_start::Float64, Δt::Float64, ramp_fraction::Float64)::T w
 end
 
 """
-    gaus(t::T)::T where {T}
+    gaus(t::T, order::Float64=1.0)::T where {T}
 
 Unitary gaussian
 """
-function gaus(t::T)::T where {T}
-    return exp(-t^2 / 2.0)
+function gaus(t::T, order::Float64=1.0)::T where {T}
+    return exp(-(t^2 / 2.0)^order)
 end
 
 """
-    gaus(t::T, t_start::Float64, Δt::Float64)::T where {T}
+    gaus(t::T, t_start::Float64, Δt::Float64, order::Float64=1.0)::T where {T}
 
 Unitary gaussian centered at t_start and with standard deviation Δt
 """
-function gaus(t::T, t_start::Float64, Δt::Float64)::T where {T}
-    return gaus((t - t_start) / Δt)
+function gaus(t::T, t_start::Float64, Δt::Float64, order::Float64=1.0)::T where {T}
+    return gaus((t - t_start) / Δt, order)
 end
 
 """

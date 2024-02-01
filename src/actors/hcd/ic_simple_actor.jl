@@ -29,7 +29,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.ic_antennas` and stores data in `dd.core_sources`
+    Reads data in `dd.ic_antennas`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
 function ActorSimpleIC(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleIC(dd, act.ActorSimpleIC; kw...)
@@ -71,7 +71,7 @@ function _step(actor::ActorSimpleIC)
         j_parallel *= sign(eqt.global_quantities.ip) .* ion_electron_fraction_cp
 
         source = resize!(cs.source, :ic, "identifier.name" => ica.name; wipe=false)
-        gaussian_source(
+        shaped_source(
             source,
             ica.name,
             source.identifier.index,
@@ -80,10 +80,8 @@ function _step(actor::ActorSimpleIC)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            rho_0[idx],
-            width[idx],
-            1.0;
-            j_parallel=j_parallel
+            ρ -> gaus(ρ, rho_0[idx], width[idx], 1.0);
+            j_parallel
         )
     end
     return actor

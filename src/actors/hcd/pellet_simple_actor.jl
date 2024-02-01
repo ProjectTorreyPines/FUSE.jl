@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.05)
+    width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width multiplier of the deposition profile"; default=1.0)
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.5)
 end
 
@@ -26,7 +26,7 @@ Estimates the Pellet particle deposition as a gaussian.
 
 !!! note
 
-    Reads data in `dd.pellet_launchers` and stores data in `dd.core_sources`
+    Reads data in `dd.pellet_launchers`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
 function ActorSimplePellet(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimplePellet(dd, act.ActorSimplePellet; kw...)
@@ -70,7 +70,13 @@ function _step(actor::ActorSimplePellet)
 
         source = resize!(cs.source, :pellet, "identifier.name" => pll.name; wipe=false)
 
-        gaussian_source(
+        mode = -0.75
+        α = 2.0
+        β = ((α - 1) / mode) - (α - 2)
+        ρ_peak = (α - 1) / (α + β - 2) / 2 + 0.5
+        beta_width = (1.0 - rho_0[idx]) * 2 * width[idx]
+
+        shaped_source(
             source,
             pll.name,
             source.identifier.index,
@@ -79,9 +85,7 @@ function _step(actor::ActorSimplePellet)
             area_cp,
             0.0,
             ion_electron_fraction_cp,
-            rho_0[idx],
-            width[idx],
-            1.0;
+            ρ -> beta(ρ + ρ_peak * beta_width, rho_0[idx], beta_width, mode);
             electrons_particles
         )
     end
@@ -92,5 +96,5 @@ end
 function pellet_density(species::String)
     material_density = Dict("DT" => 0.257, "D" => 0.2, "T" => 0.318, "C" => 3.3, "Ne" => 1.44)
     atomic_weigth = Dict("DT" => 2.515, "D" => 2.014, "T" => 3.016, "C" => 12.011, "Ne" => 20.183)
-    return material_density[species] * constants.avog / atomic_weigth[species]
+    return material_density[species] * constants.avog / atomic_weigth[species] * 1E6
 end

@@ -29,7 +29,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.lh_antennas` and stores data in `dd.core_sources`
+    Reads data in `dd.lh_antennas`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
 function ActorSimpleLH(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleLH(dd, act.ActorSimpleLH; kw...)
@@ -69,7 +69,7 @@ function _step(actor::ActorSimpleLH)
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source = resize!(cs.source, :lh, "identifier.name" => lha.name; wipe=false)
-        gaussian_source(
+        shaped_source(
             source,
             lha.name,
             source.identifier.index,
@@ -78,10 +78,8 @@ function _step(actor::ActorSimpleLH)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            rho_0[idx],
-            width[idx],
-            1.0;
-            j_parallel=j_parallel
+            ρ -> gaus(ρ, rho_0[idx], width[idx], 1.0);
+            j_parallel
         )
     end
     return actor
