@@ -6,6 +6,7 @@ import BoundaryPlasmaModels
 Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     heat_flux_model::Switch{Symbol} = Switch{Symbol}([:lengyel], "-", "Divertor heat flux model"; default=:lengyel)
     impurities::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "Vector of impurity species"; default=Symbol[])
     impurities_fraction::Entry{Vector{T}} = Entry{Vector{T}}("-", "Vector of impurity fractions"; default=T[])

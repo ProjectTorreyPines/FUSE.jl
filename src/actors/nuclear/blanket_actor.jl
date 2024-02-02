@@ -5,7 +5,8 @@ import NNeutronics
 #= ============ =#
 Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :ActorBlanket
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     minimum_first_wall_thickness::Entry{T} = Entry{T}("m", "Minimum first wall thickness"; default=0.02)
     blanket_multiplier::Entry{T} = Entry{T}("-", "Neutron thermal power multiplier in blanket"; default=1.2)
     thermal_power_extraction_efficiency::Entry{T} = Entry{T}("-",

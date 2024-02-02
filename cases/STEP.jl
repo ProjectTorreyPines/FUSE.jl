@@ -198,9 +198,9 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorEquilibrium.symmetrize = true
 
     ini.ec_launcher[1].power_launched = 150.e6
-    act.ActorECsimple.width = 0.25
-    act.ActorECsimple.rho_0 = 0.0
-    act.ActorECsimple.ηcd_scale = 0.5
+    act.ActorSimpleEC.width = 0.25
+    act.ActorSimpleEC.rho_0 = 0.0
+    act.ActorSimpleEC.ηcd_scale = 0.5
 
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1

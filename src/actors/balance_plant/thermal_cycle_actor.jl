@@ -5,6 +5,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     power_cycle_type::Switch{Symbol} = Switch{Symbol}([:fixed_cycle_efficiency, :brayton_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only)
     rp::Entry{T} = Entry{T}("-", "Overall compression ratio"; default=3.0)
     Pmax::Entry{T} = Entry{T}("Pa", "Max system pressure"; default=8e6)

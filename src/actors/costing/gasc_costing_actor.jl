@@ -3,9 +3,10 @@
 #= ================ =#
 
 # FUSEparameters__ActorGASCCosting must match name and types of FUSEparameters__ActorSheffieldCosting
-mutable struct FUSEparameters__ActorGASCCosting{T} <: ParametersActor where {T<:Real}
-    _parent::WeakRef
-    _name::Symbol
+Base.@kwdef mutable struct FUSEparameters__ActorGASCCosting{T} <: ParametersActor where {T<:Real}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     construction_lead_time::Entry{T}
     fixed_charge_rate::Entry{T}
     capitalize_blanket::Entry{Bool}

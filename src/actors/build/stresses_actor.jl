@@ -4,6 +4,7 @@
 Base.@kwdef mutable struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
     n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=5)
 end

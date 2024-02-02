@@ -101,6 +101,7 @@ include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nb_simple_actor.jl"))
+include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
@@ -178,6 +179,6 @@ include("precompile.jl")
 #= EXPORT =#
 #= ====== =#
 export IMAS, @ddtime, constants, ±, ↔, Logging
-export step, pulse, ramp, trap
+export step, pulse, ramp, trap, gaus, beta
 
 end
