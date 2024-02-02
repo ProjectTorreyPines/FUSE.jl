@@ -1,26 +1,27 @@
 #= == =#
 #  LH  #
 #= == =#
-Base.@kwdef mutable struct FUSEparameters__ActorLHsimple{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleLH{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.1)
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.8)
     ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
-mutable struct ActorLHsimple{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimpleLH{D,P} <: HCDAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorLHsimple{P}
-    function ActorLHsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorLHsimple{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorLHsimple)
+    par::FUSEparameters__ActorSimpleLH{P}
+    function ActorSimpleLH(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleLH{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSimpleLH)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleLH(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
 
@@ -28,16 +29,16 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.lh_antennas` and stores data in `dd.core_sources`
+    Reads data in `dd.lh_antennas`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
-function ActorLHsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorLHsimple(dd, act.ActorLHsimple; kw...)
+function ActorSimpleLH(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSimpleLH(dd, act.ActorSimpleLH; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorLHsimple)
+function _step(actor::ActorSimpleLH)
     dd = actor.dd
     par = actor.par
 
@@ -68,7 +69,7 @@ function _step(actor::ActorLHsimple)
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source = resize!(cs.source, :lh, "identifier.name" => lha.name; wipe=false)
-        gaussian_source(
+        shaped_source(
             source,
             lha.name,
             source.identifier.index,
@@ -77,10 +78,8 @@ function _step(actor::ActorLHsimple)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            rho_0[idx],
-            width[idx],
-            1.0;
-            j_parallel=j_parallel
+            ρ -> gaus(ρ, rho_0[idx], width[idx], 1.0);
+            j_parallel
         )
     end
     return actor

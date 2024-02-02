@@ -8,6 +8,7 @@ const coolant_fluid = [:He, :PbLi]
 Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersActor where {T<:Real}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     #  BREEDER INFO
     breeder_pressure::Entry{T} = Entry{T}("Pa", "Pressure across pump in breeder fluid circuit"; default=1e6)
     breeder_ΔP::Entry{T} = Entry{T}("Pa", "Pressure drop during cooling and heat exchanger"; default=0.25 * 10^6)
