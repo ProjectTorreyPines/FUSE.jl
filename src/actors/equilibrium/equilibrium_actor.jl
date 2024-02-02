@@ -98,12 +98,22 @@ function _finalize(actor::ActorEquilibrium)
         IMAS.flux_surfaces(eqt)
     catch e
         eqt2d = findfirst(:rectangular, eqt.profiles_2d)
-        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal))
+        par.do_plot && display(current())
+        p = contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
+        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi', levels=[0], lw=3, color=:black, colorbar_entry=false))
         rethrow(e)
     end
 
     if par.do_plot
-        display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
+        try
+            display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
+        catch e
+            if e isa BoundsError
+                display(plot(dd.equilibrium; label="after ActorEquilibrium"))
+            else
+                rethrow(e)
+            end
+        end
     end
 
     return actor
