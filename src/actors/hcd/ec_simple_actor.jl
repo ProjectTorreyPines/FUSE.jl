@@ -55,7 +55,7 @@ function _step(actor::ActorSimpleEC)
     _, width, rho_0, ηcd_scale = same_length_vectors(1:n_launchers, par.width, par.rho_0, par.ηcd_scale)
 
     for (idx, ecl) in enumerate(dd.ec_launchers.beam)
-        power_launched = @ddtime(dd.pulse_schedule.ec.launcher[idx].power.reference.data)
+        power_launched = @ddtime(dd.pulse_schedule.ec.beam[idx].power_launched.reference)
         @ddtime(ecl.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = zeros(length(rho_cp))

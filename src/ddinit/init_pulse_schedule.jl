@@ -21,8 +21,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
 
         if init_from == :scalars
             time, data = get_time_dependent(ini.equilibrium, :ip; simplify_time_traces)
-            dd.pulse_schedule.flux_control.i_plasma.reference.time = time
-            dd.pulse_schedule.flux_control.i_plasma.reference.data = data
+            dd.pulse_schedule.flux_control.time = time
+            dd.pulse_schedule.flux_control.i_plasma.reference = data
 
             # R0 should not be time dependent for definition of B0
             if !isempty(dd.build.layer)
@@ -36,8 +36,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             end
 
             time, data = get_time_dependent(ini.equilibrium, :B0; simplify_time_traces)
-            dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.time = time
-            dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = data .* R0
+            dd.pulse_schedule.tf.time = time
+            dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = data .* R0
 
             # initialize position_control from mxh
             if ini.equilibrium.boundary_from == :scalars
@@ -89,40 +89,40 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             resize!(dd.pulse_schedule.nbi.unit, length(ini.nb_unit))
             for (k, ini_nbu) in enumerate(ini.nb_unit)
                 time, data = get_time_dependent(ini_nbu, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.nbi.unit[k].power.reference.time = time
-                dd.pulse_schedule.nbi.unit[k].power.reference.data = data
+                dd.pulse_schedule.nbi.time = time
+                dd.pulse_schedule.nbi.unit[k].power.reference = data
             end
 
             # EC
-            resize!(dd.pulse_schedule.ec.launcher, length(ini.ec_launcher))
+            resize!(dd.pulse_schedule.ec.beam, length(ini.ec_launcher))
             for (k, ini_ecb) in enumerate(ini.ec_launcher)
                 time, data = get_time_dependent(ini_ecb, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.ec.launcher[k].power.reference.time = time
-                dd.pulse_schedule.ec.launcher[k].power.reference.data = data
+                dd.pulse_schedule.ec.time = time
+                dd.pulse_schedule.ec.beam[k].power_launched.reference = data
             end
 
             # IC
             resize!(dd.pulse_schedule.ic.antenna, length(ini.ic_antenna))
             for (k, ini_ica) in enumerate(ini.ic_antenna)
                 time, data = get_time_dependent(ini_ica, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.ic.antenna[k].power.reference.time = time
-                dd.pulse_schedule.ic.antenna[k].power.reference.data = data
+                dd.pulse_schedule.ic.time = time
+                dd.pulse_schedule.ic.antenna[k].power.reference = data
             end
 
             # LH
             resize!(dd.pulse_schedule.lh.antenna, length(ini.lh_antenna))
             for (k, ini_lha) in enumerate(ini.lh_antenna)
                 time, data = get_time_dependent(ini_lha, :power_launched; simplify_time_traces)
-                dd.pulse_schedule.lh.antenna[k].power.reference.time = time
-                dd.pulse_schedule.lh.antenna[k].power.reference.data = data
+                dd.pulse_schedule.lh.time = time
+                dd.pulse_schedule.lh.antenna[k].power.reference = data
             end
 
             # PL
-            resize!(dd.pulse_schedule.pellets.launchers, length(ini.pellet_launcher))
+            resize!(dd.pulse_schedule.pellet.launcher, length(ini.pellet_launcher))
             for (k, ini_peln) in enumerate(ini.pellet_launcher)
                 time, data = get_time_dependent(ini_peln, :frequency; simplify_time_traces)
-                dd.pulse_schedule.pellets.launchers[k].frequency.reference.time = time
-                dd.pulse_schedule.pellets.launchers[k].frequency.reference.data = data
+                dd.pulse_schedule.pellet.time = time
+                dd.pulse_schedule.pellet.launcher[k].frequency.reference = data
             end
         end
 
@@ -201,10 +201,10 @@ function init_pulse_schedule_postion_control(
     else
         error("cannot handle more than two X-points")
     end
-    IMAS.set_time_array(pc.x_point[1].r.reference, :data, time0, rxu)
-    IMAS.set_time_array(pc.x_point[1].z.reference, :data, time0, zxu)
-    IMAS.set_time_array(pc.x_point[2].r.reference, :data, time0, rxl)
-    IMAS.set_time_array(pc.x_point[2].z.reference, :data, time0, zxl)
+    IMAS.set_time_array(pc.x_point[1].r, :reference, time0, rxu)
+    IMAS.set_time_array(pc.x_point[1].z, :reference, time0, zxu)
+    IMAS.set_time_array(pc.x_point[2].r, :reference, time0, rxl)
+    IMAS.set_time_array(pc.x_point[2].z, :reference, time0, zxl)
 
     # boundary with x-points parametrized with MXH
     mxh = IMAS.MXH(pr, pz, 2)
@@ -212,18 +212,19 @@ function init_pulse_schedule_postion_control(
     IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
 
     # scalars
-    IMAS.set_time_array(pc.minor_radius.reference, :data, time0, mxh.ϵ * mxh.R0)
-    IMAS.set_time_array(pc.geometric_axis.r.reference, :data, time0, mxh.R0)
-    IMAS.set_time_array(pc.geometric_axis.z.reference, :data, time0, mxh.Z0)
-    IMAS.set_time_array(pc.elongation.reference, :data, time0, mxh.κ)
-    IMAS.set_time_array(pc.triangularity.reference, :data, time0, sin(mxh.s[1]))
-    IMAS.set_time_array(pc.squareness.reference, :data, time0, -mxh.s[2])
+    IMAS.set_time_array(pc.minor_radius, :reference, time0, mxh.ϵ * mxh.R0)
+    IMAS.set_time_array(pc.geometric_axis.r, :reference, time0, mxh.R0)
+    IMAS.set_time_array(pc.geometric_axis.z, :reference, time0, mxh.Z0)
+    IMAS.set_time_array(pc.elongation, :reference, time0, mxh.κ)
+    IMAS.set_time_array(pc.triangularity, :reference, time0, sin(mxh.s[1]))
+    IMAS.set_time_array(pc.squareness, :reference, time0, -mxh.s[2])
+    IMAS.set_time_array(pc.ovality, :reference, time0, mxh.c[1])
 
     # boundary
     resize!(pc.boundary_outline, length(pr); wipe=false)
     for (k, (r, z)) in enumerate(zip(pr, pz))
-        IMAS.set_time_array(pc.boundary_outline[k].r.reference, :data, time0, r)
-        IMAS.set_time_array(pc.boundary_outline[k].z.reference, :data, time0, z)
+        IMAS.set_time_array(pc.boundary_outline[k].r, :reference, time0, r)
+        IMAS.set_time_array(pc.boundary_outline[k].z, :reference, time0, z)
     end
 
     return pc
