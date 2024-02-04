@@ -51,7 +51,7 @@ function _step(actor::ActorSimplePellet)
     _, width, rho_0 = same_length_vectors(1:n_launchers, par.width, par.rho_0)
 
     for (idx, pll) in enumerate(dd.pellets.launcher)
-        frequency = @ddtime(dd.pulse_schedule.pellets.launchers[idx].frequency.reference.data)
+        frequency = @ddtime(dd.pulse_schedule.pellet.launcher[idx].frequency.reference)
 
         shape = IMAS.index_2_name(pll.shape)[pll.shape.type.index]
         size = pll.shape.size

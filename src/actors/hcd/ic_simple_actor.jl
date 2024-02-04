@@ -56,7 +56,7 @@ function _step(actor::ActorSimpleIC)
     _, width, rho_0, ηcd_scale = same_length_vectors(1:n_antennas, par.width, par.rho_0, par.ηcd_scale)
 
     for (idx, ica) in enumerate(dd.ic_antennas.antenna)
-        power_launched = @ddtime(dd.pulse_schedule.ic.antenna[idx].power.reference.data)
+        power_launched = @ddtime(dd.pulse_schedule.ic.antenna[idx].power.reference)
         @ddtime(ica.power_launched.data = power_launched)
 
         # for FPP cases 80% to ions is reasonable (especially using minority heating)
