@@ -214,8 +214,8 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     vline!([time0]; label="", subplot)
     plot!(
         twinx(),
-        dd.pulse_schedule.flux_control.time[1:2],
-        dd.pulse_schedule.flux_control.loop_voltage.reference[1:2] * 1E3;
+        dd.core_profiles.time[1:2:end],
+        [IMAS.vloop(dd.core_profiles.profiles_1d[time], dd.equilibrium.time_slice[time]) for time in dd.core_profiles.time[1:2:end]] * 1E3;
         seriestype=:time,
         color=:red,
         ylabel="Vloop [mV]",
