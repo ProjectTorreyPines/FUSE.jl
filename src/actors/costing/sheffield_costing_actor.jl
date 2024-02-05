@@ -1,12 +1,12 @@
 #= ===================== =#
-#  ActorSheffieldCosting  #
+#  ActorCostingSheffield  #
 #= ===================== =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorCostingSheffield{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    # NOTE: parameters below should reflect the parameters in FUSEparameters__ActorGASCCosting except for capitalize_blanket and capitalize_divertor
+    # NOTE: parameters below should reflect the parameters in FUSEparameters__ActorCostingGASC except for capitalize_blanket and capitalize_divertor
     construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default=8.0)
     fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default=0.078)
     capitalize_blanket::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st blanket in direct captial cost"; default=false)
@@ -15,18 +15,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T<:Real} <: Par
     blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default=15.0)
 end
 
-mutable struct ActorSheffieldCosting{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorCostingSheffield{D,P} <: FacilityAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSheffieldCosting{P}
-    function ActorSheffieldCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorSheffieldCosting{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorSheffieldCosting)
+    par::FUSEparameters__ActorCostingSheffield{P}
+    function ActorCostingSheffield(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingSheffield{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorCostingSheffield)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorSheffieldCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates costing based on Sheffield and Milora, FS&T 70 (2016)
 
@@ -34,15 +34,15 @@ Estimates costing based on Sheffield and Milora, FS&T 70 (2016)
 
     Stores data in `dd.costing`
 """
-function ActorSheffieldCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorSheffieldCosting(kw...)
-    actor = ActorSheffieldCosting(dd, par)
+function ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorCostingSheffield(kw...)
+    actor = ActorCostingSheffield(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorSheffieldCosting)
+function _step(actor::ActorCostingSheffield)
     dd = actor.dd
     par = actor.par
     cst = dd.costing
@@ -205,7 +205,7 @@ function _step(actor::ActorSheffieldCosting)
     return actor
 end
 
-function _finalize(actor::ActorSheffieldCosting)
+function _finalize(actor::ActorCostingSheffield)
     # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system; by=x -> x.cost, rev=true)
     for sys in actor.dd.costing.cost_direct_capital.system

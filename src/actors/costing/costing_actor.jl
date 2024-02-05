@@ -21,7 +21,7 @@ mutable struct ActorCosting{D,P} <: FacilityAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCosting{P}
     act::ParametersAllActors
-    cst_actor::Union{ActorSheffieldCosting{D,P},ActorARIESCosting{D,P},ActorGASCCosting{D,P}}
+    cst_actor::Union{ActorCostingSheffield{D,P},ActorCostingARIES{D,P},ActorCostingGASC{D,P}}
 end
 
 """
@@ -53,13 +53,13 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
     dd.costing.future.learning.hts.learning_rate = act.ActorCosting.learning_rate
 
     if par.model == :Sheffield
-        cst_actor = ActorSheffieldCosting(dd, act.ActorSheffieldCosting)
+        cst_actor = ActorCostingSheffield(dd, act.ActorCostingSheffield)
 
     elseif par.model == :ARIES
-        cst_actor = ActorARIESCosting(dd, act.ActorARIESCosting)
+        cst_actor = ActorCostingARIES(dd, act.ActorCostingARIES)
 
     elseif par.model == :GASC
-        cst_actor = ActorGASCCosting(dd, act.ActorGASCCosting)
+        cst_actor = ActorCostingGASC(dd, act.ActorCostingGASC)
 
     else
         error("ActorCosting: model = '$(par.model)' can only be ':Sheffield' or ':ARIES'")
