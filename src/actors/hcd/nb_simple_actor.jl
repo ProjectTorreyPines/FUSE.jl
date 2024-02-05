@@ -5,9 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T} <: ParametersActor w
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.3)
-    rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.0)
-    ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
 mutable struct ActorSimpleNB{D,P} <: HCDAbstractActor{D,P}
@@ -51,13 +49,13 @@ function _step(actor::ActorSimpleNB)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    n_beams = length(dd.nbi.unit)
-    _, width, rho_0, ηcd_scale = same_length_vectors(1:n_beams, par.width, par.rho_0, par.ηcd_scale)
-
-    for (idx, nbu) in enumerate(dd.nbi.unit)
-        beam_energy = @ddtime (nbu.energy.data)
+    for (ps, nbu) in zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit)
+        power_launched = @ddtime(ps.power.reference)
+        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
+        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
+        beam_energy = @ddtime(nbu.energy.data)
         beam_mass = nbu.species.a
-        power_launched = @ddtime(dd.pulse_schedule.nbi.unit[idx].power.reference)
+
         @ddtime(nbu.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
@@ -66,10 +64,10 @@ function _step(actor::ActorSimpleNB)
         momentum_tor =
             sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
-        ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
-        TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
+        ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
+        TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
 
-        eta = ηcd_scale[idx] * TekeV * 0.025
+        eta = par.ηcd_scale * TekeV * 0.025
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
 
@@ -83,7 +81,7 @@ function _step(actor::ActorSimpleNB)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            ρ -> gaus(ρ, rho_0[idx], width[idx], 2.0);
+            ρ -> gaus(ρ, rho_0, width, 2.0);
             electrons_particles,
             momentum_tor,
             j_parallel

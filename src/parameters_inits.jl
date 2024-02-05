@@ -112,6 +112,8 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit where {T
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :nbi
     power_launched::Entry{T} = Entry{T}("W", "Beam power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
+    rho_0::Entry{T} = Entry{T}("-", "Terget radial location of the deposition profile"; default=0.0)
+    width::Entry{T} = Entry{T}("-", "Terget width of the deposition profile"; default=0.3)
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
     toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; default=0.0)
@@ -123,6 +125,8 @@ Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit wher
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ec_launcher
     power_launched::Entry{T} = Entry{T}("W", "EC launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
+    rho_0::Entry{T} = Entry{T}("-", "Terget radial location of the deposition profile"; default=0.5)
+    width::Entry{T} = Entry{T}("-", "Terget width of the deposition profile"; default=0.05)
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.ec_launchers__beam___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
@@ -132,6 +136,8 @@ Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit where
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ic_antenna
     power_launched::Entry{T} = Entry{T}("W", "IC launched power")
+    rho_0::Entry{T} = Entry{T}("-", "Terget radial location of the deposition profile"; default=0.0)
+    width::Entry{T} = Entry{T}("-", "Terget width of the deposition profile"; default=0.1)
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.ic_antennas__antenna___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
@@ -142,6 +148,8 @@ Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit where
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :lh_antenna
     power_launched::Entry{T} = Entry{T}("W", "LH launched power")
+    rho_0::Entry{T} = Entry{T}("-", "Terget radial location of the deposition profile"; default=0.8)
+    width::Entry{T} = Entry{T}("-", "Terget width of the deposition profile"; default=0.075)
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.lh_antennas__antenna___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
@@ -152,6 +160,8 @@ Base.@kwdef mutable struct FUSEparameters__pellets_launchers{T} <: ParametersIni
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pellet_launcher
     frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched"; check=x -> @assert x >= 0.0 "pellet frequency must be >= 0.0")
+    rho_0::Entry{T} = Entry{T}("-", "Terget radial location of the deposition profile"; default=0.5)
+    width::Entry{T} = Entry{T}("-", "Terget width of the deposition profile"; default=0.25)
     shape::Switch{Symbol} = Switch{Symbol}([:spherical, :cylindrical, :rectangular], "-", "The pellet geometry"; default=:spherical)
     species::Switch{Symbol} = Switch{Symbol}([:H, :D, :T, :DT, :C, :Ne], "-", "Pellet species")
     size::Entry{Vector{T}} = Entry{Vector{T}}(
