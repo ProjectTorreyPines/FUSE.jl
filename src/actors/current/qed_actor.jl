@@ -187,7 +187,7 @@ function _finalize(actor::ActorQED)
     # add vloop info to pulse_schedule
     if par.solve_for == :ip
         vloop = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
-        @ddtime(dd.pulse_schedule.flux_control.loop_voltage.reference.data = vloop)
+        @ddtime(dd.pulse_schedule.flux_control.loop_voltage.reference = vloop)
     end
 
     return actor

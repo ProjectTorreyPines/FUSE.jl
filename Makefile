@@ -531,13 +531,14 @@ empty_commit:
 	git reset HEAD
 	git commit --allow-empty -m 'empty commit'
 
-# merge repos on branch `orso` into `master`
-orso_master:
-	$(foreach rp,$(repo), \
+# GitHub merge of `branch` into `master` for a series of repos
+# >> make branch_master branch=my_branch repos='FUSE IMAS IMASDD'
+branch_master:
+	$(foreach rp,$(repos), \
 curl -X POST \
 -H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
 -H "Accept: application/vnd.github.v3+json" \
 https://api.github.com/repos/ProjectTorreyPines/$(rp).jl/merges \
--d '{"base": "master", "head": "orso", "commit_message": "merging orso into master"}';)
+-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 .PHONY:

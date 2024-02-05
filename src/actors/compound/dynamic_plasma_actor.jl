@@ -191,8 +191,8 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     # Ip and Vloop
     subplot = 1
     plot!(
-        dd.pulse_schedule.flux_control.i_plasma.reference.time,
-        dd.pulse_schedule.flux_control.i_plasma.reference.data / 1E6;
+        dd.pulse_schedule.flux_control.time,
+        dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
         color=:gray,
         label="Ip reference [MA]",
         lw=2.0,
@@ -206,8 +206,8 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     vline!([time0]; label="", subplot)
     plot!(
         twinx(),
-        dd.pulse_schedule.flux_control.loop_voltage.reference.time,
-        dd.pulse_schedule.flux_control.loop_voltage.reference.data * 1E3;
+        dd.pulse_schedule.flux_control.time,
+        dd.pulse_schedule.flux_control.loop_voltage.reference * 1E3;
         color=:red,
         ylabel="Vloop [mV]",
         label="",
