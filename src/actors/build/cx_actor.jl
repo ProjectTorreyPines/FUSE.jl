@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersAc
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorCXbuild{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorCXbuild{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCXbuild{P}
     function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}; kw...) where {D<:Real,P<:Real}

@@ -21,7 +21,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T<:Real} <: ParametersAct
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorTauenn{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorTauenn{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTauenn{P}
     tauenn_parameters::TAUENN.TauennParameters

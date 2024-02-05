@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T<:Real} <: Paramet
     rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.5)
 end
 
-mutable struct ActorSimplePellet{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimplePellet{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSimplePellet{P}
     function ActorSimplePellet(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePellet{P}; kw...) where {D<:Real,P<:Real}

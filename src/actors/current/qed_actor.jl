@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
 end
 
-mutable struct ActorQED{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorQED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorQED{P}
     QO::Union{Nothing,QED.QED_state}

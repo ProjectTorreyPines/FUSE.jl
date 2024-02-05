@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{
     pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
 end
 
-mutable struct ActorHCD{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHCD{P}
     ec_actor::Union{Missing,ActorSimpleEC{D,P}}

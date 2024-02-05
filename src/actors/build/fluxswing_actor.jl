@@ -16,7 +16,7 @@ If dd.requirements.flattop_duration is not set, then operate_oh_at_j_crit is ass
     j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH current limit"; default=0.4)
 end
 
-mutable struct ActorFluxSwing{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorFluxSwing{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxSwing{P}
     function ActorFluxSwing(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxSwing{P}; kw...) where {D<:Real,P<:Real}

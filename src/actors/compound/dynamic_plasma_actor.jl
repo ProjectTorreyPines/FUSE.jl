@@ -20,7 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: Parame
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
 
-mutable struct ActorDynamicPlasma{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorDynamicPlasma{P}
     act::ParametersAllActors

@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T<:Real} <: Parameter
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorNeutronics{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorNeutronics{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNeutronics{P}
     function ActorNeutronics(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeutronics{P}; kw...) where {D<:Real,P<:Real}

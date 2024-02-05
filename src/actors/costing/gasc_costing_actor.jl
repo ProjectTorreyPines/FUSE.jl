@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCostingGASC{T<:Real} <: Paramete
     blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default=15.0)
 end
 
-mutable struct ActorCostingGASC{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorCostingGASC{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCostingGASC{P}
     sheffield_actor::ActorCostingSheffield

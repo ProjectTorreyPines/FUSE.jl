@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T<:Real} <: Paramet
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.25:0.1:0.85)
 end
 
-mutable struct ActorNeoclassical{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNeoclassical{P}
     input_neos::Vector{<:NEO.InputNEO}

@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersA
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorPFdesign{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorPFdesign{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFdesign{P}
     actor_pf::ActorPFactive{D,P}

@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFixedProfiles{T<:Real} <: Parame
     update_pedestal::Entry{Bool} = Entry{Bool}("-", "Update pedestal with EPED-NN and modify profiles accordingly"; default=true)
 end
 
-mutable struct ActorFixedProfiles{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorFixedProfiles{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFixedProfiles{P}
     ped_actor::ActorPedestal{D,P}

@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersA
     ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
-mutable struct ActorSimpleNB{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSimpleNB{P}
     function ActorSimpleNB(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleNB{P}; kw...) where {D<:Real,P<:Real}

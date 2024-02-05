@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T<:Real} <: Parame
     update_build::Entry{Bool} = Entry{Bool}("-", "Optimize tokamak build"; default=true)
 end
 
-mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors

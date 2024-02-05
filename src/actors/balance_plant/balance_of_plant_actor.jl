@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: Param
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorBalanceOfPlant{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBalanceOfPlant{P}
     act::ParametersAllActors

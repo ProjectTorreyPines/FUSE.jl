@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFactive{T<:Real} <: ParametersA
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorPFactive{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorPFactive{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFactive{P}
     eq_out::IMAS.equilibrium{D}

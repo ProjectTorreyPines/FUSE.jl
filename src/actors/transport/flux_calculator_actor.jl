@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T<:Real} <: Param
     neoclassical_model::Switch{Symbol} = Switch{Symbol}([:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
 end
 
-mutable struct ActorFluxCalculator{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxCalculator{P}
     actor_turb::Union{ActorTGLF{D,P},ActorNoOperation{D,P}}

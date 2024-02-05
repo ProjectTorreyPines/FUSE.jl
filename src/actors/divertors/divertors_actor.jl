@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T<:Real} <: Parameters
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorDivertors{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorDivertors{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorDivertors{P}
     boundary_plasma_models::Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}

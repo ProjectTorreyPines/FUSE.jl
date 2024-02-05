@@ -29,7 +29,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorFluxMatcher{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxMatcher{P}
     actor_ct::ActorFluxCalculator{D,P}

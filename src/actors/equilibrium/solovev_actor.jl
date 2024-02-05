@@ -19,7 +19,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T<:Real} <: ParametersAc
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorSolovev{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSolovev{P}
     S::Union{Nothing,MXHEquilibrium.SolovevEquilibrium}

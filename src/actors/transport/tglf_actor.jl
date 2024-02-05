@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     custom_input_files::Entry{Union{Vector{<:InputTGLF}, Vector{<:InputTJLF}}} = Entry{ Union{Vector{<:InputTGLF}, Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
 end
 
-mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}  
     par::FUSEparameters__ActorTGLF{P}
     input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
