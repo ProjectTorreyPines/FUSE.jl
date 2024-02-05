@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:FUSE, :ARIES, :Sheffield, :GASC], "-", "Costing model"; default=:ARIES)
+    model::Switch{Symbol} = Switch{Symbol}([:ARIES, :Sheffield, :GASC], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{Int} = Entry{Int}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()))
     future_inflation_rate::Entry{T} = Entry{T}("-", "Predicted average rate of future inflation"; default=0.025)
     plant_lifetime::Entry{Int} = Entry{Int}("year", "Lifetime of the plant"; default=40)
@@ -60,9 +60,6 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
     elseif par.model == :GASC
         cst_actor = ActorCostingGASC(dd, act.ActorCostingGASC)
-
-    else
-        error("ActorCosting: model = '$(par.model)' can only be ':Sheffield' or ':ARIES'")
     end
 
     return ActorCosting(dd, par, act, cst_actor)
