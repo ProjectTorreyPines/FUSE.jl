@@ -13,6 +13,11 @@ end
 mutable struct ActorSteadyStateCurrent{D,P} <: PlasmaAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSteadyStateCurrent{P}
+    function ActorSteadyStateCurrent(dd::IMAS.dd{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSteadyStateCurrent)
+        par = par(kw...)
+        return new{D,P}(dd, par)
+    end
 end
 
 """
@@ -30,12 +35,6 @@ function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorSteadyStateCurrent(dd, par::FUSEparameters__ActorSteadyStateCurrent; kw...)
-    logging_actor_init(ActorSteadyStateCurrent)
-    par = par(kw...)
-    return ActorSteadyStateCurrent(dd, par)
 end
 
 function _step(actor::ActorSteadyStateCurrent)
