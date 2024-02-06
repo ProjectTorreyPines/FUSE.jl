@@ -205,15 +205,15 @@ function optimization_engine(
     generation::Int,
     save_dd::Bool=true)
 
-    # update ini based on input optimization vector `x`
-    #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
-    parameters_from_opt!(ini, x)
-
-    # attempt to release memory
-    malloc_trim_if_glibc()
-
-    # run the problem
     try
+        # update ini based on input optimization vector `x`
+        #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
+        parameters_from_opt!(ini, x)
+
+        # attempt to release memory
+        malloc_trim_if_glibc()
+
+        # run the problem
         if typeof(actor_or_workflow) <: Function
             dd = actor_or_workflow(ini, act)
         else
@@ -221,11 +221,13 @@ function optimization_engine(
             actor = actor_or_workflow(dd, act)
             dd = actor.dd
         end
+
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
             save(savedir, save_dd ? dd : nothing, ini, act; timer=true, memtrace=true, freeze=true, overwrite_files=false)
         end
+
         # evaluate multiple objectives
         result = collect(map(f -> nan2inf(f(dd)), objective_functions)), collect(map(g -> nan2inf(g(dd)), constraint_functions)), Float64[]
 
