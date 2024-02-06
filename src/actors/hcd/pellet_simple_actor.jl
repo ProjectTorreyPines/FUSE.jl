@@ -5,8 +5,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width multiplier of the deposition profile"; default=1.0)
-    rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.5)
 end
 
 mutable struct ActorSimplePellet{D,P} <: HCDAbstractActor{D,P}
@@ -47,11 +45,10 @@ function _step(actor::ActorSimplePellet)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    n_launchers = length(dd.pellets.launcher)
-    _, width, rho_0 = same_length_vectors(1:n_launchers, par.width, par.rho_0)
-
-    for (idx, pll) in enumerate(dd.pellets.launcher)
-        frequency = @ddtime(dd.pulse_schedule.pellet.launcher[idx].frequency.reference)
+    for (ps, pll) in zip(dd.pulse_schedule.pellet.launcher, dd.pellets.launcher)
+        frequency = @ddtime(ps.frequency.reference)
+        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
+        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
 
         shape = IMAS.index_2_name(pll.shape)[pll.shape.type.index]
         size = pll.shape.size
@@ -74,7 +71,7 @@ function _step(actor::ActorSimplePellet)
         α = 2.0
         β = ((α - 1) / mode) - (α - 2)
         ρ_peak = (α - 1) / (α + β - 2) / 2 + 0.5
-        beta_width = (1.0 - rho_0[idx]) * 2 * width[idx]
+        beta_width = width * 4
 
         shaped_source(
             source,
@@ -85,7 +82,7 @@ function _step(actor::ActorSimplePellet)
             area_cp,
             0.0,
             ion_electron_fraction_cp,
-            ρ -> beta(ρ + ρ_peak * beta_width, rho_0[idx], beta_width, mode);
+            ρ -> beta(ρ + ρ_peak * beta_width, rho_0, beta_width, mode);
             electrons_particles
         )
     end

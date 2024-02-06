@@ -190,9 +190,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # Ip and Vloop
     subplot = 1
-    plot!(
-        dd.pulse_schedule.flux_control.time,
+    plot!(dd.pulse_schedule.flux_control.time,
         dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
+        seriestype=:time,
         color=:gray,
         label="Ip reference [MA]",
         lw=2.0,
@@ -200,14 +200,23 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         legend_position=:bottomright,
         subplot
     )
-    #plot!(dd.equilibrium.time[4:2:end],[eqt.global_quantities.ip for eqt in dd.equilibrium.time_slice[4:2:end]]/1E6, color=:blue, label="equilibrium", subplot)
-    plot!(dd.core_profiles.time[1:2:end], dd.core_profiles.global_quantities.ip[1:2:end] / 1E6; color=:blue, label="Ip  [MA]", ylabel="Ip [MA]", lw=2.0, subplot)
-    plot!([NaN], [NaN]; color=:red, label="Vloop [mV]", subplot)
+    plot!(
+        dd.core_profiles.time[1:2:end],
+        dd.core_profiles.global_quantities.ip[1:2:end] / 1E6;
+        seriestype=:time,
+        color=:blue,
+        label="Ip  [MA]",
+        ylabel="Ip [MA]",
+        lw=2.0,
+        subplot
+    )
+    plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
     vline!([time0]; label="", subplot)
     plot!(
         twinx(),
-        dd.pulse_schedule.flux_control.time,
-        dd.pulse_schedule.flux_control.loop_voltage.reference * 1E3;
+        dd.core_profiles.time[1:2:end],
+        [IMAS.vloop(dd.core_profiles.profiles_1d[time], dd.equilibrium.time_slice[time]) for time in dd.core_profiles.time[1:2:end]] * 1E3;
+        seriestype=:time,
         color=:red,
         ylabel="Vloop [mV]",
         label="",
@@ -224,18 +233,18 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # core_profiles temperatures
     subplot = 3
-    plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" before", subplot, normalization=1E-3)
+    plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" initial", subplot, normalization=1E-3)
     plot!(dd.core_profiles.profiles_1d[time0]; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]")#, ylim=(0.0, 25.0))
 
     # core_profiles densities
     subplot = 4
-    plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" before", subplot)
+    plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" initial", subplot)
     plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
 
     # power scan
     subplot = 9
-    plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, subplot)
-    plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, subplot)
+    plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
+    plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="q", subplot)
 
     # core_sources
     subplot = 5
