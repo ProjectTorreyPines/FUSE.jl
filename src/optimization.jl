@@ -186,8 +186,8 @@ end
         act::ParametersAllActors,
         actor_or_workflow::Union{Type{<:AbstractActor},Function},
         x::AbstractVector,
-        objectives_functions::AbstractVector{<:ObjectiveFunction},
-        constraints_functions::AbstractVector{<:ConstraintFunction},
+        objective_functions::AbstractVector{<:ObjectiveFunction},
+        constraint_functions::AbstractVector{<:ConstraintFunction},
         save_folder::AbstractString,
         generation::Int,
         save_dd::Bool=true)
@@ -199,21 +199,21 @@ function optimization_engine(
     act::ParametersAllActors,
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     x::AbstractVector,
-    objectives_functions::AbstractVector{<:ObjectiveFunction},
-    constraints_functions::AbstractVector{<:ConstraintFunction},
+    objective_functions::AbstractVector{<:ObjectiveFunction},
+    constraint_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
     generation::Int,
     save_dd::Bool=true)
 
-    # update ini based on input optimization vector `x`
-    #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
-    parameters_from_opt!(ini, x)
-
-    # attempt to release memory
-    malloc_trim_if_glibc()
-
-    # run the problem
     try
+        # update ini based on input optimization vector `x`
+        #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
+        parameters_from_opt!(ini, x)
+
+        # attempt to release memory
+        malloc_trim_if_glibc()
+
+        # run the problem
         if typeof(actor_or_workflow) <: Function
             dd = actor_or_workflow(ini, act)
         else
@@ -221,13 +221,15 @@ function optimization_engine(
             actor = actor_or_workflow(dd, act)
             dd = actor.dd
         end
+
         # save simulation data to directory
         if !isempty(save_folder)
             savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
             save(savedir, save_dd ? dd : nothing, ini, act; timer=true, memtrace=true, freeze=true, overwrite_files=false)
         end
+
         # evaluate multiple objectives
-        result = collect(map(f -> nan2inf(f(dd)), objectives_functions)), collect(map(g -> nan2inf(g(dd)), constraints_functions)), Float64[]
+        result = collect(map(f -> nan2inf(f(dd)), objective_functions)), collect(map(g -> nan2inf(g(dd)), constraint_functions)), Float64[]
 
         return result
 
@@ -242,7 +244,7 @@ function optimization_engine(
             end
         end
         # rethrow(e) # uncomment for debugging purposes
-        result = Float64[Inf for f in objectives_functions], Float64[Inf for g in constraints_functions], Float64[]
+        result = Float64[Inf for f in objective_functions], Float64[Inf for g in constraint_functions], Float64[]
         # need to force garbage collection on dd (memory usage grows otherwise, this is a bug)
         return result
     end
@@ -253,14 +255,14 @@ function _optimization_engine(
     act::ParametersAllActors,
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     x::AbstractVector,
-    objectives_functions::AbstractVector{<:ObjectiveFunction},
-    constraints_functions::AbstractVector{<:ConstraintFunction},
+    objective_functions::AbstractVector{<:ObjectiveFunction},
+    constraint_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
     generation::Int,
     save_dd::Bool=true)
 
-    tmp = optimization_engine(ini,act, actor_or_workflow, x, objectives_functions,
-        constraints_functions, save_folder, generation, save_dd)
+    tmp = optimization_engine(ini,act, actor_or_workflow, x, objective_functions,
+        constraint_functions, save_folder, generation, save_dd)
     GC.gc()
     return tmp
 end
@@ -272,8 +274,8 @@ end
         act::ParametersAllActors,
         actor_or_workflow::Union{Type{<:AbstractActor},Function},
         X::AbstractMatrix,
-        objectives_functions::AbstractVector{<:ObjectiveFunction},
-        constraints_functions::AbstractVector{<:ConstraintFunction},
+        objective_functions::AbstractVector{<:ObjectiveFunction},
+        constraint_functions::AbstractVector{<:ConstraintFunction},
         save_folder::AbstractString,
         save_dd::Bool,
         p::ProgressMeter.Progress)
@@ -285,8 +287,8 @@ function optimization_engine(
     act::ParametersAllActors,
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     X::AbstractMatrix,
-    objectives_functions::AbstractVector{<:ObjectiveFunction},
-    constraints_functions::AbstractVector{<:ConstraintFunction},
+    objective_functions::AbstractVector{<:ObjectiveFunction},
+    constraint_functions::AbstractVector{<:ConstraintFunction},
     save_folder::AbstractString,
     save_dd::Bool,
     p::ProgressMeter.Progress)
@@ -294,7 +296,7 @@ function optimization_engine(
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(
-        x -> _optimization_engine(ini, act, actor_or_workflow, x, objectives_functions, constraints_functions, save_folder, p.counter, save_dd),
+        x -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter, save_dd),
         [X[k, :] for k in 1:size(X)[1]]
     )
     F = zeros(size(X)[1], length(tmp[1][1]))

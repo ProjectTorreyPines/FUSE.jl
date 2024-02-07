@@ -88,41 +88,51 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             # NB
             resize!(dd.pulse_schedule.nbi.unit, length(ini.nb_unit))
             for (k, ini_nbu) in enumerate(ini.nb_unit)
-                time, data = get_time_dependent(ini_nbu, :power_launched; simplify_time_traces)
+                time, data = get_time_dependent(ini_nbu, [:power_launched, :rho_0, :width]; simplify_time_traces)
                 dd.pulse_schedule.nbi.time = time
-                dd.pulse_schedule.nbi.unit[k].power.reference = data
+                dd.pulse_schedule.nbi.unit[k].power.reference = data.power_launched
+                dd.pulse_schedule.nbi.unit[k].deposition_rho_tor_norm.reference = data.rho_0
+                dd.pulse_schedule.nbi.unit[k].deposition_rho_tor_norm_width.reference = data.width
             end
 
             # EC
             resize!(dd.pulse_schedule.ec.beam, length(ini.ec_launcher))
             for (k, ini_ecb) in enumerate(ini.ec_launcher)
-                time, data = get_time_dependent(ini_ecb, :power_launched; simplify_time_traces)
+                time, data = get_time_dependent(ini_ecb, [:power_launched, :rho_0, :width]; simplify_time_traces)
                 dd.pulse_schedule.ec.time = time
-                dd.pulse_schedule.ec.beam[k].power_launched.reference = data
+                dd.pulse_schedule.ec.beam[k].power_launched.reference = data.power_launched
+                dd.pulse_schedule.ec.beam[k].deposition_rho_tor_norm.reference = data.rho_0
+                dd.pulse_schedule.ec.beam[k].deposition_rho_tor_norm_width.reference = data.width
             end
 
             # IC
             resize!(dd.pulse_schedule.ic.antenna, length(ini.ic_antenna))
             for (k, ini_ica) in enumerate(ini.ic_antenna)
-                time, data = get_time_dependent(ini_ica, :power_launched; simplify_time_traces)
+                time, data = get_time_dependent(ini_ica, [:power_launched, :rho_0, :width]; simplify_time_traces)
                 dd.pulse_schedule.ic.time = time
-                dd.pulse_schedule.ic.antenna[k].power.reference = data
+                dd.pulse_schedule.ic.antenna[k].power.reference = data.power_launched
+                dd.pulse_schedule.ic.antenna[k].deposition_rho_tor_norm.reference = data.rho_0
+                dd.pulse_schedule.ic.antenna[k].deposition_rho_tor_norm_width.reference = data.width
             end
 
             # LH
             resize!(dd.pulse_schedule.lh.antenna, length(ini.lh_antenna))
             for (k, ini_lha) in enumerate(ini.lh_antenna)
-                time, data = get_time_dependent(ini_lha, :power_launched; simplify_time_traces)
+                time, data = get_time_dependent(ini_lha, [:power_launched, :rho_0, :width]; simplify_time_traces)
                 dd.pulse_schedule.lh.time = time
-                dd.pulse_schedule.lh.antenna[k].power.reference = data
+                dd.pulse_schedule.lh.antenna[k].power.reference = data.power_launched
+                dd.pulse_schedule.lh.antenna[k].deposition_rho_tor_norm.reference = data.rho_0
+                dd.pulse_schedule.lh.antenna[k].deposition_rho_tor_norm_width.reference = data.width
             end
 
             # PL
             resize!(dd.pulse_schedule.pellet.launcher, length(ini.pellet_launcher))
             for (k, ini_peln) in enumerate(ini.pellet_launcher)
-                time, data = get_time_dependent(ini_peln, :frequency; simplify_time_traces)
+                time, data = get_time_dependent(ini_peln, [:frequency, :rho_0, :width]; simplify_time_traces)
                 dd.pulse_schedule.pellet.time = time
-                dd.pulse_schedule.pellet.launcher[k].frequency.reference = data
+                dd.pulse_schedule.pellet.launcher[k].frequency.reference = data.frequency
+                dd.pulse_schedule.pellet.launcher[k].deposition_rho_tor_norm.reference = data.rho_0
+                dd.pulse_schedule.pellet.launcher[k].deposition_rho_tor_norm_width.reference = data.width
             end
         end
 
@@ -136,7 +146,7 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
     value = getfield(par, field).value
 
     if typeof(value) <: Function
-        time = collect(SimulationParameters.top(par).time.pulse_shedule_time_basis)
+        time = collect(SimulationParameters.time_range(par))
         data = value.(time)
         if !(eltype(data) <: Number)
             data = Float64.(SimulationParameters.encode_array(data)[1])
@@ -149,6 +159,35 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
         data = [value, value, value]
     end
     return time, data
+end
+
+function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol}; simplify_time_traces::Float64)
+    all_times = Float64[]
+    for field in fields
+        time, data = get_time_dependent(par, field; simplify_time_traces)
+        append!(all_times, time)
+    end
+
+    all_times = sort!(unique(all_times))
+
+    return all_times, NamedTuple{Tuple(fields)}([get_time_dependent(par, field, all_times) for field in fields])
+end
+
+function get_time_dependent(par::AbstractParameters, field::Symbol, all_times::Vector{Float64})
+    value = getfield(par, field).value
+
+    if typeof(value) <: Function
+        time = collect(SimulationParameters.time_range(par))
+        data = value.(time)
+        if !(eltype(data) <: Number)
+            data = Float64.(SimulationParameters.encode_array(data)[1])
+        end
+        all_data = IMAS.interp1d(time, data).(all_times)
+    else
+        all_data = fill(value, size(all_times))
+    end
+
+    return all_data
 end
 
 """
