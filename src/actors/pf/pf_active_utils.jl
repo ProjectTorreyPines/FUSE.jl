@@ -61,6 +61,10 @@ function Base.getproperty(coil::GS_IMAS_pf_active__coil{T}, field::Symbol) where
     elseif field == :current
         # IMAS uses current per turn, GS_IMAS_pf_active__coil uses total current
         value = IMAS.get_time_array(pfcoil.current, :data, getfield(coil, :time0)) .* getproperty(pfcoil.element[1], :turns_with_sign, 1.0)
+    elseif field == :resistance
+        value = getfield(pfcoil, field)
+    elseif field == :turns
+        value = Int(abs(getproperty(pfcoil.element[1], :turns_with_sign, 1.0)))
     else
         value = getfield(coil, field)
     end
@@ -75,6 +79,11 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value::
         return IMAS.set_time_array(pfcoil.current, :data, getfield(coil, :time0), value)
     elseif field ∈ (:r, :z, :width, :height)
         return setfield!(pfcoil.element[1].geometry.rectangle, field, value)
+    elseif field == :resistance
+        setfield!(pfcoil, field, value)
+    elseif field == :turns
+        val = abs(value) * sign(getproperty(pfcoil.element[1], :turns_with_sign, 1.0))
+        setfield!(pfcoil.element[1], :turns_with_sign, val)
     else
         setfield!(coil, field, value)
     end
@@ -86,44 +95,116 @@ end
 
 Calculates coil green function at given R and Z coordinate
 """
-function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
     return _gfunc(VacuumFields.Green, coil, R, Z)
 end
 
-function VacuumFields.dG_dR(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.dG_dR(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
     return _gfunc(VacuumFields.dG_dR, coil, R, Z)
 end
 
-function VacuumFields.dG_dZ(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.dG_dZ(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
     return _gfunc(VacuumFields.dG_dZ, coil, R, Z)
 end
 
-function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; xorder::Int=3, yorder::Int=3)
     green_model = getfield(coil, :green_model)
     if green_model == :point # fastest
-        return Gfunc(coil.r, coil.z, R, Z, 1.0)
+        return Gfunc(coil.r, coil.z, R, Z, scale_factor)
 
     elseif green_model ∈ (:corners, :simple) # medium
         if IMAS.is_ohmic_coil(imas(coil)) # OH
             n_filaments = max(Int(ceil((coil.height / coil.r) * 2)), 3) # at least 3 filaments, but possibly more as plasma gets closer to the OH
             z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
-            return sum(Gfunc(coil.r, z, R, Z, 1.0 / n_filaments) for z in z_filaments)
+            return sum(Gfunc(coil.r, z, R, Z, scale_factor) for z in z_filaments) / n_filaments
 
         elseif green_model == :simple # PF like point
-            return Gfunc(coil.r, coil.z, R, Z, 1.0)
+            return Gfunc(coil.r, coil.z, R, Z, scale_factor)
 
         elseif green_model == :corners # PF with filaments at corners
+            #??? What's up with this versus :realistic
             return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, 0.25)
 
         end
 
     elseif green_model == :realistic # high-fidelity
-        return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+        return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.current), R, Z, scale_factor; xorder, yorder)
 
     else
         error("$(typeof(coil)) green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
     end
 end
+
+
+# Mutual inductance
+
+function VacuumFields.mutual(C1::VacuumFields.AbstractCoil, C2::GS_IMAS_pf_active__coil; xorder::Int=3, yorder::Int=3)
+
+    green_model = getfield(C2, :green_model)
+    if green_model == :point # fastest
+        PC = VacuumFields.PointCoil(C2.r, C2.z; C2.turns)
+        return VacuumFields.mutual(C1, C2)
+
+    elseif green_model ∈ (:corners, :simple) # medium
+        if IMAS.is_ohmic_coil(imas(C2)) # OH
+            n_filaments = max(Int(ceil((C2.height / C2.r) * 2)), 3) # at least 3 filaments, but possibly more as plasma gets closer to the OH
+            z_filaments = range(C2.z - (C2.height - C2.width / 2.0) / 2.0, C2.z + (C2.height - C2.width / 2.0) / 2.0; length=n_filaments)
+            return C2.turns * sum(VacuumFields.mutual(C1, VacuumFields.PointCoil(C2.r, z; turns=1)) for z in z_filaments) / n_filaments
+
+        elseif green_model == :simple # PF like point
+            PC = VacuumFields.PointCoil(C2.r, C2.z; C2.turns)
+            return VacuumFields.mutual(C1, PC)
+
+        elseif green_model == :corners # PF with filaments at corners
+            #??? What's up with this versus :realistic
+            PC = VacuumFields.ParallelogramCoil(C2.r, C2.z, C2.width / 2.0, C2.height / 2.0, 0.0, 90.0; C2.turns)
+            return VacuumFields.mutual(C1, PC; xorder, yorder)
+        end
+
+    elseif green_model == :realistic # high-fidelity
+        PC = VacuumFields.ParallelogramCoil(C2.r, C2.z, C2.width, C2.height, 0.0, 90.0; C2.turns)
+        return VacuumFields.mutual(C1, PC; xorder, yorder)
+
+    else
+        error("$(typeof(C2)) green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
+    end
+end
+
+
+function VacuumFields._pfunc(Pfunc, image::VacuumFields.Image, C::GS_IMAS_pf_active__coil, δZ;
+                COCOS::MXHEquilibrium.COCOS=MXHEquilibrium.cocos(11),
+                xorder::Int=3, yorder::Int=3)
+
+    green_model = getfield(C, :green_model)
+    if green_model == :point # fastest
+        PC = VacuumFields.PointCoil(C.r, C.z; C.turns)
+        return VacuumFields._pfunc(Pfunc, image, PC, δZ; COCOS)
+
+    elseif green_model ∈ (:corners, :simple) # medium
+        if IMAS.is_ohmic_coil(imas(C)) # OH
+            n_filaments = max(Int(ceil((C.height / C.r) * 2)), 3) # at least 3 filaments, but possibly more as plasma gets closer to the OH
+            z_filaments = range(C.z - (C.height - C.width / 2.0) / 2.0, C.z + (C.height - C.width / 2.0) / 2.0; length=n_filaments)
+            return sum(VacuumFields._pfunc(Pfunc, image, VacuumFields.PointCoil(C.r, z; turns=1), δZ; COCOS) for z in z_filaments) / n_filaments
+
+        elseif green_model == :simple # PF like point
+            PC = VacuumFields.PointCoil(C.r, C.z; C.turns)
+            return VacuumFields._pfunc(Pfunc, image, PC, δZ; COCOS)
+
+        elseif green_model == :corners # PF with filaments at corners
+            #??? What's up with this versus :realistic
+            PC = VacuumFields.ParallelogramCoil(C.r, C.z, C.width / 2.0, C.height / 2.0, 0.0, 90.0; C.turns)
+            return VacuumFields._pfunc(Pfunc, image, PC, δZ; COCOS, xorder, yorder)
+        end
+
+    elseif green_model == :realistic # high-fidelity
+        PC = VacuumFields.ParallelogramCoil(C.r, C.z, C.width, C.height, 0.0, 90.0; C.turns)
+        return VacuumFields._pfunc(Pfunc, image, PC, δZ; COCOS, xorder, yorder)
+
+    else
+        error("$(typeof(C)) green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
+    end
+end
+
 
 """
     encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
