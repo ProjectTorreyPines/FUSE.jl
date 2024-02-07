@@ -59,7 +59,7 @@ function _step(actor::ActorVerticalStability)
     image = VacuumFields.Image(dd)
 
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
-    actor.normalized_growth_rate = 0.0 #VacuumFields.normalized_growth_rate(image, coils, Ip)
+    _, _, actor.normalized_growth_rate = VacuumFields.normalized_growth_rate(image, coils, Ip)
     return actor
 end
 
