@@ -1,3 +1,6 @@
+import AbstractTrees
+import Jedis
+
 abstract type AbstractActor{D,P} end
 abstract type FacilityAbstractActor{D,P} <: AbstractActor{D,P} end
 abstract type ReactorAbstractActor{D,P} <: AbstractActor{D,P} end
@@ -65,25 +68,23 @@ Calls `_step(actor)`
 This is where the main part of the actor calculation gets done
 """
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
-    timer_name = name(actor)
-    TimerOutputs.reset_timer!(timer_name)
-    TimerOutputs.@timeit timer timer_name begin
-        global_time(actor.par, global_time(actor.dd)) # syncrhonize global_time of `par` with the one of `dd`
-        if !actor_logging(actor.dd)
-            _step(actor, args...; kw...)::T
-        else
-            memory_time_tag("$(name(actor)) - @step IN")
+    global_time(actor.par, global_time(actor.dd)) # syncrhonize global_time of `par` with the one of `dd`
+    if !actor_logging(actor.dd)
+        _step(actor, args...; kw...)::T
+    else
+        timer_name = name(actor)
+        TimerOutputs.reset_timer!(timer_name)
+        TimerOutputs.@timeit timer timer_name begin
+            memory_time_tag(actor, "step IN")
             logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
             enter_workflow(actor)
             try
                 s_actor = _step(actor, args...; kw...)
                 @assert s_actor === actor "`$(typeof(T))._step(actor)` should return the same actor that is input to the function"
-            catch e
-                rethrow(e)
             finally
                 exit_workflow(actor)
             end
-            memory_time_tag("$(name(actor)) - @step OUT")
+            memory_time_tag(actor, "step OUT")
         end
     end
     return actor
@@ -104,16 +105,16 @@ Calls `_finalize(actor)`
 This is typically used to update `dd` to whatever the actor has calculated at the `step` function
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
-    timer_name = name(actor)
-    TimerOutputs.@timeit timer timer_name begin
-        if !actor_logging(actor.dd)
-            _finalize_and_freeze_onetime_expressions(actor)::T
-        else
-            memory_time_tag("$(name(actor)) - finalize IN")
+    if !actor_logging(actor.dd)
+        _finalize_and_freeze_onetime_expressions(actor)::T
+    else
+        timer_name = name(actor)
+        TimerOutputs.@timeit timer timer_name begin
+            memory_time_tag(actor, "finalize IN")
             logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
             f_actor = _finalize_and_freeze_onetime_expressions(actor)
             @assert f_actor === actor "`$(typeof(T))._finalize(actor)` should return the same actor that is input to the function"
-            memory_time_tag("$(name(actor)) - finalize OUT")
+            memory_time_tag(actor, "finalize OUT")
         end
     end
     return actor
@@ -158,7 +159,7 @@ end
 #  show  #
 #= ==== =#
 function Base.show(io::IO, actor::AbstractActor)
-    actorname = replace(string(typeof(actor)), "{Float64, Float64}" => "", r"^FUSE."=>"")
+    actorname = replace(string(typeof(actor)), "{Float64, Float64}" => "", r"^FUSE." => "")
     fields = join([fieldname for fieldname in fieldnames(typeof(actor))], ", ")
     return print(io, "$actorname($fields)")
 end
@@ -166,8 +167,6 @@ end
 #= ======== =#
 #  workflow  #
 #= ======== =#
-import AbstractTrees
-
 mutable struct Workflow
     _name::String
     _flow::OrderedCollections.OrderedDict{Tuple,Workflow}
