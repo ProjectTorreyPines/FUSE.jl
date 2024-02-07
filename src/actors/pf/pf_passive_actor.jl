@@ -128,15 +128,15 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     R0 = (maximum(pr) + minimum(pr)) * 0.5
     Z0 = (maximum(pz) + minimum(pz)) * 0.5
     indexes, crossings = IMAS.intersection(pr, pz, [0.0, R0], [Z0, Z0])
-    pr = [pr[1:indexes[1][1]]; crossings[1][1]; pr[indexes[1][1]+1:end]]
-    pz = [pz[1:indexes[1][1]]; crossings[1][2]; pz[indexes[1][1]+1:end]]
+    @views pr = [pr[1:indexes[1][1]]; crossings[1][1]; pr[indexes[1][1]+1:end]]
+    @views pz = [pz[1:indexes[1][1]]; crossings[1][2]; pz[indexes[1][1]+1:end]]
     istart = indexes[1][1] + 1
     IMAS.reorder_flux_surface!(pr, pz, istart; force_close=true)
 
     # simplify surface polygon
-    R1, Z1 = IMAS.rdp_simplify_2d_path(pr[1:end-1], pz[1:end-1], precision)
-    R1 = R1[2:end]
-    Z1 = Z1[2:end]
+    @views R1, Z1 = IMAS.rdp_simplify_2d_path(pr[1:end-1], pz[1:end-1], precision)
+    @views R1 = R1[2:end]
+    @views Z1 = Z1[2:end]
 
     # split long segments
     R1, Z1 = IMAS.split_long_segments(R1, Z1, max_seg_length)
@@ -166,16 +166,17 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     end
 
     # define quads
-    quads = []
-    for ka in eachindex(qR1)
-        kb = IMAS.getindex_circular(1:length(qR1), ka + 1)
-        rr = [qR1[ka], qR1[kb], qR2[kb], qR2[ka]]
-        zz = [qZ1[ka], qZ1[kb], qZ2[kb], qZ2[ka]]
-        RC = sum(rr) * 0.25
-        ZC = sum(zz) * 0.25
-        index = sortperm(atan.(zz .- ZC, rr .- RC))
-        push!(quads, (rr[index], zz[index]))
-    end
+    quads = [define_quad(ka, qR1, qR2, qZ1, qZ2) for ka in eachindex(qR1)]
 
     return quads
+end
+
+function define_quad(ka, qR1, qR2, qZ1, qZ2)
+    kb = IMAS.getindex_circular(1:length(qR1), ka + 1)
+    rr = @SVector[qR1[ka], qR1[kb], qR2[kb], qR2[ka]]
+    zz = @SVector[qZ1[ka], qZ1[kb], qZ2[kb], qZ2[ka]]
+    RC = sum(rr) * 0.25
+    ZC = sum(zz) * 0.25
+    index = sortperm(atan.(zz .- ZC, rr .- RC))
+    return (rr[index], zz[index])
 end

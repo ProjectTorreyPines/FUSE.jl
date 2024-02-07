@@ -9,6 +9,7 @@ using Printf
 using InteractiveUtils
 import SnoopPrecompile
 import LinearAlgebra
+using StaticArrays
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
