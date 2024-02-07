@@ -46,6 +46,9 @@ end
 # ====== #
 # Memory #
 # ====== #
+# NOTE: Memory tracking is disabled by default, since it has a performance hit
+#       To enable, do: export FUSE_MEMTRACE=true"
+#
 Base.@kwdef struct MemTrace
     data::Vector{Tuple{Dates.DateTime,String,Int}} = Tuple{Dates.DateTime,String,Int}[]
 end
@@ -54,6 +57,13 @@ const memtrace = MemTrace()
 
 function memory_time_tag(txt::String)
     return push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
+end
+
+function memory_time_tag(actor::AbstractActor, msg::String)
+    if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
+        txt = "$(name(actor)) - @$msg"
+        return push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
+    end
 end
 
 """
@@ -116,6 +126,11 @@ A plot with the following characteristics:
     end
 end
 
+"""
+    get_julia_process_memory_usage()
+
+Returns memory used by current julia process
+"""
 function get_julia_process_memory_usage()
     pid = getpid()
     mem_info = read(`ps -p $pid -o rss=`, String)
