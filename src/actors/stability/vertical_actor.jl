@@ -50,16 +50,37 @@ function _step(actor::ActorVerticalStability)
     eqt = dd.equilibrium.time_slice[]
     Ip = eqt.global_quantities.ip
     active_coils = IMAS_pf_active__coils(dd; green_model=:realistic)
+
+    # Defaults
+    actor.stability_margin, actor.normalized_growth_rate = NaN, NaN
+
+    if all(coil.current == 0.0 for coil in active_coils)
+        @warn "Active coils have no current. Can't compute vertical stability metrics"
+        return actor
+    end
+
     quads = wall_quads(bd, par.wall_precision, par.wall_max_seg_length)
     passive_coils =  [VacuumFields.QuadCoil(R, Z) for (R, Z) in quads]
     coils = vcat(active_coils, passive_coils)
-    for coil in coils
-        coil.resistance = 1.0
-    end
     image = VacuumFields.Image(dd)
 
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
+
+    for (k, coil) in enumerate(active_coils)
+        if coil.resistance <= 0.0
+            @warn "Active coil #$(k) has invalid resistance: $(coil.resistance). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
+            return actor
+        end
+    end
+    for (k, coil) in enumerate(passive_coils)
+        if coil.resistance <= 0.0
+            @warn "Passive coil #$(k) has invalid resistance: $(coil.resistance). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
+            return actor
+        end
+    end
+
     _, _, actor.normalized_growth_rate = VacuumFields.normalized_growth_rate(image, coils, Ip)
+
     return actor
 end
 
