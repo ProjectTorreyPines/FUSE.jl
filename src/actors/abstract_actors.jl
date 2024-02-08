@@ -1,5 +1,4 @@
 import AbstractTrees
-import Jedis
 
 abstract type AbstractActor{D,P} end
 abstract type FacilityAbstractActor{D,P} <: AbstractActor{D,P} end

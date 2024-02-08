@@ -27,7 +27,6 @@ const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
 #  UTILS  #
 #= ===== =#
 include("utils_begin.jl")
-include("pubsub.jl")
 
 #= =================== =#
 #  ABSTRACT PARAMETERS  #
