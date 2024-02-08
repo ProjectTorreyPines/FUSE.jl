@@ -72,7 +72,11 @@ end
 function _step(actor::ActorDynamicPlasma)
     dd = actor.dd
     par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
 
+    ip_controller = true
+
+    # time constants
     δt = par.Δt / par.Nt
     t0 = dd.global_time
     t1 = t0 + par.Δt
@@ -81,10 +85,13 @@ function _step(actor::ActorDynamicPlasma)
     actor.actor_jt.jt_actor.par.Δt = δt
 
     # setup things for Ip control
-    ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
-    cp1d = dd.core_profiles.profiles_1d[]
-    η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
-    merge!(ctrl_ip, IMAS.controllers__linear_controller(η_avg * 2.0, η_avg * 0.5, 0.0))
+    if ip_controller
+        η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
+        ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
+        IMAS.pid_controller(ctrl_ip, η_avg * 5.0, η_avg * 0.5, 0.0)
+        actor.actor_jt.jt_actor.par.solve_for = :vloop
+        actor.actor_jt.jt_actor.par.vloop_from = :controllers__ip
+    end
 
     prog = ProgressMeter.Progress(par.Nt * 9; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
@@ -115,8 +122,8 @@ function _step(actor::ActorDynamicPlasma)
             else
                 # evolve j_ohmic
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
-                if actor.actor_jt.jt_actor.par.solve_for == :vloop
-                    controller(dd, ctrl_ip, Val{:ip})
+                if ip_controller
+                    controller(dd, Val{:ip})
                 end
                 if par.evolve_current
                     finalize(step(actor.actor_jt))
@@ -141,8 +148,6 @@ function _step(actor::ActorDynamicPlasma)
                 finalize(step(actor.actor_pf))
             end
         end
-    catch e
-        rethrow(e)
     finally
         actor_logging(dd, old_logging)
     end
@@ -212,10 +217,11 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     )
     plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
     vline!([time0]; label="", subplot)
+    time, data = IMAS.vloop_time(dd.controllers)
     plot!(
         twinx(),
-        dd.core_profiles.time[1:2:end],
-        [IMAS.vloop(dd.core_profiles.profiles_1d[time], dd.equilibrium.time_slice[time]) for time in dd.core_profiles.time[1:2:end]] * 1E3;
+        time,
+        data .* 1E3;
         seriestype=:time,
         color=:red,
         ylabel="Vloop [mV]",
