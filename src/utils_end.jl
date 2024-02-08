@@ -234,7 +234,6 @@ function save(
     e::Union{Nothing,Exception}=nothing;
     timer::Bool=true,
     varinfo::Bool=false,
-    memtrace::Bool=false,
     freeze::Bool=true,
     format::Symbol=:json,
     overwrite_files::Bool=true)
@@ -269,7 +268,7 @@ function save(
     end
 
     # save memory trace
-    if memtrace
+    if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
         save(FUSE.memtrace, joinpath(savedir, "memtrace.txt"))
     end
 
