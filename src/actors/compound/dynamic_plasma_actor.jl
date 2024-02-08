@@ -16,6 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T} <: ParametersAc
     evolve_current::Entry{Bool} = Entry{Bool}("-", "Evolve the plasma current"; default=true)
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=true)
+    ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
@@ -74,8 +75,6 @@ function _step(actor::ActorDynamicPlasma)
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
-    ip_controller = true
-
     # time constants
     δt = par.Δt / par.Nt
     t0 = dd.global_time
@@ -85,7 +84,7 @@ function _step(actor::ActorDynamicPlasma)
     actor.actor_jt.jt_actor.par.Δt = δt
 
     # setup things for Ip control
-    if ip_controller
+    if par.ip_controller
         η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
         IMAS.pid_controller(ctrl_ip, η_avg * 5.0, η_avg * 0.5, 0.0)
@@ -122,7 +121,7 @@ function _step(actor::ActorDynamicPlasma)
             else
                 # evolve j_ohmic
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
-                if ip_controller
+                if par.ip_controller
                     controller(dd, Val{:ip})
                 end
                 if par.evolve_current
@@ -215,20 +214,22 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         lw=2.0,
         subplot
     )
-    plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
-    vline!([time0]; label="", subplot)
-    time, data = IMAS.vloop_time(dd.controllers)
-    plot!(
-        twinx(),
-        time,
-        data .* 1E3;
-        seriestype=:time,
-        color=:red,
-        ylabel="Vloop [mV]",
-        label="",
-        lw=2.0,
-        subplot
-    )
+    if IMAS.controller(dd.controllers, "ip") !== nothing
+        plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
+        vline!([time0]; label="", subplot)
+        time, data = IMAS.vloop_time(dd.controllers)
+        plot!(
+            twinx(),
+            time,
+            data .* 1E3;
+            seriestype=:time,
+            color=:red,
+            ylabel="Vloop [mV]",
+            label="",
+            lw=2.0,
+            subplot
+        )
+    end
 
     # equilibrium, build, and pf_active
     subplot = 2

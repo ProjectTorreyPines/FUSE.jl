@@ -31,7 +31,7 @@ function switch_get_from(quantity::Symbol)::Switch{Symbol}
     if quantity == :ip
         swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
     elseif quantity == :vloop
-        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt)
     elseif quantity == :βn
         swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt)
     else
