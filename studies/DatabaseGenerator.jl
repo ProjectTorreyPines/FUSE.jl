@@ -118,8 +118,6 @@ function run_case(study::AbstractStudy, item::String)
 
     try
         workflow_DatabaseGenerator(dd, act)
-        display(plot(dd.core_transport))
-
         if sty.keep_output_dd
             IMAS.imas2json(dd, joinpath(sty.save_folder, "result_dd_$(item).json"))
             if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
