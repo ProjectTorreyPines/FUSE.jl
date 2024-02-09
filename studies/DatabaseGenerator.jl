@@ -1,16 +1,18 @@
-#= =========== =#
-#  StudyITERdb  #
-#= =========== =#
+#= ====================== =#
+#  StudyDatabaseGenerator  #
+#= ====================== =#
 
 """
-study_parameters(::Type{Val{:ITERdb}})::Tuple{FUSEparameters__ParametersStudyITERdb,ParametersAllActors}
-"""
-function study_parameters(::Type{Val{:ITERdb}})::Tuple{FUSEparameters__ParametersStudyITERdb,ParametersAllActors}
+    study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
-    sty = FUSEparameters__ParametersStudyITERdb{Real}()
+Generates a database of dds from ini and act based on ranges specified in ini
+"""
+function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
+
+    sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
     act = ParametersActors()
 
-    # Change act for the default ITERdb run
+    # Change act for the default DatabaseGenerator run
     act.ActorCoreTransport.model = :FluxMatcher
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorTGLF.warn_nn_train_bounds = false
@@ -24,9 +26,9 @@ function study_parameters(::Type{Val{:ITERdb}})::Tuple{FUSEparameters__Parameter
     return sty, act
 end
 
-Base.@kwdef mutable struct FUSEparameters__ParametersStudyITERdb{T} <: ParametersStudy where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T} <: ParametersStudy where {T<:Real}
     _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :StudyITERdb
+    _name::Symbol = :StudyDatabaseGenerator
     server::Switch{String} = study_common_parameters(; server="localhost")
     n_workers::Entry{Int} = study_common_parameters(; n_workers=missing)
     file_save_mode::Switch{Symbol} = study_common_parameters(; file_save_mode=:safe_write)
@@ -36,26 +38,26 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyITERdb{T} <: Parameter
     n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled ITER simulations")
 end
 
-mutable struct StudyITERdb <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyITERdb
+mutable struct StudyDatabaseGenerator <: AbstractStudy
+    sty::FUSEparameters__ParametersStudyDatabaseGenerator
     ini::ParametersAllInits
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
     iterator::Union{Vector{String},Missing}
 end
 
-function StudyITERdb_summary_dataframe()
+function StudyDatabaseGenerator_summary_dataframe()
     return DataFrame(;
         ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
 end
 
-function StudyITERdb(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
+function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = sty(kw...)
-    study = StudyITERdb(sty, ini, act, missing, missing)
+    study = StudyDatabaseGenerator(sty, ini, act, missing, missing)
     return setup(study)
 end
 
-function _setup(study::StudyITERdb)
+function _setup(study::StudyDatabaseGenerator)
     sty = study.sty
 
     check_and_create_file_save_mode(sty)
@@ -66,14 +68,14 @@ function _setup(study::StudyITERdb)
     return study
 end
 
-function _run(study::StudyITERdb)
+function _run(study::StudyDatabaseGenerator)
     sty = study.sty
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
     iterator = map(string, 1:sty.n_simulations)
     study.iterator = iterator
-    study.dataframes_dict = Dict("outputs_summary" => StudyITERdb_summary_dataframe() for name in study.iterator)
+    study.dataframes_dict = Dict("outputs_summary" => StudyDatabaseGenerator_summary_dataframe() for name in study.iterator)
 
     println("running $(length(iterator)) ITER simulations with $(sty.n_workers) workers on $(sty.server)")
 
@@ -98,7 +100,7 @@ function _run(study::StudyITERdb)
     return study
 end
 
-function _analyze(study::StudyITERdb)
+function _analyze(study::StudyDatabaseGenerator)
     display(histogram(study.dataframes_dict["outputs_summary"].Te0; xlabel="Te0 [eV]"))
     display(histogram(study.dataframes_dict["outputs_summary"].Ti0; xlabel="Ti0 [eV]"))
     display(histogram(study.dataframes_dict["outputs_summary"].ne0; xlabel="ne0 [m⁻³]]"))
@@ -115,7 +117,7 @@ function run_case(study::AbstractStudy, item::String)
     dd = init(ini, act)
 
     try
-        workflow_ITERdb(dd, act)
+        workflow_DatabaseGenerator(dd, act)
         display(plot(dd.core_transport))
 
         if sty.keep_output_dd
@@ -125,7 +127,7 @@ function run_case(study::AbstractStudy, item::String)
             end
         end
 
-        return create_data_frame_row_ITERdb(dd)
+        return create_data_frame_row_DatabaseGenerator(dd)
     catch e
         open("$(sty.save_folder)/error_$(item).txt", "w") do file
             return showerror(file, e, catch_backtrace())
@@ -134,7 +136,7 @@ function run_case(study::AbstractStudy, item::String)
 end
 
 
-function workflow_ITERdb(dd::IMAS.dd, act::ParametersAllActors)
+function workflow_DatabaseGenerator(dd::IMAS.dd, act::ParametersAllActors)
     # Actors to run on the input dd
     actor_statplasma = ActorStationaryPlasma(dd, act)
     # whatever other actors you want to run can go here
@@ -142,7 +144,7 @@ function workflow_ITERdb(dd::IMAS.dd, act::ParametersAllActors)
     return actor_statplasma
 end
 
-function create_data_frame_row_ITERdb(dd::IMAS.dd)
+function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
     cp1d = dd.core_profiles.profiles_1d[]
     return (
         ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.ion[1].temperature[1], zeff=cp1d.zeff[1])
