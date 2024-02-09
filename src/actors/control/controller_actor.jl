@@ -9,7 +9,7 @@ function controller(dd::IMAS.dd, ::Type{Val{:ip}})
 
     # the output of the controller is stored in ctrl_ip.outputs.data
     ctrl_ip = IMAS.controller(dd.controllers, "ip")
-    vloop_now = ctrl_ip(ip_target_now, ip_value_now, dd.global_time)
+    ctrl_ip(ip_target_now, ip_value_now, dd.global_time)
 
     # eventually we should also update pf_active
 end
