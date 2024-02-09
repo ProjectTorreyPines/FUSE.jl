@@ -4,7 +4,6 @@ using LaTeXStrings
 #= ================= =#
 
 """
-FUSEparameters__ActorFluxMatcher
 study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
 """
 function study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
@@ -179,7 +178,9 @@ function run_case(filename, study, lock, item)
         if sty.keep_output_dd
             IMAS.imas2json(dd, joinpath(output_case, "result_dd_$(item).json"))
             save_inputtglfs(actor_transport, output_case, name, item)
-            save(FUSE.memtrace, joinpath(output_case, "memtrace.txt"))
+            if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
+                save(FUSE.memtrace, joinpath(output_case, "memtrace.txt"))
+            end
         end
 
         return create_data_frame_row(dd, exp_values)
