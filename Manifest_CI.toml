@@ -1911,9 +1911,9 @@ version = "0.2.4"
 
 [[deps.PreallocationTools]]
 deps = ["Adapt", "ArrayInterface", "ForwardDiff"]
-git-tree-sha1 = "9d6e62d1ea6ab709142b42d3be4bd1db495bc4e0"
+git-tree-sha1 = "e5c09a13d66652fa62b39db3f8997a57f421fa69"
 uuid = "d236fae5-4411-538c-8e31-a6e3d9e00b46"
-version = "0.4.18"
+version = "0.4.19"
 
     [deps.PreallocationTools.extensions]
     PreallocationToolsReverseDiffExt = "ReverseDiff"
@@ -2148,9 +2148,9 @@ version = "0.6.42"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FillArrays", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "Printf", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables", "TruncatedStacktraces"]
-git-tree-sha1 = "fe886daed83db8f4881ff7b6ef10853055fa8b4b"
+git-tree-sha1 = "850d187a1123683aa7e593d474155e132584fb78"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.23.2"
+version = "2.24.0"
 
     [deps.SciMLBase.extensions]
     SciMLBaseChainRulesCoreExt = "ChainRulesCore"
