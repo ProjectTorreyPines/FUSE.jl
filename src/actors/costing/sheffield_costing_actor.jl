@@ -295,7 +295,7 @@ function cost_direct_capital_Sheffield(::Type{Val{:blanket}}, cap::Bool, dd::IMA
         cst = dd.costing
         blankets = IMAS.get_build_layers(bd.layer; type=IMAS._blanket_, fs=_lfs_)
         for blanket in blankets
-            blanket_capital_cost = 1.1 * blanket.volume * unit_cost(blanket.material, cst)
+            blanket_capital_cost = 1.1 * blanket.volume * unit_cost(Material(blanket.material; temperature = 773), cst)
             cost += 1.1 * blanket_capital_cost
         end
     end
@@ -344,7 +344,7 @@ function cost_fuel_Sheffield(
     cost = 0.0
     if !isempty(blankets)
         for blanket in blankets
-            initial_cost_blanket = 1.1 * blanket.volume * unit_cost(Material(blanket.material), cst)
+            initial_cost_blanket = 1.1 * blanket.volume * unit_cost(Material(blanket.material; temperature = 773), cst)
 
             if cap
                 blanket_capital_cost = 0.0
