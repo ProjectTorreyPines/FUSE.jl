@@ -59,9 +59,26 @@ function _step(actor::ActorVerticalStability)
         return actor
     end
 
-    quads = wall_quads(bd, par.wall_precision, par.wall_max_seg_length)
+    # The vacuum vessel can have multiple layers
+    # Find all the bounding ones and turn the area in between into quads
+    kin = findfirst(layer -> occursin("lfs vacuum vessel", layer.name), bd.layer) - 1
+    kout = findlast(layer -> occursin("lfs vacuum vessel", layer.name), bd.layer)
+    quads = layer_quads(bd.layer[kin], bd.layer[kout], par.wall_precision, par.wall_max_seg_length)
+
     passive_coils =  [VacuumFields.QuadCoil(R, Z) for (R, Z) in quads]
+
+    # Compute resistance based on material resistivity & geometry of coil
+    # N.B.: this just takes the material from the outermost build layer;
+    #       does not account for toroidal breaks, heterogeneous materials,
+    #          or builds with "water" vacuum vessels
+    eta = 1.0 / Material(bd.layer[kout].material).electrical_conductivity
+    if !ismissing(eta)
+        for coil in passive_coils
+            coil.resistance = VacuumFields.resistance(coil, eta)
+        end
+    end
     coils = vcat(active_coils, passive_coils)
+
     image = VacuumFields.Image(dd)
 
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
