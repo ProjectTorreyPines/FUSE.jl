@@ -25,8 +25,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
@@ -499,11 +499,30 @@ function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.co
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
     end
-    return evolve_densities_dict_creation([:electrons], dd_fast, dd_thermal; quasi_neutrality_specie)
+    return evolve_densities_dict_creation([:electrons]; fixed_species=dd_fast, match_ne_scale_species=dd_thermal, quasi_neutrality_specie)
 end
 
 function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
     return setup_density_evolution_electron_flux_match_rest_ne_scale(dd.core_profiles.profiles_1d[])
+end
+
+"""
+    setup_density_evolution_electron_flux_match_impurities_fixed(cp1d::IMAS.core_profiles__profiles_1d)
+
+Sets up the evolve_density dict to evolve only ne, quasi_neutrality on main ion (:D or :DT) and fix the rest
+"""
+function setup_density_evolution_electron_flux_match_impurities_fixed(cp1d::IMAS.core_profiles__profiles_1d)
+    dd_thermal = [item[2] for item in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
+    dd_fast = [item[2] for item in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
+    quasi_neutrality_specie = :D
+    if :DT ∈ dd_thermal
+        quasi_neutrality_specie = :DT
+    end
+    return evolve_densities_dict_creation([:electrons]; fixed_species=[dd_thermal..., dd_fast...], quasi_neutrality_specie)
+end
+
+function setup_density_evolution_electron_flux_match_impurities_fixed(dd::IMAS.dd)
+    return setup_density_evolution_electron_flux_match_impurities_fixed(dd.core_profiles.profiles_1d[])
 end
 
 
@@ -513,8 +532,8 @@ end
 Sets up the evolve_density dict to keep all species fixed
 """
 function setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
-    s = [item[2] for item in IMAS.species(cp1d)]
-    return evolve_densities_dict_creation(Symbol[], s, Symbol[]; quasi_neutrality_specie=false)
+    all_species = [item[2] for item in IMAS.species(cp1d)]
+    return evolve_densities_dict_creation(Symbol[]; fixed_species=all_species, quasi_neutrality_specie=false)
 end
 
 """
@@ -522,7 +541,12 @@ end
 
 Create the density_evolution dict based on input vectors: flux_match_species, fixed_species, match_ne_scale_species, quasi_neutrality_specie
 """
-function evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector; quasi_neutrality_specie::Union{Symbol,Bool}=false)
+function evolve_densities_dict_creation(
+    flux_match_species::Vector;
+    fixed_species::Vector{Symbol}=Symbol[],
+    match_ne_scale_species::Vector{Symbol}=Symbol[],
+    quasi_neutrality_specie::Union{Symbol,Bool}=false
+)
     parse_list = vcat([[sym, :flux_match] for sym in flux_match_species], [[sym, :match_ne_scale] for sym in match_ne_scale_species], [[sym, :fixed] for sym in fixed_species])
     if isa(quasi_neutrality_specie, Symbol)
         parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])

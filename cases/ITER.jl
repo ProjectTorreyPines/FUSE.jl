@@ -8,7 +8,7 @@ Arguments:
   - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
 function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1, n_pl=1)
+    ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1, n_lh=1, n_pl=1)
     act = ParametersActors()
 
     # checking init_from and boundary_from
@@ -54,9 +54,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     end
     act.ActorEquilibrium.model = :TEQUILA
 
-    ini.equilibrium.ip = t -> ramp(t / 100.0) * 14E6 + ramp((t - 200) / 100.0) * 1E6
-    ini.time.pulse_shedule_time_basis = range(0, 400, 1000)
-    ini.time.simulation_start = 400.0
+    ini.equilibrium.ip = (t -> ramp(t / 100.0) * 10E6 + ramp((t - 100) / 100.0) * 5E6) ↔ (2, (100.0, 200.0), (10E6, 15E6))
+
+    ini.time.pulse_shedule_time_basis = range(0, 300, 1000)
+    ini.time.simulation_start = 300.0
 
     # explicitly set thickness of radial build layers
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
@@ -101,13 +102,19 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    ini.nb_unit[1].power_launched = t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6
+    ini.nb_unit[1].power_launched = (t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6) ↔ (2, (100.0, 300.0), (0.0, 33.4E6))
     ini.nb_unit[1].beam_energy = 1e6
-    ini.ec_launcher[1].power_launched = t -> 10e6 + ramp((t - 100) / 100.0) * 10e6
-    ini.ic_antenna[1].power_launched = t -> 12e6 + ramp((t - 100) / 100.0) * 12e6
+
+    ini.ec_launcher[1].power_launched = (t -> 10e6 + ramp((t - 100) / 100.0) * 10e6) ↔ (2, (100.0, 300.0), (0.0, 20E6))
+    ini.ec_launcher[1].rho_0 = (t->0.5) ↔ (2, (100.0, 300.0), (0.0, 0.8))
+
+    ini.ic_antenna[1].power_launched = (t -> 12e6 + ramp((t - 100) / 100.0) * 12e6) ↔ (2, (100.0, 300.0), (0.0, 24E6))
+
+    ini.lh_antenna[1].power_launched = (t -> 5e6 + ramp((t - 100) / 100.0) * 5e6) ↔ (2, (100.0, 300.0), (0.0, 10E6))
+
     ini.pellet_launcher[1].shape = :cylindrical
     ini.pellet_launcher[1].species = :T
-    ini.pellet_launcher[1].size = Float64[0.003, 0.004]
+    ini.pellet_launcher[1].size = Float64[0.003, 0.004] / 2.0
     ini.pellet_launcher[1].frequency = 0.01 # Hz
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
