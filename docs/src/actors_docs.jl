@@ -41,10 +41,8 @@ for actor_dir in list_directories(joinpath(FUSE.__FUSE__,"src","actors"))
         elseif supertype(@eval(FUSE, $name)) == FUSE.CompoundAbstractActor
             which_output = string(@which getfield(FUSE,name)(IMAS.dd(),getfield(act, name),act))
             folder = split(split(which_output,"@")[end],"/")[end-1]
-
         end
         if !isempty(folder) && folder == actor_dir
-            actor = getfield(FUSE,:ActorTGLF)
             nname = replace("$name", "Actor" => "")
             basename = replace(nname, "_" => " ")
             push!(txt,
