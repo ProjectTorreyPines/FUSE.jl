@@ -1,10 +1,6 @@
 import AbstractTrees
 
 abstract type AbstractActor{D,P} end
-abstract type FacilityAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type ReactorAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type HCDAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type PlasmaAbstractActor{D,P} <: AbstractActor{D,P} end
 
 abstract type CompoundAbstractActor{D,P} <: AbstractActor{D,P} end
 abstract type SingleAbstractActor{D,P} <: AbstractActor{D,P} end

@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T<:Real} <: ParametersAc
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorBlanket{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBlanket{P}
     act::ParametersAllActors

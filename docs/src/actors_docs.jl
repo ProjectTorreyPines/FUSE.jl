@@ -26,10 +26,25 @@ Fidelity hierarchy is enabled by concept of *generic* Vs *specific* actors
 ```
 """]
 
-for actor_abstract_type in subtypes(FUSE.AbstractActor)
-    push!(txt, """## $(replace(replace("$actor_abstract_type","AbstractActor"=>""),"FUSE." => "")) actors\n""")
+list_directories(path::String) = [item for item in readdir(path) if isdir(joinpath(path, item))]
+act = FUSE.ParametersActors()
+for actor_dir in list_directories(joinpath(FUSE.__FUSE__,"src","actors"))
+    push!(txt, """## $actor_dir actors""")
     for name in sort!(collect(names(FUSE; all=true, imported=false)))
-        if startswith("$name", "Actor") && supertype(@eval(FUSE, $name)) == actor_abstract_type
+        if !startswith("$name", "Actor") #|| name ∈ skip_list
+            continue
+        end
+        folder = ""
+        if  supertype(@eval(FUSE, $name)) == FUSE.SingleAbstractActor
+            which_output = string(@which getfield(FUSE,name)(IMAS.dd(),getfield(act, name)))
+            folder = split(split(which_output,"@")[end],"/")[end-1]
+        elseif supertype(@eval(FUSE, $name)) == FUSE.CompoundAbstractActor
+            which_output = string(@which getfield(FUSE,name)(IMAS.dd(),getfield(act, name),act))
+            folder = split(split(which_output,"@")[end],"/")[end-1]
+
+        end
+        if !isempty(folder) && folder == actor_dir
+            actor = getfield(FUSE,:ActorTGLF)
             nname = replace("$name", "Actor" => "")
             basename = replace(nname, "_" => " ")
             push!(txt,

@@ -18,7 +18,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T<:Real} <: Paramet
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorThermalCycle{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorThermalCycle{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorThermalCycle{P}
     act::ParametersAllActors

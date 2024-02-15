@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxCapacitor{T<:Real} <: Parame
     rho_q_optimization::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ grid for q profile optimization (taken by default from FluxMatcher)")
 end
 
-mutable struct ActorFluxCapacitor{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorFluxCapacitor{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxCapacitor{P}
     fluxmatcher::ActorFluxMatcher{D,P}
