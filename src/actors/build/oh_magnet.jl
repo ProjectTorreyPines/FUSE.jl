@@ -31,7 +31,7 @@ function oh_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
     bd.oh.max_j = abs(res.minimizer[1])
     bd.oh.max_b_field = bd.oh.max_j / 1E6 * (0.4 * π * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
     bd.oh.critical_j = mat_oh.critical_current_density(Bext=bd.oh.max_b_field)
-    bd.oh.critical_b_field = mat_oh.critical_b_field(Bext=bd.oh.max_b_field)
+    bd.oh.critical_b_field = mat_oh.critical_magnetic_field(Bext=bd.oh.max_b_field)
     return bd.oh
 end
 
@@ -62,7 +62,7 @@ function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
     bd.oh.max_b_field = magneticFieldSolenoidBore
     bd.oh.max_j = currentDensityOH * 1E6
     bd.oh.critical_j = mat_oh.critical_current_density(Bext=bd.oh.max_b_field)
-    bd.oh.critical_b_field = mat_oh.critical_b_field(Bext=bd.oh.max_b_field)
+    bd.oh.critical_b_field = mat_oh.critical_magnetic_field(Bext=bd.oh.max_b_field)
     return bd.oh
 end
 

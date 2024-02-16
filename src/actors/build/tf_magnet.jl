@@ -29,7 +29,7 @@ function tf_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
     current_TF = bd.tf.max_j * TF_cx_area
     bd.tf.max_b_field = current_TF / hfsTF.end_radius / 2π * constants.μ_0 * bd.tf.coils_n
     bd.tf.critical_j = mat_tf.critical_current_density(Bext=bd.tf.max_b_field)
-    bd.tf.critical_b_field = mat_tf.critical_b_field(Bext=bd.tf.max_b_field)
+    bd.tf.critical_b_field = mat_tf.critical_magnetic_field(Bext=bd.tf.max_b_field)
     return bd.tf
 end
 
@@ -52,6 +52,6 @@ function tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
     bd.tf.max_b_field = B0 * R0 / hfsTF.end_radius
     bd.tf.max_j = current_TF / TF_cx_area
     bd.tf.critical_j = mat_tf.critical_current_density(Bext=bd.tf.max_b_field)
-    bd.tf.critical_b_field = mat_tf.critical_b_field(Bext=bd.tf.max_b_field)
+    bd.tf.critical_b_field = mat_tf.critical_magnetic_field(Bext=bd.tf.max_b_field)
     return bd.tf
 end
