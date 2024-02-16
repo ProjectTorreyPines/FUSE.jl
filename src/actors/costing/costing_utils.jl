@@ -15,18 +15,8 @@ end
 #= ============== =#
 #  materials cost  #
 #= ============== =#
-function unit_cost(material::FusionMaterials.Material, cst::IMAS.costing)
-    try 
-        cost_per_unit_volume = material.unit_cost * material.density()
-    catch e
-        if material.type ∈ [IMAS._shield_, IMAS._blanket_, IMAS._wall_]
-            cost_per_unit_volume = material.unit_cost * material.density(temperature = 773)
-        elseif material.type ∈ [IMAS._tf_, IMAS._oh_] && material.is_superconductor == true 
-            cost_per_unit_volume = material.unit_cost * material.density(temperature = 4.2)
-        else
-            cost_per_unit_volume = material.unit_cost * material.density(temperature = 293)
-        end
-    end
+function unit_cost(material::Material, cst::IMAS.costing)
+    cost_per_unit_volume = material.cost_m3
 
     if material.name == "rebco"
         production_increase = cst.future.learning.hts.production_increase

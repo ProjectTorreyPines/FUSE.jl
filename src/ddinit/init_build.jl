@@ -341,30 +341,19 @@ end
 function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
     # plug
     if ini.center_stack.plug
-        mechanical_technology(dd, :pl)
+        IMAS.mechanical_technology(dd, :pl)
     end
 
     # oh
-    coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
-    mechanical_technology(dd, :oh)
+    IMAS.coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+    IMAS.mechanical_technology(dd, :oh)
 
     # tf
-    coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
-    mechanical_technology(dd, :tf)
+    IMAS.coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+    IMAS.mechanical_technology(dd, :tf)
 
     #pf
-    return coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
-end
-
-function mechanical_technology(dd::IMAS.dd, what::Symbol)
-    if what != :pl && getproperty(dd.build, what).technology.material == "copper"
-        material = pure_copper
-    else
-        material = stainless_steel
-    end
-    setproperty!(dd.solid_mechanics.center_stack.properties.yield_strength, what, material.yield_strength)
-    setproperty!(dd.solid_mechanics.center_stack.properties.poisson_ratio, what, material.poisson_ratio)
-    return setproperty!(dd.solid_mechanics.center_stack.properties.young_modulus, what, material.young_modulus)
+    return IMAS.coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
 end
 
 """
