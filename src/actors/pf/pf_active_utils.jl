@@ -200,7 +200,7 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
 
         # current limit evaluated at all magnetic fields and temperatures
         coil.current_limit_max = [
-            abs(mat_pf.critical_current_density(Bext=b) * IMAS.area(coil) * FusionMaterials.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
+            abs(mat_pf.critical_current_density(;Bext=b) * IMAS.area(coil) * IMAS.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
             b in coil.b_field_max,
             t in coil.temperature
         ]
@@ -369,8 +369,8 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
         mat = Material(coil.tech)
         Bext = coil_selfB(pfcoil, coil.current)
 
-        needed_conductor_area = abs(coil.current) / mat.critical_current_density(Bext)
-        needed_area = needed_conductor_area / FusionMaterials.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
+        needed_conductor_area = abs(coil.current) / mat.critical_current_density(;Bext)
+        needed_area = needed_conductor_area / IMAS.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
 
         cost = (area - needed_area)^2
         return cost

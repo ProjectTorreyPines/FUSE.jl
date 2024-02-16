@@ -317,7 +317,7 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         if k == 1 && ini.center_stack.plug
             layer.material = "steel"
         elseif layer.type == Int(_plasma_)
-            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in bd.layer)) ? "dt_plasma" : "dd_plasma"
+            layer.material = "plasma"
         elseif layer.type == Int(_gap_)
             layer.material = "vacuum"
         elseif layer.type == Int(_oh_)
