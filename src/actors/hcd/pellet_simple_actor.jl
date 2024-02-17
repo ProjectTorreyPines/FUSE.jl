@@ -20,7 +20,7 @@ end
 """
     ActorSimplePellet(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the Pellet particle deposition as a gaussian.
+Estimates the Pellet particle deposition
 
 !!! note
 

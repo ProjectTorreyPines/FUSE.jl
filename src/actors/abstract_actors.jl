@@ -13,8 +13,12 @@ function name(actor::AbstractActor)
     return name(typeof(actor))
 end
 
-function name(typeof_actor::Type{<:AbstractActor})
-    return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
+function name(typeof_actor::Type{<:AbstractActor}; remove_Actor::Bool=true)
+    if remove_Actor
+        return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
+    else
+        return string(split(replace(string(typeof_actor), r"^FUSE\." => ""), "{")[1])
+    end
 end
 
 #= =============== =#
