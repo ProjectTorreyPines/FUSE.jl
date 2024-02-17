@@ -30,10 +30,9 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T} <: Parameter
     n_workers::Entry{Int} = study_common_parameters(; n_workers=missing)
     file_save_mode::Switch{Symbol} = study_common_parameters(; file_save_mode=:safe_write)
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
-    keep_output_dd::Entry{Bool} = study_common_parameters(; keep_output_dd=true)
+    save_dd::Entry{Bool} = study_common_parameters(; save_dd=true)
     sat_rules::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "TGLF saturation rules to run")
     custom_tglf_models::Entry{Vector{String}} = Entry{Vector{String}}("-", "This will run custom TGLFNN models stored in TGLFNN/models")
-
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
 end
@@ -75,7 +74,6 @@ function _setup(study::StudyTGLFdb)
     preparse_input(sty.database_folder)
 
     parallel_environment(sty.server, sty.n_workers)
-    # XXE load of FUSE should be implemetned here @orso importFUSEdistributed()
 
     return study
 end
@@ -85,14 +83,12 @@ function _run(study::StudyTGLFdb)
     act = study.act
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
+    @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
 
     cases_files = [
         joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
         item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
     ]
-    mylock = ReentrantLock()
-
-    @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
 
     if !ismissing(getproperty(sty, :sat_rules, missing))
         iterator = sty.sat_rules
@@ -102,8 +98,8 @@ function _run(study::StudyTGLFdb)
     study.iterator = iterator
     study.dataframes_dict = Dict(string(name) => TGLF_dataframe() for name in study.iterator)
 
-    println("running StudyTGLFdb on $(length(cases_files)) cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
-
+    # loop serially through saturation rules
+    println("Running StudyTGLFdb on $(length(cases_files)) cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
     for item in iterator
         if !ismissing(getproperty(sty, :sat_rules, missing))
             act.ActorTGLF.sat_rule = item
@@ -111,7 +107,10 @@ function _run(study::StudyTGLFdb)
             act.ActorTGLF.user_specified_model = item
         end
 
-        results = pmap(filename -> run_case(filename, study, mylock, item), cases_files)
+        # paraller run
+        results = pmap(filename -> run_case(filename, study, item), cases_files)
+
+        # populate DataFrame
         for row in results
             if !isnothing(row)
                 push!(study.dataframes_dict[string(item)], row)
@@ -142,8 +141,7 @@ end
 function preprocess_dd(filename)
     dd = IMAS.json2imas(filename; verbose=false)
 
-    dd.summary.local.pedestal.n_e.value =
-        [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
+    dd.summary.local.pedestal.n_e.value = [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
     dd.summary.local.pedestal.zeff.value = [2.2] # [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].zeff, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
     dd.pulse_schedule.tf.time = dd.summary.time
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = dd.equilibrium.vacuum_toroidal_field.b0
@@ -151,8 +149,7 @@ function preprocess_dd(filename)
     return dd
 end
 
-
-function run_case(filename, study, lock, item)
+function run_case(filename, study, item)
     act = study.act
     sty = study.sty
 
@@ -175,7 +172,7 @@ function run_case(filename, study, lock, item)
         actor_transport = workflow_actor(dd, act)
         empty!(dd.summary.global_quantities)
 
-        if sty.keep_output_dd
+        if sty.save_dd
             IMAS.imas2json(dd, joinpath(output_case, "result_dd_$(item).json"))
             save_inputtglfs(actor_transport, output_case, name, item)
             if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
@@ -191,15 +188,15 @@ function run_case(filename, study, lock, item)
     end
 end
 
-
 function workflow_actor(dd, act)
     # Actors to run on the input dd
+
     actor_transport = ActorCoreTransport(dd, act)
+
     # actor_equilibrium = ActorEquilibrium(dd,act)
 
     return actor_transport
 end
-
 
 function save_inputtglfs(actor_transport, output_dir, name, item)
     rho_transport = actor_transport.tr_actor.actor_ct.par.rho_transport
@@ -223,17 +220,31 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport)
     rho_cp = cp1d.grid.rho_tor_norm
 
-    return (shot=dd.dataset_description.data_entry.pulse, time=dd.dataset_description.data_entry.pulse,
-        ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.ion[1].temperature[1],
+    return (
+        shot=dd.dataset_description.data_entry.pulse,
+        time=dd.dataset_description.data_entry.pulse,
+        ne0=cp1d.electrons.density_thermal[1],
+        Te0=cp1d.electrons.temperature[1],
+        Ti0=cp1d.ion[1].temperature[1],
         WTH=IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
-        rot0=cp1d.rotation_frequency_tor_sonic[1], ne0_exp=exp_values[1],
-        Te0_exp=exp_values[2], Ti0_exp=exp_values[3], WTH_exp=exp_values[4],
-        rot0_exp=exp_values[5], rho=rho_transport,
-        Qe_target=ct1d_target.electrons.energy.flux, Qe_TGLF=ct1d_tglf.electrons.energy.flux, Qe_neoc=dd.core_transport.model[2].profiles_1d[].electrons.energy.flux,
-        Qi_target=ct1d_target.total_ion_energy.flux, Qi_TGLF=ct1d_tglf.total_ion_energy.flux, Qi_neoc=dd.core_transport.model[2].profiles_1d[].total_ion_energy.flux,
-        particle_target=ct1d_target.electrons.particles.flux, particle_TGLF=ct1d_tglf.electrons.particles.flux,
+        rot0=cp1d.rotation_frequency_tor_sonic[1],
+        ne0_exp=exp_values[1],
+        Te0_exp=exp_values[2],
+        Ti0_exp=exp_values[3],
+        WTH_exp=exp_values[4],
+        rot0_exp=exp_values[5],
+        rho=rho_transport,
+        Qe_target=ct1d_target.electrons.energy.flux,
+        Qe_TGLF=ct1d_tglf.electrons.energy.flux,
+        Qe_neoc=dd.core_transport.model[2].profiles_1d[].electrons.energy.flux,
+        Qi_target=ct1d_target.total_ion_energy.flux,
+        Qi_TGLF=ct1d_tglf.total_ion_energy.flux,
+        Qi_neoc=dd.core_transport.model[2].profiles_1d[].total_ion_energy.flux,
+        particle_target=ct1d_target.electrons.particles.flux,
+        particle_TGLF=ct1d_tglf.electrons.particles.flux,
         particle_neoc=dd.core_transport.model[2].profiles_1d[].electrons.particles.flux,
-        momentum_target=ct1d_target.momentum_tor.flux, momentum_TGLF=ct1d_tglf.momentum_tor.flux,
+        momentum_target=ct1d_target.momentum_tor.flux,
+        momentum_TGLF=ct1d_tglf.momentum_tor.flux,
         Q_GB=IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport),
         particle_GB=IMAS.interp1d(rho_cp, qybro_bohms[2]).(rho_transport),
         momentum_GB=IMAS.interp1d(rho_cp, qybro_bohms[3]).(rho_transport)
@@ -316,7 +327,6 @@ function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol
         xguidefontsize=15, yguidefontsize=14)
 
     plot!(xy_lim, xy_lim; linestyle=:dash, color=:black, label=nothing, title="SAT$name $EM_contribution")
-
 
     println("MRE SAT$name $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
 

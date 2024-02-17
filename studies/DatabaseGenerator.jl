@@ -33,7 +33,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T} <
     n_workers::Entry{Int} = study_common_parameters(; n_workers=missing)
     file_save_mode::Switch{Symbol} = study_common_parameters(; file_save_mode=:safe_write)
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
-    keep_output_dd::Entry{Bool} = study_common_parameters(; keep_output_dd=true)
+    save_dd::Entry{Bool} = study_common_parameters(; save_dd=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled ITER simulations")
 end
@@ -47,8 +47,7 @@ mutable struct StudyDatabaseGenerator <: AbstractStudy
 end
 
 function StudyDatabaseGenerator_summary_dataframe()
-    return DataFrame(;
-        ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
+    return DataFrame(; ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
@@ -63,7 +62,6 @@ function _setup(study::StudyDatabaseGenerator)
     check_and_create_file_save_mode(sty)
 
     parallel_environment(sty.server, sty.n_workers)
-    # XXE load of FUSE should be implemetned here @orso importFUSEdistributed()
 
     return study
 end
@@ -77,9 +75,11 @@ function _run(study::StudyDatabaseGenerator)
     study.iterator = iterator
     study.dataframes_dict = Dict("outputs_summary" => StudyDatabaseGenerator_summary_dataframe() for name in study.iterator)
 
-    println("running $(length(iterator)) ITER simulations with $(sty.n_workers) workers on $(sty.server)")
-
+    # paraller run
+    println("running $(sty.n_simulations) ITER simulations with $(sty.n_workers) workers on $(sty.server)")
     results = pmap(item -> run_case(study, item), iterator)
+
+    # populate DataFrame
     for row in results
         if !isnothing(row)
             push!(study.dataframes_dict["outputs_summary"], row)
@@ -97,6 +97,7 @@ function _run(study::StudyDatabaseGenerator)
         Distributed.rmprocs(Distributed.workers())
         @info "released workers"
     end
+
     return study
 end
 
@@ -111,13 +112,14 @@ function run_case(study::AbstractStudy, item::String)
     act = study.act
     sty = study.sty
 
-    # iterate on ini
-    ini = rand(study.ini)
-    dd = init(ini, act)
-
     try
-        workflow_DatabaseGenerator(dd, act)
-        if sty.keep_output_dd
+        # generate new ini
+        ini = rand(study.ini)
+
+        dd = IMAS.dd()
+        workflow_DatabaseGenerator(dd, ini, act)
+
+        if sty.save_dd
             IMAS.imas2json(dd, joinpath(sty.save_folder, "result_dd_$(item).json"))
             if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
                 save(FUSE.memtrace, joinpath(sty.save_folder, "memtrace_$(item).txt"))
@@ -133,9 +135,13 @@ function run_case(study::AbstractStudy, item::String)
 end
 
 
-function workflow_DatabaseGenerator(dd::IMAS.dd, act::ParametersAllActors)
+function workflow_DatabaseGenerator(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
+    # initialize
+    init(dd, ini, act)
+
     # Actors to run on the input dd
     actor_statplasma = ActorStationaryPlasma(dd, act)
+
     # whatever other actors you want to run can go here
 
     return actor_statplasma
@@ -143,7 +149,6 @@ end
 
 function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
     cp1d = dd.core_profiles.profiles_1d[]
-    return (
-        ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.ion[1].temperature[1], zeff=cp1d.zeff[1])
+    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.ion[1].temperature[1], zeff=cp1d.zeff[1])
 end
 
