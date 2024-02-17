@@ -98,9 +98,9 @@ function _step(actor::ActorTEQUILA)
     try
         actor.shot = solve_function(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first)
     catch e
-        display(plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:dot, aspect_ratio=:equal))
-        display(plot(rho_pol, eq1d.pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
-        display(plot(rho_pol, eq1d.j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
+        display(plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:circle, aspect_ratio=:equal))
+        display(plot(rho_pol, eq1d.pressure; marker=:circle, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
+        display(plot(rho_pol, eq1d.j_tor; marker=:circle, xlabel="sqrt(ψ)", title="Jtor [A]"))
         rethrow(e)
     end
 
