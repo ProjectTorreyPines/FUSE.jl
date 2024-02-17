@@ -225,6 +225,9 @@ for package in ("Equilibrium", "Broker", "ZMQ");\
 	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
 end;\
 '
+# undo --single-branch clones of git repos
+undo_single_branch:
+	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cd ../$(package)/; echo `pwd`; git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"; git fetch origin;)
 
 # clone and update all FUSE packages
 clone_pull_all: branch
