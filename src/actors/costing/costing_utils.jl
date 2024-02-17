@@ -15,8 +15,8 @@ end
 #= ============== =#
 #  materials cost  #
 #= ============== =#
-function unit_cost(material::FusionMaterials.Material, cst::IMAS.costing)
-    cost_per_unit_volume = material.unit_cost * material.density
+function unit_cost(material::Material, cst::IMAS.costing)
+    cost_per_unit_volume = material.cost_m3
 
     if material.name == "rebco"
         production_increase = cst.future.learning.hts.production_increase

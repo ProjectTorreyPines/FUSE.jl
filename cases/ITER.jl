@@ -86,9 +86,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
-    ini.tf.technology = :iter_nb3sn
+    ini.tf.technology = :nb3sn_iter
 
-    ini.oh.technology = :iter_nb3sn
+    ini.oh.technology = :nb3sn_iter
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
     ini.core_profiles.greenwald_fraction = 0.9
@@ -102,15 +102,15 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    ini.nb_unit[1].power_launched = (t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6) ↔ (2, (100.0, 300.0), (0.0, 33.4E6))
+    ini.nb_unit[1].power_launched = (t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6) ↔ (2, (100.0, 300.0), (0.0, 33.4E6), (:match, :float))
     ini.nb_unit[1].beam_energy = 1e6
 
-    ini.ec_launcher[1].power_launched = (t -> 10e6 + ramp((t - 100) / 100.0) * 10e6) ↔ (2, (100.0, 300.0), (0.0, 20E6))
-    ini.ec_launcher[1].rho_0 = (t->0.5) ↔ (2, (100.0, 300.0), (0.0, 0.8))
+    ini.ec_launcher[1].power_launched = (t -> 10e6 + ramp((t - 100) / 100.0) * 10e6) ↔ (2, (100.0, 300.0), (0.0, 20E6), (:match, :float))
+    ini.ec_launcher[1].rho_0 = (t->0.5) ↔ (2, (100.0, 300.0), (0.0, 0.8), (:match, :float))
 
-    ini.ic_antenna[1].power_launched = (t -> 12e6 + ramp((t - 100) / 100.0) * 12e6) ↔ (2, (100.0, 300.0), (0.0, 24E6))
+    ini.ic_antenna[1].power_launched = (t -> 12e6 + ramp((t - 100) / 100.0) * 12e6) ↔ (2, (100.0, 300.0), (0.0, 24E6), (:match, :float))
 
-    ini.lh_antenna[1].power_launched = (t -> 5e6 + ramp((t - 100) / 100.0) * 5e6) ↔ (2, (100.0, 300.0), (0.0, 10E6))
+    ini.lh_antenna[1].power_launched = (t -> 5e6 + ramp((t - 100) / 100.0) * 5e6) ↔ (2, (100.0, 300.0), (0.0, 10E6), (:match, :float))
 
     ini.pellet_launcher[1].shape = :cylindrical
     ini.pellet_launcher[1].species = :T
