@@ -86,9 +86,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
-    ini.tf.technology = :iter_nb3sn
+    ini.tf.technology = :nb3sn_iter
 
-    ini.oh.technology = :iter_nb3sn
+    ini.oh.technology = :nb3sn_iter
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
     ini.core_profiles.greenwald_fraction = 0.9

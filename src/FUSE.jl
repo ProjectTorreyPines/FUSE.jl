@@ -38,11 +38,10 @@ include("parameters.jl")
 #= ===== =#
 include("../cases/_cases.jl")
 
-#= ====================== =#
-#  PHYSICS and TECHNOLOGY  #
-#= ====================== =#
+#= ======= =#
+#  PHYSICS  #
+#= ======= =#
 include("physics.jl")
-include("technology.jl")
 
 #= ====== =#
 #  DDINIT  #
