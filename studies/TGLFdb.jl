@@ -47,15 +47,15 @@ end
 
 function TGLF_dataframe()
     return DataFrame(;
-    shot=Int[], time=Int[], ne0=Float64[],
-    Te0=Float64[], Ti0=Float64[], ne0_exp=Float64[],
-    Te0_exp=Float64[], Ti0_exp=Float64[], WTH_exp=Float64[],
-    rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], rho=Vector{Float64}[],
-    Qe_target=Vector{Float64}[], Qe_TGLF=Vector{Float64}[], Qe_neoc=Vector{Float64}[],
-    Qi_target=Vector{Float64}[], Qi_TGLF=Vector{Float64}[], Qi_neoc=Vector{Float64}[],
-    particle_target=Vector{Float64}[], particle_TGLF=Vector{Float64}[], particle_neoc=Vector{Float64}[],
-    momentum_target=Vector{Float64}[], momentum_TGLF=Vector{Float64}[],
-    Q_GB=Vector{Float64}[], particle_GB=Vector{Float64}[], momentum_GB=Vector{Float64}[])
+        shot=Int[], time=Int[], ne0=Float64[],
+        Te0=Float64[], Ti0=Float64[], ne0_exp=Float64[],
+        Te0_exp=Float64[], Ti0_exp=Float64[], WTH_exp=Float64[],
+        rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], rho=Vector{Float64}[],
+        Qe_target=Vector{Float64}[], Qe_TGLF=Vector{Float64}[], Qe_neoc=Vector{Float64}[],
+        Qi_target=Vector{Float64}[], Qi_TGLF=Vector{Float64}[], Qi_neoc=Vector{Float64}[],
+        particle_target=Vector{Float64}[], particle_TGLF=Vector{Float64}[], particle_neoc=Vector{Float64}[],
+        momentum_target=Vector{Float64}[], momentum_TGLF=Vector{Float64}[],
+        Q_GB=Vector{Float64}[], particle_GB=Vector{Float64}[], momentum_GB=Vector{Float64}[])
 end
 
 function StudyTGLFdb(sty, act; kw...)
@@ -85,16 +85,16 @@ function _run(study::StudyTGLFdb)
     act = study.act
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
-    
+
     cases_files = [
         joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
         item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
     ]
     mylock = ReentrantLock()
 
-    @assert ismissing(getproperty(sty, :sat_rules,missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models,missing)) "Specify either sat_rules or custom_tglf_models"
+    @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
 
-    if !ismissing(getproperty(sty, :sat_rules,missing))
+    if !ismissing(getproperty(sty, :sat_rules, missing))
         iterator = sty.sat_rules
     elseif !ismissing(sty.custom_tglf_models)
         iterator = sty.custom_tglf_models
@@ -105,12 +105,12 @@ function _run(study::StudyTGLFdb)
     println("running StudyTGLFdb on $(length(cases_files)) cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
 
     for item in iterator
-        if !ismissing(getproperty(sty, :sat_rules,missing))
+        if !ismissing(getproperty(sty, :sat_rules, missing))
             act.ActorTGLF.sat_rule = item
         else
             act.ActorTGLF.user_specified_model = item
         end
-            
+
         results = pmap(filename -> run_case(filename, study, mylock, item), cases_files)
         for row in results
             if !isnothing(row)

@@ -101,9 +101,9 @@ function _run(study::StudyDatabaseGenerator)
 end
 
 function _analyze(study::StudyDatabaseGenerator)
-    display(histogram(study.dataframes_dict["outputs_summary"].Te0; xlabel="Te0 [eV]",legend=false))
-    display(histogram(study.dataframes_dict["outputs_summary"].Ti0; xlabel="Ti0 [eV]",legend=false))
-    display(histogram(study.dataframes_dict["outputs_summary"].ne0; xlabel="ne0 [m⁻³]]",legend=false))
+    display(histogram(study.dataframes_dict["outputs_summary"].Te0; xlabel="Te0 [eV]", legend=false))
+    display(histogram(study.dataframes_dict["outputs_summary"].Ti0; xlabel="Ti0 [eV]", legend=false))
+    display(histogram(study.dataframes_dict["outputs_summary"].ne0; xlabel="ne0 [m⁻³]]", legend=false))
     return study
 end
 
