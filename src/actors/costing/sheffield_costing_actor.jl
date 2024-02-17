@@ -296,7 +296,7 @@ function cost_direct_capital_Sheffield(::Type{Val{:blanket}}, cap::Bool, dd::IMA
         cst = dd.costing
         blankets = IMAS.get_build_layers(bd.layer; type=IMAS._blanket_, fs=_lfs_)
         for blanket in blankets
-            blanket_capital_cost = 1.1 * blanket.volume * unit_cost(blanket.material, cst)
+            blanket_capital_cost = 1.1 * blanket.volume * unit_cost(Material(blanket.material), cst)
             cost += 1.1 * blanket_capital_cost
         end
     end
