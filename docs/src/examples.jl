@@ -31,5 +31,5 @@ for dir in dirs
 end
 
 open("$(@__DIR__)/examples.md", "w") do io
-    write(io, join(txt, "\n"))
+    return write(io, join(txt, "\n"))
 end
