@@ -9,8 +9,12 @@ function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
     return logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
 end
 
-function name(actor::AbstractActor)
-    return name(typeof(actor))
+#= =========== =#
+#  name & group #
+#= =========== =#
+
+function name(actor::AbstractActor; remove_Actor::Bool=true)
+    return name(typeof(actor); remove_Actor)
 end
 
 function name(typeof_actor::Type{<:AbstractActor}; remove_Actor::Bool=true)
@@ -19,6 +23,26 @@ function name(typeof_actor::Type{<:AbstractActor}; remove_Actor::Bool=true)
     else
         return string(split(replace(string(typeof_actor), r"^FUSE\." => ""), "{")[1])
     end
+end
+
+"""
+    group_name(typeof_actor::Type{<:AbstractActor})
+
+Returns the group to which the actor belongs to.
+
+NOTE: This is based on the name of the folder in which the .jl file that defines the actor is contained.
+"""
+function group_name(typeof_actor::Type{<:AbstractActor})
+    dd = IMAS.dd()
+    act = ParametersActors()
+    actor_name = name(typeof_actor; remove_Actor=false)
+    if typeof_actor <: CompoundAbstractActor
+        which_output = string(@which typeof_actor(dd, getproperty(act, Symbol(actor_name)), act))
+    elseif typeof_actor <: SingleAbstractActor
+        which_output = string(@which typeof_actor(dd, getproperty(act, Symbol(actor_name))))
+    end
+    folder_name = split(split(which_output, "@")[end], "/")[end-1]
+    return folder_name
 end
 
 #= =============== =#

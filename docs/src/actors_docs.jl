@@ -37,9 +37,6 @@ end
 
 list_directories(path::String) = [item for item in readdir(path) if isdir(joinpath(path, item))]
 
-dd = IMAS.dd()
-act = FUSE.ParametersActors()
-
 single_actors = concrete_subtypes(FUSE.SingleAbstractActor)
 compound_actors = concrete_subtypes(FUSE.CompoundAbstractActor)
 
@@ -50,17 +47,11 @@ for actor_dir in list_directories(joinpath(FUSE.__FUSE__, "src", "actors"))
     n_actors = 0
 
     for Actor in [compound_actors; single_actors]
+        folder = FUSE.group_name(Actor)
         name = FUSE.name(Actor; remove_Actor=false)
         nname = replace("$name", "Actor" => "")
         basename = replace(nname, "_" => " ")
 
-        if Actor <: FUSE.CompoundAbstractActor
-            which_output = string(@which Actor(dd, getproperty(act, Symbol(name)), act))
-        elseif Actor <: FUSE.SingleAbstractActor
-            which_output = string(@which Actor(dd, getproperty(act, Symbol(name))))
-        end
-
-        folder = split(split(which_output, "@")[end], "/")[end-1]
         if folder == actor_dir
             if first_time_actor_dir
                 push!(txt, "## $(uppercasefirst(replace(actor_dir,"_"=>" ")))")
