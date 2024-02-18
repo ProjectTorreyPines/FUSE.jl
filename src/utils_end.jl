@@ -99,6 +99,7 @@ end
 Extract data from multiple FUSE results folders or `dd`s and return results in DataFrame format.
 
 Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
+Filtering by `:cols_row1` removes the columns that have NaN in the first row of the table.
 
 Specifying a `cache` file allows caching of extraction results and not having to parse data.
 
@@ -112,8 +113,16 @@ function IMAS.extract(
     read_cache::Bool=true,
     write_cache::Bool=true)::DataFrames.DataFrame
 
+    function identifier(DD::Vector{AbstractString}, k::Int)
+        return abspath(DD[k])
+    end
+
+    function identifier(DD::Vector{IMAS.dd}, k::Int)
+        return k
+    end
+
     # test filter_invalid
-    @assert filter_invalid ∈ (:none, :cols, :rows, :all) "filter_invalid can only be one of [:none, :cols, :rows, :all]"
+    @assert filter_invalid ∈ (:none, :cols_row1, :cols, :rows, :all) "filter_invalid can only be one of [:none, :cols_row1, :cols, :rows, :all]"
 
     if DD !== nothing && length(cache) > 0
         @assert typeof(DD[1]) <: AbstractString "cache is only meant to work when extracting data from FUSE results folders"
@@ -132,8 +141,22 @@ function IMAS.extract(
 
     else
         # allocate memory
-        tmp = Dict(extract(DD[1], xtract))
-        tmp[:dir] = abspath(DD[1])
+        if filter_invalid == :cols_row1
+            xtract = deepcopy(xtract)
+            xtr = extract(DD[1], xtract)
+            tmp = Dict()
+            for (xkey, xfun) in xtr
+                if xfun.value === NaN
+                    delete!(xtract, xkey)
+                else
+                    tmp[xfun.name] = xfun.value
+                end
+            end
+        else
+            tmp = Dict(extract(DD[1], xtract))
+        end
+
+        tmp[:dir] = identifier(DD, 1)
         df = DataFrames.DataFrame(tmp)
         for k in 2:length(DD)
             push!(df, df[1, :])
@@ -142,7 +165,7 @@ function IMAS.extract(
         # load the data
         p = ProgressMeter.Progress(length(DD); showspeed=true)
         Threads.@threads for k in eachindex(DD)
-            aDDk = abspath(DD[k])
+            aDDk = identifier(DD, k)
             try
                 if aDDk in cached_dirs
                     k_cache = findfirst(dir -> dir == aDDk, cached_dirs)
