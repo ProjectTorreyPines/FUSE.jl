@@ -815,8 +815,8 @@ uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
 version = "0.4.7"
 
 [[deps.FusionMaterials]]
-deps = ["IMAS", "JSON"]
-git-tree-sha1 = "a7f620822d17e8520b174392a0a502b399094994"
+deps = ["IMAS"]
+git-tree-sha1 = "38958456ec17a36d6c8ea2e6f7aaa0ea298aeea7"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/FusionMaterials.jl.git"
 uuid = "4c86da02-02c8-4634-8460-96566129f8e0"
@@ -976,7 +976,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "IMASDD", "Interpolations", "JSON", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "69cfc53a7922985c03023aba5a49b05c33972e7a"
+git-tree-sha1 = "441b07fe9e3b4eeaa23e2b4742fbc4fb148a315b"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1062,9 +1062,9 @@ version = "1.0.0"
 
 [[deps.JLD2]]
 deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "PrecompileTools", "Printf", "Reexport", "Requires", "TranscodingStreams", "UUIDs"]
-git-tree-sha1 = "7c0008f0b7622c6c0ee5c65cbc667b69f8a65672"
+git-tree-sha1 = "5ea6acdd53a51d897672edb694e3cc2912f3f8a7"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.45"
+version = "0.4.46"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]
@@ -1376,9 +1376,9 @@ version = "2.22.1"
 
 [[deps.LogExpFunctions]]
 deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "7d6dd4e9212aebaeed356de34ccf262a3cd415aa"
+git-tree-sha1 = "18144f3e9cbe9b15b070288eef858f71b291ce37"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.26"
+version = "0.3.27"
 
     [deps.LogExpFunctions.extensions]
     LogExpFunctionsChainRulesCoreExt = "ChainRulesCore"
@@ -2156,9 +2156,9 @@ version = "0.6.42"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FillArrays", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "Printf", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables", "TruncatedStacktraces"]
-git-tree-sha1 = "a123011b1711f3449bc4e5d66746be5725af92fd"
+git-tree-sha1 = "33e40003f4ef424e8a8700e0a3a189c6ece2af27"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.26.0"
+version = "2.26.1"
 
     [deps.SciMLBase.extensions]
     SciMLBaseChainRulesCoreExt = "ChainRulesCore"
@@ -2240,7 +2240,7 @@ version = "0.9.4"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections", "RecipesBase", "YAML"]
-git-tree-sha1 = "b7f1e00bd99f80483bf4f8f172af5a107fe45f33"
+git-tree-sha1 = "6e2fc70196a082a9f5105beff9fa42d9de36bd83"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
@@ -2417,7 +2417,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "3acb39507cfd3fba5217842a28f7f8aaf9cbef05"
+git-tree-sha1 = "691fb3177ae1978cdc8c1ecc6b3f9b385b3dfd9e"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
@@ -2662,9 +2662,9 @@ version = "1.1.34+0"
 
 [[deps.XZ_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "522b8414d40c4cbbab8dee346ac3a09f9768f25d"
+git-tree-sha1 = "ac88fb95ae6447c8dda6a5503f3bafd496ae8632"
 uuid = "ffd25f8a-64ca-5728-b0f7-c24cf3aae800"
-version = "5.4.5+0"
+version = "5.4.6+0"
 
 [[deps.Xorg_libICE_jll]]
 deps = ["Libdl", "Pkg"]
