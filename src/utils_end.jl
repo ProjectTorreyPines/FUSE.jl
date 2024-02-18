@@ -83,6 +83,7 @@ Read dd.json/h5 in a folder and extract data from it.
 """
 function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
     dd, ini, act = load(dir; load_ini=false, load_act=false, skip_on_error=true)
+    IMAS.last_time(dd)
     return extract(dd, xtract)
 end
 
@@ -144,8 +145,8 @@ function IMAS.extract(
             aDDk = abspath(DD[k])
             try
                 if aDDk in cached_dirs
-                    kcashe = findfirst(dir -> dir == aDDk, cached_dirs)
-                    df[k, :] = df_cache[kcashe, :]
+                    k_cache = findfirst(dir -> dir == aDDk, cached_dirs)
+                    df[k, :] = df_cache[k_cache, :]
                 else
                     tmp = Dict(extract(aDDk, xtract))
                     tmp[:dir] = aDDk
@@ -319,7 +320,7 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
     if load_act && isfile(joinpath(savedir, "act.json"))
         act = json2act(joinpath(savedir, "act.json"))
     end
-    return dd, ini, act
+    return (dd=dd, ini=ini, act=act)
 end
 
 """
