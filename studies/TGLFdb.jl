@@ -24,7 +24,7 @@ function study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__Parameter
     return sty, act
 end
 
-Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T} <: ParametersStudy where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: ParametersStudy{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :StudyTGLFdb
     server::Switch{String} = study_common_parameters(; server="localhost")

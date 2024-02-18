@@ -1,4 +1,5 @@
-txt="""#   FUSE (**FU**sion **S**ynthesis **E**ngine)
+txt = """
+#   FUSE (**FU**sion **S**ynthesis **E**ngine)
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is GA's proprietary framework for Fusion Power Plant (FPP) integrated design.
 
@@ -42,5 +43,5 @@ FUSE.ActorStationaryPlasma(dd, act; do_plot=true);
 
 open("$(@__DIR__)/index.md", "w") do io
     write(io, txt)
-    write(io, "Last update on $(Dates.now())")
+    return write(io, "Last update on $(Dates.now())")
 end

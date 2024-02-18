@@ -1,74 +1,56 @@
 #= ================ =#
-#  ActorGASCCosting  #
+#  ActorCostingGASC  #
 #= ================ =#
 
-# FUSEparameters__ActorGASCCosting must match name and types of FUSEparameters__ActorSheffieldCosting
-Base.@kwdef mutable struct FUSEparameters__ActorGASCCosting{T} <: ParametersActor where {T<:Real}
+# FUSEparameters__ActorCostingGASC must match name and types of FUSEparameters__ActorCostingSheffield
+Base.@kwdef mutable struct FUSEparameters__ActorCostingGASC{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    construction_lead_time::Entry{T}
-    fixed_charge_rate::Entry{T}
-    capitalize_blanket::Entry{Bool}
-    capitalize_divertor::Entry{Bool}
-    divertor_fluence_lifetime::Entry{T}
-    blanket_fluence_lifetime::Entry{T}
+    # NOTE: parameters below should reflect the parameters in FUSEparameters__ActorCostingSheffield except for capitalize_blanket and capitalize_divertor
+    construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default=8.0)
+    fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default=0.078)
+    capitalize_blanket::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st blanket in direct captial cost"; default=true)
+    capitalize_divertor::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st divertor in direct captial cost"; default=true)
+    divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default=10.0)
+    blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default=15.0)
 end
 
-function FUSEparameters__ActorGASCCosting{T}() where {T<:Real}
-    # copy default value parameters from Sheffield costing actor
-    # but set capitalize_blanket=true and capitalize_divertor=true by default
-    sheffield_par = FUSEparameters__ActorSheffieldCosting{T}()
-    values = []
-    for field in fieldnames(typeof(sheffield_par))
-        push!(values, getfield(sheffield_par, field))
-        if field in [:capitalize_blanket, :capitalize_divertor]
-            values[end].value = values[end].base = values[end].default = true
-        end
-    end
-    return FUSEparameters__ActorGASCCosting{T}(values...)
-end
-
-function FUSEparameters__ActorSheffieldCosting{T}(par::FUSEparameters__ActorGASCCosting) where {T<:Real}
-    sheffield_par = FUSEparameters__ActorSheffieldCosting{T}()
-    for field in fieldnames(typeof(par))
-        setfield!(sheffield_par, field, getfield(par, field))
-    end
-    return sheffield_par
-end
-
-mutable struct ActorGASCCosting{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorCostingGASC{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorGASCCosting{P}
-    sheffield_actor::ActorSheffieldCosting
-    function ActorGASCCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorGASCCosting{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorGASCCosting)
+    par::FUSEparameters__ActorCostingGASC{P}
+    sheffield_actor::ActorCostingSheffield
+    function ActorCostingGASC(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingGASC{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorCostingGASC)
         par = par(kw...)
         # convert GASC costing actor parameters to Sheffield costing actor parameters
-        sheffield_par = FUSEparameters__ActorSheffieldCosting{P}(par)
-        return new{D,P}(dd, par, ActorSheffieldCosting(dd, sheffield_par))
+        sheffield_par = FUSEparameters__ActorCostingSheffield{P}()
+        for field in fieldnames(typeof(par))
+            setfield!(sheffield_par, field, getfield(par, field))
+        end
+        return new{D,P}(dd, par, ActorCostingSheffield(dd, sheffield_par))
     end
 end
 
 """
-    ActorGASCCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCostingGASC(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Like ActorSheffieldCosting but by default blanket and divertor are capitalized
+Like ActorCostingSheffield but by default blanket and divertor are capitalized
 """
-function ActorGASCCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorGASCCosting(kw...)
-    actor = ActorGASCCosting(dd, par)
+function ActorCostingGASC(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorCostingGASC(kw...)
+    actor = ActorCostingGASC(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorGASCCosting)
+function _step(actor::ActorCostingGASC)
     step(actor.sheffield_actor)
     return actor
 end
 
-function _finalize(actor::ActorGASCCosting)
+function _finalize(actor::ActorCostingGASC)
     finalize(actor.sheffield_actor)
     return actor
 end

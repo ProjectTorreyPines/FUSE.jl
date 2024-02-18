@@ -1,7 +1,7 @@
 #= =================== =#
 #  ActorBalanceOfPlant  #
 #= =================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersA
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorBalanceOfPlant{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBalanceOfPlant{P}
     act::ParametersAllActors

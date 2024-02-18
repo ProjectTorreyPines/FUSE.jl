@@ -1,10 +1,9 @@
 import AbstractTrees
 
 abstract type AbstractActor{D,P} end
-abstract type FacilityAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type ReactorAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type HCDAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type PlasmaAbstractActor{D,P} <: AbstractActor{D,P} end
+
+abstract type CompoundAbstractActor{D,P} <: AbstractActor{D,P} end
+abstract type SingleAbstractActor{D,P} <: AbstractActor{D,P} end
 
 function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
     return logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
@@ -14,8 +13,12 @@ function name(actor::AbstractActor)
     return name(typeof(actor))
 end
 
-function name(typeof_actor::Type{<:AbstractActor})
-    return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
+function name(typeof_actor::Type{<:AbstractActor}; remove_Actor::Bool=true)
+    if remove_Actor
+        return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
+    else
+        return string(split(replace(string(typeof_actor), r"^FUSE\." => ""), "{")[1])
+    end
 end
 
 #= =============== =#

@@ -5,7 +5,7 @@
 
 const coolant_fluid = [:He, :PbLi]
 
-Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -31,7 +31,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T} <: ParametersAct
     divertor_coolant::Switch{Symbol} = Switch{Symbol}(coolant_fluid, "-", "Breeder coolant fluid"; default=:He)
 end
 
-mutable struct ActorHeatTransfer{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorHeatTransfer{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHeatTransfer{P}
     function ActorHeatTransfer(dd::IMAS.dd{D}, par::FUSEparameters__ActorHeatTransfer{P}; kw...) where {D<:Real,P<:Real}

@@ -1,7 +1,7 @@
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHFSsizing{P}
     stresses_actor::ActorStresses{D,P}

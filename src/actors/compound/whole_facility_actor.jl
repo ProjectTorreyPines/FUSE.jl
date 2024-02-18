@@ -1,7 +1,7 @@
 #= ================== =#
 #  ActorWholeFacility  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T} <: ParametersAc
     update_build::Entry{Bool} = Entry{Bool}("-", "Optimize tokamak build"; default=true)
 end
 
-mutable struct ActorWholeFacility{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
