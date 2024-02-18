@@ -346,6 +346,7 @@ function digest(
     sec = 1
     if section ∈ (0, sec)
         IMAS.print_tiled(extract(dd); terminal_width, line_char)
+        println("@ time = $(dd.global_time) [s]")
     end
 
     # equilibrium with build and PFs
@@ -489,6 +490,13 @@ function digest(
         plot!(p, dd.build; subplot=2, legend=false)
         plot!(p, dd.pf_active; time0, subplot=2)
         display(p)
+    end
+
+    # pulse_schedule
+    sec += 1
+    if !isempty(dd.pulse_schedule) && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.pulse_schedule))
     end
 
     # tf
