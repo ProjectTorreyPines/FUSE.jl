@@ -113,7 +113,7 @@ function IMAS.extract(
     read_cache::Bool=true,
     write_cache::Bool=true)::DataFrames.DataFrame
 
-    function identifier(DD::Vector{AbstractString}, k::Int)
+    function identifier(DD::Vector{<:AbstractString}, k::Int)
         return abspath(DD[k])
     end
 
