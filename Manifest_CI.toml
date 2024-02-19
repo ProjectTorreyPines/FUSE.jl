@@ -203,7 +203,7 @@ version = "0.1.5"
 
 [[deps.BoundaryPlasmaModels]]
 deps = ["ADAS", "Formatting", "IMAS", "IMASDD", "Interpolations", "JSON", "MillerExtendedHarmonic", "NumericalIntegration", "SimulationParameters"]
-git-tree-sha1 = "23eaad16b0d7c709c9bfa98b6cc17a673648b975"
+git-tree-sha1 = "fb3ea6ad607b43f07ed804de4ce0db3b0b1fa95f"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/BoundaryPlasmaModels.jl.git"
 uuid = "2da5b0d0-c5e5-4f14-9caf-62d0020df410"
@@ -984,7 +984,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "PCHIPInterpolation", "Printf"]
-git-tree-sha1 = "6e59042a33eccfd56846edae3cecbf66a2cd5fb9"
+git-tree-sha1 = "62f5029f59a56a75650e3961b63a9207e5af64d7"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -2240,7 +2240,7 @@ version = "0.9.4"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections", "RecipesBase", "YAML"]
-git-tree-sha1 = "6e2fc70196a082a9f5105beff9fa42d9de36bd83"
+git-tree-sha1 = "b10f3e9b27ef29723e8e8d1b963187ce3cc7d504"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
