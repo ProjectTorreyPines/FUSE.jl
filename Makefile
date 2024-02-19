@@ -235,7 +235,7 @@ clone_pull_all: branch
 	make -i $(PARALLELISM) WarmupFUSE FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
 
 playground: .PHONY
-	if [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
+	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
 	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_playground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 
 ADAS:
