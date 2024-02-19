@@ -1,14 +1,14 @@
 #= == =#
 #  IC  #
 #= == =#
-Base.@kwdef mutable struct FUSEparameters__ActorSimpleIC{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleIC{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
-mutable struct ActorSimpleIC{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimpleIC{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSimpleIC{P}
     function ActorSimpleIC(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleIC{P}; kw...) where {D<:Real,P<:Real}

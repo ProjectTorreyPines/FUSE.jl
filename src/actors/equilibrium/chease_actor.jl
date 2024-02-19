@@ -3,7 +3,7 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor whe
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}

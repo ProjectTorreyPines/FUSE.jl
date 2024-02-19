@@ -1,7 +1,7 @@
 #= =================== =#
 #  ActorFluxCalculator  #
 #= =================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T} <: ParametersA
     neoclassical_model::Switch{Symbol} = Switch{Symbol}([:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
 end
 
-mutable struct ActorFluxCalculator{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxCalculator{P}
     actor_turb::Union{ActorTGLF{D,P},ActorNoOperation{D,P}}

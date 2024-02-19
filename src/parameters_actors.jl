@@ -29,7 +29,7 @@ macro insert_constructor_members(T)
 end
 
 
-mutable struct ParametersActors{T} <: ParametersAllActors where {T<:Real}
+mutable struct ParametersActors{T<:Real} <: ParametersAllActors{T}
     _parent::WeakRef
     _name::Symbol
     @insert_subtype_members ParametersActor

@@ -3,7 +3,7 @@ import TEQUILA
 #= =========== =#
 #  ActorTEQUILA  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -22,7 +22,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
 
-mutable struct ActorTEQUILA{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorTEQUILA{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTEQUILA{P}
     shot::Union{Nothing,TEQUILA.Shot}

@@ -1,7 +1,7 @@
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors

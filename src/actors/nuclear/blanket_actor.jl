@@ -3,7 +3,7 @@ import NNeutronics
 #= ============ =#
 #  ActorBlanket  #
 #= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor wh
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorBlanket{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBlanket{P}
     act::ParametersAllActors

@@ -1,7 +1,7 @@
 #= ================== =#
 #  ActorCoreTransport  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersAc
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorCoreTransport{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCoreTransport{P}
     tr_actor::Union{ActorFluxMatcher{D,P},ActorTauenn{D,P},ActorFixedProfiles{D,P},ActorNoOperation{D,P}}

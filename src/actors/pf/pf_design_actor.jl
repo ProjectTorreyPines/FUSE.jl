@@ -1,7 +1,7 @@
 #= ============= =#
 #  ActorPFdesign  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T} <: ParametersActor w
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorPFdesign{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorPFdesign{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFdesign{P}
     actor_pf::ActorPFactive{D,P}
