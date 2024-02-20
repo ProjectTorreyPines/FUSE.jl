@@ -37,8 +37,6 @@ function switch_get_from(quantity::Symbol)::Switch{Symbol}
     end
     return swch
 end
-# quantit :wall_heat_load
-#Switch{Symbol}([:dd, :actor])
 
 #= ==== =#
 #  step  #
