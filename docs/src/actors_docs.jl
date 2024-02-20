@@ -1,3 +1,5 @@
+using InteractiveUtils: subtypes
+
 txt = ["""
 # Physics and Engineering Actors
 
