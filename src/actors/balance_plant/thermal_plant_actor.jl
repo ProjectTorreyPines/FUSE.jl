@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T} <: ParametersAct
     model::Switch{Symbol}      = Switch{Symbol}([:brayton,:rankine], "-", "user can only select one of these"; default = :rankine) # for future additions
     heat_load_from::Switch{Symbol} = Switch{Symbol}([:dd, :actor],"-",""; default = :dd)
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
-    Verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorThermalPlant{D,P} <: FacilityAbstractActor{D,P}
@@ -77,8 +77,7 @@ function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; stepkw, kw...)
     return actor
 end
 
-function _step(actor::ActorThermalPlant; doplot = false, 
-                                            verbose = true)
+function _step(actor::ActorThermalPlant)
 
     
     # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
@@ -87,6 +86,7 @@ function _step(actor::ActorThermalPlant; doplot = false,
     par = actor.par
 
     use_actor_u = par.heat_load_from == :dd ? false : true
+
 
     breeder_heat_load   = (use_actor_u == false) ? (isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)) : actor.u[1];
     divertor_heat_load  = (use_actor_u == false) ? (isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)) : actor.u[2];
@@ -423,7 +423,7 @@ function _step(actor::ActorThermalPlant; doplot = false,
     # write to dd if ddwrite = true
     initddbop(actor; soln = soln)
 
-    if doplot == true
+    if par.do_plot == true
         sysnamedict = Dict([
                 "cycle_" => "Brayton Helium",
                 "steam_" => "Feedwater Rankine",
