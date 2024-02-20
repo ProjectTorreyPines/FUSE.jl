@@ -1,4 +1,4 @@
-abstract type ParametersStudy <: AbstractParameters end
+abstract type ParametersStudy{T} <: AbstractParameters{T} end
 abstract type AbstractStudy end
 
 """

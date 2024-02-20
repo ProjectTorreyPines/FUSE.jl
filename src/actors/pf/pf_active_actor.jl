@@ -6,15 +6,16 @@ import VacuumFields
 #= ============= =#
 #  ActorPFactive  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPFactive{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorPFactive{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     green_model::Switch{Symbol} = Switch{Symbol}(options_green_model, "-", "Model used for the coils Green function calculations"; default=:simple)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorPFactive{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorPFactive{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFactive{P}
     eq_out::IMAS.equilibrium{D}

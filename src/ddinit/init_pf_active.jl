@@ -2,11 +2,11 @@
 #  init pf_active IDS  #
 #= ================== =#
 """
-    init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.pf_active` starting from `ini` and `act` parameters
 """
-function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_pf_active")
     TimerOutputs.@timeit timer "init_pf_active" begin
         init_from = ini.general.init_from
@@ -52,9 +52,9 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
 
         end
 
-        coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
-        coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
-        coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+        IMAS.coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+        IMAS.coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+        IMAS.coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
 
         return dd
     end
@@ -161,7 +161,7 @@ function init_pf_active!(
     end
 
     # Now add actual PF coils to regions of vacuum
-    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer; fs=_out_) if bd.layer[k].material == "Vacuum"][1]
+    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer; fs=_out_) if bd.layer[k].material == "vacuum"][1]
     lfs_out_indexes = IMAS.get_build_indexes(bd.layer; fs=[_lfs_, _out_])
     krail = 1
     ngrid = 257

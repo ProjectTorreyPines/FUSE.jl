@@ -8,7 +8,6 @@ import SimulationParameters
 import AbstractTrees
 import ProgressMeter
 import Dates
-using InteractiveUtils: subtypes
 
 function pretty_units(unit)
     unit = replace(unit, r"\^-3(?![0-9])" => "⁻³")

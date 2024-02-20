@@ -1,4 +1,5 @@
-txt = ["""# Use cases
+txt = [
+    """# Use cases
 
 ```@meta
 CurrentModule = FUSE
@@ -14,7 +15,8 @@ A handy way of generating the ini code from `your_ini` that you created in a not
 !!! tip "Tip!"
     Click on the `Source` button of each use case to see how each is setup
 
-"""]
+"""
+]
 for method in methods(FUSE.case_parameters)
     name = try
         method.sig.types[2].parameters[1].parameters[1]
@@ -31,5 +33,5 @@ for method in methods(FUSE.case_parameters)
     )
 end
 open("$(@__DIR__)/cases.md", "w") do io
-    write(io, join(txt, "\n"))
+    return write(io, join(txt, "\n"))
 end

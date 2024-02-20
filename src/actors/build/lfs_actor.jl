@@ -1,17 +1,18 @@
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    _time::Float64 = NaN
     maintenance::Switch{Symbol} = Switch{Symbol}([:vertical, :horizontal, :none], "-", "Scheme for installation/removal of in-vessel components"; default=:none)
     tor_modularity::Entry{Int} = Entry{Int}("-", "Number of toroidal modules of blanket normalized to number of TF coils (must be >= 1)"; default=2)
     pol_modularity::Entry{Int} = Entry{Int}("-", "Number of poloidal modules of each toroidal blanket sector (must be >= 1)"; default=1)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
-mutable struct ActorLFSsizing{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorLFSsizing{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorLFSsizing{P}
     function ActorLFSsizing(dd::IMAS.dd{D}, par::FUSEparameters__ActorLFSsizing{P}; kw...) where {D<:Real,P<:Real}
@@ -25,11 +26,12 @@ end
     ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Actor that resizes the Low Field Side of the tokamak radial build
-* Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
-* Other low-field side layers are scaled proportionally
 
-!!! note 
-    Manipulates radial build information in `dd.build.layer`
+  - Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
+  - Other low-field side layers are scaled proportionally
+
+!!! note
+Manipulates radial build information in `dd.build.layer`
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorLFSsizing(dd, act.ActorLFSsizing; kw...)
@@ -48,11 +50,11 @@ function _step(actor::ActorLFSsizing)
     dd = actor.dd
     par = actor.par
 
-    TF_lfs_layer = IMAS.get_build_layer(dd.build.layer, type=_tf_, fs=_lfs_)
-    vessel_lfs_layer = IMAS.get_build_layer(dd.build.layer, type=_vessel_, fs=_lfs_)
+    TF_lfs_layer = IMAS.get_build_layer(dd.build.layer; type=_tf_, fs=_lfs_)
+    vessel_lfs_layer = IMAS.get_build_layer(dd.build.layer; type=_vessel_, fs=_lfs_)
 
     # calculate TF leg radius that gives required TF field ripple
-    ripple_TF_radius = IMAS.R_tf_ripple(IMAS.get_build_layer(dd.build.layer, type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
+    ripple_TF_radius = IMAS.R_tf_ripple(IMAS.get_build_layer(dd.build.layer; type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
 
     # calculate vacuum port geometry for maintenance
     if par.maintenance != :none
@@ -61,7 +63,7 @@ function _step(actor::ActorLFSsizing)
         if par.tor_modularity == 1
             # if tor_modularity is 1, then lfs vessel end_radius must coincide with rVP_lfs_ob
             maintenance_TF_radius = rVP_lfs_ob + (TF_lfs_layer.start_radius - vessel_lfs_layer.end_radius)
-        else            
+        else
             # if tor_modularity is 2, then TF coil end_radius can be flush with rVP_lfs_ob
             maintenance_TF_radius = rVP_lfs_ob - (TF_lfs_layer.thickness)
         end
@@ -85,20 +87,20 @@ function _step(actor::ActorLFSsizing)
         println("TF outer leg radius changed by $delta [m]")
     end
 
-    itf = IMAS.get_build_index(dd.build.layer, type=_tf_, fs=_lfs_) - 1
-    iplasma = IMAS.get_build_index(dd.build.layer, type=_plasma_) + 1
+    itf = IMAS.get_build_index(dd.build.layer; type=_tf_, fs=_lfs_) - 1
+    iplasma = IMAS.get_build_index(dd.build.layer; type=_plasma_) + 1
     for vac in (true) #, false) ## Removed the 'false' iteration due to double-counting, not sure why this was implimented (DBW)
         thicknesses = [dd.build.layer[k].thickness for k in iplasma:itf if !vac || lowercase(dd.build.layer[k].material) == "vacuum"]
         for k in iplasma:itf
             if !vac || lowercase(dd.build.layer[k].material) == "vacuum"
                 dd.build.layer[k].thickness *= (1 + delta / sum(thicknesses))
-                hfs_thickness = IMAS.get_build_layer(dd.build.layer, identifier=dd.build.layer[k].identifier, fs=_hfs_).thickness
+                hfs_thickness = IMAS.get_build_layer(dd.build.layer; identifier=dd.build.layer[k].identifier, fs=_hfs_).thickness
                 if dd.build.layer[k].thickness < hfs_thickness
                     dd.build.layer[k].thickness = hfs_thickness
                 end
             end
         end
     end
-    
+
     return actor
 end

@@ -3,9 +3,10 @@ import TJLF: InputTJLF, run_tjlf, get_ky_spectrum_size, checkInput
 #= ========= =#
 #  ActorTGLF  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
@@ -15,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T} <: ParametersActor where
     custom_input_files::Entry{Union{Vector{<:InputTGLF}, Vector{<:InputTJLF}}} = Entry{ Union{Vector{<:InputTGLF}, Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
 end
 
-mutable struct ActorTGLF{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}  
     par::FUSEparameters__ActorTGLF{P}
     input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}

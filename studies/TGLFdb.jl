@@ -24,7 +24,7 @@ function study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__Parameter
     return sty, act
 end
 
-Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T} <: ParametersStudy where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: ParametersStudy{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :StudyTGLFdb
     server::Switch{String} = study_common_parameters(; server="localhost")
@@ -146,8 +146,8 @@ function preprocess_dd(filename)
     dd.summary.local.pedestal.n_e.value =
         [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
     dd.summary.local.pedestal.zeff.value = [2.2] # [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].zeff, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
-    dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.time = dd.summary.time
-    dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference.data = dd.equilibrium.vacuum_toroidal_field.b0
+    dd.pulse_schedule.tf.time = dd.summary.time
+    dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = dd.equilibrium.vacuum_toroidal_field.b0
 
     return dd
 end

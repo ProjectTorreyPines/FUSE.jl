@@ -1,9 +1,9 @@
 """
-    init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.core_profiles` starting from `ini` and `act` parameters
 """
-function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_core_profiles")
     TimerOutputs.@timeit timer "init_core_profiles" begin
         init_from = ini.general.init_from

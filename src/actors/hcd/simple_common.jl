@@ -3,7 +3,7 @@ import NumericalIntegration: integrate
 #= ========= =#
 #  functions  #
 #= ========= =#
-function gaussian_source(
+function shaped_source(
     source::IMAS.core_sources__source,
     name::AbstractString,
     index::Integer,
@@ -12,14 +12,12 @@ function gaussian_source(
     area_cp::Vector{<:Real},
     power_launched::Real,
     ion_electron_fraction_cp::Vector{<:Real},
-    rho_0::Real,
-    width::Real,
-    gauss_order::Float64;
+    shape_function::Function;
     electrons_particles=missing,
     momentum_tor=missing,
     j_parallel=missing)
 
-    gaussian = sgaussian(rho_cp, rho_0, width, gauss_order)
+    gaussian = shape_function.(rho_cp)
     gaussian_vol = gaussian / integrate(volume_cp, gaussian)
     gaussian_area = gaussian / integrate(area_cp, gaussian)
 
@@ -43,8 +41,4 @@ function gaussian_source(
         j_parallel = gaussian_area .* j_parallel
     end
     return IMAS.new_source(source, index, name, rho_cp, volume_cp, area_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
-end
-
-function sgaussian(rho::AbstractVector{<:Real}, rho_0::Real, width::Real, order::Float64=1.0)
-    return exp.(-((rho .- rho_0) .^ 2 / 2width^2) .^ order)
 end

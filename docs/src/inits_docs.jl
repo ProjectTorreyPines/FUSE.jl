@@ -55,5 +55,5 @@ for name in sort!(collect(names(FUSE; all=true, imported=false)))
     end
 end
 open("$(@__DIR__)/inits.md", "w") do io
-    write(io, join(txt, "\n"))
+    return write(io, join(txt, "\n"))
 end

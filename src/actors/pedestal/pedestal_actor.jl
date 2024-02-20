@@ -3,9 +3,10 @@ import EPEDNN
 #= ============= =#
 #  ActorPedestal  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
@@ -21,7 +22,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T} <: ParametersActor w
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
 end
 
-mutable struct ActorPedestal{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorPedestal{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPedestal{P}
     epedmod::EPEDNN.EPEDmodel

@@ -1,10 +1,12 @@
 #= ===================== =#
-#  ActorSheffieldCosting  #
+#  ActorCostingSheffield  #
 #= ===================== =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCostingSheffield{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
+    # NOTE: parameters below should reflect the parameters in FUSEparameters__ActorCostingGASC except for capitalize_blanket and capitalize_divertor
     construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default=8.0)
     fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default=0.078)
     capitalize_blanket::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st blanket in direct captial cost"; default=false)
@@ -13,18 +15,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorSheffieldCosting{T} <: Parameter
     blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default=15.0)
 end
 
-mutable struct ActorSheffieldCosting{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorCostingSheffield{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSheffieldCosting{P}
-    function ActorSheffieldCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorSheffieldCosting{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorSheffieldCosting)
+    par::FUSEparameters__ActorCostingSheffield{P}
+    function ActorCostingSheffield(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingSheffield{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorCostingSheffield)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorSheffieldCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates costing based on Sheffield and Milora, FS&T 70 (2016)
 
@@ -32,15 +34,15 @@ Estimates costing based on Sheffield and Milora, FS&T 70 (2016)
 
     Stores data in `dd.costing`
 """
-function ActorSheffieldCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorSheffieldCosting(kw...)
-    actor = ActorSheffieldCosting(dd, par)
+function ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorCostingSheffield(kw...)
+    actor = ActorCostingSheffield(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorSheffieldCosting)
+function _step(actor::ActorCostingSheffield)
     dd = actor.dd
     par = actor.par
     cst = dd.costing
@@ -203,7 +205,7 @@ function _step(actor::ActorSheffieldCosting)
     return actor
 end
 
-function _finalize(actor::ActorSheffieldCosting)
+function _finalize(actor::ActorCostingSheffield)
     # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system; by=x -> x.cost, rev=true)
     for sys in actor.dd.costing.cost_direct_capital.system
@@ -240,7 +242,7 @@ function cost_direct_capital_Sheffield(::Type{Val{:shields}}, cst::IMAS.costing,
     for layer in shields_hfs
         vol_shield_hfs = layer.volume
         material_shield_hfs = layer.material
-        cost += vol_shield_hfs * unit_cost(material_shield_hfs, cst)
+        cost += vol_shield_hfs * unit_cost(Material(material_shield_hfs), cst)
     end
 
     return future_dollars(1.25 * cost, da)
@@ -249,7 +251,7 @@ end
 function cost_direct_capital_Sheffield(::Type{Val{:structure}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
     primary_coils_hfs = IMAS.get_build_layer(bd.layer; type=IMAS._tf_, fs=_hfs_)
-    cost = 0.75 * primary_coils_hfs.volume * unit_cost("Steel, Stainless 316", cst)
+    cost = 0.75 * primary_coils_hfs.volume * unit_cost(Material("steel"), cst)
     return future_dollars(cost, da)
 end
 
@@ -294,7 +296,7 @@ function cost_direct_capital_Sheffield(::Type{Val{:blanket}}, cap::Bool, dd::IMA
         cst = dd.costing
         blankets = IMAS.get_build_layers(bd.layer; type=IMAS._blanket_, fs=_lfs_)
         for blanket in blankets
-            blanket_capital_cost = 1.1 * blanket.volume * unit_cost(blanket.material, cst)
+            blanket_capital_cost = 1.1 * blanket.volume * unit_cost(Material(blanket.material), cst)
             cost += 1.1 * blanket_capital_cost
         end
     end
@@ -343,7 +345,7 @@ function cost_fuel_Sheffield(
     cost = 0.0
     if !isempty(blankets)
         for blanket in blankets
-            initial_cost_blanket = 1.1 * blanket.volume * unit_cost(blanket.material, cst)
+            initial_cost_blanket = 1.1 * blanket.volume * unit_cost(Material(blanket.material), cst)
 
             if cap
                 blanket_capital_cost = 0.0

@@ -4,9 +4,10 @@ import FiniteElementHermite
 #= ======== =#
 #  ActorQED  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
@@ -15,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where 
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
 end
 
-mutable struct ActorQED{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorQED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorQED{P}
     QO::Union{Nothing,QED.QED_state}
@@ -59,9 +60,12 @@ function _step(actor::ActorQED)
     cp1d = dd.core_profiles.profiles_1d[]
 
     if par.Nt == 0
+        # @info("QED: initialize")
+        # initialize
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=true)
 
     elseif par.Δt == Inf
+        # @info("QED: steady state")
         # steady state solution
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
 
@@ -76,7 +80,7 @@ function _step(actor::ActorQED)
         actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
 
     elseif par.Δt < 0.0
-        # fake rampup
+        # @info("QED: fake rampup for $(par.Δt) [s]")
         # scales the conductivity and non-inductive sources from zero to current value with some fudge law
         α_ni_evo_ip = 1.0 / 5.0 # early application of non-inductive current
         α_η_evo_ip = 5.0 # later transition to H-mode
@@ -114,7 +118,7 @@ function _step(actor::ActorQED)
         #display(p)
 
     else
-        # current diffusion
+        # @info("QED: current diffusion for $(par.Δt) [s]")
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
 
         t0 = dd.global_time
@@ -139,7 +143,7 @@ function _step(actor::ActorQED)
                 Ip = nothing
                 Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=tnow)
             end
-            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, Ni; Vedge, Ip)
+            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[tnow]), δt, Ni; Vedge, Ip, debug=false)
         end
     end
 
@@ -179,12 +183,6 @@ function _finalize(actor::ActorQED)
     # update dd.core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
-
-    # add vloop info to pulse_schedule
-    if par.solve_for == :ip
-        vloop = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
-        @ddtime(dd.pulse_schedule.flux_control.loop_voltage.reference.data = vloop)
-    end
 
     return actor
 end
