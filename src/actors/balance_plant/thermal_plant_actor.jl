@@ -235,8 +235,8 @@ function _step(actor::ActorThermalPlant)
             simple_sys = MTK.structural_simplify(sys);
 
 
-            actor.components  = plant_systems;
-            actor.connections = plant_connections;
+            actor.components  = plant_systems
+            actor.connections = plant_connections
             actor.odeparams   = plant_params
             actor.odedict     = Dict(edict..., wdict..., ddict..., bdict..., idict..., sdict...);
             actor.buildstatus = true
