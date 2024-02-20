@@ -2,7 +2,7 @@
 #  ActorThermalPlant
 #= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
-import ModelingToolkit, DifferentialEquations
+import ModelingToolkit as MTK, DifferentialEquations
 import ThermalSystem_Models
 TSMD    = ThermalSystem_Models.Dynamics
 MTK     = ModelingToolkit
