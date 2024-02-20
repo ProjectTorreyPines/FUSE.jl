@@ -79,7 +79,12 @@ function workflow_multiobjective_optimization(
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1, f_calls_limit=1E9, g_calls_limit=1E9, h_calls_limit=1E9)
 
     if length(objective_functions) == 1
-        algorithm = Metaheuristics.ECA(; N, options) # converges and covers well the pareto front!
+        D = length(opt_ini)
+        K = Int(floor(N / D))
+        if K < N
+            K = N
+        end
+        algorithm = Metaheuristics.ECA(; N, K, options)
 
     else
         # set algorithm parameters depending on exploitation_vs_exploration index
