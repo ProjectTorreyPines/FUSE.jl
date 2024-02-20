@@ -677,8 +677,6 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
     bopsys = bop_plant.system; 
     bops_dict = Dict(bopsys[i].name => i for i =1:length(syslabs)); # dict where name => index
     valid_s   = collect(keys(bops_dict)); 
-    # bops_dict = Dict(bopsys[i].name => i for i =1:length(syslabs)); # dict where name => index
-    # valid_s   = collect(keys(bops_dict));                           # valid system names
 
 
     nparent_dict = TSMD.node_propdict(gcopy,:parent);
