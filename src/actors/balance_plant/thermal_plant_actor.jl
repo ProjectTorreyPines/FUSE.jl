@@ -92,7 +92,6 @@ function _step(actor::ActorThermalPlant)
     wall_heat_load      = (use_actor_u == false) ?  abs.(IMAS.radiation_losses(dd.core_sources)) : actor.u[3];
     
     actor.u             =  [breeder_heat_load, divertor_heat_load, wall_heat_load]
-    # println("Actor u = $(actor.u)")
     # Buidling the TSM System
     if actor.buildstatus == false
         @info "Rebuilding ActorThermalPlant"
