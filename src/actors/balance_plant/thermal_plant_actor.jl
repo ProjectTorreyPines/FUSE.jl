@@ -5,7 +5,6 @@
 import ModelingToolkit as MTK, DifferentialEquations
 import ThermalSystem_Models
 TSMD    = ThermalSystem_Models.Dynamics
-MTK     = ModelingToolkit
 MTK.@variables t
 
 Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T} <: ParametersActor where {T<:Real}
