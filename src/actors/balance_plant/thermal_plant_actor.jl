@@ -670,7 +670,7 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
     if length(bop_plant.system) != length(syslabs)
         empty!(dd.balance_of_plant.power_plant.system)
         resize!(bop_plant.system,length(syslabs))
-        for i =1:length(syslabs)
+        for i in 1:length(syslabs)
             bop_plant.system[i].name  = syslabs[i] 
         end
     end
