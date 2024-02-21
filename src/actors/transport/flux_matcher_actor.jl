@@ -5,7 +5,7 @@ import TJLF: InputTJLF
 #= ================ =#
 #  ActorFluxMatcher  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -29,7 +29,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
-mutable struct ActorFluxMatcher{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxMatcher{P}
     actor_ct::ActorFluxCalculator{D,P}

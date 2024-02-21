@@ -83,6 +83,7 @@ Read dd.json/h5 in a folder and extract data from it.
 """
 function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
     dd, ini, act = load(dir; load_ini=false, load_act=false, skip_on_error=true)
+    IMAS.last_time(dd)
     return extract(dd, xtract)
 end
 
@@ -98,6 +99,7 @@ end
 Extract data from multiple FUSE results folders or `dd`s and return results in DataFrame format.
 
 Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
+Filtering by `:cols_row1` removes the columns that have NaN in the first row of the table.
 
 Specifying a `cache` file allows caching of extraction results and not having to parse data.
 
@@ -111,8 +113,16 @@ function IMAS.extract(
     read_cache::Bool=true,
     write_cache::Bool=true)::DataFrames.DataFrame
 
+    function identifier(DD::Vector{<:AbstractString}, k::Int)
+        return abspath(DD[k])
+    end
+
+    function identifier(DD::Vector{IMAS.dd}, k::Int)
+        return k
+    end
+
     # test filter_invalid
-    @assert filter_invalid ∈ (:none, :cols, :rows, :all) "filter_invalid can only be one of [:none, :cols, :rows, :all]"
+    @assert filter_invalid ∈ (:none, :cols_row1, :cols, :rows, :all) "filter_invalid can only be one of [:none, :cols_row1, :cols, :rows, :all]"
 
     if DD !== nothing && length(cache) > 0
         @assert typeof(DD[1]) <: AbstractString "cache is only meant to work when extracting data from FUSE results folders"
@@ -131,8 +141,22 @@ function IMAS.extract(
 
     else
         # allocate memory
-        tmp = Dict(extract(DD[1], xtract))
-        tmp[:dir] = abspath(DD[1])
+        if filter_invalid == :cols_row1
+            xtract = deepcopy(xtract)
+            xtr = extract(DD[1], xtract)
+            tmp = Dict()
+            for (xkey, xfun) in xtr
+                if xfun.value === NaN
+                    delete!(xtract, xkey)
+                else
+                    tmp[xfun.name] = xfun.value
+                end
+            end
+        else
+            tmp = Dict(extract(DD[1], xtract))
+        end
+
+        tmp[:dir] = identifier(DD, 1)
         df = DataFrames.DataFrame(tmp)
         for k in 2:length(DD)
             push!(df, df[1, :])
@@ -141,11 +165,11 @@ function IMAS.extract(
         # load the data
         p = ProgressMeter.Progress(length(DD); showspeed=true)
         Threads.@threads for k in eachindex(DD)
-            aDDk = abspath(DD[k])
+            aDDk = identifier(DD, k)
             try
                 if aDDk in cached_dirs
-                    kcashe = findfirst(dir -> dir == aDDk, cached_dirs)
-                    df[k, :] = df_cache[kcashe, :]
+                    k_cache = findfirst(dir -> dir == aDDk, cached_dirs)
+                    df[k, :] = df_cache[k_cache, :]
                 else
                     tmp = Dict(extract(aDDk, xtract))
                     tmp[:dir] = aDDk
@@ -319,7 +343,7 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
     if load_act && isfile(joinpath(savedir, "act.json"))
         act = json2act(joinpath(savedir, "act.json"))
     end
-    return dd, ini, act
+    return (dd=dd, ini=ini, act=act)
 end
 
 """
@@ -345,6 +369,7 @@ function digest(
     sec = 1
     if section ∈ (0, sec)
         IMAS.print_tiled(extract(dd); terminal_width, line_char)
+        println("@ time = $(dd.global_time) [s]")
     end
 
     # equilibrium with build and PFs
@@ -488,6 +513,13 @@ function digest(
         plot!(p, dd.build; subplot=2, legend=false)
         plot!(p, dd.pf_active; time0, subplot=2)
         display(p)
+    end
+
+    # pulse_schedule
+    sec += 1
+    if !isempty(dd.pulse_schedule) && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.pulse_schedule))
     end
 
     # tf

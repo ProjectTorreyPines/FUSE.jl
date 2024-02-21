@@ -1,13 +1,13 @@
 #= ====== =#
 #  PELLET  #
 #= ====== =#
-Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
 end
 
-mutable struct ActorSimplePellet{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimplePellet{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSimplePellet{P}
     function ActorSimplePellet(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePellet{P}; kw...) where {D<:Real,P<:Real}
@@ -20,7 +20,7 @@ end
 """
     ActorSimplePellet(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the Pellet particle deposition as a gaussian.
+Estimates the Pellet particle deposition
 
 !!! note
 

@@ -5,7 +5,7 @@ import Optim
 #= ============ =#
 #  ActorSolovev  #
 #= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -19,7 +19,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T} <: ParametersActor wh
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorSolovev{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorSolovev{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSolovev{P}
     S::Union{Nothing,MXHEquilibrium.SolovevEquilibrium}
