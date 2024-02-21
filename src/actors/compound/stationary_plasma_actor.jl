@@ -144,7 +144,7 @@ function _step(actor::ActorStationaryPlasma)
                 plot!(ps, dd.core_sources; label="i=$(length(total_error))")
 
                 @printf("\n")
-                @printf("Jtor0_after = %.2f MA\n", cp1d.j_tor[1] / 1e6)
+                @printf("Jtor0_after = %.2f MA m^2\n", cp1d.j_tor[1] / 1e6)
                 @printf("   P0_after = %.2f kPa\n", cp1d.pressure[1] / 1e3)
                 @printf("     βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
                 @printf("     βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
