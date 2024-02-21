@@ -146,9 +146,9 @@ include("parameters_actors.jl")
 include("optimization.jl")
 
 
-#= ============ =#
-#  APPLICATIONS  #
-#= ============ =#
+#= ======= =#
+#  STUDIES  #
+#= ======= =#
 include("parameters_studies.jl")
 
 

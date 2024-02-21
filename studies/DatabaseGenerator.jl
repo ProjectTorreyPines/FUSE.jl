@@ -26,7 +26,7 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
     return sty, act
 end
 
-Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T} <: ParametersStudy where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:Real} <: ParametersStudy{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :StudyDatabaseGenerator
     server::Switch{String} = study_common_parameters(; server="localhost")
