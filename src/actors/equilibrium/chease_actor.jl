@@ -3,7 +3,7 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor whe
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}
@@ -82,9 +82,9 @@ function _step(actor::ActorCHEASE)
             par.rescale_eq_to_ip,
             par.clear_workdir)
     catch e
-        display(plot(pr, pz; marker=:dot, aspect_ratio=:equal))
-        display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
-        display(plot(rho_pol, j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
+        display(plot(pr, pz; marker=:circle, aspect_ratio=:equal))
+        display(plot(rho_pol, pressure; marker=:circle, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
+        display(plot(rho_pol, j_tor; marker=:circle, xlabel="sqrt(ψ)", title="Jtor [A]"))
         rethrow(e)
     end
 

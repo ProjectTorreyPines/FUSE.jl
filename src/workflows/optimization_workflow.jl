@@ -1,16 +1,17 @@
 import Distributed
+import Serialization
 
 """
     workflow_multiobjective_optimization(
         ini::ParametersAllInits,
         act::ParametersAllActors,
         actor_or_workflow::Union{Type{<:AbstractActor},Function},
-        objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
-        constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
+        objective_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
+        constraint_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
         exploitation_vs_exploration::Float64=0.0,
         N::Int=10,
         iterations::Int=N,
-        continue_state::Union{Missing,Metaheuristics.State}=missing,
+        continue_state::Union{Nothing,Metaheuristics.State}=missing,
         save_folder::AbstractString="optimization_runs",
         save_dd::Bool=true)
 
@@ -20,12 +21,12 @@ function workflow_multiobjective_optimization(
     ini::ParametersAllInits,
     act::ParametersAllActors,
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
-    objectives_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
-    constraints_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
+    objective_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
+    constraint_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
     exploitation_vs_exploration::Float64=0.0,
     N::Int=10,
     iterations::Int=N,
-    continue_state::Union{Missing,Metaheuristics.State}=missing,
+    continue_state::Union{Nothing,Metaheuristics.State}=nothing,
     save_folder::AbstractString="optimization_runs",
     save_dd::Bool=true)
 
@@ -34,7 +35,7 @@ function workflow_multiobjective_optimization(
     end
 
     println("Running on $(Distributed.nprocs()-1) worker processes")
-    if isempty(objectives_functions)
+    if isempty(objective_functions)
         error(
             "Must specify objective functions. Available pre-baked functions from ObjectiveFunctionsLibrary:\n  * " *
             join(keys(ObjectiveFunctionsLibrary), "\n  * ")
@@ -49,12 +50,12 @@ function workflow_multiobjective_optimization(
     end
     println()
     println("== Objectives ==")
-    for objf in objectives_functions
+    for objf in objective_functions
         println(objf)
     end
     println()
     println("== Constraints ==")
-    for cnst in constraints_functions
+    for cnst in constraint_functions
         println(cnst)
     end
 
@@ -77,31 +78,45 @@ function workflow_multiobjective_optimization(
     # optimize
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1, f_calls_limit=1E9, g_calls_limit=1E9, h_calls_limit=1E9)
 
-    # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
-    # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
-    # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2
+    if length(objective_functions) == 1
+        D = length(opt_ini)
+        K = Int(floor(N / D))
+        if K < N
+            K = N
+        end
+        algorithm = Metaheuristics.ECA(; N, K, options)
 
-    # set algorithm parameters depending on exploitation_vs_exploration index
-    # crossover distribution index
-    η_cr = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 40.0], :cubic).(exploitation_vs_exploration)))
-    # crossover probability
-    p_cr = IMAS.interp1d([0.0, 1.0, 2.0], [0.9, 0.6, 0.5], :cubic).(exploitation_vs_exploration)
-    # mutation distribution index
-    η_m = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 50.0], :cubic).(exploitation_vs_exploration)))
-    # mutation probability
-    p_m = IMAS.interp1d([0.0, 1.0, 2.0], [1.0, 2.0, 4.0], :cubic).(exploitation_vs_exploration)
+    else
+        # set algorithm parameters depending on exploitation_vs_exploration index
+        # crossover distribution index
+        η_cr = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 40.0], :cubic).(exploitation_vs_exploration)))
+        # crossover probability
+        p_cr = IMAS.interp1d([0.0, 1.0, 2.0], [0.9, 0.6, 0.5], :cubic).(exploitation_vs_exploration)
+        # mutation distribution index
+        η_m = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 50.0], :cubic).(exploitation_vs_exploration)))
+        # mutation probability
+        p_m = IMAS.interp1d([0.0, 1.0, 2.0], [1.0, 2.0, 4.0], :cubic).(exploitation_vs_exploration)
 
-    algorithm = Metaheuristics.SPEA2(; N, η_cr, p_cr, η_m, p_m, options) # converges and covers well the pareto front! 
-    if continue_state !== missing
+        # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
+        # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
+        # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2
+        algorithm = Metaheuristics.SPEA2(; N, η_cr, p_cr, η_m, p_m, options) # converges and covers well the pareto front!
+    end
+
+    if continue_state !== nothing
         println("Restarting simulation")
         algorithm.status = continue_state
     end
-    flush(stdout)
 
+    flush(stdout)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
     @time state =
-        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objectives_functions, constraints_functions, save_folder, save_dd, p), bounds, algorithm)
+        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p), bounds, algorithm)
     display(state)
+
+    if !isempty(save_folder)
+        save_optimization(joinpath(save_folder, "results.jls"), state, ini, act, objective_functions, constraint_functions)
+    end
 
     return state
 end
@@ -130,4 +145,41 @@ function pareto_front(solutions::Vector{Vector{T}}) where {T}
         end
     end
     return pareto
+end
+
+"""
+    save_optimization(
+        filename::AbstractString,
+        state::Metaheuristics.State,
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        objectives_functions::Vector{<:ObjectiveFunction},
+        constraints_functions::Vector{<:ConstraintFunction})
+
+Save Metaheuristics.State to file
+"""
+function save_optimization(
+    filename::AbstractString,
+    state::Metaheuristics.State,
+    ini::ParametersAllInits,
+    act::ParametersAllActors,
+    objectives_functions::Vector{<:ObjectiveFunction},
+    constraints_functions::Vector{<:ConstraintFunction}
+)
+    data = Dict("state" => state, "ini" => ini, "act" => act, "objective_functions" => objectives_functions, "constraint_functions" => constraints_functions)
+    open(filename, "w") do io
+        return Serialization.serialize(io, data)
+    end
+end
+
+"""
+    load_optimization(filename::AbstractString)
+
+Load Metaheuristics.State from file, returns named tuple
+"""
+function load_optimization(filename::AbstractString)
+    data = open(filename, "r") do io
+        return Serialization.deserialize(io)
+    end
+    return (state=data["state"], ini=data["ini"], act=data["act"], objectives_functions=data["objective_functions"], constraints_functions=data["constraint_functions"])
 end

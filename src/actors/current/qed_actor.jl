@@ -4,7 +4,7 @@ import FiniteElementHermite
 #= ======== =#
 #  ActorQED  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T} <: ParametersActor where 
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
 end
 
-mutable struct ActorQED{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorQED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorQED{P}
     QO::Union{Nothing,QED.QED_state}
@@ -183,12 +183,6 @@ function _finalize(actor::ActorQED)
     # update dd.core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
-
-    # add vloop info to pulse_schedule
-    if par.solve_for == :ip
-        vloop = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
-        @ddtime(dd.pulse_schedule.flux_control.loop_voltage.reference.data = vloop)
-    end
 
     return actor
 end

@@ -1,7 +1,7 @@
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T} <: ParametersActor wh
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorCXbuild{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorCXbuild{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCXbuild{P}
     function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}; kw...) where {D<:Real,P<:Real}
@@ -74,9 +74,11 @@ end
 """
     segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_relative_error::T; symmetric::Union{Bool,Nothing}=nothing) where {T<:Real}
 
-Generate a segmented first wall outline starting from an equilibrium boundary
+Generate a segmented first wall outline starting from an equilibrium boundary.
 
-If `symmetric === nothing` then symmetry of the plasma is automatically determined
+If `max_segment_relative_error == 0.0` then no segmentation is applied.
+
+If `symmetric === nothing` then symmetry of the plasma is automatically determined.
 """
 function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_relative_error::T; symmetric::Union{Bool,Nothing}=nothing) where {T<:Real}
     mxh = IMAS.MXH(eq_r, eq_z, 4)
@@ -95,22 +97,27 @@ function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T
     # correct hfs to have a flat center stack wall
     R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
 
-    # flat midplane wall
-    R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
-    R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
-    R, Z = buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
-    circshift!(Z, argmin(R))
-    circshift!(R, argmin(R))
+    if max_segment_relative_error <= 0.0
+        R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
 
-    # segments
-    R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_relative_error)
-    if symmetric
-        R = (R .+ reverse(R)) / 2.0
-        Z = ((Z .- mxh.Z0) .- reverse(Z .- mxh.Z0)) / 2.0 .+ mxh.Z0
+    else
+        # flat midplane wall
+        R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
+        R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
+        R, Z = buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
+        circshift!(Z, argmin(R))
+        circshift!(R, argmin(R))
+
+        # segments
+        R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_relative_error)
+        if symmetric
+            R = (R .+ reverse(R)) / 2.0
+            Z = ((Z .- mxh.Z0) .- reverse(Z .- mxh.Z0)) / 2.0 .+ mxh.Z0
+        end
+
+        # rounded joints
+        R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error))
     end
-
-    # rounded joints
-    R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error))
 
     return R, Z
 end

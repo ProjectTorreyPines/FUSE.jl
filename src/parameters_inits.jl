@@ -4,21 +4,21 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _triple_arc_,
-    _miller_, _square_miller_, _spline_, _silo_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_,
+    _rectangle_ellipse_, _triple_arc_, _miller_, _square_miller_, _spline_, _silo_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
 const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerSide))
 
-Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :time
     pulse_shedule_time_basis::Entry{AbstractRange{Float64}} = Entry{AbstractRange{Float64}}("s", "Time basis used to discretize the pulse schedule")
     simulation_start::Entry{Float64} = Entry{Float64}("s", "Time at which the simulation starts"; default=0.0)
 end
 
-Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
     casename::Entry{String} = Entry{String}("-", "Sort mnemonic name of the case being run")
@@ -31,7 +31,7 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit where {T
     dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "`dd` to initialize from")
 end
 
-Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :equilibrium
     B0::Entry{T} = Entry{T}(IMAS.equilibrium__vacuum_toroidal_field, :b0)
@@ -53,7 +53,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit wher
     rz_points::Entry{Vector{Vector{T}}} = Entry{Vector{Vector{T}}}("m", "R_Z boundary as Vector{Vector{$T}}} : r = rz_points[1], z = rz_points[2]")
 end
 
-Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
     greenwald_fraction::Entry{T} =
@@ -75,7 +75,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit wh
     polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 < x < 1.0 "must be: 0.0 < polarized_fuel_fraction < 1.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pf_active
     n_coils_inside::Entry{Int} = Entry{Int}("-", "Number of PF coils inside of the TF"; check=x -> @assert x >= 0 "must be: n_coils_inside >= 0")
@@ -83,7 +83,7 @@ Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit where 
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "PF coils technology")
 end
 
-Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
     n_coils::Entry{Int} = Entry{Int}("-", "Number of TF coils"; check=x -> @assert x >= 0 "must be: n_coils >= 0")
@@ -93,14 +93,14 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit where {T<:Rea
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "TF coils technology")
 end
 
-Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :oh
     n_coils::Entry{Int} = Entry{Int}("-", "Number of OH coils"; check=x -> @assert x >= 0 "must be: n_coils >= 0")
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "OH coils technology")
 end
 
-Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :center_stack
     bucked::Entry{Bool} = Entry{Bool}("-", "Flag for bucked boundary conditions between TF and OH (and center plug, if present)"; default=false)
@@ -108,10 +108,12 @@ Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit whe
     plug::Entry{Bool} = Entry{Bool}("-", "Flag for center plug"; default=false)
 end
 
-Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :nbi
     power_launched::Entry{T} = Entry{T}("W", "Beam power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.3, check=x -> @assert x > 0.0 "must be: width > 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
     toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; default=0.0)
@@ -119,49 +121,57 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit where {T
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ec_launcher
     power_launched::Entry{T} = Entry{T}("W", "EC launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.025, check=x -> @assert x > 0.0 "must be: width > 0.0")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.ec_launchers__beam___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ic_antenna
-    power_launched::Entry{T} = Entry{T}("W", "IC launched power")
+    power_launched::Entry{T} = Entry{T}("W", "IC launched power", check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.1, check=x -> @assert x > 0.0 "must be: width > 0.0")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.ic_antennas__antenna___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
     efficiency_coupling::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :coupling; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_coupling > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :lh_antenna
-    power_launched::Entry{T} = Entry{T}("W", "LH launched power")
+    power_launched::Entry{T} = Entry{T}("W", "LH launched power", check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.8, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.05, check=x -> @assert x > 0.0 "must be: width > 0.0")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.lh_antennas__antenna___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
     efficiency_coupling::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :coupling; default=1.0)
 end
 
-Base.@kwdef mutable struct FUSEparameters__pellets_launchers{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__pellets_launchers{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pellet_launcher
     frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched"; check=x -> @assert x >= 0.0 "pellet frequency must be >= 0.0")
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.25, check=x -> @assert x > 0.0 "must be: width > 0.0")
     shape::Switch{Symbol} = Switch{Symbol}([:spherical, :cylindrical, :rectangular], "-", "The pellet geometry"; default=:spherical)
     species::Switch{Symbol} = Switch{Symbol}([:H, :D, :T, :DT, :C, :Ne], "-", "Pellet species")
     size::Entry{Vector{T}} = Entry{Vector{T}}(
         "m",
-        "Vector of geometric dimensions describing the pellet size for a given shape (spherical: [r], cylindrical: [r, l], rectangular: [x,y,z])";
+        "Vector of geometric dimensions describing the pellet size for a given shape (spherical: [r], cylindrical: [d, l], rectangular: [x,y,z])";
         check=x -> @assert all(x .> 0.0) "All pellet shape dimensions must be > 0.0"
     )
 end
 
-Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :layer
     name::Entry{String} = Entry{String}("-", "Name of the layer")
@@ -177,7 +187,7 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit wher
     side::Switch{BuildLayerSide} = Switch{BuildLayerSide}(layer_side_options, "-", "Side of the layer")
 end
 
-Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
     layers::ParametersVector{FUSEparameters__build_layer{T}} = ParametersVector{FUSEparameters__build_layer{T}}()
@@ -189,20 +199,20 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit where {T<:
         Entry{Int}("-", "Number of layers that are conformal to the first wall"; default=1, check=x -> @assert x > 0 "must be: n_first_wall_conformal_layers > 0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__gasc{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__gasc{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :gasc
     filename::Entry{String} = Entry{String}("-", "Output GASC .json file from which data will be loaded")
     case::Entry{Int} = Entry{Int}("-", "Number of the GASC run to load")
 end
 
-Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ods
     filename::Entry{String} = Entry{String}("-", "ODS.json file(s) from which equilibrium is loaded. Multiple comma-separated ODSs can be specified.")
 end
 
-Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :requirements
     power_electric_net::Entry{T} = Entry{T}(IMAS.requirements, :power_electric_net; check=x -> @assert x > 0.0 "must be: power_electric_net > 0.0")
@@ -221,7 +231,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit whe
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; check=x -> @assert x > 0.0 "must be: coil_j_margin > 0.0")
 end
 
-mutable struct ParametersInits{T} <: ParametersAllInits where {T<:Real}
+mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     _parent::WeakRef
     _name::Symbol
     general::FUSEparameters__general{T}

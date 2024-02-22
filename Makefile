@@ -38,7 +38,7 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN TJLF VacuumFields 
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN TJLF VacuumFields 
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -225,11 +225,18 @@ for package in ("Equilibrium", "Broker", "ZMQ");\
 	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
 end;\
 '
+# undo --single-branch clones of git repos
+undo_single_branch:
+	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cd ../$(package)/; echo `pwd`; git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"; git fetch origin;)
 
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) WarmupFUSE FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
+
+playground: .PHONY
+	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
+	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_playground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 
 ADAS:
 	$(call clone_pull_repo,$@)
@@ -254,6 +261,9 @@ MillerExtendedHarmonic:
 	$(call clone_pull_repo,$@)
 
 FusionMaterials:
+	$(call clone_pull_repo,$@)
+
+FXP:
 	$(call clone_pull_repo,$@)
 
 VacuumFields:
@@ -531,13 +541,14 @@ empty_commit:
 	git reset HEAD
 	git commit --allow-empty -m 'empty commit'
 
-# merge repos on branch `orso` into `master`
-orso_master:
-	$(foreach rp,$(repo), \
+# GitHub merge of `branch` into `master` for a series of repos
+# >> make branch_master branch=my_branch repos='FUSE IMAS IMASDD'
+branch_master:
+	$(foreach rp,$(repos), \
 curl -X POST \
 -H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
 -H "Accept: application/vnd.github.v3+json" \
 https://api.github.com/repos/ProjectTorreyPines/$(rp).jl/merges \
--d '{"base": "master", "head": "orso", "commit_message": "merging orso into master"}';)
+-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 .PHONY:

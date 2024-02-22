@@ -1,3 +1,5 @@
+using InteractiveUtils: subtypes
+
 txt = ["""
 # Physics and Engineering Actors
 
@@ -26,12 +28,39 @@ Fidelity hierarchy is enabled by concept of *generic* Vs *specific* actors
 ```
 """]
 
-for actor_abstract_type in subtypes(FUSE.AbstractActor)
-    push!(txt, """## $(replace(replace("$actor_abstract_type","AbstractActor"=>""),"FUSE." => "")) actors\n""")
-    for name in sort!(collect(names(FUSE; all=true, imported=false)))
-        if startswith("$name", "Actor") && supertype(@eval(FUSE, $name)) == actor_abstract_type
-            nname = replace("$name", "Actor" => "")
-            basename = replace(nname, "_" => " ")
+function concrete_subtypes(T::Type)
+    if isabstracttype(T)
+        sub = subtypes(T)
+        return vcat(map(concrete_subtypes, sub)...)
+    else
+        return [T]
+    end
+end
+
+list_directories(path::String) = [item for item in readdir(path) if isdir(joinpath(path, item))]
+
+single_actors = concrete_subtypes(FUSE.SingleAbstractActor)
+compound_actors = concrete_subtypes(FUSE.CompoundAbstractActor)
+
+for actor_dir in list_directories(joinpath(FUSE.__FUSE__, "src", "actors"))
+
+    first_time_actor_dir = true
+    index_txt_header = 0
+    n_actors = 0
+
+    for Actor in [compound_actors; single_actors]
+        folder = FUSE.group_name(Actor)
+        name = FUSE.name(Actor; remove_Actor=false)
+        nname = replace("$name", "Actor" => "")
+        basename = replace(nname, "_" => " ")
+
+        if folder == actor_dir
+            if first_time_actor_dir
+                push!(txt, "## $(uppercasefirst(replace(actor_dir,"_"=>" ")))")
+                index_txt_header = length(txt)
+                first_time_actor_dir = false
+            end
+            n_actors += 1
             push!(txt,
                 """### $basename
 
@@ -48,8 +77,11 @@ for actor_abstract_type in subtypes(FUSE.AbstractActor)
             )
         end
     end
+    if index_txt_header > 0
+        txt[index_txt_header] = "$(txt[index_txt_header]) ($n_actors actors)"
+    end
 end
 
-open("$(@__DIR__)/actors.md", "w") do io
-    write(io, join(txt, "\n"))
+open(joinpath(@__DIR__, "actors.md"), "w") do io
+    return write(io, join(txt, "\n"))
 end

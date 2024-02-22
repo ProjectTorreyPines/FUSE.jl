@@ -52,9 +52,9 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
 
         end
 
-        coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
-        coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
-        coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+        IMAS.coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+        IMAS.coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+        IMAS.coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
 
         return dd
     end

@@ -1,7 +1,7 @@
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorStresses{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorStresses{T} <: ParametersActor w
     n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=5)
 end
 
-mutable struct ActorStresses{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorStresses{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStresses{P}
     function ActorStresses(dd::IMAS.dd{D}, par::FUSEparameters__ActorStresses{P}; kw...) where {D<:Real,P<:Real}

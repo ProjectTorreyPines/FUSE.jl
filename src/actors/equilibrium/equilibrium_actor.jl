@@ -1,7 +1,7 @@
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
@@ -153,26 +153,26 @@ function prepare(actor::ActorEquilibrium)
     # scalar quantities
     eqt.global_quantities.ip = ip
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
-    B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference.data) / R0
+    B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference) / R0
     @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)
 
     # boundary from position control
     eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
 
     # boundary scalars from position control
-    eqt.boundary.minor_radius = @ddtime(pc.minor_radius.reference.data)
-    eqt.boundary.geometric_axis.r = @ddtime(pc.geometric_axis.r.reference.data)
-    eqt.boundary.geometric_axis.z = @ddtime(pc.geometric_axis.z.reference.data)
-    eqt.boundary.elongation = @ddtime(pc.elongation.reference.data)
-    eqt.boundary.triangularity = @ddtime(pc.triangularity.reference.data)
-    eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
+    eqt.boundary.minor_radius = @ddtime(pc.minor_radius.reference)
+    eqt.boundary.geometric_axis.r = @ddtime(pc.geometric_axis.r.reference)
+    eqt.boundary.geometric_axis.z = @ddtime(pc.geometric_axis.z.reference)
+    eqt.boundary.elongation = @ddtime(pc.elongation.reference)
+    eqt.boundary.triangularity = @ddtime(pc.triangularity.reference)
+    eqt.boundary.squareness = @ddtime(pc.squareness.reference)
 
     # x-points from position control
     if !isempty(getproperty(pc, :x_point, []))
         n = 0
         for k in eachindex(pc.x_point)
-            rx = @ddtime(pc.x_point[k].r.reference.data)
-            zx = @ddtime(pc.x_point[k].z.reference.data)
+            rx = @ddtime(pc.x_point[k].r.reference)
+            zx = @ddtime(pc.x_point[k].z.reference)
             if rx > 0.0 && !isnan(rx) && !isnan(zx)
                 n += 1
                 resize!(eqt.boundary.x_point, n)
@@ -186,8 +186,8 @@ function prepare(actor::ActorEquilibrium)
     if !isempty(getproperty(pc, :strike_point, []))
         n = 0
         for k in eachindex(pc.strike_point)
-            rs = @ddtime(pc.strike_point[k].r.reference.data)
-            zs = @ddtime(pc.strike_point[k].z.reference.data)
+            rs = @ddtime(pc.strike_point[k].r.reference)
+            zs = @ddtime(pc.strike_point[k].z.reference)
             if rs > 0.0 && !isnan(rs) && !isnan(zs)
                 n += 1
                 resize!(eqt.boundary.strike_point, n)

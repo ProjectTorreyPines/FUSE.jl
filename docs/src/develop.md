@@ -101,7 +101,7 @@ The definition of each FUSE actor follows a well defined pattern.
 
 ```julia
 # Definition of the `act` parameters relevant to the actor
-Base.@kwdef mutable struct FUSEparameters__ActorNAME{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorNAME{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     length::Entry{T} = Entry(T, "m", "Some decription") # it's ok not to have a default, it forces users to think about what a parameter should be
