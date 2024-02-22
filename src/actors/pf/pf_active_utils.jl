@@ -37,16 +37,9 @@ function GS_IMAS_pf_active__coil(
 end
 
 function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
-    coils = GS_IMAS_pf_active__coil{D,D}[]
-    for coil in dd.pf_active.coil
-        if IMAS.is_ohmic_coil(coil)
-            coil_tech = dd.build.oh.technology
-        else
-            coil_tech = dd.build.pf_active.technology
-        end
-        imas_pf_active__coil = GS_IMAS_pf_active__coil(coil, coil_tech, green_model)
-        push!(coils, imas_pf_active__coil)
-    end
+    oh_tech = dd.build.oh.technology
+    pfa_tech = dd.build.pf_active.technology
+    coils = [GS_IMAS_pf_active__coil(coil, (IMAS.is_ohmic_coil(coil) ? oh_tech : pfa_tech), green_model) for coil in dd.pf_active.coil]
     return coils
 end
 
