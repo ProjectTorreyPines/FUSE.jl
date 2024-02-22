@@ -35,7 +35,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
     save_dd::Entry{Bool} = study_common_parameters(; save_dd=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
-    n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled ITER simulations")
+    n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled simulations")
 end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
@@ -76,7 +76,7 @@ function _run(study::StudyDatabaseGenerator)
     study.dataframes_dict = Dict("outputs_summary" => StudyDatabaseGenerator_summary_dataframe() for name in study.iterator)
 
     # paraller run
-    println("running $(sty.n_simulations) ITER simulations with $(sty.n_workers) workers on $(sty.server)")
+    println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
     results = pmap(item -> run_case(study, item), iterator)
 
     # populate DataFrame
