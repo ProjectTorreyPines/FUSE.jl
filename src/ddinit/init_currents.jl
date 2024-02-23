@@ -1,9 +1,9 @@
 """
-    init_currents!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_currents!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.core_profiles` and `dd.core_sources` ohmic and bootstrap currents and sources starting from `ini` and `act` parameters
 """
-function init_currents!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_currents!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_currents")
     TimerOutputs.@timeit timer "init_currents" begin
         init_from = ini.general.init_from

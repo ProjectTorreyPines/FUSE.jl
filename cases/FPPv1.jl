@@ -35,12 +35,13 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
         act.ActorHCD.ic_model = :none
         act.ActorHCD.lh_model = :none
         act.ActorHCD.nb_model = :none
+        act.ActorHCD.pellet_model = :none
         act.ActorWholeFacility.update_plasma = false
         STEP = true
     end
     act.ActorTEQUILA.relax = 0.25
 
-    ini.requirements.power_electric_net = 200e6 #W
+    ini.requirements.power_electric_net = 200e6 # W
     ini.requirements.tritium_breeding_ratio = 1.1
     ini.requirements.flattop_duration = 12 * 3600.0 # s
 
@@ -83,18 +84,16 @@ function case_parameters(::Type{Val{:FPPv1}}; version::Symbol, init_from::Symbol
     if STEP
         # zeff
         ini.core_profiles.zeff = 2.0
-        # ech aiming
-        act.ActorECsimple.rho_0 = 0.6
         # lower ip
         ini.equilibrium.ip = 8.0E6
         # higher density
         ini.core_profiles.greenwald_fraction = 1.0
         # limits (default FPP exceeds βn limits and greenwald density)
-        act.ActorStabilityLimits.models = [:q95_gt_2,  :κ_controllability] # :gw_density, :beta_troyon_1984
+        act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability] # :gw_density, :beta_troyon_1984
         # update initial core
         ini.equilibrium.pressure_core = 1.5E6
     else
-        act.ActorStabilityLimits.models = [:q95_gt_2,  :gw_density, :κ_controllability] # :beta_troyon_1984
+        act.ActorStabilityLimits.models = [:q95_gt_2, :gw_density, :κ_controllability] # :beta_troyon_1984
     end
 
     # set density evolution for ActorFluxMatcher

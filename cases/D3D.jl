@@ -17,8 +17,14 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
 
     machine_description = joinpath("__FUSE__", "sample", "D3D_machine.json")
     shot_mappings = Dict(
-        :H_mode => Dict(:time0 => 2.7, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"),
-        :L_mode => Dict(:time0 => 2.0, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"),
+        :H_mode => Dict(
+            :time0 => 2.7,
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"
+        ),
+        :L_mode => Dict(
+            :time0 => 2.0,
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"
+        ),
         :default => Dict(:time0 => 1.0, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
     )
 
@@ -37,7 +43,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
         :lfs_TF => 0.75,
         :gap_world => 1.0
     )
-    ini.build.layers[:hfs_wall].material = "Carbon, Graphite (reactor grade)"
+    ini.build.layers[:hfs_wall].material = :graphite
 
     ini.build.n_first_wall_conformal_layers = 2
     act.ActorCXbuild.rebuild_wall = false

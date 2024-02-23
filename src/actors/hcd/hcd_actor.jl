@@ -1,22 +1,25 @@
 #= ======== =#
 #  ActorHCD  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHCD{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :none], "-", "EC source actor to run"; default=:ECsimple)
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :none], "-", "NB source actor to run"; default=:NBsimple)
+    pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
 end
 
-mutable struct ActorHCD{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHCD{P}
-    ec_actor::Union{Missing,ActorECsimple{D,P}}
-    ic_actor::Union{Missing,ActorICsimple{D,P}}
-    lh_actor::Union{Missing,ActorLHsimple{D,P}}
-    nb_actor::Union{Missing,ActorNBsimple{D,P}}
+    ec_actor::Union{Missing,ActorSimpleEC{D,P}}
+    ic_actor::Union{Missing,ActorSimpleIC{D,P}}
+    lh_actor::Union{Missing,ActorSimpleLH{D,P}}
+    nb_actor::Union{Missing,ActorSimpleNB{D,P}}
+    pellet_actor::Union{Missing,ActorSimplePellet{D,P}}
 end
 
 """
@@ -35,26 +38,31 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     logging_actor_init(ActorHCD)
     par = par(kw...)
     if par.ec_model == :ECsimple
-        ec_actor = ActorECsimple(dd, act.ActorECsimple)
+        ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
     else
         ec_actor = missing
     end
     if par.ic_model == :ICsimple
-        ic_actor = ActorICsimple(dd, act.ActorICsimple)
+        ic_actor = ActorSimpleIC(dd, act.ActorSimpleIC)
     else
         ic_actor = missing
     end
     if par.lh_model == :LHsimple
-        lh_actor = ActorLHsimple(dd, act.ActorLHsimple)
+        lh_actor = ActorSimpleLH(dd, act.ActorSimpleLH)
     else
         lh_actor = missing
     end
     if par.nb_model == :NBsimple
-        nb_actor = ActorNBsimple(dd, act.ActorNBsimple)
+        nb_actor = ActorSimpleNB(dd, act.ActorSimpleNB)
     else
         nb_actor = missing
     end
-    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor)
+    if par.pellet_model == :Pelletsimple
+        pellet_actor = ActorSimplePellet(dd, act.ActorSimplePellet)
+    else
+        pellet_actor = missing
+    end
+    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor,pellet_actor)
 end
 
 """
@@ -74,6 +82,9 @@ function _step(actor::ActorHCD)
     end
     if actor.nb_actor !== missing
         step(actor.nb_actor)
+    end
+    if actor.pellet_actor !== missing
+        step(actor.pellet_actor)
     end
     return actor
 end
@@ -95,6 +106,9 @@ function _finalize(actor::ActorHCD)
     end
     if actor.nb_actor !== missing
         finalize(actor.nb_actor)
+    end
+    if actor.pellet_actor !== missing
+        finalize(actor.pellet_actor)
     end
     return actor
 end

@@ -1,14 +1,15 @@
 #= =================== =#
 #  ActorBalanceOfPlant  #
 #= =================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
-    _name::Symbol   = :not_set
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     generator_conversion_efficiency::Entry{T} = Entry{T}("-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorBalanceOfPlant{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBalanceOfPlant{P}
     act::ParametersAllActors

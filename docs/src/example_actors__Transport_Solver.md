@@ -38,7 +38,6 @@ display(act.ActorNeoclassical)
 # We are running with the fast tglfnn model
 act.ActorTGLF.sat_rule = :sat0
 act.ActorTGLF.electromagnetic = false
-act.ActorTGLF.nn = true
 FUSE.ActorTGLF(dd,act)
 FUSE.ActorNeoclassical(dd,act);
 plot(dd.core_transport)
@@ -61,7 +60,6 @@ dd, ini, act = FUSE.init(:D3D, do_plot=false);
 
 act.ActorTGLF.warn_nn_train_bounds=true
 # We are running with the fast tglfnn model
-act.ActorTGLF.nn = true
 act.ActorTGLF.sat_rule = :sat0
 act.ActorTGLF.electromagnetic = false
 
@@ -98,7 +96,6 @@ IMAS.is_quasi_neutral(dd)
 
 
 ```@julia
-act.ActorTGLF.nn = false
 
 # Dialing the iterations a bit down since tglf_sat0 is much slower than it's neural net counterpart
 act.ActorTransportSolver.max_iterations = 30

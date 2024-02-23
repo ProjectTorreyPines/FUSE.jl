@@ -38,11 +38,10 @@ include("parameters.jl")
 #= ===== =#
 include("../cases/_cases.jl")
 
-#= ====================== =#
-#  PHYSICS and TECHNOLOGY  #
-#= ====================== =#
+#= ======= =#
+#  PHYSICS  #
+#= ======= =#
 include("physics.jl")
-include("technology.jl")
 
 #= ====== =#
 #  DDINIT  #
@@ -101,6 +100,7 @@ include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nb_simple_actor.jl"))
+include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
@@ -144,9 +144,9 @@ include("parameters_actors.jl")
 include("optimization.jl")
 
 
-#= ============ =#
-#  APPLICATIONS  #
-#= ============ =#
+#= ======= =#
+#  STUDIES  #
+#= ======= =#
 include("parameters_studies.jl")
 
 
@@ -176,6 +176,6 @@ include("precompile.jl")
 #= EXPORT =#
 #= ====== =#
 export IMAS, @ddtime, constants, ±, ↔, Logging
-export step, pulse, ramp, trap
+export step, pulse, ramp, trap, gaus, beta
 
 end
