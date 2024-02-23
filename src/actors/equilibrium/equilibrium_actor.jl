@@ -198,22 +198,22 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # make sure j_tor and pressure on axis come in with zero gradient
-    if true
-        index = cp1d.grid.psi_norm .> 0.05
-        rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
-        j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
-        pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-    else
-        rho_pol_norm0 = sqrt.(cp1d.grid.psi_norm)
-        j_tor0 = cp1d.j_tor
-        pressure0 = cp1d.pressure
-    end
+
+    index = cp1d.grid.psi_norm .> 0.05
+    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+    j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
+    pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
+    p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
 
     # set j_tor and pressure, forcing zero derivative on axis
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
-    eq1d.j_tor = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic).(sqrt.(eq1d.psi_norm))
-    eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
+    eq1d.j_tor = j_itp.(sqrt.(eq1d.psi_norm))
+    eq1d.pressure = p_itp.(sqrt.(eq1d.psi_norm))
+
+    cp1d.j_tor = j_itp.(sqrt.(cp1d.grid.psi_norm))
+    cp1d.pressure = p_itp.(sqrt.(cp1d.grid.psi_norm))
 
     return dd
 end
