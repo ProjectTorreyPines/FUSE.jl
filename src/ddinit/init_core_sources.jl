@@ -149,7 +149,7 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                     @assert act.ActorHCD.ic_model == :none "Init using sources from ODS requires `act.ActorHCD.ic_model = :none` or data in `ods.ic_launchers.antenna`"
                 end
                 if isempty(dd1.lh_antennas.antenna) && findfirst(:lh, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.lh_model == :none "Init using sources from ODS requires `act.ActorHCD.lc_model = :none` or data in `ods.lh_antennas.antenna`"
+                    @assert act.ActorHCD.lh_model == :none "Init using sources from ODS requires `act.ActorHCD.lh_model = :none` or data in `ods.lh_antennas.antenna`"
                 end
                 if isempty(dd1.nbi.unit) && findfirst(:nbi, dd.core_sources.source) !== missing
                     @assert act.ActorHCD.nb_model == :none "Init using sources from ODS requires `act.ActorHCD.nb_model = :none` or data in `ods.nbi.unit`"
