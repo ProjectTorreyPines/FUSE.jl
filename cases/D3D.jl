@@ -33,13 +33,13 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
 
     #ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
     ini.build.layers = OrderedCollections.OrderedDict(
-        :gap_plug => 1.2,
-        :hfs_TF => 1.5,
+        :gap_plug => 2.2,
+        :hfs_TF => 1.2,
         :hfs_gap_OH_coils => 1.5,
         :hfs_wall => 0.5,
         :plasma => 0.0,
         :lfs_wall => 0.5,
-        :lfs_gap_OH_coils => 1.9,
+        :lfs_gap_OH_coils => 2.0,
         :lfs_TF => 0.75,
         :gap_world => 1.0
     )
@@ -54,7 +54,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :copper
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :rectangle_ellipse
     ini.tf.n_coils = 24
     ini.tf.technology = :copper
 
