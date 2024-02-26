@@ -534,5 +534,6 @@ function load_ods(filenames::Vector{<:AbstractString})
         dd1 = IMAS.json2imas(filename)
         merge!(dd, dd1)
     end
+    IMAS.last_global_time(dd)
     return dd
 end
