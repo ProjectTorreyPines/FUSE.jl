@@ -5,7 +5,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     dd = IMAS.dd()
     if init_from == :ods
         # Fix the core profiles
-        dd = load_ODSs_from_string(ini.ods.filename)
+        dd = load_ods(ini)
         cp1d = dd.core_profiles.profiles_1d[]
 
         rho = cp1d.grid.rho_tor_norm

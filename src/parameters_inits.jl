@@ -388,7 +388,7 @@ return ini.equilibrium boundary expressed in MHX independenty of how the user in
 """
 function IMAS.MXH(ini::ParametersAllInits)
     if ini.general.init_from == :ods
-        dd = load_ODSs_from_string(ini.ods.filename)
+        dd = load_ods(ini)
     else
         dd = IMAS.dd()
     end
@@ -501,13 +501,35 @@ Plots ini time dependent time traces including plasma boundary
 end
 
 """
-    load_ODSs_from_string(filenames::String)
+    load_ods(ini::ParametersAllInits)
+
+Load ODSs as specified in `ini.ods.filename`
+
+NOTE: supports multiple comma-separated filenames
+"""
+function load_ods(ini::ParametersAllInits)
+    dd = load_ods(ini.ods.filename)
+    dd.global_time = ini.time.simulation_start
+    return dd
+end
+
+"""
+    load_ods(filenames::String)
 
 Load multiple comma-separated filenames into a single dd
 """
-function load_ODSs_from_string(filenames::String)
+function load_ods(filenames::String)
+    return load_ods(split(filenames, ","))
+end
+
+"""
+    load_ods(filenames::Vector{String})
+
+Load multiple ODSs into a single dd
+"""
+function load_ods(filenames::Vector{<:AbstractString})
     dd = IMAS.dd()
-    for filename in split(filenames, ",")
+    for filename in filenames
         filename = replace(filename, r"^__FUSE__" => __FUSE__)
         dd1 = IMAS.json2imas(filename)
         merge!(dd, dd1)
