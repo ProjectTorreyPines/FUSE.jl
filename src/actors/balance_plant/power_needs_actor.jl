@@ -1,7 +1,7 @@
 #= =============== =#
 #  ActorPowerNeeds  #
 #= =============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T} <: ParametersActor
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorPowerNeeds{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorPowerNeeds{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPowerNeeds{P}
     function ActorPowerNeeds(dd::IMAS.dd{D}, par::FUSEparameters__ActorPowerNeeds{P}; kw...) where {D<:Real,P<:Real}

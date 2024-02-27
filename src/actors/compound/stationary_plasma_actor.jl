@@ -1,7 +1,7 @@
 #= ===================== =#
 #  ActorStationaryPlasma  #
 #= ===================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T} <: Parameter
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStationaryPlasma{P}
     act::ParametersAllActors
@@ -144,7 +144,7 @@ function _step(actor::ActorStationaryPlasma)
                 plot!(ps, dd.core_sources; label="i=$(length(total_error))")
 
                 @printf("\n")
-                @printf("Jtor0_after = %.2f MA\n", cp1d.j_tor[1] / 1e6)
+                @printf("Jtor0_after = %.2f MA m^2\n", cp1d.j_tor[1] / 1e6)
                 @printf("   P0_after = %.2f kPa\n", cp1d.pressure[1] / 1e3)
                 @printf("     βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
                 @printf("     βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))

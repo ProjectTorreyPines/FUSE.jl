@@ -225,11 +225,18 @@ for package in ("Equilibrium", "Broker", "ZMQ");\
 	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
 end;\
 '
+# undo --single-branch clones of git repos
+undo_single_branch:
+	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cd ../$(package)/; echo `pwd`; git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"; git fetch origin;)
 
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) WarmupFUSE FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
+
+playground: .PHONY
+	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
+	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_playground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 
 ADAS:
 	$(call clone_pull_repo,$@)

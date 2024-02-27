@@ -39,11 +39,10 @@ include("parameters.jl")
 #= ===== =#
 include("../cases/_cases.jl")
 
-#= ====================== =#
-#  PHYSICS and TECHNOLOGY  #
-#= ====================== =#
+#= ======= =#
+#  PHYSICS  #
+#= ======= =#
 include("physics.jl")
-include("technology.jl")
 
 #= ====== =#
 #  DDINIT  #
@@ -149,9 +148,9 @@ include("parameters_actors.jl")
 include("optimization.jl")
 
 
-#= ============ =#
-#  APPLICATIONS  #
-#= ============ =#
+#= ======= =#
+#  STUDIES  #
+#= ======= =#
 include("parameters_studies.jl")
 
 

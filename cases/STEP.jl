@@ -5,7 +5,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     dd = IMAS.dd()
     if init_from == :ods
         # Fix the core profiles
-        dd = load_ODSs_from_string(ini.ods.filename)
+        dd = load_ods(ini)
         cp1d = dd.core_profiles.profiles_1d[]
 
         rho = cp1d.grid.rho_tor_norm
@@ -187,7 +187,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
 
     ini.pf_active.n_coils_inside = 6
     ini.pf_active.n_coils_outside = 0
-    ini.pf_active.technology = :iter_nb3sn
+    ini.pf_active.technology = :nb3sn_iter
 
     ini.tf.n_coils = 12
     ini.tf.technology = :rebco

@@ -1,7 +1,7 @@
 #= ============ =#
 #  ActorCurrent  #
 #= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T} <: ParametersActor wh
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
 end
 
-mutable struct ActorCurrent{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorCurrent{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCurrent{P}
     jt_actor::Union{ActorSteadyStateCurrent{D,P},ActorQED{D,P},ActorNoOperation{D,P}}

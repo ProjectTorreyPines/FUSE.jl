@@ -52,9 +52,9 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
 
         end
 
-        coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
-        coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
-        coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+        IMAS.coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+        IMAS.coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+        IMAS.coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
 
         return dd
     end
@@ -117,6 +117,14 @@ function init_pf_active!(
     coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
 
     OH_layer = IMAS.get_build_layer(bd.layer; type=_oh_)
+
+    # handle the case of OH inside of the TF
+    # by creating a fake OH_layer that has a rectangular shape
+    if OH_layer.side == Int(_hfs_)
+        OH_layer = IMAS.freeze(OH_layer)
+        height = 0.75 * maximum(OH_layer.outline.z) - minimum(OH_layer.outline.z)
+        OH_layer.outline.r, OH_layer.outline.z = rectangle_shape(OH_layer.start_radius, OH_layer.end_radius, height)
+    end
 
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))

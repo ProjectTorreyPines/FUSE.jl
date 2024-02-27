@@ -3,7 +3,7 @@
 #= ============== =#
 import BoundaryPlasmaModels
 
-Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T} <: ParametersActor 
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorDivertors{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorDivertors{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorDivertors{P}
     boundary_plasma_models::Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}

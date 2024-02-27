@@ -87,21 +87,21 @@ The functinoality of the `ini` and `act` parameters is implemented in the [Simul
 
 ## How to write a new actor
 
-Actors are grouped in four main abstract types:
+Actors are grouped into two main abstract types:
 
 ```julia
-abstract type FacilityAbstractActor <: AbstractActor end
-abstract type ReactorAbstractActor <: AbstractActor end
-abstract type HCDAbstractActor <: AbstractActor end
-abstract type PlasmaAbstractActor <: AbstractActor end
+abstract type CompoundAbstractActor{D,P} <: AbstractActor{D,P} end
+abstract type SingleAbstractActor{D,P} <: AbstractActor{D,P} end
 ```
+
+CompoundAbstractActors are for actors that compound multiple actors underneath and are initalized with ```ActorNAME(dd, par, act)``` while SingleAbstractActors are single actors initalized with ```ActorNAME(dd, par)```
 
 The definition of each FUSE actor follows a well defined pattern.
 **DO NOT** deviate from this pattern. This is important to ensure modularity and compostability of the actors.
 
 ```julia
 # Definition of the `act` parameters relevant to the actor
-Base.@kwdef mutable struct FUSEparameters__ActorNAME{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorNAME{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     length::Entry{T} = Entry(T, "m", "Some decription") # it's ok not to have a default, it forces users to think about what a parameter should be

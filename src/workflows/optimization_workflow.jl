@@ -1,4 +1,5 @@
 import Distributed
+import Serialization
 
 """
     workflow_multiobjective_optimization(
@@ -78,7 +79,12 @@ function workflow_multiobjective_optimization(
     options = Metaheuristics.Options(; iterations, parallel_evaluation=true, store_convergence=true, seed=1, f_calls_limit=1E9, g_calls_limit=1E9, h_calls_limit=1E9)
 
     if length(objective_functions) == 1
-        algorithm = Metaheuristics.ECA(; N, options) # converges and covers well the pareto front!
+        D = length(opt_ini)
+        K = Int(floor(N / D))
+        if K < N
+            K = N
+        end
+        algorithm = Metaheuristics.ECA(; N, K, options)
 
     else
         # set algorithm parameters depending on exploitation_vs_exploration index
@@ -95,7 +101,7 @@ function workflow_multiobjective_optimization(
         # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
         # algorithm = Metaheuristics.CCMO(Metaheuristics.NSGA2(; N, options); options) # not better than SPEA2
         algorithm = Metaheuristics.SPEA2(; N, η_cr, p_cr, η_m, p_m, options) # converges and covers well the pareto front!
-    end    
+    end
 
     if continue_state !== nothing
         println("Restarting simulation")
@@ -107,6 +113,10 @@ function workflow_multiobjective_optimization(
     @time state =
         Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p), bounds, algorithm)
     display(state)
+
+    if !isempty(save_folder)
+        save_optimization(joinpath(save_folder, "results.jls"), state, ini, act, objective_functions, constraint_functions)
+    end
 
     return state
 end
@@ -135,4 +145,41 @@ function pareto_front(solutions::Vector{Vector{T}}) where {T}
         end
     end
     return pareto
+end
+
+"""
+    save_optimization(
+        filename::AbstractString,
+        state::Metaheuristics.State,
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        objectives_functions::Vector{<:ObjectiveFunction},
+        constraints_functions::Vector{<:ConstraintFunction})
+
+Save Metaheuristics.State to file
+"""
+function save_optimization(
+    filename::AbstractString,
+    state::Metaheuristics.State,
+    ini::ParametersAllInits,
+    act::ParametersAllActors,
+    objectives_functions::Vector{<:ObjectiveFunction},
+    constraints_functions::Vector{<:ConstraintFunction}
+)
+    data = Dict("state" => state, "ini" => ini, "act" => act, "objective_functions" => objectives_functions, "constraint_functions" => constraints_functions)
+    open(filename, "w") do io
+        return Serialization.serialize(io, data)
+    end
+end
+
+"""
+    load_optimization(filename::AbstractString)
+
+Load Metaheuristics.State from file, returns named tuple
+"""
+function load_optimization(filename::AbstractString)
+    data = open(filename, "r") do io
+        return Serialization.deserialize(io)
+    end
+    return (state=data["state"], ini=data["ini"], act=data["act"], objectives_functions=data["objective_functions"], constraints_functions=data["constraint_functions"])
 end
