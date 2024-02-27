@@ -3,7 +3,7 @@ import VacuumFields
 #= ====================== =#
 #  ActorVerticalStability  #
 #= ====================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T} <: Paramete
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorVerticalStability{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorVerticalStability{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorVerticalStability{P}
     stability_margin::D
