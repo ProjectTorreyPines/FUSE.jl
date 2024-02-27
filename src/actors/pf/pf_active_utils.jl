@@ -1,10 +1,8 @@
 import VacuumFields
 
 options_green_model = [
-    :point => "one filament per coil",
-    :simple => "like :point, but OH coils have three filaments",
-    :corners => "like :simple, but PF coils have filaments at the four corners",
-    :realistic => "possibly hundreds of filaments per coil (very slow!)"
+    :point => "One filament per coil",
+    :quad => "Quadrilateral coil with quadrature integration"
 ]
 
 #= ==================================== =#
@@ -104,28 +102,19 @@ end
 
 function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
     green_model = getfield(coil, :green_model)
-    if green_model == :point # fastest
-        return Gfunc(coil.r, coil.z, R, Z, 1.0)
 
-    elseif green_model ∈ (:corners, :simple) # medium
-        if IMAS.is_ohmic_coil(imas(coil)) # OH
-            n_filaments = max(Int(ceil((coil.height / coil.r) * 2)), 3) # at least 3 filaments, but possibly more as plasma gets closer to the OH
-            z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
-            return sum(Gfunc(coil.r, z, R, Z, 1.0 / n_filaments) for z in z_filaments)
+    if green_model == :point # low-fidelity
+        return Gfunc(coil.r, coil.z, R, Z)
 
-        elseif green_model == :simple # PF like point
-            return Gfunc(coil.r, coil.z, R, Z, 1.0)
-
-        elseif green_model == :corners # PF with filaments at corners
-            return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, 0.25)
-
-        end
-
-    elseif green_model == :realistic # high-fidelity
-        return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+    elseif green_model == :quad # high-fidelity
+        # issue: this allocates
+        return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0), R, Z)
+        # solution should be we support:
+        # return Gfunc(coil.imas, R, Z)
 
     else
-        error("$(typeof(coil)) green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
+        error("$(typeof(coil)) green_model is `$(green_model)` but it can only be `:point` or `:quad`")
+
     end
 end
 
