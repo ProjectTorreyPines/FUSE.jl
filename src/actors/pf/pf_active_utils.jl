@@ -107,8 +107,10 @@ function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real
         return Gfunc(coil.r, coil.z, R, Z)
 
     elseif green_model == :quad # high-fidelity
-        # issue: this allocates
-        return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0), R, Z)
+        # issue 1: this allocates
+        # issue 2: this assumes that there is only one element
+        oute = IMAS.outline(coil.imas.element[1])
+        return Gfunc(VacuumFields.QuadCoil(oute.r,oute.z), R, Z,)
         # solution should be we support:
         # return Gfunc(coil.imas, R, Z)
 
