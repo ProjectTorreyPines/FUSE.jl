@@ -61,6 +61,7 @@ include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
 include(joinpath("ddinit", "gasc.jl"))
 include(joinpath("ddinit", "pytok.jl"))
+include(joinpath("ddinit", "write_dd_field_collection.jl"))
 
 #= ====== =#
 #  ACTORS  #
