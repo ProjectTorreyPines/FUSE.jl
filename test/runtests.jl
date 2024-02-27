@@ -16,4 +16,6 @@ include("runtests_actors.jl")
 
 include("runtests_workflow.jl")
 
+include("runtests_init_fields.jl")
+
 println(FUSE.timer)
