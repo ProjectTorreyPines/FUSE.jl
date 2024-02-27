@@ -45,7 +45,9 @@ end
 function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
     logging_actor_init(ActorPFactive)
     par = par(kw...)
+
     boundary_control_points, flux_control_points, saddle_control_points = default_control_points(dd.equilibrium.time_slice[])
+    
     return ActorPFactive(
         dd,
         par,
@@ -67,6 +69,7 @@ Find currents that satisfy boundary and flux/saddle constraints in a least-squar
 function _step(actor::ActorPFactive{T}) where {T<:Real}
     dd = actor.dd
 
+    # setup (with caching, used for coil optimization)
     if actor.setup_cache === nothing
         eqt = dd.equilibrium.time_slice[]
         actor.setup_cache = setup(actor, eqt)
@@ -209,7 +212,7 @@ function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:R
         end
         if coil.identifier == "optim"
             push!(optim_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
-        elseif coil.identifier == "fixed"
+        elseif coil.identifier == "fixed" || :shaping ∉ [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
             push!(fixed_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
         else
             push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
@@ -221,5 +224,5 @@ function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:R
     # push!(fixed_coils, popat!(optim_coils,length(optim_coils)))
     # imas(fixed_coils[end]).identifier = "fixed"
 
-    return fixed_coils, pinned_coils, optim_coils
+    return (fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils)
 end
