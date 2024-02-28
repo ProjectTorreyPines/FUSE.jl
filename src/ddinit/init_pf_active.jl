@@ -98,9 +98,9 @@ end
         pf_active::IMAS.pf_active,
         bd::IMAS.build,
         eqt::IMAS.equilibrium__time_slice,
-        n_coils::Vector{TI};
-        pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
-        coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
+        n_coils::Vector{Int};
+        pf_coils_size::Union{Nothing,Float64,Vector{Float64}}=nothing,
+        coils_cleareance::Union{Nothing,Float64,Vector{Float64}}=nothing)
 
 Use build layers outline to initialize PF coils distribution
 NOTE: n_coils
@@ -112,9 +112,9 @@ function init_pf_active!(
     pf_active::IMAS.pf_active,
     bd::IMAS.build,
     eqt::IMAS.equilibrium__time_slice,
-    n_coils::Vector{TI};
-    pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
-    coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
+    n_coils::Vector{Int};
+    pf_coils_size::Union{Nothing,Float64,Vector{Float64}}=nothing,
+    coils_cleareance::Union{Nothing,Float64,Vector{Float64}}=nothing)
 
     OH_layer = IMAS.get_build_layer(bd.layer; type=_oh_)
 
