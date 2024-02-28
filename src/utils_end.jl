@@ -519,7 +519,7 @@ function digest(
     sec += 1
     if !isempty(dd.pulse_schedule) && section ∈ (0, sec)
         println('\u200B')
-        display(plot(dd.pulse_schedule))
+        display(plot(dd.pulse_schedule; title="Pulse schedule"))
     end
 
     # tf

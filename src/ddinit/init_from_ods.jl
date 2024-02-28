@@ -55,7 +55,29 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
             ini.core_profiles.ejima = @ddtime(dd1.core_profiles.global_quantities.ejima)
         end
 
+        # here we selectively copy the quantities that FUSE considers `primary`
+        # all other quantities are either of no interest for intialization or
+        # they have expressions associated with them.
+        dd1 = copy_init_primary_quanties(dd1)
+
     end
 
     return dd1
+end
+
+"""
+    copy_init_primary_quanties(dd::IMAS.DD)
+
+here we selectively copy the quantities that FUSE considers `primary` to a new dd
+All other quantities are either of no interest for intialization or they have expressions associated with them
+"""
+function copy_init_primary_quanties(dd::IMAS.DD)
+    dd_out = typeof(dd)()
+    dd_out.global_time = dd.global_time
+
+    for ulocation in load_init_primary_quanties()
+        IMAS.IMASDD.selective_copy!(dd, dd_out, IMAS.i2p(ulocation), dd.global_time)
+    end
+
+    return dd_out
 end
