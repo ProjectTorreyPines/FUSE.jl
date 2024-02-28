@@ -1,5 +1,6 @@
 using FUSE
 using Test
+import JSON
 
 @testset "check_init_primary_quanties" begin
     data_fields_all = union(FUSE.init_primary_quanties()...)
