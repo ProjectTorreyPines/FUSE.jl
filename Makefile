@@ -117,21 +117,6 @@ Pkg.develop(fuse_packages);\
 '
 	make revise
 
-# install Hide and load it when Julia starts up
-hide: Hide
-	mkdir -p $(JULIA_DIR)/config
-	touch $(JULIA_CONF)
-	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	echo "using Hide" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
-	rm -f "$(JULIA_CONF).tmp"
-
-# remove from Julia starts up
-rm_hide:
-	mkdir -p $(JULIA_DIR)/config
-	touch $(JULIA_CONF)
-	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
-
 # load Revise when Julia starts up
 revise:
 	julia -e 'using Pkg; Pkg.add("Revise")'
@@ -239,10 +224,6 @@ ADAS:
 
 FUSE:
 	$(call clone_pull_repo,$@)
-
-Hide:
-	$(call clone_pull_repo,$@)
-	julia -e 'using Pkg; Pkg.develop("Hide")'
 
 IMAS:
 	$(call clone_pull_repo,$@)
