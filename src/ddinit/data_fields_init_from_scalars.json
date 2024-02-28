@@ -209,7 +209,6 @@
     "pulse_schedule.ec.beam[:].power_launched.reference",
     "pulse_schedule.ec.time",
     "pulse_schedule.flux_control.i_plasma.reference",
-    "pulse_schedule.flux_control.loop_voltage.reference",
     "pulse_schedule.flux_control.time",
     "pulse_schedule.ic.antenna[:].deposition_rho_tor_norm.reference",
     "pulse_schedule.ic.antenna[:].deposition_rho_tor_norm_width.reference",
