@@ -10,7 +10,7 @@ function warmup(dd::IMAS.dd)
     TimerOutputs.reset_timer!("warmup")
     return TimerOutputs.@timeit timer "warmup" begin
         TimerOutputs.@timeit timer "init" begin
-            ini, act = case_parameters(:FPP; version=:v2, init_from=:scalars)
+            ini, act = case_parameters(:FPP)
             init(dd, ini, act)
         end
         act.ActorStationaryPlasma.max_iter = 1

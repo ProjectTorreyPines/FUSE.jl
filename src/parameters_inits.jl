@@ -199,13 +199,6 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit{T}
         Entry{Int}("-", "Number of layers that are conformal to the first wall"; default=1, check=x -> @assert x > 0 "must be: n_first_wall_conformal_layers > 0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__gasc{T} <: ParametersInit{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :gasc
-    filename::Entry{String} = Entry{String}("-", "Output GASC .json file from which data will be loaded")
-    case::Entry{Int} = Entry{Int}("-", "Number of the GASC run to load")
-end
-
 Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ods
@@ -236,7 +229,6 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     _name::Symbol
     general::FUSEparameters__general{T}
     time::FUSEparameters__time{T}
-    gasc::FUSEparameters__gasc{T}
     ods::FUSEparameters__ods{T}
     build::FUSEparameters__build{T}
     equilibrium::FUSEparameters__equilibrium{T}
@@ -259,7 +251,6 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         :ini,
         FUSEparameters__general{T}(),
         FUSEparameters__time{T}(),
-        FUSEparameters__gasc{T}(),
         FUSEparameters__ods{T}(),
         FUSEparameters__build{T}(),
         FUSEparameters__equilibrium{T}(),
