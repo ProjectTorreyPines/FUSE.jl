@@ -13,7 +13,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
 
         if init_from == :ods
             if !ismissing(dd1.pulse_schedule, :time) && length(dd1.pulse_schedule.time) > 0
-                dd.pulse_schedule = dd1.pulse_schedule
+                dd.pulse_schedule = deepcopy(dd1.pulse_schedule)
             else
                 init_from = :scalars
             end

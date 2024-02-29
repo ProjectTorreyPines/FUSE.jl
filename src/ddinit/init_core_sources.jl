@@ -137,7 +137,7 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
 
         if init_from == :ods
             if !ismissing(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
-                dd.core_sources = dd1.core_sources
+                dd.core_sources = deepcopy(dd1.core_sources)
                 unique_core_sources_names!(dd.core_sources)
                 if isempty(dd1.ec_launchers.beam) && findfirst(:ec, dd.core_sources.source) !== missing
                     @assert act.ActorHCD.ec_model == :none "Init using sources from ODS requires `act.ActorHCD.ec_model = :none` or data in `ods.ec_launchers.beam`"

@@ -18,10 +18,10 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 
         if init_from == :ods
             if !isempty(dd1.wall.description_2d)
-                dd.wall = dd1.wall
+                dd.wall = deepcopy(dd1.wall)
             end
             if length(dd1.build.layer) > 0
-                dd.build = dd1.build
+                dd.build = deepcopy(dd1.build)
             else
                 init_from = :scalars
             end

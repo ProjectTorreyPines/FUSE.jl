@@ -13,7 +13,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
 
         if init_from == :ods
             if !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
-                dd.equilibrium = dd1.equilibrium
+                dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
             else
                 init_from = :scalars
