@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:ARIES, :Sheffield, :GASC], "-", "Costing model"; default=:ARIES)
+    model::Switch{Symbol} = Switch{Symbol}([:ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{Int} = Entry{Int}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()))
     future_inflation_rate::Entry{T} = Entry{T}("-", "Predicted average rate of future inflation"; default=0.025)
     plant_lifetime::Entry{Int} = Entry{Int}("year", "Lifetime of the plant"; default=40)
@@ -21,7 +21,7 @@ mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCosting{P}
     act::ParametersAllActors
-    cst_actor::Union{ActorCostingSheffield{D,P},ActorCostingARIES{D,P},ActorCostingGASC{D,P}}
+    cst_actor::Union{ActorCostingSheffield{D,P},ActorCostingARIES{D,P}}
 end
 
 """
@@ -54,12 +54,8 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
     if par.model == :Sheffield
         cst_actor = ActorCostingSheffield(dd, act.ActorCostingSheffield)
-
     elseif par.model == :ARIES
         cst_actor = ActorCostingARIES(dd, act.ActorCostingARIES)
-
-    elseif par.model == :GASC
-        cst_actor = ActorCostingGASC(dd, act.ActorCostingGASC)
     end
 
     return ActorCosting(dd, par, act, cst_actor)

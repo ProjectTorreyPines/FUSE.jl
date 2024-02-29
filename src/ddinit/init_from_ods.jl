@@ -14,8 +14,7 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
         if !ismissing(ini.general, :dd)
             dd1 = ini.general.dd
         else
-            dd1 = load_ODSs_from_string(ini.ods.filename)
-            dd1.global_time = ini.time.simulation_start
+            dd1 = load_ods(ini)
         end
 
         # equilibrium
