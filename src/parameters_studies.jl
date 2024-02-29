@@ -1,4 +1,5 @@
 abstract type ParametersStudy{T} <: AbstractParameters{T} end
+
 abstract type AbstractStudy end
 
 """
@@ -25,9 +26,9 @@ function study_common_parameters(; kw...)
     end
 end
 
-#= ============ =#
+#= ======= =#
 #  studies  #
-#= ============ =#
+#= ======= =#
 
 # NOTE only called once at precompile time, kernel needs to be restarted to include new file in `studies` directory
 for filename in readdir(joinpath(@__DIR__, "..", "studies"))
