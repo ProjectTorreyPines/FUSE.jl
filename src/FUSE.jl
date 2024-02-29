@@ -38,11 +38,10 @@ include("parameters.jl")
 #= ===== =#
 include("../cases/_cases.jl")
 
-#= ====================== =#
-#  PHYSICS and TECHNOLOGY  #
-#= ====================== =#
+#= ======= =#
+#  PHYSICS  #
+#= ======= =#
 include("physics.jl")
-include("technology.jl")
 
 #= ====== =#
 #  DDINIT  #
@@ -60,8 +59,6 @@ include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
-include(joinpath("ddinit", "gasc.jl"))
-include(joinpath("ddinit", "pytok.jl"))
 
 #= ====== =#
 #  ACTORS  #
@@ -101,6 +98,7 @@ include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nb_simple_actor.jl"))
+include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
@@ -126,7 +124,6 @@ include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
 include(joinpath("actors", "costing", "costing_utils.jl"))
 include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
 include(joinpath("actors", "costing", "aries_costing_actor.jl"))
-include(joinpath("actors", "costing", "gasc_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
 
 include(joinpath("actors", "control", "controller_actor.jl"))
@@ -144,9 +141,9 @@ include("parameters_actors.jl")
 include("optimization.jl")
 
 
-#= ============ =#
-#  APPLICATIONS  #
-#= ============ =#
+#= ======= =#
+#  STUDIES  #
+#= ======= =#
 include("parameters_studies.jl")
 
 
@@ -176,6 +173,6 @@ include("precompile.jl")
 #= EXPORT =#
 #= ====== =#
 export IMAS, @ddtime, constants, ±, ↔, Logging
-export step, pulse, ramp, trap
+export step, pulse, ramp, trap, gaus, beta
 
 end

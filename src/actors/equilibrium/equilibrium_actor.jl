@@ -1,9 +1,10 @@
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
@@ -13,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T} <: ParametersActo
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorEquilibrium{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
@@ -98,12 +99,22 @@ function _finalize(actor::ActorEquilibrium)
         IMAS.flux_surfaces(eqt)
     catch e
         eqt2d = findfirst(:rectangular, eqt.profiles_2d)
-        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal))
+        par.do_plot && display(current())
+        p = contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
+        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi', levels=[0], lw=3, color=:black, colorbar_entry=false))
         rethrow(e)
     end
 
     if par.do_plot
-        display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
+        try
+            display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
+        catch e
+            if e isa BoundsError
+                display(plot(dd.equilibrium; label="after ActorEquilibrium"))
+            else
+                rethrow(e)
+            end
+        end
     end
 
     return actor
@@ -142,26 +153,26 @@ function prepare(actor::ActorEquilibrium)
     # scalar quantities
     eqt.global_quantities.ip = ip
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
-    B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference.data) / R0
+    B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference) / R0
     @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)
 
     # boundary from position control
     eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
 
     # boundary scalars from position control
-    eqt.boundary.minor_radius = @ddtime(pc.minor_radius.reference.data)
-    eqt.boundary.geometric_axis.r = @ddtime(pc.geometric_axis.r.reference.data)
-    eqt.boundary.geometric_axis.z = @ddtime(pc.geometric_axis.z.reference.data)
-    eqt.boundary.elongation = @ddtime(pc.elongation.reference.data)
-    eqt.boundary.triangularity = @ddtime(pc.triangularity.reference.data)
-    eqt.boundary.squareness = @ddtime(pc.squareness.reference.data)
+    eqt.boundary.minor_radius = @ddtime(pc.minor_radius.reference)
+    eqt.boundary.geometric_axis.r = @ddtime(pc.geometric_axis.r.reference)
+    eqt.boundary.geometric_axis.z = @ddtime(pc.geometric_axis.z.reference)
+    eqt.boundary.elongation = @ddtime(pc.elongation.reference)
+    eqt.boundary.triangularity = @ddtime(pc.triangularity.reference)
+    eqt.boundary.squareness = @ddtime(pc.squareness.reference)
 
     # x-points from position control
     if !isempty(getproperty(pc, :x_point, []))
         n = 0
         for k in eachindex(pc.x_point)
-            rx = @ddtime(pc.x_point[k].r.reference.data)
-            zx = @ddtime(pc.x_point[k].z.reference.data)
+            rx = @ddtime(pc.x_point[k].r.reference)
+            zx = @ddtime(pc.x_point[k].z.reference)
             if rx > 0.0 && !isnan(rx) && !isnan(zx)
                 n += 1
                 resize!(eqt.boundary.x_point, n)
@@ -175,8 +186,8 @@ function prepare(actor::ActorEquilibrium)
     if !isempty(getproperty(pc, :strike_point, []))
         n = 0
         for k in eachindex(pc.strike_point)
-            rs = @ddtime(pc.strike_point[k].r.reference.data)
-            zs = @ddtime(pc.strike_point[k].z.reference.data)
+            rs = @ddtime(pc.strike_point[k].r.reference)
+            zs = @ddtime(pc.strike_point[k].z.reference)
             if rs > 0.0 && !isnan(rs) && !isnan(zs)
                 n += 1
                 resize!(eqt.boundary.strike_point, n)
@@ -187,22 +198,21 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # make sure j_tor and pressure on axis come in with zero gradient
-    if true
-        index = cp1d.grid.psi_norm .> 0.05
-        rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
-        j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
-        pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-    else
-        rho_pol_norm0 = sqrt.(cp1d.grid.psi_norm)
-        j_tor0 = cp1d.j_tor
-        pressure0 = cp1d.pressure
-    end
+
+    index = cp1d.grid.psi_norm .> 0.05
+    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+    j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
+    pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
+    p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
 
     # set j_tor and pressure, forcing zero derivative on axis
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
-    eq1d.j_tor = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic).(sqrt.(eq1d.psi_norm))
-    eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
+    eq1d.rho_tor_norm = cp1d.grid.rho_tor_norm
+
+    eq1d.j_tor = j_itp.(sqrt.(eq1d.psi_norm))
+    eq1d.pressure = p_itp.(sqrt.(eq1d.psi_norm))
 
     return dd
 end

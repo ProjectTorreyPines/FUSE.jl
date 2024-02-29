@@ -3,9 +3,10 @@ import TAUENN
 #= =========== =#
 #  ActorTauenn  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     error::Entry{T} = Entry{T}("-", "Target convergence error"; default=1e-3)
     eped_factor::Entry{T} = Entry{T}("-", "Scaling parameter for EPED-NN prediction"; default=1.0)
     rho_fluxmatch::Entry{T} = Entry{T}("-", "Radial location where flux-macthing is done"; default=0.6)
@@ -20,7 +21,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTauenn{T} <: ParametersActor whe
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorTauenn{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorTauenn{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTauenn{P}
     tauenn_parameters::TAUENN.TauennParameters

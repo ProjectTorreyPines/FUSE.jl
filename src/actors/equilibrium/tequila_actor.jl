@@ -3,9 +3,10 @@ import TEQUILA
 #= =========== =#
 #  ActorTEQUILA  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=11)
@@ -16,12 +17,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T} <: ParametersActor wh
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-3)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
+    fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
     #== display and debugging parameters ==#
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
 
-mutable struct ActorTEQUILA{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorTEQUILA{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTEQUILA{P}
     shot::Union{Nothing,TEQUILA.Shot}
@@ -64,25 +66,30 @@ function _step(actor::ActorTEQUILA)
     actor.ψbound = 0.0
 
     Ip_target = eqt.global_quantities.ip
-    rho_pol = sqrt.(eq1d.psi_norm)
-    rho_pol[1] = 0.0
-    P = TEQUILA.FE(rho_pol, eq1d.pressure)
-    Jt = TEQUILA.FE(rho_pol, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]) # don't allow for negative current
-    Pbnd = eq1d.pressure[end]
-    Fbnd = eq1d.f[end]
+
+    if par.fixed_grid === :poloidal
+        rho = sqrt.(eq1d.psi_norm)
+        rho[1] = 0.0
+        P = (TEQUILA.FE(rho, eq1d.pressure), :poloidal)
+        # don't allow current to change sign
+        Jt = (TEQUILA.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]), :poloidal)
+        Pbnd = eq1d.pressure[end]
+    elseif par.fixed_grid === :toroidal
+        rho = eq1d.rho_tor_norm
+        P = (TEQUILA.FE(rho, eq1d.pressure), :toroidal)
+        # don't allow current to change sign
+        Jt = (TEQUILA.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]), :toroidal)
+        Pbnd = eq1d.pressure[end]
+    end
+
+    Fbnd = eq1d.f[end] # only in equilibrium IDS
 
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
         pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
-        # kmin = argmin(pz)
-        # @views pr[kmin] = sum(pr[kmin-1:kmin+1]) / 3.0
-        # @views pz[kmin] = sum(pz[kmin-1:kmin+1]) / 3.0
         mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
-        # p=scatter(pr, pz)
-        # plot!(p, mxh, lw=2)
-        # display(p)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve
         concentric_first = true
@@ -98,8 +105,9 @@ function _step(actor::ActorTEQUILA)
         actor.shot = solve_function(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first)
     catch e
         display(plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:dot, aspect_ratio=:equal))
-        display(plot(rho_pol, eq1d.pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
-        display(plot(rho_pol, eq1d.j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
+        display(plot(rho, eq1d.pressure; marker=:dot, xlabel="ρ", title="Pressure [Pa]"))
+        display(plot(rho, eq1d.j_tor; marker=:dot, xlabel="ρ", title="Jtor [A]"))
+
         rethrow(e)
     end
 
@@ -210,19 +218,9 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain
-        for (i, r) in collect(enumerate(Rgrid))
-            for (j, z) in enumerate(Zgrid)
-                for (r0, z0) in zip(eqt.boundary.outline.r, eqt.boundary.outline.z)
-                    eq2d.psi[i, j] = min(eq2d.psi[i, j], sqrt((r - r0) .^ 2 + (z - z0) .^ 2) * (psib - psia) / 4)
-                end
-            end
-        end
         Threads.@threads for (i, r) in collect(enumerate(Rgrid))
             for (j, z) in enumerate(Zgrid)
-                value = shot(r, z)
-                if value != 0.0
-                    eq2d.psi[i, j] = value + ψbound
-                end
+                eq2d.psi[i, j] = shot(r, z; extrapolate=true) + ψbound
             end
         end
         eq1d.psi .+= ψbound

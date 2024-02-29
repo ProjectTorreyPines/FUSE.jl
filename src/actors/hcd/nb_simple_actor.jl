@@ -1,26 +1,25 @@
 #= === =#
 #  NBI  #
 #= === =#
-Base.@kwdef mutable struct FUSEparameters__ActorNBsimple{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    width::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Width of the deposition profile"; default=0.3)
-    rho_0::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Radial location of the deposition profile"; default=0.0)
-    ηcd_scale::Entry{Union{T,AbstractVector{T}}} = Entry{Union{T,AbstractVector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    _time::Float64 = NaN
+    ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
-mutable struct ActorNBsimple{D,P} <: HCDAbstractActor{D,P}
+mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorNBsimple{P}
-    function ActorNBsimple(dd::IMAS.dd{D}, par::FUSEparameters__ActorNBsimple{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorNBsimple)
+    par::FUSEparameters__ActorSimpleNB{P}
+    function ActorSimpleNB(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleNB{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSimpleNB)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorNBsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
 
@@ -28,16 +27,16 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.nbi` and stores data in `dd.core_sources`
+    Reads data in `dd.nbi`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
-function ActorNBsimple(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorNBsimple(dd, act.ActorNBsimple; kw...)
+function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSimpleNB(dd, act.ActorSimpleNB; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorNBsimple)
+function _step(actor::ActorSimpleNB)
     dd = actor.dd
     par = actor.par
 
@@ -50,30 +49,30 @@ function _step(actor::ActorNBsimple)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    n_beams = length(dd.nbi.unit)
-    _, width, rho_0, ηcd_scale = same_length_vectors(1:n_beams, par.width, par.rho_0, par.ηcd_scale)
-
-    for (idx, nbu) in enumerate(dd.nbi.unit)
-        beam_energy = @ddtime (nbu.energy.data)
+    for (ps, nbu) in zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit)
+        power_launched = @ddtime(ps.power.reference)
+        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
+        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
+        beam_energy = @ddtime(nbu.energy.data)
         beam_mass = nbu.species.a
-        power_launched = @ddtime(dd.pulse_schedule.nbi.unit[idx].power.reference.data)
+
         @ddtime(nbu.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
-        beam_particles = power_launched / (beam_energy * constants.e)
-        momentum_source =
-            sin(nbu.beamlets_group[1].angle) * beam_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+        electrons_particles = power_launched / (beam_energy * constants.e)
+        momentum_tor =
+            sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
-        ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0[idx]) / 1E20
-        TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0[idx]) / 1E3
+        ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
+        TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
 
-        eta = ηcd_scale[idx] * TekeV * 0.025
+        eta = par.ηcd_scale * TekeV * 0.025
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
 
         source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
-        gaussian_source(
+        shaped_source(
             source,
             nbu.name,
             source.identifier.index,
@@ -82,12 +81,10 @@ function _step(actor::ActorNBsimple)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            rho_0[idx],
-            width[idx],
-            2.0;
-            electrons_particles=beam_particles,
-            momentum_tor=momentum_source,
-            j_parallel=j_parallel
+            ρ -> gaus(ρ, rho_0, width, 2.0);
+            electrons_particles,
+            momentum_tor,
+            j_parallel
         )
 
         # add nbi fast ion particles source

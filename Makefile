@@ -38,7 +38,7 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN VacuumFields ThermalSystem_Models
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TJLF TEQUILA TGLFNN VacuumFields ThermalSystem_Models FXP
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -52,10 +52,6 @@ ifdef SERIAL
 else
 	PARALLELISM := -j 100
 endif
-
-DOCKER_PLATFORM := $(shell uname -m)
-DOCKER_PLATFORM := amd64
-#DOCKER_PLATFORM := arm64
 
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
@@ -120,21 +116,6 @@ Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
 '
 	make revise
-
-# install Hide and load it when Julia starts up
-hide: Hide
-	mkdir -p $(JULIA_DIR)/config
-	touch $(JULIA_CONF)
-	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	echo "using Hide" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
-	rm -f "$(JULIA_CONF).tmp"
-
-# remove from Julia starts up
-rm_hide:
-	mkdir -p $(JULIA_DIR)/config
-	touch $(JULIA_CONF)
-	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
 
 # load Revise when Julia starts up
 revise:
@@ -225,21 +206,24 @@ for package in ("Equilibrium", "Broker", "ZMQ");\
 	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
 end;\
 '
+# undo --single-branch clones of git repos
+undo_single_branch:
+	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cd ../$(package)/; echo `pwd`; git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"; git fetch origin;)
 
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	make -i $(PARALLELISM) WarmupFUSE FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
 
+playground: .PHONY
+	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
+	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_playground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+
 ADAS:
 	$(call clone_pull_repo,$@)
 
 FUSE:
 	$(call clone_pull_repo,$@)
-
-Hide:
-	$(call clone_pull_repo,$@)
-	julia -e 'using Pkg; Pkg.develop("Hide")'
 
 IMAS:
 	$(call clone_pull_repo,$@)
@@ -256,6 +240,9 @@ MillerExtendedHarmonic:
 FusionMaterials:
 	$(call clone_pull_repo,$@)
 
+FXP:
+	$(call clone_pull_repo,$@)
+
 VacuumFields:
 	$(call clone_pull_repo,$@)
 
@@ -269,6 +256,9 @@ TAUENN:
 	$(call clone_pull_repo,$@)
 
 TGLFNN:
+	$(call clone_pull_repo,$@)
+
+TJLF:
 	$(call clone_pull_repo,$@)
 
 EPEDNN:
@@ -347,41 +337,6 @@ using Pkg;\
 Pkg.add("PyCall");\
 Pkg.build("PyCall");\
 '
-
-# create a docker image with just FUSE
-docker_clean:
-	rm -rf ../Dockerfile
-	cp docker/Dockerfile_clean ../Dockerfile
-	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
-	mv tmp ../Dockerfile
-	cat ../Dockerfile
-	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_clean_$(DOCKER_PLATFORM) .
-
-# build a new FUSE docker base image with all packages
-docker_image:
-	rm -rf ../Dockerfile
-	cp docker/Dockerfile_base ../Dockerfile
-	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
-	mv tmp ../Dockerfile
-	cat ../Dockerfile
-	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM) .
-
-# update the base FUSE docker image
-docker_update:
-	rm -rf ../Dockerfile
-	cp docker/Dockerfile_update ../Dockerfile
-	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
-	mv tmp ../Dockerfile
-	cat ../Dockerfile
-	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM)_updated .
-
-# upload docker image to gke
-docker_upload:
-	docker tag julia_fuse_amd64_updated gcr.io/sdsc-20220719-60951/fuse
-	docker push gcr.io/sdsc-20220719-60951/fuse
 
 # remove old packages
 cleanup:
@@ -530,5 +485,15 @@ Pkg.add(["JuliaFormatter"]);\
 empty_commit:
 	git reset HEAD
 	git commit --allow-empty -m 'empty commit'
+
+# GitHub merge of `branch` into `master` for a series of repos
+# >> make branch_master branch=my_branch repos='FUSE IMAS IMASDD'
+branch_master:
+	$(foreach rp,$(repos), \
+curl -X POST \
+-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+-H "Accept: application/vnd.github.v3+json" \
+https://api.github.com/repos/ProjectTorreyPines/$(rp).jl/merges \
+-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 .PHONY:

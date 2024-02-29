@@ -1,9 +1,10 @@
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
     stress_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
     error_on_technology::Entry{Bool} = Entry{Bool}("-", "Error if build stresses and current limits are not met"; default=true)
@@ -12,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor 
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHFSsizing{P}
     stresses_actor::ActorStresses{D,P}

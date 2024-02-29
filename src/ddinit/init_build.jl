@@ -7,11 +7,11 @@ import OrderedCollections
 #  init build  #
 #= ========== =#
 """
-    init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.build` starting from `ini` and `act` parameters
 """
-function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_build")
     TimerOutputs.@timeit timer "init_build" begin
         init_from = ini.general.init_from
@@ -134,7 +134,7 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
         layer.type = Int(ini_layer.type)
         layer.side = Int(ini_layer.side)
         if !ismissing(ini_layer, :material)
-            layer.material = ini_layer.material
+            layer.material = String(ini_layer.material)
         end
         if !ismissing(ini_layer, :shape)
             layer.shape = Int(ini_layer.shape)
@@ -200,6 +200,24 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
             end
         end
     end
+end
+
+function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, val::Symbol) where {T<:Real}
+    par = getfield(parameters_layer, field)
+
+    if field == :material
+        layer_type = parameters_layer.type
+
+        pretty_layer_type = replace("$layer_type", "_" => "")
+        allowed_materials = FusionMaterials.supported_material_list(layer_type)
+
+        if val ∉ allowed_materials
+            error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+        end
+    end
+
+    return setproperty!(par, :value, val)
+
 end
 
 """
@@ -297,25 +315,25 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
             continue
         end
         if k == 1 && ini.center_stack.plug
-            layer.material = "Steel, Stainless 316"
+            layer.material = "steel"
         elseif layer.type == Int(_plasma_)
-            layer.material = any((layer.type in (Int(_blanket_), Int(_shield_)) for layer in bd.layer)) ? "DT_plasma" : "DD_plasma"
+            layer.material = "plasma"
         elseif layer.type == Int(_gap_)
-            layer.material = "Vacuum"
+            layer.material = "vacuum"
         elseif layer.type == Int(_oh_)
             layer.material = bd.oh.technology.material
         elseif layer.type == Int(_tf_)
             layer.material = bd.tf.technology.material
         elseif layer.type == Int(_shield_)
-            layer.material = "Steel, Stainless 316"
+            layer.material = "steel"
         elseif layer.type == Int(_blanket_)
-            layer.material = "lithium-lead"
+            layer.material = "lithium_lead"
         elseif layer.type == Int(_wall_)
-            layer.material = "Tungsten"
+            layer.material = "tungsten"
         elseif layer.type == Int(_vessel_)
-            layer.material = "Water, Liquid"
+            layer.material = "water"
         elseif layer.type == Int(_cryostat_)
-            layer.material = "Steel, Stainless 316"
+            layer.material = "steel"
         end
     end
 end
@@ -323,30 +341,19 @@ end
 function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
     # plug
     if ini.center_stack.plug
-        mechanical_technology(dd, :pl)
+        IMAS.mechanical_technology(dd, :pl)
     end
 
     # oh
-    coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
-    mechanical_technology(dd, :oh)
+    IMAS.coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+    IMAS.mechanical_technology(dd, :oh)
 
     # tf
-    coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
-    mechanical_technology(dd, :tf)
+    IMAS.coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+    IMAS.mechanical_technology(dd, :tf)
 
     #pf
-    return coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
-end
-
-function mechanical_technology(dd::IMAS.dd, what::Symbol)
-    if what != :pl && getproperty(dd.build, what).technology.material == "Copper"
-        material = pure_copper
-    else
-        material = stainless_steel
-    end
-    setproperty!(dd.solid_mechanics.center_stack.properties.yield_strength, what, material.yield_strength)
-    setproperty!(dd.solid_mechanics.center_stack.properties.poisson_ratio, what, material.poisson_ratio)
-    return setproperty!(dd.solid_mechanics.center_stack.properties.young_modulus, what, material.young_modulus)
+    return IMAS.coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
 end
 
 """

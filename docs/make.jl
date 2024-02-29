@@ -8,7 +8,6 @@ import SimulationParameters
 import AbstractTrees
 import ProgressMeter
 import Dates
-using InteractiveUtils: subtypes
 
 function pretty_units(unit)
     unit = replace(unit, r"\^-3(?![0-9])" => "⁻³")
@@ -174,8 +173,7 @@ makedocs(;
         "Parameters" => ["ini Parameters" => "ini.md", "act Parameters" => "act.md", "Use Cases" => "cases.md", "Initialization" => "inits.md"],
         "Examples" => "examples.md",
         "Development" => "develop.md",
-        "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
-        "Others" => ["GASC" => "gasc.md", "Utilities" => "utils.md"]
+        "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"]
     ]
 )
 

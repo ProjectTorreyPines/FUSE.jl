@@ -3,13 +3,14 @@ using LinearAlgebra
 #= ================== =#
 #  ActorFluxCapacitor  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxCapacitor{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorFluxCapacitor{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     rho_q_optimization::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ grid for q profile optimization (taken by default from FluxMatcher)")
 end
 
-mutable struct ActorFluxCapacitor{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorFluxCapacitor{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxCapacitor{P}
     fluxmatcher::ActorFluxMatcher{D,P}

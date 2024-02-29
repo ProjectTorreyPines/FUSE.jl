@@ -1,4 +1,5 @@
-abstract type ParametersStudy <: AbstractParameters end
+abstract type ParametersStudy{T} <: AbstractParameters{T} end
+
 abstract type AbstractStudy end
 
 """
@@ -13,21 +14,21 @@ function study_common_parameters(; kw...)
     if name == :server
         return Switch{String}(["localhost", "omega", "saga"], "-", "Where to run"; default)
     elseif name == :n_workers
-        return Entry{Int}("-", "number of workers to run with"; default)
+        return Entry{Int}("-", "Number of workers to run with"; default)
     elseif name == :file_save_mode
-        return Switch{Symbol}([:safe_write, :overwrite], "-", "Saving file policy, safe_write only writes when the folder is empty"; default)
+        return Switch{Symbol}([:safe_write, :overwrite], "-", "Saving file policy, `safe_write` only writes when the folder is empty"; default)
     elseif name == :release_workers_after_run
-        return Entry{Bool}("-", "releases the workers after running the study"; default)
-    elseif name == :keep_output_dd
-        return Entry{Bool}("-", "Store the output dds of the study run"; default)
+        return Entry{Bool}("-", "Releases the workers after running the study"; default)
+    elseif name == :save_dd
+        return Entry{Bool}("-", "Save dd of the study to save folder"; default)
     else
-        error("There is no study_common_parameter for name = $name")
+        error("There is no study_common_parameter named `$name`")
     end
 end
 
-#= ============ =#
+#= ======= =#
 #  studies  #
-#= ============ =#
+#= ======= =#
 
 # NOTE only called once at precompile time, kernel needs to be restarted to include new file in `studies` directory
 for filename in readdir(joinpath(@__DIR__, "..", "studies"))

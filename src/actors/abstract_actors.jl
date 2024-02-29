@@ -1,19 +1,48 @@
+import AbstractTrees
+
 abstract type AbstractActor{D,P} end
-abstract type FacilityAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type ReactorAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type HCDAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type PlasmaAbstractActor{D,P} <: AbstractActor{D,P} end
+
+abstract type CompoundAbstractActor{D,P} <: AbstractActor{D,P} end
+abstract type SingleAbstractActor{D,P} <: AbstractActor{D,P} end
 
 function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
     return logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
 end
 
-function name(actor::AbstractActor)
-    return name(typeof(actor))
+#= =========== =#
+#  name & group #
+#= =========== =#
+
+function name(actor::AbstractActor; remove_Actor::Bool=true)
+    return name(typeof(actor); remove_Actor)
 end
 
-function name(typeof_actor::Type{<:AbstractActor})
-    return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
+function name(typeof_actor::Type{<:AbstractActor}; remove_Actor::Bool=true)
+    if remove_Actor
+        return string(split(replace(string(typeof_actor), r"^FUSE\.Actor" => ""), "{")[1])
+    else
+        return string(split(replace(string(typeof_actor), r"^FUSE\." => ""), "{")[1])
+    end
+end
+
+"""
+    group_name(typeof_actor::Type{<:AbstractActor})
+
+Returns the group to which the actor belongs to.
+
+NOTE: This is based on the name of the folder in which the .jl file that defines the actor is contained.
+"""
+function group_name(typeof_actor::Type{<:AbstractActor})
+    dd = IMAS.dd()
+    act = ParametersActors()
+    actor_name = name(typeof_actor; remove_Actor=false)
+    if typeof_actor <: CompoundAbstractActor
+        which_output = string(@which typeof_actor(dd, getproperty(act, Symbol(actor_name)), act))
+    elseif typeof_actor <: SingleAbstractActor
+        which_output = string(@which typeof_actor(dd, getproperty(act, Symbol(actor_name))))
+    end
+    folder_name = split(split(which_output, "@")[end], "/")[end-1]
+    return folder_name
 end
 
 #= =============== =#
@@ -29,7 +58,7 @@ function switch_get_from(quantity::Symbol)::Switch{Symbol}
     if quantity == :ip
         swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
     elseif quantity == :vloop
-        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt)
     elseif quantity == :βn
         swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt)
     else
@@ -37,8 +66,22 @@ function switch_get_from(quantity::Symbol)::Switch{Symbol}
     end
     return swch
 end
-# quantit :wall_heat_load
-#Switch{Symbol}([:dd, :actor])
+
+#= ==================== =#
+#  ParametersActor time  #
+#= ==================== =#
+function SimulationParameters.global_time(par::ParametersActor)
+    return getfield(par, :_time)
+end
+
+function SimulationParameters.global_time(par::ParametersActor, time::Float64)
+    return setfield!(par, :_time, time)
+end
+
+function SimulationParameters.time_range(par::ParametersActor)
+    return missing
+end
+
 
 #= ==== =#
 #  step  #
@@ -51,24 +94,23 @@ Calls `_step(actor)`
 This is where the main part of the actor calculation gets done
 """
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
-    timer_name = name(actor)
-    TimerOutputs.reset_timer!(timer_name)
-    TimerOutputs.@timeit timer timer_name begin
-        if !actor_logging(actor.dd)
-            _step(actor, args...; kw...)::T
-        else
-            memory_time_tag("$(name(actor)) - @step IN")
+    global_time(actor.par, global_time(actor.dd)) # syncrhonize global_time of `par` with the one of `dd`
+    if !actor_logging(actor.dd)
+        _step(actor, args...; kw...)::T
+    else
+        timer_name = name(actor)
+        TimerOutputs.reset_timer!(timer_name)
+        TimerOutputs.@timeit timer timer_name begin
+            memory_time_tag(actor, "step IN")
             logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
             enter_workflow(actor)
             try
                 s_actor = _step(actor, args...; kw...)
                 @assert s_actor === actor "`$(typeof(T))._step(actor)` should return the same actor that is input to the function"
-            catch e
-                rethrow(e)
             finally
                 exit_workflow(actor)
             end
-            memory_time_tag("$(name(actor)) - @step OUT")
+            memory_time_tag(actor, "step OUT")
         end
     end
     return actor
@@ -89,16 +131,16 @@ Calls `_finalize(actor)`
 This is typically used to update `dd` to whatever the actor has calculated at the `step` function
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
-    timer_name = name(actor)
-    TimerOutputs.@timeit timer timer_name begin
-        if !actor_logging(actor.dd)
-            _finalize_and_freeze_onetime_expressions(actor)::T
-        else
-            memory_time_tag("$(name(actor)) - finalize IN")
+    if !actor_logging(actor.dd)
+        _finalize_and_freeze_onetime_expressions(actor)::T
+    else
+        timer_name = name(actor)
+        TimerOutputs.@timeit timer timer_name begin
+            memory_time_tag(actor, "finalize IN")
             logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
             f_actor = _finalize_and_freeze_onetime_expressions(actor)
             @assert f_actor === actor "`$(typeof(T))._finalize(actor)` should return the same actor that is input to the function"
-            memory_time_tag("$(name(actor)) - finalize OUT")
+            memory_time_tag(actor, "finalize OUT")
         end
     end
     return actor
@@ -118,7 +160,7 @@ function _finalize_and_freeze_onetime_expressions(actor::T) where {T<:AbstractAc
 end
 
 @recipe function plot_actor(actor::AbstractActor, args...)
-    error("No plot recipe defined for ator $(typeof(actor))")
+    return error("No plot recipe defined for ator $(typeof(actor))")
 end
 
 #= ============= =#
@@ -139,11 +181,18 @@ function actor_logging(dd::IMAS.dd, value::Bool)
     return old_value
 end
 
+#= ==== =#
+#  show  #
+#= ==== =#
+function Base.show(io::IO, actor::AbstractActor)
+    actorname = replace(string(typeof(actor)), "{Float64, Float64}" => "", r"^FUSE." => "")
+    fields = join([fieldname for fieldname in fieldnames(typeof(actor))], ", ")
+    return print(io, "$actorname($fields)")
+end
+
 #= ======== =#
 #  workflow  #
 #= ======== =#
-import AbstractTrees
-
 mutable struct Workflow
     _name::String
     _flow::OrderedCollections.OrderedDict{Tuple,Workflow}

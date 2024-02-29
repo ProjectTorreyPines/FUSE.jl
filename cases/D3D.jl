@@ -17,8 +17,14 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
 
     machine_description = joinpath("__FUSE__", "sample", "D3D_machine.json")
     shot_mappings = Dict(
-        :H_mode => Dict(:time0 => 2.7, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"),
-        :L_mode => Dict(:time0 => 2.0, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"),
+        :H_mode => Dict(
+            :time0 => 2.7,
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"
+        ),
+        :L_mode => Dict(
+            :time0 => 2.0,
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"
+        ),
         :default => Dict(:time0 => 1.0, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
     )
 
@@ -28,16 +34,16 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     #ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_plug => 1.2,
-        :hfs_TF => 1.5,
+        :hfs_TF => 1.9,
         :hfs_gap_OH_coils => 1.5,
         :hfs_wall => 0.5,
         :plasma => 0.0,
         :lfs_wall => 0.5,
         :lfs_gap_OH_coils => 1.9,
-        :lfs_TF => 0.75,
+        :lfs_TF => 1.1,
         :gap_world => 1.0
     )
-    ini.build.layers[:hfs_wall].material = "Carbon, Graphite (reactor grade)"
+    ini.build.layers[:hfs_wall].material = :graphite
 
     ini.build.n_first_wall_conformal_layers = 2
     act.ActorCXbuild.rebuild_wall = false
@@ -48,7 +54,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :copper
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :rectangle_ellipse
     ini.tf.n_coils = 24
     ini.tf.technology = :copper
 
@@ -80,4 +86,11 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default)::Tuple{Parameters
     set_new_base!(act)
 
     return ini, act
+end
+
+function TraceCAD(::Type{Val{:D3D}})
+    x_length = 3.7727
+    x_offset = -0.0303
+    y_offset = -0.0303
+    TraceCAD(:D3D, x_length, x_offset, y_offset)
 end

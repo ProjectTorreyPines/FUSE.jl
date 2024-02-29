@@ -5,7 +5,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     dd = IMAS.dd()
     if init_from == :ods
         # Fix the core profiles
-        dd = load_ODSs_from_string(ini.ods.filename)
+        dd = load_ods(ini)
         cp1d = dd.core_profiles.profiles_1d[]
 
         rho = cp1d.grid.rho_tor_norm
@@ -180,17 +180,17 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 1.2
-    ini.core_profiles.ejima = 0.0
+    ini.core_profiles.ejima = 0.1
 
     ini.oh.n_coils = 8
-    ini.oh.technology = :HTS
+    ini.oh.technology = :rebco
 
     ini.pf_active.n_coils_inside = 6
     ini.pf_active.n_coils_outside = 0
-    ini.pf_active.technology = :ITER
+    ini.pf_active.technology = :nb3sn_iter
 
     ini.tf.n_coils = 12
-    ini.tf.technology = :HTS
+    ini.tf.technology = :rebco
     ini.tf.shape = :rectangle
     ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
 
@@ -198,9 +198,9 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorEquilibrium.symmetrize = true
 
     ini.ec_launcher[1].power_launched = 150.e6
-    act.ActorECsimple.width = 0.25
-    act.ActorECsimple.rho_0 = 0.0
-    act.ActorECsimple.ηcd_scale = 0.5
+    ini.ec_launcher[1].width = 0.25
+    ini.ec_launcher[1].rho_0 = 0.0
+    act.ActorSimpleEC.ηcd_scale = 0.5
 
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
@@ -210,7 +210,6 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorFluxMatcher.evolve_densities = :fixed
     act.ActorFluxMatcher.rho_transport=0.3:0.05:0.8
-    act.ActorTGLF.nn = true
     act.ActorTGLF.user_specified_model = "sat0_em_d3d"
 
     act.ActorStabilityLimits.models = Symbol[]

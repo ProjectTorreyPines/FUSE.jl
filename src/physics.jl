@@ -11,18 +11,19 @@ function layer_shape_message(shape_function_index)
     return "layer.shape=$(shape_function_index) is invalid. Valid options are:
             -2: Offset & convex-hull
             -1: Offset
-             1: Priceton D exact  (shape_parameters = [])
-             2: Priceton D approx (shape_parameters = [])
-             3: Priceton D scaled (shape_parameters = [height])
-             4: rectangle         (shape_parameters = [height])
-             5: double_ellipse    (shape_parameters = [centerpost_height, height])
-             6: tripple-arc       (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-             7: miller            (shape_parameters = [elongation, triangularity])
-             8: square_miller     (shape_parameters = [elongation, triangularity, squareness])
-             9: spline            (shape_parameters = [hfact, rz...)
-            10: silo              (shape_parameters = [h_start, h_end)
-           10x: shape + z_offset  (shape_parameters = [..., z_offset])
-          100x: negative shape    (shape_parameters = [...])"
+             1: Princeton D exact  (shape_parameters = [])
+             2: Princeton D approx (shape_parameters = [])
+             3: Princeton D scaled (shape_parameters = [height])
+             4: rectangle          (shape_parameters = [height])
+             5: double_ellipse     (shape_parameters = [centerpost_height, height])
+             6: rectangle_ellipse  (shape_parameters = [height])
+             7: tripple-arc        (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
+             8: miller             (shape_parameters = [elongation, triangularity])
+             9: square_miller      (shape_parameters = [elongation, triangularity, squareness])
+            10: spline             (shape_parameters = [hfact, rz...)
+            11: silo               (shape_parameters = [h_start, h_end)
+           10x: shape + z_offset   (shape_parameters = [..., z_offset])
+          100x: negative shape     (shape_parameters = [...])"
 end
 
 function initialize_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, target_clearance)
@@ -50,6 +51,9 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_double_ellipse_)
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction))
             shape_parameters = [centerpost_height, height]
+        elseif shape_index_mod == Int(_rectangle_ellipse_)
+            height = (maximum(z_obstruction) - minimum(z_obstruction))
+            shape_parameters = [height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
@@ -117,6 +121,8 @@ function shape_function(shape_function_index::Int; resolution::Float64)
             func = princeton_D_scaled
         elseif shape_index_mod == Int(_double_ellipse_)
             func = circle_ellipse
+        elseif shape_index_mod == Int(_rectangle_ellipse_)
+            func = double_ellipse
         elseif shape_index_mod == Int(_rectangle_)
             func = rectangle_shape
         elseif shape_index_mod == Int(_triple_arc_)
@@ -406,6 +412,10 @@ double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
     return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points, resolution)
+end
+
+function double_ellipse(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
+    return double_ellipse(r_start, r_end, (r_start + r_end) / 2, height, 0.0, height; n_points, resolution)
 end
 
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
@@ -1171,7 +1181,7 @@ function free_boundary_private_flux_constraint(
 
     Rp = T[]
     Zp = T[]
-    
+
     if fraction <= 0.0
         return Rp, Zp
     end

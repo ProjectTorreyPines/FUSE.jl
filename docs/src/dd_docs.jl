@@ -25,12 +25,12 @@ for name in sort!(collect(fieldnames(IMAS.dd)))
             ```@example
             using IMASDD # hide
             IMASDD.$name{Float64} # hide
-            ```\n""",
+            ```\n"""
         )
     end
 end
 open("$(@__DIR__)/dd.md", "w") do io
-    write(io, join(txt, "\n"))
+    return write(io, join(txt, "\n"))
 end
 
 function dd_details_md(io, ids)

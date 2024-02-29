@@ -2,10 +2,9 @@
 #  ActorThermalPlant
 #= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
-import ModelingToolkit, DifferentialEquations
+import ModelingToolkit as MTK, DifferentialEquations
 import ThermalSystem_Models
 TSMD    = ThermalSystem_Models.Dynamics
-MTK     = ModelingToolkit
 MTK.@variables t
 
 Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T} <: ParametersActor where {T<:Real}
@@ -93,7 +92,6 @@ function _step(actor::ActorThermalPlant)
     wall_heat_load      = (use_actor_u == false) ?  abs.(IMAS.radiation_losses(dd.core_sources)) : actor.u[3];
     
     actor.u             =  [breeder_heat_load, divertor_heat_load, wall_heat_load]
-    # println("Actor u = $(actor.u)")
     # Buidling the TSM System
     if actor.buildstatus == false
         @info "Rebuilding ActorThermalPlant"
@@ -238,8 +236,8 @@ function _step(actor::ActorThermalPlant)
             simple_sys = MTK.structural_simplify(sys);
 
 
-            actor.components  = plant_systems;
-            actor.connections = plant_connections;
+            actor.components  = plant_systems
+            actor.connections = plant_connections
             actor.odeparams   = plant_params
             actor.odedict     = Dict(edict..., wdict..., ddict..., bdict..., idict..., sdict...);
             actor.buildstatus = true
@@ -674,15 +672,13 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
     if length(bop_plant.system) != length(syslabs)
         empty!(dd.balance_of_plant.power_plant.system)
         resize!(bop_plant.system,length(syslabs))
-        for i =1:length(syslabs)
+        for i in 1:length(syslabs)
             bop_plant.system[i].name  = syslabs[i] 
         end
     end
     bopsys = bop_plant.system; 
     bops_dict = Dict(bopsys[i].name => i for i =1:length(syslabs)); # dict where name => index
     valid_s   = collect(keys(bops_dict)); 
-    # bops_dict = Dict(bopsys[i].name => i for i =1:length(syslabs)); # dict where name => index
-    # valid_s   = collect(keys(bops_dict));                           # valid system names
 
 
     nparent_dict = TSMD.node_propdict(gcopy,:parent);
