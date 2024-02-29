@@ -256,7 +256,5 @@
     "summary.local.pedestal.zeff.value",
     "summary.time",
     "wall.description_2d[:].limiter.unit[:].outline.r",
-    "wall.description_2d[:].limiter.unit[:].outline.z",
-    "requirements.power_electric_net",
-    "requirements.tritium_breeding_ratio"
+    "wall.description_2d[:].limiter.unit[:].outline.z"
 ]
