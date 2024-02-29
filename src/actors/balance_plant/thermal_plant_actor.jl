@@ -227,8 +227,10 @@ function _step(actor::ActorThermalPlant)
             MTK.@named sys = MTK.ODESystem(plant_connections, t, sts, plant_params; systems=plant_systems)
 
             # Check DOF and problem size
-            # TSMD.system_details(sys)
-
+            if par.verbose == true
+                TSMD.system_details(sys);
+            end
+            
             # Simplify using ModelingToolkit's model reduction methods
             simple_sys = MTK.structural_simplify(sys)
 
