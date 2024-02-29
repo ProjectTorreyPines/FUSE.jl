@@ -98,9 +98,9 @@ end
         pf_active::IMAS.pf_active,
         bd::IMAS.build,
         eqt::IMAS.equilibrium__time_slice,
-        n_coils::Vector{TI};
-        pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
-        coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
+        n_coils::Vector{Int};
+        pf_coils_size::Union{Nothing,Float64,Vector{Float64}}=nothing,
+        coils_cleareance::Union{Nothing,Float64,Vector{Float64}}=nothing)
 
 Use build layers outline to initialize PF coils distribution
 NOTE: n_coils
@@ -112,11 +112,19 @@ function init_pf_active!(
     pf_active::IMAS.pf_active,
     bd::IMAS.build,
     eqt::IMAS.equilibrium__time_slice,
-    n_coils::Vector{TI};
-    pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
-    coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
+    n_coils::Vector{Int};
+    pf_coils_size::Union{Nothing,Float64,Vector{Float64}}=nothing,
+    coils_cleareance::Union{Nothing,Float64,Vector{Float64}}=nothing)
 
     OH_layer = IMAS.get_build_layer(bd.layer; type=_oh_)
+
+    # handle the case of OH inside of the TF
+    # by creating a fake OH_layer that has a rectangular shape
+    if OH_layer.side == Int(_hfs_)
+        OH_layer = IMAS.freeze(OH_layer)
+        height = 0.75 * maximum(OH_layer.outline.z) - minimum(OH_layer.outline.z)
+        OH_layer.outline.r, OH_layer.outline.z = rectangle_shape(OH_layer.start_radius, OH_layer.end_radius, height)
+    end
 
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))

@@ -146,6 +146,15 @@ function TraceCAD(device::Symbol)
     return TraceCAD(Val{device})
 end
 
+"""
+TIP! use it with Interact.@manipulate, like this:
+
+    import Interact
+    Interact.@manipulate for x_length in range(0.5,5,100), x_offset in range(-1,1,100), y_offset in range(-1,1,100)
+        plot(FUSE.TraceCAD(:D3D, x_length, x_offset, y_offset))
+        plot!(dd.pf_active)
+    end
+"""
 @recipe function plot_trace_cad(cad::TraceCAD)
     img = FileIO.load(joinpath(dirname(@__DIR__), "cases", "$(cad.name).jpg"))
     img .= img[end:-1:1, 1:end]

@@ -14,8 +14,7 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
         if !ismissing(ini.general, :dd)
             dd1 = ini.general.dd
         else
-            dd1 = load_ODSs_from_string(ini.ods.filename)
-            dd1.global_time = ini.time.simulation_start
+            dd1 = load_ods(ini)
         end
 
         # equilibrium
@@ -35,19 +34,18 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
                 ini.equilibrium.ip = eqt.global_quantities.ip
             end
             if ismissing(ini.equilibrium, :xpoints)
-                nx = length(eqt.boundary.x_point)
-                if nx == 0
-                    ini.equilibrium.xpoints = :none
-                elseif nx == 1
-                    if eqt.boundary.x_point[1].z > eqt.boundary.geometric_axis.z
-                        ini.equilibrium.xpoints = :upper
-                    else
-                        ini.equilibrium.xpoints = :lower
-                    end
-                elseif nx == 2
+                # look for x-points that fall within the first wall (if first-wall info is available)
+                x_points = IMAS.x_points_in_wall(eqt.boundary.x_point, dd1.wall)
+                upper = any(x_point.z > eqt.boundary.geometric_axis.z for x_point in x_points)
+                lower = any(x_point.z < eqt.boundary.geometric_axis.z for x_point in x_points)
+                if upper && lower
                     ini.equilibrium.xpoints = :double
+                elseif upper && !lower
+                    ini.equilibrium.xpoints = :upper
+                elseif !upper && lower
+                    ini.equilibrium.xpoints = :lower
                 else
-                    error("cannot handle $nx x-points")
+                    ini.equilibrium.xpoints = :none
                 end
             end
         end

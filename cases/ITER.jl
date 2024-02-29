@@ -60,23 +60,27 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.time.simulation_start = 300.0
 
     # explicitly set thickness of radial build layers
-    layers = OrderedCollections.OrderedDict{Symbol,Float64}()
-    layers[:gap_OH] = 0.80
-    layers[:OH] = 1.275
-    layers[:gap_OH_TF] = 0.05
-    layers[:hfs_TF] = 1.075
-    layers[:hfs_vacuum_vessel] = 0.30
-    layers[:hfs_shield] = 0.40
-    layers[:hfs_wall] = 0.1
-    layers[:plasma] = 4.40
-    layers[:lfs_wall] = 0.1
-    layers[:lfs_shield] = 0.40
-    layers[:lfs_vacuum_vessel] = 1.05
-    layers[:lfs_TF] = 1.10
-    layers[:gap_cryostat] = 2.34
-    layers[:cryostat] = 0.30
+    ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
+    layers[:gap_OH] = 1.329
+    layers[:OH] = 0.734
+    layers[:gap_OH_TF] = 0.112
+    layers[:hfs_TF] = 0.909
+    layers[:hfs_gap_TF_shield] = 0.016 + 0.1 + 0.032
+    layers[:hfs_vacuum_vessel] = 0.338
+    layers[:hfs_gap_vacuum_vessel_blanket] = 0.01
+    layers[:hfs_shield] = 0.465
+    layers[:hfs_wall] = 0.06
+    layers[:plasma] = 0.095+4.0+0.194
+    layers[:lfs_wall] = 0.06
+    layers[:lfs_shield] = 0.491
+    layers[:lfs_gap_blanket_vacuum_vessel] = 0.01
+    layers[:lfs_vacuum_vessel] = 0.758
+    layers[:lfs_gap_shield_TF] = 0.25 + 0.2 + 0.037
+    layers[:lfs_TF] = 0.882
+    layers[:gap_tf_cryostat] = 3.343
+    layers[:cryostat] = 0.05
     ini.build.layers = layers
-    ini.build.n_first_wall_conformal_layers = 3
+    ini.build.n_first_wall_conformal_layers = 5
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
@@ -126,4 +130,11 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     set_new_base!(act)
 
     return ini, act
+end
+
+function TraceCAD(::Type{Val{:ITER}})
+    x_length = 16.9
+    x_offset = -1.08
+    y_offset = 0.1
+    TraceCAD(:ITER, x_length, x_offset, y_offset)
 end

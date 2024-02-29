@@ -59,8 +59,6 @@ include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
-include(joinpath("ddinit", "gasc.jl"))
-include(joinpath("ddinit", "pytok.jl"))
 
 #= ====== =#
 #  ACTORS  #
@@ -128,7 +126,6 @@ include(joinpath("actors", "balance_plant", "balance_of_plant_plot.jl"))
 include(joinpath("actors", "costing", "costing_utils.jl"))
 include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
 include(joinpath("actors", "costing", "aries_costing_actor.jl"))
-include(joinpath("actors", "costing", "gasc_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
 
 include(joinpath("actors", "control", "controller_actor.jl"))
@@ -146,9 +143,9 @@ include("parameters_actors.jl")
 include("optimization.jl")
 
 
-#= ============ =#
-#  APPLICATIONS  #
-#= ============ =#
+#= ======= =#
+#  STUDIES  #
+#= ======= =#
 include("parameters_studies.jl")
 
 

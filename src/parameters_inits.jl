@@ -4,8 +4,8 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _triple_arc_,
-    _miller_, _square_miller_, _spline_, _silo_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_,
+    _rectangle_ellipse_, _triple_arc_, _miller_, _square_miller_, _spline_, _silo_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -199,13 +199,6 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit{T}
         Entry{Int}("-", "Number of layers that are conformal to the first wall"; default=1, check=x -> @assert x > 0 "must be: n_first_wall_conformal_layers > 0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__gasc{T} <: ParametersInit{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :gasc
-    filename::Entry{String} = Entry{String}("-", "Output GASC .json file from which data will be loaded")
-    case::Entry{Int} = Entry{Int}("-", "Number of the GASC run to load")
-end
-
 Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ods
@@ -236,7 +229,6 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     _name::Symbol
     general::FUSEparameters__general{T}
     time::FUSEparameters__time{T}
-    gasc::FUSEparameters__gasc{T}
     ods::FUSEparameters__ods{T}
     build::FUSEparameters__build{T}
     equilibrium::FUSEparameters__equilibrium{T}
@@ -259,7 +251,6 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         :ini,
         FUSEparameters__general{T}(),
         FUSEparameters__time{T}(),
-        FUSEparameters__gasc{T}(),
         FUSEparameters__ods{T}(),
         FUSEparameters__build{T}(),
         FUSEparameters__equilibrium{T}(),
@@ -388,7 +379,7 @@ return ini.equilibrium boundary expressed in MHX independenty of how the user in
 """
 function IMAS.MXH(ini::ParametersAllInits)
     if ini.general.init_from == :ods
-        dd = load_ODSs_from_string(ini.ods.filename)
+        dd = load_ods(ini)
     else
         dd = IMAS.dd()
     end
@@ -501,16 +492,39 @@ Plots ini time dependent time traces including plasma boundary
 end
 
 """
-    load_ODSs_from_string(filenames::String)
+    load_ods(ini::ParametersAllInits)
+
+Load ODSs as specified in `ini.ods.filename`
+
+NOTE: supports multiple comma-separated filenames
+"""
+function load_ods(ini::ParametersAllInits)
+    dd = load_ods(ini.ods.filename)
+    dd.global_time = ini.time.simulation_start
+    return dd
+end
+
+"""
+    load_ods(filenames::String)
 
 Load multiple comma-separated filenames into a single dd
 """
-function load_ODSs_from_string(filenames::String)
+function load_ods(filenames::String)
+    return load_ods(split(filenames, ","))
+end
+
+"""
+    load_ods(filenames::Vector{String})
+
+Load multiple ODSs into a single dd
+"""
+function load_ods(filenames::Vector{<:AbstractString})
     dd = IMAS.dd()
-    for filename in split(filenames, ",")
+    for filename in filenames
         filename = replace(filename, r"^__FUSE__" => __FUSE__)
         dd1 = IMAS.json2imas(filename)
         merge!(dd, dd1)
     end
+    IMAS.last_global_time(dd)
     return dd
 end
