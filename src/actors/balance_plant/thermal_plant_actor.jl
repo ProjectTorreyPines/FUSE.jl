@@ -2,26 +2,28 @@
 #  ActorThermalPlant
 #= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
-import ModelingToolkit as MTK, DifferentialEquations
+import ModelingToolkit as MTK
+import DifferentialEquations
 import ThermalSystem_Models
 TSMD    = ThermalSystem_Models.Dynamics
 MTK.@variables t
 
-Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol   = :not_set
+    _time::Float64 = NaN
     model::Switch{Symbol}      = Switch{Symbol}([:brayton,:rankine], "-", "user can only select one of these"; default = :rankine) # for future additions
     heat_load_from::Switch{Symbol} = Switch{Symbol}([:dd, :actor],"-",""; default = :dd)
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorThermalPlant{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorThermalPlant{P}       # Actors must carry with them the parameters they are run with
-    components::Vector{ModelingToolkit.ODESystem}   # Vector of type ODESystem
-    connections::Vector{ModelingToolkit.Equation}   # Connection equations
-    odeparams::Vector{ModelingToolkit.Num}          # Circuit Parameters 
+    components::Vector{MTK.ODESystem}   # Vector of type ODESystem
+    connections::Vector{MTK.Equation}   # Connection equations
+    odeparams::Vector{MTK.Num}          # Circuit Parameters 
     odedict::Dict{MTK.Symbol,MTK.ODESystem}         # Dictionary where symbol name => symbol
     buildstatus::Bool
     fullbuild                                       #::MTK.ODESystem - high level ODESystem
@@ -43,10 +45,10 @@ mutable struct ActorThermalPlant{D,P} <: FacilityAbstractActor{D,P}
         dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
         return new{D,P}(dd, 
                         par, 
-                        ModelingToolkit.ODESystem[],
-                        ModelingToolkit.Equation[],
-                        ModelingToolkit.Num[],
-                        Dict{ModelingToolkit.Symbol,ModelingToolkit.ODESystem}(),
+                        MTK.ODESystem[],
+                        MTK.Equation[],
+                        MTK.Num[],
+                        Dict{MTK.Symbol,MTK.ODESystem}(),
                         false,
                         nothing,
                         nothing,
@@ -67,11 +69,11 @@ end
 !!! note 
     Stores data in `dd.balance_of_plant`
 """
-function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; stepkw, kw...)
+function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorThermalPlant(kw...)
     actor = ActorThermalPlant(dd, par)
     dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
-    actor = step(actor; stepkw...)
+    actor = step(actor)
     finalize(actor)
     return actor
 end
@@ -232,7 +234,7 @@ function _step(actor::ActorThermalPlant)
                 TSMD.system_details(sys);
             end
             
-            # Simplify using ModelingToolkit's model reduction methods
+            # Simplify using MTK's model reduction methods
             simple_sys = MTK.structural_simplify(sys);
 
 
@@ -257,7 +259,7 @@ function _step(actor::ActorThermalPlant)
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan);
 
-            ode_sol  = DifferentialEquations.solve(actor.prob, DifferentialEquations.ImplicitEuler());
+            ode_sol  = DifferentialEquations.solve(actor.prob);
             soln(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric];
@@ -265,11 +267,9 @@ function _step(actor::ActorThermalPlant)
             
             para_vars = MTK.parameters(simple_sys);
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
-            para_vals = actor.prob.p;
 
             actor.sym2var = Dict(para_syms[i] => para_vars[i] for i =1:length(para_vars));
-            actor.var2val = Dict(para_vars[i] => para_vals[i] for i =1:length(para_vars));
-
+            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys,para_vars[i])(ode_sol) for i =1:length(para_vars));
             
             gcopy = TSMD.create_plot_graph(actor.G; toignore = [:steam_condensor], verbose = false);
             xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy);
@@ -286,7 +286,7 @@ function _step(actor::ActorThermalPlant)
             actor.gplot = gcopy;
 
         elseif par.model == :brayton
-            cyclesys, cconnections, cparams, cdict = TSMD.brayton_regenerator(;flowrate = 300)
+            cyclesys, cconnections, cparams, cdict = TSMD.brayton_cycle(;flowrate = 300)
             energy_con = vcat(
             TSMD.work_connect(
                 edict[:Electric],
@@ -362,7 +362,7 @@ function _step(actor::ActorThermalPlant)
             # Check DOF and problem size
             # TSMD.system_details(sys);
 
-            # Simplify using ModelingToolkit's model reduction methods
+            # Simplify using MTK's model reduction methods
             simple_sys = MTK.structural_simplify(sys);
 
 
@@ -387,7 +387,7 @@ function _step(actor::ActorThermalPlant)
             tspan    = (0.0, 10)
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan);
 
-            ode_sol  = DifferentialEquations.solve(actor.prob, DifferentialEquations.ImplicitEuler());
+            ode_sol  = DifferentialEquations.solve(actor.prob);
             sol(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric];
@@ -395,10 +395,9 @@ function _step(actor::ActorThermalPlant)
             
             para_vars = MTK.parameters(simple_sys);
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
-            para_vals = actor.prob.p;
 
             actor.sym2var = Dict(para_syms[i] => para_vars[i] for i =1:length(para_vars));
-            actor.var2val = Dict(para_vars[i] => para_vals[i] for i =1:length(para_vars));
+            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys,para_vars[i])(ode_sol) for i =1:length(para_vars));
 
             gcopy = TSMD.create_plot_graph(actor.G; toignore = [:cycle_cooler], verbose = false);
             xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy);
@@ -535,7 +534,7 @@ Inputs:
 Ouput: 
     soln = solution object
 """
-function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan = (0,10))
+function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan = (0,10), solver = DifferentialEquations.Rosenbrock23())
     # x are parameters 
     # u are heat loads 
     #   u[1] = Qbreeder
@@ -557,7 +556,7 @@ function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan = (0,1
     end
 
     node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped);
-    node_sol  = DifferentialEquations.solve(node_prob, DifferentialEquations.ImplicitEuler());
+    node_sol  = DifferentialEquations.solve(node_prob, solver);
     soln(v) = node_sol[v][end]
     return soln
 end
@@ -571,7 +570,7 @@ Inputs:
 Ouput: 
     soln.(yvars)
 """
-function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan = (0,10))
+function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan = (0,10), solver = DifferentialEquations.Rosenbrock23())
     # x are parameters 
     # u are heat loads 
     #   u[1] = Qbreeder
@@ -593,7 +592,7 @@ function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan
     end
 
     node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped);
-    node_sol  = DifferentialEquations.solve(node_prob,DifferentialEquations.ImplicitEuler());
+    node_sol  = DifferentialEquations.solve(node_prob,solver);
     soln(v) = node_sol[v][end]
     return soln.(yvars)
 end
@@ -605,8 +604,8 @@ Evaluates the system described by act.plant
 Ouput: 
     soln, the updated solution object
 """
-function plant_wrapper(act::ActorThermalPlant)
-    return plant_wrapper(act.x, act.u, act.plant, act.optpar, act.var2val, act.sym2var)
+function plant_wrapper(act::ActorThermalPlant; kw...)
+    return plant_wrapper(act.x, act.u, act.plant, act.optpar, act.var2val, act.sym2var; kw...)
 end
 
 """
@@ -665,7 +664,7 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
     soln = (isnothing(soln) ? gp[:soln] : soln)
 
     # names of the internal subgraph objects
-    syslabs = [titlecase(replace(lowercase(string(sl)),compnamesubs...)) for sl in TSMD.get_prop(gcopy, :system_labels)]
+    syslabs = [titlecase(replace(lowercase(string(sl)),compnamesubs...)) for sl in gcopy.gprops[:system_labels]]
     format_name(x) = titlecase(replace(lowercase(string(x)),compnamesubs...))
 
     # initializing the 1st level of dd
@@ -679,7 +678,7 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
     bopsys = bop_plant.system; 
     bops_dict = Dict(bopsys[i].name => i for i =1:length(syslabs)); # dict where name => index
     valid_s   = collect(keys(bops_dict)); 
-
+    println(valid_s)
 
     nparent_dict = TSMD.node_propdict(gcopy,:parent);
     nname_dict   = TSMD.node_propdict(gcopy,:name);
@@ -781,7 +780,7 @@ function initddbop(act::ActorThermalPlant; soln = nothing)
             end
         #     # hasproperty(comp,:q) ? resize!(bopcomp.port,flowadd+1)
         else
-            display("Failed to find parent system for $(nname_dict[i]), invalid parent $(parent_)")
+            display("Failed to find parent system for $(nname_dict[i]), invalid parent $(parent_), not in $(valid_s)")
         end
     end
 
