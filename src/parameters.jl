@@ -1,13 +1,13 @@
 using SimulationParameters
 
 function SimulationParameters.Entry{T}(ids::Type, field::Symbol; default=missing, check=nothing) where {T}
-    txt = IMAS.info(ids, field)
-    return Entry{T}(get(txt, "units", "-"), get(txt, "documentation", ""); default, check)
+    nfo = IMAS.info(ids, field)
+    return Entry{T}(nfo.units, nfo.documentation; default, check)
 end
 
 function SimulationParameters.Switch{T}(options, ids::Type{<:IMAS.IDS}, field::Symbol; default=missing) where {T}
-    txt = IMAS.info(ids, field)
-    return Switch{T}(options, get(txt, "units", "-"), get(txt, "documentation", ""); default)
+    nfo = IMAS.info(ids, field)
+    return Switch{T}(options, nfo.units, nfo.documentation; default)
 end
 
 abstract type ParametersActor{T} <: AbstractParameters{T} end # container for all parameters of an actor
