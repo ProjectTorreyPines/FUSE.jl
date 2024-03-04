@@ -11,7 +11,6 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from
 
-        init_from = :scalars
         if init_from == :ods
             if !ismissing(dd1.pulse_schedule, :time) && length(dd1.pulse_schedule.time) > 0
                 dd.pulse_schedule = dd1.pulse_schedule
