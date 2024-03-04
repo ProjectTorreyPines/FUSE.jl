@@ -109,6 +109,7 @@ function _run(study::StudyTGLFdb)
 
         # paraller run
         results = pmap(filename -> run_case(filename, study, item), cases_files)
+        act.ActorTGLF.lump_ions = study.lump_ions
 
         # populate DataFrame
         for row in results

@@ -14,6 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     custom_input_files::Entry{Union{Vector{<:InputTGLF}, Vector{<:InputTJLF}}} = Entry{ Union{Vector{<:InputTGLF}, Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
+    lump_ions::Entry{Bool} = Entry{Bool}("-","lumping ions or not";default=true)
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
@@ -69,7 +70,7 @@ function _step(actor::ActorTGLF)
     theta_trapped = range(theta_0,theta_1,length(cp1d.grid.rho_tor_norm))
 
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
-        input_tglf = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
+        input_tglf = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
             if par.model == :TGLFNN
