@@ -57,6 +57,8 @@ function switch_get_from(quantity::Symbol)::Switch{Symbol}
     txt = "Take $quantity from this IDS"
     if quantity == :ip
         swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+    elseif quantity == :vacuum_r0_b0
+        swch = Switch{Symbol}([:equilibrium, :pulse_schedule], "-", txt; default=:pulse_schedule)
     elseif quantity == :vloop
         swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt)
     elseif quantity == :βn

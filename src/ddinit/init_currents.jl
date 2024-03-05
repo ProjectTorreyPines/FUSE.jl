@@ -9,7 +9,7 @@ function init_currents!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAll
         init_from = ini.general.init_from
 
         if (init_from == :scalars) || ismissing(dd.core_profiles.profiles_1d[], :j_ohmic)
-            #ActorSteadyStateCurrent(dd, act; ip_from=:equilibrium)
+            ActorSteadyStateCurrent(dd, act; ip_from=:equilibrium)
         end
 
         return dd

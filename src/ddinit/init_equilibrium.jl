@@ -20,10 +20,6 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
             end
         end
 
-        # mxh independenty of how the user input it
-        mxh = IMAS.MXH(ini, dd1)
-        dd.equilibrium.vacuum_toroidal_field.r0 = mxh.R0
-
         # the pressure and j_tor to be used by equilibrium solver need to be set in dd.core_profiles
         # while the equilibrium boundary neds to be set in init_pulse_schedule
         if isempty(dd.core_profiles.profiles_1d)

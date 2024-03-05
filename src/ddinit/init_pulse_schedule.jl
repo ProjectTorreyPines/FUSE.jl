@@ -37,7 +37,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
 
             time, data = get_time_dependent(ini.equilibrium, :B0; simplify_time_traces)
             dd.pulse_schedule.tf.time = time
-            dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = data .* R0
+            dd.pulse_schedule.tf.b_field_tor_vacuum.reference = data
+            dd.pulse_schedule.tf.r0 = R0
 
             # initialize position_control from mxh
             if ini.equilibrium.boundary_from == :scalars
