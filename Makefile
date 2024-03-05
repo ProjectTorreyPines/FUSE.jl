@@ -339,7 +339,7 @@ Pkg.build("PyCall");\
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
 
-# 
+# setup ./docs environment to build documentation
 develop_docs:
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
