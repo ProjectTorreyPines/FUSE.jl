@@ -210,11 +210,10 @@ function prepare(actor::ActorEquilibrium)
     # set j_tor and pressure, forcing zero derivative on axis
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
+    eq1d.rho_tor_norm = cp1d.grid.rho_tor_norm
+
     eq1d.j_tor = j_itp.(sqrt.(eq1d.psi_norm))
     eq1d.pressure = p_itp.(sqrt.(eq1d.psi_norm))
-
-    cp1d.j_tor = j_itp.(sqrt.(cp1d.grid.psi_norm))
-    cp1d.pressure = p_itp.(sqrt.(cp1d.grid.psi_norm))
 
     return dd
 end

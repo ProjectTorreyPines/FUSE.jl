@@ -28,7 +28,6 @@ macro insert_constructor_members(T)
     return expr
 end
 
-
 mutable struct ParametersActors{T<:Real} <: ParametersAllActors{T}
     _parent::WeakRef
     _name::Symbol
