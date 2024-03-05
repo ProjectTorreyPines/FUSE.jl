@@ -13,6 +13,7 @@ mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real} <: VacuumFiel
     tech::IMAS.build__pf_active__technology{T1}
     time0::Float64
     green_model::Symbol
+    quad_coil::VacuumFields.QuadCoil
 end
 
 function GS_IMAS_pf_active__coil(
@@ -27,11 +28,14 @@ function GS_IMAS_pf_active__coil(
         setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
     end
 
+    oute = IMAS.outline(pfcoil.element[1])
+
     return GS_IMAS_pf_active__coil{T,T,T}(
         pfcoil,
         coil_tech,
         global_time(pfcoil),
-        green_model)
+        green_model,
+        VacuumFields.QuadCoil(oute.r, oute.z))
 end
 
 function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
@@ -107,11 +111,12 @@ function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real
         return Gfunc(coil.r, coil.z, R, Z)
 
     elseif green_model == :quad # high-fidelity
-        # issue 1: this allocates
-        # issue 2: this assumes that there is only one element
+        # issue: this assumes that there is only one element
         oute = IMAS.outline(coil.imas.element[1])
-        return Gfunc(VacuumFields.QuadCoil(oute.r,oute.z), R, Z,)
-        # solution should be we support:
+        coil.quad_coil.R = oute.r
+        coil.quad_coil.Z = oute.z
+        return Gfunc(coil.quad_coil, R, Z)
+        # ideal solution would be to support:
         # return Gfunc(coil.imas, R, Z)
 
     else
