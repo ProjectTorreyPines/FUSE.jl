@@ -107,20 +107,13 @@ end
 function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
     green_model = getfield(coil, :green_model)
 
-    # issue: this assumes that there is only one element
-    # ideal solution would be we support:
-    # return Gfunc(coil.imas, R, Z)
-
-    oute = IMAS.outline(coil.imas.element[1])
-
     if green_model == :point # low-fidelity
+        oute = IMAS.outline(coil.imas.element[1])
         rc0, zc0 = IMAS.centroid(oute.r, oute.z)
         return Gfunc(rc0, zc0, R, Z)
 
     elseif green_model == :quad # high-fidelity
-        coil.quad_coil.R = oute.r
-        coil.quad_coil.Z = oute.z
-        return Gfunc(coil.quad_coil, R, Z)
+        return Gfunc(coil.imas, R, Z)
 
     else
         error("$(typeof(coil)) green_model is `$(green_model)` but it can only be `:point` or `:quad`")
