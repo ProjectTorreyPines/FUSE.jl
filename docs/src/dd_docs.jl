@@ -36,19 +36,23 @@ end
 function dd_details_md(io, ids)
     ProgressMeter.@showprogress "$ids" for leaf in collect(AbstractTrees.Leaves(ids))
         name = "$(leaf.location)"
-        info = IMAS.info(name)
-        documentation = get(info, "documentation", "N/A")
-        units = get(info, "units", "")
-        if !isempty(units)
-            units = "* **Units:** `$(units)`\n    "
+        nfo = IMAS.info(name)
+        documentation = nfo.documentation
+        if nfo.documentation != ""
+            documentation = nfo.documentation
+        else
+            documentation = "N/A"
         end
-        data_type = get(info, "data_type", "")
-        if !isempty(data_type)
-            data_type = "* **Data Type:** `$(data_type)`\n    "
+        if nfo.units != "-"
+            units = "* **Units:** `$(nfo.units)`\n    "
+        else
+            units = ""
         end
-        coordinates = get(info, "coordinates", "")
-        if !isempty(coordinates)
-            coordinates = "* **Coordinates:** `$(String[k for k in coordinates])`\n    "
+        data_type = "* **Data Type:** `$(nfo.data_type)`\n    "
+        if !isempty(nfo.coordinates)
+            coordinates = "* **Coordinates:** `$(String[k for k in nfo.coordinates])`\n    "
+        else
+            coordinates = ""
         end
         txt = """
 
