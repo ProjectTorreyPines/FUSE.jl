@@ -135,6 +135,10 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
     TimerOutputs.@timeit timer "init_core_sources" begin
         init_from = ini.general.init_from
 
+        if any(x -> x != :none, (act.ActorHCD.ec_model, act.ActorHCD.ic_model, act.ActorHCD.lh_model, act.ActorHCD.nb_model))
+            init_from = :scalars
+        end
+
         if init_from == :ods
             if IMAS.hasdata(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
                 dd.core_sources = deepcopy(dd1.core_sources)
