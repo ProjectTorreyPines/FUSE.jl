@@ -115,9 +115,9 @@ version = "7.7.1"
 
 [[deps.ArrayLayouts]]
 deps = ["FillArrays", "LinearAlgebra"]
-git-tree-sha1 = "64d582bcb9c93ac741234789eeb4f16812413efb"
+git-tree-sha1 = "e46675dbc095ddfdf2b5fba247d5a25f34e1f8a2"
 uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
-version = "1.6.0"
+version = "1.6.1"
 weakdeps = ["SparseArrays"]
 
     [deps.ArrayLayouts.extensions]
@@ -460,9 +460,9 @@ version = "4.7.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "1fb174f0d48fe7d142e1109a10636bc1d14f5ac2"
+git-tree-sha1 = "0f4b5d62a88d8f59003e43c25a8a90de9eb76317"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.18.17"
+version = "0.18.18"
 
 [[deps.DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
@@ -664,7 +664,7 @@ version = "0.1.1"
 
 [[deps.FXP]]
 deps = ["JSON", "Jedis"]
-git-tree-sha1 = "9309c8aa83dec85d83d0a600a17fd5c8544944d6"
+git-tree-sha1 = "8ee55eac8b2783b6ce71b9bd090e18b0dbb3d0c5"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/FXP.jl.git"
 uuid = "e356478e-5a30-45f6-9775-70cc66e4fbd4"
@@ -886,6 +886,12 @@ git-tree-sha1 = "d4f85701f569584f2cff7ba67a137d03f0cfb7d0"
 uuid = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
 version = "1.3.3"
 
+[[deps.GeoInterfaceMakie]]
+deps = ["GeoInterface", "GeometryBasics", "MakieCore"]
+git-tree-sha1 = "c15f793d501789ffa1cd171103406573d00f71cc"
+uuid = "0edc0954-3250-4c18-859d-ec71c1660c08"
+version = "0.1.5"
+
 [[deps.GeoInterfaceRecipes]]
 deps = ["GeoInterface", "RecipesBase"]
 git-tree-sha1 = "fb1156076f24f1dfee45b3feadb31d05730a49ac"
@@ -983,7 +989,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "IMASDD", "Interpolations", "JSON", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "a5b5a386cdd9671d56af431212baaed9fe88c91b"
+git-tree-sha1 = "1e6474be827adb0a366a4915b8ee2a02fb2804de"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -991,7 +997,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "PCHIPInterpolation", "Printf", "StaticArraysCore"]
-git-tree-sha1 = "561b1117a8c65a37d6f159b77ad01d7be07a0ed0"
+git-tree-sha1 = "a519d1c0ad0d8eaab6e2ecb16366ca9bb0382e98"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1147,9 +1153,9 @@ version = "0.4.1"
 
 [[deps.KernelAbstractions]]
 deps = ["Adapt", "Atomix", "InteractiveUtils", "LinearAlgebra", "MacroTools", "PrecompileTools", "Requires", "SparseArrays", "StaticArrays", "UUIDs", "UnsafeAtomics", "UnsafeAtomicsLLVM"]
-git-tree-sha1 = "c7753cc3febe006708ce6798482004241f7d890b"
+git-tree-sha1 = "ed7167240f40e62d97c1f5f7735dea6de3cc5c49"
 uuid = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
-version = "0.9.17"
+version = "0.9.18"
 
     [deps.KernelAbstractions.extensions]
     EnzymeExt = "EnzymeCore"
@@ -1254,10 +1260,16 @@ uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
 version = "8.4.0+0"
 
 [[deps.LibGEOS]]
-deps = ["CEnum", "Extents", "GEOS_jll", "GeoInterface", "GeoInterfaceRecipes"]
-git-tree-sha1 = "fd9bcf038a9c4116ee62411014927ed462fc5b0c"
+deps = ["CEnum", "Extents", "GEOS_jll", "GeoInterface", "GeoInterfaceMakie", "GeoInterfaceRecipes"]
+git-tree-sha1 = "4bd621dc8b11e0340af540b0a2cd2cc5451ff976"
 uuid = "a90b1aa1-3769-5649-ba7e-abc5a9d163eb"
-version = "0.8.6"
+version = "0.9.0"
+
+    [deps.LibGEOS.extensions]
+    LibGEOSMakieExt = "Makie"
+
+    [deps.LibGEOS.weakdeps]
+    Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
 [[deps.LibGit2]]
 deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
@@ -1471,6 +1483,12 @@ deps = ["Markdown", "Random"]
 git-tree-sha1 = "2fa9ee3e63fd3a4f7a9a4f4744a52f4856de82df"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 version = "0.5.13"
+
+[[deps.MakieCore]]
+deps = ["Observables", "REPL"]
+git-tree-sha1 = "248b7a4be0f92b497f7a331aed02c1e9a878f46b"
+uuid = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
+version = "0.7.3"
 
 [[deps.ManualMemory]]
 git-tree-sha1 = "bcaef4fc7a0cfe2cba636d84cda54b5e4e4ca3cd"
@@ -1719,6 +1737,11 @@ git-tree-sha1 = "acc8099ae8ed10226dc8424fb256ec9fe367a1f0"
 uuid = "baad4e97-8daa-5946-aac2-2edac59d34e1"
 version = "7.6.2+2"
 
+[[deps.Observables]]
+git-tree-sha1 = "7438a59546cf62428fc9d1bc94729146d37a7225"
+uuid = "510215fc-4207-5dde-b226-833fc4488ee2"
+version = "0.5.5"
+
 [[deps.OffsetArrays]]
 git-tree-sha1 = "6a731f2b5c03157418a20c12195eb4b74c8f8621"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
@@ -1865,9 +1888,9 @@ version = "3.1.0"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "PrecompileTools", "Printf", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "862942baf5663da528f66d24996eb6da85218e76"
+git-tree-sha1 = "7b1a9df27f072ac4c9c7cbe5efb198489258d1f5"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.4.0"
+version = "1.4.1"
 
 [[deps.Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "JLFzf", "JSON", "LaTeXStrings", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "PrecompileTools", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "RelocatableFolders", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "UnitfulLatexify", "Unzip"]
@@ -2425,7 +2448,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "6b814660920ea9c49996eefcf86888498bba8b09"
+git-tree-sha1 = "d95b09f53207388d4a6d4d8df329deeede2b1f9f"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
@@ -2592,7 +2615,7 @@ version = "0.2.0"
 
 [[deps.VacuumFields]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "FastGaussQuadrature", "FiniteElementHermite", "IMAS", "LinearAlgebra", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic", "PlotUtils", "RecipesBase", "StaticArrays", "TEQUILA"]
-git-tree-sha1 = "dc5aaec28c6b2775c5cb66824d5d9557f179c538"
+git-tree-sha1 = "1741a765ddab0394334891f5b971b79a706e179b"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
