@@ -61,13 +61,13 @@ end
 
 function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASstructRepr; kwargs...)
     info = IMAS.info(leaf.location)
-    units = get(info, "units", "-")
+    units = info.units
     if units == "-"
         units = ""
     else
         units = " [$(pretty_units(units))]"
     end
-    return printstyled(io, "$(html_link_repr(leaf.key, leaf.location))$units")
+    return printstyled(io, "$(html_link_repr(leaf.field, leaf.location))$units")
 end
 
 function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParameters)
