@@ -9,7 +9,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !ismissing(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
+            if IMAS.hasdata(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
                 dd.core_profiles = deepcopy(dd1.core_profiles)
                 # also set the pedestal in summary IDS
                 if any([ismissing(getproperty(dd1.summary.local.pedestal, field), :value) for field  in (:n_e, :zeff, :t_e)])

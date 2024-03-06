@@ -12,7 +12,7 @@ function init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::Param
             for field in keys(dd1)
                 ids1 = getproperty(dd1, field)
                 ids = getproperty(dd, field)
-                if !ismissing(ids1, :time) && length(ids1.time) > 0 && (ismissing(ids, :time) || length(ids.time) == 0)
+                if IMAS.hasdata(ids1, :time) && length(ids1.time) > 0 && (!IMAS.hasdata(ids, :time) || length(ids.time) == 0)
                     setproperty!(dd, field, deepcopy(ids1))
                 end
             end
