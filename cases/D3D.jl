@@ -28,7 +28,9 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
             :nbi_power=>2.4e6,
             :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"
         ),
-        :default => Dict(:time0 => 1.0, :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
+        :default => Dict(:time0 => 1.0,
+        :nbi_power=>5.0e6,
+        :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
     )
 
     ini.ods.filename = shot_mappings[scenario][:filename]
