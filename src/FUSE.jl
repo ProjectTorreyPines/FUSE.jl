@@ -64,7 +64,8 @@ include(joinpath("ddinit", "init_others.jl"))
 #  ACTORS  #
 #= ====== =#
 # the order of include matters due to import/using statements as well as the dependency of defines structures
-include(joinpath("actors", "abstract_actors.jl"))
+include("actors.jl")
+
 include(joinpath("actors", "noop_actor.jl"))
 
 include(joinpath("actors", "equilibrium", "solovev_actor.jl"))
