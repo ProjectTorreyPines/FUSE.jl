@@ -12,8 +12,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !ismissing(dd1.pulse_schedule, :time) && length(dd1.pulse_schedule.time) > 0
-                dd.pulse_schedule = dd1.pulse_schedule
+            if IMAS.hasdata(dd1.pulse_schedule, :time) && length(dd1.pulse_schedule.time) > 0
+                dd.pulse_schedule = deepcopy(dd1.pulse_schedule)
             else
                 init_from = :scalars
             end
@@ -37,7 +37,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
 
             time, data = get_time_dependent(ini.equilibrium, :B0; simplify_time_traces)
             dd.pulse_schedule.tf.time = time
-            dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = data .* R0
+            dd.pulse_schedule.tf.b_field_tor_vacuum.reference = data
+            dd.pulse_schedule.tf.r0 = R0
 
             # initialize position_control from mxh
             if ini.equilibrium.boundary_from == :scalars
@@ -191,17 +192,11 @@ function get_time_dependent(par::AbstractParameters, field::Symbol, all_times::V
 end
 
 """
-    init_pulse_schedule_postion_control(
-        pc::IMAS.pulse_schedule__position_control,
-        mxhb::MXHboundary,
-        time0::Float64)
+    init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_control, mxhb::MXHboundary, time0::Float64)
 
 Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
-function init_pulse_schedule_postion_control(
-    pc::IMAS.pulse_schedule__position_control,
-    mxhb::MXHboundary,
-    time0::Float64)
+function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_control, mxhb::MXHboundary, time0::Float64)
 
     # MXHboundary adds x-points
     pr = mxhb.r_boundary

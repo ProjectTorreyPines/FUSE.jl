@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
+    vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0)   
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
@@ -142,19 +143,19 @@ function prepare(actor::ActorEquilibrium)
     cp1d.j_tor = cp1d.j_tor
     cp1d.pressure = cp1d.pressure
 
-    # get ip before wiping eqt in case ip_from=:equilibrium
+    # get ip and b0 before wiping eqt in case ip_from=:equilibrium
     ip = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
+    r0, b0 = IMAS.get_from(dd, Val{:vacuum_r0_b0}, actor.par.vacuum_r0_b0_from)
 
     # add/clear time-slice
     eqt = resize!(dd.equilibrium.time_slice)
     resize!(eqt.profiles_2d, 1)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
-
+    
     # scalar quantities
     eqt.global_quantities.ip = ip
-    R0 = dd.equilibrium.vacuum_toroidal_field.r0
-    B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference) / R0
-    @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)
+    eqt.global_quantities.vacuum_toroidal_field.b0 = b0
+    eqt.global_quantities.vacuum_toroidal_field.r0 = r0
 
     # boundary from position control
     eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)

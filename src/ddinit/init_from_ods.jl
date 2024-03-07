@@ -1,10 +1,10 @@
 """
-    ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
+    ini_from_ods!(ini::ParametersAllInits; purge_derived_quanties::Bool)::IMAS.dd
 
 The purpose of this function is to setting `ini` values based on what is in the ods
 thus simplifying the logic of the init functions after it which only have to look at ini values
 """
-function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
+function ini_from_ods!(ini::ParametersAllInits; purge_derived_quanties::Bool)::IMAS.dd
     if ini.general.init_from != :ods
         # don't do anything if to ini and return an empty dd
         dd1 = IMAS.dd()
@@ -26,6 +26,15 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
             end
             if ismissing(ini.equilibrium, :B0) && !ismissing(dd1.equilibrium.vacuum_toroidal_field, :b0)
                 ini.equilibrium.B0 = @ddtime dd1.equilibrium.vacuum_toroidal_field.b0
+            end
+            if ismissing(ini.equilibrium, :ϵ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :minor_radius)
+                ini.equilibrium.ϵ = dd1.equilibrium.time_slice[].boundary.minor_radius / ini.equilibrium.R0
+            end
+            if ismissing(ini.equilibrium, :κ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :elongation)
+                ini.equilibrium.κ = dd1.equilibrium.time_slice[].boundary.elongation
+            end
+            if ismissing(ini.equilibrium, :δ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :triangularity)
+                ini.equilibrium.δ = dd1.equilibrium.time_slice[].boundary.triangularity
             end
             if ismissing(ini.equilibrium, :pressure_core) && !ismissing(eqt.profiles_1d, :pressure)
                 ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
@@ -55,7 +64,31 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
             ini.core_profiles.ejima = @ddtime(dd1.core_profiles.global_quantities.ejima)
         end
 
+        # here we selectively copy the quantities that FUSE considers `primary`
+        # all other quantities are either of no interest for intialization or
+        # they have expressions associated with them.
+        if purge_derived_quanties
+            dd1 = copy_init_primary_quanties(dd1)
+        end
+
     end
 
     return dd1
+end
+
+"""
+    copy_init_primary_quanties(dd::IMAS.DD)
+
+here we selectively copy the quantities that FUSE considers `primary` to a new dd
+All other quantities are either of no interest for intialization or they have expressions associated with them
+"""
+function copy_init_primary_quanties(dd::IMAS.DD)
+    dd_out = typeof(dd)()
+    dd_out.global_time = dd.global_time
+
+    for ulocation in load_init_primary_quanties()
+        IMAS.IMASDD.selective_copy!(dd, dd_out, IMAS.i2p(ulocation), dd.global_time)
+    end
+
+    return dd_out
 end

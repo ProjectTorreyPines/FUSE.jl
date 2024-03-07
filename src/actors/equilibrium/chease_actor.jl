@@ -59,8 +59,8 @@ function _step(actor::ActorCHEASE)
 
     # scalars
     Ip = eqt.global_quantities.ip
-    Bt_center = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
-    r_center = dd.equilibrium.vacuum_toroidal_field.r0
+    Bt_center = eqt.global_quantities.vacuum_toroidal_field.b0
+    r_center = eqt.global_quantities.vacuum_toroidal_field.r0
     r_geo = eqt.boundary.geometric_axis.r
     z_geo = eqt.boundary.geometric_axis.z
     Bt_geo = Bt_center * r_center / r_geo

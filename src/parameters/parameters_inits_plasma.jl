@@ -336,6 +336,7 @@ end
     load_ods(ini::ParametersAllInits)
 
 Load ODSs as specified in `ini.ods.filename`
+and sets `dd.global_time` equal to `ini.time.simulation_start`
 
 NOTE: supports multiple comma-separated filenames
 """
@@ -357,7 +358,7 @@ end
 """
     load_ods(filenames::Vector{String})
 
-Load multiple ODSs into a single dd
+Load multiple ODSs into a single `dd`
 """
 function load_ods(filenames::Vector{<:AbstractString})
     dd = IMAS.dd()

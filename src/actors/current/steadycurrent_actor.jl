@@ -62,9 +62,5 @@ function _step(actor::ActorSteadyStateCurrent)
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
 
-    # add vloop info to pulse_schedule
-    vloop = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
-    @ddtime(dd.pulse_schedule.flux_control.loop_voltage.reference = vloop)
-
     return actor
 end
