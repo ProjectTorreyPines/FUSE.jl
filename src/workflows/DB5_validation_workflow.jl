@@ -73,7 +73,7 @@ function workflow_HDB5_validation(;
     return run_df, failed_df
 end
 
-function run_HDB5_from_data_row(data_row, act::Union{ParametersActors,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
+function run_HDB5_from_data_row(data_row, act::Union{ParametersAllActors,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
     try
         ini, ACT = case_parameters(data_row)
         if ismissing(act)

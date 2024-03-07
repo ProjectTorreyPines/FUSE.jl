@@ -47,7 +47,7 @@ include("physics.jl")
 #  DDINIT  #
 #= ====== =#
 include("signal.jl")
-include("parameters_inits.jl")
+include(joinpath("parameters", "parameters_inits.jl"))
 
 include(joinpath("ddinit", "init.jl"))
 include(joinpath("ddinit", "init_from_ods.jl"))
@@ -135,7 +135,7 @@ include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))
 include(joinpath("actors", "compound", "dynamic_plasma_actor.jl"))
 include(joinpath("actors", "compound", "whole_facility_actor.jl"))
 
-include("parameters_actors.jl")
+include(joinpath("parameters", "parameters_actors.jl"))
 
 #= ============ =#
 #  OPTIMIZATION  #
@@ -145,7 +145,7 @@ include("optimization.jl")
 #= ======= =#
 #  STUDIES  #
 #= ======= =#
-include("parameters_studies.jl")
+include(joinpath("parameters", "parameters_studies.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #
