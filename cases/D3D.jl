@@ -35,6 +35,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
 
     ini.ods.filename = shot_mappings[scenario][:filename]
     ini.time.simulation_start = shot_mappings[scenario][:time0]
+    ini.general.dd = load_ods(ini)
 
     #ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
     ini.build.layers = OrderedCollections.OrderedDict(
@@ -88,11 +89,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         act.ActorHCD.lh_model = :none
         act.ActorHCD.ic_model = :none
     else
-        act.ActorHCD.nb_model = :NBsimple
-        act.ActorHCD.ec_model = :none
-        act.ActorHCD.lh_model = :none
-        act.ActorHCD.ic_model = :none
-
+        empty!(ini.general.dd.core_sources)
         ini.nb_unit[1].power_launched = shot_mappings[scenario][:nbi_power]
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
