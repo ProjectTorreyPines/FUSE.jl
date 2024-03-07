@@ -19,9 +19,9 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     if init_from == :ods
         wall_ods = joinpath("__FUSE__", "sample", "ITER_wall_ods.json")
-        equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         pf_active_ods = joinpath("__FUSE__", "sample", "ITER_pf_active_ods.json")
-        ini.ods.filename = "$(wall_ods),$(equilibrium_ods),$(pf_active_ods)"
+        equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
+        ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
         ini.equilibrium.boundary_from = :ods
         ini.equilibrium.xpoints = :lower
@@ -73,7 +73,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     layers[:hfs_gap_vacuum_vessel_blanket] = 0.01
     layers[:hfs_shield] = 0.465
     layers[:hfs_wall] = 0.06
-    layers[:plasma] = 0.095+4.0+0.194
+    layers[:plasma] = 0.095 + 4.0 + 0.194
     layers[:lfs_wall] = 0.06
     layers[:lfs_shield] = 0.491
     layers[:lfs_gap_blanket_vacuum_vessel] = 0.01
@@ -113,7 +113,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.nb_unit[1].beam_energy = 1e6
 
     ini.ec_launcher[1].power_launched = (t -> 10e6 + ramp((t - 100) / 100.0) * 10e6) ↔ (2, (100.0, 300.0), (0.0, 20E6), (:match, :float))
-    ini.ec_launcher[1].rho_0 = (t->0.5) ↔ (2, (100.0, 300.0), (0.0, 0.8), (:match, :float))
+    ini.ec_launcher[1].rho_0 = (t -> 0.5) ↔ (2, (100.0, 300.0), (0.0, 0.8), (:match, :float))
 
     ini.ic_antenna[1].power_launched = (t -> 12e6 + ramp((t - 100) / 100.0) * 12e6) ↔ (2, (100.0, 300.0), (0.0, 24E6), (:match, :float))
 
@@ -139,5 +139,5 @@ function TraceCAD(::Type{Val{:ITER}})
     x_length = 16.9
     x_offset = -1.08
     y_offset = 0.1
-    TraceCAD(:ITER, x_length, x_offset, y_offset)
+    return TraceCAD(:ITER, x_length, x_offset, y_offset)
 end
