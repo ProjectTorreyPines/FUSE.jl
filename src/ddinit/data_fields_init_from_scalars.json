@@ -202,8 +202,6 @@
     "pf_active.coil[:].element[:].geometry.rectangle.r",
     "pf_active.coil[:].element[:].geometry.rectangle.width",
     "pf_active.coil[:].element[:].geometry.rectangle.z",
-    "pf_active.coil[:].element[:].geometry.outline.r",
-    "pf_active.coil[:].element[:].geometry.outline.z",
     "pf_active.coil[:].element[:].turns_with_sign",
     "pf_active.coil[:].function[:].description",
     "pf_active.coil[:].function[:].index",
