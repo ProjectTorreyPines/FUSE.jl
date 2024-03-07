@@ -30,7 +30,7 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         eqt = dd.equilibrium.time_slice[]
 
         # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
-        scale_build_layers!(ini.build.layers, eqt.global_quantities.vacuum_toroidal_field.r0, eqt.boundary.minor_radius, ini.build.plasma_gap)
+        scale_build_layers!(ini.build.layers, eqt.boundary.geometric_axis.r, eqt.boundary.minor_radius, ini.build.plasma_gap)
 
         # populate dd.build with radial build layers
         init_build!(dd.build, ini.build.layers)

@@ -27,6 +27,15 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
             if ismissing(ini.equilibrium, :B0) && !ismissing(dd1.equilibrium.vacuum_toroidal_field, :b0)
                 ini.equilibrium.B0 = @ddtime dd1.equilibrium.vacuum_toroidal_field.b0
             end
+            if ismissing(ini.equilibrium, :ϵ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :minor_radius)
+                ini.equilibrium.ϵ = dd1.equilibrium.time_slice[].boundary.minor_radius / ini.equilibrium.R0
+            end
+            if ismissing(ini.equilibrium, :κ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :elongation)
+                ini.equilibrium.κ = dd1.equilibrium.time_slice[].boundary.elongation
+            end
+            if ismissing(ini.equilibrium, :δ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :triangularity)
+                ini.equilibrium.δ = dd1.equilibrium.time_slice[].boundary.triangularity
+            end
             if ismissing(ini.equilibrium, :pressure_core) && !ismissing(eqt.profiles_1d, :pressure)
                 ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
             end
