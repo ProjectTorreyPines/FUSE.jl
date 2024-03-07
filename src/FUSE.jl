@@ -65,7 +65,8 @@ include(joinpath("ddinit", "write_init_primary_quanties.jl"))
 #  ACTORS  #
 #= ====== =#
 # the order of include matters due to import/using statements as well as the dependency of defines structures
-include(joinpath("actors", "abstract_actors.jl"))
+include("actors.jl")
+
 include(joinpath("actors", "noop_actor.jl"))
 
 include(joinpath("actors", "equilibrium", "solovev_actor.jl"))
@@ -106,12 +107,10 @@ include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
-include(joinpath("actors", "transport", "tauenn_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
-include(joinpath("actors", "transport", "flux_capacitor_actor.jl"))
 include(joinpath("actors", "transport", "fixed_profiles_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 

@@ -15,7 +15,7 @@ to hold data that does not (yet?) fit into IMAS. Notable examples are the `build
 """]
 
 for name in sort!(collect(fieldnames(IMAS.dd)))
-    if name == :global_time || startswith(string(name), "_")
+    if name == :global_time || name ∈ IMAS.private_fields
         continue
     else
         basename = replace("$name", "_" => " ")
@@ -70,10 +70,10 @@ function dd_details_md(io, ids)
 end
 
 open("$(@__DIR__)/dd_details.md", "w") do io
-    for key in fieldnames(IMAS.dd)
-        if key == :global_time || startswith(string(key), "_")
+    for field in fieldnames(IMAS.dd)
+        if field == :global_time || field ∈ IMAS.private_fields
             continue
         end
-        dd_details_md(io, getfield(IMAS, key){Float64})
+        dd_details_md(io, getfield(IMAS, field){Float64})
     end
 end

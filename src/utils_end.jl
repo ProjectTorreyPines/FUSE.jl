@@ -40,7 +40,7 @@ function Base.setindex!(chk::Checkpoint, dd::IMAS.dd, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd),)
 end
 
-function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd{D},ParametersInits{P},ParametersActors{P}}, key::Symbol) where {D<:Real,P<:Real}
+function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd,ParametersAllInits,ParametersAllActors}, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd_ini_act[1]), ini=deepcopy(dd_ini_act[2]), act=deepcopy(dd_ini_act[3]))
 end
 
@@ -55,10 +55,10 @@ function Base.show(io::IO, chk::Checkpoint)
         if any(tp <: IMAS.dd for tp in TPs)
             push!(what, "dd")
         end
-        if any(tp <: ParametersInits for tp in TPs)
+        if any(tp <: ParametersAllInits for tp in TPs)
             push!(what, "ini")
         end
-        if any(tp <: ParametersActors for tp in TPs)
+        if any(tp <: ParametersAllActors for tp in TPs)
             push!(what, "act")
         end
         println(io, "$(repr(k)) => $(join(what,", "))")
