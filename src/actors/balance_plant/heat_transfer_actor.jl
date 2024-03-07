@@ -5,7 +5,7 @@
 
 const coolant_fluid = [:He, :PbLi]
 
-Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorHeatTransfer{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN

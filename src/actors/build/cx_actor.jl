@@ -1,7 +1,7 @@
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
