@@ -3,6 +3,7 @@ import AbstractTrees
 abstract type AbstractActor{D,P} end
 
 abstract type CompoundAbstractActor{D,P} <: AbstractActor{D,P} end
+
 abstract type SingleAbstractActor{D,P} <: AbstractActor{D,P} end
 
 function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
@@ -83,7 +84,6 @@ end
 function SimulationParameters.time_range(par::ParametersActor)
     return missing
 end
-
 
 #= ==== =#
 #  step  #

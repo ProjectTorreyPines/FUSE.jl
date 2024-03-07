@@ -3,7 +3,7 @@
 #= ============== =#
 import BoundaryPlasmaModels
 
-Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN

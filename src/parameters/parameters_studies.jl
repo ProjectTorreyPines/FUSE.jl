@@ -31,9 +31,9 @@ end
 #= ======= =#
 
 # NOTE only called once at precompile time, kernel needs to be restarted to include new file in `studies` directory
-for filename in readdir(joinpath(@__DIR__, "..", "studies"))
+for filename in readdir(joinpath(@__DIR__, "..", "..", "studies"))
     if endswith(filename, ".jl")
-        include("../studies/" * filename)
+        include(joinpath(@__DIR__, "..", "..", "studies", filename))
     end
 end
 
