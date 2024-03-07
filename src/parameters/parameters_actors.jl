@@ -51,29 +51,41 @@ end
 """
     act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
-Save the FUSE parameters to a JSON file with give `filename`
+Save the FUSE act parameters to a JSON file with given `filename`
+
 `kw` arguments are passed to the JSON.print function
 """
 function act2json(act::ParametersAllActors, filename::AbstractString; kw...)
     return SimulationParameters.par2json(act, filename; kw...)
 end
 
-function json2act(filename::AbstractString)
-    return SimulationParameters.json2par(filename, ParametersActors())
+"""
+    json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+
+Load the FUSE act parameters from a JSON file with given `filename`
+"""
+function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+    return SimulationParameters.json2par(filename, act)
 end
 
 """
     act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
 
-Save the FUSE parameters to a YAML file with give `filename`
+Save the FUSE parameters to a YAML file with given `filename`
+
 `kw` arguments are passed to the YAML.print function
 """
 function act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
     return SimulationParameters.par2yaml(act, filename; kw...)
 end
 
-function yaml2act(filename::AbstractString)
-    return SimulationParameters.yaml2par(filename, ParametersActors())
+"""
+    yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+
+Load the FUSE act parameters from a YAML file with given `filename`
+"""
+function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+    return SimulationParameters.yaml2par(filename, act)
 end
 
 """
