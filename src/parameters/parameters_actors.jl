@@ -28,24 +28,42 @@ macro insert_constructor_members(T)
     return expr
 end
 
-mutable struct ParametersActors{T<:Real} <: ParametersAllActors{T}
+mutable struct ParametersActorsPlasma{T<:Real} <: ParametersAllActors{T}
     _parent::WeakRef
     _name::Symbol
-    @insert_subtype_members ParametersActor
+    @insert_subtype_members ParametersActorPlasma
 end
 
-function ParametersActors{T}() where {T<:Real}
-    act = ParametersActors{T}(
+function ParametersActorsPlasma{T}() where {T<:Real}
+    act = ParametersActorsPlasma{T}(
         WeakRef(nothing),
         :act,
-        (@insert_constructor_members ParametersActor)...
+        (@insert_constructor_members ParametersActorPlasma)...
+    )
+    setup_parameters!(act)
+    return act
+end
+
+mutable struct ParametersActorsBuild{T<:Real} <: ParametersAllActors{T}
+    _parent::WeakRef
+    _name::Symbol
+    @insert_subtype_members ParametersActorPlasma
+    @insert_subtype_members ParametersActorBuild
+end
+
+function ParametersActorsBuild{T}() where {T<:Real}
+    act = ParametersActorsBuild{T}(
+        WeakRef(nothing),
+        :act,
+        (@insert_constructor_members ParametersActorPlasma)...,
+        (@insert_constructor_members ParametersActorBuild)...
     )
     setup_parameters!(act)
     return act
 end
 
 function ParametersActors()
-    return ParametersActors{Float64}()
+    return ParametersActorsBuild{Float64}()
 end
 
 """

@@ -1,13 +1,13 @@
 using FusionMaterials: FusionMaterials
 
-Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :time
     pulse_shedule_time_basis::Entry{AbstractRange{Float64}} = Entry{AbstractRange{Float64}}("s", "Time basis used to discretize the pulse schedule")
     simulation_start::Entry{Float64} = Entry{Float64}("s", "Time at which the simulation starts"; default=0.0)
 end
 
-Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :general
     casename::Entry{String} = Entry{String}("-", "Sort mnemonic name of the case being run")
@@ -20,7 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInit{T}
     dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "`dd` to initialize from")
 end
 
-Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :equilibrium
     B0::Entry{T} = Entry{T}(IMAS.equilibrium__vacuum_toroidal_field, :b0)
@@ -42,7 +42,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     rz_points::Entry{Vector{Vector{T}}} = Entry{Vector{Vector{T}}}("m", "R_Z boundary as Vector{Vector{$T}}} : r = rz_points[1], z = rz_points[2]")
 end
 
-Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
     greenwald_fraction::Entry{T} =
@@ -64,7 +64,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 < x < 1.0 "must be: 0.0 < polarized_fuel_fraction < 1.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pf_active
     n_coils_inside::Entry{Int} = Entry{Int}("-", "Number of PF coils inside of the TF"; check=x -> @assert x >= 0 "must be: n_coils_inside >= 0")
@@ -72,7 +72,7 @@ Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit{T}
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "PF coils technology")
 end
 
-Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :nbi
     power_launched::Entry{T} = Entry{T}("W", "Beam power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
@@ -85,7 +85,7 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ec_launcher
     power_launched::Entry{T} = Entry{T}("W", "EC launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
@@ -96,7 +96,7 @@ Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit{T}
         Entry{T}(IMAS.ec_launchers__beam___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ic_antenna
     power_launched::Entry{T} = Entry{T}("W", "IC launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
@@ -108,7 +108,7 @@ Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit{T}
     efficiency_coupling::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :coupling; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_coupling > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :lh_antenna
     power_launched::Entry{T} = Entry{T}("W", "LH launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
@@ -120,7 +120,7 @@ Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit{T}
     efficiency_coupling::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :coupling; default=1.0)
 end
 
-Base.@kwdef mutable struct FUSEparameters__pellet_launcher{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__pellet_launcher{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pellet_launcher
     frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched"; check=x -> @assert x >= 0.0 "pellet frequency must be >= 0.0")
@@ -135,7 +135,7 @@ Base.@kwdef mutable struct FUSEparameters__pellet_launcher{T} <: ParametersInit{
     )
 end
 
-Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ods
     filename::Entry{String} = Entry{String}("-", "ODS.json file(s) from which equilibrium is loaded. Multiple comma-separated ODSs can be specified.")
@@ -205,7 +205,6 @@ end
 ##############################
 # functions operating on ini #
 ##############################
-
 """
     ini_equilibrium_elongation_true(equilibrium::FUSEparameters__equilibrium)
 

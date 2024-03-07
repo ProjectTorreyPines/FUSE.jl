@@ -3,7 +3,7 @@ import TJLF: InputTJLF, run_tjlf, get_ky_spectrum_size, checkInput
 #= ========= =#
 #  ActorTGLF  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN

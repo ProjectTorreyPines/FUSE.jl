@@ -9,7 +9,7 @@ const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, s
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
 const layer_side_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerSide))
 
-Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
     n_coils::Entry{Int} = Entry{Int}("-", "Number of TF coils"; check=x -> @assert x >= 0 "must be: n_coils >= 0")
@@ -19,14 +19,14 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit{T}
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "TF coils technology")
 end
 
-Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :oh
     n_coils::Entry{Int} = Entry{Int}("-", "Number of OH coils"; check=x -> @assert x >= 0 "must be: n_coils >= 0")
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "OH coils technology")
 end
 
-Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :center_stack
     bucked::Entry{Bool} = Entry{Bool}("-", "Flag for bucked boundary conditions between TF and OH (and center plug, if present)"; default=false)
@@ -34,7 +34,7 @@ Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInit{T}
     plug::Entry{Bool} = Entry{Bool}("-", "Flag for center plug"; default=false)
 end
 
-Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :layer
     name::Entry{String} = Entry{String}("-", "Name of the layer")
@@ -50,7 +50,7 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
     side::Switch{BuildLayerSide} = Switch{BuildLayerSide}(layer_side_options, "-", "Side of the layer")
 end
 
-Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
     layers::ParametersVector{FUSEparameters__build_layer{T}} = ParametersVector{FUSEparameters__build_layer{T}}()
@@ -62,7 +62,7 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit{T}
         Entry{Int}("-", "Number of layers that are conformal to the first wall"; default=1, check=x -> @assert x > 0 "must be: n_first_wall_conformal_layers > 0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :requirements
     power_electric_net::Entry{T} = Entry{T}(IMAS.requirements, :power_electric_net; check=x -> @assert x > 0.0 "must be: power_electric_net > 0.0")
