@@ -135,7 +135,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ic_antenna
-    power_launched::Entry{T} = Entry{T}("W", "IC launched power", check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
+    power_launched::Entry{T} = Entry{T}("W", "IC launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
     rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.1, check=x -> @assert x > 0.0 "must be: width > 0.0")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
@@ -147,7 +147,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :lh_antenna
-    power_launched::Entry{T} = Entry{T}("W", "LH launched power", check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
+    power_launched::Entry{T} = Entry{T}("W", "LH launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
     rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.8, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.05, check=x -> @assert x > 0.0 "must be: width > 0.0")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
@@ -156,7 +156,7 @@ Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit{T}
     efficiency_coupling::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :coupling; default=1.0)
 end
 
-Base.@kwdef mutable struct FUSEparameters__pellets_launchers{T} <: ParametersInit{T}
+Base.@kwdef mutable struct FUSEparameters__pellet_launcher{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pellet_launcher
     frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched"; check=x -> @assert x >= 0.0 "pellet frequency must be >= 0.0")
@@ -224,47 +224,37 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; check=x -> @assert x > 0.0 "must be: coil_j_margin > 0.0")
 end
 
-mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
+mutable struct ParametersInitsPlasma{T<:Real} <: ParametersAllInits{T}
     _parent::WeakRef
     _name::Symbol
     general::FUSEparameters__general{T}
     time::FUSEparameters__time{T}
     ods::FUSEparameters__ods{T}
-    build::FUSEparameters__build{T}
     equilibrium::FUSEparameters__equilibrium{T}
     core_profiles::FUSEparameters__core_profiles{T}
     pf_active::FUSEparameters__pf_active{T}
-    tf::FUSEparameters__tf{T}
-    oh::FUSEparameters__oh{T}
-    center_stack::FUSEparameters__center_stack{T}
     nb_unit::ParametersVector{FUSEparameters__nb_unit{T}}
     ec_launcher::ParametersVector{FUSEparameters__ec_launcher{T}}
-    pellet_launcher::ParametersVector{FUSEparameters__pellets_launchers{T}}
+    pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
     ic_antenna::ParametersVector{FUSEparameters__ic_antenna{T}}
     lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
-    requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
-    ini = ParametersInits{T}(
+function ParametersInitsPlasma{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
+    ini = ParametersInitsPlasma{T}(
         WeakRef(nothing),
         :ini,
         FUSEparameters__general{T}(),
         FUSEparameters__time{T}(),
         FUSEparameters__ods{T}(),
-        FUSEparameters__build{T}(),
         FUSEparameters__equilibrium{T}(),
         FUSEparameters__core_profiles{T}(),
         FUSEparameters__pf_active{T}(),
-        FUSEparameters__tf{T}(),
-        FUSEparameters__oh{T}(),
-        FUSEparameters__center_stack{T}(),
         ParametersVector{FUSEparameters__nb_unit{T}}(),
         ParametersVector{FUSEparameters__ec_launcher{T}}(),
-        ParametersVector{FUSEparameters__pellets_launchers{T}}(),
+        ParametersVector{FUSEparameters__pellet_launcher{T}}(),
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
-        ParametersVector{FUSEparameters__lh_antenna{T}}(),
-        FUSEparameters__requirements{T}())
+        ParametersVector{FUSEparameters__lh_antenna{T}}())
 
     for k in 1:n_layers
         push!(ini.build.layers, FUSEparameters__build_layer{T}())
@@ -279,7 +269,7 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
     end
 
     for k in 1:n_pl
-        push!(ini.pellet_launcher, FUSEparameters__pellets_launchers{T}())
+        push!(ini.pellet_launcher, FUSEparameters__pellet_launcher{T}())
     end
 
     for k in 1:n_ic
@@ -295,8 +285,59 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
     return ini
 end
 
+mutable struct ParametersInitsBuild{T<:Real} <: ParametersAllInits{T}
+    _parent::WeakRef
+    _name::Symbol
+    general::FUSEparameters__general{T}
+    time::FUSEparameters__time{T}
+    ods::FUSEparameters__ods{T}
+    equilibrium::FUSEparameters__equilibrium{T}
+    core_profiles::FUSEparameters__core_profiles{T}
+    pf_active::FUSEparameters__pf_active{T}
+    nb_unit::ParametersVector{FUSEparameters__nb_unit{T}}
+    ec_launcher::ParametersVector{FUSEparameters__ec_launcher{T}}
+    pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
+    ic_antenna::ParametersVector{FUSEparameters__ic_antenna{T}}
+    lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
+    # below are the machine-build related parameters
+    build::FUSEparameters__build{T}
+    center_stack::FUSEparameters__center_stack{T} #
+    tf::FUSEparameters__tf{T}
+    oh::FUSEparameters__oh{T}
+    requirements::FUSEparameters__requirements{T}
+end
+
+function ParametersInitsBuild{T}(; kw...) where {T<:Real}
+
+    ini_plasma = ParametersInitsPlasma{T}(; kw...)
+
+    ini = ParametersInitsBuild{T}(
+        WeakRef(nothing),
+        :ini,
+        ini_plasma.general,
+        ini_plasma.time,
+        ini_plasma.ods,
+        ini_plasma.equilibrium,
+        ini_plasma.core_profiles,
+        ini_plasma.pf_active,
+        ini_plasma.nb_unit,
+        ini_plasma.ec_launcher,
+        ini_plasma.pellet_launcher,
+        ini_plasma.ic_antenna,
+        ini_plasma.lh_antenna,
+        FUSEparameters__build{T}(),
+        FUSEparameters__center_stack{T}(),
+        FUSEparameters__tf{T}(),
+        FUSEparameters__oh{T}(),
+        FUSEparameters__requirements{T}())
+
+    setup_parameters!(ini)
+
+    return ini
+end
+
 function ParametersInits(args...; kw...)
-    return ParametersInits{Float64}(args...; kw...)
+    return ParametersInitsBuild{Float64}(args...; kw...)
 end
 
 """
@@ -309,8 +350,13 @@ function ini2json(ini::ParametersAllInits, filename::AbstractString; kw...)
     return SimulationParameters.par2json(ini, filename; kw...)
 end
 
-function json2ini(filename::AbstractString)
-    return SimulationParameters.json2par(filename, ParametersInits())
+"""
+    json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
+
+Load the FUSE parameters from a JSON file with give `filename`
+"""
+function json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
+    return SimulationParameters.json2par(filename, ini)
 end
 
 """
@@ -323,8 +369,13 @@ function ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
     return SimulationParameters.par2yaml(ini, filename; kw...)
 end
 
-function yaml2ini(filename::AbstractString)
-    return SimulationParameters.yaml2par(filename, ParametersInits())
+"""
+    yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
+
+Load the FUSE parameters from a YAML file with give `filename`
+"""
+function yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
+    return SimulationParameters.yaml2par(filename, ini)
 end
 
 """
