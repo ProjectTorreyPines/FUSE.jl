@@ -14,7 +14,20 @@ using Test
                 # speedup the tests
                 act.ActorStationaryPlasma.max_iter = 1
 
+                @testset "init" begin
+                    FUSE.init(dd, ini, act)
+                end
+
+                @testset "sol" begin
+                    IMAS.sol(dd)
+                end
+
+                @testset "whole_facility" begin
+                    FUSE.ActorWholeFacility(dd, act)
+                end
+
                 @testset "ini_yaml" begin
+                    ini.general.dd = missing
                     ini_str = FUSE.SimulationParameters.par2ystr(ini; skip_defaults=true, show_info=false)
                     ini2 = try
                         FUSE.SimulationParameters.ystr2par(ini_str, FUSE.ParametersInits())
@@ -30,18 +43,6 @@ using Test
                     catch e
                         rethrow(e)
                     end
-                end
-
-                @testset "init" begin
-                    FUSE.init(dd, ini, act)
-                end
-
-                @testset "sol" begin
-                    IMAS.sol(dd)
-                end
-
-                @testset "whole_facility" begin
-                    FUSE.ActorWholeFacility(dd, act)
                 end
             end
         end
