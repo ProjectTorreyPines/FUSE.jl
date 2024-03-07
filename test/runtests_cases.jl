@@ -19,7 +19,6 @@ using Test
                     ini2 = try
                         FUSE.SimulationParameters.ystr2par(ini_str, FUSE.ParametersInits())
                     catch e
-                        println(ini_str)
                         rethrow(e)
                     end
                 end
@@ -29,7 +28,6 @@ using Test
                     act2 = try
                         FUSE.SimulationParameters.ystr2par(act_str, FUSE.ParametersActors())
                     catch e
-                        println(act_str)
                         rethrow(e)
                     end
                 end
