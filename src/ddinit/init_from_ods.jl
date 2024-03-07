@@ -1,10 +1,10 @@
 """
-    ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
+    ini_from_ods!(ini::ParametersAllInits; purge_derived_quanties::Bool)::IMAS.dd
 
 The purpose of this function is to setting `ini` values based on what is in the ods
 thus simplifying the logic of the init functions after it which only have to look at ini values
 """
-function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
+function ini_from_ods!(ini::ParametersAllInits; purge_derived_quanties::Bool)::IMAS.dd
     if ini.general.init_from != :ods
         # don't do anything if to ini and return an empty dd
         dd1 = IMAS.dd()
@@ -67,7 +67,9 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
         # here we selectively copy the quantities that FUSE considers `primary`
         # all other quantities are either of no interest for intialization or
         # they have expressions associated with them.
-        dd1 = copy_init_primary_quanties(dd1)
+        if purge_derived_quanties
+            dd1 = copy_init_primary_quanties(dd1)
+        end
 
     end
 

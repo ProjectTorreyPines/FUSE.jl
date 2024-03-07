@@ -468,7 +468,7 @@ dd:
 
 # init_primary_quanties
 init_primary_quanties:
-	julia -e 'import FUSE; FUSE.init_primary_quanties(;save_file=true)'
+	julia -e 'import FUSE; FUSE.init_primary_quanties(;save=true)'
 
 # copy .JuliaFormatter.toml to all dependencies
 formatter:
