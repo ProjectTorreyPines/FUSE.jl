@@ -38,7 +38,7 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN TJLF VacuumFields 
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TEQUILA TGLFNN TJLF VacuumFields 
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -250,9 +250,6 @@ MXHEquilibrium:
 	$(call clone_pull_repo,$@)
 
 MeshTools:
-	$(call clone_pull_repo,$@)
-
-TAUENN:
 	$(call clone_pull_repo,$@)
 
 TGLFNN:
@@ -468,6 +465,10 @@ rm_manifests:
 # update dd from the json files
 dd:
 	julia ../IMASDD/src/generate_dd.jl
+
+# init_primary_quanties
+init_primary_quanties:
+	julia -e 'import FUSE; FUSE.init_primary_quanties(;save=true)'
 
 # copy .JuliaFormatter.toml to all dependencies
 formatter:

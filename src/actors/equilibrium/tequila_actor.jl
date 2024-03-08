@@ -3,7 +3,7 @@ import TEQUILA
 #= =========== =#
 #  ActorTEQUILA  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -82,7 +82,7 @@ function _step(actor::ActorTEQUILA)
         Pbnd = eq1d.pressure[end]
     end
 
-    Fbnd = eq1d.f[end] # only in equilibrium IDS
+    Fbnd = eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0
 
     # TEQUILA shot
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z

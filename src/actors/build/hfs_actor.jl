@@ -1,7 +1,7 @@
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -56,6 +56,7 @@ function _step(actor::ActorHFSsizing)
     dd = actor.dd
     par = actor.par
     cs = dd.solid_mechanics.center_stack
+    eqt = dd.equilibrium.time_slice[]
 
     # modify j_tolerance in fluxswing_actor (since actor.fluxswing_actor.par is a copy, this does not affect act.ActorFluxSwing)
     actor.fluxswing_actor.par.j_tolerance = par.j_tolerance
@@ -158,7 +159,7 @@ function _step(actor::ActorHFSsizing)
     plasma = IMAS.get_build_layer(dd.build.layer; type=_plasma_)
     CPradius = TFhfs.end_radius
     OHTFgap = CPradius - TFhfs.thickness - OH.thickness - PL.thickness
-    R0, B0 = IMAS.vacuum_r0_b0(dd.equilibrium.time_slice[])
+    R0, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
     target_B0 = abs(B0)
 
     if par.verbose

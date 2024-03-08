@@ -12,17 +12,13 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
-                dd.equilibrium = dd1.equilibrium
+            if IMAS.hasdata(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
+                dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
             else
                 init_from = :scalars
             end
         end
-
-        # mxh independenty of how the user input it
-        mxh = IMAS.MXH(ini, dd1)
-        dd.equilibrium.vacuum_toroidal_field.r0 = mxh.R0
 
         # the pressure and j_tor to be used by equilibrium solver need to be set in dd.core_profiles
         # while the equilibrium boundary neds to be set in init_pulse_schedule

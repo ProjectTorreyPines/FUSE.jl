@@ -10,11 +10,15 @@ function SimulationParameters.Switch{T}(options, ids::Type{<:IMAS.IDS}, field::S
     return Switch{T}(options, nfo.units, nfo.documentation; default)
 end
 
-abstract type ParametersActor{T} <: AbstractParameters{T} end # container for all parameters of an actor
-abstract type ParametersAllActors{T} <: AbstractParameters{T} end # --> abstract type of ParametersActors, container for all parameters of all actors
+abstract type ParametersActor{T} <: AbstractParameters{T} end # abstract type for parameters of an actor (each actor has its concrete type)
+abstract type ParametersActorPlasma{T} <: ParametersActor{T} end
+abstract type ParametersActorBuild{T} <: ParametersActor{T} end
+abstract type ParametersAllActors{T} <: AbstractParameters{T} end # --> abstract type for all parameters of all actors (the concrete type of this is ParametersActors)
 
-abstract type ParametersInit{T} <: AbstractParameters{T} end # container for all parameters of a init
-abstract type ParametersAllInits{T} <: AbstractParameters{T} end # --> abstract type of ParametersInits, container for all parameters of all inits
+abstract type ParametersInit{T} <: AbstractParameters{T} end # abstract type for parameters of a init (each init has its concrete type)
+abstract type ParametersInitPlasma{T} <: ParametersInit{T} end
+abstract type ParametersInitBuild{T} <: ParametersInit{T} end
+abstract type ParametersAllInits{T} <: AbstractParameters{T} end # --> abstract type for all parameters of all inits (the concrete type of this is ParametersInits)
 
 function SimulationParameters.time_range(parameters::ParametersInit)
     return SimulationParameters.time_range(SimulationParameters.top(parameters))
