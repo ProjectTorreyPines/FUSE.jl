@@ -532,7 +532,7 @@ var2val and sym2var are dicts for getting the actual variable objects, they are 
 Ouput:
 soln = solution object
 """
-function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10))
+function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver = DifferentialEquations.Rosenbrock23())
 
     # new parameters dict
     pwrapped = var2val
@@ -561,7 +561,7 @@ yvars = vector of output variable objects
 Ouput:
 soln.(yvars)
 """
-function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan=(0, 10))
+function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver = DifferentialEquations.Rosenbrock23())
     # new parameters dict
     pwrapped = var2val
 
