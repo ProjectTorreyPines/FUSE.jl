@@ -403,7 +403,7 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
         name=String[],
         var"function"=Vector{Symbol}[],
         n_elements=Int[],
-        n_total_turns=Int[]
+        n_total_turns=Float64[]
     )
 
     for coil in coils
