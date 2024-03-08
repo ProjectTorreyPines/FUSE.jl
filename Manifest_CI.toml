@@ -2,7 +2,7 @@
 
 julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "1cf6421d0a5d1bda3d3a0bdc2a7fbbdcdf34e2e9"
+project_hash = "8273fb3dd67d15ba32f704c98a03ff009e90d576"
 
 [[deps.ADAS]]
 deps = ["AbstractTrees", "BSON", "Colors", "FileIO", "Interpolations", "JLD2", "Logging", "MD5", "RecipesBase"]
@@ -741,9 +741,9 @@ version = "0.8.4"
 
 [[deps.Flux]]
 deps = ["Adapt", "ChainRulesCore", "Compat", "Functors", "LinearAlgebra", "MLUtils", "MacroTools", "NNlib", "OneHotArrays", "Optimisers", "Preferences", "ProgressLogging", "Random", "Reexport", "SparseArrays", "SpecialFunctions", "Statistics", "Zygote"]
-git-tree-sha1 = "fd7b23aa8013a7528563d429f6eaf406f60364ed"
+git-tree-sha1 = "5a626d6ef24ae0a8590c22dc12096fb65eb66325"
 uuid = "587475ba-b771-5e3f-ad9e-33799f191a9c"
-version = "0.14.12"
+version = "0.14.13"
 
     [deps.Flux.extensions]
     FluxAMDGPUExt = "AMDGPU"
@@ -918,9 +918,9 @@ version = "2.76.5+0"
 
 [[deps.Gmsh]]
 deps = ["gmsh_jll"]
-git-tree-sha1 = "00228b1b4697f060d39ef883e7b4929d0a537453"
+git-tree-sha1 = "6d815101e62722f4e323514c9fc704007d4da2e3"
 uuid = "705231aa-382f-11e9-3f0c-b7cb4346fdeb"
-version = "0.3.0"
+version = "0.3.1"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -989,7 +989,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "IMASDD", "Interpolations", "JSON", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "7929e9bc312a2397f3566d533a6c37bd69a7b842"
+git-tree-sha1 = "f8e4eebfb1455b7dd08377f8540688dbe6a1ffd6"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -997,7 +997,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "PCHIPInterpolation", "Printf", "StaticArraysCore"]
-git-tree-sha1 = "02de26d4f872117d088951295ea538c1b6790779"
+git-tree-sha1 = "4bca76e3c5a5ac4cab1b825a6a0dd871adf5f221"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1568,9 +1568,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Transducers", "TransformsBase", "Unitful"]
-git-tree-sha1 = "b9f8ee2eaebaba87b5436e0f248f592d490d4074"
+git-tree-sha1 = "da5312f9e619543031129c5f5496fba879d5ab97"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.40.11"
+version = "0.40.12"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
@@ -2426,17 +2426,9 @@ uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 version = "7.2.1+1"
 
 [[deps.SymbolicIndexingInterface]]
-git-tree-sha1 = "251bb311585143931a306175c3b7ced220300578"
+git-tree-sha1 = "7303000b4a1d5348c8c26fc4c856f5f4982885b1"
 uuid = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
-version = "0.3.8"
-
-[[deps.TAUENN]]
-deps = ["CoordinateConventions", "EPEDNN", "IMAS", "IMASDD", "Measurements", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "Plots", "Printf", "TGLFNN"]
-git-tree-sha1 = "c44b3a66876f68b097d0f5da3be580ce7b044cba"
-repo-rev = "master"
-repo-url = "git@github.com/ProjectTorreyPines/TAUENN.jl.git"
-uuid = "4f5ffc88-c87f-11eb-142e-4d2ba0394a67"
-version = "0.1.0"
+version = "0.3.9"
 
 [[deps.TEQUILA]]
 deps = ["BSON", "FFTW", "FiniteElementHermite", "ForwardDiff", "JuMP", "LinearAlgebra", "LinearSolve", "MXHEquilibrium", "MillerExtendedHarmonic", "NLopt", "Optim", "PlotUtils", "PreallocationTools", "QuadGK", "RecipesBase", "Roots", "SparseArrays", "StaticArrays"]
@@ -2448,7 +2440,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "d95b09f53207388d4a6d4d8df329deeede2b1f9f"
+git-tree-sha1 = "d267d969d36586cbe4d0244a2761c744c75a97c7"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
@@ -2889,9 +2881,9 @@ version = "0.43.0+0"
 
 [[deps.gmsh_jll]]
 deps = ["Artifacts", "Cairo_jll", "CompilerSupportLibraries_jll", "FLTK_jll", "FreeType2_jll", "GLU_jll", "GMP_jll", "HDF5_jll", "JLLWrappers", "JpegTurbo_jll", "LLVMOpenMP_jll", "Libdl", "Libglvnd_jll", "METIS_jll", "MMG_jll", "OCCT_jll", "Xorg_libX11_jll", "Xorg_libXext_jll", "Xorg_libXfixes_jll", "Xorg_libXft_jll", "Xorg_libXinerama_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "d15409a4b9f1d14f1e1f9e910cd00f7d6695c261"
+git-tree-sha1 = "f046de388d2a96c0b6ca108e8d0d9c4d44728423"
 uuid = "630162c2-fc9b-58b3-9910-8442a8a132e6"
-version = "4.11.1+0"
+version = "4.12.2+0"
 
 [[deps.gperf_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
