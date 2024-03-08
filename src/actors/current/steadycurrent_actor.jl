@@ -1,7 +1,7 @@
 #= ======================= =#
 #  ActorSteadyStateCurrent  #
 #= ======================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -61,10 +61,6 @@ function _step(actor::ActorSteadyStateCurrent)
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
-
-    # add vloop info to pulse_schedule
-    vloop = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
-    @ddtime(dd.pulse_schedule.flux_control.loop_voltage.reference = vloop)
 
     return actor
 end

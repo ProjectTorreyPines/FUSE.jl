@@ -1,7 +1,7 @@
 import YAML
 import OrderedCollections
 
-function yaml_workflow(steps::Union{AbstractDict,AbstractVector}, dd::IMAS.dd, ini::ParametersInits, act::ParametersActors)
+function yaml_workflow(steps::Union{AbstractDict,AbstractVector}, dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     actors = AbstractActor[]
     for step in steps
         if typeof(step) <: AbstractDict
@@ -24,7 +24,7 @@ function yaml_workflow(steps::Union{AbstractDict,AbstractVector}, dd::IMAS.dd, i
     return actors
 end
 
-function yaml_workflow(flow::String, dd::IMAS.dd, ini::ParametersInits, act::ParametersActors)
+function yaml_workflow(flow::String, dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
     steps = YAML.load(flow; dicttype=OrderedCollections.OrderedDict)
     return yaml_workflow(steps, dd, ini, act)
 end

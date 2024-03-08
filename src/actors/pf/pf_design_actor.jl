@@ -1,7 +1,7 @@
 #= ============= =#
 #  ActorPFdesign  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
