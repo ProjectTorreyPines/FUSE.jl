@@ -16,6 +16,6 @@ include("runtests_actors.jl")
 
 include("runtests_workflow.jl")
 
-include("check_init_primary_quanties.jl")
+include("check_init_expressions.jl")
 
 println(FUSE.timer)

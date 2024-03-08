@@ -1,10 +1,10 @@
 """
-    ini_from_ods!(ini::ParametersAllInits; purge_derived_quanties::Bool)::IMAS.dd
+    ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS.dd
 
 The purpose of this function is to setting `ini` values based on what is in the ods
 thus simplifying the logic of the init functions after it which only have to look at ini values
 """
-function ini_from_ods!(ini::ParametersAllInits; purge_derived_quanties::Bool)::IMAS.dd
+function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS.dd
     if ini.general.init_from != :ods
         # don't do anything if to ini and return an empty dd
         dd1 = IMAS.dd()
@@ -64,31 +64,14 @@ function ini_from_ods!(ini::ParametersAllInits; purge_derived_quanties::Bool)::I
             ini.core_profiles.ejima = @ddtime(dd1.core_profiles.global_quantities.ejima)
         end
 
-        # here we selectively copy the quantities that FUSE considers `primary`
-        # all other quantities are either of no interest for intialization or
-        # they have expressions associated with them.
-        if purge_derived_quanties
-            dd1 = copy_init_primary_quanties(dd1)
+        # Here we delete fields from the ODS for which we know FUSE has expressions for.
+        # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!
+        if restore_expressions
+            verbose = any(!contains(filename, "__FUSE__") for filename in split(ini.ods.filename, ","))
+            FUSE.restore_init_expressions!(dd1; verbose)
         end
 
     end
 
     return dd1
-end
-
-"""
-    copy_init_primary_quanties(dd::IMAS.DD)
-
-here we selectively copy the quantities that FUSE considers `primary` to a new dd
-All other quantities are either of no interest for intialization or they have expressions associated with them
-"""
-function copy_init_primary_quanties(dd::IMAS.DD)
-    dd_out = typeof(dd)()
-    dd_out.global_time = dd.global_time
-
-    for ulocation in load_init_primary_quanties()
-        IMAS.IMASDD.selective_copy!(dd, dd_out, IMAS.i2p(ulocation), dd.global_time)
-    end
-
-    return dd_out
 end
