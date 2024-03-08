@@ -466,6 +466,10 @@ rm_manifests:
 dd:
 	julia ../IMASDD/src/generate_dd.jl
 
+# init_primary_quanties
+init_primary_quanties:
+	julia -e 'import FUSE; FUSE.init_primary_quanties(;save=true)'
+
 # copy .JuliaFormatter.toml to all dependencies
 formatter:
 	julia -e '\
