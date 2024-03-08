@@ -1,7 +1,5 @@
 """
     case_parameters(:KDEMO)
-
-Arguments:
 """
 function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ec=1, n_ic=1)

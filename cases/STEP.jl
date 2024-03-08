@@ -1,4 +1,8 @@
+"""
+    case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=:scalars)
 
+UKAEA STEP design
+"""
 function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=:scalars)::Tuple{ParametersAllInits,ParametersAllActors}
     ini, act = case_parameters(:STEP_scalars)
 
