@@ -352,7 +352,7 @@ end
 Load multiple comma-separated filenames into a single dd
 """
 function load_ods(filenames::String)
-    return load_ods(split(filenames, ","))
+    return load_ods(strip.(split(filenames, ",")))
 end
 
 """
