@@ -20,7 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T} <: ParametersActo
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     optimize_q::Entry{Bool} = Entry{Bool}("-", "Optimize q profile to achieve goal"; default=false)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
-    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region,:simple], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region, :simple], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
     do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the flux matching"; default=false)
     verbose::Entry{Bool} = Entry{Bool}("-", "Print trace and optimization result"; default=false)
@@ -90,13 +90,17 @@ function _step(actor::ActorFluxMatcher)
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
+
+    z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
+    err_history = Float64[]
+    ftol = 1E-3 # relative error
+    xtol = 1E-2 # difference in input array
+
     if par.optimizer_algorithm == :simple
-        res = flux_match_simple(actor, nothing)
+        res = flux_match_simple(actor,  z_scaled_history, err_history, ftol ,xtol, prog)
     else
         prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
 
-        z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
-        err_history = Float64[]
         old_logging = actor_logging(dd, false)
         res = try
             res = NLsolve.nlsolve(
@@ -106,8 +110,8 @@ function _step(actor::ActorFluxMatcher)
                 store_trace=true,
                 extended_trace=false,
                 iterations=par.max_iterations,
-                ftol=1E-3,
-                xtol=1E-2,
+                ftol,
+                xtol,
                 opts...
             )
 #            flux_match_errors(actor, res.zero) # z_profiles for the smallest error iteration
@@ -121,7 +125,9 @@ function _step(actor::ActorFluxMatcher)
     if par.do_plot
         display(res)
 
-        display(parse_and_plot_error(string(res.trace.states)))
+        if par.algorithm != :simple
+            display(parse_and_plot_error(string(res.trace.states)))
+        end
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
         display(plot(transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...)); xlabel="Iterations", label=""))
 
@@ -408,26 +414,19 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, p
     return fluxes
 end
 
-function flux_match_simple(actor::ActorFluxMatcher,  prog::Any)
-
+function flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,err_history::Vector{Float64},ftol::Float64,xtol::Float64, prog::Any)
     dd = actor.dd
     par = actor.par
-
     # this will be a while loop with some ftol/xtol
+    z_profiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par) 
     for i in 1:par.max_iterations
-        _finalize(_step(actor.actor_ct))
-        cp1d = dd.core_profiles.profiles_1d[]
-
-        fluxes = flux_match_fluxes(dd, par,  nothing)
-        targets = flux_match_targets(dd, par,  nothing)
-        zprofiles = pack_z_profiles(cp1d, par)    
-        zprofiles  = zprofiles .- par.relax.*(targets.-fluxes)./sqrt.(fluxes.^2 +targets.^2)
-
-        dd.core_profiles.profiles_1d[] = unpack_z_profiles(cp1d,par,zprofiles)
-
-        println(sum((targets.-fluxes).^2 ./ (fluxes.^2 +targets.^2)))
+        flux_match_errors(actor, zprofiles; z_scaled_history, err_history, prog)
+        fluxes = flux_match_fluxes(dd, par,  prg)
+        targets = flux_match_targets(dd, par,  prog)
+        zprofiles  = pack_z_profiles(dd.core_profiles.profiles_1d[], par) .- par.relax.*(targets.-fluxes)./sqrt.(fluxes.^2 +targets.^2)
     end
-    #return (zero = minimum(of z_profiles))
+    
+    return (zero = z_scaled_history[argmin(err_history)])
 end
 
 
