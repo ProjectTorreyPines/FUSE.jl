@@ -13,7 +13,7 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
 
         if init_from == :ods
             if length(dd1.pf_active.coil) > 0
-                dd.pf_active = dd1.pf_active
+                dd.pf_active = deepcopy(dd1.pf_active)
                 IMAS.set_coils_function(dd.pf_active.coil)
 
                 # create rails from coils

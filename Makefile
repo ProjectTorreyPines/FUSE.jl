@@ -38,7 +38,7 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TJLF TEQUILA TGLFNN VacuumFields XSteamTP ThermalSystem_Models FXP
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TEQUILA TGLFNN TJLF VacuumFields  TAUENN XSteamTP ThermalSystem_Models
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -252,9 +252,6 @@ MXHEquilibrium:
 MeshTools:
 	$(call clone_pull_repo,$@)
 
-TAUENN:
-	$(call clone_pull_repo,$@)
-
 TGLFNN:
 	$(call clone_pull_repo,$@)
 
@@ -346,7 +343,7 @@ Pkg.build("PyCall");\
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
 
-# 
+# setup ./docs environment to build documentation
 develop_docs:
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
@@ -475,6 +472,11 @@ rm_manifests:
 # update dd from the json files
 dd:
 	julia ../IMASDD/src/generate_dd.jl
+
+# generates init_expressions.json file, which lists entries that are
+# always expected to be expressions when coming out of init()
+init_expressions:
+	julia -e 'import FUSE; FUSE.init_expressions(;save=true)'
 
 # copy .JuliaFormatter.toml to all dependencies
 formatter:

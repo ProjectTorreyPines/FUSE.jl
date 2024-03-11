@@ -47,7 +47,7 @@ include("physics.jl")
 #  DDINIT  #
 #= ====== =#
 include("signal.jl")
-include("parameters_inits.jl")
+include(joinpath("parameters", "parameters_inits.jl"))
 
 include(joinpath("ddinit", "init.jl"))
 include(joinpath("ddinit", "init_from_ods.jl"))
@@ -59,12 +59,14 @@ include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
+include(joinpath("ddinit", "write_init_expressions.jl"))
 
 #= ====== =#
 #  ACTORS  #
 #= ====== =#
 # the order of include matters due to import/using statements as well as the dependency of defines structures
-include(joinpath("actors", "abstract_actors.jl"))
+include("actors.jl")
+
 include(joinpath("actors", "noop_actor.jl"))
 
 include(joinpath("actors", "equilibrium", "solovev_actor.jl"))
@@ -105,12 +107,10 @@ include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
-include(joinpath("actors", "transport", "tauenn_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
-include(joinpath("actors", "transport", "flux_capacitor_actor.jl"))
 include(joinpath("actors", "transport", "fixed_profiles_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
@@ -133,19 +133,17 @@ include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))
 include(joinpath("actors", "compound", "dynamic_plasma_actor.jl"))
 include(joinpath("actors", "compound", "whole_facility_actor.jl"))
 
-include("parameters_actors.jl")
+include(joinpath("parameters", "parameters_actors.jl"))
 
 #= ============ =#
 #  OPTIMIZATION  #
 #= ============ =#
 include("optimization.jl")
 
-
 #= ======= =#
 #  STUDIES  #
 #= ======= =#
-include("parameters_studies.jl")
-
+include(joinpath("parameters", "parameters_studies.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #

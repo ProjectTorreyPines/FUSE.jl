@@ -262,12 +262,10 @@ function _optimization_engine(
     generation::Int,
     save_dd::Bool=true)
 
-    tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions,
-        constraint_functions, save_folder, generation, save_dd)
+    tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
     GC.gc()
     return tmp
 end
-
 
 """
     optimization_engine(

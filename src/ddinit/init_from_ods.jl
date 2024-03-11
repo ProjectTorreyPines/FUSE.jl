@@ -1,10 +1,10 @@
 """
-    ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
+    ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS.dd
 
 The purpose of this function is to setting `ini` values based on what is in the ods
 thus simplifying the logic of the init functions after it which only have to look at ini values
 """
-function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
+function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS.dd
     if ini.general.init_from != :ods
         # don't do anything if to ini and return an empty dd
         dd1 = IMAS.dd()
@@ -26,6 +26,15 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
             end
             if ismissing(ini.equilibrium, :B0) && !ismissing(dd1.equilibrium.vacuum_toroidal_field, :b0)
                 ini.equilibrium.B0 = @ddtime dd1.equilibrium.vacuum_toroidal_field.b0
+            end
+            if ismissing(ini.equilibrium, :ϵ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :minor_radius)
+                ini.equilibrium.ϵ = dd1.equilibrium.time_slice[].boundary.minor_radius / ini.equilibrium.R0
+            end
+            if ismissing(ini.equilibrium, :κ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :elongation)
+                ini.equilibrium.κ = dd1.equilibrium.time_slice[].boundary.elongation
+            end
+            if ismissing(ini.equilibrium, :δ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :triangularity)
+                ini.equilibrium.δ = dd1.equilibrium.time_slice[].boundary.triangularity
             end
             if ismissing(ini.equilibrium, :pressure_core) && !ismissing(eqt.profiles_1d, :pressure)
                 ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
@@ -53,6 +62,13 @@ function ini_from_ods!(ini::ParametersAllInits)::IMAS.dd
         # core_profiles
         if !ismissing(dd1.core_profiles.global_quantities, :ejima)
             ini.core_profiles.ejima = @ddtime(dd1.core_profiles.global_quantities.ejima)
+        end
+
+        # Here we delete fields from the ODS for which we know FUSE has expressions for.
+        # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!
+        if restore_expressions
+            verbose = any(!contains(filename, "__FUSE__") for filename in split(ini.ods.filename, ","))
+            FUSE.restore_init_expressions!(dd1; verbose)
         end
 
     end

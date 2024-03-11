@@ -1,5 +1,5 @@
 """
-    init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false)
+    init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, initialize_hardware::Bool=true, restore_expressions::Bool=true)
 
 Initialize `dd` starting from `ini` and `act` parameters
 
@@ -7,7 +7,7 @@ FUSE provides this high-level `init` function to populate `dd` starting from the
 This function essentially calls all other `FUSE.init...` functions in FUSE.
 For most studies, calling this high level function is sufficient.
 """
-function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, initialize_hardware::Bool=true)
+function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, initialize_hardware::Bool=true, restore_expressions::Bool=true)
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
 
@@ -27,7 +27,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         act = deepcopy(act)
 
         # load ods once if needed
-        dd1 = ini_from_ods!(ini)
+        dd1 = ini_from_ods!(ini; restore_expressions)
 
         # Makes `ini` and `act` self-consistent and consistent with one another
         consistent_ini_act!(ini, act)
@@ -65,7 +65,8 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize core sources
-        if !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) || !isempty(dd1.core_sources)
+        if !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
+           !isempty(dd1.core_sources)
             init_core_sources!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_sources; legend=:topright))
@@ -146,12 +147,10 @@ function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
     if !ismissing(ini.core_profiles, :T_ratio)
         act.ActorFixedProfiles.T_ratio_core = ini.core_profiles.T_ratio
         act.ActorPedestal.T_ratio_pedestal = ini.core_profiles.T_ratio
-        act.ActorTauenn.T_ratio_pedestal = ini.core_profiles.T_ratio
     end
 
     if !ismissing(ini.core_profiles, :T_shaping)
         act.ActorFixedProfiles.T_shaping = ini.core_profiles.T_shaping
-        act.ActorTauenn.T_shaping = ini.core_profiles.T_shaping
     end
 
     if !ismissing(ini.core_profiles, :n_shaping)
