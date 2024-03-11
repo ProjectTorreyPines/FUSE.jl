@@ -1,5 +1,5 @@
 #= ================= =#
-#  ActorThermalPlant
+#  ActorThermalPlant  #
 #= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
 import ModelingToolkit as MTK
@@ -80,14 +80,11 @@ function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function _step(actor::ActorThermalPlant)
-
-
     # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
     dd = actor.dd
     par = actor.par
 
     use_actor_u = par.heat_load_from == :dd ? false : true
-
 
     breeder_heat_load = (use_actor_u == false) ? (isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)) : actor.u[1]
     divertor_heat_load = (use_actor_u == false) ? (isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)) : actor.u[2]
@@ -122,7 +119,6 @@ function _step(actor::ActorThermalPlant)
         Nhx = 4                  # Nhx = the number of heat exchangers to add to the loop, 4: 3 to connect to cooling loops, 1 to connect to primary power cycle
         flowrate = 300                # mass flow rate of the intermediate loop (kg/s)
         Tmin_interloop = 350 # minimum temperature for inter loop (Kelvin)
-
 
         energy_sys, sts, edict = TSMD.default_energy_sys()
         η_cycle, η_bop = sts   # add them to current namespace 
@@ -203,7 +199,6 @@ function _step(actor::ActorThermalPlant)
                 η_bop ~ 1 - abs(edict[:ColdUtility].Q̇ / edict[:HotUtility].Q̇)
             )
 
-
             # Create vector of all parameters
             plant_params = vcat(wparams, dparams, bparams, iparams, sparams)
 
@@ -230,13 +225,12 @@ function _step(actor::ActorThermalPlant)
             MTK.@named sys = MTK.ODESystem(plant_connections, t, sts, plant_params; systems=plant_systems)
 
             # Check DOF and problem size
-            if par.verbose == true
+            if par.verbose
                 TSMD.system_details(sys)
             end
 
             # Simplify using MTK's model reduction methods
             simple_sys = MTK.structural_simplify(sys)
-
 
             actor.components = plant_systems
             actor.connections = plant_connections
@@ -255,7 +249,6 @@ function _step(actor::ActorThermalPlant)
                 :divertor_heat₊Tout,
                 :breeder_supply₊T,
                 :breeder_heat₊Tout]
-
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
 
@@ -360,11 +353,12 @@ function _step(actor::ActorThermalPlant)
             MTK.@named sys = MTK.ODESystem(plant_connections, t, sts, plant_params; systems=plant_systems)
 
             # Check DOF and problem size
-            # TSMD.system_details(sys)
+            if par.verbose
+                TSMD.system_details(sys)
+            end
 
             # Simplify using MTK's model reduction methods
             simple_sys = MTK.structural_simplify(sys)
-
 
             actor.components = plant_systems
             actor.connections = plant_connections
@@ -422,7 +416,7 @@ function _step(actor::ActorThermalPlant)
     # write to dd if ddwrite = true
     initddbop(actor; soln=soln)
 
-    if par.do_plot == true
+    if par.do_plot
         sysnamedict = Dict([
             "cycle_" => "Brayton Helium",
             "steam_" => "Feedwater Rankine",
@@ -625,9 +619,7 @@ If you want to write to dd based off a different solution object, it can be pass
 function initddbop(act::ActorThermalPlant; soln=nothing)
     gcopy = act.gplot
     dd = act.dd
-    # syslabs = TSMD.get_prop(gcopy, :system_labels)
-    # empty!(dd.balance_of_plant)
-    # begin
+
     bop = dd.balance_of_plant
     bop_plant = bop.power_plant
     bopsys = bop_plant.system
@@ -663,14 +655,12 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
     bops_dict = Dict(bopsys[i].name => i for i in 1:length(syslabs)) # dict where name => index
     valid_s = collect(keys(bops_dict))
 
-
     nparent_dict = TSMD.node_propdict(gcopy, :parent)
     nname_dict = TSMD.node_propdict(gcopy, :name)
     isreal_dict = TSMD.node_propdict(gcopy, :nodeType)
     sysdict = TSMD.node_propdict(gcopy, :sys)
 
     for i in 1:nv_g
-
         if isreal_dict[i] == :fake
             continue
         end
@@ -698,8 +688,7 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
 
             pps = propertynames(comp)
             hasnext = [hasproperty(getproperty(comp, p), :ṁ) for p in pps]    # has a fluid port
-            toadd = pps[findall(x -> x == true, hasnext)]                 # fluid port names
-            # bopcomp     = bopsys[dd_sys_idx].component[end]
+            toadd = pps[findall(hasnext)]                 # fluid port names
             flow2add = length(toadd)
 
             for j in 1:flow2add
@@ -715,7 +704,6 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
                 @ddtime(bopcomp.port[j].temperature = sysT - 273.15)
                 @ddtime(bopcomp.port[j].pressure = sysP)
                 @ddtime(bopcomp.port[j].massflow = sysm)
-                # @ddtime(bopcomp.port[j].pressure = soln(getproperty(getproperty(comp,toadd[j]),P)))
             end
 
             if hasproperty(comp, :w)
@@ -724,7 +712,6 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
                     bopcomp.port[end].name = "Pdv_Conserving"
                 end
                 @ddtime(bopcomp.port[end].mechanicalPower = soln(getproperty(getproperty(comp, :w), :Ẇ)))
-                # println("PORT $(compname) . w")
             elseif hasproperty(comp, :Ẇ)
                 if length(bopcomp.port) < flow2add + 1
                     resize!(bopcomp.port, flow2add + 1)
@@ -732,7 +719,6 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
                 end
                 @ddtime(bopcomp.port[end].mechanicalPower = soln(getproperty(comp, :Ẇ)))
             end
-
 
             if hasproperty(comp, :q)
                 if length(bopcomp.port) < flow2add + 1
@@ -765,7 +751,6 @@ end
 Setter for actor.x
 """
 function setxATP!(x, actorATP::ActorThermalPlant)
-
     for i in 1:length(x)
         actorATP.x[i] = x[i]
         actorATP.var2val[actorATP.sym2var[actorATP.optpar[i]]] = x[i]
