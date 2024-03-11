@@ -2,9 +2,10 @@
 #  Thermal Cycle actor  #
 #= =================== =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     power_cycle_type::Switch{Symbol} = Switch{Symbol}([:fixed_cycle_efficiency, :brayton_only, :complex_brayton], "-", "Power cycle configuration"; default=:brayton_only)
     rp::Entry{T} = Entry{T}("-", "Overall compression ratio"; default=3.0)
     Pmax::Entry{T} = Entry{T}("Pa", "Max system pressure"; default=8e6)
@@ -14,10 +15,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalCycle{T} <: ParametersAct
     Nc::Entry{Int} = Entry{Int}("-", "Number of compression stages"; default=3)
     regen::Entry{T} = Entry{T}("-", "Regeneration fraction")
     fixed_cycle_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `power_cycle_type=:fixed_cycle_efficiency`)")
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorThermalCycle{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorThermalCycle{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorThermalCycle{P}
     act::ParametersAllActors

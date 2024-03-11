@@ -1,10 +1,8 @@
 import VacuumFields
 
 options_green_model = [
-    :point => "one filament per coil",
-    :simple => "like :point, but OH coils have three filaments",
-    :corners => "like :simple, but PF coils have filaments at the four corners",
-    :realistic => "possibly hundreds of filaments per coil (very slow!)"
+    :point => "One filament per coil",
+    :quad => "Quadrilateral coil with quadrature integration"
 ]
 
 #= ==================================== =#
@@ -15,6 +13,7 @@ mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real} <: VacuumFiel
     tech::IMAS.build__pf_active__technology{T1}
     time0::Float64
     green_model::Symbol
+    quad_coil::VacuumFields.QuadCoil
 end
 
 function GS_IMAS_pf_active__coil(
@@ -29,16 +28,23 @@ function GS_IMAS_pf_active__coil(
         setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
     end
 
+    oute = IMAS.outline(pfcoil.element[1])
+
     return GS_IMAS_pf_active__coil{T,T,T}(
         pfcoil,
         coil_tech,
-        IMAS.global_time(pfcoil),
-        green_model)
+        global_time(pfcoil),
+        green_model,
+        VacuumFields.QuadCoil(oute.r, oute.z))
 end
 
 function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
     coils = GS_IMAS_pf_active__coil{D,D}[]
     for coil in dd.pf_active.coil
+        @ddtime coil.current.data = 0.0   # zero currents for all coils
+        if :shaping ∉ [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
+            continue
+        end
         if IMAS.is_ohmic_coil(coil)
             coil_tech = dd.build.oh.technology
         else
@@ -100,28 +106,18 @@ end
 
 function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
     green_model = getfield(coil, :green_model)
-    if green_model == :point # fastest
-        return Gfunc(coil.r, coil.z, R, Z, 1.0)
 
-    elseif green_model ∈ (:corners, :simple) # medium
-        if IMAS.is_ohmic_coil(imas(coil)) # OH
-            n_filaments = max(Int(ceil((coil.height / coil.r) * 2)), 3) # at least 3 filaments, but possibly more as plasma gets closer to the OH
-            z_filaments = range(coil.z - (coil.height - coil.width / 2.0) / 2.0, coil.z + (coil.height - coil.width / 2.0) / 2.0; length=n_filaments)
-            return sum(Gfunc(coil.r, z, R, Z, 1.0 / n_filaments) for z in z_filaments)
+    if green_model == :point # low-fidelity
+        oute = IMAS.outline(coil.imas.element[1])
+        rc0, zc0 = IMAS.centroid(oute.r, oute.z)
+        return Gfunc(rc0, zc0, R, Z)
 
-        elseif green_model == :simple # PF like point
-            return Gfunc(coil.r, coil.z, R, Z, 1.0)
-
-        elseif green_model == :corners # PF with filaments at corners
-            return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width / 2.0, coil.height / 2.0, 0.0, 90.0, nothing), R, Z, 0.25)
-
-        end
-
-    elseif green_model == :realistic # high-fidelity
-        return Gfunc(VacuumFields.ParallelogramCoil(coil.r, coil.z, coil.width, coil.height, 0.0, 90.0, coil.spacing), R, Z)
+    elseif green_model == :quad # high-fidelity
+        return Gfunc(coil.imas, R, Z)
 
     else
-        error("$(typeof(coil)) green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")
+        error("$(typeof(coil)) green_model is `$(green_model)` but it can only be `:point` or `:quad`")
+
     end
 end
 
@@ -152,7 +148,7 @@ function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_
     z_ohcoils = range((minimum(bnd_z) * 2 + minimum(rail_z)) / 3.0, (maximum(bnd_z) * 2 + maximum(rail_z)) / 3.0, n_oh)
 
     return [
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
+        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)]
         [VacuumFields.PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
     ]
 end
@@ -190,6 +186,7 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
         else
             coil_tech = bd.pf_active.technology
         end
+        mat_pf = Material(coil_tech)
 
         # magnetic field of operation
         coil.b_field_max = range(0.1, 30; step=0.1)
@@ -199,7 +196,8 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
 
         # current limit evaluated at all magnetic fields and temperatures
         coil.current_limit_max = [
-            abs(coil_J_B_crit(b, coil_tech).Jcrit * IMAS.area(coil) * fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for b in coil.b_field_max,
+            abs(mat_pf.critical_current_density(; Bext=b) * IMAS.area(coil) * IMAS.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
+            b in coil.b_field_max,
             t in coil.temperature
         ]
 
@@ -364,9 +362,11 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
         pfcoil.element[1].geometry.rectangle.height = height
         pfcoil.element[1].geometry.rectangle.width = width
 
-        max_current_density = coil_J_B_crit(coil_selfB(pfcoil, coil.current), coil.tech).Jcrit
-        needed_conductor_area = abs(coil.current) / max_current_density
-        needed_area = needed_conductor_area / fraction_conductor(coil.tech) * (1.0 .+ tolerance)
+        mat = Material(coil.tech)
+        Bext = coil_selfB(pfcoil, coil.current)
+
+        needed_conductor_area = abs(coil.current) / mat.critical_current_density(; Bext)
+        needed_area = needed_conductor_area / IMAS.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
 
         cost = (area - needed_area)^2
         return cost
@@ -403,7 +403,7 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
         name=String[],
         var"function"=Vector{Symbol}[],
         n_elements=Int[],
-        n_total_turns=Int[]
+        n_total_turns=Float64[]
     )
 
     for coil in coils

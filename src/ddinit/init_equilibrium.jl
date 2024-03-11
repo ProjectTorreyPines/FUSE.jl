@@ -2,27 +2,23 @@
 #  init equilibrium IDS  #
 #= ==================== =#
 """
-    init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.equilibrium` starting from `ini` and `act` parameters
 """
-function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_equilibrium")
     TimerOutputs.@timeit timer "init_equilibrium" begin
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0
-                dd.equilibrium = dd1.equilibrium
+            if IMAS.hasdata(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
+                dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
             else
                 init_from = :scalars
             end
         end
-
-        # mxh independenty of how the user input it
-        mxh = IMAS.MXH(ini, dd1)
-        dd.equilibrium.vacuum_toroidal_field.r0 = mxh.R0
 
         # the pressure and j_tor to be used by equilibrium solver need to be set in dd.core_profiles
         # while the equilibrium boundary neds to be set in init_pulse_schedule
@@ -36,10 +32,11 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                 cp1d.pressure = eqt.profiles_1d.pressure
             else
                 # guess pressure and j_tor from input current and peak pressure
-                psin = range(0.0, 1.0, 129)
-                cp1d.grid.rho_tor_norm = psin
+                rhon = range(0.0, 1.0, 129)
+                psin = rhon .^ 2
+                cp1d.grid.rho_tor_norm = rhon
                 cp1d.grid.psi = psin
-                cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference.data)
+                cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference)
                 if !ismissing(ini.requirements, :power_electric_net) &&  ismissing(ini.equilibrium, :pressure_core)
                     pressure_core = 1e4 # low pressure that will be overwritten in init_core_profiles based on expected net electric
                 elseif !ismissing(getproperty(ini.equilibrium, :pressure_core))
@@ -84,17 +81,17 @@ function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS
     pr, pz = mxh(length(pc.boundary_outline); adaptive=false)
 
     # insert flux-null boundary at t=-Inf
-    if !isempty(pc.boundary_outline) && pc.boundary_outline[1].r.reference.time[1] == -Inf
+    if !isempty(pc.boundary_outline) && pc.time[1] == -Inf
         for (k, (r, z)) in enumerate(zip(pr, pz))
-            pc.boundary_outline[k].r.reference.data[1] = r
-            pc.boundary_outline[k].z.reference.data[1] = z
+            pc.boundary_outline[k].r.reference[1] = r
+            pc.boundary_outline[k].z.reference[1] = z
         end
     else
         for (k, (r, z)) in enumerate(zip(pr, pz))
-            pushfirst!(pc.boundary_outline[k].r.reference.time, -Inf)
-            pushfirst!(pc.boundary_outline[k].r.reference.data, r)
-            pushfirst!(pc.boundary_outline[k].z.reference.time, -Inf)
-            pushfirst!(pc.boundary_outline[k].z.reference.data, z)
+            pushfirst!(pc.time, -Inf)
+            pushfirst!(pc.boundary_outline[k].r.reference, r)
+            pushfirst!(pc.time, -Inf)
+            pushfirst!(pc.boundary_outline[k].z.reference, z)
         end
     end
 

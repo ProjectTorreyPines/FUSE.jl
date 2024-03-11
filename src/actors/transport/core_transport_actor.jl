@@ -1,17 +1,18 @@
 #= ================== =#
 #  ActorCoreTransport  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    model::Switch{Symbol} = Switch{Symbol}([:Tauenn, :FluxMatcher, :FixedProfiles, :none], "-", "Transport actor to run"; default=:none)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plots the core transport"; default=false)
+    _time::Float64 = NaN
+    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :FixedProfiles, :none], "-", "Transport actor to run"; default=:none)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorCoreTransport{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCoreTransport{P}
-    tr_actor::Union{ActorFluxMatcher{D,P},ActorTauenn{D,P},ActorFixedProfiles{D,P},ActorNoOperation{D,P}}
+    tr_actor::Union{ActorFluxMatcher{D,P},ActorFixedProfiles{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -31,8 +32,6 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     par = par(kw...)
     if par.model == :FluxMatcher
         tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
-    elseif par.model == :Tauenn
-        tr_actor = ActorTauenn(dd, act.ActorTauenn; par.do_plot)
     elseif par.model == :FixedProfiles
         tr_actor = ActorFixedProfiles(dd, act.ActorFixedProfiles, act)
     elseif par.model == :none

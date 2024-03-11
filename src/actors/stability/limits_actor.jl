@@ -1,14 +1,15 @@
 #= ==================== =#
 #  ActorStabilityLimits  #
 #= ==================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     models::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "Models used for checking plasma stability limits: $(supported_stability_models())"; default=[:default_limits])
     raise_on_breach::Entry{Bool} = Entry{Bool}("-", "Raise an error when one or more stability limits are breached"; default=true)
 end
 
-mutable struct ActorStabilityLimits{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorStabilityLimits{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStabilityLimits{P}
     function ActorStabilityLimits(dd::IMAS.dd{D}, par::FUSEparameters__ActorStabilityLimits{P}; kw...) where {D<:Real,P<:Real}

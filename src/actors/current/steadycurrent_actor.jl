@@ -1,17 +1,23 @@
 #= ======================= =#
 #  ActorSteadyStateCurrent  #
 #= ======================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "allows the plasma current to increase or decrease based on the non-inductive current"; default=false)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorSteadyStateCurrent{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorSteadyStateCurrent{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorSteadyStateCurrent{P}
+    function ActorSteadyStateCurrent(dd::IMAS.dd{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSteadyStateCurrent)
+        par = par(kw...)
+        return new{D,P}(dd, par)
+    end
 end
 
 """
@@ -29,12 +35,6 @@ function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorSteadyStateCurrent(dd, par::FUSEparameters__ActorSteadyStateCurrent; kw...)
-    logging_actor_init(ActorSteadyStateCurrent)
-    par = par(kw...)
-    return ActorSteadyStateCurrent(dd, par)
 end
 
 function _step(actor::ActorSteadyStateCurrent)
@@ -61,10 +61,6 @@ function _step(actor::ActorSteadyStateCurrent)
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
-
-    # add vloop info to pulse_schedule
-    vloop = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
-    @ddtime(dd.pulse_schedule.flux_control.loop_voltage.reference.data = vloop)
 
     return actor
 end

@@ -1,18 +1,19 @@
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
     stress_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
     error_on_technology::Entry{Bool} = Entry{Bool}("-", "Error if build stresses and current limits are not met"; default=true)
     error_on_performance::Entry{Bool} = Entry{Bool}("-", "Error if requested Bt and flattop duration are not met"; default=true)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorHFSsizing{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHFSsizing{P}
     stresses_actor::ActorStresses{D,P}
@@ -55,6 +56,7 @@ function _step(actor::ActorHFSsizing)
     dd = actor.dd
     par = actor.par
     cs = dd.solid_mechanics.center_stack
+    eqt = dd.equilibrium.time_slice[]
 
     # modify j_tolerance in fluxswing_actor (since actor.fluxswing_actor.par is a copy, this does not affect act.ActorFluxSwing)
     actor.fluxswing_actor.par.j_tolerance = par.j_tolerance
@@ -157,7 +159,7 @@ function _step(actor::ActorHFSsizing)
     plasma = IMAS.get_build_layer(dd.build.layer; type=_plasma_)
     CPradius = TFhfs.end_radius
     OHTFgap = CPradius - TFhfs.thickness - OH.thickness - PL.thickness
-    R0, B0 = IMAS.vacuum_r0_b0(dd.equilibrium.time_slice[])
+    R0, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
     target_B0 = abs(B0)
 
     if par.verbose

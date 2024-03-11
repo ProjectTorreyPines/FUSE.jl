@@ -1,9 +1,9 @@
 """
-    init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize missing IDSs from ODS, only if `ini.general.init_from == :ods`.
 """
-function init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_missing_from_ods")
     TimerOutputs.@timeit timer "init_missing_from_ods" begin
         init_from = ini.general.init_from
@@ -12,8 +12,8 @@ function init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::Param
             for field in keys(dd1)
                 ids1 = getproperty(dd1, field)
                 ids = getproperty(dd, field)
-                if !ismissing(ids1, :time) && length(ids1.time) > 0 && (ismissing(ids, :time) || length(ids.time) == 0)
-                    setproperty!(dd, field, ids1)
+                if IMAS.hasdata(ids1, :time) && length(ids1.time) > 0 && (!IMAS.hasdata(ids, :time) || length(ids.time) == 0)
+                    setproperty!(dd, field, deepcopy(ids1))
                 end
             end
         end
@@ -23,11 +23,11 @@ function init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::Param
 end
 
 """
-    init_requirements!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_requirements!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize dd.requirements `ini.requirements`
 """
-function init_requirements!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_requirements!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_requirements")
     TimerOutputs.@timeit timer "init_requirements" begin
 

@@ -15,7 +15,7 @@ to hold data that does not (yet?) fit into IMAS. Notable examples are the `build
 """]
 
 for name in sort!(collect(fieldnames(IMAS.dd)))
-    if name == :global_time || startswith(string(name), "_")
+    if name == :global_time || name ∈ IMAS.private_fields
         continue
     else
         basename = replace("$name", "_" => " ")
@@ -25,30 +25,34 @@ for name in sort!(collect(fieldnames(IMAS.dd)))
             ```@example
             using IMASDD # hide
             IMASDD.$name{Float64} # hide
-            ```\n""",
+            ```\n"""
         )
     end
 end
 open("$(@__DIR__)/dd.md", "w") do io
-    write(io, join(txt, "\n"))
+    return write(io, join(txt, "\n"))
 end
 
 function dd_details_md(io, ids)
     ProgressMeter.@showprogress "$ids" for leaf in collect(AbstractTrees.Leaves(ids))
         name = "$(leaf.location)"
-        info = IMAS.info(name)
-        documentation = get(info, "documentation", "N/A")
-        units = get(info, "units", "")
-        if !isempty(units)
-            units = "* **Units:** `$(units)`\n    "
+        nfo = IMAS.info(name)
+        documentation = nfo.documentation
+        if nfo.documentation != ""
+            documentation = nfo.documentation
+        else
+            documentation = "N/A"
         end
-        data_type = get(info, "data_type", "")
-        if !isempty(data_type)
-            data_type = "* **Data Type:** `$(data_type)`\n    "
+        if nfo.units != "-"
+            units = "* **Units:** `$(nfo.units)`\n    "
+        else
+            units = ""
         end
-        coordinates = get(info, "coordinates", "")
-        if !isempty(coordinates)
-            coordinates = "* **Coordinates:** `$(String[k for k in coordinates])`\n    "
+        data_type = "* **Data Type:** `$(nfo.data_type)`\n    "
+        if !isempty(nfo.coordinates)
+            coordinates = "* **Coordinates:** `$(String[k for k in nfo.coordinates])`\n    "
+        else
+            coordinates = ""
         end
         txt = """
 
@@ -66,10 +70,10 @@ function dd_details_md(io, ids)
 end
 
 open("$(@__DIR__)/dd_details.md", "w") do io
-    for key in fieldnames(IMAS.dd)
-        if key == :global_time || startswith(string(key), "_")
+    for field in fieldnames(IMAS.dd)
+        if field == :global_time || field ∈ IMAS.private_fields
             continue
         end
-        dd_details_md(io, getfield(IMAS, key){Float64})
+        dd_details_md(io, getfield(IMAS, field){Float64})
     end
 end

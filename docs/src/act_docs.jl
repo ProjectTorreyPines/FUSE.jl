@@ -13,9 +13,9 @@ act = FUSE.ParametersActors()
 """]
 
 open("$(@__DIR__)/act.md", "w") do io
-    write(io, join(txt, "\n"))
+    return write(io, join(txt, "\n"))
 end
 
 open("$(@__DIR__)/act_details.md", "w") do io
-    parameters_details_md(io, FUSE.ParametersActors())
+    return parameters_details_md(io, FUSE.ParametersActors())
 end

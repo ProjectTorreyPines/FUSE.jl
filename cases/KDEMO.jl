@@ -1,9 +1,5 @@
 """
     case_parameters(:KDEMO)
-
-KDEMO
-
-Arguments:
 """
 function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ec=1, n_ic=1)
@@ -65,17 +61,17 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :Nb3Sn
+    ini.pf_active.technology = :nb3sn
 
     ini.tf.n_coils = 18
     # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
-    ini.tf.technology = :KDEMO
+    ini.tf.technology = :nb3sn_kdemo
 
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
     ini.oh.n_coils = 6
-    ini.oh.technology = :Nb3Sn
+    ini.oh.technology = :nb3sn
 
     ini.ec_launcher[1].power_launched = 5.0e7
 

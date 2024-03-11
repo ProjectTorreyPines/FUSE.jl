@@ -1,13 +1,14 @@
 #= ========== =#
 #  PF passive  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    _time::Float64 = NaN
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
-mutable struct ActorPassiveStructures{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorPassiveStructures{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPassiveStructures{P}
     function ActorPassiveStructures(dd::IMAS.dd{D}, par::FUSEparameters__ActorPassiveStructures{P}; kw...) where {D<:Real,P<:Real}
@@ -43,7 +44,7 @@ function _step(actor::ActorPassiveStructures)
     for k in ilayers
         l = dd.build.layer[k]
         l1 = dd.build.layer[k+1]
-        if l1.material == "Vacuum"
+        if l1.material == "vacuum"
             continue
         end
         if all(l1.type != structure.type for structure in dd.build.structure)
@@ -59,7 +60,7 @@ function _step(actor::ActorPassiveStructures)
 
     # OH and plug
     add_pf_passive_loop(dd.pf_passive, dd.build.layer[2])
-    if dd.build.layer[1].material != "Vacuum"
+    if dd.build.layer[1].material != "vacuum"
         add_pf_passive_loop(dd.pf_passive, dd.build.layer[1])
     end
 

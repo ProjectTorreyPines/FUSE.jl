@@ -2,18 +2,18 @@
 #  init pf_active IDS  #
 #= ================== =#
 """
-    init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+    init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.pf_active` starting from `ini` and `act` parameters
 """
-function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd)
+function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_pf_active")
     TimerOutputs.@timeit timer "init_pf_active" begin
         init_from = ini.general.init_from
 
         if init_from == :ods
             if length(dd1.pf_active.coil) > 0
-                dd.pf_active = dd1.pf_active
+                dd.pf_active = deepcopy(dd1.pf_active)
                 IMAS.set_coils_function(dd.pf_active.coil)
 
                 # create rails from coils
@@ -52,9 +52,9 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
 
         end
 
-        coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
-        coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
-        coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
+        IMAS.coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
+        IMAS.coil_technology(dd.build.oh.technology, ini.oh.technology, :oh)
+        IMAS.coil_technology(dd.build.pf_active.technology, ini.pf_active.technology, :pf_active)
 
         return dd
     end
@@ -98,9 +98,9 @@ end
         pf_active::IMAS.pf_active,
         bd::IMAS.build,
         eqt::IMAS.equilibrium__time_slice,
-        n_coils::Vector{TI};
-        pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
-        coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
+        n_coils::Vector{Int};
+        pf_coils_size::Union{Nothing,Float64,Vector{Float64}}=nothing,
+        coils_cleareance::Union{Nothing,Float64,Vector{Float64}}=nothing)
 
 Use build layers outline to initialize PF coils distribution
 NOTE: n_coils
@@ -112,11 +112,19 @@ function init_pf_active!(
     pf_active::IMAS.pf_active,
     bd::IMAS.build,
     eqt::IMAS.equilibrium__time_slice,
-    n_coils::Vector{TI};
-    pf_coils_size::Union{Nothing,TR,Vector{TR}}=nothing,
-    coils_cleareance::Union{Nothing,TR,Vector{TR}}=nothing) where {TI<:Int,TR<:Real}
+    n_coils::Vector{Int};
+    pf_coils_size::Union{Nothing,Float64,Vector{Float64}}=nothing,
+    coils_cleareance::Union{Nothing,Float64,Vector{Float64}}=nothing)
 
     OH_layer = IMAS.get_build_layer(bd.layer; type=_oh_)
+
+    # handle the case of OH inside of the TF
+    # by creating a fake OH_layer that has a rectangular shape
+    if OH_layer.side == Int(_hfs_)
+        OH_layer = IMAS.freeze(OH_layer)
+        height = 0.75 * maximum(OH_layer.outline.z) - minimum(OH_layer.outline.z)
+        OH_layer.outline.r, OH_layer.outline.z = rectangle_shape(OH_layer.start_radius, OH_layer.end_radius, height)
+    end
 
     empty!(pf_active)
     resize!(bd.pf_active.rail, length(n_coils))
@@ -161,7 +169,7 @@ function init_pf_active!(
     end
 
     # Now add actual PF coils to regions of vacuum
-    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer; fs=_out_) if bd.layer[k].material == "Vacuum"][1]
+    gap_cryostat_index = [k for k in IMAS.get_build_indexes(bd.layer; fs=_out_) if bd.layer[k].material == "vacuum"][1]
     lfs_out_indexes = IMAS.get_build_indexes(bd.layer; fs=[_lfs_, _out_])
     krail = 1
     ngrid = 257

@@ -3,9 +3,10 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
@@ -14,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T} <: ParametersActor whe
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorCHEASE{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
     chease::Union{Nothing,CHEASE.Chease}
@@ -58,8 +59,8 @@ function _step(actor::ActorCHEASE)
 
     # scalars
     Ip = eqt.global_quantities.ip
-    Bt_center = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
-    r_center = dd.equilibrium.vacuum_toroidal_field.r0
+    Bt_center = eqt.global_quantities.vacuum_toroidal_field.b0
+    r_center = eqt.global_quantities.vacuum_toroidal_field.r0
     r_geo = eqt.boundary.geometric_axis.r
     z_geo = eqt.boundary.geometric_axis.z
     Bt_geo = Bt_center * r_center / r_geo
@@ -81,9 +82,9 @@ function _step(actor::ActorCHEASE)
             par.rescale_eq_to_ip,
             par.clear_workdir)
     catch e
-        display(plot(pr, pz; marker=:dot, aspect_ratio=:equal))
-        display(plot(rho_pol, pressure; marker=:dot, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
-        display(plot(rho_pol, j_tor; marker=:dot, xlabel="sqrt(ψ)", title="Jtor [A]"))
+        display(plot(pr, pz; marker=:circle, aspect_ratio=:equal))
+        display(plot(rho_pol, pressure; marker=:circle, xlabel="sqrt(ψ)", title="Pressure [Pa]"))
+        display(plot(rho_pol, j_tor; marker=:circle, xlabel="sqrt(ψ)", title="Jtor [A]"))
         rethrow(e)
     end
 
@@ -127,7 +128,7 @@ function _finalize(actor::ActorCHEASE)
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(pr, pz, RA, ZA, 8)
         else
-            coils = IMAS_pf_active__coils(dd; green_model=:simple)
+            coils = IMAS_pf_active__coils(dd; green_model=:quad)
         end
 
         #display(contour(EQ.r, EQ.z,actor.chease.gfile.psirz';aspect_ratio=:equal,levels=range(-7,15,100)))

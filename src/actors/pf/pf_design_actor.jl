@@ -1,16 +1,17 @@
 #= ============= =#
 #  ActorPFdesign  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorPFdesign{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorPFdesign{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFdesign{P}
     actor_pf::ActorPFactive{D,P}

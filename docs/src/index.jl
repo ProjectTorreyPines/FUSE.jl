@@ -1,4 +1,5 @@
-txt="""#   FUSE (**FU**sion **S**ynthesis **E**ngine)
+txt = """
+#   FUSE (**FU**sion **S**ynthesis **E**ngine)
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is GA's proprietary framework for Fusion Power Plant (FPP) integrated design.
 
@@ -19,7 +20,7 @@ FUSE is written completely in Julia, and is structured as follows:
 1. The data structure can be initialized starting from 0D `ini` parameters
 1. FUSE comes with a series of template `use cases` for different machines (FPP, ITER, ARC, ...)
 1. `workflows` perform self-contained studies/optimizations (typically running many FUSE simulations)
-1. FUSE can interface with the existing GA ecosystem of modeling codes (GASC, OMFIT/OMAS) as well as IMAS
+1. FUSE can interface with the existing GA ecosystem of modeling codes (OMFIT/OMAS) as well as IMAS
 
 These concepts are illustrated in the diagram below:
 ![svg](./assets/FUSE.svg)
@@ -31,7 +32,7 @@ using Revise
 using FUSE
 FUSE.logging(Logging.Info; actors=Logging.Info); # set log-level
 # get `ini` and `act` for a given use-case
-ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars)
+ini, act = FUSE.case_parameters(:FPP)
 # initialize `dd` from 0D parameters
 dd = FUSE.init(ini, act; do_plot=true)
 # run an actor
@@ -42,5 +43,5 @@ FUSE.ActorStationaryPlasma(dd, act; do_plot=true);
 
 open("$(@__DIR__)/index.md", "w") do io
     write(io, txt)
-    write(io, "Last update on $(Dates.now())")
+    return write(io, "Last update on $(Dates.now())")
 end

@@ -40,7 +40,7 @@ function Base.setindex!(chk::Checkpoint, dd::IMAS.dd, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd),)
 end
 
-function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd{D},ParametersInits{P},ParametersActors{P}}, key::Symbol) where {D<:Real,P<:Real}
+function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd,ParametersAllInits,ParametersAllActors}, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd_ini_act[1]), ini=deepcopy(dd_ini_act[2]), act=deepcopy(dd_ini_act[3]))
 end
 
@@ -55,10 +55,10 @@ function Base.show(io::IO, chk::Checkpoint)
         if any(tp <: IMAS.dd for tp in TPs)
             push!(what, "dd")
         end
-        if any(tp <: ParametersInits for tp in TPs)
+        if any(tp <: ParametersAllInits for tp in TPs)
             push!(what, "ini")
         end
-        if any(tp <: ParametersActors for tp in TPs)
+        if any(tp <: ParametersAllActors for tp in TPs)
             push!(what, "act")
         end
         println(io, "$(repr(k)) => $(join(what,", "))")
@@ -83,6 +83,7 @@ Read dd.json/h5 in a folder and extract data from it.
 """
 function IMAS.extract(dir::AbstractString, xtract::T=IMAS.ExtractFunctionsLibrary)::T where {T<:AbstractDict{Symbol,IMAS.ExtractFunction}}
     dd, ini, act = load(dir; load_ini=false, load_act=false, skip_on_error=true)
+    IMAS.last_time(dd)
     return extract(dd, xtract)
 end
 
@@ -98,6 +99,7 @@ end
 Extract data from multiple FUSE results folders or `dd`s and return results in DataFrame format.
 
 Filtering can by done by `:cols` that have all NaNs, `:rows` that have any NaN, both with `:all`, or `:none`.
+Filtering by `:cols_row1` removes the columns that have NaN in the first row of the table.
 
 Specifying a `cache` file allows caching of extraction results and not having to parse data.
 
@@ -111,8 +113,16 @@ function IMAS.extract(
     read_cache::Bool=true,
     write_cache::Bool=true)::DataFrames.DataFrame
 
+    function identifier(DD::Vector{<:AbstractString}, k::Int)
+        return abspath(DD[k])
+    end
+
+    function identifier(DD::Vector{IMAS.dd}, k::Int)
+        return k
+    end
+
     # test filter_invalid
-    @assert filter_invalid ∈ (:none, :cols, :rows, :all) "filter_invalid can only be one of [:none, :cols, :rows, :all]"
+    @assert filter_invalid ∈ (:none, :cols_row1, :cols, :rows, :all) "filter_invalid can only be one of [:none, :cols_row1, :cols, :rows, :all]"
 
     if DD !== nothing && length(cache) > 0
         @assert typeof(DD[1]) <: AbstractString "cache is only meant to work when extracting data from FUSE results folders"
@@ -131,8 +141,22 @@ function IMAS.extract(
 
     else
         # allocate memory
-        tmp = Dict(extract(DD[1], xtract))
-        tmp[:dir] = abspath(DD[1])
+        if filter_invalid == :cols_row1
+            xtract = deepcopy(xtract)
+            xtr = extract(DD[1], xtract)
+            tmp = Dict()
+            for (xkey, xfun) in xtr
+                if xfun.value === NaN
+                    delete!(xtract, xkey)
+                else
+                    tmp[xfun.name] = xfun.value
+                end
+            end
+        else
+            tmp = Dict(extract(DD[1], xtract))
+        end
+
+        tmp[:dir] = identifier(DD, 1)
         df = DataFrames.DataFrame(tmp)
         for k in 2:length(DD)
             push!(df, df[1, :])
@@ -141,11 +165,11 @@ function IMAS.extract(
         # load the data
         p = ProgressMeter.Progress(length(DD); showspeed=true)
         Threads.@threads for k in eachindex(DD)
-            aDDk = abspath(DD[k])
+            aDDk = identifier(DD, k)
             try
                 if aDDk in cached_dirs
-                    kcashe = findfirst(dir -> dir == aDDk, cached_dirs)
-                    df[k, :] = df_cache[kcashe, :]
+                    k_cache = findfirst(dir -> dir == aDDk, cached_dirs)
+                    df[k, :] = df_cache[k_cache, :]
                 else
                     tmp = Dict(extract(aDDk, xtract))
                     tmp[:dir] = aDDk
@@ -234,7 +258,6 @@ function save(
     e::Union{Nothing,Exception}=nothing;
     timer::Bool=true,
     varinfo::Bool=false,
-    memtrace::Bool=false,
     freeze::Bool=true,
     format::Symbol=:json,
     overwrite_files::Bool=true)
@@ -269,7 +292,7 @@ function save(
     end
 
     # save memory trace
-    if memtrace
+    if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
         save(FUSE.memtrace, joinpath(savedir, "memtrace.txt"))
     end
 
@@ -320,7 +343,7 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
     if load_act && isfile(joinpath(savedir, "act.json"))
         act = json2act(joinpath(savedir, "act.json"))
     end
-    return dd, ini, act
+    return (dd=dd, ini=ini, act=act)
 end
 
 """
@@ -346,6 +369,7 @@ function digest(
     sec = 1
     if section ∈ (0, sec)
         IMAS.print_tiled(extract(dd); terminal_width, line_char)
+        println("@ time = $(dd.global_time) [s]")
     end
 
     # equilibrium with build and PFs
@@ -489,6 +513,13 @@ function digest(
         plot!(p, dd.build; subplot=2, legend=false)
         plot!(p, dd.pf_active; time0, subplot=2)
         display(p)
+    end
+
+    # pulse_schedule
+    sec += 1
+    if !isempty(dd.pulse_schedule) && section ∈ (0, sec)
+        println('\u200B')
+        display(plot(dd.pulse_schedule; title="Pulse schedule"))
     end
 
     # tf
@@ -649,4 +680,228 @@ function categorize_errors(
     end
 
     return errors
+end
+
+# ====== #
+# Memory #
+# ====== #
+# NOTE: Memory tracking is disabled by default, since it has a performance hit
+#       To enable, do: export FUSE_MEMTRACE=true"
+#
+Base.@kwdef struct MemTrace
+    data::Vector{Tuple{Dates.DateTime,String,Int}} = Tuple{Dates.DateTime,String,Int}[]
+end
+
+const memtrace = MemTrace()
+
+function memory_time_tag(txt::String)
+    return push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
+end
+
+function memory_time_tag(actor::AbstractActor, msg::String)
+    if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
+        txt = "$(name(actor)) - @$msg"
+        return push!(memtrace.data, (Dates.now(), txt, get_julia_process_memory_usage()))
+    end
+end
+
+"""
+    plot_memtrace(memtrace::MemTrace, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
+
+Plot the memory usage over time from a `MemTrace` object.
+
+# Arguments
+
+  - `n_big_jumps`: number of significant memory jumps to highlight in the plot.
+  - `ignore_first_seconds`: number of initial seconds to ignore in the plot. Memory usage will be plotted relative to the memory after this cutoff. Default is `0` (no seconds are ignored).
+
+# Returns
+
+A plot with the following characteristics:
+
+  - Time is displayed on the x-axis as delta seconds since the first recorded time (after ignoring the specified initial seconds).
+  - Memory usage is displayed on the y-axis in MB.
+  - Memory usage is shown as a scatter plot.
+  - The `n_big_jumps` largest jumps in memory are highlighted in red with annotations indicating the action causing each jump.
+"""
+@recipe function plot_memtrace(memtrace::MemTrace, n_big_jumps::Int=5, ignore_first_seconds::Int=0)
+    if isempty(memtrace.data)
+        cutoff = 0.0
+    else
+        cutoff = memtrace.data[1][1] + Dates.Second(ignore_first_seconds)
+    end
+    filtered_data = filter(point -> point[1] > cutoff, memtrace.data)
+
+    dates = [point[1] for point in filtered_data]
+    if !isempty(memtrace.data)
+        dates = Dates.value.(dates .- dates[1]) ./ 1000
+    end
+    action = [point[2] for point in filtered_data]
+    mem = [point[3] / 1024 / 1024 for point in filtered_data]
+    if !isempty(memtrace.data) && ignore_first_seconds > 0
+        mem = mem .- mem[1]
+    end
+
+    @series begin
+        seriestype := scatter
+        label --> ""
+        dates, mem
+    end
+
+    index = sortperm(diff(mem))[end-min(n_big_jumps - 1, length(mem) - 2):end]
+    for i in index
+        @series begin
+            primary := false
+            series_annotations := Plots.text.([action[i], action[i+1]], 6, :red)
+            color := :red
+            [dates[i], dates[i+1]], [mem[i], mem[i+1]]
+        end
+    end
+    @series begin
+        primary := false
+        xlabel := "ΔTime [s]"
+        ylabel := (ignore_first_seconds > 0 ? "Δ" : "") * "Memory [MB]"
+        [], []
+    end
+end
+
+"""
+    get_julia_process_memory_usage()
+
+Returns memory used by current julia process
+"""
+function get_julia_process_memory_usage()
+    pid = getpid()
+    mem_info = read(`ps -p $pid -o rss=`, String)
+    mem_usage_kb = parse(Int, strip(mem_info))
+    return mem_usage_kb * 1024
+end
+
+"""
+    save(memtrace::MemTrace, filename::String="memtrace.txt")
+
+Save a FUSE memory trace to file
+"""
+function save(memtrace::MemTrace, filename::String="memtrace.txt")
+    open(filename, "w") do file
+        for (date, txt, kb) in memtrace.data
+            println(file, "$date $kb \"$txt\"")
+        end
+    end
+end
+
+"""
+    load(memtrace::MemTrace, filename::String="memtrace.txt")
+
+Load a FUSE memory trace from file
+"""
+function load(memtrace::MemTrace, filename::String="memtrace.txt")
+    open(filename, "r") do file
+        for line in eachline(file)
+            m = match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+\"(.*?)\"", line)
+            if m !== nothing
+                date = Dates.DateTime(m[1], "yyyy-mm-ddTHH:MM:SS.sss")
+                kb = parse(Int, m[2])
+                txt = m[3]
+                push!(memtrace.data, (date, txt, kb))
+            end
+        end
+    end
+    return memtrace
+end
+
+"""
+    varinfo(m::Module=Main, pattern::Regex=r""; all=false, imported=false, recursive=false, sortby::Symbol=:name, minsize::Int=0)
+
+Return a markdown table giving information about exported global variables in a module, optionally restricted
+to those matching `pattern`.
+
+The memory consumption estimate is an approximate lower bound on the size of the internal structure of the object.
+
+  - `all` : also list non-exported objects defined in the module, deprecated objects, and compiler-generated objects.
+  - `imported` : also list objects explicitly imported from other modules.
+  - `recursive` : recursively include objects in sub-modules, observing the same settings in each.
+  - `sortby` : the column to sort results by. Options are `:name` (default), `:size`, and `:summary`.
+  - `minsize` : only includes objects with size at least `minsize` bytes. Defaults to `0`.
+
+The output of `varinfo` is intended for display purposes only.  See also [`names`](@ref) to get an array of symbols defined in
+a module, which is suitable for more general manipulations.
+"""
+function varinfo(m::Module=Main, pattern::Regex=r""; all::Bool=false, imported::Bool=false, recursive::Bool=false, sortby::Symbol=:name, minsize::Int=0)
+    sortby in (:name, :size, :summary) || throw(ArgumentError("Unrecognized `sortby` value `:$sortby`. Possible options are `:name`, `:size`, and `:summary`"))
+    rows = Vector{Any}[]
+    workqueue = [(m, "")]
+    parents = Module[m]
+    while !isempty(workqueue)
+        m2, prep = popfirst!(workqueue)
+        for v in names(m2; all, imported)
+            if !isdefined(m2, v) || !occursin(pattern, string(v))
+                continue
+            end
+            value = getfield(m2, v)
+            isbuiltin = value === Base || value === Main || value === Core
+            if recursive && !isbuiltin && isa(value, Module) && value !== m2 && nameof(value) === v && value ∉ parents
+                push!(parents, value)
+                push!(workqueue, (value, "$v."))
+            end
+            ssize_str, ssize = if isbuiltin
+                ("", typemax(Int))
+            else
+                ss = summarysize(value)
+                (format_bytes(ss), ss)
+            end
+            if ssize >= minsize
+                push!(rows, Any[string(prep, v), ssize_str, summary(value), ssize])
+            end
+        end
+    end
+    let (col, rev) = if sortby === :name
+            1, false
+        elseif sortby === :size
+            4, true
+        elseif sortby === :summary
+            3, false
+        else
+            @assert "unreachable"
+        end
+        sort!(rows; by=r -> r[col], rev)
+    end
+    pushfirst!(rows, Any["name", "size", "summary"])
+
+    return Markdown.MD(Any[Markdown.Table(map(r -> r[1:3], rows), Symbol[:l, :r, :l])])
+end
+
+"""
+    malloc_trim_if_glibc()
+
+Check if the underlying system uses the GNU C Library (GLIBC) and, if so, calls `malloc_trim(0)`
+to attempt to release memory back to the system. This function is primarily useful on Linux systems
+where GLIBC is the standard C library.
+
+On non-Linux systems, or Linux systems not using GLIBC, the function does nothing
+
+## Notes
+
+  - This method uses a heuristic by checking for the presence of "glibc" in `/proc/version`.
+    While this is indicative of GLIBC's presence on many typical systems, it's not a guaranteed check.
+  - The actual `malloc_trim` function is specific to the glibc implementation of the C standard library.
+"""
+function malloc_trim_if_glibc()
+    # Check if on Linux
+    if Sys.islinux()
+        # Check for glibc by reading /proc/version (this is specific to Linux)
+        try
+            version_info = read("/proc/version", String)
+            if occursin("glibc", version_info)
+                ccall(:malloc_trim, Cvoid, (Cint,), 0)
+                #println("malloc_trim called.")
+            else
+                #println("Not using glibc.")
+            end
+        catch e
+            #println("Error reading /proc/version: ", e)
+        end
+    else
+        #println("Not on a Linux system.")
+    end
 end

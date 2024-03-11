@@ -1,14 +1,15 @@
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStresses{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorStresses{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
+    _time::Float64 = NaN
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
     n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=5)
 end
 
-mutable struct ActorStresses{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorStresses{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStresses{P}
     function ActorStresses(dd::IMAS.dd{D}, par::FUSEparameters__ActorStresses{P}; kw...) where {D<:Real,P<:Real}

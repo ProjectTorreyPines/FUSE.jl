@@ -1,14 +1,15 @@
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    _time::Float64 = NaN
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorLFSsizing{D,P} <: ReactorAbstractActor{D,P}
+mutable struct ActorLFSsizing{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorLFSsizing{P}
     function ActorLFSsizing(dd::IMAS.dd{D}, par::FUSEparameters__ActorLFSsizing{P}; kw...) where {D<:Real,P<:Real}

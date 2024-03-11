@@ -1,10 +1,11 @@
 #= ================= =#
-#  ActorARIESCosting  #
+#  ActorCostingARIES  #
 #= ================= =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorARIESCosting{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     land_space::Entry{T} = Entry{T}("acres", "Plant site space required"; default=1000.0)
     building_volume::Entry{T} = Entry{T}("m^3", "Volume of the tokmak building"; default=140.0e3)
     interest_rate::Entry{T} = Entry{T}("-", "Annual interest rate fraction of direct capital cost"; default=0.05)
@@ -14,18 +15,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorARIESCosting{T} <: ParametersAct
     blanket_lifetime::Entry{T} = Entry{T}("year", "Lifetime of the blanket"; default=6.8)
 end
 
-mutable struct ActorARIESCosting{D,P} <: FacilityAbstractActor{D,P}
+mutable struct ActorCostingARIES{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorARIESCosting{P}
-    function ActorARIESCosting(dd::IMAS.dd{D}, par::FUSEparameters__ActorARIESCosting{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorARIESCosting)
+    par::FUSEparameters__ActorCostingARIES{P}
+    function ActorCostingARIES(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingARIES{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorCostingARIES)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorARIESCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates costing based on ARIES cost account documentation https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 
@@ -33,15 +34,15 @@ Estimates costing based on ARIES cost account documentation https://cer.ucsd.edu
 
     Stores data in `dd.costing`
 """
-function ActorARIESCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorARIESCosting(kw...)
-    actor = ActorARIESCosting(dd, par)
+function ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    par = act.ActorCostingARIES(kw...)
+    actor = ActorCostingARIES(dd, par)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorARIESCosting)
+function _step(actor::ActorCostingARIES)
     dd = actor.dd
     par = actor.par
     cst = dd.costing
@@ -147,7 +148,7 @@ function _step(actor::ActorARIESCosting)
     return actor
 end
 
-function _finalize(actor::ActorARIESCosting)
+function _finalize(actor::ActorCostingARIES)
     # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system; by=x -> x.cost, rev=true)
     for sys in actor.dd.costing.cost_direct_capital.system
@@ -183,7 +184,7 @@ function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, 
         cost = layer.volume * 0.36  # $M/m^3
         return future_dollars(cost, da)
     else
-        cost = layer.volume * unit_cost(layer.material, cst)
+        cost = layer.volume * unit_cost(Material(layer.material), cst)
         return future_dollars(cost, da)
     end
 end
@@ -455,7 +456,7 @@ LIKELY NEEDS FIXING
 """
 function cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetime::Real, da::DollarAdjust)
     da.year_assessed = 2009  # pg. 94 ARIES
-    unit_cost = 2.76 # [$M/year]From GASC
+    unit_cost = 2.76 # [$M/year] from GASC
     cost = unit_cost * plant_lifetime
     return future_dollars(cost, da)
 end

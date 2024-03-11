@@ -1,17 +1,18 @@
 #= ===================== =#
 #  ActorStationaryPlasma  #
 #= ===================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
     #== display and debugging parameters ==#
-    do_plot::Entry{Bool} = Entry{Bool}("-", "Plot"; default=false)
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
-mutable struct ActorStationaryPlasma{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStationaryPlasma{P}
     act::ParametersAllActors
@@ -143,7 +144,7 @@ function _step(actor::ActorStationaryPlasma)
                 plot!(ps, dd.core_sources; label="i=$(length(total_error))")
 
                 @printf("\n")
-                @printf("Jtor0_after = %.2f MA\n", cp1d.j_tor[1] / 1e6)
+                @printf("Jtor0_after = %.2f MA m^2\n", cp1d.j_tor[1] / 1e6)
                 @printf("   P0_after = %.2f kPa\n", cp1d.pressure[1] / 1e3)
                 @printf("     βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
                 @printf("     βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
@@ -180,13 +181,16 @@ end
 function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::ActorStationaryPlasma, step_actor::Union{Nothing,AbstractActor}=nothing)
     dd = actor.dd
     par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
     tmp = [
         (par.max_iter == 1 ? "                 iteration" : "         iteration (min 2)", "$(length(total_error))/$(par.max_iter)"),
         ("required convergence error", par.convergence_error),
         ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
         ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
-        ("                   Ip [MA]", @ddtime(dd.summary.global_quantities.ip.value) / 1e6),
-        ("                 Te0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_e.value) / 1E3),
-        ("                 Ti0 [keV]", @ddtime(dd.summary.local.magnetic_axis.t_i_average.value) / 1E3)]
+        ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
+        ("                 Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
+        ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
+    ]
     return tuple(tmp...)
 end

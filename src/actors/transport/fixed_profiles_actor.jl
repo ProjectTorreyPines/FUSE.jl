@@ -1,9 +1,10 @@
 #= ================== =#
 #  ActorFixedProfiles  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFixedProfiles{T} <: ParametersActor where {T<:Real}
+Base.@kwdef mutable struct FUSEparameters__ActorFixedProfiles{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
+    _time::Float64 = NaN
     T_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the temperature profile"; default=1.8)
     n_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile"; default=1.8)
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
@@ -11,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFixedProfiles{T} <: ParametersAc
     update_pedestal::Entry{Bool} = Entry{Bool}("-", "Update pedestal with EPED-NN and modify profiles accordingly"; default=true)
 end
 
-mutable struct ActorFixedProfiles{D,P} <: PlasmaAbstractActor{D,P}
+mutable struct ActorFixedProfiles{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFixedProfiles{P}
     ped_actor::ActorPedestal{D,P}
