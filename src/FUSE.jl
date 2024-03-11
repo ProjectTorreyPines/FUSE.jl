@@ -59,7 +59,7 @@ include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
 include(joinpath("ddinit", "init_others.jl"))
-include(joinpath("ddinit", "write_init_primary_quanties.jl"))
+include(joinpath("ddinit", "write_init_expressions.jl"))
 
 #= ====== =#
 #  ACTORS  #

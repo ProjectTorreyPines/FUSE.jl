@@ -466,9 +466,10 @@ rm_manifests:
 dd:
 	julia ../IMASDD/src/generate_dd.jl
 
-# init_primary_quanties
-init_primary_quanties:
-	julia -e 'import FUSE; FUSE.init_primary_quanties(;save=true)'
+# generates init_expressions.json file, which lists entries that are
+# always expected to be expressions when coming out of init()
+init_expressions:
+	julia -e 'import FUSE; FUSE.init_expressions(;save=true)'
 
 # copy .JuliaFormatter.toml to all dependencies
 formatter:

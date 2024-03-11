@@ -1,5 +1,7 @@
 """
     case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,ParametersAllActors}
+
+GA's FPP design
 """
 function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ec=1)
