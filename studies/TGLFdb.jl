@@ -32,6 +32,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: Par
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
     save_dd::Entry{Bool} = study_common_parameters(; save_dd=true)
     sat_rules::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "TGLF saturation rules to run")
+    lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
     custom_tglf_models::Entry{Vector{String}} = Entry{Vector{String}}("-", "This will run custom TGLFNN models stored in TGLFNN/models")
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
@@ -106,10 +107,10 @@ function _run(study::StudyTGLFdb)
         else
             act.ActorTGLF.user_specified_model = item
         end
+        act.ActorTGLF.lump_ions = sty.lump_ions
 
         # paraller run
         results = pmap(filename -> run_case(filename, study, item), cases_files)
-        act.ActorTGLF.lump_ions = study.lump_ions
 
         # populate DataFrame
         for row in results
