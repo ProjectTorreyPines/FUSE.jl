@@ -43,23 +43,23 @@ mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
         logging_actor_init(ActorThermalPlant)
         par = par(kw...)
         dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
-        return new{D,P}(dd, 
-                        par, 
-                        MTK.ODESystem[],
-                        MTK.Equation[],
-                        MTK.Num[],
-                        Dict{MTK.Symbol,MTK.ODESystem}(),
-                        false,
-                        nothing,
-                        nothing,
-                        nothing,
-                        nothing,
-                        nothing,
-                        Dict{}(),
-                        Dict{}(),
-                        Symbol[],
-                        nothing,
-                        nothing);
+        return new{D,P}(dd,
+            par,
+            MTK.ODESystem[],
+            MTK.Equation[],
+            MTK.Num[],
+            Dict{MTK.Symbol,MTK.ODESystem}(),
+            false,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            Dict{}(),
+            Dict{}(),
+            Symbol[],
+            nothing,
+            nothing)
     end
 end
 
@@ -67,7 +67,8 @@ end
     ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 !!! note
-Stores data in `dd.balance_of_plant`
+
+    Stores data in `dd.balance_of_plant`
 """
 function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorThermalPlant(kw...)
@@ -230,11 +231,11 @@ function _step(actor::ActorThermalPlant)
 
             # Check DOF and problem size
             if par.verbose == true
-                TSMD.system_details(sys);
+                TSMD.system_details(sys)
             end
-            
+
             # Simplify using MTK's model reduction methods
-            simple_sys = MTK.structural_simplify(sys);
+            simple_sys = MTK.structural_simplify(sys)
 
 
             actor.components = plant_systems
@@ -258,7 +259,7 @@ function _step(actor::ActorThermalPlant)
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
 
-            ode_sol  = DifferentialEquations.solve(actor.prob);
+            ode_sol = DifferentialEquations.solve(actor.prob)
             soln(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
@@ -267,25 +268,25 @@ function _step(actor::ActorThermalPlant)
             para_vars = MTK.parameters(simple_sys)
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
 
-            actor.sym2var = Dict(para_syms[i] => para_vars[i] for i =1:length(para_vars));
-            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys,para_vars[i])(ode_sol) for i =1:length(para_vars));
-            
-            gcopy = TSMD.create_plot_graph(actor.G; toignore = [:steam_condensor], verbose = false);
-            xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy);
-            TSMD.initialize_plot_props!(gcopy, lay2node,xs,ys,paths);
-            TSMD.add_plot_elments!(gcopy);
-            TSMD.set_default_node_prop!(gcopy, :height, 1.0);
-            xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy);
-            x, y = TSMD.setVerticalSpacing!(gcopy; vspan = 40.0);
-            TSMD.setLayerWidth!(gcopy; pad = 2.5, verbose = false);
-            xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy);
-            TSMD.edgeroute_nodes(gcopy; voff = 0.1);
-            TSMD.set_plot_props!(gcopy);
-            
-            actor.gplot = gcopy;
+            actor.sym2var = Dict(para_syms[i] => para_vars[i] for i in 1:length(para_vars))
+            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys, para_vars[i])(ode_sol) for i in 1:length(para_vars))
+
+            gcopy = TSMD.create_plot_graph(actor.G; toignore=[:steam_condensor], verbose=false)
+            xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy)
+            TSMD.initialize_plot_props!(gcopy, lay2node, xs, ys, paths)
+            TSMD.add_plot_elments!(gcopy)
+            TSMD.set_default_node_prop!(gcopy, :height, 1.0)
+            xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy)
+            x, y = TSMD.setVerticalSpacing!(gcopy; vspan=40.0)
+            TSMD.setLayerWidth!(gcopy; pad=2.5, verbose=false)
+            xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy)
+            TSMD.edgeroute_nodes(gcopy; voff=0.1)
+            TSMD.set_plot_props!(gcopy)
+
+            actor.gplot = gcopy
 
         elseif par.model == :brayton
-            cyclesys, cconnections, cparams, cdict = TSMD.brayton_cycle(;flowrate = 300)
+            cyclesys, cconnections, cparams, cdict = TSMD.brayton_cycle(; flowrate=300)
             energy_con = vcat(
                 TSMD.work_connect(
                     edict[:Electric],
@@ -362,7 +363,7 @@ function _step(actor::ActorThermalPlant)
             # TSMD.system_details(sys)
 
             # Simplify using MTK's model reduction methods
-            simple_sys = MTK.structural_simplify(sys);
+            simple_sys = MTK.structural_simplify(sys)
 
 
             actor.components = plant_systems
@@ -386,7 +387,7 @@ function _step(actor::ActorThermalPlant)
             tspan = (0.0, 10)
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
 
-            ode_sol  = DifferentialEquations.solve(actor.prob);
+            ode_sol = DifferentialEquations.solve(actor.prob)
             sol(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
@@ -395,8 +396,8 @@ function _step(actor::ActorThermalPlant)
             para_vars = MTK.parameters(simple_sys)
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
 
-            actor.sym2var = Dict(para_syms[i] => para_vars[i] for i =1:length(para_vars));
-            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys,para_vars[i])(ode_sol) for i =1:length(para_vars));
+            actor.sym2var = Dict(para_syms[i] => para_vars[i] for i in 1:length(para_vars))
+            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys, para_vars[i])(ode_sol) for i in 1:length(para_vars))
 
             gcopy = TSMD.create_plot_graph(actor.G; toignore=[:cycle_cooler], verbose=false)
             xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy)
@@ -532,7 +533,7 @@ var2val and sym2var are dicts for getting the actual variable objects, they are 
 Ouput:
 soln = solution object
 """
-function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver = DifferentialEquations.Rosenbrock23())
+function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
 
     # new parameters dict
     pwrapped = var2val
@@ -546,8 +547,8 @@ function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10
         pwrapped[sym2var[xi]] = x[i]
     end
 
-    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped);
-    node_sol  = DifferentialEquations.solve(node_prob, solver);
+    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped)
+    node_sol = DifferentialEquations.solve(node_prob, solver)
     soln(v) = node_sol[v][end]
     return soln
 end
@@ -561,7 +562,7 @@ yvars = vector of output variable objects
 Ouput:
 soln.(yvars)
 """
-function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver = DifferentialEquations.Rosenbrock23())
+function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
     # new parameters dict
     pwrapped = var2val
 
@@ -574,8 +575,8 @@ function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan
         pwrapped[sym2var[xi]] = x[i]
     end
 
-    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped);
-    node_sol  = DifferentialEquations.solve(node_prob,solver);
+    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped)
+    node_sol = DifferentialEquations.solve(node_prob, solver)
     soln(v) = node_sol[v][end]
     return soln.(yvars)
 end
@@ -647,8 +648,8 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
     soln = (isnothing(soln) ? gp[:soln] : soln)
 
     # names of the internal subgraph objects
-    syslabs = [titlecase(replace(lowercase(string(sl)),compnamesubs...)) for sl in gcopy.gprops[:system_labels]]
-    format_name(x) = titlecase(replace(lowercase(string(x)),compnamesubs...))
+    syslabs = [titlecase(replace(lowercase(string(sl)), compnamesubs...)) for sl in gcopy.gprops[:system_labels]]
+    format_name(x) = titlecase(replace(lowercase(string(x)), compnamesubs...))
 
     # initializing the 1st level of dd
     if length(bop_plant.system) != length(syslabs)
