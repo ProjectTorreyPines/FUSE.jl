@@ -3,7 +3,7 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -59,8 +59,8 @@ function _step(actor::ActorCHEASE)
 
     # scalars
     Ip = eqt.global_quantities.ip
-    Bt_center = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
-    r_center = dd.equilibrium.vacuum_toroidal_field.r0
+    Bt_center = eqt.global_quantities.vacuum_toroidal_field.b0
+    r_center = eqt.global_quantities.vacuum_toroidal_field.r0
     r_geo = eqt.boundary.geometric_axis.r
     z_geo = eqt.boundary.geometric_axis.z
     Bt_geo = Bt_center * r_center / r_geo
@@ -128,7 +128,7 @@ function _finalize(actor::ActorCHEASE)
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(pr, pz, RA, ZA, 8)
         else
-            coils = IMAS_pf_active__coils(dd; green_model=:simple)
+            coils = IMAS_pf_active__coils(dd; green_model=:quad)
         end
 
         #display(contour(EQ.r, EQ.z,actor.chease.gfile.psirz';aspect_ratio=:equal,levels=range(-7,15,100)))

@@ -12,17 +12,13 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !ismissing(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
-                dd.equilibrium = dd1.equilibrium
+            if IMAS.hasdata(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
+                dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
             else
                 init_from = :scalars
             end
         end
-
-        # mxh independenty of how the user input it
-        mxh = IMAS.MXH(ini, dd1)
-        dd.equilibrium.vacuum_toroidal_field.r0 = mxh.R0
 
         # the pressure and j_tor to be used by equilibrium solver need to be set in dd.core_profiles
         # while the equilibrium boundary neds to be set in init_pulse_schedule
@@ -36,8 +32,9 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                 cp1d.pressure = eqt.profiles_1d.pressure
             else
                 # guess pressure and j_tor from input current and peak pressure
-                psin = range(0.0, 1.0, 129)
-                cp1d.grid.rho_tor_norm = psin
+                rhon = range(0.0, 1.0, 129)
+                psin = rhon .^ 2
+                cp1d.grid.rho_tor_norm = rhon
                 cp1d.grid.psi = psin
                 cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference)
                 if !ismissing(ini.requirements, :power_electric_net) &&  ismissing(ini.equilibrium, :pressure_core)

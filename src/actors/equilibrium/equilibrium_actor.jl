@@ -1,7 +1,7 @@
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
+    vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0)   
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
@@ -99,12 +100,22 @@ function _finalize(actor::ActorEquilibrium)
         IMAS.flux_surfaces(eqt)
     catch e
         eqt2d = findfirst(:rectangular, eqt.profiles_2d)
-        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal))
+        par.do_plot && display(current())
+        p = contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
+        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi', levels=[0], lw=3, color=:black, colorbar_entry=false))
         rethrow(e)
     end
 
     if par.do_plot
-        display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
+        try
+            display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
+        catch e
+            if e isa BoundsError
+                display(plot(dd.equilibrium; label="after ActorEquilibrium"))
+            else
+                rethrow(e)
+            end
+        end
     end
 
     return actor
@@ -132,19 +143,19 @@ function prepare(actor::ActorEquilibrium)
     cp1d.j_tor = cp1d.j_tor
     cp1d.pressure = cp1d.pressure
 
-    # get ip before wiping eqt in case ip_from=:equilibrium
+    # get ip and b0 before wiping eqt in case ip_from=:equilibrium
     ip = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
+    r0, b0 = IMAS.get_from(dd, Val{:vacuum_r0_b0}, actor.par.vacuum_r0_b0_from)
 
     # add/clear time-slice
     eqt = resize!(dd.equilibrium.time_slice)
     resize!(eqt.profiles_2d, 1)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
-
+    
     # scalar quantities
     eqt.global_quantities.ip = ip
-    R0 = dd.equilibrium.vacuum_toroidal_field.r0
-    B0 = @ddtime(ps.tf.b_field_tor_vacuum_r.reference) / R0
-    @ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = B0)
+    eqt.global_quantities.vacuum_toroidal_field.b0 = b0
+    eqt.global_quantities.vacuum_toroidal_field.r0 = r0
 
     # boundary from position control
     eqt.boundary.outline.r, eqt.boundary.outline.z = IMAS.boundary(pc)
@@ -188,22 +199,21 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # make sure j_tor and pressure on axis come in with zero gradient
-    if true
-        index = cp1d.grid.psi_norm .> 0.05
-        rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
-        j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
-        pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-    else
-        rho_pol_norm0 = sqrt.(cp1d.grid.psi_norm)
-        j_tor0 = cp1d.j_tor
-        pressure0 = cp1d.pressure
-    end
+
+    index = cp1d.grid.psi_norm .> 0.05
+    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+    j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
+    pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
+    p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
 
     # set j_tor and pressure, forcing zero derivative on axis
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
-    eq1d.j_tor = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic).(sqrt.(eq1d.psi_norm))
-    eq1d.pressure = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic).(sqrt.(eq1d.psi_norm))
+    eq1d.rho_tor_norm = cp1d.grid.rho_tor_norm
+
+    eq1d.j_tor = j_itp.(sqrt.(eq1d.psi_norm))
+    eq1d.pressure = p_itp.(sqrt.(eq1d.psi_norm))
 
     return dd
 end

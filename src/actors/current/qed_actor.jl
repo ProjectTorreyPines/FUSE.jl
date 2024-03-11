@@ -4,7 +4,7 @@ import FiniteElementHermite
 #= ======== =#
 #  ActorQED  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -161,7 +161,7 @@ function _finalize(actor::ActorQED)
     ρ = eqt.profiles_1d.rho_tor_norm
     eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
     eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
-    _, B0 = IMAS.vacuum_r0_b0(eqt)
+    _, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
     if true # we prefer using an expression to ensure consistency
         empty!(eqt.profiles_1d, :j_parallel) # restore expression
     else
@@ -198,7 +198,7 @@ it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
 function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Bool=false)
-    R0, B0 = IMAS.vacuum_r0_b0(eqt)
+    R0, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
 
     rho_tor = eqt.profiles_1d.rho_tor
     gm1 = eqt.profiles_1d.gm1

@@ -38,7 +38,7 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TAUENN TEQUILA TGLFNN TJLF VacuumFields 
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TEQUILA TGLFNN TJLF VacuumFields 
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -52,10 +52,6 @@ ifdef SERIAL
 else
 	PARALLELISM := -j 100
 endif
-
-DOCKER_PLATFORM := $(shell uname -m)
-DOCKER_PLATFORM := amd64
-#DOCKER_PLATFORM := arm64
 
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
@@ -120,21 +116,6 @@ Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
 '
 	make revise
-
-# install Hide and load it when Julia starts up
-hide: Hide
-	mkdir -p $(JULIA_DIR)/config
-	touch $(JULIA_CONF)
-	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	echo "using Hide" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
-	rm -f "$(JULIA_CONF).tmp"
-
-# remove from Julia starts up
-rm_hide:
-	mkdir -p $(JULIA_DIR)/config
-	touch $(JULIA_CONF)
-	grep -v -F -x "using Hide" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	mv "$(JULIA_CONF).tmp" "$(JULIA_CONF)"
 
 # load Revise when Julia starts up
 revise:
@@ -244,10 +225,6 @@ ADAS:
 FUSE:
 	$(call clone_pull_repo,$@)
 
-Hide:
-	$(call clone_pull_repo,$@)
-	julia -e 'using Pkg; Pkg.develop("Hide")'
-
 IMAS:
 	$(call clone_pull_repo,$@)
 
@@ -273,9 +250,6 @@ MXHEquilibrium:
 	$(call clone_pull_repo,$@)
 
 MeshTools:
-	$(call clone_pull_repo,$@)
-
-TAUENN:
 	$(call clone_pull_repo,$@)
 
 TGLFNN:
@@ -358,46 +332,11 @@ Pkg.add("PyCall");\
 Pkg.build("PyCall");\
 '
 
-# create a docker image with just FUSE
-docker_clean:
-	rm -rf ../Dockerfile
-	cp docker/Dockerfile_clean ../Dockerfile
-	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
-	mv tmp ../Dockerfile
-	cat ../Dockerfile
-	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_clean_$(DOCKER_PLATFORM) .
-
-# build a new FUSE docker base image with all packages
-docker_image:
-	rm -rf ../Dockerfile
-	cp docker/Dockerfile_base ../Dockerfile
-	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
-	mv tmp ../Dockerfile
-	cat ../Dockerfile
-	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM) .
-
-# update the base FUSE docker image
-docker_update:
-	rm -rf ../Dockerfile
-	cp docker/Dockerfile_update ../Dockerfile
-	sed 's/_PLATFORM_/$(DOCKER_PLATFORM)/g' ../Dockerfile > tmp
-	mv tmp ../Dockerfile
-	cat ../Dockerfile
-	cp .gitignore ../.dockerignore
-	cd .. ; sudo docker build --platform=linux/$(DOCKER_PLATFORM) -t julia_fuse_$(DOCKER_PLATFORM)_updated .
-
-# upload docker image to gke
-docker_upload:
-	docker tag julia_fuse_amd64_updated gcr.io/sdsc-20220719-60951/fuse
-	docker push gcr.io/sdsc-20220719-60951/fuse
-
 # remove old packages
 cleanup:
 	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
 
-# 
+# setup ./docs environment to build documentation
 develop_docs:
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
@@ -526,6 +465,11 @@ rm_manifests:
 # update dd from the json files
 dd:
 	julia ../IMASDD/src/generate_dd.jl
+
+# generates init_expressions.json file, which lists entries that are
+# always expected to be expressions when coming out of init()
+init_expressions:
+	julia -e 'import FUSE; FUSE.init_expressions(;save=true)'
 
 # copy .JuliaFormatter.toml to all dependencies
 formatter:

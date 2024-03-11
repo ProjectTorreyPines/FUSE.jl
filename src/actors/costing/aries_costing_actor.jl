@@ -2,7 +2,7 @@
 #  ActorCostingARIES  #
 #= ================= =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -456,7 +456,7 @@ LIKELY NEEDS FIXING
 """
 function cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetime::Real, da::DollarAdjust)
     da.year_assessed = 2009  # pg. 94 ARIES
-    unit_cost = 2.76 # [$M/year]From GASC
+    unit_cost = 2.76 # [$M/year] from GASC
     cost = unit_cost * plant_lifetime
     return future_dollars(cost, da)
 end
