@@ -137,28 +137,11 @@ function VacuumFields.mutual(C1::VacuumFields.AbstractCoil, C2::GS_IMAS_pf_activ
 
     green_model = getfield(C2, :green_model)
     if green_model == :point # fastest
-        PC = VacuumFields.PointCoil(C2.r, C2.z; C2.turns)
-        return VacuumFields.mutual(C1, C2)
+        fac = -2π * VacuumFields.μ₀ * VacuumFields.turns(C1) * C2.turns
+        return fac * Green(C1, C2.r, C2.z)
 
-    elseif green_model ∈ (:corners, :simple) # medium
-        if IMAS.is_ohmic_coil(imas(C2)) # OH
-            n_filaments = max(Int(ceil((C2.height / C2.r) * 2)), 3) # at least 3 filaments, but possibly more as plasma gets closer to the OH
-            z_filaments = range(C2.z - (C2.height - C2.width / 2.0) / 2.0, C2.z + (C2.height - C2.width / 2.0) / 2.0; length=n_filaments)
-            return C2.turns * sum(VacuumFields.mutual(C1, VacuumFields.PointCoil(C2.r, z; turns=1)) for z in z_filaments) / n_filaments
-
-        elseif green_model == :simple # PF like point
-            PC = VacuumFields.PointCoil(C2.r, C2.z; C2.turns)
-            return VacuumFields.mutual(C1, PC)
-
-        elseif green_model == :corners # PF with filaments at corners
-            #??? What's up with this versus :realistic
-            PC = VacuumFields.ParallelogramCoil(C2.r, C2.z, C2.width / 2.0, C2.height / 2.0, 0.0, 90.0; C2.turns)
-            return VacuumFields.mutual(C1, PC; xorder, yorder)
-        end
-
-    elseif green_model == :realistic # high-fidelity
-        PC = VacuumFields.ParallelogramCoil(C2.r, C2.z, C2.width, C2.height, 0.0, 90.0; C2.turns)
-        return VacuumFields.mutual(C1, PC; xorder, yorder)
+    elseif green_model == :quad # high-fidelity
+        return VacuumFields.mutual(C1, C2.imas; xorder, yorder)
 
     else
         error("$(typeof(C2)) green_model can only be (in order of accuracy) :realistic, :corners, :simple, and :point")

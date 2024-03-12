@@ -3,7 +3,7 @@ import VacuumFields
 #= ====================== =#
 #  ActorVerticalStability  #
 #= ====================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -49,7 +49,7 @@ function _step(actor::ActorVerticalStability)
     bd = dd.build
     eqt = dd.equilibrium.time_slice[]
     Ip = eqt.global_quantities.ip
-    active_coils = IMAS_pf_active__coils(dd; green_model=:realistic)
+    active_coils = IMAS_pf_active__coils(dd; green_model=:quad)
 
     # Defaults
     actor.stability_margin, actor.normalized_growth_rate = NaN, NaN
