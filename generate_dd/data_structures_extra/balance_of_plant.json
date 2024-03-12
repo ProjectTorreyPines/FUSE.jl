@@ -11,251 +11,6 @@
   "type": "dynamic",
   "units": "-"
  },
- "balance_of_plant.heat_transfer.breeder.HX_outlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the outlet heat exchanger before the breeder circulator",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.breeder.circulator_power": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Power required to circulate breeder fluid",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.breeder.excess_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "The amount the breeder will have to cool before being re-circulated",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.breeder.flow_rate": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Mass flow rate of working fluid",
-  "type": "dynamic",
-  "units": "kg/s"
- },
- "balance_of_plant.heat_transfer.breeder.heat_delivered": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Heat power supplied from to power cycle from the breeder fluid ",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.breeder.heat_load": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Neutron power absorbed by the breeder",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.breeder.heat_waste": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the outlet of the breeder",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.breeder.inlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the inlet to the wall ",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.breeder.outlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the outlet of the wall",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.breeder.working_fluid": {
-  "data_type": "STR_0D",
-  "documentation": "Working Fluid of the system",
-  "type": "static"
- },
- "balance_of_plant.heat_transfer.divertor.HX_outlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the outlet heat exchanger before the divertor circulator",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.divertor.circulator_power": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Power required to circulate divertor fluid",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.divertor.flow_rate": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Mass flow rate of working fluid",
-  "type": "dynamic",
-  "units": "kg/s"
- },
- "balance_of_plant.heat_transfer.divertor.heat_delivered": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Heat power supplied from to power cycle from the divertor fluid ",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.divertor.heat_load": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Heat power absorbed by the system within the divertor",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.divertor.heat_waste": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Heat that is unable to be transferred to the cycle",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.divertor.inlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the inlet to the divertor",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.divertor.outlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the outlet of the divertor",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.divertor.working_fluid": {
-  "data_type": "STR_0D",
-  "documentation": "Working Fluid of the divertor",
-  "type": "static"
- },
- "balance_of_plant.heat_transfer.wall.HX_outlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the outlet heat exchanger before the wall circulator",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.wall.circulator_power": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Power required to circulate wall fluid",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.wall.flow_rate": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Mass flow rate of working fluid",
-  "type": "dynamic",
-  "units": "kg/s"
- },
- "balance_of_plant.heat_transfer.wall.heat_delivered": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Heat power supplied from to power cycle from the wall fluid ",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.wall.heat_load": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Heat power absorbed by the coolant within the wall",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.wall.heat_waste": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the outlet of the wall",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.heat_transfer.wall.inlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the inlet to the wall",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.wall.outlet_temperature": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Temperature of working fluid at the outlet of the wall",
-  "type": "dynamic",
-  "units": "K"
- },
- "balance_of_plant.heat_transfer.wall.working_fluid": {
-  "data_type": "STR_0D",
-  "documentation": "Working Fluid of the wall",
-  "type": "static"
- },
- "balance_of_plant.power_cycle_type": {
-  "data_type": "STR_0D",
-  "documentation": "Thermodynamic power cycle used for electricity generation",
-  "type": "static"
- },
  "balance_of_plant.power_electric_net": {
   "coordinates": [
    "balance_of_plant.time"
@@ -312,16 +67,7 @@
   "type": "dynamic",
   "units": "W"
  },
- "balance_of_plant.thermal_cycle.flow_rate": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Mass flow rate of the working fluid in the power cycle",
-  "type": "dynamic",
-  "units": "kg/s"
- },
- "balance_of_plant.thermal_cycle.generator_conversion_efficiency": {
+ "balance_of_plant.power_plant.generator_conversion_efficiency": {
   "coordinates": [
    "balance_of_plant.time"
   ],
@@ -330,102 +76,126 @@
   "type": "dynamic",
   "units": "-"
  },
- "balance_of_plant.thermal_cycle.heat_waste": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Heat rejected from thermal cycle",
-  "type": "dynamic",
-  "units": "W"
+ "balance_of_plant.power_plant.power_cycle_type": {
+  "data_type": "STR_0D",
+  "documentation": "Type of primary power cycle, :brayton = gas, :rankine = steam",
+  "type": "static"
  },
- "balance_of_plant.thermal_cycle.input_work": {
+ "balance_of_plant.power_plant.power_electric_generated": {
   "coordinates": [
    "balance_of_plant.time"
   ],
   "data_type": "FLT_1D",
-  "documentation": "Total mechanical work required for pumps and compressors in the power cycle",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.thermal_cycle.net_work": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Net mechanical work input to electric generator",
-  "type": "dynamic",
-  "units": "W"
- },
- "balance_of_plant.thermal_cycle.power_electric_generated": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Total electric power coming out of the electric generator",
+  "documentation": "The net electric power produced by the thermal plant, equal tot the power produced by turbines LESS the power consumed by pumps and compressors",
   "timebasepath": "/time",
   "type": "dynamic",
   "units": "W"
  },
- "balance_of_plant.thermal_cycle.system": {
-  "coordinates": [
-   "1...N"
-  ],
-  "data_type": "STRUCT_ARRAY",
-  "documentation": "List of thermal cycle systems"
- },
- "balance_of_plant.thermal_cycle.system[:].efficiency_reclaim": {
-  "data_type": "FLT_1D",
-  "documentation": "Reclaiment efficiency of the energy flow of the system",
-  "lifecycle_status": "active",
-  "timebasepath": "/time",
-  "type": "dynamic",
-  "units": "-"
- },
- "balance_of_plant.thermal_cycle.system[:].index": {
+ "balance_of_plant.power_plant.system[:].component[:].index": {
   "data_type": "INT_0D",
   "documentation": "Index of the system, used to generate functions",
   "type": "static"
  },
- "balance_of_plant.thermal_cycle.system[:].name": {
+ "balance_of_plant.power_plant.system[:].component[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the component",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].massflow": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Mass Flow Rate of the fluid",
+  "type": "dynamic",
+  "units": "kg/s"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].mechanicalPower": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Shaft power associated with the component, (+) = into the system, (-) = out of the system",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the port",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].pressure": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Fluid pressure",
+  "type": "dynamic",
+  "units": "Bar"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].temperature": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Fluid Temperature",
+  "type": "dynamic",
+  "units": "C"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].thermalPower": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Heattransfer rate of the component, (+) = into the system, (-) = out of the system",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_plant.system[:].index": {
+  "data_type": "INT_0D",
+  "documentation": "Index of the system, used to generate functions",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.system[:].name": {
   "data_type": "STR_0D",
   "documentation": "Name of the system",
   "type": "static"
  },
- "balance_of_plant.thermal_cycle.system[:].power_in": {
+ "balance_of_plant.power_plant.total_heat_rejected": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
   "data_type": "FLT_1D",
-  "documentation": "Heat flow rate from the system to the steam cycle",
-  "lifecycle_status": "active",
+  "documentation": "The total heat flow being rejected from the thermal plant",
   "timebasepath": "/time",
   "type": "dynamic",
   "units": "W"
  },
- "balance_of_plant.thermal_cycle.thermal_efficiency": {
+ "balance_of_plant.power_plant.total_heat_supplied": {
   "coordinates": [
    "balance_of_plant.time"
   ],
   "data_type": "FLT_1D",
-  "documentation": "Fractional thermal effeciency of power cycle",
-  "type": "dynamic",
-  "units": "-"
- },
- "balance_of_plant.thermal_cycle.total_useful_heat_power": {
-  "coordinates": [
-   "balance_of_plant.time"
-  ],
-  "data_type": "FLT_1D",
-  "documentation": "Total thermal power supplied from the divertor, wall and breeder",
+  "documentation": "The total heat flow being supplied to the thermal Plant (Fusion thermal power).",
+  "timebasepath": "/time",
   "type": "dynamic",
   "units": "W"
  },
- "balance_of_plant.thermal_cycle.turbine_work": {
+ "balance_of_plant.thermal_efficiency_cycle": {
   "coordinates": [
    "balance_of_plant.time"
   ],
   "data_type": "FLT_1D",
-  "documentation": "Total mechanical work output of the thermal cycle",
-  "type": "dynamic",
-  "units": "W"
+  "documentation": "The fractional thermal effiency of the power cycle. Calculated as 1-Q_out/Q_in",
+  "type": "dynamic"
+ },
+ "balance_of_plant.thermal_efficiency_plant": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "The fractional thermal effiency of the entire BOP thermal plant, inlcudes all of the individual cycles. Calculated as 1-Q_out/Q_in",
+  "type": "dynamic"
  },
  "balance_of_plant.time": {
   "units": "s",
