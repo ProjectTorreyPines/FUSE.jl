@@ -1,0 +1,20 @@
+{
+ "ec_launchers.beam[:].available_launch_power": {
+  "data_type": "FLT_0D",
+  "documentation": "Available launch power",
+  "type": "static",
+  "units": "W"
+ },
+ "ec_launchers.beam[:].efficiency.conversion": {
+  "data_type": "FLT_0D",
+  "documentation": "Conversion efficiency of electric power to microwave power",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "ec_launchers.beam[:].efficiency.transmission": {
+  "data_type": "FLT_0D",
+  "documentation": "Transmission efficiency of microwave power from generator to antenna",
+  "type": "dynamic",
+  "units": "-"
+ }
+}

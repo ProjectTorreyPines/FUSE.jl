@@ -1,0 +1,3219 @@
+{
+ "nbi": {
+  "documentation": "Neutral Beam Injection systems and description of the fast neutrals that arrive into the torus",
+  "full_path": "nbi",
+  "lifecycle_last_change": "3.33.0",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.0.4",
+  "maxoccur": "3"
+ },
+ "nbi.code": {
+  "data_type": "STRUCTURE",
+  "documentation": "Generic decription of the code-specific parameters for the code that has produced this IDS",
+  "full_path": "nbi/code",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code"
+ },
+ "nbi.code.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "nbi/code/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "nbi/code/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.library": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of external libraries used by the code that has produced this IDS",
+  "full_path": "nbi/code/library(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "library"
+ },
+ "nbi.code.library[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "nbi/code/library(i1)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.library[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "nbi/code/library(i1)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.library[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software",
+  "full_path": "nbi/code/library(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.library[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "nbi/code/library(i1)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.library[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "nbi/code/library(i1)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.library[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "nbi/code/library(i1)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software generating IDS",
+  "full_path": "nbi/code/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.output_flag": {
+  "coordinates": [
+   "nbi.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Output flag : 0 means the run is successful, other values mean some difficulty has been encountered, the exact meaning is then code specific. Negative values mean the result shall not be used.",
+  "full_path": "nbi/code/output_flag(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic"
+ },
+ "nbi.code.parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "nbi/code/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "nbi/code/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.code.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "nbi/code/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Interface Data Structure properties. This element identifies the node above as an IDS",
+  "full_path": "nbi/ids_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ids_properties"
+ },
+ "nbi.ids_properties.comment": {
+  "data_type": "STR_0D",
+  "documentation": "Any comment describing the content of this IDS",
+  "full_path": "nbi/ids_properties/comment",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.creation_date": {
+  "data_type": "STR_0D",
+  "documentation": "Date at which this data has been produced",
+  "full_path": "nbi/ids_properties/creation_date",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.homogeneous_time": {
+  "data_type": "INT_0D",
+  "documentation": "This node must be filled (with 0, 1, or 2) for the IDS to be valid. If 1, the time of this IDS is homogeneous, i.e. the time values for this IDS are stored in the time node just below the root of this IDS. If 0, the time values are stored in the various time fields at lower levels in the tree. In the case only constant or static nodes are filled within the IDS, homogeneous_time must be set to 2",
+  "full_path": "nbi/ids_properties/homogeneous_time",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.name": {
+  "data_type": "STR_0D",
+  "documentation": "User-defined name for this IDS occurrence",
+  "full_path": "nbi/ids_properties/name",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.occurrence": {
+  "data_type": "INT_0D",
+  "description": "occurrence number [NOTE: this field only exists in OMAS and is not part of the ITER PDM]",
+  "full_path": "nbi.ids_properties.occurrence"
+ },
+ "nbi.ids_properties.occurrence_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/occurrence_type_identifier.xml",
+  "documentation": "Type of data contained in this occurrence\n1) reconstruction : Equilibrium reconstruction\n2) prediction_fixed : Equilibrium prediction, fixed boundary\n3) prediction_free : Equilibrium prediction, free boundary\n4) mapping : Used for mapping equilibrium results from one grid type / resolution to another, or for including variables not present in the first set such as the calculation of magnetic field of other derived parameters",
+  "full_path": "nbi/ids_properties/occurrence_type",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "nbi.ids_properties.occurrence_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "nbi/ids_properties/occurrence_type/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.occurrence_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "nbi/ids_properties/occurrence_type/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.occurrence_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "nbi/ids_properties/occurrence_type/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information about the plugins used to write/read this IDS. This structure is filled automatically by the Access Layer at GET/PUT time, no need to fill it via a user program.",
+  "full_path": "nbi/ids_properties/plugins",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.39.0",
+  "structure_reference": "ids_plugins"
+ },
+ "nbi.ids_properties.plugins.infrastructure_get": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to GET the data",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_get",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "nbi.ids_properties.plugins.infrastructure_get.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_get/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_get.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_get/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_get.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_get/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_get.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_get/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_get.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_get/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to PUT the data",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "nbi.ids_properties.plugins.infrastructure_put.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_put/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_put.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_put/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_put.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_put/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_put.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_put/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.infrastructure_put.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "nbi/ids_properties/plugins/infrastructure_put/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which a plugin has been applied",
+  "full_path": "nbi/ids_properties/plugins/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_plugins_node",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].get_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins actually used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application). This information is filled by the plugin infrastructure during the GET operation.",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/get_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "nbi.ids_properties.plugins.node[:].get_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/get_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].get_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/get_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].get_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/get_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].get_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/get_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].get_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/get_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].get_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/get_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the plugin applies to the whole IDS.",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "nbi.ids_properties.plugins.node[:].put_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins used to PUT a node (potentially, multiple plugins can be applied, if so they are listed by order of application)",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/put_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "nbi.ids_properties.plugins.node[:].put_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/put_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].put_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/put_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].put_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/put_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].put_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/put_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].put_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/put_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].put_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/put_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].readback": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins to be used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application) ",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/readback(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "nbi.ids_properties.plugins.node[:].readback[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/readback(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].readback[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/readback(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].readback[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/readback(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].readback[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/readback(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].readback[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/readback(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.plugins.node[:].readback[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "nbi/ids_properties/plugins/node(i1)/readback(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.provenance": {
+  "data_type": "STRUCTURE",
+  "documentation": "Provenance information about this IDS",
+  "full_path": "nbi/ids_properties/provenance",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.34.0",
+  "structure_reference": "ids_provenance"
+ },
+ "nbi.ids_properties.provenance.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which the provenance is given. The provenance information applies to the whole structure below the IDS node. For documenting provenance information for the whole IDS, set the size of this array of structure to 1 and leave the child \"path\" node empty",
+  "full_path": "nbi/ids_properties/provenance/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_provenance_node",
+  "type": "constant"
+ },
+ "nbi.ids_properties.provenance.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the provenance information applies to the whole IDS.",
+  "full_path": "nbi/ids_properties/provenance/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "nbi.ids_properties.provenance.node[:].sources": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "List of sources used to import or calculate this node, identified as explained below. In case the node is the result of of a calculation / data processing, the source is an input to the process described in the \"code\" structure at the root of the IDS. The source can be an IDS (identified by a URI or a persitent identifier, see syntax in the link below) or non-IDS data imported directly from an non-IMAS database (identified by the command used to import the source, or the persistent identifier of the data source). Often data are obtained by a chain of processes, however only the last process input are recorded here. The full chain of provenance has then to be reconstructed recursively from the provenance information contained in the data sources.",
+  "full_path": "nbi/ids_properties/provenance/node(i1)/sources(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IMAS-URI-scheme.md"
+ },
+ "nbi.ids_properties.provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "nbi/ids_properties/provider",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...). Superseeded by the new provenance structure.",
+  "full_path": "nbi/ids_properties/source",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.34.0",
+  "type": "constant"
+ },
+ "nbi.ids_properties.version_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Version of the access layer package used to PUT this IDS",
+  "full_path": "nbi/ids_properties/version_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "version_dd_al"
+ },
+ "nbi.ids_properties.version_put.access_layer": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Access Layer used to PUT this IDS",
+  "full_path": "nbi/ids_properties/version_put/access_layer",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.version_put.access_layer_language": {
+  "data_type": "STR_0D",
+  "documentation": "Programming language of the Access Layer high level API used to PUT this IDS",
+  "full_path": "nbi/ids_properties/version_put/access_layer_language",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.ids_properties.version_put.data_dictionary": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Data Dictionary used to PUT this IDS",
+  "full_path": "nbi/ids_properties/version_put/data_dictionary",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.latency": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper bound of the delay between input command received from the RT network and actuator starting to react. Applies globally to the system described by this IDS unless specific latencies (e.g. channel-specific or antenna-specific) are provided at a deeper level in the IDS structure.",
+  "full_path": "nbi/latency",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "nbi.latency_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"latency\"",
+  "full_path": "nbi/latency_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.latency_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"latency\"",
+  "full_path": "nbi/latency_error_lower",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "nbi.latency_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"latency\"",
+  "full_path": "nbi/latency_error_upper",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "nbi.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Generic time",
+  "full_path": "nbi/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "nbi.unit": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "The NBI system is described as a set of units of which the power can be controlled individually.",
+  "full_path": "nbi/unit(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "32",
+  "structure_reference": "nbi_unit"
+ },
+ "nbi.unit[:].aperture": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Description of a set of collimating apertures through which the beam is launched",
+  "full_path": "nbi/unit(i1)/aperture(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "detector_aperture"
+ },
+ "nbi.unit[:].aperture[:].centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "If geometry_type=2, coordinates of the centre of the circle. If geometry_type=1 or 3, coordinates of the origin of the local coordinate system (X1,X2,X3) describing the plane detector/aperture. This origin is located within the detector/aperture area.",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "nbi.unit[:].aperture[:].centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].aperture[:].centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].aperture[:].centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].aperture[:].centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].geometry_type": {
+  "data_type": "INT_0D",
+  "documentation": "Type of geometry used to describe the surface of the detector or aperture (1:'outline', 2:'circular', 3:'rectangle'). In case of 'outline', the surface is described by an outline of point in a local coordinate system defined by a centre and three unit vectors X1, X2, X3. Note that there is some flexibility here and the data provider should choose the most convenient coordinate system for the object, respecting the definitions of (X1,X2,X3) indicated below. In case of 'circular', the surface is a circle defined by its centre, radius, and normal vector oriented towards the plasma X3.  In case of 'rectangle', the surface is a rectangle defined by its centre, widths in the X1 and X2 directions, and normal vector oriented towards the plasma X3.",
+  "full_path": "nbi/unit(i1)/aperture(i2)/geometry_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "nbi.unit[:].aperture[:].outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the detector/aperture in the (X1, X2) coordinate system. Do NOT repeat the first point.",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "nbi.unit[:].aperture[:].outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].outline.x2": {
+  "coordinates": [
+   "nbi.unit[:].aperture[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].outline.x2_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].aperture[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].outline.x2_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].aperture[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type = 2",
+  "full_path": "nbi/unit(i1)/aperture(i2)/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the detector/aperture, derived from the above geometric data",
+  "full_path": "nbi/unit(i1)/aperture(i2)/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "nbi.unit[:].aperture[:].surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "nbi.unit[:].aperture[:].surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X1 direction, used only if geometry_type = 3",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X2 direction, used only if geometry_type = 3",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the detector/aperture plane and oriented towards the plasma.",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].aperture[:].x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/aperture(i2)/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beam_current_fraction": {
+  "coordinates": [
+   "1...3",
+   "nbi.unit[:].beam_current_fraction.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Fractions of beam current distributed among the different energies, the first index corresponds to the fast neutrals energy (1:full, 2: half, 3: one third)",
+  "full_path": "nbi/unit(i1)/beam_current_fraction",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "-"
+ },
+ "nbi.unit[:].beam_current_fraction.data": {
+  "coordinates": [
+   "1...N",
+   "nbi.unit[:].beam_current_fraction.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "nbi/unit(i1)/beam_current_fraction/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "beam_current_fraction/time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "nbi.unit[:].beam_current_fraction.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "nbi/unit(i1)/beam_current_fraction/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beam_current_fraction.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "nbi.unit[:].beam_current_fraction.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "nbi/unit(i1)/beam_current_fraction/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "beam_current_fraction/time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "nbi.unit[:].beam_current_fraction.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "nbi.unit[:].beam_current_fraction.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "nbi/unit(i1)/beam_current_fraction/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "beam_current_fraction/time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "nbi.unit[:].beam_current_fraction.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "nbi/unit(i1)/beam_current_fraction/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "beam_current_fraction/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "nbi.unit[:].beam_power_fraction": {
+  "coordinates": [
+   "1...3",
+   "nbi.unit[:].beam_power_fraction.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Fractions of beam power distributed among the different energies, the first index corresponds to the fast neutrals energy (1:full, 2: half, 3: one third)",
+  "full_path": "nbi/unit(i1)/beam_power_fraction",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "-"
+ },
+ "nbi.unit[:].beam_power_fraction.data": {
+  "coordinates": [
+   "1...N",
+   "nbi.unit[:].beam_power_fraction.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "nbi/unit(i1)/beam_power_fraction/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "beam_power_fraction/time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "nbi.unit[:].beam_power_fraction.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "nbi/unit(i1)/beam_power_fraction/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beam_power_fraction.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "nbi.unit[:].beam_power_fraction.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "nbi/unit(i1)/beam_power_fraction/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "beam_power_fraction/time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "nbi.unit[:].beam_power_fraction.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "nbi.unit[:].beam_power_fraction.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "nbi/unit(i1)/beam_power_fraction/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "beam_power_fraction/time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "nbi.unit[:].beam_power_fraction.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "nbi/unit(i1)/beam_power_fraction/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "beam_power_fraction/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "nbi.unit[:].beamlets_group": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Group of beamlets with common vertical and horizontal focal point. If there are no common focal points, then select small groups of beamlets such that a focal point description of the beamlets group provides a fair description. Beamlet groups are assumed to be Gaussian.",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "16",
+  "structure_reference": "nbi_unit_beamlets_group"
+ },
+ "nbi.unit[:].beamlets_group[:].angle": {
+  "data_type": "FLT_0D",
+  "documentation": "Angle of inclination between a beamlet at the centre of the injection unit surface and the horiontal plane",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/angle",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].angle_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"angle\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/angle_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].angle_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"angle\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/angle_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].angle_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"angle\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/angle_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets": {
+  "data_type": "STRUCTURE",
+  "documentation": "Detailed information on beamlets",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets",
+  "lifecycle_status": "alpha",
+  "structure_reference": "nbi_unit_beamlets_group_beamlets"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.angles": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Angle of inclination between a line at the centre of a beamlet and the horizontal plane, for each beamlet",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/angles(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.angles_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"angles\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/angles_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.angles_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"angles\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/angles_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.angles_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"angles\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/angles_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions": {
+  "cocos_label_transformation": "tor_angle_like",
+  "cocos_leaf_name_aos_indices": "nbi.unit{i}.beamlets_group{j}.beamlets.positions.phi",
+  "cocos_transformation_expression": ".sigma_rphiz_eff",
+  "data_type": "STRUCTURE",
+  "documentation": "Position of each beamlet",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi1d_static"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.phi": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/phi(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.phi_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/phi_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.phi_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/phi_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.r": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/r(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.r_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/r_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.r_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/r_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.z": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Height",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/z(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.z_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/z_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.positions.z_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/positions/z_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.power_fractions": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Fraction of power of a unit injected by each beamlet",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/power_fractions(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.power_fractions_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"power_fractions\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/power_fractions_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.power_fractions_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"power_fractions\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/power_fractions_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.power_fractions_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"power_fractions\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/power_fractions_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.tangency_radii": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Tangency radius (major radius where the central line of a beamlet is tangent to a circle around the torus), for each beamlet",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/tangency_radii(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.tangency_radii_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"tangency_radii\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/tangency_radii_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.tangency_radii_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"tangency_radii\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/tangency_radii_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].beamlets.tangency_radii_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].beamlets.positions.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"tangency_radii\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/beamlets/tangency_radii_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].direction": {
+  "cocos_label_transformation": "tor_angle_like",
+  "cocos_leaf_name_aos_indices": "nbi.unit{i}.beamlets_group{j}.direction",
+  "cocos_transformation_expression": ".sigma_rphiz_eff",
+  "data_type": "INT_0D",
+  "documentation": "Direction of the beam seen from above the torus: -1 = clockwise; 1 = counter clockwise",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/direction",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Detailed information on beamlet divergence. Divergence is described as a superposition of Gaussian components with amplitide \"particles_fraction\" and vertical/horizontal divergence. Note that for positive ion NBI the divergence is well described by a single Gaussian",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "3",
+  "structure_reference": "nbi_unit_beamlets_group_divergence"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].horizontal": {
+  "data_type": "FLT_0D",
+  "documentation": "The horiztonal beamlet divergence of the component. Here the divergence is defined for Gaussian beams as the angel where the beam density is reduced by a factor 1/e compared to the maximum density. For non-Gaussian beams the divergence is sqrt(2)*mean((x-mean(x))**2), where x is the angle and the mean should be performed over the beam density, P(x): mean(y)=int(y*P(x)*dx).",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/horizontal",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].horizontal_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/horizontal_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].horizontal_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/horizontal_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].horizontal_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/horizontal_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].particles_fraction": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of injected particles in the component",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/particles_fraction",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].particles_fraction_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"particles_fraction\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/particles_fraction_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].particles_fraction_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"particles_fraction\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/particles_fraction_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].particles_fraction_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"particles_fraction\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/particles_fraction_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].vertical": {
+  "data_type": "FLT_0D",
+  "documentation": "The vertical beamlet divergence of the component. Here the divergence is defined for Gaussian beams as the angel where the beam density is reduced by a factor 1/e compared to the maximum density. For non-Gaussian beams the divergence is sqrt(2)*mean((x-mean(x))**2), where x is the angle and the mean should be performed over the beam density, P(x): mean(y)=int(y*P(x)*dx).",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/vertical",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].vertical_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/vertical_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].vertical_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/vertical_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].divergence_component[:].vertical_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/divergence_component(i3)/vertical_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].focus": {
+  "data_type": "STRUCTURE",
+  "documentation": "Describes how the beamlet group is focused. Calculations of width_min_horizontal and width_min_vertical are on a plane defined by the average normal vector of the two constituent accelerator nbi target planes.",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus",
+  "lifecycle_status": "alpha",
+  "structure_reference": "nbi_unit_beamlets_group_focus"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.focal_length_horizontal": {
+  "data_type": "FLT_0D",
+  "documentation": "Horizontal focal length along the beam line, i.e. the point along the centre of the beamlet-group where the beamlet-group has its minimum horizontal width",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/focal_length_horizontal",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.focal_length_horizontal_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"focal_length_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/focal_length_horizontal_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.focal_length_horizontal_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"focal_length_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/focal_length_horizontal_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.focal_length_horizontal_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"focal_length_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/focal_length_horizontal_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.focal_length_vertical": {
+  "data_type": "FLT_0D",
+  "documentation": "Vertical focal length along the beam line, i.e. the point along the centre of the beamlet-group where the beamlet-group has its minimum vertical width",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/focal_length_vertical",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.focal_length_vertical_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"focal_length_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/focal_length_vertical_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.focal_length_vertical_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"focal_length_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/focal_length_vertical_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.focal_length_vertical_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"focal_length_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/focal_length_vertical_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.width_min_horizontal": {
+  "data_type": "FLT_0D",
+  "documentation": "The horizontal width (Full Width at Half Maximum) of the beamlets group at the horizontal focal point",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/width_min_horizontal",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.width_min_horizontal_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"width_min_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/width_min_horizontal_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.width_min_horizontal_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"width_min_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/width_min_horizontal_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.width_min_horizontal_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"width_min_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/width_min_horizontal_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.width_min_vertical": {
+  "data_type": "FLT_0D",
+  "documentation": "The vertical width (Full Width at Half Maximum) of the beamlets group at the vertical focal point",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/width_min_vertical",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.width_min_vertical_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"width_min_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/width_min_vertical_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.width_min_vertical_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"width_min_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/width_min_vertical_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].focus.width_min_vertical_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"width_min_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/focus/width_min_vertical_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].position": {
+  "cocos_label_transformation": "tor_angle_like",
+  "cocos_leaf_name_aos_indices": "nbi.unit{i}.beamlets_group{j}.position.phi",
+  "cocos_transformation_expression": ".sigma_rphiz_eff",
+  "data_type": "STRUCTURE",
+  "documentation": "R, Z, Phi position of the beamlet group centre",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "nbi.unit[:].beamlets_group[:].position.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].position.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].position.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].position.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].position.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].position.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].position.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].position.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].position.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].position.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].position.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].position.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/position/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tangency_radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Tangency radius (major radius where the central line of a NBI unit is tangent to a circle around the torus)",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tangency_radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tangency_radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"tangency_radius\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tangency_radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].tangency_radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"tangency_radius\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tangency_radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tangency_radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"tangency_radius\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tangency_radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting": {
+  "coordinates": [
+   "nbi.unit[:].beamlets_group[:].tilting[:].time"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "In case of dynamic beam tilting (i.e. during the pulse), e.g. for some Beam Emission Spectroscopy use cases, variations of position, tangency radius and angle with respect to their static value, for various time slices",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "unbounded",
+  "structure_reference": "nbi_unit_beamlets_group_tilting",
+  "timebasepath": "time",
+  "type": "dynamic"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_angle": {
+  "data_type": "FLT_0D",
+  "documentation": "Variation of the angle of inclination between a beamlet at the centre of the injection unit surface and the horiontal plane",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_angle",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_angle_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"delta_angle\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_angle_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_angle_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"delta_angle\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_angle_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_angle_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"delta_angle\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_angle_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position": {
+  "data_type": "STRUCTURE",
+  "documentation": "Variation of the position of the beamlet group centre",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_dynamic_aos3"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/phi",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/r",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/z",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_position.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_position/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_tangency_radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Variation of the tangency radius (major radius where the central line of a NBI unit is tangent to a circle around the torus)",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_tangency_radius",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_tangency_radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"delta_tangency_radius\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_tangency_radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_tangency_radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"delta_tangency_radius\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_tangency_radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].delta_tangency_radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"delta_tangency_radius\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/delta_tangency_radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].tilting[:].time": {
+  "data_type": "FLT_0D",
+  "documentation": "Time",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/tilting(itime)/time",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "nbi.unit[:].beamlets_group[:].width_horizontal": {
+  "data_type": "FLT_0D",
+  "documentation": "Horizontal width (dimensions of the smallest rectangle that surrounds the outer dimensions of the beamlets) of the beamlet group at the injection unit surface (or grounded grid) ",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/width_horizontal",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].width_horizontal_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"width_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/width_horizontal_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].width_horizontal_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"width_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/width_horizontal_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].width_horizontal_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"width_horizontal\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/width_horizontal_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].width_vertical": {
+  "data_type": "FLT_0D",
+  "documentation": "Vertical width (dimensions of the smallest rectangle that surrounds the outer dimensions of the beamlets) of the beamlet group at the injection unit surface (or grounded grid)",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/width_vertical",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].width_vertical_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"width_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/width_vertical_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].beamlets_group[:].width_vertical_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"width_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/width_vertical_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].beamlets_group[:].width_vertical_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"width_vertical\"",
+  "full_path": "nbi/unit(i1)/beamlets_group(i2)/width_vertical_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].energy": {
+  "data_type": "STRUCTURE",
+  "documentation": "Full energy of the injected species (acceleration of a single atom)",
+  "full_path": "nbi/unit(i1)/energy",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_1d",
+  "units": "eV"
+ },
+ "nbi.unit[:].energy.data": {
+  "coordinates": [
+   "nbi.unit[:].energy.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Data",
+  "full_path": "nbi/unit(i1)/energy/data(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "energy/time",
+  "type": "dynamic",
+  "units": "eV"
+ },
+ "nbi.unit[:].energy.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "nbi/unit(i1)/energy/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].energy.data_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].energy.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "nbi/unit(i1)/energy/data_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "energy/time",
+  "type": "dynamic",
+  "units": "eV"
+ },
+ "nbi.unit[:].energy.data_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].energy.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "nbi/unit(i1)/energy/data_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "energy/time",
+  "type": "dynamic",
+  "units": "eV"
+ },
+ "nbi.unit[:].energy.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "nbi/unit(i1)/energy/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "energy/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "nbi.unit[:].identifier": {
+  "data_type": "STR_0D",
+  "documentation": "ID of the NBI unit",
+  "full_path": "nbi/unit(i1)/identifier",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "nbi.unit[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the NBI unit",
+  "full_path": "nbi/unit(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "nbi.unit[:].power_launched": {
+  "data_type": "STRUCTURE",
+  "documentation": "Power launched from this unit into the vacuum vessel",
+  "full_path": "nbi/unit(i1)/power_launched",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_1d",
+  "units": "W"
+ },
+ "nbi.unit[:].power_launched.data": {
+  "coordinates": [
+   "nbi.unit[:].power_launched.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Data",
+  "full_path": "nbi/unit(i1)/power_launched/data(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power_launched/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "nbi.unit[:].power_launched.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "nbi/unit(i1)/power_launched/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].power_launched.data_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].power_launched.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "nbi/unit(i1)/power_launched/data_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power_launched/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "nbi.unit[:].power_launched.data_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].power_launched.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "nbi/unit(i1)/power_launched/data_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power_launched/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "nbi.unit[:].power_launched.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "nbi/unit(i1)/power_launched/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power_launched/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "nbi.unit[:].source": {
+  "data_type": "STRUCTURE",
+  "documentation": "Description of the surface of the ion source from which the beam is extracted",
+  "full_path": "nbi/unit(i1)/source",
+  "lifecycle_status": "alpha",
+  "structure_reference": "detector_aperture"
+ },
+ "nbi.unit[:].source.centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "If geometry_type=2, coordinates of the centre of the circle. If geometry_type=1 or 3, coordinates of the origin of the local coordinate system (X1,X2,X3) describing the plane detector/aperture. This origin is located within the detector/aperture area.",
+  "full_path": "nbi/unit(i1)/source/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "nbi.unit[:].source.centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "nbi/unit(i1)/source/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].source.centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "nbi/unit(i1)/source/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "nbi/unit(i1)/source/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].source.centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "nbi/unit(i1)/source/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "nbi.unit[:].source.centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "nbi/unit(i1)/source/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "nbi/unit(i1)/source/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "nbi/unit(i1)/source/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "nbi/unit(i1)/source/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "nbi/unit(i1)/source/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/source/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/source/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/source/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.geometry_type": {
+  "data_type": "INT_0D",
+  "documentation": "Type of geometry used to describe the surface of the detector or aperture (1:'outline', 2:'circular', 3:'rectangle'). In case of 'outline', the surface is described by an outline of point in a local coordinate system defined by a centre and three unit vectors X1, X2, X3. Note that there is some flexibility here and the data provider should choose the most convenient coordinate system for the object, respecting the definitions of (X1,X2,X3) indicated below. In case of 'circular', the surface is a circle defined by its centre, radius, and normal vector oriented towards the plasma X3.  In case of 'rectangle', the surface is a rectangle defined by its centre, widths in the X1 and X2 directions, and normal vector oriented towards the plasma X3.",
+  "full_path": "nbi/unit(i1)/source/geometry_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "nbi.unit[:].source.outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the detector/aperture in the (X1, X2) coordinate system. Do NOT repeat the first point.",
+  "full_path": "nbi/unit(i1)/source/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "nbi.unit[:].source.outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "nbi/unit(i1)/source/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "nbi/unit(i1)/source/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "nbi/unit(i1)/source/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "nbi/unit(i1)/source/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.outline.x2": {
+  "coordinates": [
+   "nbi.unit[:].source.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "nbi/unit(i1)/source/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "nbi/unit(i1)/source/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.outline.x2_error_lower": {
+  "coordinates": [
+   "nbi.unit[:].source.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "nbi/unit(i1)/source/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.outline.x2_error_upper": {
+  "coordinates": [
+   "nbi.unit[:].source.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "nbi/unit(i1)/source/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type = 2",
+  "full_path": "nbi/unit(i1)/source/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "nbi/unit(i1)/source/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "nbi/unit(i1)/source/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "nbi/unit(i1)/source/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the detector/aperture, derived from the above geometric data",
+  "full_path": "nbi/unit(i1)/source/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "nbi.unit[:].source.surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "nbi/unit(i1)/source/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "nbi/unit(i1)/source/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "nbi.unit[:].source.surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "nbi/unit(i1)/source/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "nbi.unit[:].source.x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "nbi.unit[:].source.x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X1 direction, used only if geometry_type = 3",
+  "full_path": "nbi/unit(i1)/source/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "nbi/unit(i1)/source/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "nbi/unit(i1)/source/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "nbi/unit(i1)/source/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "nbi.unit[:].source.x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X2 direction, used only if geometry_type = 3",
+  "full_path": "nbi/unit(i1)/source/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "nbi/unit(i1)/source/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "nbi/unit(i1)/source/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "nbi/unit(i1)/source/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the detector/aperture plane and oriented towards the plasma.",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "nbi.unit[:].source.x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].source.x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].source.x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "nbi/unit(i1)/source/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "nbi.unit[:].species": {
+  "data_type": "STRUCTURE",
+  "documentation": "Injected species",
+  "full_path": "nbi/unit(i1)/species",
+  "lifecycle_status": "alpha",
+  "structure_reference": "plasma_composition_species"
+ },
+ "nbi.unit[:].species.a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "nbi/unit(i1)/species/a",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "nbi.unit[:].species.a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "nbi/unit(i1)/species/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].species.a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "nbi/unit(i1)/species/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "nbi.unit[:].species.a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "nbi/unit(i1)/species/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "nbi.unit[:].species.label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying the species (e.g. H, D, T, ...)",
+  "full_path": "nbi/unit(i1)/species/label",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "nbi.unit[:].species.z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "nbi/unit(i1)/species/z_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "nbi.unit[:].species.z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "nbi/unit(i1)/species/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "nbi.unit[:].species.z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "nbi/unit(i1)/species/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "nbi.unit[:].species.z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "nbi/unit(i1)/species/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ }
+}

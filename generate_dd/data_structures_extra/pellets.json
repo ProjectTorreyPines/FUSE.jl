@@ -1,0 +1,67 @@
+{
+ "pellets.launcher": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of pellets ablated in the plasma at a given time"
+ },
+ "pellets.launcher[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the launcher (unique within the set of all launchers of the experiment)"
+ },
+ "pellets.launcher[:].shape": {
+  "data_type": "STRUCTURE",
+  "documentation": "Initial shape of a pellet at launch"
+ },
+ "pellets.launcher[:].shape.size": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Size of the pellet in the various dimensions, depending on the shape type. Spherical pellets: size(1) is the radius of the pellet. Cylindrical pellets: size(1) is the radius and size(2) is the height of the cylinder. Rectangular pellets: size(1) is the height, size(2) is the width and size(3) is the length"
+ },
+ "pellets.launcher[:].shape.type": {
+  "data_type": "STRUCTURE",
+  "documentation": "Identifier structure for the shape type: 1-spherical; 2-cylindrical; 3-rectangular"
+ },
+ "pellets.launcher[:].shape.type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description"
+ },
+ "pellets.launcher[:].shape.type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index."
+ },
+ "pellets.launcher[:].shape.type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier"
+ },
+ "pellets.launcher[:].species": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of atomic species included in the pellet composition"
+ },
+ "pellets.launcher[:].species[:].a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "units": "Atomic Mass Unit"
+ },
+ "pellets.launcher[:].species[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying the species (e.g. H, D, T, ...)"
+ },
+ "pellets.launcher[:].species[:].z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "units": "Elementary Charge Unit"
+ },
+ "pellets.time_slice[:].pellet[:].frequency": {
+  "data_type": "FLT_0D",
+  "documentation": "Frequency of pellets launched",
+  "type": "static",
+  "units": "Hz"
+ }
+}

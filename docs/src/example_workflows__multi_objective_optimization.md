@@ -4,7 +4,6 @@
 
 
 ```@julia
-#@time using WarmupFUSE
 @time using FUSE
 using Plots;
 gr();
@@ -32,7 +31,6 @@ finally
 end
 display(pwd())
 using Distributed
-#@everywhere import WarmupFUSE
 @everywhere import FUSE
 ```
 

@@ -71,7 +71,6 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.core_profiles.greenwald_fraction = 0.45
     ini.core_profiles.greenwald_fraction_ped = 0.366
-    ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.T_ratio = 0.6
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9

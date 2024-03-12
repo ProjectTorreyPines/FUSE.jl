@@ -1,0 +1,24 @@
+{
+ "controllers.controllability_metrics[:].data": {
+  "data_type": "FLT_1D",
+  "documentation": "Array of scalar metrics in time ",
+  "units": "-"
+ },
+ "controllers.controllability_metrics[:].identifier.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description"
+ },
+ "controllers.controllability_metrics[:].identifier.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index."
+ },
+ "controllers.controllability_metrics[:].identifier.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier"
+ },
+ "controllers.controllability_metrics[:].time": {
+  "data_type": "FLT_1D",
+  "documentation": "Controlability metric time",
+  "units": "s"
+ }
+}

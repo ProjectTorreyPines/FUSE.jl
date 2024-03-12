@@ -7,7 +7,15 @@ FUSE provides this high-level `init` function to populate `dd` starting from the
 This function essentially calls all other `FUSE.init...` functions in FUSE.
 For most studies, calling this high level function is sufficient.
 """
-function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, initialize_hardware::Bool=true, restore_expressions::Bool=true)
+function init(
+    dd::IMAS.dd,
+    ini::ParametersAllInits,
+    act::ParametersAllActors;
+    do_plot::Bool=false,
+    initialize_hardware::Bool=true,
+    restore_expressions::Bool=true,
+    verbose::Bool=false
+)
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
 
@@ -27,13 +35,16 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         act = deepcopy(act)
 
         # load ods once if needed
+        verbose && @info "INIT: ini_from_ods"
         dd1 = ini_from_ods!(ini; restore_expressions)
 
         # Makes `ini` and `act` self-consistent and consistent with one another
+        verbose && @info "INIT: consistent_ini_act"
         consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
         if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
+            verbose && @info "INIT: init_pulse_schedule"
             init_pulse_schedule!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.pulse_schedule))
@@ -43,11 +54,13 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         # initialize equilibrium
         if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
             if ini.general.init_from == :ods && !isempty(dd1.pf_active.coil)
+                verbose && @info "INIT: init_pf_active"
                 init_pf_active!(dd, ini, act, dd1)
             end
             for coil in dd.pf_active.coil
                 empty!(coil.current)
             end
+            verbose && @info "INIT: init_equilibrium"
             init_equilibrium!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.equilibrium.time_slice[end]))
@@ -58,6 +71,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
 
         # initialize core profiles
         if !initialize_hardware || !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.core_profiles)
+            verbose && @info "INIT: init_core_profiles"
             init_core_profiles!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_profiles; legend=:bottomleft))
@@ -67,6 +81,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         # initialize core sources
         if !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
            !isempty(dd1.core_sources)
+            verbose && @info "INIT: init_core_sources"
             init_core_sources!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_sources; legend=:topright))
@@ -75,10 +90,12 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize currents
+        verbose && @info "INIT: init_currents"
         init_currents!(dd, ini, act, dd1)
 
         # initialize build
         if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
+            verbose && @info "INIT: init_build"
             init_build!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
@@ -90,6 +107,7 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
 
         # initialize oh and pf coils
         if initialize_hardware && (!ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active.coil))
+            verbose && @info "INIT: init_pf_active"
             init_pf_active!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
@@ -100,9 +118,11 @@ function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do
         end
 
         # initialize requirements
+        verbose && @info "INIT: init_requirements"
         init_requirements!(dd, ini, act, dd1)
 
         # initialize missing IDSs from ODS (if loading from ODS)
+        verbose && @info "INIT: init_missing_from_ods"
         init_missing_from_ods!(dd, ini, act, dd1)
 
         return dd

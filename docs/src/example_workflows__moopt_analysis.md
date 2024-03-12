@@ -2,7 +2,6 @@
 
 
 ```@julia
-#import WarmupFUSE
 using FUSE
 using Plots;
 gr();

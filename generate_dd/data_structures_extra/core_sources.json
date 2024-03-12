@@ -1,0 +1,28 @@
+{
+ "core_sources.source[:].profiles_1d[:].grid.psi_norm": {
+  "coordinates": [
+   "core_sources.source[:].profiles_1d[:].grid.rho_tor_norm"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Normalized poloidal magnetic flux",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "core_sources.source[:].profiles_1d[:].ion[:].fast_particles_energy": {
+  "data_type": "FLT_0D",
+  "documentation": "Incoming energy of the fast ion particles (eg. fusion 3.5MeV alphas or 1MeV nbi)",
+  "type": "dynamic",
+  "units": "eV"
+ },
+ "core_sources.source[:].profiles_1d[:].ion[:].particles_inside": {
+  "coordinates": [
+   "core_sources.source[:].profiles_1d[:].grid.rho_tor_norm"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Ion source inside the flux surface. Cumulative volume integral of the source term for the ion density equation.",
+  "full_path": "core_sources/source(i1)/profiles_1d(itime)/ion(i2)/particles_inside(:)",
+  "lifecycle_status": "active",
+  "type": "dynamic",
+  "units": "s^-1"
+ }
+}

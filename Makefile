@@ -128,7 +128,7 @@ revise:
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
-	@cd $(CURRENTDIR); $(foreach package,FUSE WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+	@cd $(CURRENTDIR); $(foreach package,FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
 # install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # looks for same branch name for all repositories otherwise falls back to master
@@ -213,7 +213,7 @@ undo_single_branch:
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) WarmupFUSE FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
+	make -i $(PARALLELISM) FUSE ServeFUSE FUSE_GA $(FUSE_PACKAGES_MAKEFILE)
 
 playground: .PHONY
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
@@ -288,16 +288,6 @@ BoundaryPlasmaModels:
 NEO:
 	$(call clone_pull_repo,$@)
 
-WarmupFUSE:
-	$(call clone_pull_repo,$@)
-	julia -e '\
-fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
-using Pkg;\
-Pkg.activate("../WarmupFUSE");\
-Pkg.develop([["FUSE"] ; fuse_packages]);\
-'
-
 ServeFUSE:
 	$(call clone_pull_repo,$@)
 	julia -e '\
@@ -305,6 +295,16 @@ fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate("../ServeFUSE/task_tiller");\
+Pkg.develop([["FUSE"] ; fuse_packages]);\
+'
+
+FUSE_GA:
+	$(call clone_pull_repo,$@)
+	julia -e '\
+fuse_packages = $(FUSE_PACKAGES);\
+println(fuse_packages);\
+using Pkg;\
+Pkg.activate("../FUSE_GA");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
 
@@ -464,7 +464,7 @@ rm_manifests:
 
 # update dd from the json files
 dd:
-	julia ../IMASDD/src/generate_dd.jl
+	julia generate_dd/generate_dd.jl
 
 # generates init_expressions.json file, which lists entries that are
 # always expected to be expressions when coming out of init()
@@ -478,7 +478,7 @@ using Pkg;\
 Pkg.activate();\
 Pkg.add(["JuliaFormatter"]);\
 '
-	$(foreach package,WarmupFUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
+	$(foreach package, ServeFUSE $(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
 
 # create an empty commit
 empty_commit:

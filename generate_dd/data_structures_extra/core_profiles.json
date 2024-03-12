@@ -1,0 +1,28 @@
+{
+ "core_profiles.global_quantities.polarized_fuel_fraction": {
+  "coordinates": [
+   "core_profiles.time"
+  ],
+  "data_type": "FLT_0D",
+  "full_path": "core_profiles/global_quantities/polarized_fuel_fraction(:)",
+  "units": "-"
+ },
+ "core_profiles.profiles_1d[:].grid.psi_norm": {
+  "coordinates": [
+   "core_profiles.profiles_1d[:].grid.rho_tor_norm"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Normalized poloidal magnetic flux",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "core_profiles.profiles_1d[:].pressure": {
+  "coordinates": [
+   "core_profiles.profiles_1d[:].grid.rho_tor_norm"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Total pressure",
+  "type": "dynamic",
+  "units": "Pa"
+ }
+}

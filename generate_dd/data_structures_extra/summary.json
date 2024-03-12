@@ -1,0 +1,19 @@
+{
+ "summary.heating_current_drive.power_launched_total": {
+  "data_type": "STRUCTURE",
+  "documentation": "Total power launched from EC, IC, LH and NBI into the vacuum vessel",
+  "units": "W"
+ },
+ "summary.heating_current_drive.power_launched_total.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...)"
+ },
+ "summary.heating_current_drive.power_launched_total.value": {
+  "coordinates": [
+   "summary.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Value",
+  "units": "W"
+ }
+}
