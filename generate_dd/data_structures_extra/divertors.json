@@ -1,0 +1,52 @@
+{
+ "divertors.divertor[:].power_thermal_extracted.data": {
+  "coordinates": [
+   "divertors.divertor[:].power_thermal_extracted.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Data",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "divertors.divertor[:].power_thermal_extracted.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "divertors.divertor[:].target[:].tilt_angle_tor": {
+  "data_type": "STRUCTURE",
+  "documentation": "Angle between field lines projected in toroidal plane and target, measured clockwise from the target to the projected field lines",
+  "full_path": "divertors/divertor(i1)/target(i2)/tilt_angle_tor",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_1d",
+  "units": "rad"
+ },
+ "divertors.divertor[:].target[:].tilt_angle_tor.data": {
+  "coordinates": [
+   "divertors.divertor[:].target[:].tilt_angle_tor.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Data",
+  "full_path": "divertors/divertor(i1)/target(i2)/tilt_angle_tor/data(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "tilt_angle_tor/time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "divertors.divertor[:].target[:].tilt_angle_tor.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Time",
+  "full_path": "divertors/divertor(i1)/target(i2)/tilt_angle_tor/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "tilt_angle_tor/time",
+  "type": "dynamic",
+  "units": "s"
+ }
+}

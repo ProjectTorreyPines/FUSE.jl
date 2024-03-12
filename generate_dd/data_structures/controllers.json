@@ -1,0 +1,1639 @@
+{
+ "controllers": {
+  "documentation": "Feedback and feedforward controllers",
+  "full_path": "controllers",
+  "lifecycle_last_change": "3.15.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.0.0",
+  "maxoccur": "2"
+ },
+ "controllers.code": {
+  "data_type": "STRUCTURE",
+  "documentation": "Generic decription of the code-specific parameters for the code that has produced this IDS",
+  "full_path": "controllers/code",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code"
+ },
+ "controllers.code.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "controllers/code/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "controllers/code/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.library": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of external libraries used by the code that has produced this IDS",
+  "full_path": "controllers/code/library(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "library"
+ },
+ "controllers.code.library[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "controllers/code/library(i1)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.library[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "controllers/code/library(i1)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.library[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software",
+  "full_path": "controllers/code/library(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.library[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "controllers/code/library(i1)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.library[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "controllers/code/library(i1)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.library[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "controllers/code/library(i1)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software generating IDS",
+  "full_path": "controllers/code/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.output_flag": {
+  "coordinates": [
+   "controllers.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Output flag : 0 means the run is successful, other values mean some difficulty has been encountered, the exact meaning is then code specific. Negative values mean the result shall not be used.",
+  "full_path": "controllers/code/output_flag(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic"
+ },
+ "controllers.code.parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "controllers/code/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "controllers/code/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.code.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "controllers/code/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Interface Data Structure properties. This element identifies the node above as an IDS",
+  "full_path": "controllers/ids_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ids_properties"
+ },
+ "controllers.ids_properties.comment": {
+  "data_type": "STR_0D",
+  "documentation": "Any comment describing the content of this IDS",
+  "full_path": "controllers/ids_properties/comment",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.creation_date": {
+  "data_type": "STR_0D",
+  "documentation": "Date at which this data has been produced",
+  "full_path": "controllers/ids_properties/creation_date",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.homogeneous_time": {
+  "data_type": "INT_0D",
+  "documentation": "This node must be filled (with 0, 1, or 2) for the IDS to be valid. If 1, the time of this IDS is homogeneous, i.e. the time values for this IDS are stored in the time node just below the root of this IDS. If 0, the time values are stored in the various time fields at lower levels in the tree. In the case only constant or static nodes are filled within the IDS, homogeneous_time must be set to 2",
+  "full_path": "controllers/ids_properties/homogeneous_time",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.name": {
+  "data_type": "STR_0D",
+  "documentation": "User-defined name for this IDS occurrence",
+  "full_path": "controllers/ids_properties/name",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.occurrence": {
+  "data_type": "INT_0D",
+  "description": "occurrence number [NOTE: this field only exists in OMAS and is not part of the ITER PDM]",
+  "full_path": "controllers.ids_properties.occurrence"
+ },
+ "controllers.ids_properties.occurrence_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/occurrence_type_identifier.xml",
+  "documentation": "Type of data contained in this occurrence\n1) reconstruction : Equilibrium reconstruction\n2) prediction_fixed : Equilibrium prediction, fixed boundary\n3) prediction_free : Equilibrium prediction, free boundary\n4) mapping : Used for mapping equilibrium results from one grid type / resolution to another, or for including variables not present in the first set such as the calculation of magnetic field of other derived parameters",
+  "full_path": "controllers/ids_properties/occurrence_type",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "controllers.ids_properties.occurrence_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "controllers/ids_properties/occurrence_type/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.occurrence_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "controllers/ids_properties/occurrence_type/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.occurrence_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "controllers/ids_properties/occurrence_type/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information about the plugins used to write/read this IDS. This structure is filled automatically by the Access Layer at GET/PUT time, no need to fill it via a user program.",
+  "full_path": "controllers/ids_properties/plugins",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.39.0",
+  "structure_reference": "ids_plugins"
+ },
+ "controllers.ids_properties.plugins.infrastructure_get": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to GET the data",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_get",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "controllers.ids_properties.plugins.infrastructure_get.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_get/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_get.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_get/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_get.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_get/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_get.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_get/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_get.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_get/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to PUT the data",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "controllers.ids_properties.plugins.infrastructure_put.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_put/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_put.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_put/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_put.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_put/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_put.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_put/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.infrastructure_put.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "controllers/ids_properties/plugins/infrastructure_put/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which a plugin has been applied",
+  "full_path": "controllers/ids_properties/plugins/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_plugins_node",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].get_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins actually used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application). This information is filled by the plugin infrastructure during the GET operation.",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/get_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "controllers.ids_properties.plugins.node[:].get_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/get_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].get_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/get_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].get_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/get_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].get_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/get_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].get_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/get_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].get_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/get_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the plugin applies to the whole IDS.",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "controllers.ids_properties.plugins.node[:].put_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins used to PUT a node (potentially, multiple plugins can be applied, if so they are listed by order of application)",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/put_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "controllers.ids_properties.plugins.node[:].put_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/put_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].put_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/put_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].put_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/put_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].put_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/put_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].put_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/put_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].put_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/put_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].readback": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins to be used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application) ",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/readback(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "controllers.ids_properties.plugins.node[:].readback[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/readback(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].readback[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/readback(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].readback[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/readback(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].readback[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/readback(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].readback[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/readback(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.plugins.node[:].readback[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "controllers/ids_properties/plugins/node(i1)/readback(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.provenance": {
+  "data_type": "STRUCTURE",
+  "documentation": "Provenance information about this IDS",
+  "full_path": "controllers/ids_properties/provenance",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.34.0",
+  "structure_reference": "ids_provenance"
+ },
+ "controllers.ids_properties.provenance.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which the provenance is given. The provenance information applies to the whole structure below the IDS node. For documenting provenance information for the whole IDS, set the size of this array of structure to 1 and leave the child \"path\" node empty",
+  "full_path": "controllers/ids_properties/provenance/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_provenance_node",
+  "type": "constant"
+ },
+ "controllers.ids_properties.provenance.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the provenance information applies to the whole IDS.",
+  "full_path": "controllers/ids_properties/provenance/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "controllers.ids_properties.provenance.node[:].sources": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "List of sources used to import or calculate this node, identified as explained below. In case the node is the result of of a calculation / data processing, the source is an input to the process described in the \"code\" structure at the root of the IDS. The source can be an IDS (identified by a URI or a persitent identifier, see syntax in the link below) or non-IDS data imported directly from an non-IMAS database (identified by the command used to import the source, or the persistent identifier of the data source). Often data are obtained by a chain of processes, however only the last process input are recorded here. The full chain of provenance has then to be reconstructed recursively from the provenance information contained in the data sources.",
+  "full_path": "controllers/ids_properties/provenance/node(i1)/sources(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IMAS-URI-scheme.md"
+ },
+ "controllers.ids_properties.provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "controllers/ids_properties/provider",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...). Superseeded by the new provenance structure.",
+  "full_path": "controllers/ids_properties/source",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.34.0",
+  "type": "constant"
+ },
+ "controllers.ids_properties.version_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Version of the access layer package used to PUT this IDS",
+  "full_path": "controllers/ids_properties/version_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "version_dd_al"
+ },
+ "controllers.ids_properties.version_put.access_layer": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Access Layer used to PUT this IDS",
+  "full_path": "controllers/ids_properties/version_put/access_layer",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.version_put.access_layer_language": {
+  "data_type": "STR_0D",
+  "documentation": "Programming language of the Access Layer high level API used to PUT this IDS",
+  "full_path": "controllers/ids_properties/version_put/access_layer_language",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.ids_properties.version_put.data_dictionary": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Data Dictionary used to PUT this IDS",
+  "full_path": "controllers/ids_properties/version_put/data_dictionary",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.linear_controller": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "A linear controller, this is rather conventional",
+  "full_path": "controllers/linear_controller(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "controllers_linear_controller"
+ },
+ "controllers.linear_controller[:].controller_class": {
+  "data_type": "STR_0D",
+  "documentation": "One of a known class of controllers",
+  "full_path": "controllers/linear_controller(i1)/controller_class",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Description of this controller",
+  "full_path": "controllers/linear_controller(i1)/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].input_names": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "Names of the input signals, following the SDN convention",
+  "full_path": "controllers/linear_controller(i1)/input_names(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].inputs": {
+  "coordinates": [
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].inputs.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Input signals; the timebase is common to inputs and outputs for any particular controller",
+  "full_path": "controllers/linear_controller(i1)/inputs",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].inputs.data": {
+  "coordinates": [
+   "1...N",
+   "controllers.linear_controller[:].inputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/inputs/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "inputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].inputs.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/inputs/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].inputs.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "controllers.linear_controller[:].inputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/inputs/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "inputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].inputs.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "controllers.linear_controller[:].inputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/inputs/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "inputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].inputs.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/inputs/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "inputs/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of this controller",
+  "full_path": "controllers/linear_controller(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].output_names": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "Names of the output signals following the SDN convention",
+  "full_path": "controllers/linear_controller(i1)/output_names(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].outputs": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].outputs.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Output signals; the timebase is common to inputs and outputs for any particular controller",
+  "full_path": "controllers/linear_controller(i1)/outputs",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].outputs.data": {
+  "coordinates": [
+   "1...N",
+   "controllers.linear_controller[:].outputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/outputs/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "outputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].outputs.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/outputs/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].outputs.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "controllers.linear_controller[:].outputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/outputs/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "outputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].outputs.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "controllers.linear_controller[:].outputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/outputs/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "outputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].outputs.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/outputs/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "outputs/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].pid": {
+  "data_type": "STRUCTURE",
+  "documentation": "Filtered PID controller",
+  "full_path": "controllers/linear_controller(i1)/pid",
+  "lifecycle_status": "alpha",
+  "structure_reference": "controllers_pid"
+ },
+ "controllers.linear_controller[:].pid.d": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.d.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Derivative term",
+  "full_path": "controllers/linear_controller(i1)/pid/d",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_3d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.d.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.d.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/pid/d/data(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/d/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.d.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/d/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].pid.d.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.d.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/d/data_error_lower(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/d/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.d.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.d.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/d/data_error_upper(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/d/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.d.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/pid/d/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/d/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].pid.i": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.i.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Integral term",
+  "full_path": "controllers/linear_controller(i1)/pid/i",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_3d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.i.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.i.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/pid/i/data(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/i/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.i.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/i/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].pid.i.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.i.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/i/data_error_lower(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/i/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.i.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.i.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/i/data_error_upper(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/i/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.i.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/pid/i/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/i/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].pid.p": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.p.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Proportional term",
+  "full_path": "controllers/linear_controller(i1)/pid/p",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_3d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.p.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.p.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/pid/p/data(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/p/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.p.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/p/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].pid.p.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.p.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/p/data_error_lower(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/p/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.p.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].pid.p.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/p/data_error_upper(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/p/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].pid.p.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/pid/p/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/p/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].pid.tau": {
+  "data_type": "STRUCTURE",
+  "documentation": "Filter time-constant for the D-term",
+  "full_path": "controllers/linear_controller(i1)/pid/tau",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_1d",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].pid.tau.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].pid.tau.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/pid/tau/data(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/tau/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].pid.tau.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/tau/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].pid.tau.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].pid.tau.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/tau/data_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/tau/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].pid.tau.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].pid.tau.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/pid/tau/data_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/tau/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].pid.tau.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/pid/tau/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "pid/tau/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace": {
+  "data_type": "STRUCTURE",
+  "documentation": "Statespace controller in discrete or continuous time",
+  "full_path": "controllers/linear_controller(i1)/statespace",
+  "lifecycle_status": "alpha",
+  "structure_reference": "controllers_statespace"
+ },
+ "controllers.linear_controller[:].statespace.a": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].statespace.a.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "A matrix",
+  "full_path": "controllers/linear_controller(i1)/statespace/a",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_3d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.a.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].statespace.a.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/statespace/a/data(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/a/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.a.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/a/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].statespace.a.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].statespace.a.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/a/data_error_lower(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/a/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.a.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].statespace.a.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/a/data_error_upper(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/a/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.a.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/statespace/a/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/a/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.b": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].statespace.b.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "B matrix",
+  "full_path": "controllers/linear_controller(i1)/statespace/b",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_3d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.b.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].statespace.b.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/statespace/b/data(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/b/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.b.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/b/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].statespace.b.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].statespace.b.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/b/data_error_lower(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/b/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.b.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].input_names",
+   "controllers.linear_controller[:].statespace.b.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/b/data_error_upper(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/b/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.b.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/statespace/b/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/b/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.c": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].statespace.c.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "C matrix",
+  "full_path": "controllers/linear_controller(i1)/statespace/c",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_3d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.c.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].statespace.c.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/statespace/c/data(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/c/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.c.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/c/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].statespace.c.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].statespace.c.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/c/data_error_lower(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/c/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.c.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].statespace.c.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/c/data_error_upper(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/c/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.c.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/statespace/c/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/c/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.d": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].statespace.d.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "D matrix, normally proper and D=0",
+  "full_path": "controllers/linear_controller(i1)/statespace/d",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_3d",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.d.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].statespace.d.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/statespace/d/data(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/d/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.d.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/d/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].statespace.d.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].statespace.d.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/d/data_error_lower(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/d/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.d.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.state_names",
+   "controllers.linear_controller[:].output_names",
+   "controllers.linear_controller[:].statespace.d.time"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/d/data_error_upper(:,:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/d/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.linear_controller[:].statespace.d.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/statespace/d/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/d/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.deltat": {
+  "data_type": "STRUCTURE",
+  "documentation": "Discrete time sampling interval ; if less than 1e-10, the controller is considered to be expressed in continuous time",
+  "full_path": "controllers/linear_controller(i1)/statespace/deltat",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_1d",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.deltat.data": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.deltat.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Data",
+  "full_path": "controllers/linear_controller(i1)/statespace/deltat/data(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/deltat/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.deltat.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/deltat/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.linear_controller[:].statespace.deltat.data_error_lower": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.deltat.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/deltat/data_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/deltat/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.deltat.data_error_upper": {
+  "coordinates": [
+   "controllers.linear_controller[:].statespace.deltat.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/linear_controller(i1)/statespace/deltat/data_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/deltat/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.deltat.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/linear_controller(i1)/statespace/deltat/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "statespace/deltat/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.linear_controller[:].statespace.state_names": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "Names of the states",
+  "full_path": "controllers/linear_controller(i1)/statespace/state_names(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "A non-linear controller, this is less conventional and will have to be developed",
+  "full_path": "controllers/nonlinear_controller(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "controllers_nonlinear_controller"
+ },
+ "controllers.nonlinear_controller[:].controller_class": {
+  "data_type": "STR_0D",
+  "documentation": "One of a known class of controllers",
+  "full_path": "controllers/nonlinear_controller(i1)/controller_class",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Description of this controller",
+  "full_path": "controllers/nonlinear_controller(i1)/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller[:].function": {
+  "data_type": "STR_0D",
+  "documentation": "Method to be defined",
+  "full_path": "controllers/nonlinear_controller(i1)/function",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller[:].input_names": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "Names of the input signals, following the SDN convention",
+  "full_path": "controllers/nonlinear_controller(i1)/input_names(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller[:].inputs": {
+  "coordinates": [
+   "controllers.nonlinear_controller[:].input_names",
+   "controllers.nonlinear_controller[:].inputs.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Input signals; the timebase is common  to inputs and outputs for any particular controller",
+  "full_path": "controllers/nonlinear_controller(i1)/inputs",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "mixed"
+ },
+ "controllers.nonlinear_controller[:].inputs.data": {
+  "coordinates": [
+   "1...N",
+   "controllers.nonlinear_controller[:].inputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "controllers/nonlinear_controller(i1)/inputs/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "inputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.nonlinear_controller[:].inputs.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/nonlinear_controller(i1)/inputs/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller[:].inputs.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "controllers.nonlinear_controller[:].inputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/nonlinear_controller(i1)/inputs/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "inputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.nonlinear_controller[:].inputs.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "controllers.nonlinear_controller[:].inputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/nonlinear_controller(i1)/inputs/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "inputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.nonlinear_controller[:].inputs.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/nonlinear_controller(i1)/inputs/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "inputs/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.nonlinear_controller[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of this controller",
+  "full_path": "controllers/nonlinear_controller(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller[:].output_names": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "Output signal names following the SDN convention",
+  "full_path": "controllers/nonlinear_controller(i1)/output_names(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller[:].outputs": {
+  "coordinates": [
+   "controllers.nonlinear_controller[:].output_names",
+   "controllers.nonlinear_controller[:].outputs.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Output signals; the timebase is common  to inputs and outputs for any particular controller",
+  "full_path": "controllers/nonlinear_controller(i1)/outputs",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "mixed"
+ },
+ "controllers.nonlinear_controller[:].outputs.data": {
+  "coordinates": [
+   "1...N",
+   "controllers.nonlinear_controller[:].outputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "controllers/nonlinear_controller(i1)/outputs/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "outputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.nonlinear_controller[:].outputs.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "controllers/nonlinear_controller(i1)/outputs/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "controllers.nonlinear_controller[:].outputs.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "controllers.nonlinear_controller[:].outputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "controllers/nonlinear_controller(i1)/outputs/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "outputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.nonlinear_controller[:].outputs.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "controllers.nonlinear_controller[:].outputs.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "controllers/nonlinear_controller(i1)/outputs/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "outputs/time",
+  "type": "dynamic",
+  "units": "mixed"
+ },
+ "controllers.nonlinear_controller[:].outputs.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "controllers/nonlinear_controller(i1)/outputs/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "outputs/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "controllers.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Generic time",
+  "full_path": "controllers/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ }
+}

@@ -1,0 +1,242 @@
+{
+ "solid_mechanics": {
+  "documentation": "Solid mechanics"
+ },
+ "solid_mechanics.center_stack.bucked": {
+  "data_type": "INT_0D",
+  "documentation": "Flag indicating if center stack elements bucked to one another",
+  "type": "static",
+  "units": "-"
+ },
+ "solid_mechanics.center_stack.displacement.oh": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_oh"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial displacement",
+  "type": "static",
+  "units": "m"
+ },
+ "solid_mechanics.center_stack.displacement.pl": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_pl"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial displacement",
+  "type": "static",
+  "units": "m"
+ },
+ "solid_mechanics.center_stack.displacement.tf": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_tf"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial displacement",
+  "type": "static",
+  "units": "m"
+ },
+ "solid_mechanics.center_stack.grid.r_oh": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial coordinate in OH layer",
+  "type": "static",
+  "units": "m"
+ },
+ "solid_mechanics.center_stack.grid.r_pl": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial coordinate in plug layer",
+  "type": "static",
+  "units": "m"
+ },
+ "solid_mechanics.center_stack.grid.r_tf": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial coordinate in TF layer",
+  "type": "static",
+  "units": "m"
+ },
+ "solid_mechanics.center_stack.noslip": {
+  "data_type": "INT_0D",
+  "documentation": "Flag indicating if center stack elements are not allowed to slip with respect to one another",
+  "type": "static",
+  "units": "-"
+ },
+ "solid_mechanics.center_stack.plug": {
+  "data_type": "INT_0D",
+  "documentation": "Flag indicating if center stack has a plug",
+  "type": "static",
+  "units": "-"
+ },
+ "solid_mechanics.center_stack.properties.poisson_ratio.oh": {
+  "data_type": "FLT_0D",
+  "documentation": "Change in shape for OH structural material due to applied stress",
+  "type": "static",
+  "units": "-"
+ },
+ "solid_mechanics.center_stack.properties.poisson_ratio.pl": {
+  "data_type": "FLT_0D",
+  "documentation": "Change in shape for plug structural material due to applied stress",
+  "type": "static",
+  "units": "-"
+ },
+ "solid_mechanics.center_stack.properties.poisson_ratio.tf": {
+  "data_type": "FLT_0D",
+  "documentation": "Change in shape for TF structural material due to applied stress",
+  "type": "static",
+  "units": "-"
+ },
+ "solid_mechanics.center_stack.properties.yield_strength.oh": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum stress OH can withstand without permanent deformation",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.properties.yield_strength.pl": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum stress plug can withstand without permanent deformation",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.properties.yield_strength.tf": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum stress TF can withstand without permanent deformation",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.properties.young_modulus.oh": {
+  "data_type": "FLT_0D",
+  "documentation": "Stiffness of OH structural material",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.properties.young_modulus.pl": {
+  "data_type": "FLT_0D",
+  "documentation": "Stiffness of plug structural material",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.properties.young_modulus.tf": {
+  "data_type": "FLT_0D",
+  "documentation": "Stiffness of TF structural material",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.axial.oh": {
+  "data_type": "FLT_0D",
+  "documentation": "Average axial stress for OH layer in center stack",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.axial.pl": {
+  "data_type": "FLT_0D",
+  "documentation": "Average axial stress for plug layer in center stack",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.axial.tf": {
+  "data_type": "FLT_0D",
+  "documentation": "Average axial stress for TF layer in center stack",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.hoop.oh": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_oh"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Hoop stresses OH layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.hoop.pl": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_pl"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Hoop stresses plug layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.hoop.tf": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_tf"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Hoop stresses TF layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.radial.oh": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_oh"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial stresses OH layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.radial.pl": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_pl"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial stresses plug layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.radial.tf": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_tf"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Radial stresses TF layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.vonmises.oh": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_oh"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Von Mises stresses OH layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.vonmises.pl": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_pl"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Von Mises stresses plug layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.center_stack.stress.vonmises.tf": {
+  "coordinates": [
+   "solid_mechanics.center_stack.grid.r_tf"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Von Mises stresses TF layer",
+  "type": "static",
+  "units": "Pa"
+ },
+ "solid_mechanics.time": {
+  "units": "s",
+  "coordinates": [
+   "1...N"
+  ],
+  "lifecycle_status": "active",
+  "data_type": "FLT_1D_TYPE",
+  "full_path": "solid_mechanics/time(:)",
+  "timebasepath": "time",
+  "documentation": "Generic time",
+  "type": "dynamic"
+ }
+}

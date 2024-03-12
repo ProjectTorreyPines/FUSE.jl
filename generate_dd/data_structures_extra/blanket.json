@@ -1,0 +1,122 @@
+{
+ "blanket": {
+  "documentation": "Fusion blanket"
+ },
+ "blanket.module": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of modules composing the blanket"
+ },
+ "blanket.module[:].layer": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of layers in the blanket module"
+ },
+ "blanket.module[:].layer[:].material": {
+  "data_type": "STR_0D",
+  "documentation": "Material of the layer",
+  "type": "static"
+ },
+ "blanket.module[:].layer[:].midplane_thickness": {
+  "data_type": "FLT_0D",
+  "documentation": "Thickness of layer evaluated at the midplane",
+  "type": "static",
+  "units": "m"
+ },
+ "blanket.module[:].layer[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the blanket layer",
+  "type": "static"
+ },
+ "blanket.module[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the blanket module",
+  "type": "static"
+ },
+ "blanket.module[:].time_slice": {
+  "coordinates": [
+   "blanket.module[:].time_slice[:].time"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Blanket module info at various time slices",
+  "full_path": "blanket/module(i1)/time_slice(itime)",
+  "type": "dynamic"
+ },
+ "blanket.module[:].time_slice[:].peak_escape_flux": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum neutron flux escaping from the back of the blanket module",
+  "type": "dynamic",
+  "units": "W/m^2"
+ },
+ "blanket.module[:].time_slice[:].peak_wall_flux": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum neutron flux at the first wall",
+  "type": "dynamic",
+  "units": "W/m^2"
+ },
+ "blanket.module[:].time_slice[:].power_incident_neutrons": {
+  "data_type": "FLT_0D",
+  "documentation": "Total incident neutron power on the blanket module",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "blanket.module[:].time_slice[:].power_incident_radiated": {
+  "data_type": "FLT_0D",
+  "documentation": "Total incident radiative power on the blanket module",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "blanket.module[:].time_slice[:].power_thermal_extracted": {
+  "data_type": "FLT_0D",
+  "documentation": "Total thermal power that is extracted from the blanket module",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "blanket.module[:].time_slice[:].power_thermal_neutrons": {
+  "data_type": "FLT_0D",
+  "documentation": "Total neutron power (deposited + generated) in the blanket module",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "blanket.module[:].time_slice[:].power_thermal_radiated": {
+  "data_type": "FLT_0D",
+  "documentation": "Total radiated power (incident - reflected) in the blanket module",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "blanket.module[:].time_slice[:].time": {
+  "data_type": "FLT_0D",
+  "documentation": "Time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "blanket.module[:].time_slice[:].tritium_breeding_ratio": {
+  "data_type": "FLT_0D",
+  "documentation": "Number of tritium atoms for each incident neutron (TBR)",
+  "type": "dynamic"
+ },
+ "blanket.time": {
+  "units": "s",
+  "coordinates": [
+   "1...N"
+  ],
+  "lifecycle_status": "active",
+  "data_type": "FLT_1D_TYPE",
+  "full_path": "blanket/time(:)",
+  "timebasepath": "time",
+  "documentation": "Generic time",
+  "type": "dynamic"
+ },
+ "blanket.tritium_breeding_ratio": {
+  "coordinates": [
+   "blanket.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Number of tritium atoms created for each fusion neutron (TBR)",
+  "type": "dynamic"
+ }
+}

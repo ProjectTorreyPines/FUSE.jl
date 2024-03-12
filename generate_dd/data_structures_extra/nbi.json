@@ -1,0 +1,20 @@
+{
+ "nbi.unit[:].available_launch_power": {
+  "data_type": "FLT_0D",
+  "documentation": "Available launch power",
+  "type": "static",
+  "units": "W"
+ },
+ "nbi.unit[:].efficiency.conversion": {
+  "data_type": "FLT_0D",
+  "documentation": "Conversion efficiency of electric power to neutral beam power",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "nbi.unit[:].efficiency.transmission": {
+  "data_type": "FLT_0D",
+  "documentation": "Transmission efficiency of neutral beam from source to port",
+  "type": "dynamic",
+  "units": "-"
+ }
+}

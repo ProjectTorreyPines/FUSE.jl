@@ -1,0 +1,78 @@
+{
+ "neutronics": {
+  "documentation": "Neutronics"
+ },
+ "neutronics.first_wall.r": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius",
+  "type": "static",
+  "units": "m"
+ },
+ "neutronics.first_wall.z": {
+  "coordinates": [
+   "neutronics.first_wall.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Height",
+  "type": "static",
+  "units": "m"
+ },
+ "neutronics.time": {
+  "units": "s",
+  "coordinates": [
+   "1...N"
+  ],
+  "lifecycle_status": "active",
+  "data_type": "FLT_1D_TYPE",
+  "full_path": "neutronics/time(:)",
+  "timebasepath": "time",
+  "documentation": "Generic time",
+  "type": "dynamic"
+ },
+ "neutronics.time_slice": {
+  "coordinates": [
+   "neutronics.time_slice.time"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of neutronics at various time slices",
+  "full_path": "neutronics/time_slice(itime)",
+  "type": "dynamic"
+ },
+ "neutronics.time_slice[:].time": {
+  "data_type": "FLT_0D",
+  "documentation": "Time",
+  "full_path": "neutronics/time_slice(itime)/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "neutronics.time_slice[:].wall_loading.flux_r": {
+  "coordinates": [
+   "neutronics.first_wall.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Average radial component of the neutron flux",
+  "type": "dynamic",
+  "units": "W/m^2"
+ },
+ "neutronics.time_slice[:].wall_loading.flux_z": {
+  "coordinates": [
+   "neutronics.first_wall.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Average vertical component of the neutron flux",
+  "type": "dynamic",
+  "units": "W/m^2"
+ },
+ "neutronics.time_slice[:].wall_loading.power": {
+  "coordinates": [
+   "neutronics.first_wall.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Local neutron power (ie. integrated neutron flux)",
+  "type": "dynamic",
+  "units": "W"
+ }
+}

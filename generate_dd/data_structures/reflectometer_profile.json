@@ -1,0 +1,3659 @@
+{
+ "reflectometer_profile": {
+  "documentation": "Profile reflectometer diagnostic. Multiple reflectometers are considered as independent diagnostics to be handled with different occurrence numbers",
+  "full_path": "reflectometer_profile",
+  "lifecycle_last_change": "3.39.0",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.11.0",
+  "maxoccur": "2"
+ },
+ "reflectometer_profile.channel": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of channels, e.g. different reception antennas or frequency bandwidths of the reflectometer",
+  "full_path": "reflectometer_profile/channel(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "reflectometer_channel"
+ },
+ "reflectometer_profile.channel[:].amplitude": {
+  "coordinates": [
+   "reflectometer_profile.channel[:].frequencies",
+   "reflectometer_profile.channel[:].amplitude.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Measured amplitude of the detected probing wave for each frequency and time slice (corresponding to the begin time of a sweep)",
+  "full_path": "reflectometer_profile/channel(i1)/amplitude",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "V"
+ },
+ "reflectometer_profile.channel[:].amplitude.data": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].amplitude.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "reflectometer_profile/channel(i1)/amplitude/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "amplitude/time",
+  "type": "dynamic",
+  "units": "V"
+ },
+ "reflectometer_profile.channel[:].amplitude.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/amplitude/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].amplitude.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].amplitude.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/amplitude/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "amplitude/time",
+  "type": "dynamic",
+  "units": "V"
+ },
+ "reflectometer_profile.channel[:].amplitude.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].amplitude.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/amplitude/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "amplitude/time",
+  "type": "dynamic",
+  "units": "V"
+ },
+ "reflectometer_profile.channel[:].amplitude.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "reflectometer_profile/channel(i1)/amplitude/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "amplitude/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "reflectometer_profile.channel[:].antenna_detection": {
+  "data_type": "STRUCTURE",
+  "documentation": "Geometry of the detection antenna, to be filled only if it is distinct from the emission antenna.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "structure_reference": "detector_aperture"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "If geometry_type=2, coordinates of the centre of the circle. If geometry_type=1 or 3, coordinates of the origin of the local coordinate system (X1,X2,X3) describing the plane detector/aperture. This origin is located within the detector/aperture area.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.geometry_type": {
+  "data_type": "INT_0D",
+  "documentation": "Type of geometry used to describe the surface of the detector or aperture (1:'outline', 2:'circular', 3:'rectangle'). In case of 'outline', the surface is described by an outline of point in a local coordinate system defined by a centre and three unit vectors X1, X2, X3. Note that there is some flexibility here and the data provider should choose the most convenient coordinate system for the object, respecting the definitions of (X1,X2,X3) indicated below. In case of 'circular', the surface is a circle defined by its centre, radius, and normal vector oriented towards the plasma X3.  In case of 'rectangle', the surface is a rectangle defined by its centre, widths in the X1 and X2 directions, and normal vector oriented towards the plasma X3.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/geometry_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the detector/aperture in the (X1, X2) coordinate system. Do NOT repeat the first point.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline.x2": {
+  "coordinates": [
+   "reflectometer_profile.channel[:].antenna_detection.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline.x2_error_lower": {
+  "coordinates": [
+   "reflectometer_profile.channel[:].antenna_detection.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.outline.x2_error_upper": {
+  "coordinates": [
+   "reflectometer_profile.channel[:].antenna_detection.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type = 2",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the detector/aperture, derived from the above geometric data",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X1 direction, used only if geometry_type = 3",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X2 direction, used only if geometry_type = 3",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the detector/aperture plane and oriented towards the plasma.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_detection.x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_detection/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission": {
+  "data_type": "STRUCTURE",
+  "documentation": "Geometry of the emission antenna",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "structure_reference": "detector_aperture"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "If geometry_type=2, coordinates of the centre of the circle. If geometry_type=1 or 3, coordinates of the origin of the local coordinate system (X1,X2,X3) describing the plane detector/aperture. This origin is located within the detector/aperture area.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.geometry_type": {
+  "data_type": "INT_0D",
+  "documentation": "Type of geometry used to describe the surface of the detector or aperture (1:'outline', 2:'circular', 3:'rectangle'). In case of 'outline', the surface is described by an outline of point in a local coordinate system defined by a centre and three unit vectors X1, X2, X3. Note that there is some flexibility here and the data provider should choose the most convenient coordinate system for the object, respecting the definitions of (X1,X2,X3) indicated below. In case of 'circular', the surface is a circle defined by its centre, radius, and normal vector oriented towards the plasma X3.  In case of 'rectangle', the surface is a rectangle defined by its centre, widths in the X1 and X2 directions, and normal vector oriented towards the plasma X3.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/geometry_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the detector/aperture in the (X1, X2) coordinate system. Do NOT repeat the first point.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline.x2": {
+  "coordinates": [
+   "reflectometer_profile.channel[:].antenna_emission.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline.x2_error_lower": {
+  "coordinates": [
+   "reflectometer_profile.channel[:].antenna_emission.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.outline.x2_error_upper": {
+  "coordinates": [
+   "reflectometer_profile.channel[:].antenna_emission.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type = 2",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the detector/aperture, derived from the above geometric data",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X1 direction, used only if geometry_type = 3",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X2 direction, used only if geometry_type = 3",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the detector/aperture plane and oriented towards the plasma.",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].antenna_emission.x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/antenna_emission/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].cut_off_frequency": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Cut-off frequency as a function of measurement position and time",
+  "full_path": "reflectometer_profile/channel(i1)/cut_off_frequency(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "Hz"
+ },
+ "reflectometer_profile.channel[:].cut_off_frequency_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"cut_off_frequency\"",
+  "full_path": "reflectometer_profile/channel(i1)/cut_off_frequency_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].cut_off_frequency_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"cut_off_frequency\"",
+  "full_path": "reflectometer_profile/channel(i1)/cut_off_frequency_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "Hz"
+ },
+ "reflectometer_profile.channel[:].cut_off_frequency_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"cut_off_frequency\"",
+  "full_path": "reflectometer_profile/channel(i1)/cut_off_frequency_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "Hz"
+ },
+ "reflectometer_profile.channel[:].frequencies": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Array of frequencies scanned during a sweep",
+  "full_path": "reflectometer_profile/channel(i1)/frequencies(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Hz"
+ },
+ "reflectometer_profile.channel[:].frequencies_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"frequencies\"",
+  "full_path": "reflectometer_profile/channel(i1)/frequencies_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].frequencies_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"frequencies\"",
+  "full_path": "reflectometer_profile/channel(i1)/frequencies_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Hz"
+ },
+ "reflectometer_profile.channel[:].frequencies_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"frequencies\"",
+  "full_path": "reflectometer_profile/channel(i1)/frequencies_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Hz"
+ },
+ "reflectometer_profile.channel[:].identifier": {
+  "data_type": "STR_0D",
+  "documentation": "ID of the channel",
+  "full_path": "reflectometer_profile/channel(i1)/identifier",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection": {
+  "data_type": "STRUCTURE",
+  "documentation": "Description of the line of sight of the detection antenna, to be filled only if its position is distinct from the emission antenna. The first point corresponds to the centre of the antenna mouth. The second point correspond to the interception of the line of sight with the reflection surface on the inner wall.",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection",
+  "lifecycle_status": "alpha",
+  "structure_reference": "line_of_sight_2points"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the first point",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.first_point.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/first_point/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the second point",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_detection.second_point.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_detection/second_point/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission": {
+  "data_type": "STRUCTURE",
+  "documentation": "Description of the line of sight of the emission antenna. The first point corresponds to the centre of the antenna mouth. The second point correspond to the interception of the line of sight with the reflection surface on the inner wall.",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission",
+  "lifecycle_status": "alpha",
+  "structure_reference": "line_of_sight_2points"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the first point",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.first_point.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/first_point/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the second point",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].line_of_sight_emission.second_point.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/line_of_sight_emission/second_point/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "reflectometer_profile.channel[:].mode": {
+  "data_type": "STR_0D",
+  "documentation": "Detection mode \"X\" or \"O\"",
+  "full_path": "reflectometer_profile/channel(i1)/mode",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "reflectometer_profile.channel[:].n_e": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Electron density",
+  "full_path": "reflectometer_profile/channel(i1)/n_e",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "m^-3"
+ },
+ "reflectometer_profile.channel[:].n_e.data": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "reflectometer_profile/channel(i1)/n_e/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m^-3"
+ },
+ "reflectometer_profile.channel[:].n_e.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/n_e/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].n_e.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/n_e/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m^-3"
+ },
+ "reflectometer_profile.channel[:].n_e.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/n_e/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m^-3"
+ },
+ "reflectometer_profile.channel[:].n_e.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "reflectometer_profile/channel(i1)/n_e/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "reflectometer_profile.channel[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the channel",
+  "full_path": "reflectometer_profile/channel(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "reflectometer_profile.channel[:].phase": {
+  "coordinates": [
+   "reflectometer_profile.channel[:].frequencies",
+   "reflectometer_profile.channel[:].phase.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Measured phase of the probing wave for each frequency and time slice (corresponding to the begin time of a sweep), relative to the phase at launch",
+  "full_path": "reflectometer_profile/channel(i1)/phase",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].phase.data": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].phase.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "reflectometer_profile/channel(i1)/phase/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "phase/time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].phase.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/phase/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].phase.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].phase.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/phase/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "phase/time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].phase.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].phase.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "reflectometer_profile/channel(i1)/phase/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "phase/time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "reflectometer_profile.channel[:].phase.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "reflectometer_profile/channel(i1)/phase/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "phase/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "reflectometer_profile.channel[:].position": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the density measurements",
+  "full_path": "reflectometer_profile/channel(i1)/position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "reflectometer_profile_position_2d"
+ },
+ "reflectometer_profile.channel[:].position.phi": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "phi/data",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "reflectometer_profile/channel(i1)/position/phi(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.phi_error_index": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "phi/data_error_index",
+  "change_nbc_version": "3.23.3",
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].position.phi_error_lower": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "phi/data_error_lower",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/phi_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.phi_error_upper": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "phi/data_error_upper",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/phi_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.psi": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Poloidal flux",
+  "full_path": "reflectometer_profile/channel(i1)/position/psi(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "W",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.psi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"psi\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/psi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].position.psi_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"psi\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/psi_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "W",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.psi_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"psi\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/psi_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "W",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.r": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "r/data",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Major radius",
+  "full_path": "reflectometer_profile/channel(i1)/position/r(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.r_error_index": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "r/data_error_index",
+  "change_nbc_version": "3.23.3",
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].position.r_error_lower": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "r/data_error_lower",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/r_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.r_error_upper": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "r/data_error_upper",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/r_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.rho_pol_norm": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Normalised poloidal flux coordinate = sqrt((psi(rho)-psi(magnetic_axis)) / (psi(LCFS)-psi(magnetic_axis)))",
+  "full_path": "reflectometer_profile/channel(i1)/position/rho_pol_norm(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.rho_pol_norm_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"rho_pol_norm\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/rho_pol_norm_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].position.rho_pol_norm_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"rho_pol_norm\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/rho_pol_norm_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.rho_pol_norm_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"rho_pol_norm\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/rho_pol_norm_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.rho_tor_norm": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Normalised toroidal flux coordinate",
+  "full_path": "reflectometer_profile/channel(i1)/position/rho_tor_norm(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.rho_tor_norm_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"rho_tor_norm\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/rho_tor_norm_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].position.rho_tor_norm_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"rho_tor_norm\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/rho_tor_norm_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.rho_tor_norm_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"rho_tor_norm\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/rho_tor_norm_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.theta": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Poloidal angle (oriented clockwise when viewing the poloidal cross section on the right hand side of the tokamak axis of symmetry, with the origin placed on the plasma magnetic axis)",
+  "full_path": "reflectometer_profile/channel(i1)/position/theta(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.theta_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"theta\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/theta_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].position.theta_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"theta\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/theta_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.theta_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"theta\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/theta_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.z": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "z/data",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Height",
+  "full_path": "reflectometer_profile/channel(i1)/position/z(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.z_error_index": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "z/data_error_index",
+  "change_nbc_version": "3.23.3",
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].position.z_error_lower": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "z/data_error_lower",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/z_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].position.z_error_upper": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "z/data_error_upper",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.channel[:].n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/channel(i1)/position/z_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.channel[:].sweep_time": {
+  "data_type": "FLT_0D",
+  "documentation": "Duration of a sweep",
+  "full_path": "reflectometer_profile/channel(i1)/sweep_time",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "reflectometer_profile.channel[:].sweep_time_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"sweep_time\"",
+  "full_path": "reflectometer_profile/channel(i1)/sweep_time_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.channel[:].sweep_time_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"sweep_time\"",
+  "full_path": "reflectometer_profile/channel(i1)/sweep_time_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "reflectometer_profile.channel[:].sweep_time_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"sweep_time\"",
+  "full_path": "reflectometer_profile/channel(i1)/sweep_time_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "reflectometer_profile.code": {
+  "data_type": "STRUCTURE",
+  "documentation": "Generic decription of the code-specific parameters for the code that has produced this IDS",
+  "full_path": "reflectometer_profile/code",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code"
+ },
+ "reflectometer_profile.code.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "reflectometer_profile/code/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "reflectometer_profile/code/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.library": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of external libraries used by the code that has produced this IDS",
+  "full_path": "reflectometer_profile/code/library(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "library"
+ },
+ "reflectometer_profile.code.library[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "reflectometer_profile/code/library(i1)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.library[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "reflectometer_profile/code/library(i1)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.library[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software",
+  "full_path": "reflectometer_profile/code/library(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.library[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "reflectometer_profile/code/library(i1)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.library[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "reflectometer_profile/code/library(i1)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.library[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "reflectometer_profile/code/library(i1)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software generating IDS",
+  "full_path": "reflectometer_profile/code/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.output_flag": {
+  "coordinates": [
+   "reflectometer_profile.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Output flag : 0 means the run is successful, other values mean some difficulty has been encountered, the exact meaning is then code specific. Negative values mean the result shall not be used.",
+  "full_path": "reflectometer_profile/code/output_flag(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic"
+ },
+ "reflectometer_profile.code.parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "reflectometer_profile/code/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "reflectometer_profile/code/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.code.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "reflectometer_profile/code/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Interface Data Structure properties. This element identifies the node above as an IDS",
+  "full_path": "reflectometer_profile/ids_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ids_properties"
+ },
+ "reflectometer_profile.ids_properties.comment": {
+  "data_type": "STR_0D",
+  "documentation": "Any comment describing the content of this IDS",
+  "full_path": "reflectometer_profile/ids_properties/comment",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.creation_date": {
+  "data_type": "STR_0D",
+  "documentation": "Date at which this data has been produced",
+  "full_path": "reflectometer_profile/ids_properties/creation_date",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.homogeneous_time": {
+  "data_type": "INT_0D",
+  "documentation": "This node must be filled (with 0, 1, or 2) for the IDS to be valid. If 1, the time of this IDS is homogeneous, i.e. the time values for this IDS are stored in the time node just below the root of this IDS. If 0, the time values are stored in the various time fields at lower levels in the tree. In the case only constant or static nodes are filled within the IDS, homogeneous_time must be set to 2",
+  "full_path": "reflectometer_profile/ids_properties/homogeneous_time",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.name": {
+  "data_type": "STR_0D",
+  "documentation": "User-defined name for this IDS occurrence",
+  "full_path": "reflectometer_profile/ids_properties/name",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.occurrence": {
+  "data_type": "INT_0D",
+  "description": "occurrence number [NOTE: this field only exists in OMAS and is not part of the ITER PDM]",
+  "full_path": "reflectometer_profile.ids_properties.occurrence"
+ },
+ "reflectometer_profile.ids_properties.occurrence_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/occurrence_type_identifier.xml",
+  "documentation": "Type of data contained in this occurrence\n1) reconstruction : Equilibrium reconstruction\n2) prediction_fixed : Equilibrium prediction, fixed boundary\n3) prediction_free : Equilibrium prediction, free boundary\n4) mapping : Used for mapping equilibrium results from one grid type / resolution to another, or for including variables not present in the first set such as the calculation of magnetic field of other derived parameters",
+  "full_path": "reflectometer_profile/ids_properties/occurrence_type",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "reflectometer_profile.ids_properties.occurrence_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "reflectometer_profile/ids_properties/occurrence_type/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.occurrence_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "reflectometer_profile/ids_properties/occurrence_type/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.occurrence_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "reflectometer_profile/ids_properties/occurrence_type/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information about the plugins used to write/read this IDS. This structure is filled automatically by the Access Layer at GET/PUT time, no need to fill it via a user program.",
+  "full_path": "reflectometer_profile/ids_properties/plugins",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.39.0",
+  "structure_reference": "ids_plugins"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_get": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to GET the data",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_get",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_get.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_get/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_get.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_get/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_get.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_get/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_get.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_get/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_get.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_get/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to PUT the data",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_put.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_put/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_put.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_put/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_put.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_put/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_put.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_put/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.infrastructure_put.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/infrastructure_put/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which a plugin has been applied",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_plugins_node",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].get_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins actually used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application). This information is filled by the plugin infrastructure during the GET operation.",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/get_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].get_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/get_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].get_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/get_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].get_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/get_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].get_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/get_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].get_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/get_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].get_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/get_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the plugin applies to the whole IDS.",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].put_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins used to PUT a node (potentially, multiple plugins can be applied, if so they are listed by order of application)",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/put_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].put_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/put_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].put_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/put_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].put_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/put_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].put_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/put_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].put_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/put_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].put_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/put_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].readback": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins to be used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application) ",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/readback(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].readback[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/readback(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].readback[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/readback(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].readback[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/readback(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].readback[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/readback(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].readback[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/readback(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.plugins.node[:].readback[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "reflectometer_profile/ids_properties/plugins/node(i1)/readback(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.provenance": {
+  "data_type": "STRUCTURE",
+  "documentation": "Provenance information about this IDS",
+  "full_path": "reflectometer_profile/ids_properties/provenance",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.34.0",
+  "structure_reference": "ids_provenance"
+ },
+ "reflectometer_profile.ids_properties.provenance.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which the provenance is given. The provenance information applies to the whole structure below the IDS node. For documenting provenance information for the whole IDS, set the size of this array of structure to 1 and leave the child \"path\" node empty",
+  "full_path": "reflectometer_profile/ids_properties/provenance/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_provenance_node",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.provenance.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the provenance information applies to the whole IDS.",
+  "full_path": "reflectometer_profile/ids_properties/provenance/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "reflectometer_profile.ids_properties.provenance.node[:].sources": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "List of sources used to import or calculate this node, identified as explained below. In case the node is the result of of a calculation / data processing, the source is an input to the process described in the \"code\" structure at the root of the IDS. The source can be an IDS (identified by a URI or a persitent identifier, see syntax in the link below) or non-IDS data imported directly from an non-IMAS database (identified by the command used to import the source, or the persistent identifier of the data source). Often data are obtained by a chain of processes, however only the last process input are recorded here. The full chain of provenance has then to be reconstructed recursively from the provenance information contained in the data sources.",
+  "full_path": "reflectometer_profile/ids_properties/provenance/node(i1)/sources(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IMAS-URI-scheme.md"
+ },
+ "reflectometer_profile.ids_properties.provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "reflectometer_profile/ids_properties/provider",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...). Superseeded by the new provenance structure.",
+  "full_path": "reflectometer_profile/ids_properties/source",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.34.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.version_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Version of the access layer package used to PUT this IDS",
+  "full_path": "reflectometer_profile/ids_properties/version_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "version_dd_al"
+ },
+ "reflectometer_profile.ids_properties.version_put.access_layer": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Access Layer used to PUT this IDS",
+  "full_path": "reflectometer_profile/ids_properties/version_put/access_layer",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.version_put.access_layer_language": {
+  "data_type": "STR_0D",
+  "documentation": "Programming language of the Access Layer high level API used to PUT this IDS",
+  "full_path": "reflectometer_profile/ids_properties/version_put/access_layer_language",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.ids_properties.version_put.data_dictionary": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Data Dictionary used to PUT this IDS",
+  "full_path": "reflectometer_profile/ids_properties/version_put/data_dictionary",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "reflectometer_profile.latency": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper bound of the delay between physical information received by the detector and data available on the real-time (RT) network.",
+  "full_path": "reflectometer_profile/latency",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "reflectometer_profile.latency_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"latency\"",
+  "full_path": "reflectometer_profile/latency_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.latency_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"latency\"",
+  "full_path": "reflectometer_profile/latency_error_lower",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "reflectometer_profile.latency_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"latency\"",
+  "full_path": "reflectometer_profile/latency_error_upper",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "reflectometer_profile.n_e": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Electron density reconstructed from multiple channels",
+  "full_path": "reflectometer_profile/n_e",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "m^-3"
+ },
+ "reflectometer_profile.n_e.data": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "reflectometer_profile/n_e/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m^-3"
+ },
+ "reflectometer_profile.n_e.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "reflectometer_profile/n_e/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.n_e.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "reflectometer_profile/n_e/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m^-3"
+ },
+ "reflectometer_profile.n_e.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "reflectometer_profile/n_e/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m^-3"
+ },
+ "reflectometer_profile.n_e.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "reflectometer_profile/n_e/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "reflectometer_profile.position": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position associated to the density reconstruction from multiple channels",
+  "full_path": "reflectometer_profile/position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "reflectometer_profile_position_2d"
+ },
+ "reflectometer_profile.position.phi": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "phi/data",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "reflectometer_profile/position/phi(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.phi_error_index": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "phi/data_error_index",
+  "change_nbc_version": "3.23.3",
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "reflectometer_profile/position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.position.phi_error_lower": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "phi/data_error_lower",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "reflectometer_profile/position/phi_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.phi_error_upper": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "phi/data_error_upper",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "reflectometer_profile/position/phi_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.psi": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Poloidal flux",
+  "full_path": "reflectometer_profile/position/psi(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "W",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.psi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"psi\"",
+  "full_path": "reflectometer_profile/position/psi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.position.psi_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"psi\"",
+  "full_path": "reflectometer_profile/position/psi_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "W",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.psi_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"psi\"",
+  "full_path": "reflectometer_profile/position/psi_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "W",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.r": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "r/data",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Major radius",
+  "full_path": "reflectometer_profile/position/r(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.r_error_index": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "r/data_error_index",
+  "change_nbc_version": "3.23.3",
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "reflectometer_profile/position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.position.r_error_lower": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "r/data_error_lower",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "reflectometer_profile/position/r_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.r_error_upper": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "r/data_error_upper",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "reflectometer_profile/position/r_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.rho_pol_norm": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Normalised poloidal flux coordinate = sqrt((psi(rho)-psi(magnetic_axis)) / (psi(LCFS)-psi(magnetic_axis)))",
+  "full_path": "reflectometer_profile/position/rho_pol_norm(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.rho_pol_norm_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"rho_pol_norm\"",
+  "full_path": "reflectometer_profile/position/rho_pol_norm_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.position.rho_pol_norm_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"rho_pol_norm\"",
+  "full_path": "reflectometer_profile/position/rho_pol_norm_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.rho_pol_norm_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"rho_pol_norm\"",
+  "full_path": "reflectometer_profile/position/rho_pol_norm_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.rho_tor_norm": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Normalised toroidal flux coordinate",
+  "full_path": "reflectometer_profile/position/rho_tor_norm(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.rho_tor_norm_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"rho_tor_norm\"",
+  "full_path": "reflectometer_profile/position/rho_tor_norm_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.position.rho_tor_norm_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"rho_tor_norm\"",
+  "full_path": "reflectometer_profile/position/rho_tor_norm_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.rho_tor_norm_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"rho_tor_norm\"",
+  "full_path": "reflectometer_profile/position/rho_tor_norm_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "-",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.theta": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Poloidal angle (oriented clockwise when viewing the poloidal cross section on the right hand side of the tokamak axis of symmetry, with the origin placed on the plasma magnetic axis)",
+  "full_path": "reflectometer_profile/position/theta(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.theta_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"theta\"",
+  "full_path": "reflectometer_profile/position/theta_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.position.theta_error_lower": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"theta\"",
+  "full_path": "reflectometer_profile/position/theta_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.theta_error_upper": {
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"theta\"",
+  "full_path": "reflectometer_profile/position/theta_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.z": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "z/data",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Height",
+  "full_path": "reflectometer_profile/position/z(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.z_error_index": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "z/data_error_index",
+  "change_nbc_version": "3.23.3",
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "reflectometer_profile/position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.position.z_error_lower": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "z/data_error_lower",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "reflectometer_profile/position/z_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.position.z_error_upper": {
+  "change_nbc_description": "leaf_renamed",
+  "change_nbc_previous_name": "z/data_error_upper",
+  "change_nbc_version": "3.23.3",
+  "coordinates": [
+   "1...N",
+   "reflectometer_profile.n_e.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "reflectometer_profile/position/z_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "n_e/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "reflectometer_profile.psi_normalization": {
+  "data_type": "STRUCTURE",
+  "documentation": "Quantities to use to normalize psi, as a function of time",
+  "full_path": "reflectometer_profile/psi_normalization",
+  "lifecycle_status": "alpha",
+  "structure_reference": "psi_normalization"
+ },
+ "reflectometer_profile.psi_normalization.psi_boundary": {
+  "coordinates": [
+   "reflectometer_profile.psi_normalization.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Value of the poloidal magnetic flux at the plasma boundary",
+  "full_path": "reflectometer_profile/psi_normalization/psi_boundary(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "psi_normalization/time",
+  "type": "dynamic",
+  "units": "Wb"
+ },
+ "reflectometer_profile.psi_normalization.psi_boundary_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"psi_boundary\"",
+  "full_path": "reflectometer_profile/psi_normalization/psi_boundary_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.psi_normalization.psi_boundary_error_lower": {
+  "coordinates": [
+   "reflectometer_profile.psi_normalization.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"psi_boundary\"",
+  "full_path": "reflectometer_profile/psi_normalization/psi_boundary_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "psi_normalization/time",
+  "type": "dynamic",
+  "units": "Wb"
+ },
+ "reflectometer_profile.psi_normalization.psi_boundary_error_upper": {
+  "coordinates": [
+   "reflectometer_profile.psi_normalization.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"psi_boundary\"",
+  "full_path": "reflectometer_profile/psi_normalization/psi_boundary_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "psi_normalization/time",
+  "type": "dynamic",
+  "units": "Wb"
+ },
+ "reflectometer_profile.psi_normalization.psi_magnetic_axis": {
+  "coordinates": [
+   "reflectometer_profile.psi_normalization.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Value of the poloidal magnetic flux at the magnetic axis",
+  "full_path": "reflectometer_profile/psi_normalization/psi_magnetic_axis(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "psi_normalization/time",
+  "type": "dynamic",
+  "units": "Wb"
+ },
+ "reflectometer_profile.psi_normalization.psi_magnetic_axis_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"psi_magnetic_axis\"",
+  "full_path": "reflectometer_profile/psi_normalization/psi_magnetic_axis_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "reflectometer_profile.psi_normalization.psi_magnetic_axis_error_lower": {
+  "coordinates": [
+   "reflectometer_profile.psi_normalization.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"psi_magnetic_axis\"",
+  "full_path": "reflectometer_profile/psi_normalization/psi_magnetic_axis_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "psi_normalization/time",
+  "type": "dynamic",
+  "units": "Wb"
+ },
+ "reflectometer_profile.psi_normalization.psi_magnetic_axis_error_upper": {
+  "coordinates": [
+   "reflectometer_profile.psi_normalization.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"psi_magnetic_axis\"",
+  "full_path": "reflectometer_profile/psi_normalization/psi_magnetic_axis_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "psi_normalization/time",
+  "type": "dynamic",
+  "units": "Wb"
+ },
+ "reflectometer_profile.psi_normalization.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time for the R,Z,phi coordinates",
+  "full_path": "reflectometer_profile/psi_normalization/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "psi_normalization/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "reflectometer_profile.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Generic time",
+  "full_path": "reflectometer_profile/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "reflectometer_profile.type": {
+  "data_type": "STR_0D",
+  "documentation": "Type of reflectometer (frequency_swept, radar, ...)",
+  "full_path": "reflectometer_profile/type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ }
+}

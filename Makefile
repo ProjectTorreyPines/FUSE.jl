@@ -464,7 +464,7 @@ rm_manifests:
 
 # update dd from the json files
 dd:
-	julia ../IMASDD/src/generate_dd.jl
+	julia generate_dd/generate_dd.jl
 
 # generates init_expressions.json file, which lists entries that are
 # always expected to be expressions when coming out of init()
