@@ -446,7 +446,7 @@ function flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,er
 
     while(any(ferror.>ftol) && any(xerror.>xtol))
         i+=1
-        zprofiles  = pack_z_profiles(dd.core_profiles.profiles_1d[], par) .- par.step_size .* (targets.-fluxes)./sqrt.(fluxes.^2 +targets.^2)
+        zprofiles  = zprofiles .- par.step_size .* (targets.-fluxes)./sqrt.(fluxes.^2 +targets.^2)
         flux_match_errors(actor, scale_z_profiles(zprofiles); z_scaled_history, err_history, prog)
         fluxes = flux_match_fluxes(dd, par,  prog)
         targets = flux_match_targets(dd, par,  prog)
