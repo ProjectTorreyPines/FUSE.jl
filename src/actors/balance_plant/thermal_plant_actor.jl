@@ -8,7 +8,7 @@ import ThermalSystem_Models
 TSMD = ThermalSystem_Models.Dynamics
 MTK.@variables t
 
-Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActorBuild{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
