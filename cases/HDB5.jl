@@ -70,7 +70,6 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
 
     # Core_profiles parameters
     ini.core_profiles.ne_ped = data_row[:NEL] / 1.4
-    ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9

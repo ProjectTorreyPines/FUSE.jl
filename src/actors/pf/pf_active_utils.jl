@@ -13,7 +13,6 @@ mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real} <: VacuumFiel
     tech::IMAS.build__pf_active__technology{T1}
     time0::Float64
     green_model::Symbol
-    quad_coil::VacuumFields.QuadCoil
 end
 
 function GS_IMAS_pf_active__coil(
@@ -28,20 +27,19 @@ function GS_IMAS_pf_active__coil(
         setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
     end
 
-    oute = IMAS.outline(pfcoil.element[1])
-
     return GS_IMAS_pf_active__coil{T,T,T}(
         pfcoil,
         coil_tech,
         global_time(pfcoil),
-        green_model,
-        VacuumFields.QuadCoil(oute.r, oute.z))
+        green_model)
 end
 
-function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol) where {D<:Real}
+function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol, zero_currents::Bool) where {D<:Real}
     coils = GS_IMAS_pf_active__coil{D,D}[]
     for coil in dd.pf_active.coil
-        @ddtime coil.current.data = 0.0   # zero currents for all coils
+        if zero_currents
+            @ddtime(coil.current.data = 0.0)   # zero currents for all coils
+        end
         if :shaping ∉ [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
             continue
         end

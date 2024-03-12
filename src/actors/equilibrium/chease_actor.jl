@@ -128,7 +128,7 @@ function _finalize(actor::ActorCHEASE)
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(pr, pz, RA, ZA, 8)
         else
-            coils = IMAS_pf_active__coils(dd; green_model=:quad)
+            coils = IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
         end
 
         #display(contour(EQ.r, EQ.z,actor.chease.gfile.psirz';aspect_ratio=:equal,levels=range(-7,15,100)))
