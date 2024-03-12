@@ -99,11 +99,11 @@ function _step(actor::ActorFluxMatcher)
     err_history = Float64[]
     ftol = 1E-3 # relative error
     xtol = 1E-2 # difference in input array
+    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
 
     if par.optimizer_algorithm == :simple
         res = flux_match_simple(actor,  z_scaled_history, err_history, ftol ,xtol, prog)
     else
-        prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
 
         old_logging = actor_logging(dd, false)
         res = try
@@ -303,9 +303,9 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
 end
 
 """
-    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
+    flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
 
-Evaluates the flux_matching errors for the :flux_match species and channels
+Evaluates the flux_matching targets for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
@@ -361,9 +361,9 @@ function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, 
 end
 
 """
-    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
+    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
 
-Evaluates the flux_matching errors for the :flux_match species and channels
+Evaluates the flux_matching fluxes for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
@@ -422,16 +422,46 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, p
     return fluxes
 end
 
+
+"""
+    flux_match_simple(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
+
+Updates zprofiles based on TGYRO simple algorithm
+"""
 function flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,err_history::Vector{Float64},ftol::Float64,xtol::Float64, prog::Any)
     dd = actor.dd
     par = actor.par
     # this will be a while loop with some ftol/xtol
-    z_profiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par) 
-    for i in 1:par.max_iterations
-        flux_match_errors(actor, zprofiles; z_scaled_history, err_history, prog)
-        fluxes = flux_match_fluxes(dd, par,  prg)
-        targets = flux_match_targets(dd, par,  prog)
+
+    i = 0 
+    ferror = 1e10
+    xerror = 1e10
+
+    zprofiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
+    flux_match_errors(actor, scale_z_profiles(zprofiles); z_scaled_history, err_history, prog)
+    fluxes = flux_match_fluxes(dd, par,  prog)
+    targets = flux_match_targets(dd, par,  prog)
+    fluxes_old = deepcopy(fluxes)
+    zprofiles_old = deepcopy(zprofiles)
+
+    while(any(ferror.>ftol) && any(xerror.>xtol))
+        i+=1
         zprofiles  = pack_z_profiles(dd.core_profiles.profiles_1d[], par) .- par.step_size .* (targets.-fluxes)./sqrt.(fluxes.^2 +targets.^2)
+        flux_match_errors(actor, scale_z_profiles(zprofiles); z_scaled_history, err_history, prog)
+        fluxes = flux_match_fluxes(dd, par,  prog)
+        targets = flux_match_targets(dd, par,  prog)
+             
+        tmp = [max(min.(abs(aa), abs.(bb),1e-10)) for (aa, bb) in zip(zprofiles, zprofiles_old)]
+        xerror = abs.(zprofiles_old-zprofiles)/tmp
+        tmp = [max(min.(abs(aa), abs.(bb),1e-10)) for (aa, bb) in zip(fluxes_old, fluxes)]
+        ferror = abs.(fluxes_old-fluxes)/tmp
+
+        fluxes_old = deepcopy(fluxes)
+        zprofiles_old = deepcopy(zprofiles)
+
+        if (i>=par.max_iterations)
+            break
+        end
     end
     
     return (zero = z_scaled_history[argmin(err_history)])
