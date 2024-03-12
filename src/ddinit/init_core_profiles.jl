@@ -63,7 +63,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
                 ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
                 pressure_core,
-                ini.core_profiles.helium_fraction,
+                helium_fraction = ini.core_profiles.bulk == :D ? 0.0 : ini.core_profiles.helium_fraction,
                 ini.core_profiles.T_ratio,
                 ini.core_profiles.T_shaping,
                 ini.core_profiles.n_shaping,

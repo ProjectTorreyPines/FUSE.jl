@@ -68,7 +68,6 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
 
     ini.core_profiles.greenwald_fraction = 0.7
     ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
-    ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9

@@ -1,0 +1,3512 @@
+{
+ "soft_x_rays": {
+  "documentation": "Soft X-rays tomography diagnostic",
+  "full_path": "soft_x_rays",
+  "lifecycle_last_change": "3.35.0",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.10.2",
+  "maxoccur": "1"
+ },
+ "soft_x_rays.channel": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of channels (detector or pixel of a camera)",
+  "full_path": "soft_x_rays/channel(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "100",
+  "structure_reference": "sxr_channel"
+ },
+ "soft_x_rays.channel[:].aperture": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Description of a set of collimating apertures",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "detector_aperture"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "If geometry_type=2, coordinates of the centre of the circle. If geometry_type=1 or 3, coordinates of the origin of the local coordinate system (X1,X2,X3) describing the plane detector/aperture. This origin is located within the detector/aperture area.",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].geometry_type": {
+  "data_type": "INT_0D",
+  "documentation": "Type of geometry used to describe the surface of the detector or aperture (1:'outline', 2:'circular', 3:'rectangle'). In case of 'outline', the surface is described by an outline of point in a local coordinate system defined by a centre and three unit vectors X1, X2, X3. Note that there is some flexibility here and the data provider should choose the most convenient coordinate system for the object, respecting the definitions of (X1,X2,X3) indicated below. In case of 'circular', the surface is a circle defined by its centre, radius, and normal vector oriented towards the plasma X3.  In case of 'rectangle', the surface is a rectangle defined by its centre, widths in the X1 and X2 directions, and normal vector oriented towards the plasma X3.",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/geometry_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the detector/aperture in the (X1, X2) coordinate system. Do NOT repeat the first point.",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline.x2": {
+  "coordinates": [
+   "soft_x_rays.channel[:].aperture[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline.x2_error_lower": {
+  "coordinates": [
+   "soft_x_rays.channel[:].aperture[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].outline.x2_error_upper": {
+  "coordinates": [
+   "soft_x_rays.channel[:].aperture[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type = 2",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the detector/aperture, derived from the above geometric data",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].aperture[:].surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].aperture[:].surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X1 direction, used only if geometry_type = 3",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X2 direction, used only if geometry_type = 3",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the detector/aperture plane and oriented towards the plasma.",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].aperture[:].x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/aperture(i2)/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].brightness": {
+  "coordinates": [
+   "soft_x_rays.channel[:].energy_band",
+   "soft_x_rays.channel[:].brightness.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Power flux received by the detector, per unit solid angle and per unit area (i.e. power divided by the etendue), in multiple energy bands if available from the detector",
+  "full_path": "soft_x_rays/channel(i1)/brightness",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "W.m^-2.sr^-1"
+ },
+ "soft_x_rays.channel[:].brightness.data": {
+  "coordinates": [
+   "1...N",
+   "soft_x_rays.channel[:].brightness.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "soft_x_rays/channel(i1)/brightness/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "brightness/time",
+  "type": "dynamic",
+  "units": "W.m^-2.sr^-1"
+ },
+ "soft_x_rays.channel[:].brightness.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "soft_x_rays/channel(i1)/brightness/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].brightness.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "soft_x_rays.channel[:].brightness.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "soft_x_rays/channel(i1)/brightness/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "brightness/time",
+  "type": "dynamic",
+  "units": "W.m^-2.sr^-1"
+ },
+ "soft_x_rays.channel[:].brightness.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "soft_x_rays.channel[:].brightness.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "soft_x_rays/channel(i1)/brightness/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "brightness/time",
+  "type": "dynamic",
+  "units": "W.m^-2.sr^-1"
+ },
+ "soft_x_rays.channel[:].brightness.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "soft_x_rays/channel(i1)/brightness/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "brightness/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "soft_x_rays.channel[:].detector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Detector description",
+  "full_path": "soft_x_rays/channel(i1)/detector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "detector_aperture"
+ },
+ "soft_x_rays.channel[:].detector.centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "If geometry_type=2, coordinates of the centre of the circle. If geometry_type=1 or 3, coordinates of the origin of the local coordinate system (X1,X2,X3) describing the plane detector/aperture. This origin is located within the detector/aperture area.",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "soft_x_rays.channel[:].detector.centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].detector.centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].detector.centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].detector.centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.geometry_type": {
+  "data_type": "INT_0D",
+  "documentation": "Type of geometry used to describe the surface of the detector or aperture (1:'outline', 2:'circular', 3:'rectangle'). In case of 'outline', the surface is described by an outline of point in a local coordinate system defined by a centre and three unit vectors X1, X2, X3. Note that there is some flexibility here and the data provider should choose the most convenient coordinate system for the object, respecting the definitions of (X1,X2,X3) indicated below. In case of 'circular', the surface is a circle defined by its centre, radius, and normal vector oriented towards the plasma X3.  In case of 'rectangle', the surface is a rectangle defined by its centre, widths in the X1 and X2 directions, and normal vector oriented towards the plasma X3.",
+  "full_path": "soft_x_rays/channel(i1)/detector/geometry_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].detector.outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the detector/aperture in the (X1, X2) coordinate system. Do NOT repeat the first point.",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "soft_x_rays.channel[:].detector.outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.outline.x2": {
+  "coordinates": [
+   "soft_x_rays.channel[:].detector.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.outline.x2_error_lower": {
+  "coordinates": [
+   "soft_x_rays.channel[:].detector.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.outline.x2_error_upper": {
+  "coordinates": [
+   "soft_x_rays.channel[:].detector.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type = 2",
+  "full_path": "soft_x_rays/channel(i1)/detector/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the detector/aperture, derived from the above geometric data",
+  "full_path": "soft_x_rays/channel(i1)/detector/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].detector.surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].detector.surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X1 direction, used only if geometry_type = 3",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X2 direction, used only if geometry_type = 3",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the detector/aperture plane and oriented towards the plasma.",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].detector.x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/detector/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].energy_band": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of energy bands in which photons are counted by the detector",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "8",
+  "structure_reference": "detector_energy_band"
+ },
+ "soft_x_rays.channel[:].energy_band[:].detection_efficiency": {
+  "coordinates": [
+   "soft_x_rays.channel[:].energy_band[:].energies"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Probability of detection of a photon impacting the detector as a function of its energy ",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/detection_efficiency(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "soft_x_rays.channel[:].energy_band[:].detection_efficiency_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"detection_efficiency\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/detection_efficiency_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].energy_band[:].detection_efficiency_error_lower": {
+  "coordinates": [
+   "soft_x_rays.channel[:].energy_band[:].energies"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"detection_efficiency\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/detection_efficiency_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "soft_x_rays.channel[:].energy_band[:].detection_efficiency_error_upper": {
+  "coordinates": [
+   "soft_x_rays.channel[:].energy_band[:].energies"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"detection_efficiency\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/detection_efficiency_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "soft_x_rays.channel[:].energy_band[:].energies": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Array of discrete energy values inside the band",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/energies(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].energy_band[:].energies_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"energies\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/energies_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].energy_band[:].energies_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"energies\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/energies_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].energy_band[:].energies_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"energies\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/energies_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].energy_band[:].lower_bound": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower bound of the energy band",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/lower_bound",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].energy_band[:].lower_bound_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"lower_bound\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/lower_bound_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].energy_band[:].lower_bound_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"lower_bound\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/lower_bound_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].energy_band[:].lower_bound_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"lower_bound\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/lower_bound_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].energy_band[:].upper_bound": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper bound of the energy band",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/upper_bound",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].energy_band[:].upper_bound_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"upper_bound\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/upper_bound_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].energy_band[:].upper_bound_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"upper_bound\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/upper_bound_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].energy_band[:].upper_bound_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"upper_bound\"",
+  "full_path": "soft_x_rays/channel(i1)/energy_band(i2)/upper_bound_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "eV"
+ },
+ "soft_x_rays.channel[:].etendue": {
+  "data_type": "FLT_0D",
+  "documentation": "Etendue (geometric extent) of the channel's optical system",
+  "full_path": "soft_x_rays/channel(i1)/etendue",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2.sr"
+ },
+ "soft_x_rays.channel[:].etendue_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"etendue\"",
+  "full_path": "soft_x_rays/channel(i1)/etendue_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].etendue_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"etendue\"",
+  "full_path": "soft_x_rays/channel(i1)/etendue_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2.sr"
+ },
+ "soft_x_rays.channel[:].etendue_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"etendue\"",
+  "full_path": "soft_x_rays/channel(i1)/etendue_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2.sr"
+ },
+ "soft_x_rays.channel[:].etendue_method": {
+  "data_type": "STRUCTURE",
+  "documentation": "Method used to calculate the etendue. Index = 0 : exact calculation with a 4D integral; 1 : approximation with first order formula (detector surface times solid angle subtended by the apertures); 2 : other methods",
+  "full_path": "soft_x_rays/channel(i1)/etendue_method",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "soft_x_rays.channel[:].etendue_method.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "soft_x_rays/channel(i1)/etendue_method/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].etendue_method.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "soft_x_rays/channel(i1)/etendue_method/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].etendue_method.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "soft_x_rays/channel(i1)/etendue_method/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of filter windows",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)",
+  "introduced_after_version": "3.34.0",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "filter_window"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "Coordinates of the origin of the local coordinate system (X1,X2,X3) describing the filter. This origin is located within the filter area and should be the middle point of the filter surface. If geometry_type=2, it's the centre of the circular filter. If geometry_type=3, it's the centre of the rectangular filter. ",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].curvature_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/curved_object_curvature_identifier.xml",
+  "documentation": "Curvature of the filter.\n1) planar : Planar object, no curvature\n2) cylindrical_x1 : Cylindrical in the X1 direction, use x1_curvature\n3) cylindrical_x2 : Cylindrical in the X2 direction, use x2_curvature\n4) spherical : Spherical : same curvature radius in X1 and X2 directions, indicated in x1_curvature\n5) toroidal : Toroidal : x1_curvature in X1 direction and x2_curvature in X2 direction",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/curvature_type",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].curvature_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/curvature_type/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].curvature_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/curvature_type/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].curvature_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/curvature_type/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].geometry_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/curved_object_geometry_identifier.xml",
+  "documentation": "Geometry of the filter contour. Note that there is some flexibility in the choice of the local coordinate system (X1,X2,X3). The data provider should choose the most convenient coordinate system for the filter, respecting the definitions of (X1,X2,X3) indicated below.\n1) polygonal : Contour described by a polygonal outline in the (X1, X2) plane\n2) circular : Circle in the (X1, X2) plane, defined by its centre and radius\n3) rectangle : Rectangle in the (X1, X2) plane, defined by its centre and widths in the X1 and X2 directions",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/geometry_type",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].geometry_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/geometry_type/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].geometry_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/geometry_type/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].geometry_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/geometry_type/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].identifier": {
+  "data_type": "STR_0D",
+  "documentation": "ID of the filter",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/identifier",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].material": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/materials_identifier.xml",
+  "documentation": "Material of the filter window\n0) unspecified : unspecified\n1) C : Carbon\n2) W : Tungsten\n3) C_W_coating : Carbon with tungsten coating\n4) SS : Stainless steel\n5) SS_C_coating : Stainless steel with carbon coating\n6) IN : Inconel\n7) IN_C_coating : Inconel with carbon coating\n8) BC : Boron carbide\n17) BN : Boron nitride\n9) Ti_C_coating : Titanium with carbon coating\n10) Be : Beryllium\n11) Mo : Molybdenum\n12) Quartz : Quartz\n13) Ge : Germanium\n14) Si : Silicon\n15) LiF : Lithium fluoride\n16) InSb : Indium antimonide\n18) Cu : Copper\n19) CuCrZr : Copper Chromium Zirconium alloy",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/material",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].material.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/material/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].material.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/material/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].material.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/material/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the filter in the (X1, X2) coordinate system, used only if geometry_type/index=1. Do NOT repeat the first point.",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline.x2": {
+  "coordinates": [
+   "soft_x_rays.channel[:].filter_window[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline.x2_error_lower": {
+  "coordinates": [
+   "soft_x_rays.channel[:].filter_window[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].outline.x2_error_upper": {
+  "coordinates": [
+   "soft_x_rays.channel[:].filter_window[:].outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].photon_absorption": {
+  "coordinates": [
+   "soft_x_rays.channel[:].filter_window[:].wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Probability of absorbing a photon passing through the filter as a function of its wavelength ",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/photon_absorption(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "soft_x_rays.channel[:].filter_window[:].photon_absorption_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"photon_absorption\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/photon_absorption_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].photon_absorption_error_lower": {
+  "coordinates": [
+   "soft_x_rays.channel[:].filter_window[:].wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"photon_absorption\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/photon_absorption_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "soft_x_rays.channel[:].filter_window[:].photon_absorption_error_upper": {
+  "coordinates": [
+   "soft_x_rays.channel[:].filter_window[:].wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"photon_absorption\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/photon_absorption_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "soft_x_rays.channel[:].filter_window[:].radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type/index = 2",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the filter, derived from the above geometric data",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].filter_window[:].surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].filter_window[:].surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "soft_x_rays.channel[:].filter_window[:].thickness": {
+  "data_type": "FLT_0D",
+  "documentation": "Thickness of the filter window",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/thickness",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].thickness_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"thickness\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/thickness_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].thickness_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"thickness\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/thickness_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].thickness_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"thickness\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/thickness_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelength_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower bound of the filter wavelength range",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelength_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelength_lower_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"wavelength_lower\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelength_lower_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelength_lower_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"wavelength_lower\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelength_lower_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelength_lower_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"wavelength_lower\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelength_lower_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelength_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper bound of the filter wavelength range",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelength_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelength_upper_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"wavelength_upper\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelength_upper_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelength_upper_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"wavelength_upper\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelength_upper_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelength_upper_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"wavelength_upper\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelength_upper_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelengths": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Array of wavelength values",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelengths(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelengths_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"wavelengths\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelengths_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelengths_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"wavelengths\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelengths_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].wavelengths_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"wavelengths\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/wavelengths_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_curvature": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of curvature in the X1 direction, to be filled only for curvature_type/index = 2, 4 or 5",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_curvature",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_curvature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_curvature\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_curvature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_curvature_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_curvature\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_curvature_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_curvature_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_curvature\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_curvature_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the filter in the X1 direction, used only if geometry_type/index = 3",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_curvature": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of curvature in the X2 direction, to be filled only for curvature_type/index = 3 or 5",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_curvature",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_curvature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_curvature\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_curvature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_curvature_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_curvature\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_curvature_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_curvature_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_curvature\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_curvature_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the filter in the X2 direction, used only if geometry_type/index = 3",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the filter surface and oriented towards the plasma.",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].filter_window[:].x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/filter_window(i2)/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].identifier": {
+  "data_type": "STR_0D",
+  "documentation": "ID of the channel",
+  "full_path": "soft_x_rays/channel(i1)/identifier",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].line_of_sight": {
+  "data_type": "STRUCTURE",
+  "documentation": "Description of the line of sight of the channel, given by 2 points",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight",
+  "lifecycle_status": "alpha",
+  "structure_reference": "line_of_sight_2points"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the first point",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.first_point.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/first_point/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the second point",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].line_of_sight.second_point.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "soft_x_rays/channel(i1)/line_of_sight/second_point/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "soft_x_rays.channel[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the channel",
+  "full_path": "soft_x_rays/channel(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].power": {
+  "coordinates": [
+   "soft_x_rays.channel[:].energy_band",
+   "soft_x_rays.channel[:].power.time"
+  ],
+  "data_type": "STRUCTURE",
+  "documentation": "Power received on the detector, in multiple energy bands if available from the detector",
+  "full_path": "soft_x_rays/channel(i1)/power",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_2d",
+  "units": "W"
+ },
+ "soft_x_rays.channel[:].power.data": {
+  "coordinates": [
+   "1...N",
+   "soft_x_rays.channel[:].power.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Data",
+  "full_path": "soft_x_rays/channel(i1)/power/data(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "soft_x_rays.channel[:].power.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "soft_x_rays/channel(i1)/power/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.channel[:].power.data_error_lower": {
+  "coordinates": [
+   "1...N",
+   "soft_x_rays.channel[:].power.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "soft_x_rays/channel(i1)/power/data_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "soft_x_rays.channel[:].power.data_error_upper": {
+  "coordinates": [
+   "1...N",
+   "soft_x_rays.channel[:].power.time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "soft_x_rays/channel(i1)/power/data_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "soft_x_rays.channel[:].power.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "soft_x_rays/channel(i1)/power/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "soft_x_rays.channel[:].validity": {
+  "data_type": "INT_0D",
+  "documentation": "Indicator of the validity of the channel for the whole acquisition period (0 means valid, negative values mean non-valid)",
+  "full_path": "soft_x_rays/channel(i1)/validity",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "soft_x_rays.channel[:].validity_timed": {
+  "data_type": "STRUCTURE",
+  "documentation": "Indicator of the validity of the channel as a function of time (0 means valid, negative values mean non-valid)",
+  "full_path": "soft_x_rays/channel(i1)/validity_timed",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_int_1d"
+ },
+ "soft_x_rays.channel[:].validity_timed.data": {
+  "coordinates": [
+   "soft_x_rays.channel[:].validity_timed.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Data",
+  "full_path": "soft_x_rays/channel(i1)/validity_timed/data(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "validity_timed/time",
+  "type": "dynamic"
+ },
+ "soft_x_rays.channel[:].validity_timed.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "soft_x_rays/channel(i1)/validity_timed/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "validity_timed/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "soft_x_rays.code": {
+  "data_type": "STRUCTURE",
+  "documentation": "Generic decription of the code-specific parameters for the code that has produced this IDS",
+  "full_path": "soft_x_rays/code",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code"
+ },
+ "soft_x_rays.code.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "soft_x_rays/code/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "soft_x_rays/code/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.library": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of external libraries used by the code that has produced this IDS",
+  "full_path": "soft_x_rays/code/library(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "library"
+ },
+ "soft_x_rays.code.library[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "soft_x_rays/code/library(i1)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.library[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "soft_x_rays/code/library(i1)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.library[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software",
+  "full_path": "soft_x_rays/code/library(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.library[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "soft_x_rays/code/library(i1)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.library[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "soft_x_rays/code/library(i1)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.library[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "soft_x_rays/code/library(i1)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software generating IDS",
+  "full_path": "soft_x_rays/code/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.output_flag": {
+  "coordinates": [
+   "soft_x_rays.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Output flag : 0 means the run is successful, other values mean some difficulty has been encountered, the exact meaning is then code specific. Negative values mean the result shall not be used.",
+  "full_path": "soft_x_rays/code/output_flag(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic"
+ },
+ "soft_x_rays.code.parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "soft_x_rays/code/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "soft_x_rays/code/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.code.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "soft_x_rays/code/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Interface Data Structure properties. This element identifies the node above as an IDS",
+  "full_path": "soft_x_rays/ids_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ids_properties"
+ },
+ "soft_x_rays.ids_properties.comment": {
+  "data_type": "STR_0D",
+  "documentation": "Any comment describing the content of this IDS",
+  "full_path": "soft_x_rays/ids_properties/comment",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.creation_date": {
+  "data_type": "STR_0D",
+  "documentation": "Date at which this data has been produced",
+  "full_path": "soft_x_rays/ids_properties/creation_date",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.homogeneous_time": {
+  "data_type": "INT_0D",
+  "documentation": "This node must be filled (with 0, 1, or 2) for the IDS to be valid. If 1, the time of this IDS is homogeneous, i.e. the time values for this IDS are stored in the time node just below the root of this IDS. If 0, the time values are stored in the various time fields at lower levels in the tree. In the case only constant or static nodes are filled within the IDS, homogeneous_time must be set to 2",
+  "full_path": "soft_x_rays/ids_properties/homogeneous_time",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.name": {
+  "data_type": "STR_0D",
+  "documentation": "User-defined name for this IDS occurrence",
+  "full_path": "soft_x_rays/ids_properties/name",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.occurrence": {
+  "data_type": "INT_0D",
+  "description": "occurrence number [NOTE: this field only exists in OMAS and is not part of the ITER PDM]",
+  "full_path": "soft_x_rays.ids_properties.occurrence"
+ },
+ "soft_x_rays.ids_properties.occurrence_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/occurrence_type_identifier.xml",
+  "documentation": "Type of data contained in this occurrence\n1) reconstruction : Equilibrium reconstruction\n2) prediction_fixed : Equilibrium prediction, fixed boundary\n3) prediction_free : Equilibrium prediction, free boundary\n4) mapping : Used for mapping equilibrium results from one grid type / resolution to another, or for including variables not present in the first set such as the calculation of magnetic field of other derived parameters",
+  "full_path": "soft_x_rays/ids_properties/occurrence_type",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "soft_x_rays.ids_properties.occurrence_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "soft_x_rays/ids_properties/occurrence_type/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.occurrence_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "soft_x_rays/ids_properties/occurrence_type/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.occurrence_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "soft_x_rays/ids_properties/occurrence_type/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information about the plugins used to write/read this IDS. This structure is filled automatically by the Access Layer at GET/PUT time, no need to fill it via a user program.",
+  "full_path": "soft_x_rays/ids_properties/plugins",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.39.0",
+  "structure_reference": "ids_plugins"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_get": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to GET the data",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_get",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_get.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_get/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_get.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_get/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_get.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_get/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_get.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_get/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_get.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_get/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to PUT the data",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_put.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_put/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_put.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_put/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_put.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_put/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_put.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_put/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.infrastructure_put.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/infrastructure_put/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which a plugin has been applied",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_plugins_node",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].get_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins actually used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application). This information is filled by the plugin infrastructure during the GET operation.",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/get_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].get_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/get_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].get_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/get_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].get_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/get_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].get_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/get_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].get_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/get_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].get_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/get_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the plugin applies to the whole IDS.",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].put_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins used to PUT a node (potentially, multiple plugins can be applied, if so they are listed by order of application)",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/put_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].put_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/put_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].put_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/put_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].put_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/put_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].put_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/put_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].put_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/put_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].put_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/put_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].readback": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins to be used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application) ",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/readback(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].readback[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/readback(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].readback[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/readback(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].readback[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/readback(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].readback[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/readback(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].readback[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/readback(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.plugins.node[:].readback[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "soft_x_rays/ids_properties/plugins/node(i1)/readback(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.provenance": {
+  "data_type": "STRUCTURE",
+  "documentation": "Provenance information about this IDS",
+  "full_path": "soft_x_rays/ids_properties/provenance",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.34.0",
+  "structure_reference": "ids_provenance"
+ },
+ "soft_x_rays.ids_properties.provenance.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which the provenance is given. The provenance information applies to the whole structure below the IDS node. For documenting provenance information for the whole IDS, set the size of this array of structure to 1 and leave the child \"path\" node empty",
+  "full_path": "soft_x_rays/ids_properties/provenance/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_provenance_node",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.provenance.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the provenance information applies to the whole IDS.",
+  "full_path": "soft_x_rays/ids_properties/provenance/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "soft_x_rays.ids_properties.provenance.node[:].sources": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "List of sources used to import or calculate this node, identified as explained below. In case the node is the result of of a calculation / data processing, the source is an input to the process described in the \"code\" structure at the root of the IDS. The source can be an IDS (identified by a URI or a persitent identifier, see syntax in the link below) or non-IDS data imported directly from an non-IMAS database (identified by the command used to import the source, or the persistent identifier of the data source). Often data are obtained by a chain of processes, however only the last process input are recorded here. The full chain of provenance has then to be reconstructed recursively from the provenance information contained in the data sources.",
+  "full_path": "soft_x_rays/ids_properties/provenance/node(i1)/sources(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IMAS-URI-scheme.md"
+ },
+ "soft_x_rays.ids_properties.provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "soft_x_rays/ids_properties/provider",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...). Superseeded by the new provenance structure.",
+  "full_path": "soft_x_rays/ids_properties/source",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.34.0",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.version_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Version of the access layer package used to PUT this IDS",
+  "full_path": "soft_x_rays/ids_properties/version_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "version_dd_al"
+ },
+ "soft_x_rays.ids_properties.version_put.access_layer": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Access Layer used to PUT this IDS",
+  "full_path": "soft_x_rays/ids_properties/version_put/access_layer",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.version_put.access_layer_language": {
+  "data_type": "STR_0D",
+  "documentation": "Programming language of the Access Layer high level API used to PUT this IDS",
+  "full_path": "soft_x_rays/ids_properties/version_put/access_layer_language",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.ids_properties.version_put.data_dictionary": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Data Dictionary used to PUT this IDS",
+  "full_path": "soft_x_rays/ids_properties/version_put/data_dictionary",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "soft_x_rays.latency": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper bound of the delay between physical information received by the detector and data available on the real-time (RT) network.",
+  "full_path": "soft_x_rays/latency",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "soft_x_rays.latency_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"latency\"",
+  "full_path": "soft_x_rays/latency_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "soft_x_rays.latency_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"latency\"",
+  "full_path": "soft_x_rays/latency_error_lower",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "soft_x_rays.latency_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"latency\"",
+  "full_path": "soft_x_rays/latency_error_upper",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "soft_x_rays.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Generic time",
+  "full_path": "soft_x_rays/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ }
+}

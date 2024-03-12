@@ -1,0 +1,2840 @@
+{
+ "camera_ir": {
+  "documentation": "Infrared camera for monitoring of Plasma Facing Components",
+  "full_path": "camera_ir",
+  "lifecycle_last_change": "3.39.0",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.23.4",
+  "maxoccur": "10"
+ },
+ "camera_ir.calibration": {
+  "data_type": "STRUCTURE",
+  "documentation": "Calibration data",
+  "full_path": "camera_ir/calibration",
+  "lifecycle_status": "alpha",
+  "structure_reference": "camera_ir_calibration"
+ },
+ "camera_ir.calibration.luminance_to_temperature": {
+  "coordinates": [
+   "1...N",
+   "1...2"
+  ],
+  "data_type": "INT_2D",
+  "documentation": "Luminance to temperature conversion table",
+  "full_path": "camera_ir/calibration/luminance_to_temperature(:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.calibration.optical_temperature": {
+  "coordinates": [
+   "1...N",
+   "1...N"
+  ],
+  "data_type": "INT_2D",
+  "documentation": "Temperature of the optical components (digital levels)",
+  "full_path": "camera_ir/calibration/optical_temperature(:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.calibration.transmission_barrel": {
+  "coordinates": [
+   "1...N",
+   "1...N"
+  ],
+  "data_type": "INT_2D",
+  "documentation": "Transmission of the optical barrel",
+  "full_path": "camera_ir/calibration/transmission_barrel(:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.calibration.transmission_mirror": {
+  "coordinates": [
+   "1...N",
+   "1...N"
+  ],
+  "data_type": "INT_2D",
+  "documentation": "Transmission of the mirror",
+  "full_path": "camera_ir/calibration/transmission_mirror(:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.calibration.transmission_window": {
+  "coordinates": [
+   "1...N",
+   "1...N"
+  ],
+  "data_type": "INT_2D",
+  "documentation": "Transmission of the window",
+  "full_path": "camera_ir/calibration/transmission_window(:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.code": {
+  "data_type": "STRUCTURE",
+  "documentation": "Generic decription of the code-specific parameters for the code that has produced this IDS",
+  "full_path": "camera_ir/code",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code"
+ },
+ "camera_ir.code.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "camera_ir/code/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "camera_ir/code/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.library": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of external libraries used by the code that has produced this IDS",
+  "full_path": "camera_ir/code/library(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "library"
+ },
+ "camera_ir.code.library[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "camera_ir/code/library(i1)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.library[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "camera_ir/code/library(i1)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.library[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software",
+  "full_path": "camera_ir/code/library(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.library[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "camera_ir/code/library(i1)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.library[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "camera_ir/code/library(i1)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.library[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "camera_ir/code/library(i1)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software generating IDS",
+  "full_path": "camera_ir/code/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.output_flag": {
+  "coordinates": [
+   "camera_ir.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Output flag : 0 means the run is successful, other values mean some difficulty has been encountered, the exact meaning is then code specific. Negative values mean the result shall not be used.",
+  "full_path": "camera_ir/code/output_flag(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic"
+ },
+ "camera_ir.code.parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "camera_ir/code/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "camera_ir/code/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.code.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "camera_ir/code/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle": {
+  "data_type": "STRUCTURE",
+  "documentation": "Description of the fibre bundle",
+  "full_path": "camera_ir/fibre_bundle",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "structure_reference": "fibre_bundle"
+ },
+ "camera_ir.fibre_bundle.fibre_positions": {
+  "data_type": "STRUCTURE",
+  "documentation": "Individual fibres centres positions in the (X1, X2) coordinate system",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "camera_ir.fibre_bundle.fibre_positions.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.fibre_positions.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.fibre_positions.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.fibre_positions.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.fibre_positions.x2": {
+  "coordinates": [
+   "camera_ir.fibre_bundle.fibre_positions.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.fibre_positions.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.fibre_positions.x2_error_lower": {
+  "coordinates": [
+   "camera_ir.fibre_bundle.fibre_positions.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.fibre_positions.x2_error_upper": {
+  "coordinates": [
+   "camera_ir.fibre_bundle.fibre_positions.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_positions/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.fibre_radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of a single fibre",
+  "full_path": "camera_ir/fibre_bundle/fibre_radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.fibre_radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"fibre_radius\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.fibre_radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"fibre_radius\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.fibre_radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"fibre_radius\"",
+  "full_path": "camera_ir/fibre_bundle/fibre_radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry": {
+  "data_type": "STRUCTURE",
+  "documentation": "Geometry of the fibre bundle entrance",
+  "full_path": "camera_ir/fibre_bundle/geometry",
+  "lifecycle_status": "alpha",
+  "structure_reference": "detector_aperture"
+ },
+ "camera_ir.fibre_bundle.geometry.centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "If geometry_type=2, coordinates of the centre of the circle. If geometry_type=1 or 3, coordinates of the origin of the local coordinate system (X1,X2,X3) describing the plane detector/aperture. This origin is located within the detector/aperture area.",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.geometry_type": {
+  "data_type": "INT_0D",
+  "documentation": "Type of geometry used to describe the surface of the detector or aperture (1:'outline', 2:'circular', 3:'rectangle'). In case of 'outline', the surface is described by an outline of point in a local coordinate system defined by a centre and three unit vectors X1, X2, X3. Note that there is some flexibility here and the data provider should choose the most convenient coordinate system for the object, respecting the definitions of (X1,X2,X3) indicated below. In case of 'circular', the surface is a circle defined by its centre, radius, and normal vector oriented towards the plasma X3.  In case of 'rectangle', the surface is a rectangle defined by its centre, widths in the X1 and X2 directions, and normal vector oriented towards the plasma X3.",
+  "full_path": "camera_ir/fibre_bundle/geometry/geometry_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.fibre_bundle.geometry.outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the detector/aperture in the (X1, X2) coordinate system. Do NOT repeat the first point.",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "camera_ir.fibre_bundle.geometry.outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.outline.x2": {
+  "coordinates": [
+   "camera_ir.fibre_bundle.geometry.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.outline.x2_error_lower": {
+  "coordinates": [
+   "camera_ir.fibre_bundle.geometry.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.outline.x2_error_upper": {
+  "coordinates": [
+   "camera_ir.fibre_bundle.geometry.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type = 2",
+  "full_path": "camera_ir/fibre_bundle/geometry/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the detector/aperture, derived from the above geometric data",
+  "full_path": "camera_ir/fibre_bundle/geometry/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "camera_ir.fibre_bundle.geometry.surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "camera_ir.fibre_bundle.geometry.surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X1 direction, used only if geometry_type = 3",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X2 direction, used only if geometry_type = 3",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the detector/aperture plane and oriented towards the plasma.",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.fibre_bundle.geometry.x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "camera_ir/fibre_bundle/geometry/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.frame": {
+  "coordinates": [
+   "camera_ir.frame[:].time"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of frames",
+  "full_path": "camera_ir/frame(itime)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "unbounded",
+  "structure_reference": "camera_ir_frame",
+  "timebasepath": "time",
+  "type": "dynamic"
+ },
+ "camera_ir.frame[:].surface_temperature": {
+  "coordinates": [
+   "1...N",
+   "1...N"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Surface temperature image. First dimension : line index (horizontal axis). Second dimension: column index (vertical axis). The size of this matrix is assumed to be constant over time",
+  "full_path": "camera_ir/frame(itime)/surface_temperature(:,:)",
+  "introduced_after_version": "3.34.0",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "K"
+ },
+ "camera_ir.frame[:].surface_temperature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface_temperature\"",
+  "full_path": "camera_ir/frame(itime)/surface_temperature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "camera_ir.frame[:].surface_temperature_error_lower": {
+  "coordinates": [
+   "1...N",
+   "1...N"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"surface_temperature\"",
+  "full_path": "camera_ir/frame(itime)/surface_temperature_error_lower(:,:)",
+  "introduced_after_version": "3.34.0",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "K"
+ },
+ "camera_ir.frame[:].surface_temperature_error_upper": {
+  "coordinates": [
+   "1...N",
+   "1...N"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"surface_temperature\"",
+  "full_path": "camera_ir/frame(itime)/surface_temperature_error_upper(:,:)",
+  "introduced_after_version": "3.34.0",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "K"
+ },
+ "camera_ir.frame[:].time": {
+  "data_type": "FLT_0D",
+  "documentation": "Time",
+  "full_path": "camera_ir/frame(itime)/time",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "camera_ir.frame_analysis": {
+  "coordinates": [
+   "camera_ir.frame_analysis[:].time"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Quantities deduced from frame analysis for a set of time slices",
+  "full_path": "camera_ir/frame_analysis(itime)",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "maxoccur": "unbounded",
+  "structure_reference": "camera_ir_frame_analysis",
+  "timebasepath": "time",
+  "type": "dynamic"
+ },
+ "camera_ir.frame_analysis[:].distance_separatrix_midplane": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Distance between the measurement position and the separatrix, mapped along flux surfaces to the outboard midplane, in the major radius direction. Positive value means the measurement is outside of the separatrix.",
+  "full_path": "camera_ir/frame_analysis(itime)/distance_separatrix_midplane(:)",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "camera_ir.frame_analysis[:].distance_separatrix_midplane_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"distance_separatrix_midplane\"",
+  "full_path": "camera_ir/frame_analysis(itime)/distance_separatrix_midplane_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "camera_ir.frame_analysis[:].distance_separatrix_midplane_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"distance_separatrix_midplane\"",
+  "full_path": "camera_ir/frame_analysis(itime)/distance_separatrix_midplane_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "camera_ir.frame_analysis[:].distance_separatrix_midplane_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"distance_separatrix_midplane\"",
+  "full_path": "camera_ir/frame_analysis(itime)/distance_separatrix_midplane_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "camera_ir.frame_analysis[:].power_flux_parallel": {
+  "coordinates": [
+   "camera_ir.frame_analysis[:].distance_separatrix_midplane"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Parallel heat flux received by the element monitored by the camera, along the distance_separatrix_midplane coordinate",
+  "full_path": "camera_ir/frame_analysis(itime)/power_flux_parallel(:)",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "W.m^-2"
+ },
+ "camera_ir.frame_analysis[:].power_flux_parallel_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"power_flux_parallel\"",
+  "full_path": "camera_ir/frame_analysis(itime)/power_flux_parallel_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "camera_ir.frame_analysis[:].power_flux_parallel_error_lower": {
+  "coordinates": [
+   "camera_ir.frame_analysis[:].distance_separatrix_midplane"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"power_flux_parallel\"",
+  "full_path": "camera_ir/frame_analysis(itime)/power_flux_parallel_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "W.m^-2"
+ },
+ "camera_ir.frame_analysis[:].power_flux_parallel_error_upper": {
+  "coordinates": [
+   "camera_ir.frame_analysis[:].distance_separatrix_midplane"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"power_flux_parallel\"",
+  "full_path": "camera_ir/frame_analysis(itime)/power_flux_parallel_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "W.m^-2"
+ },
+ "camera_ir.frame_analysis[:].sol_heat_decay_length": {
+  "data_type": "FLT_0D",
+  "documentation": "Heat flux decay length in SOL at divertor entrance, mapped to the mid-plane, this is the lambda_q parameter defined in reference T. Eich et al, Nucl. Fusion 53 (2013) 093031",
+  "full_path": "camera_ir/frame_analysis(itime)/sol_heat_decay_length",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "camera_ir.frame_analysis[:].sol_heat_decay_length_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"sol_heat_decay_length\"",
+  "full_path": "camera_ir/frame_analysis(itime)/sol_heat_decay_length_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "dynamic"
+ },
+ "camera_ir.frame_analysis[:].sol_heat_decay_length_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"sol_heat_decay_length\"",
+  "full_path": "camera_ir/frame_analysis(itime)/sol_heat_decay_length_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "camera_ir.frame_analysis[:].sol_heat_decay_length_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"sol_heat_decay_length\"",
+  "full_path": "camera_ir/frame_analysis(itime)/sol_heat_decay_length_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "camera_ir.frame_analysis[:].time": {
+  "data_type": "FLT_0D",
+  "documentation": "Time",
+  "full_path": "camera_ir/frame_analysis(itime)/time",
+  "lifecycle_status": "alpha",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "camera_ir.ids_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Interface Data Structure properties. This element identifies the node above as an IDS",
+  "full_path": "camera_ir/ids_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ids_properties"
+ },
+ "camera_ir.ids_properties.comment": {
+  "data_type": "STR_0D",
+  "documentation": "Any comment describing the content of this IDS",
+  "full_path": "camera_ir/ids_properties/comment",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.creation_date": {
+  "data_type": "STR_0D",
+  "documentation": "Date at which this data has been produced",
+  "full_path": "camera_ir/ids_properties/creation_date",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.homogeneous_time": {
+  "data_type": "INT_0D",
+  "documentation": "This node must be filled (with 0, 1, or 2) for the IDS to be valid. If 1, the time of this IDS is homogeneous, i.e. the time values for this IDS are stored in the time node just below the root of this IDS. If 0, the time values are stored in the various time fields at lower levels in the tree. In the case only constant or static nodes are filled within the IDS, homogeneous_time must be set to 2",
+  "full_path": "camera_ir/ids_properties/homogeneous_time",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.name": {
+  "data_type": "STR_0D",
+  "documentation": "User-defined name for this IDS occurrence",
+  "full_path": "camera_ir/ids_properties/name",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.occurrence": {
+  "data_type": "INT_0D",
+  "description": "occurrence number [NOTE: this field only exists in OMAS and is not part of the ITER PDM]",
+  "full_path": "camera_ir.ids_properties.occurrence"
+ },
+ "camera_ir.ids_properties.occurrence_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/occurrence_type_identifier.xml",
+  "documentation": "Type of data contained in this occurrence\n1) reconstruction : Equilibrium reconstruction\n2) prediction_fixed : Equilibrium prediction, fixed boundary\n3) prediction_free : Equilibrium prediction, free boundary\n4) mapping : Used for mapping equilibrium results from one grid type / resolution to another, or for including variables not present in the first set such as the calculation of magnetic field of other derived parameters",
+  "full_path": "camera_ir/ids_properties/occurrence_type",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "camera_ir.ids_properties.occurrence_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "camera_ir/ids_properties/occurrence_type/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.occurrence_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "camera_ir/ids_properties/occurrence_type/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.occurrence_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "camera_ir/ids_properties/occurrence_type/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information about the plugins used to write/read this IDS. This structure is filled automatically by the Access Layer at GET/PUT time, no need to fill it via a user program.",
+  "full_path": "camera_ir/ids_properties/plugins",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.39.0",
+  "structure_reference": "ids_plugins"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_get": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to GET the data",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_get",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_get.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_get/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_get.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_get/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_get.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_get/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_get.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_get/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_get.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_get/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to PUT the data",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_put.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_put/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_put.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_put/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_put.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_put/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_put.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_put/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.infrastructure_put.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "camera_ir/ids_properties/plugins/infrastructure_put/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which a plugin has been applied",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_plugins_node",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].get_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins actually used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application). This information is filled by the plugin infrastructure during the GET operation.",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/get_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].get_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/get_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].get_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/get_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].get_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/get_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].get_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/get_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].get_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/get_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].get_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/get_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the plugin applies to the whole IDS.",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "camera_ir.ids_properties.plugins.node[:].put_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins used to PUT a node (potentially, multiple plugins can be applied, if so they are listed by order of application)",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/put_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].put_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/put_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].put_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/put_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].put_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/put_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].put_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/put_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].put_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/put_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].put_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/put_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].readback": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins to be used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application) ",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/readback(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].readback[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/readback(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].readback[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/readback(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].readback[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/readback(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].readback[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/readback(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].readback[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/readback(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.plugins.node[:].readback[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "camera_ir/ids_properties/plugins/node(i1)/readback(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.provenance": {
+  "data_type": "STRUCTURE",
+  "documentation": "Provenance information about this IDS",
+  "full_path": "camera_ir/ids_properties/provenance",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.34.0",
+  "structure_reference": "ids_provenance"
+ },
+ "camera_ir.ids_properties.provenance.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which the provenance is given. The provenance information applies to the whole structure below the IDS node. For documenting provenance information for the whole IDS, set the size of this array of structure to 1 and leave the child \"path\" node empty",
+  "full_path": "camera_ir/ids_properties/provenance/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_provenance_node",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.provenance.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the provenance information applies to the whole IDS.",
+  "full_path": "camera_ir/ids_properties/provenance/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "camera_ir.ids_properties.provenance.node[:].sources": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "List of sources used to import or calculate this node, identified as explained below. In case the node is the result of of a calculation / data processing, the source is an input to the process described in the \"code\" structure at the root of the IDS. The source can be an IDS (identified by a URI or a persitent identifier, see syntax in the link below) or non-IDS data imported directly from an non-IMAS database (identified by the command used to import the source, or the persistent identifier of the data source). Often data are obtained by a chain of processes, however only the last process input are recorded here. The full chain of provenance has then to be reconstructed recursively from the provenance information contained in the data sources.",
+  "full_path": "camera_ir/ids_properties/provenance/node(i1)/sources(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IMAS-URI-scheme.md"
+ },
+ "camera_ir.ids_properties.provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "camera_ir/ids_properties/provider",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...). Superseeded by the new provenance structure.",
+  "full_path": "camera_ir/ids_properties/source",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.34.0",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.version_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Version of the access layer package used to PUT this IDS",
+  "full_path": "camera_ir/ids_properties/version_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "version_dd_al"
+ },
+ "camera_ir.ids_properties.version_put.access_layer": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Access Layer used to PUT this IDS",
+  "full_path": "camera_ir/ids_properties/version_put/access_layer",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.version_put.access_layer_language": {
+  "data_type": "STR_0D",
+  "documentation": "Programming language of the Access Layer high level API used to PUT this IDS",
+  "full_path": "camera_ir/ids_properties/version_put/access_layer_language",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.ids_properties.version_put.data_dictionary": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Data Dictionary used to PUT this IDS",
+  "full_path": "camera_ir/ids_properties/version_put/data_dictionary",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "camera_ir.latency": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper bound of the delay between physical information received by the detector and data available on the real-time (RT) network.",
+  "full_path": "camera_ir/latency",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "camera_ir.latency_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"latency\"",
+  "full_path": "camera_ir/latency_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.latency_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"latency\"",
+  "full_path": "camera_ir/latency_error_lower",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "camera_ir.latency_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"latency\"",
+  "full_path": "camera_ir/latency_error_upper",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "camera_ir.midplane": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/midplane_identifier.xml",
+  "documentation": "Choice of midplane definition for the mapping of measurements on an equilibrium\n1) magnetic_axis : Midplane defined by the height of magnetic axis equilibrium/time_slice/global_quantities/magnetic_axis/z\n2) dr_dz_zero_sep : Midplane defined by the height of the outboard point on the separatrix on which dr/dz = 0 (local maximum of the major radius of the separatrix). In case of multiple local maxima, the closest one from z=z_magnetic_axis is chosen. equilibrium/time_slice/boundary_separatrix/dr_dz_zero_point/z\n3) z_zero : Midplane defined by z = 0\n4) ggd_subset : Midplane location is specified by means of the GGD grid subset for the inner and outer midplanes, if the midplane choice is different from the other available options. If the GGD midplane subset corresponds to one of the other available options, select that particular option to indicate it",
+  "full_path": "camera_ir/midplane",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "camera_ir.midplane.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "camera_ir/midplane/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.midplane.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "camera_ir/midplane/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.midplane.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "camera_ir/midplane/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the camera",
+  "full_path": "camera_ir/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of optical elements",
+  "full_path": "camera_ir/optical_element(i1)",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "optical_element"
+ },
+ "camera_ir.optical_element[:].back_surface": {
+  "data_type": "STRUCTURE",
+  "documentation": "Curvature of the front surface",
+  "full_path": "camera_ir/optical_element(i1)/back_surface",
+  "lifecycle_status": "alpha",
+  "structure_reference": "curved_surface"
+ },
+ "camera_ir.optical_element[:].back_surface.curvature_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/curved_object_curvature_identifier.xml",
+  "documentation": "Curvature of the surface\n1) planar : Planar object, no curvature\n2) cylindrical_x1 : Cylindrical in the X1 direction, use x1_curvature\n3) cylindrical_x2 : Cylindrical in the X2 direction, use x2_curvature\n4) spherical : Spherical : same curvature radius in X1 and X2 directions, indicated in x1_curvature\n5) toroidal : Toroidal : x1_curvature in X1 direction and x2_curvature in X2 direction",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/curvature_type",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "camera_ir.optical_element[:].back_surface.curvature_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/curvature_type/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].back_surface.curvature_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/curvature_type/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].back_surface.curvature_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/curvature_type/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].back_surface.x1_curvature": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of curvature in the X1 direction, to be filled only for curvature_type/index = 2, 4 or 5",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/x1_curvature",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].back_surface.x1_curvature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/x1_curvature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].back_surface.x1_curvature_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/x1_curvature_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].back_surface.x1_curvature_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/x1_curvature_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].back_surface.x2_curvature": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of curvature in the X2 direction, to be filled only for curvature_type/index = 3 or 5",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/x2_curvature",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].back_surface.x2_curvature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/x2_curvature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].back_surface.x2_curvature_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/x2_curvature_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].back_surface.x2_curvature_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/back_surface/x2_curvature_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].front_surface": {
+  "data_type": "STRUCTURE",
+  "documentation": "Curvature of the front surface",
+  "full_path": "camera_ir/optical_element(i1)/front_surface",
+  "lifecycle_status": "alpha",
+  "structure_reference": "curved_surface"
+ },
+ "camera_ir.optical_element[:].front_surface.curvature_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/curved_object_curvature_identifier.xml",
+  "documentation": "Curvature of the surface\n1) planar : Planar object, no curvature\n2) cylindrical_x1 : Cylindrical in the X1 direction, use x1_curvature\n3) cylindrical_x2 : Cylindrical in the X2 direction, use x2_curvature\n4) spherical : Spherical : same curvature radius in X1 and X2 directions, indicated in x1_curvature\n5) toroidal : Toroidal : x1_curvature in X1 direction and x2_curvature in X2 direction",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/curvature_type",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "camera_ir.optical_element[:].front_surface.curvature_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/curvature_type/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].front_surface.curvature_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/curvature_type/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].front_surface.curvature_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/curvature_type/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].front_surface.x1_curvature": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of curvature in the X1 direction, to be filled only for curvature_type/index = 2, 4 or 5",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/x1_curvature",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].front_surface.x1_curvature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/x1_curvature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].front_surface.x1_curvature_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/x1_curvature_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].front_surface.x1_curvature_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/x1_curvature_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].front_surface.x2_curvature": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of curvature in the X2 direction, to be filled only for curvature_type/index = 3 or 5",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/x2_curvature",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].front_surface.x2_curvature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/x2_curvature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].front_surface.x2_curvature_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/x2_curvature_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].front_surface.x2_curvature_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_curvature\"",
+  "full_path": "camera_ir/optical_element(i1)/front_surface/x2_curvature_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry": {
+  "data_type": "STRUCTURE",
+  "documentation": "Further geometrical description of the element",
+  "full_path": "camera_ir/optical_element(i1)/geometry",
+  "lifecycle_status": "alpha",
+  "structure_reference": "detector_aperture"
+ },
+ "camera_ir.optical_element[:].geometry.centre": {
+  "data_type": "STRUCTURE",
+  "documentation": "If geometry_type=2, coordinates of the centre of the circle. If geometry_type=1 or 3, coordinates of the origin of the local coordinate system (X1,X2,X3) describing the plane detector/aperture. This origin is located within the detector/aperture area.",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "camera_ir.optical_element[:].geometry.centre.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "camera_ir.optical_element[:].geometry.centre.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.centre.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "camera_ir.optical_element[:].geometry.centre.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "camera_ir.optical_element[:].geometry.centre.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.centre.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.centre.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.centre.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.centre.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.centre.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.centre.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.centre.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/centre/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.geometry_type": {
+  "data_type": "INT_0D",
+  "documentation": "Type of geometry used to describe the surface of the detector or aperture (1:'outline', 2:'circular', 3:'rectangle'). In case of 'outline', the surface is described by an outline of point in a local coordinate system defined by a centre and three unit vectors X1, X2, X3. Note that there is some flexibility here and the data provider should choose the most convenient coordinate system for the object, respecting the definitions of (X1,X2,X3) indicated below. In case of 'circular', the surface is a circle defined by its centre, radius, and normal vector oriented towards the plasma X3.  In case of 'rectangle', the surface is a rectangle defined by its centre, widths in the X1 and X2 directions, and normal vector oriented towards the plasma X3.",
+  "full_path": "camera_ir/optical_element(i1)/geometry/geometry_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].geometry.outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the detector/aperture in the (X1, X2) coordinate system. Do NOT repeat the first point.",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline",
+  "lifecycle_status": "alpha",
+  "structure_reference": "x1x21d_static"
+ },
+ "camera_ir.optical_element[:].geometry.outline.x1": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x1 axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline/x1(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.outline.x1_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline/x1_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.outline.x1_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x1\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline/x1_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.outline.x1_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x1\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline/x1_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.outline.x2": {
+  "coordinates": [
+   "camera_ir.optical_element[:].geometry.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Positions along x2 axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline/x2(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.outline.x2_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline/x2_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.outline.x2_error_lower": {
+  "coordinates": [
+   "camera_ir.optical_element[:].geometry.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"x2\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline/x2_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.outline.x2_error_upper": {
+  "coordinates": [
+   "camera_ir.optical_element[:].geometry.outline.x1"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"x2\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/outline/x2_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Radius of the circle, used only if geometry_type = 2",
+  "full_path": "camera_ir/optical_element(i1)/geometry/radius",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.radius_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"radius\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/radius_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.radius_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"radius\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/radius_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.radius_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"radius\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/radius_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.surface": {
+  "data_type": "FLT_0D",
+  "documentation": "Surface of the detector/aperture, derived from the above geometric data",
+  "full_path": "camera_ir/optical_element(i1)/geometry/surface",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "camera_ir.optical_element[:].geometry.surface_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"surface\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/surface_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.surface_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"surface\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/surface_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "camera_ir.optical_element[:].geometry.surface_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"surface\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/surface_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m^2"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X1 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X1 vector is more horizontal than X2 (has a smaller abs(Z) component) and oriented in the positive phi direction (counter-clockwise when viewing from above). ",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X1 direction, used only if geometry_type = 3",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x1_width\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x1_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x1_width\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x1_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x1_width\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x1_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X2 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X2 axis is orthonormal so that uX2 = uX3 x uX1.",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_width": {
+  "data_type": "FLT_0D",
+  "documentation": "Full width of the aperture in the X2 direction, used only if geometry_type = 3",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_width",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_width_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x2_width\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_width_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x2_width_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x2_width\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_width_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x2_width_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x2_width\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x2_width_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector": {
+  "data_type": "STRUCTURE",
+  "documentation": "Components of the X3 direction unit vector in the (X,Y,Z) coordinate system, where X is the major radius axis for phi = 0, Y is the major radius axis for phi = pi/2, and Z is the height axis. The X3 axis is normal to the detector/aperture plane and oriented towards the plasma.",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static",
+  "url": "utilities/detector_aperture_coordinates.svg"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].geometry.x3_unit_vector.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "camera_ir/optical_element(i1)/geometry/x3_unit_vector/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].material_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Material properties of the optical element",
+  "full_path": "camera_ir/optical_element(i1)/material_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "optical_element_material"
+ },
+ "camera_ir.optical_element[:].material_properties.extinction_coefficient": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Extinction coefficient (for metal)",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/extinction_coefficient(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.extinction_coefficient_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"extinction_coefficient\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/extinction_coefficient_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].material_properties.extinction_coefficient_error_lower": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"extinction_coefficient\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/extinction_coefficient_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.extinction_coefficient_error_upper": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"extinction_coefficient\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/extinction_coefficient_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.refractive_index": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Refractive index (for metal and dielectric)",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/refractive_index(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.refractive_index_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"refractive_index\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/refractive_index_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].material_properties.refractive_index_error_lower": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"refractive_index\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/refractive_index_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.refractive_index_error_upper": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"refractive_index\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/refractive_index_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.roughness": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Roughness parameter of the material. Varies in range [0, 1]. 0 is perfectly specular, 1 is perfectly rough",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/roughness(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.roughness_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"roughness\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/roughness_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].material_properties.roughness_error_lower": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"roughness\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/roughness_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.roughness_error_upper": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"roughness\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/roughness_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.transmission_coefficient": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Transmission coefficient (for dielectric)",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/transmission_coefficient(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.transmission_coefficient_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"transmission_coefficient\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/transmission_coefficient_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].material_properties.transmission_coefficient_error_lower": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"transmission_coefficient\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/transmission_coefficient_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.transmission_coefficient_error_upper": {
+  "coordinates": [
+   "camera_ir.optical_element[:].material_properties.wavelengths"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"transmission_coefficient\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/transmission_coefficient_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "camera_ir.optical_element[:].material_properties.type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/optical_element_material_identifier.xml",
+  "documentation": "Type of optical element material. In case of 'metal' refractive_index and extinction_coefficient are used. In case of 'dielectric' refractive_index and transmission_coefficient are used.\n1) metal : Metal\n2) dielectric : Dielectric",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/type",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "camera_ir.optical_element[:].material_properties.type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/type/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].material_properties.type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/type/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].material_properties.type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/type/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].material_properties.wavelengths": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Wavelengths array for refractive_index, extinction_coefficient and transmission_coefficient",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/wavelengths(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].material_properties.wavelengths_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"wavelengths\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/wavelengths_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].material_properties.wavelengths_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"wavelengths\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/wavelengths_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].material_properties.wavelengths_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"wavelengths\"",
+  "full_path": "camera_ir/optical_element(i1)/material_properties/wavelengths_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].thickness": {
+  "data_type": "FLT_0D",
+  "documentation": "Distance between front_surface and back_surface along the X3 vector",
+  "full_path": "camera_ir/optical_element(i1)/thickness",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].thickness_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"thickness\"",
+  "full_path": "camera_ir/optical_element(i1)/thickness_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "camera_ir.optical_element[:].thickness_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"thickness\"",
+  "full_path": "camera_ir/optical_element(i1)/thickness_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].thickness_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"thickness\"",
+  "full_path": "camera_ir/optical_element(i1)/thickness_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "camera_ir.optical_element[:].type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/optical_element_identifier.xml",
+  "documentation": "Type of optical element. In case of 'mirror' and 'diaphragm', the element is described by one 'front_surface'. In case of 'lens', the element is described by 'front_surface' and 'back_surface'.\n1) mirror : Mirror\n2) lens : Lens\n3) diaphragm : Diaphragm",
+  "full_path": "camera_ir/optical_element(i1)/type",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier_static"
+ },
+ "camera_ir.optical_element[:].type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "camera_ir/optical_element(i1)/type/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "camera_ir/optical_element(i1)/type/index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.optical_element[:].type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "camera_ir/optical_element(i1)/type/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "camera_ir.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Generic time",
+  "full_path": "camera_ir/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ }
+}

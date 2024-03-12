@@ -124,7 +124,7 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     eqt2d_out = findfirst(:rectangular, eqt_out.profiles_2d)
     if !ismissing(eqt_in.global_quantities, :ip)
         # convert dd.pf_active to coils for VacuumFields calculation
-        coils = IMAS_pf_active__coils(dd; par.green_model)
+        coils = IMAS_pf_active__coils(dd; par.green_model, zero_currents=false)
 
         # convert equilibrium to MXHEquilibrium.jl format, since this is what VacuumFields uses
         EQfixed = IMAS2Equilibrium(eqt_in)
@@ -183,13 +183,13 @@ function setup(actor::ActorPFactive, eqt::IMAS.equilibrium__time_slice)
     end
 
     # Get coils organized by their function and initialize them
-    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor)
+    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor; zero_currents=true)
 
     return (fixed_eq=fixed_eq, image_eq=image_eq, fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils, ψbound=eqt.global_quantities.psi_boundary)
 end
 
 """
-    fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
+    fixed_pinned_optim_coils(actor::ActorPFactive{D,P}; zero_currents::Bool) where {D<:Real,P<:Real}
 
 Returns tuple of GS_IMAS_pf_active__coil structs organized by their function:
 
@@ -197,7 +197,7 @@ Returns tuple of GS_IMAS_pf_active__coil structs organized by their function:
   - pinned: coils with fixed position but current is optimized
   - optim: coils that have theri position and current optimized
 """
-function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
+function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}; zero_currents::Bool) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
@@ -210,12 +210,16 @@ function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}) where {D<:Real,P<:R
         else
             coil_tech = dd.build.pf_active.technology
         end
+        if zero_currents
+            @ddtime(coil.current.data = 0.0)   # zero currents for all coils
+        end
+        pfcoil = GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model)
         if coil.identifier == "optim"
-            push!(optim_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+            push!(optim_coils, pfcoil)
         elseif coil.identifier == "fixed" || :shaping ∉ [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
-            push!(fixed_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+            push!(fixed_coils, pfcoil)
         else
-            push!(pinned_coils, GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model))
+            push!(pinned_coils, pfcoil)
         end
     end
 
