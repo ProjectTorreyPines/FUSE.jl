@@ -25,6 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
+    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -191,6 +192,7 @@ function flux_match_errors(
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
+    cp1d_old = deepcopy(cp1d)
 
     # unscale z_profiles
     push!(z_scaled_history, Tuple(z_profiles_scaled))
@@ -208,6 +210,9 @@ function flux_match_errors(
 
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
+    if par.Δt < Inf
+        IMAS.time_derivative_source!(dd, cp1d_old, Δt)
+    end
 
     if !par.find_widths && length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF
         for input_tglf in actor.actor_ct.actor_turb.input_tglfs
