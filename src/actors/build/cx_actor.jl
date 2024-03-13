@@ -50,9 +50,6 @@ function _step(actor::ActorCXbuild)
 
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
     wall_outline = IMAS.first_wall(wall)
-    # plasma_outline = IMAS.outline(bd.layer[ipl])
-    # pl_r = plasma_outline.r
-    # pl_z = plasma_outline.z
     if isempty(wall_outline.r) || par.rebuild_wall
         wall_from_eq!(wall, eqt, bd)
     end
