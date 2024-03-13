@@ -93,6 +93,9 @@ function _step(actor::ActorDynamicPlasma)
         end
         actor.actor_jt.jt_actor.par.solve_for = :vloop
         actor.actor_jt.jt_actor.par.vloop_from = :controllers__ip
+    else
+        actor.actor_jt.jt_actor.par.solve_for = :ip
+        actor.actor_jt.jt_actor.par.ip_from = :pulse_schedule
     end
 
     prog = ProgressMeter.Progress(par.Nt * 9; dt=0.0, showspeed=true, enabled=par.verbose)

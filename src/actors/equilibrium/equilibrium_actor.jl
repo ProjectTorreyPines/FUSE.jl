@@ -199,7 +199,6 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # make sure j_tor and pressure on axis come in with zero gradient
-
     index = cp1d.grid.psi_norm .> 0.05
     rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
     j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
@@ -211,7 +210,6 @@ function prepare(actor::ActorEquilibrium)
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
     eq1d.rho_tor_norm = cp1d.grid.rho_tor_norm
-
     eq1d.j_tor = j_itp.(sqrt.(eq1d.psi_norm))
     eq1d.pressure = p_itp.(sqrt.(eq1d.psi_norm))
 
