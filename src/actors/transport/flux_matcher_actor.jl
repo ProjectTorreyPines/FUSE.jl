@@ -100,7 +100,7 @@ function _step(actor::ActorFluxMatcher)
     old_logging = actor_logging(dd, false)
     res = try
         res = NLsolve.nlsolve(
-            z -> flux_match_errors(actor, z; z_scaled_history, err_history, prog),
+            z -> flux_match_errors(actor, z, deepcopy(cp1d); z_scaled_history, err_history, prog),
             z_init;
             show_trace=false,
             store_trace=true,
@@ -184,7 +184,8 @@ Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie ta
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles_scaled::Vector{<:Real};
+    z_profiles_scaled::Vector{<:Real}
+    cp1d_old::IMAS.core_profiles__profiles_1d;
     z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[],
     prog::Any=nothing)
@@ -192,7 +193,6 @@ function flux_match_errors(
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
-    cp1d_old = deepcopy(cp1d)
 
     # unscale z_profiles
     push!(z_scaled_history, Tuple(z_profiles_scaled))
@@ -211,7 +211,7 @@ function flux_match_errors(
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
     if par.Δt < Inf
-        IMAS.time_derivative_source!(dd, cp1d_old, Δt)
+        IMAS.sources_time_dependent!(dd, cp1d_old, par.Δt)
     end
 
     if !par.find_widths && length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF

@@ -82,6 +82,9 @@ function _step(actor::ActorDynamicPlasma)
 
     # set Δt of the current actor
     actor.actor_jt.jt_actor.par.Δt = δt
+    if actor.actor_tr.par.model == :FluxMatcher
+        actor.actor_tr.tr_actor.par.Δt = δt
+    end
 
     # setup things for Ip control
     if par.ip_controller
