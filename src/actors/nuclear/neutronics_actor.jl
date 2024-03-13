@@ -39,13 +39,13 @@ function _step(actor::ActorNeutronics)
     do_plot::Bool = actor.par.do_plot
     p = do_plot ? plot() : nothing
 
-    neutrons, W_per_trace = define_neutrons(actor)
+    neutrons, W_per_trace, dr, dz = define_neutrons(actor)
     if do_plot
         plot!(p, neutrons, actor.dd.equilibrium.time_slice[])
     end
 
     rwall, zwall = define_wall(actor)
-    nflux_r, nflux_z, wall_s = IMAS.find_flux(neutrons, W_per_trace, rwall, zwall)
+    nflux_r, nflux_z, wall_s = IMAS.find_flux(neutrons, W_per_trace, rwall, zwall, dr,dz)
 
     # IMAS assignments
     dd = actor.dd
@@ -82,9 +82,9 @@ function define_neutrons(dd::IMAS.dd, N::Int)
     eqt = dd.equilibrium.time_slice[]
     source_1d = IMAS.D_T_to_He4_heating(cp1d) .* 4.0 .+ IMAS.D_D_to_He3_heating(cp1d) .* 3.0
     psi = cp1d.grid.psi
-    neutrons, W_per_trace = IMAS.define_particles(eqt, psi, source_1d, N)
+    neutrons, W_per_trace, dr, dz = IMAS.define_particles(eqt, psi, source_1d, N)
 
-    return neutrons, W_per_trace
+    return neutrons, W_per_trace, dr, dz
 end
 
 function define_wall(actor::ActorNeutronics; step::Float64=0.1)
