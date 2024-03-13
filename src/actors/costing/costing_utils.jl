@@ -175,16 +175,16 @@ end
 Returns maximum total_useful_heat_power, power_electric_generated, power_electric_net over time, setting them to 0.0 if negative, Nan or missing
 """
 function bop_powers(bop::IMAS.balance_of_plant)
-    if ismissing(bop.thermal_cycle, :total_useful_heat_power)
+    if ismissing(bop.power_plant, :total_heat_supplied)
         total_useful_heat_power = 0.0
     else
-        total_useful_heat_power = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.thermal_cycle.total_useful_heat_power))
+        total_useful_heat_power = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.power_plant.total_heat_supplied))
     end
 
-    if ismissing(bop.thermal_cycle, :power_electric_generated)
+    if ismissing(bop.power_plant, :power_electric_generated)
         power_electric_generated = 0.0
     else
-        power_electric_generated = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.thermal_cycle.power_electric_generated))
+        power_electric_generated = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.power_plant.power_electric_generated))
     end
 
     if ismissing(bop, :power_electric_net)
