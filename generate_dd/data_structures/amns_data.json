@@ -1,0 +1,1851 @@
+{
+ "amns_data": {
+  "documentation": "Atomic, molecular, nuclear and surface physics data. Each occurrence contains the data for a given element (nuclear charge), describing various physical processes. For each process, data tables are organized by charge states. The coordinate system used by the data tables is described under the coordinate_system node.",
+  "full_path": "amns_data",
+  "lifecycle_last_change": "3.21.0",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.0.0",
+  "maxoccur": "2"
+ },
+ "amns_data.a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "amns_data/a",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "amns_data/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "amns_data/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "amns_data/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.code": {
+  "data_type": "STRUCTURE",
+  "documentation": "Generic decription of the code-specific parameters for the code that has produced this IDS",
+  "full_path": "amns_data/code",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code"
+ },
+ "amns_data.code.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "amns_data/code/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "amns_data/code/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.library": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of external libraries used by the code that has produced this IDS",
+  "full_path": "amns_data/code/library(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "library"
+ },
+ "amns_data.code.library[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "amns_data/code/library(i1)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.library[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "amns_data/code/library(i1)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.library[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software",
+  "full_path": "amns_data/code/library(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.library[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "amns_data/code/library(i1)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.library[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "amns_data/code/library(i1)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.library[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "amns_data/code/library(i1)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software generating IDS",
+  "full_path": "amns_data/code/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.output_flag": {
+  "coordinates": [
+   "amns_data.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Output flag : 0 means the run is successful, other values mean some difficulty has been encountered, the exact meaning is then code specific. Negative values mean the result shall not be used.",
+  "full_path": "amns_data/code/output_flag(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic"
+ },
+ "amns_data.code.parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "amns_data/code/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "amns_data/code/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.code.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "amns_data/code/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.coordinate_system": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Array of possible coordinate systems for process tables",
+  "full_path": "amns_data/coordinate_system(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "amns_data_coordinate_system"
+ },
+ "amns_data.coordinate_system[:].coordinate": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of coordinates for that coordinate system. A coordinate an be either a range of real values or a set of discrete values (if interpolation_type=0)",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "6",
+  "structure_reference": "amns_data_coordinate_system_coordinate"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].extrapolation_type": {
+  "coordinates": [
+   "1...2"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Extrapolation strategy when leaving the domain. The first value of the vector describes the behaviour at lower bound, the second describes the at upper bound. Possible values: 0=none, report error; 1=boundary value; 2=linear extrapolation",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/extrapolation_type(:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].interpolation_type": {
+  "data_type": "INT_0D",
+  "documentation": "Interpolation strategy in this coordinate direction. Integer flag: 0=discrete (no interpolation); 1=linear; ...",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/interpolation_type",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "Description of coordinate (e.g. \"Electron temperature\")",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/label",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].spacing": {
+  "data_type": "INT_0D",
+  "documentation": "Flag for specific coordinate spacing (for optimization purposes). Integer flag: 0=undefined; 1=uniform; ...",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/spacing",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].transformation": {
+  "data_type": "INT_0D",
+  "documentation": "Coordinate transformation applied to coordinate values stored in coord. Integer flag: 0=none; 1=log10; 2=ln",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/transformation",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].units": {
+  "data_type": "STR_0D",
+  "documentation": "Units of coordinate (e.g. eV)",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/units",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].value_labels": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "String description of discrete coordinate values (if interpolation_type=0). E.g., for spectroscopic lines, the spectroscopic description of the transition.",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/value_labels(:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].values": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Coordinate values",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/values(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by coordinate_system(:)/coordinate(:)/units"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].values_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"values\"",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/values_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].values_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"values\"",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/values_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by coordinate_system(:)/coordinate(:)/units"
+ },
+ "amns_data.coordinate_system[:].coordinate[:].values_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"values\"",
+  "full_path": "amns_data/coordinate_system(i1)/coordinate(i2)/values_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by coordinate_system(:)/coordinate(:)/units"
+ },
+ "amns_data.ids_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Interface Data Structure properties. This element identifies the node above as an IDS",
+  "full_path": "amns_data/ids_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ids_properties"
+ },
+ "amns_data.ids_properties.comment": {
+  "data_type": "STR_0D",
+  "documentation": "Any comment describing the content of this IDS",
+  "full_path": "amns_data/ids_properties/comment",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.creation_date": {
+  "data_type": "STR_0D",
+  "documentation": "Date at which this data has been produced",
+  "full_path": "amns_data/ids_properties/creation_date",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.homogeneous_time": {
+  "data_type": "INT_0D",
+  "documentation": "This node must be filled (with 0, 1, or 2) for the IDS to be valid. If 1, the time of this IDS is homogeneous, i.e. the time values for this IDS are stored in the time node just below the root of this IDS. If 0, the time values are stored in the various time fields at lower levels in the tree. In the case only constant or static nodes are filled within the IDS, homogeneous_time must be set to 2",
+  "full_path": "amns_data/ids_properties/homogeneous_time",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.name": {
+  "data_type": "STR_0D",
+  "documentation": "User-defined name for this IDS occurrence",
+  "full_path": "amns_data/ids_properties/name",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.occurrence": {
+  "data_type": "INT_0D",
+  "description": "occurrence number [NOTE: this field only exists in OMAS and is not part of the ITER PDM]",
+  "full_path": "amns_data.ids_properties.occurrence"
+ },
+ "amns_data.ids_properties.occurrence_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/occurrence_type_identifier.xml",
+  "documentation": "Type of data contained in this occurrence\n1) reconstruction : Equilibrium reconstruction\n2) prediction_fixed : Equilibrium prediction, fixed boundary\n3) prediction_free : Equilibrium prediction, free boundary\n4) mapping : Used for mapping equilibrium results from one grid type / resolution to another, or for including variables not present in the first set such as the calculation of magnetic field of other derived parameters",
+  "full_path": "amns_data/ids_properties/occurrence_type",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "amns_data.ids_properties.occurrence_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "amns_data/ids_properties/occurrence_type/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.occurrence_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "amns_data/ids_properties/occurrence_type/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.occurrence_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "amns_data/ids_properties/occurrence_type/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information about the plugins used to write/read this IDS. This structure is filled automatically by the Access Layer at GET/PUT time, no need to fill it via a user program.",
+  "full_path": "amns_data/ids_properties/plugins",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.39.0",
+  "structure_reference": "ids_plugins"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_get": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to GET the data",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_get",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_get.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_get/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_get.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_get/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_get.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_get/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_get.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_get/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_get.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_get/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to PUT the data",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_put.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_put/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_put.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_put/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_put.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_put/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_put.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_put/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.infrastructure_put.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "amns_data/ids_properties/plugins/infrastructure_put/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which a plugin has been applied",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_plugins_node",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].get_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins actually used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application). This information is filled by the plugin infrastructure during the GET operation.",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/get_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].get_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/get_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].get_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/get_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].get_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/get_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].get_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/get_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].get_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/get_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].get_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/get_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the plugin applies to the whole IDS.",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "amns_data.ids_properties.plugins.node[:].put_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins used to PUT a node (potentially, multiple plugins can be applied, if so they are listed by order of application)",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/put_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].put_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/put_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].put_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/put_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].put_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/put_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].put_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/put_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].put_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/put_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].put_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/put_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].readback": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins to be used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application) ",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/readback(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].readback[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/readback(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].readback[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/readback(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].readback[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/readback(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].readback[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/readback(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].readback[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/readback(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.plugins.node[:].readback[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "amns_data/ids_properties/plugins/node(i1)/readback(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.provenance": {
+  "data_type": "STRUCTURE",
+  "documentation": "Provenance information about this IDS",
+  "full_path": "amns_data/ids_properties/provenance",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.34.0",
+  "structure_reference": "ids_provenance"
+ },
+ "amns_data.ids_properties.provenance.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which the provenance is given. The provenance information applies to the whole structure below the IDS node. For documenting provenance information for the whole IDS, set the size of this array of structure to 1 and leave the child \"path\" node empty",
+  "full_path": "amns_data/ids_properties/provenance/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_provenance_node",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.provenance.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the provenance information applies to the whole IDS.",
+  "full_path": "amns_data/ids_properties/provenance/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "amns_data.ids_properties.provenance.node[:].sources": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "List of sources used to import or calculate this node, identified as explained below. In case the node is the result of of a calculation / data processing, the source is an input to the process described in the \"code\" structure at the root of the IDS. The source can be an IDS (identified by a URI or a persitent identifier, see syntax in the link below) or non-IDS data imported directly from an non-IMAS database (identified by the command used to import the source, or the persistent identifier of the data source). Often data are obtained by a chain of processes, however only the last process input are recorded here. The full chain of provenance has then to be reconstructed recursively from the provenance information contained in the data sources.",
+  "full_path": "amns_data/ids_properties/provenance/node(i1)/sources(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IMAS-URI-scheme.md"
+ },
+ "amns_data.ids_properties.provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "amns_data/ids_properties/provider",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...). Superseeded by the new provenance structure.",
+  "full_path": "amns_data/ids_properties/source",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.34.0",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.version_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Version of the access layer package used to PUT this IDS",
+  "full_path": "amns_data/ids_properties/version_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "version_dd_al"
+ },
+ "amns_data.ids_properties.version_put.access_layer": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Access Layer used to PUT this IDS",
+  "full_path": "amns_data/ids_properties/version_put/access_layer",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.version_put.access_layer_language": {
+  "data_type": "STR_0D",
+  "documentation": "Programming language of the Access Layer high level API used to PUT this IDS",
+  "full_path": "amns_data/ids_properties/version_put/access_layer_language",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.ids_properties.version_put.data_dictionary": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Data Dictionary used to PUT this IDS",
+  "full_path": "amns_data/ids_properties/version_put/data_dictionary",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Description and data for a set of physical processes.",
+  "full_path": "amns_data/process(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "amns_data_process"
+ },
+ "amns_data.process[:].charge_state": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Process tables for a set of charge states. Only one table is used for that process, defined by process(:)/table_dimension",
+  "full_path": "amns_data/process(i1)/charge_state(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "75",
+  "structure_reference": "amns_data_process_charge_state"
+ },
+ "amns_data.process[:].charge_state[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying charge state (e.g. C+, C+2 , C+3, C+4, C+5, C+6, ...)",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/label",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].charge_state[:].table_0d": {
+  "data_type": "FLT_0D",
+  "documentation": "0D table describing the process data",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_0d",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(:)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_0d_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"table_0d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_0d_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].table_0d_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"table_0d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_0d_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(:)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_0d_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"table_0d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_0d_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(:)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_1d": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "1D table describing the process data",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_1d(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_1d_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"table_1d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_1d_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].table_1d_error_lower": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"table_1d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_1d_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_1d_error_upper": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"table_1d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_1d_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_2d": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "2D table describing the process data",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_2d(:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_2d_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"table_2d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_2d_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].table_2d_error_lower": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"table_2d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_2d_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_2d_error_upper": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"table_2d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_2d_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_3d": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "3D table describing the process data",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_3d(:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(:)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_3d_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"table_3d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_3d_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].table_3d_error_lower": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Lower error for \"table_3d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_3d_error_lower(:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(:)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_3d_error_upper": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_3D",
+  "documentation": "Upper error for \"table_3d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_3d_error_upper(:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(:)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_4d": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_4D",
+  "documentation": "4D table describing the process data",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_4d(:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_4d_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"table_4d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_4d_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].table_4d_error_lower": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_4D",
+  "documentation": "Lower error for \"table_4d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_4d_error_lower(:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_4d_error_upper": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_4D",
+  "documentation": "Upper error for \"table_4d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_4d_error_upper(:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_5d": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_5D",
+  "documentation": "5D table describing the process data",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_5d(:,:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_5d_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"table_5d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_5d_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].table_5d_error_lower": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_5D",
+  "documentation": "Lower error for \"table_5d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_5d_error_lower(:,:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_5d_error_upper": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_5D",
+  "documentation": "Upper error for \"table_5d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_5d_error_upper(:,:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_6d": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_6D",
+  "documentation": "6D table describing the process data",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_6d(:,:,:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_6d_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"table_6d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_6d_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].table_6d_error_lower": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_6D",
+  "documentation": "Lower error for \"table_6d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_6d_error_lower(:,:,:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].table_6d_error_upper": {
+  "coordinates": [
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values",
+   "amns_data.coordinate_system[:].coordinate[:].values"
+  ],
+  "data_type": "FLT_6D",
+  "documentation": "Upper error for \"table_6d\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/table_6d_error_upper(:,:,:,:,:,:)",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "units given by process(i1)/results_units"
+ },
+ "amns_data.process[:].charge_state[:].z_max": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum Z of the charge state bundle (equal to z_min if no bundle)",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/z_max",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].charge_state[:].z_max_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_max\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/z_max_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].z_max_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_max\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/z_max_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].charge_state[:].z_max_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_max\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/z_max_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].charge_state[:].z_min": {
+  "data_type": "FLT_0D",
+  "documentation": "Minimum Z of the charge state bundle",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/z_min",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].charge_state[:].z_min_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_min\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/z_min_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].charge_state[:].z_min_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_min\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/z_min_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].charge_state[:].z_min_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_min\"",
+  "full_path": "amns_data/process(i1)/charge_state(i2)/z_min_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].citation": {
+  "data_type": "STR_0D",
+  "documentation": "Reference to publication(s)",
+  "full_path": "amns_data/process(i1)/citation",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].coordinate_index": {
+  "data_type": "INT_0D",
+  "documentation": "Index in tables_coord, specifying what coordinate systems to use for this process (valid for all tables)",
+  "full_path": "amns_data/process(i1)/coordinate_index",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying the process (e.g. EI, RC, ...)",
+  "full_path": "amns_data/process(i1)/label",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].products": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of products resulting of this process",
+  "full_path": "amns_data/process(i1)/products(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "amns_data_process_reactant"
+ },
+ "amns_data.process[:].products[:].charge": {
+  "data_type": "FLT_0D",
+  "documentation": "Charge number of the participant",
+  "full_path": "amns_data/process(i1)/products(i2)/charge",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].products[:].charge_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"charge\"",
+  "full_path": "amns_data/process(i1)/products(i2)/charge_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].charge_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"charge\"",
+  "full_path": "amns_data/process(i1)/products(i2)/charge_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].products[:].charge_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"charge\"",
+  "full_path": "amns_data/process(i1)/products(i2)/charge_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].products[:].element": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of elements forming the atom (in such case, this array should be of size 1) or molecule. Mass of atom and nuclear charge should be set to 0 for photons and electrons. The mass of atom shouldn't be set for an atomic process that is not isotope dependent.",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "plasma_composition_neutral_element_constant"
+ },
+ "amns_data.process[:].products[:].element[:].a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/a",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].products[:].element[:].a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].element[:].a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].products[:].element[:].a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].products[:].element[:].atoms_n": {
+  "data_type": "INT_0D",
+  "documentation": "Number of atoms of this element in the molecule",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/atoms_n",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].element[:].multiplicity": {
+  "data_type": "FLT_0D",
+  "documentation": "Multiplicity of the atom",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/multiplicity",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.15.0",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].products[:].element[:].multiplicity_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/multiplicity_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].element[:].multiplicity_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/multiplicity_error_lower",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.15.0",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].products[:].element[:].multiplicity_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/multiplicity_error_upper",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.15.0",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].products[:].element[:].z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/z_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].products[:].element[:].z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].element[:].z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].products[:].element[:].z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "amns_data/process(i1)/products(i2)/element(i3)/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].products[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying reaction participant (e.g. \"D\", \"e\", \"W\", \"CD4\", \"photon\", \"n\")",
+  "full_path": "amns_data/process(i1)/products(i2)/label",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].products[:].mass": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of the participant",
+  "full_path": "amns_data/process(i1)/products(i2)/mass",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].products[:].mass_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"mass\"",
+  "full_path": "amns_data/process(i1)/products(i2)/mass_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].mass_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"mass\"",
+  "full_path": "amns_data/process(i1)/products(i2)/mass_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].products[:].mass_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"mass\"",
+  "full_path": "amns_data/process(i1)/products(i2)/mass_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].products[:].metastable": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "An array identifying the metastable; if zero-length, then not a metastable; if of length 1, then the value indicates the electronic level for the metastable (mostly used for atoms/ions); if of length 2, then the 1st would indicate the electronic level and the second the vibrational level for the metastable (mostly used for molecules and molecular ions); if of length 3, then the 1st would indicate the electronic level, the second the vibrational level and the third the rotational level for the metastable (mostly used for molecules and molecular ions)",
+  "full_path": "amns_data/process(i1)/products(i2)/metastable(:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].products[:].metastable_label": {
+  "data_type": "STR_0D",
+  "documentation": "Label identifying in text form the metastable",
+  "full_path": "amns_data/process(i1)/products(i2)/metastable_label",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].products[:].multiplicity": {
+  "data_type": "FLT_0D",
+  "documentation": "Multiplicity in the reaction",
+  "full_path": "amns_data/process(i1)/products(i2)/multiplicity",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].products[:].multiplicity_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/products(i2)/multiplicity_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].multiplicity_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/products(i2)/multiplicity_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].products[:].multiplicity_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/products(i2)/multiplicity_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].products[:].relative_charge": {
+  "data_type": "INT_0D",
+  "documentation": "This is a flag indicating that charges are absolute (if set to 0), relative (if 1) or irrelevant (-1); relative would be used to categorize the ionization reactions from i to i+1 for all charge states; in the case of bundles, the +1 relative indicates the next bundle",
+  "full_path": "amns_data/process(i1)/products(i2)/relative_charge",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].products[:].role": {
+  "data_type": "STRUCTURE",
+  "documentation": "Identifier for the role of this paricipant in the reaction. For surface reactions distinguish between projectile and wall.",
+  "full_path": "amns_data/process(i1)/products(i2)/role",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "amns_data.process[:].products[:].role.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "amns_data/process(i1)/products(i2)/role/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].role.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "amns_data/process(i1)/products(i2)/role/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process[:].products[:].role.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "amns_data/process(i1)/products(i2)/role/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process[:].provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "amns_data/process(i1)/provider",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].reactants": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of reactants involved in this process",
+  "full_path": "amns_data/process(i1)/reactants(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "amns_data_process_reactant"
+ },
+ "amns_data.process[:].reactants[:].charge": {
+  "data_type": "FLT_0D",
+  "documentation": "Charge number of the participant",
+  "full_path": "amns_data/process(i1)/reactants(i2)/charge",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].reactants[:].charge_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"charge\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/charge_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].charge_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"charge\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/charge_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].reactants[:].charge_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"charge\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/charge_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].reactants[:].element": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of elements forming the atom (in such case, this array should be of size 1) or molecule. Mass of atom and nuclear charge should be set to 0 for photons and electrons. The mass of atom shouldn't be set for an atomic process that is not isotope dependent.",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "plasma_composition_neutral_element_constant"
+ },
+ "amns_data.process[:].reactants[:].element[:].a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/a",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].reactants[:].element[:].a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].element[:].a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].reactants[:].element[:].a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].reactants[:].element[:].atoms_n": {
+  "data_type": "INT_0D",
+  "documentation": "Number of atoms of this element in the molecule",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/atoms_n",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].element[:].multiplicity": {
+  "data_type": "FLT_0D",
+  "documentation": "Multiplicity of the atom",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/multiplicity",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.15.0",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].reactants[:].element[:].multiplicity_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/multiplicity_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].element[:].multiplicity_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/multiplicity_error_lower",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.15.0",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].reactants[:].element[:].multiplicity_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/multiplicity_error_upper",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.15.0",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].reactants[:].element[:].z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/z_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].reactants[:].element[:].z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].element[:].z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].reactants[:].element[:].z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/element(i3)/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.process[:].reactants[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying reaction participant (e.g. \"D\", \"e\", \"W\", \"CD4\", \"photon\", \"n\")",
+  "full_path": "amns_data/process(i1)/reactants(i2)/label",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].reactants[:].mass": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of the participant",
+  "full_path": "amns_data/process(i1)/reactants(i2)/mass",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].reactants[:].mass_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"mass\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/mass_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].mass_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"mass\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/mass_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].reactants[:].mass_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"mass\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/mass_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Atomic Mass Unit"
+ },
+ "amns_data.process[:].reactants[:].metastable": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "An array identifying the metastable; if zero-length, then not a metastable; if of length 1, then the value indicates the electronic level for the metastable (mostly used for atoms/ions); if of length 2, then the 1st would indicate the electronic level and the second the vibrational level for the metastable (mostly used for molecules and molecular ions); if of length 3, then the 1st would indicate the electronic level, the second the vibrational level and the third the rotational level for the metastable (mostly used for molecules and molecular ions)",
+  "full_path": "amns_data/process(i1)/reactants(i2)/metastable(:)",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].reactants[:].metastable_label": {
+  "data_type": "STR_0D",
+  "documentation": "Label identifying in text form the metastable",
+  "full_path": "amns_data/process(i1)/reactants(i2)/metastable_label",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].reactants[:].multiplicity": {
+  "data_type": "FLT_0D",
+  "documentation": "Multiplicity in the reaction",
+  "full_path": "amns_data/process(i1)/reactants(i2)/multiplicity",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].reactants[:].multiplicity_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/multiplicity_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].multiplicity_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/multiplicity_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].reactants[:].multiplicity_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"multiplicity\"",
+  "full_path": "amns_data/process(i1)/reactants(i2)/multiplicity_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "-"
+ },
+ "amns_data.process[:].reactants[:].relative_charge": {
+  "data_type": "INT_0D",
+  "documentation": "This is a flag indicating that charges are absolute (if set to 0), relative (if 1) or irrelevant (-1); relative would be used to categorize the ionization reactions from i to i+1 for all charge states; in the case of bundles, the +1 relative indicates the next bundle",
+  "full_path": "amns_data/process(i1)/reactants(i2)/relative_charge",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].reactants[:].role": {
+  "data_type": "STRUCTURE",
+  "documentation": "Identifier for the role of this paricipant in the reaction. For surface reactions distinguish between projectile and wall.",
+  "full_path": "amns_data/process(i1)/reactants(i2)/role",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "amns_data.process[:].reactants[:].role.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "amns_data/process(i1)/reactants(i2)/role/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].role.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "amns_data/process(i1)/reactants(i2)/role/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process[:].reactants[:].role.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "amns_data/process(i1)/reactants(i2)/role/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "amns_data.process[:].result_label": {
+  "data_type": "STR_0D",
+  "documentation": "Description of the process result (rate, cross section, sputtering yield, ...)",
+  "full_path": "amns_data/process(i1)/result_label",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].result_transformation": {
+  "data_type": "INT_0D",
+  "documentation": "Transformation of the process result. Integer flag: 0=no transformation; 1=10^; 2=exp()",
+  "full_path": "amns_data/process(i1)/result_transformation",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].result_units": {
+  "data_type": "STR_0D",
+  "documentation": "Units of the process result",
+  "full_path": "amns_data/process(i1)/result_units",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].source": {
+  "data_type": "STR_0D",
+  "documentation": "Filename or subroutine name used to provide this data",
+  "full_path": "amns_data/process(i1)/source",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.process[:].table_dimension": {
+  "data_type": "INT_0D",
+  "documentation": "Table dimensionality of the process (1 to 6), valid for all charge states. Indicates which of the tables is filled (below the charge_state node)",
+  "full_path": "amns_data/process(i1)/table_dimension",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.release": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of available releases of the AMNS data; each element contains information about the AMNS data that is included in the release. This part of the IDS is filled and stored only into shot/run=0/1, playing the role of a catalogue.",
+  "full_path": "amns_data/release(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "100",
+  "structure_reference": "amns_data_release"
+ },
+ "amns_data.release[:].data_entry": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "For this release, list of each data item (i.e. shot/run pair containing the actual data) included in this release",
+  "full_path": "amns_data/release(i1)/data_entry(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "30",
+  "structure_reference": "amns_data_data_entry"
+ },
+ "amns_data.release[:].data_entry[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Description of this data entry",
+  "full_path": "amns_data/release(i1)/data_entry(i2)/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.release[:].data_entry[:].run": {
+  "data_type": "INT_0D",
+  "documentation": "Which run number is the active run number for this version",
+  "full_path": "amns_data/release(i1)/data_entry(i2)/run",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.release[:].data_entry[:].shot": {
+  "data_type": "INT_0D",
+  "documentation": "Shot number = Mass*1000+Nuclear_charge",
+  "full_path": "amns_data/release(i1)/data_entry(i2)/shot",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.release[:].date": {
+  "data_type": "STR_0D",
+  "documentation": "Date of this release",
+  "full_path": "amns_data/release(i1)/date",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.release[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Description of this release",
+  "full_path": "amns_data/release(i1)/description",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "amns_data.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Generic time",
+  "full_path": "amns_data/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "amns_data.z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "amns_data/z_n",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "amns_data/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "amns_data.z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "amns_data/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ },
+ "amns_data.z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "amns_data/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "Elementary Charge Unit"
+ }
+}

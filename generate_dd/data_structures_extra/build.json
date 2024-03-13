@@ -1,0 +1,470 @@
+{
+ "build": {
+  "documentation": "Build of the tokamak"
+ },
+ "build.divertors.lower.installed": {
+  "data_type": "INT_0D",
+  "documentation": "1 if a lower divertor is installed",
+  "type": "static",
+  "units": "-"
+ },
+ "build.divertors.upper.installed": {
+  "data_type": "INT_0D",
+  "documentation": "1 if a upper divertor is installed",
+  "type": "static",
+  "units": "-"
+ },
+ "build.flux_swing.flattop": {
+  "data_type": "FLT_0D",
+  "documentation": "Total flux required for the plasma flattop",
+  "type": "static",
+  "units": "Wb"
+ },
+ "build.flux_swing.pf": {
+  "data_type": "FLT_0D",
+  "documentation": "Contribution of vertical field from PF coils to flux swing",
+  "type": "static",
+  "units": "Wb"
+ },
+ "build.flux_swing.rampup": {
+  "data_type": "FLT_0D",
+  "documentation": "Total flux required for the plasma rampup",
+  "type": "static",
+  "units": "Wb"
+ },
+ "build.layer": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of layers in the radial build"
+ },
+ "build.layer[:].area": {
+  "data_type": "FLT_0D",
+  "documentation": "Cross sectional area of the layer",
+  "type": "static",
+  "units": "m^2"
+ },
+ "build.layer[:].end_radius": {
+  "data_type": "FLT_0D",
+  "documentation": "End radius of the layer",
+  "type": "static",
+  "units": "m"
+ },
+ "build.layer[:].identifier": {
+  "data_type": "INT_0D",
+  "documentation": "Integer to identify the same layer on the high-field-side and low-field-side",
+  "type": "static"
+ },
+ "build.layer[:].material": {
+  "data_type": "STR_0D",
+  "documentation": "Material of the layer",
+  "type": "static"
+ },
+ "build.layer[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the layer",
+  "type": "static"
+ },
+ "build.layer[:].outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the limiting surface. Do NOT repeat the first point for closed contours"
+ },
+ "build.layer[:].outline.r": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius",
+  "type": "static",
+  "units": "m"
+ },
+ "build.layer[:].outline.z": {
+  "coordinates": [
+   "build.layer[:].outline.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Height",
+  "type": "static",
+  "units": "m"
+ },
+ "build.layer[:].shape": {
+  "data_type": "INT_0D",
+  "documentation": "Integer to identify the physical shape of the layer",
+  "type": "static"
+ },
+ "build.layer[:].shape_parameters": {
+  "data_type": "FLT_1D",
+  "documentation": "List of the shape specific parameters for given shape type"
+ },
+ "build.layer[:].side": {
+  "data_type": "INT_0D",
+  "documentation": "Integer set to -1 if layer is on the low-field-side and 1 if layer is on the high-field-side. 0 for plasma. 2 for inner (eg. OH) and 3 for outer (eg. cryostat)",
+  "type": "static"
+ },
+ "build.layer[:].start_radius": {
+  "data_type": "FLT_0D",
+  "documentation": "Start radius of the layer",
+  "type": "static",
+  "units": "m"
+ },
+ "build.layer[:].thickness": {
+  "data_type": "FLT_0D",
+  "documentation": "Radial thickness of layer",
+  "type": "static",
+  "units": "m"
+ },
+ "build.layer[:].type": {
+  "data_type": "INT_0D",
+  "documentation": "Layer type code\n0) vacuum (use this to set mimimum radius for OH)\n1) OH\n2) TF\n3) BL\n4) Shielding\n5) Wall\n-1) Vacuum vessel",
+  "type": "static"
+ },
+ "build.layer[:].volume": {
+  "data_type": "FLT_0D",
+  "documentation": "Volume of the layer",
+  "type": "static",
+  "units": "m^3"
+ },
+ "build.layer[:].volume_no_structures": {
+  "data_type": "FLT_0D",
+  "documentation": "Volume of the layer without structures",
+  "type": "static",
+  "units": "m^3"
+ },
+ "build.oh.critical_b_field": {
+  "data_type": "FLT_0D",
+  "documentation": "Critical magnetic field density to quench superconducting OH",
+  "type": "static",
+  "units": "T"
+ },
+ "build.oh.critical_j": {
+  "data_type": "FLT_0D",
+  "documentation": "Critical current density to quench superconducting OH",
+  "type": "static",
+  "units": "A/m^2"
+ },
+ "build.oh.flattop_duration": {
+  "data_type": "FLT_0D",
+  "documentation": "Estimated duration of the flattop",
+  "type": "static",
+  "units": "s"
+ },
+ "build.oh.max_b_field": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum magnetic field in the OH solenoid, as required to satisfy rampup and flattop flux consumption",
+  "type": "static",
+  "units": "T"
+ },
+ "build.oh.max_j": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum current density in the OH solenoid, as required to satisfy rampup and flattop flux consumption",
+  "type": "static",
+  "units": "A/m^2"
+ },
+ "build.oh.technology.JxB_strain": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of maximum JxB strain over maximum total strain on the OH coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.oh.technology.fraction_steel": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of stainless steel in the OH coils cross-sectional areas",
+  "type": "static",
+  "units": "-"
+ },
+ "build.oh.technology.fraction_void": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of `void` in the OH coils cross-sectional area. Void is everything (like coolant) that is not structural nor conductor",
+  "type": "static",
+  "units": "-"
+ },
+ "build.oh.technology.material": {
+  "data_type": "STR_0D",
+  "documentation": "Material of the OH coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.oh.technology.ratio_SC_to_copper": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of superconductor to copper cross-sectional areas in OH coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.oh.technology.temperature": {
+  "data_type": "FLT_0D",
+  "documentation": "OH coils temperature",
+  "type": "static",
+  "units": "K"
+ },
+ "build.oh.technology.thermal_strain": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of thermal expansion strain over maximum total strain on the OH coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.pf_active.rail": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of rails where the PF coils can slide on"
+ },
+ "build.pf_active.rail[:].coils_cleareance": {
+  "data_type": "FLT_0D",
+  "documentation": "Clereance that coils have from other structures",
+  "type": "static",
+  "units": "m"
+ },
+ "build.pf_active.rail[:].coils_number": {
+  "data_type": "INT_0D",
+  "documentation": "Number of coils on the rail",
+  "type": "static"
+ },
+ "build.pf_active.rail[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the coil rail",
+  "type": "static"
+ },
+ "build.pf_active.rail[:].outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular (possibly not-continuous) outline of the rail surface"
+ },
+ "build.pf_active.rail[:].outline.distance": {
+  "coordinates": [
+   "build.pf_active.rail[:].outline.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Distance along the rail skipping gaps",
+  "type": "static",
+  "units": "m"
+ },
+ "build.pf_active.rail[:].outline.r": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius",
+  "type": "static",
+  "units": "m"
+ },
+ "build.pf_active.rail[:].outline.z": {
+  "coordinates": [
+   "build.pf_active.rail[:].outline.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Height",
+  "type": "static",
+  "units": "m"
+ },
+ "build.pf_active.technology.JxB_strain": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of maximum JxB strain over maximum total strain on the PF coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.pf_active.technology.fraction_steel": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of stainless steel in the PF coils cross-sectional areas",
+  "type": "static",
+  "units": "-"
+ },
+ "build.pf_active.technology.fraction_void": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of `void` in the PF coils cross-sectional area. Void is everything (like coolant) that is not structural nor conductor",
+  "type": "static",
+  "units": "-"
+ },
+ "build.pf_active.technology.material": {
+  "data_type": "STR_0D",
+  "documentation": "Material of the PF coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.pf_active.technology.ratio_SC_to_copper": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of superconductor to copper cross-sectional areas in the PF coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.pf_active.technology.temperature": {
+  "data_type": "FLT_0D",
+  "documentation": "PF coils temperature",
+  "type": "static",
+  "units": "K"
+ },
+ "build.pf_active.technology.thermal_strain": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of thermal expansion strain over maximum total strain on the PF coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.structure": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of structures in the build"
+ },
+ "build.structure[:].area": {
+  "data_type": "FLT_0D",
+  "documentation": "Cross sectional area of the structure",
+  "type": "static",
+  "units": "m^2"
+ },
+ "build.structure[:].identifier": {
+  "data_type": "STR_0D",
+  "documentation": "String to identify structure",
+  "type": "static"
+ },
+ "build.structure[:].material": {
+  "data_type": "STR_0D",
+  "documentation": "Material of the structure",
+  "type": "static"
+ },
+ "build.structure[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the structure",
+  "type": "static"
+ },
+ "build.structure[:].outline": {
+  "data_type": "STRUCTURE",
+  "documentation": "Irregular outline of the limiting surface. Do NOT repeat the first point for closed contours"
+ },
+ "build.structure[:].outline.r": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius",
+  "type": "static",
+  "units": "m"
+ },
+ "build.structure[:].outline.z": {
+  "coordinates": [
+   "build.structure[:].outline.r"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Height",
+  "type": "static",
+  "units": "m"
+ },
+ "build.structure[:].toroidal_angles": {
+  "data_type": "FLT_1D",
+  "documentation": "Toroidal position(s) of the structure",
+  "type": "static",
+  "units": "rad"
+ },
+ "build.structure[:].toroidal_extent": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal extent of the structure",
+  "type": "static",
+  "units": "rad"
+ },
+ "build.structure[:].type": {
+  "data_type": "INT_0D",
+  "documentation": "Structure type code",
+  "type": "static"
+ },
+ "build.structure[:].volume": {
+  "data_type": "FLT_0D",
+  "documentation": "Volume of the structure",
+  "type": "static",
+  "units": "m^3"
+ },
+ "build.tf.coils_n": {
+  "data_type": "INT_0D",
+  "documentation": "Number of TF coils around the torus",
+  "type": "static"
+ },
+ "build.tf.critical_b_field": {
+  "data_type": "FLT_0D",
+  "documentation": "Critical magnetic field to quench superconducting TF",
+  "type": "static",
+  "units": "T"
+ },
+ "build.tf.critical_j": {
+  "data_type": "FLT_0D",
+  "documentation": "Critical current density to quench superconducting TF",
+  "type": "static",
+  "units": "A/m^2"
+ },
+ "build.tf.max_b_field": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum magnetic field evaluated at the TF high-field side",
+  "type": "static",
+  "units": "T"
+ },
+ "build.tf.max_j": {
+  "data_type": "FLT_0D",
+  "documentation": "Maximum current density in the TF solenoid",
+  "type": "static",
+  "units": "A/m^2"
+ },
+ "build.tf.ripple": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber",
+  "type": "static",
+  "units": "-"
+ },
+ "build.tf.technology.JxB_strain": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of maximum JxB strain over maximum total strain on the TF coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.tf.technology.fraction_steel": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of stainless steel in the TF coils cross-sectional areas",
+  "type": "static",
+  "units": "-"
+ },
+ "build.tf.technology.fraction_void": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of `void` in the TF coils cross-sectional area. Void is everything (like coolant) that is not structural nor conductor",
+  "type": "static",
+  "units": "-"
+ },
+ "build.tf.technology.material": {
+  "data_type": "STR_0D",
+  "documentation": "Material of the TF coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.tf.technology.ratio_SC_to_copper": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of superconductor to copper cross-sectional areas in the TF coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.tf.technology.temperature": {
+  "data_type": "FLT_0D",
+  "documentation": "TF coils temperature",
+  "type": "static",
+  "units": "K"
+ },
+ "build.tf.technology.thermal_strain": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of thermal expansion strain over maximum total strain on the TF coils",
+  "type": "static",
+  "units": "-"
+ },
+ "build.tf.wedge_thickness": {
+  "data_type": "FLT_0D",
+  "documentation": "Thickness of the TF coils wedge evaluated",
+  "type": "static",
+  "units": "m"
+ },
+ "build.time": {
+  "units": "s",
+  "coordinates": [
+   "1...N"
+  ],
+  "lifecycle_status": "active",
+  "data_type": "FLT_1D_TYPE",
+  "full_path": "build/time(:)",
+  "timebasepath": "time",
+  "documentation": "Generic time",
+  "type": "dynamic"
+ }
+}

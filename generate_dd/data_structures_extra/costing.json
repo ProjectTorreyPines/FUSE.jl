@@ -1,0 +1,187 @@
+{
+ "costing": {
+  "documentation": "Costing of all fusion power plant elements"
+ },
+ "costing.availability": {
+  "data_type": "FLT_0D",
+  "documentation": "Availability fraction of the plant",
+  "type": "static"
+ },
+ "costing.construction_start_year": {
+  "data_type": "INT_0D",
+  "documentation": "Year that plant construction begins",
+  "type": "static",
+  "units": "year"
+ },
+ "costing.cost_decommissioning.cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Cost to decomission the plant",
+  "type": "static",
+  "units": "$M"
+ },
+ "costing.cost_decommissioning.system": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of costed systems"
+ },
+ "costing.cost_decommissioning.system[:].cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Cost to decommission the system",
+  "type": "static",
+  "units": "$M"
+ },
+ "costing.cost_decommissioning.system[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the system to decommission",
+  "type": "static"
+ },
+ "costing.cost_decommissioning.system[:].subsystem": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of costed subsystems"
+ },
+ "costing.cost_decommissioning.system[:].subsystem[:].cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Cost to decommission the subsystem",
+  "type": "static",
+  "units": "$M"
+ },
+ "costing.cost_decommissioning.system[:].subsystem[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the subsystem to decommission",
+  "type": "static"
+ },
+ "costing.cost_direct_capital.cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Total direct capital",
+  "type": "static",
+  "units": "$M"
+ },
+ "costing.cost_direct_capital.system": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of costed systems"
+ },
+ "costing.cost_direct_capital.system[:].cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Cost of the system",
+  "type": "static",
+  "units": "$M"
+ },
+ "costing.cost_direct_capital.system[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the system",
+  "type": "static"
+ },
+ "costing.cost_direct_capital.system[:].subsystem": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of costed subsystems"
+ },
+ "costing.cost_direct_capital.system[:].subsystem[:].cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Cost of the subsystem",
+  "type": "static",
+  "units": "$M"
+ },
+ "costing.cost_direct_capital.system[:].subsystem[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the subsystem",
+  "type": "static"
+ },
+ "costing.cost_lifetime": {
+  "data_type": "FLT_0D",
+  "documentation": "Total cost of fusion power plant",
+  "type": "static",
+  "units": "$M"
+ },
+ "costing.cost_operations.system": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of costed systems"
+ },
+ "costing.cost_operations.system[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the system",
+  "type": "static"
+ },
+ "costing.cost_operations.system[:].subsystem": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of costed subsystems"
+ },
+ "costing.cost_operations.system[:].subsystem[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the subsystem",
+  "type": "static"
+ },
+ "costing.cost_operations.system[:].subsystem[:].yearly_cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Cost of the subsystem per year",
+  "type": "static",
+  "units": "$M/year"
+ },
+ "costing.cost_operations.system[:].yearly_cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Cost of system per year",
+  "type": "static",
+  "units": "$M/year"
+ },
+ "costing.cost_operations.yearly_cost": {
+  "data_type": "FLT_0D",
+  "documentation": "Anual cost to operate the plant",
+  "type": "static",
+  "units": "$M/year"
+ },
+ "costing.future.inflation_rate": {
+  "data_type": "FLT_0D",
+  "documentation": "Predicted average rate of future inflation",
+  "type": "static"
+ },
+ "costing.future.learning.hts.learning_rate": {
+  "data_type": "FLT_0D",
+  "documentation": "Learning rate for ReBCO technology production",
+  "type": "static"
+ },
+ "costing.future.learning.hts.production_increase": {
+  "data_type": "FLT_0D",
+  "documentation": "Factor by which production of ReBCO multiplies",
+  "type": "static"
+ },
+ "costing.levelized_CoE": {
+  "data_type": "FLT_0D",
+  "documentation": "Levelized cost of electiricity (total cost / total electricy generated)",
+  "type": "static",
+  "units": "$/kWh"
+ },
+ "costing.plant_lifetime": {
+  "data_type": "INT_0D",
+  "documentation": "Lifetime of the plant",
+  "type": "static",
+  "units": "year"
+ },
+ "costing.time": {
+  "units": "s",
+  "coordinates": [
+   "1...N"
+  ],
+  "lifecycle_status": "active",
+  "data_type": "FLT_1D_TYPE",
+  "full_path": "costing/time(:)",
+  "timebasepath": "time",
+  "documentation": "Generic time",
+  "type": "dynamic"
+ }
+}

@@ -1,0 +1,26 @@
+{
+ "ic_antennas.antenna[:].available_launch_power": {
+  "data_type": "FLT_0D",
+  "documentation": "Available launch power",
+  "type": "static",
+  "units": "W"
+ },
+ "ic_antennas.antenna[:].efficiency.conversion": {
+  "data_type": "FLT_0D",
+  "documentation": "Conversion efficiency of electric power to microwave power",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "ic_antennas.antenna[:].efficiency.coupling": {
+  "data_type": "FLT_0D",
+  "documentation": "Coupling efficiency of launched microwave power to the plasma",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "ic_antennas.antenna[:].efficiency.transmission": {
+  "data_type": "FLT_0D",
+  "documentation": "Transmission efficiency of microwave power from generator to antenna",
+  "type": "dynamic",
+  "units": "-"
+ }
+}
