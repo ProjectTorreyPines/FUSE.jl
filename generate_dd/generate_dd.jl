@@ -160,7 +160,7 @@ function imas_julia_struct(desired_structure::Vector{String})
     struct_commands = String[]
 
     all_info = Dict{String,Info}()
-    all_info["global_time"] = Info(String[], "s", "FLT_0D", "Generic global time", true)
+    all_info["global_time"] = Info(Tuple([]), "s", "FLT_0D", "Generic global time", true)
 
     branches = []
     timedep_structures = String[]
@@ -258,7 +258,7 @@ function imas_julia_struct(desired_structure::Vector{String})
 
             item_ulocation = strip("$ulocation.$item", '.')
             info = get(ddjson, replace(item_ulocation, r"\[\:\]$" => ""), Dict{String,Any}())
-            coordinates = get(info, "coordinates", String[])
+            coordinates = Tuple(get(info, "coordinates", String[]))
             units = get(info, "units", "-")
             if occursin("[:]", item)
                 data_type = get(info, "data_type", "STRUCT_ARRAY")
