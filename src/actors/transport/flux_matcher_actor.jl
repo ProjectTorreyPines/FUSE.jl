@@ -23,7 +23,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs Turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region, :simple], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
+    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0, check=x -> @assert x > 0.0 "must be: step_size > 0.0")
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
@@ -85,10 +85,7 @@ function _step(actor::ActorFluxMatcher)
 
     if par.optimizer_algorithm == :newton
         opts = Dict(:method => :newton, :factor => par.step_size)
-    elseif par.optimizer_algorithm == :simple
-        @assert 0.0 < par.step_size <= 0.3
     elseif par.optimizer_algorithm == :anderson
-        @assert 0.0 < par.step_size <= 1.0
         opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size)
     elseif par.optimizer_algorithm == :trust_region
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
@@ -459,7 +456,7 @@ function flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,er
 
     while(any(ferror.>ftol) && any(xerror.>xtol))
         i+=1
-        zprofiles  = zprofiles .- par.step_size .* (targets.-fluxes)./sqrt.(fluxes.^2 +targets.^2)
+        zprofiles  = zprofiles .- par.step_size * 0.1 .* (targets.-fluxes)./sqrt.(fluxes.^2 +targets.^2)
         flux_match_errors(actor, scale_z_profiles(zprofiles); z_scaled_history, err_history, prog)
         fluxes = flux_match_fluxes(dd, par,  prog)
         targets = flux_match_targets(dd, par,  prog)
