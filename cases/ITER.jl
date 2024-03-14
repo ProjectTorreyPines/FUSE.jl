@@ -57,7 +57,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     end
     act.ActorEquilibrium.model = :TEQUILA
 
-    ini.equilibrium.ip = (t -> ramp(t / 100.0) * 10E6 + ramp((t - 100) / 100.0) * 5E6) ↔ (2, (100.0, 200.0), (10E6, 15E6))
+    ini.equilibrium.ip = (t -> ramp(t / 100.0) * 14E6 + ramp((t - 100) / 100.0) * 1E6) ↔ (2, (100.0, 200.0), (14E6, 15E6))
 
     ini.time.pulse_shedule_time_basis = range(0, 300, 1000)
     ini.time.simulation_start = 300.0

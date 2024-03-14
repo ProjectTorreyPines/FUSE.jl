@@ -137,11 +137,13 @@ function prepare(actor::ActorEquilibrium)
     pc = ps.position_control
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # NOTE: We freeze cp1d.j_tor and cp1d.pressure in the data structure!
-    #       cp1d.grid.... should all be frozen already because they are one-time expressions
-    #       This is to ensure that calling ActorEquilibrium multiple times returns the same solution
-    cp1d.j_tor = cp1d.j_tor
-    cp1d.pressure = cp1d.pressure
+    # make sure j_tor and pressure on axis come in with zero gradient
+    index = cp1d.grid.psi_norm .> 0.05
+    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+    j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
+    pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
+    j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
+    p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
 
     # get ip and b0 before wiping eqt in case ip_from=:equilibrium
     ip = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
@@ -198,20 +200,10 @@ function prepare(actor::ActorEquilibrium)
         end
     end
 
-    # make sure j_tor and pressure on axis come in with zero gradient
-
-    index = cp1d.grid.psi_norm .> 0.05
-    rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
-    j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
-    pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-    j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
-    p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
-
     # set j_tor and pressure, forcing zero derivative on axis
     eq1d = dd.equilibrium.time_slice[].profiles_1d
     eq1d.psi = cp1d.grid.psi
     eq1d.rho_tor_norm = cp1d.grid.rho_tor_norm
-
     eq1d.j_tor = j_itp.(sqrt.(eq1d.psi_norm))
     eq1d.pressure = p_itp.(sqrt.(eq1d.psi_norm))
 
