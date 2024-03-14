@@ -94,7 +94,6 @@ function _step(actor::ActorFluxMatcher)
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
-
     z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
     err_history = Float64[]
 
@@ -126,11 +125,12 @@ function _step(actor::ActorFluxMatcher)
                 opts...
             )
         finally
-            # @show flux_match_errors(actor, z_scaled_history[end])
+            # @show flux_match_errors(actor, z_scaled_history[end], initial_cp1d)
             actor_logging(dd, old_logging)
         end
     end
-    flux_match_errors(actor, res.zero)
+
+    flux_match_errors(actor, res.zero, initial_cp1d) # z_profiles for the smallest error iteration
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
@@ -199,6 +199,8 @@ end
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
+
+#
 function flux_match_errors(
     actor::ActorFluxMatcher,
     z_profiles_scaled::Vector{<:Real},
@@ -372,7 +374,7 @@ function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, 
 end
 
 """
-    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
+    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
 
 Evaluates the flux_matching fluxes for the :flux_match species and channels
 
@@ -435,7 +437,7 @@ end
 
 
 """
-    flux_match_simple(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
+    flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,err_history::Vector{Float64},ftol::Float64,xtol::Float64, prog::Any)
 
 Updates zprofiles based on TGYRO simple algorithm
 """
@@ -471,6 +473,7 @@ function flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,er
         zprofiles_old = deepcopy(zprofiles)
 
         if (i>=par.max_iterations)
+            @info "Unable to flux-match within $(par.max_iterations) iterations ferr = $ferror (ftol=$ftol) xerr = $xerror (xtol = $xtol)"
             break
         end
     end
