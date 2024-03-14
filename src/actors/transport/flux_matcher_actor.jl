@@ -20,7 +20,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
-    optimize_q::Entry{Bool} = Entry{Bool}("-", "Optimize q profile to achieve goal"; default=false)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs Turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
     optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
@@ -98,9 +97,14 @@ function _step(actor::ActorFluxMatcher)
     z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
     err_history = Float64[]
     old_logging = actor_logging(dd, false)
+    if IMAS.index(cp1d)-1 != 0.0
+        initial_cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[IMAS.index(cp1d)-1])
+    else
+        initial_cp1d = IMAS.freeze(cp1d)
+    end
     res = try
         res = NLsolve.nlsolve(
-            z -> flux_match_errors(actor, z, deepcopy(cp1d); z_scaled_history, err_history, prog),
+            z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog),
             z_init;
             show_trace=false,
             store_trace=true,
@@ -110,9 +114,9 @@ function _step(actor::ActorFluxMatcher)
             xtol=1E-2,
             opts...
         )
-        flux_match_errors(actor, res.zero) # z_profiles for the smallest error iteration
+        flux_match_errors(actor, res.zero, initial_cp1d) # z_profiles for the smallest error iteration
     finally
-        # @show flux_match_errors(actor, z_scaled_history[end])
+        # @show flux_match_errors(actor, z_scaled_history[end], initial_cp1d)
         actor_logging(dd, old_logging)
     end
 
@@ -170,11 +174,12 @@ end
 
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles_scaled::Tuple;
+    z_profiles_scaled::Tuple,
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
     z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[],
     prog::Any=nothing)
-    return flux_match_errors(actor, collect(z_profiles_scaled); z_scaled_history, err_history, prog)
+    return flux_match_errors(actor, collect(z_profiles_scaled), initial_cp1d; z_scaled_history, err_history, prog)
 end
 
 """
@@ -184,8 +189,8 @@ Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie ta
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles_scaled::Vector{<:Real}
-    cp1d_old::IMAS.core_profiles__profiles_1d;
+    z_profiles_scaled::Vector{<:Real},
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
     z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[],
     prog::Any=nothing)
@@ -211,7 +216,7 @@ function flux_match_errors(
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
     if par.Δt < Inf
-        IMAS.sources_time_dependent!(dd, cp1d_old, par.Δt)
+        IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
 
     if !par.find_widths && length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF

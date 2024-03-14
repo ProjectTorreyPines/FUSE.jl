@@ -80,7 +80,7 @@ function _step(actor::ActorDynamicPlasma)
     t0 = dd.global_time
     t1 = t0 + par.Δt
 
-    # set Δt of the current actor
+    # set Δt of the time-dependent actors
     actor.actor_jt.jt_actor.par.Δt = δt
     if actor.actor_tr.par.model == :FluxMatcher
         actor.actor_tr.tr_actor.par.Δt = δt
