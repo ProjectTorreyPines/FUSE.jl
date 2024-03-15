@@ -105,7 +105,7 @@ function _step(actor::ActorFluxMatcher)
     prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
-    if IMAS.index(cp1d) - 1 != 0.0
+    if IMAS.index(cp1d) != 1
         initial_cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[IMAS.index(cp1d)-1])
     else
         initial_cp1d = IMAS.freeze(cp1d)
@@ -132,7 +132,7 @@ function _step(actor::ActorFluxMatcher)
         end
     end
 
-    flux_match_errors(actor, res.zero, initial_cp1d) # z_profiles for the smallest error iteration
+    flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
@@ -186,23 +186,17 @@ function unscale_z_profiles(z_profiles_scaled)
     return z_profiles_scaled ./ 100
 end
 
-function flux_match_errors(
-    actor::ActorFluxMatcher,
-    z_profiles_scaled::Tuple,
-    initial_cp1d::IMAS.core_profiles__profiles_1d;
-    z_scaled_history::Vector=[],
-    err_history::Vector{Float64}=Float64[],
-    prog::Any=nothing)
-    return flux_match_errors(actor, collect(z_profiles_scaled), initial_cp1d; z_scaled_history, err_history, prog)
-end
-
 """
-    flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
+    flux_match_errors(
+        actor::ActorFluxMatcher,
+        z_profiles_scaled::Vector{<:Real},
+        initial_cp1d::IMAS.core_profiles__profiles_1d;
+        z_scaled_history::Vector=[],
+        err_history::Vector{Float64}=Float64[],
+        prog::Any=nothing)
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
-
-#
 function flux_match_errors(
     actor::ActorFluxMatcher,
     z_profiles_scaled::Vector{<:Real},
