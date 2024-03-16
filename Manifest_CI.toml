@@ -1229,7 +1229,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "PCHIPInterpolation", "Printf", "StaticArraysCore"]
-git-tree-sha1 = "9360e03739cf413da9db24d87c3b32f0908d9d7c"
+git-tree-sha1 = "365d7ef6a2186976a5198c4027ff673f839607cd"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1341,9 +1341,9 @@ version = "1.5.0"
 
 [[deps.JMcDM]]
 deps = ["Requires"]
-git-tree-sha1 = "f546c09372c736aeddecd9cd1428ef17e2621366"
+git-tree-sha1 = "2891ae47bc7d3fa0b6f3b6e9ae2ffb5f698040b8"
 uuid = "358108f5-d052-4d0a-8344-d5384e00c0e5"
-version = "0.7.14"
+version = "0.7.15"
 
 [[deps.JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
@@ -1383,9 +1383,9 @@ version = "1.20.0"
 
 [[deps.JuliaFormatter]]
 deps = ["CSTParser", "CommonMark", "DataStructures", "Glob", "Pkg", "PrecompileTools", "Tokenize"]
-git-tree-sha1 = "cb2a396ac30525079dfe56adf3fc9c301ea1a2bb"
+git-tree-sha1 = "e07d6fd7db543b11cd90ed764efec53f39851f09"
 uuid = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
-version = "1.0.53"
+version = "1.0.54"
 
 [[deps.JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
@@ -1445,9 +1445,9 @@ version = "3.0.0+1"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Requires", "Unicode"]
-git-tree-sha1 = "ddab4d40513bce53c8e3157825e245224f74fae7"
+git-tree-sha1 = "7c6650580b4c3169d9905858160db895bff6d2e2"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "6.6.0"
+version = "6.6.1"
 
     [deps.LLVM.extensions]
     BFloat16sExt = "BFloat16s"
@@ -2943,9 +2943,9 @@ version = "1.5.1"
 
 [[deps.Symbolics]]
 deps = ["ArrayInterface", "Bijections", "ConstructionBase", "DataStructures", "DiffRules", "Distributions", "DocStringExtensions", "DomainSets", "DynamicPolynomials", "ForwardDiff", "IfElse", "LaTeXStrings", "LambertW", "Latexify", "Libdl", "LinearAlgebra", "LogExpFunctions", "MacroTools", "Markdown", "NaNMath", "PrecompileTools", "RecipesBase", "Reexport", "Requires", "RuntimeGeneratedFunctions", "SciMLBase", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArrays", "SymbolicIndexingInterface", "SymbolicUtils"]
-git-tree-sha1 = "bd8948a0f5c4cc0ec090fe090839ad16ac6b861f"
+git-tree-sha1 = "d8b8dd08b7ec073cc7dc64cfa247fa0c4b5d5297"
 uuid = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-version = "5.25.0"
+version = "5.25.2"
 
     [deps.Symbolics.extensions]
     SymbolicsGroebnerExt = "Groebner"
