@@ -20,6 +20,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
         end
 
         if init_from == :scalars
+            # ip
             time, data = get_time_dependent(ini.equilibrium, :ip; simplify_time_traces)
             dd.pulse_schedule.flux_control.time = time
             dd.pulse_schedule.flux_control.i_plasma.reference = data
@@ -35,6 +36,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 R0 = mxh.R0
             end
 
+            # B0
             time, data = get_time_dependent(ini.equilibrium, :B0; simplify_time_traces)
             dd.pulse_schedule.tf.time = time
             dd.pulse_schedule.tf.b_field_tor_vacuum.reference = data
@@ -42,36 +44,24 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
 
             # initialize position_control from mxh
             if ini.equilibrium.boundary_from == :scalars
-                all_times = Float64[]
-                for shape_parameter in [:B0, :ip, :R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶, :xpoints]
-                    time, data = get_time_dependent(ini.equilibrium, shape_parameter; simplify_time_traces)
-                    append!(all_times, time)
-                end
-                all_times = sort!(unique(all_times))
-
-                simulation_start_bkp = global_time(ini)
-                try
-                    for (k, time) in enumerate(all_times)
-                        global_time(ini, time)
-                        R0 = ini.equilibrium.R0
-                        Z0 = ini.equilibrium.Z0
-                        ϵ = ini.equilibrium.ϵ
-                        κ = ini.equilibrium.κ
-                        δ = ini.equilibrium.δ
-                        ζ = ini.equilibrium.ζ
-                        𝚶 = ini.equilibrium.𝚶
-                        κ = ini_equilibrium_elongation_true(κ, ϵ)
-                        mxh = IMAS.MXH(R0, Z0, ϵ, κ, 0.0, [𝚶, 0.0], [asin(δ), -ζ])
-                        nx = n_xpoints(ini.equilibrium.xpoints)
-                        mxhb = fitMXHboundary(mxh, nx)
-                        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, time)
-                        if k == length(all_times) - 1 && all_times[k+1] == Inf
-                            init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
-                            break
-                        end
+                time, data = get_time_dependent(ini.core_profiles, [:ip, :R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶, :xpoints]; simplify_time_traces)
+                for (k, time0) in enumerate(time)
+                    R0 = data.R0[k]
+                    Z0 = data.Z0[k]
+                    ϵ = data.ϵ[k]
+                    κ = data.κ[k]
+                    δ = data.δ[k]
+                    ζ = data.ζ[k]
+                    𝚶 = data.𝚶[k]
+                    κ = ini_equilibrium_elongation_true(κ, ϵ)
+                    mxh = IMAS.MXH(R0, Z0, ϵ, κ, 0.0, [𝚶, 0.0], [asin(δ), -ζ])
+                    nx = n_xpoints(data.xpoints[k])
+                    mxhb = fitMXHboundary(mxh, nx)
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, time0)
+                    if k == length(time) - 1 && time[k+1] == Inf
+                        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
+                        break
                     end
-                finally
-                    global_time(ini, simulation_start_bkp)
                 end
 
             else
@@ -155,15 +145,23 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
         if simplify_time_traces != 0.0
             time, data = IMAS.simplify_2d_path(time, data, simplify_time_traces)
         end
+
     else
-        time = Float64[-Inf, global_time(par), Inf]
-        data = [value, value, value]
+        if simplify_time_traces != 0.0
+            time = Float64[-Inf, SimulationParameters.global_time(par), Inf]
+            data = [value, value, value]
+        else
+            time = SimulationParameters.time_range(par)
+            data = fill(value, length(time))
+        end
     end
+
     return time, data
 end
 
 function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol}; simplify_time_traces::Float64)
     all_times = Float64[]
+
     for field in fields
         time, data = get_time_dependent(par, field; simplify_time_traces)
         append!(all_times, time)
