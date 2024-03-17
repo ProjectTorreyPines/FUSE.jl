@@ -16,6 +16,7 @@
     "core_profiles.profiles_1d[:].electrons.pressure_fast_perpendicular",
     "core_profiles.profiles_1d[:].electrons.pressure_thermal",
     "core_profiles.profiles_1d[:].ion[:].density",
+    "core_profiles.profiles_1d[:].ion[:].pressure_thermal",
     "core_profiles.profiles_1d[:].j_bootstrap",
     "core_profiles.profiles_1d[:].j_non_inductive",
     "core_profiles.profiles_1d[:].j_tor",

@@ -80,8 +80,11 @@ function _step(actor::ActorDynamicPlasma)
     t0 = dd.global_time
     t1 = t0 + par.Δt
 
-    # set Δt of the current actor
+    # set Δt of the time-dependent actors
     actor.actor_jt.jt_actor.par.Δt = δt
+    if actor.actor_tr.par.model == :FluxMatcher
+        actor.actor_tr.tr_actor.par.Δt = δt
+    end
 
     # setup things for Ip control
     if par.ip_controller
@@ -107,12 +110,29 @@ function _step(actor::ActorDynamicPlasma)
     try
         for (kk, tt) in enumerate(range(t0, t1, 2 * par.Nt + 1)[2:end])
             # prepare time dependent arrays of structures
-            IMAS.new_timeslice!(dd.equilibrium, tt)
-            IMAS.new_timeslice!(dd.core_profiles, tt)
-            IMAS.new_timeslice!(dd.core_sources, tt)
+            # NOTE: dd.core_profiles is different because it is updated
+            #       by actor_jt at the 1/2 steps, but also (mostly)
+            #       by actor_tr and actor_ped at the 1/2 steps.
+            #       For dd.core_profiles we thus create a new time slice
+            #       at the 1/2 steps which is then retimed at the 2/2 steps.
             dd.global_time = tt
+            IMAS.new_timeslice!(dd.equilibrium, tt)
+            IMAS.new_timeslice!(dd.core_sources, tt)
 
-            if mod(kk, 2) == 0
+            if mod(kk, 2) == 1
+                IMAS.new_timeslice!(dd.core_profiles, tt)
+
+                # evolve j_ohmic
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
+                if par.ip_controller
+                    controller(dd, Val{:ip})
+                end
+                if par.evolve_current
+                    finalize(step(actor.actor_jt))
+                end
+            else
+                IMAS.IMASDD.retime!(dd.core_profiles, tt)
+
                 # run transport actor
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
                 if par.evolve_transport
@@ -123,15 +143,6 @@ function _step(actor::ActorDynamicPlasma)
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, mod(kk, 2) + 1))
                 if par.evolve_pedestal
                     finalize(step(actor.actor_ped))
-                end
-            else
-                # evolve j_ohmic
-                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
-                if par.ip_controller
-                    controller(dd, Val{:ip})
-                end
-                if par.evolve_current
-                    finalize(step(actor.actor_jt))
                 end
             end
 
@@ -211,8 +222,8 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         subplot
     )
     plot!(
-        dd.core_profiles.time[1:2:end],
-        dd.core_profiles.global_quantities.ip[1:2:end] / 1E6;
+        dd.core_profiles.time,
+        dd.core_profiles.global_quantities.ip / 1E6;
         seriestype=:time,
         color=:blue,
         label="Ip  [MA]",

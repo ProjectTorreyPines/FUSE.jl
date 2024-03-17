@@ -32,6 +32,15 @@
   "type": "dynamic",
   "units": "T"
  },
+ "equilibrium.time_slice[:].profiles_1d.gm10": {
+  "coordinates": [
+   "equilibrium.time_slice[:].profiles_1d.psi"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Flux surface averaged R^2",
+  "type": "dynamic",
+  "units": "m^2"
+ },
  "equilibrium.time_slice[:].profiles_1d.psi_norm": {
   "coordinates": [
    "equilibrium.time_slice[:].profiles_1d.psi"

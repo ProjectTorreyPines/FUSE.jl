@@ -20,11 +20,16 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
-    optimize_q::Entry{Bool} = Entry{Bool}("-", "Optimize q profile to achieve goal"; default=false)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs Turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
-    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
-    step_size::Entry{T} = Entry{T}("-", "Step size for each algorithm iteration (note this has a different meaning for each algorithm)"; default=1.0)
+    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region, :simple], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    step_size::Entry{T} = Entry{T}(
+        "-",
+        "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
+        default=1.0,
+        check=x -> @assert x > 0.0 "must be: step_size > 0.0"
+    )
+    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -86,34 +91,48 @@ function _step(actor::ActorFluxMatcher)
     if par.optimizer_algorithm == :newton
         opts = Dict(:method => :newton, :factor => par.step_size)
     elseif par.optimizer_algorithm == :anderson
-        @assert 0.0 < par.step_size <= 1.0
         opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size)
     elseif par.optimizer_algorithm == :trust_region
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
-    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
-
     z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
     err_history = Float64[]
+
+    ftol = 1E-3 # relative error
+    xtol = 1E-2 # difference in input array
+
+    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
-    res = try
-        res = NLsolve.nlsolve(
-            z -> flux_match_errors(actor, z; z_scaled_history, err_history, prog),
-            z_init;
-            show_trace=false,
-            store_trace=true,
-            extended_trace=false,
-            iterations=par.max_iterations,
-            ftol=1E-3,
-            xtol=1E-2,
-            opts...
-        )
-        flux_match_errors(actor, res.zero) # z_profiles for the smallest error iteration
-    finally
-        # @show flux_match_errors(actor, z_scaled_history[end])
-        actor_logging(dd, old_logging)
+
+    if IMAS.index(cp1d) != 1
+        initial_cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[IMAS.index(cp1d)-1])
+    else
+        initial_cp1d = IMAS.freeze(cp1d)
     end
+
+    if par.optimizer_algorithm == :simple
+        res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
+    else
+        res = try
+            res = NLsolve.nlsolve(
+                z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog),
+                z_init;
+                show_trace=false,
+                store_trace=true,
+                extended_trace=false,
+                iterations=par.max_iterations,
+                ftol,
+                xtol,
+                opts...
+            )
+        finally
+            # @show flux_match_errors(actor, z_scaled_history[end], initial_cp1d)
+            actor_logging(dd, old_logging)
+        end
+    end
+
+    flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
@@ -167,23 +186,21 @@ function unscale_z_profiles(z_profiles_scaled)
     return z_profiles_scaled ./ 100
 end
 
-function flux_match_errors(
-    actor::ActorFluxMatcher,
-    z_profiles_scaled::Tuple;
-    z_scaled_history::Vector=[],
-    err_history::Vector{Float64}=Float64[],
-    prog::Any=nothing)
-    return flux_match_errors(actor, collect(z_profiles_scaled); z_scaled_history, err_history, prog)
-end
-
 """
-    flux_match_errors(actor::ActorFluxMatcher, z_profiles::AbstractVector{<:Real})
+    flux_match_errors(
+        actor::ActorFluxMatcher,
+        z_profiles_scaled::Vector{<:Real},
+        initial_cp1d::IMAS.core_profiles__profiles_1d;
+        z_scaled_history::Vector=[],
+        err_history::Vector{Float64}=Float64[],
+        prog::Any=nothing)
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles_scaled::Vector{<:Real};
+    z_profiles_scaled::Vector{<:Real},
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
     z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[],
     prog::Any=nothing)
@@ -208,6 +225,9 @@ function flux_match_errors(
 
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
+    if par.Δt < Inf
+        IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
+    end
 
     if !par.find_widths && length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF
         for input_tglf in actor.actor_ct.actor_turb.input_tglfs
@@ -226,7 +246,7 @@ function flux_match_errors(
     return errors
 end
 
-function error_transformation(target::T, output::T, norm::Real) where {T}
+function error_transformation(target::T, output::T, norm::T) where {T}
     return (target .- output) ./ norm
 end
 
@@ -274,6 +294,31 @@ Evaluates the flux_matching errors for the :flux_match species and channels
 NOTE: flux matching is done in physical units
 """
 function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
+
+    nrho = length(par.rho_transport)
+    output = flux_match_fluxes(dd, par, prog)
+    target = flux_match_targets(dd, par, prog)
+    norms_all = similar(output)
+    for (inorm, norm) in enumerate(norms)
+        norms_all[(inorm-1)*nrho+1:inorm*nrho] .= norm
+    end
+
+    errors = error_transformation(target, output, norms_all)
+    if prog !== nothing
+        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
+    end
+
+    return errors
+end
+
+"""
+    flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
+
+Evaluates the flux_matching targets for the :flux_match species and channels
+
+NOTE: flux matching is done in physical units
+"""
+function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
@@ -282,31 +327,25 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
     cs_gridpoints = [argmin(abs.(rho_x .- total_sources.grid.rho_tor_norm)) for rho_x in par.rho_transport]
     cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
 
-    errors = Float64[]
+    targets = Float64[]
 
     n = 0
     if par.evolve_Ti == :flux_match
         n += 1
         target = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-        output = total_fluxes.total_ion_energy.flux[cf_gridpoints]
-        check_output_fluxes(output, "total_ion_energy")
-        append!(errors, error_transformation(target, output, norms[n]))
+        append!(targets, target)
     end
 
     if par.evolve_Te == :flux_match
         n += 1
         target = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-        output = total_fluxes.electrons.energy.flux[cf_gridpoints]
-        check_output_fluxes(output, "electrons.energy")
-        append!(errors, error_transformation(target, output, norms[n]))
+        append!(targets, target)
     end
 
     if par.evolve_rotation == :flux_match
         n += 1
         target = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-        output = total_fluxes.momentum_tor.flux[cf_gridpoints]
-        check_output_fluxes(output, "momentum_tor")
-        append!(errors, error_transformation(target, output, norms[n]))
+        append!(targets, target)
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
@@ -314,9 +353,7 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
         if evolve_densities[:electrons] == :flux_match
             n += 1
             target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-            output = total_fluxes.electrons.particles.flux[cf_gridpoints]
-            check_output_fluxes(output, "electrons.particles")
-            append!(errors, error_transformation(target, output, norms[n]))
+            append!(targets, target)
         end
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
@@ -326,11 +363,128 @@ function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, n
     end
 
     if prog !== nothing
-        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
+        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(targets)))
     end
 
-    return errors
+    return targets
 end
+
+"""
+    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
+
+Evaluates the flux_matching fluxes for the :flux_match species and channels
+
+NOTE: flux matching is done in physical units
+"""
+function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
+    total_fluxes = IMAS.total_fluxes(dd.core_transport)
+
+    cs_gridpoints = [argmin(abs.(rho_x .- total_sources.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
+
+    fluxes = Float64[]
+
+    n = 0
+    if par.evolve_Ti == :flux_match
+        n += 1
+        flux = total_fluxes.total_ion_energy.flux[cf_gridpoints]
+        check_output_fluxes(flux, "total_ion_energy")
+        append!(fluxes, flux)
+    end
+
+    if par.evolve_Te == :flux_match
+        n += 1
+        flux = total_fluxes.electrons.energy.flux[cf_gridpoints]
+        check_output_fluxes(flux, "electrons.energy")
+        append!(fluxes, flux)
+    end
+
+    if par.evolve_rotation == :flux_match
+        n += 1
+        flux = total_fluxes.momentum_tor.flux[cf_gridpoints]
+        check_output_fluxes(flux, "momentum_tor")
+        append!(fluxes, flux)
+    end
+
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    if !isempty(evolve_densities)
+        if evolve_densities[:electrons] == :flux_match
+            n += 1
+            flux = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            check_output_fluxes(flux, "electrons.particles")
+            append!(fluxes, flux)
+        end
+        for ion in cp1d.ion
+            if evolve_densities[Symbol(ion.label)] == :flux_match
+                error("This is currently not working will fix later")
+            end
+        end
+    end
+
+    if prog !== nothing
+        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(fluxes)))
+    end
+
+    return fluxes
+end
+
+
+"""
+    flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,err_history::Vector{Float64},ftol::Float64,xtol::Float64, prog::Any)
+
+Updates zprofiles based on TGYRO simple algorithm
+"""
+function flux_match_simple(
+    actor::ActorFluxMatcher,
+    initial_cp1d::IMAS.core_profiles__profiles_1d,
+    z_scaled_history::Vector,
+    err_history::Vector{Float64},
+    ftol::Float64,
+    xtol::Float64,
+    prog::Any
+)
+    dd = actor.dd
+    par = actor.par
+    # this will be a while loop with some ftol/xtol
+
+    i = 0
+    ferror = 1e10
+    xerror = 1e10
+
+    zprofiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
+    flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+    fluxes = flux_match_fluxes(dd, par, prog)
+    targets = flux_match_targets(dd, par, prog)
+    fluxes_old = deepcopy(fluxes)
+    zprofiles_old = deepcopy(zprofiles)
+
+    while (any(ferror .> ftol) && any(xerror .> xtol))
+        i += 1
+        zprofiles = zprofiles .- par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(fluxes .^ 2 + targets .^ 2)
+        flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+        fluxes = flux_match_fluxes(dd, par, prog)
+        targets = flux_match_targets(dd, par, prog)
+
+        tmp = [max(min.(abs(aa), abs.(bb), 1e-10)) for (aa, bb) in zip(zprofiles, zprofiles_old)]
+        xerror = abs.(zprofiles_old - zprofiles) / tmp
+        tmp = [max(min.(abs(aa), abs.(bb), 1e-10)) for (aa, bb) in zip(fluxes_old, fluxes)]
+        ferror = abs.(fluxes_old - fluxes) / tmp
+
+        fluxes_old = deepcopy(fluxes)
+        zprofiles_old = deepcopy(zprofiles)
+
+        if (i >= par.max_iterations)
+            @info "Unable to flux-match within $(par.max_iterations) iterations maximum(ferr) = $(maximum(ferror)) (ftol=$ftol) maximum(xerr) = $(maximum(xerror)) (xtol = $xtol)"
+            break
+        end
+    end
+
+    return (zero=z_scaled_history[argmin(err_history)],)
+end
+
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     cp1d = dd.core_profiles.profiles_1d[]
