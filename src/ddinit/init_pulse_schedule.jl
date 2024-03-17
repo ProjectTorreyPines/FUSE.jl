@@ -76,6 +76,19 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
             end
 
+            # density & zeff
+            time, data = get_time_dependent(ini.core_profiles, [:zeff, :greenwald_fraction_ped, :ne_ped, :greenwald_fraction]; simplify_time_traces)
+            dd.pulse_schedule.density_control.time = time
+            dd.pulse_schedule.density_control.zeff.reference = data.zeff
+            dd.pulse_schedule.density_control.zeff_pedestal.reference = data.zeff
+            if !(typeof(data.greenwald_fraction_ped) <: Vector{Missing})
+                dd.pulse_schedule.density_control.n_e_pedestal_greenwald_fraction.reference = data.greenwald_fraction_ped
+            end
+            if !(typeof(data.ne_ped) <: Vector{Missing})
+                dd.pulse_schedule.density_control.n_e_pedestal.reference = data.ne_ped
+            end
+            dd.pulse_schedule.density_control.n_e_greenwald_fraction.reference = data.greenwald_fraction
+
             # NB
             resize!(dd.pulse_schedule.nbi.unit, length(ini.nb_unit))
             for (k, ini_nbu) in enumerate(ini.nb_unit)
@@ -147,7 +160,7 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
         end
 
     else
-        if simplify_time_traces != 0.0
+        if simplify_time_traces != 0.0 || isempty(SimulationParameters.time_range(par))
             time = Float64[-Inf, SimulationParameters.global_time(par), Inf]
             data = [value, value, value]
         else

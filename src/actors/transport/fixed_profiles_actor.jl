@@ -34,7 +34,7 @@ end
 
 function ActorFixedProfiles(dd::IMAS.dd, par::FUSEparameters__ActorFixedProfiles, act::ParametersAllActors; kw...)
     par = par(kw...)
-    ped_actor = ActorPedestal(dd, act.ActorPedestal; update_core_profiles=false, par.T_ratio_pedestal, ip_from=:equilibrium, βn_from=:equilibrium)
+    ped_actor = ActorPedestal(dd, act.ActorPedestal; update_core_profiles=false, par.T_ratio_pedestal, ip_from=:equilibrium, βn_from=:equilibrium, ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule)
     return ActorFixedProfiles(dd, par, ped_actor)
 end
 

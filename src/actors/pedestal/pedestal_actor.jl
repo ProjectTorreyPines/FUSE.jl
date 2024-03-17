@@ -17,6 +17,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
+    ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     update_core_profiles::Entry{Bool} = Entry{Bool}("-", "Update core_profiles"; default=true)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
@@ -68,16 +70,19 @@ function _step(actor::ActorPedestal)
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    neped = @ddtime dd.summary.local.pedestal.n_e.value
-    zeffped = @ddtime dd.summary.local.pedestal.zeff.value
+    neped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_ped_from)
+    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_ped_from)
+    βn = IMAS.get_from(dd, Val{:βn}, par.βn_from)
+    ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+
     Bt = abs(@ddtime(eq.vacuum_toroidal_field.b0)) * eq.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
     actor.inputs = EPEDNN.InputEPED(
         eqt.boundary.minor_radius,
-        IMAS.get_from(dd, Val{:βn}, par.βn_from),
+        βn,
         Bt,
         EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper),
-        abs(IMAS.get_from(dd, Val{:ip}, par.ip_from) / 1e6),
+        abs(ip) / 1e6,
         eqt.boundary.elongation,
         m,
         neped / 1e19,
@@ -124,6 +129,7 @@ function _finalize(actor::ActorPedestal)
     end
 
     dd_ped = dd.summary.local.pedestal
+    @ddtime dd_ped.n_e.value = actor.inputs.neped * 1e19
     @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + T_ratio_pedestal) * par.ped_factor
     @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * T_ratio_pedestal
     @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
