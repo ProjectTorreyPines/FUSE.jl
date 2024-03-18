@@ -208,7 +208,7 @@ function optimization_engine(
 
     try
         # update ini based on input optimization vector `x`
-        #ini = deepcopy(ini) # NOTE: No need to deepcopy since we're on the worker nodes
+        ini = deepcopy(ini)
         parameters_from_opt!(ini, x)
 
         # attempt to release memory
