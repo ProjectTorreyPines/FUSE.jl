@@ -22,7 +22,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs Turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
-    optimizer_algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region, :simple], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    optimizer_algorithm::Switch{Symbol} =
+        Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -95,7 +96,8 @@ function _step(actor::ActorFluxMatcher)
         actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
     end
 
-    z_init = scale_z_profiles(pack_z_profiles(cp1d, par)) # scale z_profiles to get smaller stepping
+    z_init = pack_z_profiles(cp1d, par)
+    z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping
 
     if par.optimizer_algorithm == :newton
         opts = Dict(:method => :newton, :factor => par.step_size)
@@ -105,7 +107,7 @@ function _step(actor::ActorFluxMatcher)
         opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
     end
 
-    z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
+    z_scaled_history = Vector{NTuple{length(z_init_scaled),Float64}}()
     err_history = Float64[]
 
     ftol = 1E-3 # relative error
@@ -120,13 +122,15 @@ function _step(actor::ActorFluxMatcher)
         initial_cp1d = IMAS.freeze(cp1d)
     end
 
-    if par.optimizer_algorithm == :simple
+    if par.optimizer_algorithm == :none
+        res = (zero=z_init_scaled,)
+    elseif par.optimizer_algorithm == :simple
         res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
     else
         res = try
             res = NLsolve.nlsolve(
                 z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog),
-                z_init;
+                z_init_scaled;
                 show_trace=false,
                 store_trace=true,
                 extended_trace=false,
@@ -147,7 +151,7 @@ function _step(actor::ActorFluxMatcher)
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
         display(plot(transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...)); xlabel="Iterations", label=""))
 
-        N_channels = Int(floor(length(z_init) / length(par.rho_transport)))
+        N_channels = Int(floor(length(z_init_scaled) / length(par.rho_transport)))
         p = plot(; layout=(N_channels, 2), size=(1000, 1000))
 
         titles = ["Electron temperature", "Ion temperature", "Electron density", "Rotation frequency tor sonic"]

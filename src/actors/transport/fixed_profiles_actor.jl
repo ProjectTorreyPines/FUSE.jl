@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFixedProfiles{T<:Real} <: Parame
     n_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile"; default=1.8)
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core"; default=1.0)
-    update_pedestal::Entry{Bool} = Entry{Bool}("-", "Update pedestal with EPED-NN and modify profiles accordingly"; default=true)
+    update_pedestal::Entry{Bool} = Entry{Bool}("-", "Update pedestal and modify profiles accordingly"; default=true)
 end
 
 mutable struct ActorFixedProfiles{D,P} <: CompoundAbstractActor{D,P}
