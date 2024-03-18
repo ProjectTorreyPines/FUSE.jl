@@ -34,17 +34,25 @@ Base.@kwdef mutable struct FUSEparameters__center_stack{T} <: ParametersInitBuil
     plug::Entry{Bool} = Entry{Bool}("-", "Flag for center plug"; default=false)
 end
 
+Base.@kwdef mutable struct FUSEparameters__build_layer_material{T} <: ParametersInitBuild{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :material
+    name::Switch{Symbol} = Switch{Symbol}(
+        FusionMaterials.all_materials(),
+        "-",
+        "Material of the layer"
+    )
+    composition::Entry{Float64} = Entry{T}("-", "Fraction of layer comprised of specified material")
+end
+
+
 Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :layer
     name::Entry{String} = Entry{String}("-", "Name of the layer")
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
-    material::Switch{Symbol} = Switch{Symbol}(
-        FusionMaterials.all_materials(),
-        "-",
-        "Material of the layer"
-    )
+    material::ParametersVector{FUSEparameters__build_layer_material{T}} = ParametersVector{FUSEparameters__build_layer_material{T}}()
     shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the layer")
     type::Switch{BuildLayerType} = Switch{BuildLayerType}(layer_type_options, "-", "Type of the layer")
     side::Switch{BuildLayerSide} = Switch{BuildLayerSide}(layer_side_options, "-", "Side of the layer")

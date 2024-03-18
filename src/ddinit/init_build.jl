@@ -133,15 +133,29 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
         layer.thickness = ini_layer.thickness
         layer.type = Int(ini_layer.type)
         layer.side = Int(ini_layer.side)
-        if !ismissing(ini_layer, :material)
-            layer.material = String(ini_layer.material)
+
+        if !isempty(ini_layer.material)
+            init_build!(bd, ini_layer.material)
+        else
+            resize!(layer.material, 1)
         end
+
         if !ismissing(ini_layer, :shape)
             layer.shape = Int(ini_layer.shape)
         end
     end
 
     return bd
+end
+
+function init_build!(bd::IMAS.build, materials::ParametersVector{<:FUSEparameters__build_layer_material})
+    k = 0 
+    for ini_material in materials
+        k += 1
+        material = resize!(bd.layer.material, k)[k]
+        material.name = ini_material.name
+        material.composition = ini_material.composition
+    end
 end
 
 """
@@ -202,23 +216,23 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
     end
 end
 
-function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, val::Symbol) where {T<:Real}
-    par = getfield(parameters_layer, field)
+# function Base.setproperty!(parameters_material::FUSEparameters__build_layer_material{T}, field::Symbol, val::Symbol) where {T<:Real}
+#     par = getfield(parameters_material, field)
 
-    if field == :material
-        layer_type = parameters_layer.type
+#     if field == :name
+#         layer_type = parameters_material.type
 
-        pretty_layer_type = replace("$layer_type", "_" => "")
-        allowed_materials = FusionMaterials.supported_material_list(layer_type)
+#         pretty_layer_type = replace("$layer_type", "_" => "")
+#         allowed_materials = FusionMaterials.supported_material_list(layer_type)
 
-        if val ∉ allowed_materials
-            error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
-        end
-    end
+#         if val ∉ allowed_materials
+#             error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+#         end
+#     end
 
-    return setproperty!(par, :value, val)
+#     return setproperty!(par, :value, val)
 
-end
+# end
 
 """
     dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
@@ -311,29 +325,34 @@ end
 function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
     bd = dd.build
     for (k, layer) in enumerate(bd.layer)
-        if !ismissing(layer, :material)
+        if !ismissing(layer.material[1], :name)
             continue
         end
         if k == 1 && ini.center_stack.plug
-            layer.material = "steel"
+            layer.material[1].name = "steel"
         elseif layer.type == Int(_plasma_)
-            layer.material = "plasma"
+            layer.material[1].name = "plasma"
         elseif layer.type == Int(_gap_)
-            layer.material = "vacuum"
+            layer.material[1].name = "vacuum"
         elseif layer.type == Int(_oh_)
-            layer.material = bd.oh.technology.material
+            # layer.material[1].name = bd.oh.technology.material # fix this
+            layer.material[1].name = "nb3sn"
         elseif layer.type == Int(_tf_)
-            layer.material = bd.tf.technology.material
+            # layer.material[1].name = bd.tf.technology.material
+            layer.material[1].name = "nb3sn"
         elseif layer.type == Int(_shield_)
-            layer.material = "steel"
+            layer.material[1].name = "steel"
         elseif layer.type == Int(_blanket_)
-            layer.material = "lithium_lead"
+            layer.material[1].name = "lithium_lead"
         elseif layer.type == Int(_wall_)
-            layer.material = "tungsten"
+            layer.material[1].name = "tungsten"
         elseif layer.type == Int(_vessel_)
-            layer.material = "water"
+            layer.material[1].name = "water"
         elseif layer.type == Int(_cryostat_)
-            layer.material = "steel"
+            layer.material[1].name = "steel"
+        end
+        if length(layer.material) == 1
+            layer.material[1].composition = 1.0
         end
     end
 end

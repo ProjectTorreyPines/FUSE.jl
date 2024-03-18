@@ -57,9 +57,19 @@
   "type": "static"
  },
  "build.layer[:].material": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of materials that comprise the layer"
+ },
+ "build.layer[:].material[:].composition": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of layer comprised of the specified material"
+ },
+ "build.layer[:].material[:].name": {
   "data_type": "STR_0D",
-  "documentation": "Material of the layer",
-  "type": "static"
+  "documentation": "Material name"
  },
  "build.layer[:].name": {
   "data_type": "STR_0D",
