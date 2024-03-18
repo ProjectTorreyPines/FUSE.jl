@@ -105,7 +105,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
