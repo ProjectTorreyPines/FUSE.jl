@@ -84,7 +84,7 @@ function define_neutrons(dd::IMAS.dd, N::Int)
     psi = cp1d.grid.psi
     neutrons, W_per_trace, dr, dz = IMAS.define_particles(eqt, psi, source_1d, N)
 
-    return neutrons, W_per_trace, dr, dz
+    return (neutrons=neutrons, W_per_trace=W_per_trace, dr=dr, dz=dz)
 end
 
 function define_wall(actor::ActorNeutronics; step::Float64=0.1)
