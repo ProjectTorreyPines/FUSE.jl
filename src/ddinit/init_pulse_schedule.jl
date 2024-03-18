@@ -44,7 +44,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
 
             # initialize position_control from mxh
             if ini.equilibrium.boundary_from == :scalars
-                time, data = get_time_dependent(ini.core_profiles, [:ip, :R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶, :xpoints]; simplify_time_traces)
+                time, data = get_time_dependent(ini.equilibrium, [:ip, :R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶, :xpoints]; simplify_time_traces)
                 for (k, time0) in enumerate(time)
                     R0 = data.R0[k]
                     Z0 = data.Z0[k]
