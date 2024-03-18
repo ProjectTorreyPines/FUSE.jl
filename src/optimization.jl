@@ -206,8 +206,23 @@ function optimization_engine(
     generation::Int,
     save_dd::Bool=true)
 
+    # create working directory
+    original_dir = pwd()
+    savedir = abspath(joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())"))
+    mkdir(savedir)
+    cd(savedir)
+
+    # Redirect stdout and stderr to the file
+    original_stdout = stdout  # Save the original stdout
+    original_stderr = stderr  # Save the original stderr
+    file_log = open("output_and_errors.txt", "w")
+
     try
+        redirect_stdout(file_log)
+        redirect_stderr(file_log)
+
         # update ini based on input optimization vector `x`
+        @show x
         ini = deepcopy(ini)
         parameters_from_opt!(ini, x)
 
@@ -225,8 +240,7 @@ function optimization_engine(
 
         # save simulation data to directory
         if !isempty(save_folder)
-            savedir = joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())")
-            save(savedir, save_dd ? dd : nothing, ini, act; timer=true, freeze=true, overwrite_files=false)
+            save(savedir, save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
         end
 
         # evaluate multiple objectives
@@ -248,6 +262,12 @@ function optimization_engine(
         result = Float64[Inf for f in objective_functions], Float64[Inf for g in constraint_functions], Float64[]
         # need to force garbage collection on dd (memory usage grows otherwise, this is a bug)
         return result
+
+    finally
+        redirect_stdout(original_stdout)
+        redirect_stderr(original_stderr)
+        cd(original_dir)
+        close(file_log)
     end
 end
 
