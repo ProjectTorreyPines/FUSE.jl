@@ -252,7 +252,7 @@ function optimization_engine(
         # save empty dd and error to directory
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
-                save(savedir, nothing, ini, act, e; timer=true, freeze=true, overwrite_files=false)
+                save(savedir, nothing, ini, act, e; timer=true, freeze=false, overwrite_files=true)
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
             end
