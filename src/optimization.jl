@@ -249,11 +249,13 @@ function optimization_engine(
         ff = collect(map(f -> nan2inf(f(dd)), objective_functions))
         gg = collect(map(g -> nan2inf(g(dd)), constraint_functions))
         hh = Float64[]
+
+        println("finished")
         @show ff
         @show gg
         @show hh
 
-        return inf_to_something.(ff), gg, hh
+        return ff, gg, hh
 
     catch e
         # save empty dd and error to directory
@@ -264,25 +266,19 @@ function optimization_engine(
         ff = Float64[Inf for f in objective_functions]
         gg = Float64[Inf for g in constraint_functions]
         hh = Float64[]
+
+        println("failed")
         @show ff
         @show gg
         @show hh
 
-        return inf_to_something.(ff), gg, hh
+        return ff, gg, hh
 
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
         cd(original_dir)
         close(file_log)
-    end
-end
-
-function inf_to_something(x::Float64)::Float64
-    if x == Inf
-        return 0.0
-    else
-        return x
     end
 end
 
