@@ -1,4 +1,36 @@
 {
+ "pulse_schedule.density_control.n_e_greenwald_fraction.reference": {
+  "coordinates": [
+   "pulse_schedule.density_control.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Reference waveform. Caution : error bars of the reference/data node are not used in the usual sense, instead they are used to describe the control envelope, with a meaning depending on the chosen envelope_type option.",
+  "units": "mixed"
+ },
+ "pulse_schedule.density_control.n_e_pedestal.reference": {
+  "coordinates": [
+   "pulse_schedule.density_control.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Reference waveform. Caution : error bars of the reference/data node are not used in the usual sense, instead they are used to describe the control envelope, with a meaning depending on the chosen envelope_type option.",
+  "units": "mixed"
+ },
+ "pulse_schedule.density_control.n_e_pedestal_greenwald_fraction.reference": {
+  "coordinates": [
+   "pulse_schedule.density_control.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Reference waveform. Caution : error bars of the reference/data node are not used in the usual sense, instead they are used to describe the control envelope, with a meaning depending on the chosen envelope_type option.",
+  "units": "mixed"
+ },
+ "pulse_schedule.density_control.zeff_pedestal.reference": {
+  "coordinates": [
+   "pulse_schedule.density_control.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Reference waveform. Caution : error bars of the reference/data node are not used in the usual sense, instead they are used to describe the control envelope, with a meaning depending on the chosen envelope_type option.",
+  "units": "mixed"
+ },
  "pulse_schedule.ec.beam[:].deposition_rho_tor_norm_width": {
   "data_type": "STRUCTURE",
   "documentation": "Normalised toroidal flux width at which the main deposition should occur"
