@@ -215,16 +215,20 @@ function optimization_engine(
     # Redirect stdout and stderr to the file
     original_stdout = stdout  # Save the original stdout
     original_stderr = stderr  # Save the original stderr
-    file_log = open("output_and_errors.txt", "w")
+    file_log = open("log.txt", "w")
 
     try
         redirect_stdout(file_log)
         redirect_stderr(file_log)
 
+        # deepcopy ini/act to avoid changes
+        ini = deepcopy(ini)
+        act = deepcopy(act)
+
         # update ini based on input optimization vector `x`
         @show x
-        ini = deepcopy(ini)
         parameters_from_opt!(ini, x)
+        @show x
 
         # attempt to release memory
         malloc_trim_if_glibc()
@@ -239,34 +243,46 @@ function optimization_engine(
         end
 
         # save simulation data to directory
-        if !isempty(save_folder)
-            save(savedir, save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
-        end
+        save(savedir, save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
 
         # evaluate multiple objectives
-        result = collect(map(f -> nan2inf(f(dd)), objective_functions)), collect(map(g -> nan2inf(g(dd)), constraint_functions)), Float64[]
+        ff = collect(map(f -> nan2inf(f(dd)), objective_functions))
+        gg = collect(map(g -> nan2inf(g(dd)), constraint_functions))
+        hh = Float64[]
+        @show ff
+        @show gg
+        @show hh
 
-        return result
+        return inf_to_something.(ff), gg, hh
 
     catch e
         # save empty dd and error to directory
-        if !isempty(save_folder)
-            if typeof(e) <: Exception # somehow sometimes `e` is of type String?
-                save(savedir, nothing, ini, act, e; timer=true, freeze=false, overwrite_files=true)
-            else
-                @warn "typeof(e) in optimization_engine is String: $e"
-            end
-        end
+        save(savedir, nothing, ini, act, e; timer=true, freeze=false, overwrite_files=true)
+        
         # rethrow(e) # uncomment for debugging purposes
-        result = Float64[Inf for f in objective_functions], Float64[Inf for g in constraint_functions], Float64[]
-        # need to force garbage collection on dd (memory usage grows otherwise, this is a bug)
-        return result
+        
+        ff = Float64[Inf for f in objective_functions]
+        gg = Float64[Inf for g in constraint_functions]
+        hh = Float64[]
+        @show ff
+        @show gg
+        @show hh
+
+        return inf_to_something.(ff), gg, hh
 
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
         cd(original_dir)
         close(file_log)
+    end
+end
+
+function inf_to_something(x::Float64)::Float64
+    if x == Inf
+        return 0.0
+    else
+        return x
     end
 end
 
@@ -282,6 +298,7 @@ function _optimization_engine(
     save_dd::Bool=true)
 
     tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
+
     GC.gc()
     return tmp
 end
