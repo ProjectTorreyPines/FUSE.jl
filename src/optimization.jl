@@ -252,7 +252,6 @@ function optimization_engine(
         # save empty dd and error to directory
         if !isempty(save_folder)
             if typeof(e) <: Exception # somehow sometimes `e` is of type String?
-                savedir = joinpath(save_folder, "$(generation)__f$(Dates.now())__$(getpid())")
                 save(savedir, nothing, ini, act, e; timer=true, freeze=true, overwrite_files=false)
             else
                 @warn "typeof(e) in optimization_engine is String: $e"
