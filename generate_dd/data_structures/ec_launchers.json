@@ -1,0 +1,1272 @@
+{
+ "ec_launchers": {
+  "documentation": "Launchers for heating and current drive in the electron cyclotron (EC) frequencies.",
+  "full_path": "ec_launchers",
+  "lifecycle_last_change": "3.40.0",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.7.0",
+  "maxoccur": "2"
+ },
+ "ec_launchers.beam": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of Electron Cyclotron beams",
+  "full_path": "ec_launchers/beam(i1)",
+  "introduced_after_version": "3.36.0",
+  "lifecycle_status": "alpha",
+  "maxoccur": "100",
+  "structure_reference": "ec_launchers_beam"
+ },
+ "ec_launchers.beam[:].frequency": {
+  "data_type": "STRUCTURE",
+  "documentation": "Frequency",
+  "full_path": "ec_launchers/beam(i1)/frequency",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_1d",
+  "units": "Hz"
+ },
+ "ec_launchers.beam[:].frequency.data": {
+  "coordinates": [
+   "ec_launchers.beam[:].frequency.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Data",
+  "full_path": "ec_launchers/beam(i1)/frequency/data(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "frequency/time",
+  "type": "dynamic",
+  "units": "Hz"
+ },
+ "ec_launchers.beam[:].frequency.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "ec_launchers/beam(i1)/frequency/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].frequency.data_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].frequency.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "ec_launchers/beam(i1)/frequency/data_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "frequency/time",
+  "type": "dynamic",
+  "units": "Hz"
+ },
+ "ec_launchers.beam[:].frequency.data_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].frequency.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "ec_launchers/beam(i1)/frequency/data_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "frequency/time",
+  "type": "dynamic",
+  "units": "Hz"
+ },
+ "ec_launchers.beam[:].frequency.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "ec_launchers/beam(i1)/frequency/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "frequency/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "ec_launchers.beam[:].identifier": {
+  "data_type": "STR_0D",
+  "documentation": "Beam identifier",
+  "full_path": "ec_launchers/beam(i1)/identifier",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "ec_launchers.beam[:].launching_position": {
+  "data_type": "STRUCTURE",
+  "documentation": "Launching position of the beam",
+  "full_path": "ec_launchers/beam(i1)/launching_position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ec_launchers_launching_position"
+ },
+ "ec_launchers.beam[:].launching_position.phi": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Toroidal angle",
+  "full_path": "ec_launchers/beam(i1)/launching_position/phi(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].launching_position.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].launching_position.phi_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/phi_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].launching_position.phi_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/phi_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].launching_position.r": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius",
+  "full_path": "ec_launchers/beam(i1)/launching_position/r(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].launching_position.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].launching_position.r_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/r_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].launching_position.r_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/r_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].launching_position.r_limit_max": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius upper limit for the system",
+  "full_path": "ec_launchers/beam(i1)/launching_position/r_limit_max",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].launching_position.r_limit_min": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius lower limit for the system",
+  "full_path": "ec_launchers/beam(i1)/launching_position/r_limit_min",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].launching_position.z": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Height",
+  "full_path": "ec_launchers/beam(i1)/launching_position/z(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].launching_position.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].launching_position.z_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/z_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].launching_position.z_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "ec_launchers/beam(i1)/launching_position/z_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].mode": {
+  "data_type": "INT_0D",
+  "documentation": "Identifier for the main plasma wave mode excited by the EC beam. For the ordinary mode (O-mode), mode=1. For the extraordinary mode (X-mode), mode=-1",
+  "full_path": "ec_launchers/beam(i1)/mode",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Beam name",
+  "full_path": "ec_launchers/beam(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "ec_launchers.beam[:].o_mode_fraction": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Fraction of EC beam power launched in ordinary (O) mode. If all power is launched in ordinary mode (O-mode), o_mode_fraction = 1.0. If all  power is launched in extraordinary mode (X-mode), o_mode_fraction = 0.0",
+  "full_path": "ec_launchers/beam(i1)/o_mode_fraction(:)",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "ec_launchers.beam[:].o_mode_fraction_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"o_mode_fraction\"",
+  "full_path": "ec_launchers/beam(i1)/o_mode_fraction_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].o_mode_fraction_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"o_mode_fraction\"",
+  "full_path": "ec_launchers/beam(i1)/o_mode_fraction_error_lower(:)",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "ec_launchers.beam[:].o_mode_fraction_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"o_mode_fraction\"",
+  "full_path": "ec_launchers/beam(i1)/o_mode_fraction_error_upper(:)",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "ec_launchers.beam[:].phase": {
+  "data_type": "STRUCTURE",
+  "documentation": "Phase ellipse characteristics at launch",
+  "full_path": "ec_launchers/beam(i1)/phase",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ec_launchers_beam_phase"
+ },
+ "ec_launchers.beam[:].phase.angle": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Rotation angle for the phase ellipse",
+  "full_path": "ec_launchers/beam(i1)/phase/angle(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].phase.angle_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"angle\"",
+  "full_path": "ec_launchers/beam(i1)/phase/angle_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].phase.angle_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"angle\"",
+  "full_path": "ec_launchers/beam(i1)/phase/angle_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].phase.angle_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"angle\"",
+  "full_path": "ec_launchers/beam(i1)/phase/angle_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].phase.curvature": {
+  "coordinates": [
+   "1...2",
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Inverse curvature radii for the phase ellipse, positive/negative for divergent/convergent beams, in the horizontal direction (first index of the first coordinate) and in the vertical direction (second index of the first coordinate)",
+  "full_path": "ec_launchers/beam(i1)/phase/curvature(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m^-1"
+ },
+ "ec_launchers.beam[:].phase.curvature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"curvature\"",
+  "full_path": "ec_launchers/beam(i1)/phase/curvature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].phase.curvature_error_lower": {
+  "coordinates": [
+   "1...2",
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"curvature\"",
+  "full_path": "ec_launchers/beam(i1)/phase/curvature_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m^-1"
+ },
+ "ec_launchers.beam[:].phase.curvature_error_upper": {
+  "coordinates": [
+   "1...2",
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"curvature\"",
+  "full_path": "ec_launchers/beam(i1)/phase/curvature_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m^-1"
+ },
+ "ec_launchers.beam[:].power_launched": {
+  "data_type": "STRUCTURE",
+  "documentation": "Beam power launched into the vacuum vessel",
+  "full_path": "ec_launchers/beam(i1)/power_launched",
+  "lifecycle_status": "alpha",
+  "structure_reference": "signal_flt_1d",
+  "units": "W"
+ },
+ "ec_launchers.beam[:].power_launched.data": {
+  "coordinates": [
+   "ec_launchers.beam[:].power_launched.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Data",
+  "full_path": "ec_launchers/beam(i1)/power_launched/data(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power_launched/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "ec_launchers.beam[:].power_launched.data_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"data\"",
+  "full_path": "ec_launchers/beam(i1)/power_launched/data_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].power_launched.data_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].power_launched.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"data\"",
+  "full_path": "ec_launchers/beam(i1)/power_launched/data_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power_launched/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "ec_launchers.beam[:].power_launched.data_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].power_launched.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"data\"",
+  "full_path": "ec_launchers/beam(i1)/power_launched/data_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power_launched/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "ec_launchers.beam[:].power_launched.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time",
+  "full_path": "ec_launchers/beam(i1)/power_launched/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "power_launched/time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "ec_launchers.beam[:].spot": {
+  "data_type": "STRUCTURE",
+  "documentation": "Spot ellipse characteristics at launch",
+  "full_path": "ec_launchers/beam(i1)/spot",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ec_launchers_beam_spot"
+ },
+ "ec_launchers.beam[:].spot.angle": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Rotation angle for the spot ellipse",
+  "full_path": "ec_launchers/beam(i1)/spot/angle(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].spot.angle_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"angle\"",
+  "full_path": "ec_launchers/beam(i1)/spot/angle_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].spot.angle_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"angle\"",
+  "full_path": "ec_launchers/beam(i1)/spot/angle_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].spot.angle_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"angle\"",
+  "full_path": "ec_launchers/beam(i1)/spot/angle_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].spot.size": {
+  "coordinates": [
+   "1...2",
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Size of the spot ellipse: distance between the central ray and the peripheral rays in the horizontal (first index of the first coordinate) and vertical direction (second index of the first coordinate)",
+  "full_path": "ec_launchers/beam(i1)/spot/size(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].spot.size_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"size\"",
+  "full_path": "ec_launchers/beam(i1)/spot/size_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].spot.size_error_lower": {
+  "coordinates": [
+   "1...2",
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Lower error for \"size\"",
+  "full_path": "ec_launchers/beam(i1)/spot/size_error_lower(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].spot.size_error_upper": {
+  "coordinates": [
+   "1...2",
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_2D",
+  "documentation": "Upper error for \"size\"",
+  "full_path": "ec_launchers/beam(i1)/spot/size_error_upper(:,:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "m"
+ },
+ "ec_launchers.beam[:].steering_angle_pol": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Steering angle of the EC beam in the R,Z plane (from the -R axis towards the -Z axis), angle_pol=atan2(-k_Z,-k_R), where k_Z and k_R are the Z and R components of the mean wave vector in the EC beam",
+  "full_path": "ec_launchers/beam(i1)/steering_angle_pol(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].steering_angle_pol_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"steering_angle_pol\"",
+  "full_path": "ec_launchers/beam(i1)/steering_angle_pol_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].steering_angle_pol_error_lower": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"steering_angle_pol\"",
+  "full_path": "ec_launchers/beam(i1)/steering_angle_pol_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].steering_angle_pol_error_upper": {
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"steering_angle_pol\"",
+  "full_path": "ec_launchers/beam(i1)/steering_angle_pol_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].steering_angle_tor": {
+  "cocos_label_transformation": "tor_angle_like",
+  "cocos_leaf_name_aos_indices": "ec_launchers.launcher{i}.steering_angle_tor.data",
+  "cocos_transformation_expression": ".sigma_rphiz_eff",
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Steering angle of the EC beam away from the poloidal plane that is increasing towards the positive phi axis, angle_tor=arcsin(k_phi/k), where k_phi is the component of the wave vector in the phi direction and k is the length of the wave vector. Here the term wave vector refers to the mean wave vector in the EC beam",
+  "full_path": "ec_launchers/beam(i1)/steering_angle_tor(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].steering_angle_tor_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"steering_angle_tor\"",
+  "full_path": "ec_launchers/beam(i1)/steering_angle_tor_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.beam[:].steering_angle_tor_error_lower": {
+  "cocos_label_transformation": "tor_angle_like",
+  "cocos_leaf_name_aos_indices": "ec_launchers.launcher{i}.steering_angle_tor.data",
+  "cocos_transformation_expression": ".sigma_rphiz_eff",
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"steering_angle_tor\"",
+  "full_path": "ec_launchers/beam(i1)/steering_angle_tor_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].steering_angle_tor_error_upper": {
+  "cocos_label_transformation": "tor_angle_like",
+  "cocos_leaf_name_aos_indices": "ec_launchers.launcher{i}.steering_angle_tor.data",
+  "cocos_transformation_expression": ".sigma_rphiz_eff",
+  "coordinates": [
+   "ec_launchers.beam[:].time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"steering_angle_tor\"",
+  "full_path": "ec_launchers/beam(i1)/steering_angle_tor_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "rad"
+ },
+ "ec_launchers.beam[:].time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Time base used for launching_position, o_mode_fraction, angle, spot and phase quantities",
+  "full_path": "ec_launchers/beam(i1)/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ },
+ "ec_launchers.code": {
+  "data_type": "STRUCTURE",
+  "documentation": "Generic decription of the code-specific parameters for the code that has produced this IDS",
+  "full_path": "ec_launchers/code",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code"
+ },
+ "ec_launchers.code.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "ec_launchers/code/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "ec_launchers/code/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.library": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of external libraries used by the code that has produced this IDS",
+  "full_path": "ec_launchers/code/library(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "library"
+ },
+ "ec_launchers.code.library[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "ec_launchers/code/library(i1)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.library[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "ec_launchers/code/library(i1)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.library[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software",
+  "full_path": "ec_launchers/code/library(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.library[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "ec_launchers/code/library(i1)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.library[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "ec_launchers/code/library(i1)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.library[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "ec_launchers/code/library(i1)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software generating IDS",
+  "full_path": "ec_launchers/code/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.output_flag": {
+  "coordinates": [
+   "ec_launchers.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Output flag : 0 means the run is successful, other values mean some difficulty has been encountered, the exact meaning is then code specific. Negative values mean the result shall not be used.",
+  "full_path": "ec_launchers/code/output_flag(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic"
+ },
+ "ec_launchers.code.parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "ec_launchers/code/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "ec_launchers/code/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.code.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "ec_launchers/code/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Interface Data Structure properties. This element identifies the node above as an IDS",
+  "full_path": "ec_launchers/ids_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ids_properties"
+ },
+ "ec_launchers.ids_properties.comment": {
+  "data_type": "STR_0D",
+  "documentation": "Any comment describing the content of this IDS",
+  "full_path": "ec_launchers/ids_properties/comment",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.creation_date": {
+  "data_type": "STR_0D",
+  "documentation": "Date at which this data has been produced",
+  "full_path": "ec_launchers/ids_properties/creation_date",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.homogeneous_time": {
+  "data_type": "INT_0D",
+  "documentation": "This node must be filled (with 0, 1, or 2) for the IDS to be valid. If 1, the time of this IDS is homogeneous, i.e. the time values for this IDS are stored in the time node just below the root of this IDS. If 0, the time values are stored in the various time fields at lower levels in the tree. In the case only constant or static nodes are filled within the IDS, homogeneous_time must be set to 2",
+  "full_path": "ec_launchers/ids_properties/homogeneous_time",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.name": {
+  "data_type": "STR_0D",
+  "documentation": "User-defined name for this IDS occurrence",
+  "full_path": "ec_launchers/ids_properties/name",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.occurrence": {
+  "data_type": "INT_0D",
+  "description": "occurrence number [NOTE: this field only exists in OMAS and is not part of the ITER PDM]",
+  "full_path": "ec_launchers.ids_properties.occurrence"
+ },
+ "ec_launchers.ids_properties.occurrence_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/occurrence_type_identifier.xml",
+  "documentation": "Type of data contained in this occurrence\n1) reconstruction : Equilibrium reconstruction\n2) prediction_fixed : Equilibrium prediction, fixed boundary\n3) prediction_free : Equilibrium prediction, free boundary\n4) mapping : Used for mapping equilibrium results from one grid type / resolution to another, or for including variables not present in the first set such as the calculation of magnetic field of other derived parameters",
+  "full_path": "ec_launchers/ids_properties/occurrence_type",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "ec_launchers.ids_properties.occurrence_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "ec_launchers/ids_properties/occurrence_type/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.occurrence_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "ec_launchers/ids_properties/occurrence_type/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.occurrence_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "ec_launchers/ids_properties/occurrence_type/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information about the plugins used to write/read this IDS. This structure is filled automatically by the Access Layer at GET/PUT time, no need to fill it via a user program.",
+  "full_path": "ec_launchers/ids_properties/plugins",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.39.0",
+  "structure_reference": "ids_plugins"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_get": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to GET the data",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_get",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_get.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_get/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_get.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_get/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_get.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_get/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_get.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_get/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_get.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_get/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to PUT the data",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_put.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_put/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_put.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_put/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_put.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_put/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_put.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_put/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.infrastructure_put.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "ec_launchers/ids_properties/plugins/infrastructure_put/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which a plugin has been applied",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_plugins_node",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].get_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins actually used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application). This information is filled by the plugin infrastructure during the GET operation.",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/get_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].get_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/get_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].get_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/get_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].get_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/get_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].get_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/get_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].get_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/get_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].get_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/get_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the plugin applies to the whole IDS.",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].put_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins used to PUT a node (potentially, multiple plugins can be applied, if so they are listed by order of application)",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/put_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].put_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/put_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].put_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/put_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].put_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/put_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].put_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/put_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].put_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/put_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].put_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/put_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].readback": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins to be used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application) ",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/readback(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].readback[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/readback(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].readback[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/readback(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].readback[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/readback(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].readback[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/readback(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].readback[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/readback(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.plugins.node[:].readback[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "ec_launchers/ids_properties/plugins/node(i1)/readback(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.provenance": {
+  "data_type": "STRUCTURE",
+  "documentation": "Provenance information about this IDS",
+  "full_path": "ec_launchers/ids_properties/provenance",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.34.0",
+  "structure_reference": "ids_provenance"
+ },
+ "ec_launchers.ids_properties.provenance.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which the provenance is given. The provenance information applies to the whole structure below the IDS node. For documenting provenance information for the whole IDS, set the size of this array of structure to 1 and leave the child \"path\" node empty",
+  "full_path": "ec_launchers/ids_properties/provenance/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_provenance_node",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.provenance.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the provenance information applies to the whole IDS.",
+  "full_path": "ec_launchers/ids_properties/provenance/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "ec_launchers.ids_properties.provenance.node[:].sources": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "List of sources used to import or calculate this node, identified as explained below. In case the node is the result of of a calculation / data processing, the source is an input to the process described in the \"code\" structure at the root of the IDS. The source can be an IDS (identified by a URI or a persitent identifier, see syntax in the link below) or non-IDS data imported directly from an non-IMAS database (identified by the command used to import the source, or the persistent identifier of the data source). Often data are obtained by a chain of processes, however only the last process input are recorded here. The full chain of provenance has then to be reconstructed recursively from the provenance information contained in the data sources.",
+  "full_path": "ec_launchers/ids_properties/provenance/node(i1)/sources(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IMAS-URI-scheme.md"
+ },
+ "ec_launchers.ids_properties.provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "ec_launchers/ids_properties/provider",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...). Superseeded by the new provenance structure.",
+  "full_path": "ec_launchers/ids_properties/source",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.34.0",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.version_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Version of the access layer package used to PUT this IDS",
+  "full_path": "ec_launchers/ids_properties/version_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "version_dd_al"
+ },
+ "ec_launchers.ids_properties.version_put.access_layer": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Access Layer used to PUT this IDS",
+  "full_path": "ec_launchers/ids_properties/version_put/access_layer",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.version_put.access_layer_language": {
+  "data_type": "STR_0D",
+  "documentation": "Programming language of the Access Layer high level API used to PUT this IDS",
+  "full_path": "ec_launchers/ids_properties/version_put/access_layer_language",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.ids_properties.version_put.data_dictionary": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Data Dictionary used to PUT this IDS",
+  "full_path": "ec_launchers/ids_properties/version_put/data_dictionary",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "ec_launchers.latency": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper bound of the delay between input command received from the RT network and actuator starting to react. Applies globally to the system described by this IDS unless specific latencies (e.g. channel-specific or antenna-specific) are provided at a deeper level in the IDS structure.",
+  "full_path": "ec_launchers/latency",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "ec_launchers.latency_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"latency\"",
+  "full_path": "ec_launchers/latency_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "ec_launchers.latency_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"latency\"",
+  "full_path": "ec_launchers/latency_error_lower",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "ec_launchers.latency_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"latency\"",
+  "full_path": "ec_launchers/latency_error_upper",
+  "introduced_after_version": "3.32.1",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "ec_launchers.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Generic time",
+  "full_path": "ec_launchers/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ }
+}

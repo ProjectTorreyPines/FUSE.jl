@@ -13,11 +13,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
-    custom_input_files::Entry{Union{Vector{<:InputTGLF}, Vector{<:InputTJLF}}} = Entry{ Union{Vector{<:InputTGLF}, Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
+    custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
+        Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
+    lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}  
+    dd::IMAS.dd{D}
     par::FUSEparameters__ActorTGLF{P}
     input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
     flux_solutions::Union{Vector{<:IMAS.flux_solution},Any}
@@ -58,18 +60,18 @@ function _step(actor::ActorTGLF)
     cp1d = dd.core_profiles.profiles_1d[]
     ix_eq = [argmin(abs.(eq1d.rho_tor_norm .- rho)) for rho in par.rho_transport]
     ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
-    
-    
+
+
     ϵ_st40 = 1 / 1.9
-    ϵ_D3D = 0.67 / 1.67 
+    ϵ_D3D = 0.67 / 1.67
 
     ϵ = dd.equilibrium.time_slice[].boundary.minor_radius / dd.equilibrium.time_slice[].boundary.geometric_axis.r
-    theta_0 = (0.7-0.2)/(ϵ_D3D- ϵ_st40) * (ϵ - ϵ_st40) + 0.2
-    theta_1 = (0.7-0.8)/(ϵ_D3D- ϵ_st40) * (ϵ - ϵ_st40) + 0.8
-    theta_trapped = range(theta_0,theta_1,length(cp1d.grid.rho_tor_norm))
+    theta_0 = (0.7 - 0.2) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.2
+    theta_1 = (0.7 - 0.8) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.8
+    theta_trapped = range(theta_0, theta_1, length(cp1d.grid.rho_tor_norm))
 
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
-        input_tglf = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic)
+        input_tglf = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
             if par.model == :TGLFNN
@@ -106,8 +108,8 @@ function _step(actor::ActorTGLF)
     elseif par.model == :TGLF
         actor.flux_solutions = run_tglf(actor.input_tglfs)
     elseif par.model == :TJLF
-        QL_fluxes_out = run_tjlf(actor.input_tglfs) 
-        actor.flux_solutions = [IMAS.flux_solution(single[1,1,1],single[1,2,3],single[1,1,2],single[1,2,2]) for single in QL_fluxes_out]
+        QL_fluxes_out = run_tjlf(actor.input_tglfs)
+        actor.flux_solutions = [IMAS.flux_solution(single[1, 1, 1], single[1, 2, 3], single[1, 1, 2], single[1, 2, 2]) for single in QL_fluxes_out]
     end
 
     return actor
@@ -152,29 +154,29 @@ Modifies an InputTJLF from a InputTGLF
 """
 function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     input_tjlf.NWIDTH = 21
-    
+
     for fieldname in fieldnames(typeof(input_tglf))
-        if occursin(r"\d",String(fieldname)) || fieldname==:_Qgb # species parameter
+        if occursin(r"\d", String(fieldname)) || fieldname == :_Qgb # species parameter
             continue
         end
-        setfield!(input_tjlf,fieldname,getfield(input_tglf,fieldname))
+        setfield!(input_tjlf, fieldname, getfield(input_tglf, fieldname))
     end
     for i in 1:input_tglf.NS
-        input_tjlf.ZS[i] = getfield(input_tglf,Symbol("ZS_",i))
-        input_tjlf.AS[i] = getfield(input_tglf,Symbol("AS_",i))
-        input_tjlf.MASS[i] = getfield(input_tglf,Symbol("MASS_",i))
-        input_tjlf.RLNS[i] = getfield(input_tglf,Symbol("RLNS_",i))
-        input_tjlf.RLTS[i] = getfield(input_tglf,Symbol("RLTS_",i))
-        input_tjlf.TAUS[i] = getfield(input_tglf,Symbol("TAUS_",i))
-        input_tjlf.VPAR[i] = getfield(input_tglf,Symbol("VPAR_",i))
-        input_tjlf.VPAR_SHEAR[i] = getfield(input_tglf,Symbol("VPAR_SHEAR_",i))
+        input_tjlf.ZS[i] = getfield(input_tglf, Symbol("ZS_", i))
+        input_tjlf.AS[i] = getfield(input_tglf, Symbol("AS_", i))
+        input_tjlf.MASS[i] = getfield(input_tglf, Symbol("MASS_", i))
+        input_tjlf.RLNS[i] = getfield(input_tglf, Symbol("RLNS_", i))
+        input_tjlf.RLTS[i] = getfield(input_tglf, Symbol("RLTS_", i))
+        input_tjlf.TAUS[i] = getfield(input_tglf, Symbol("TAUS_", i))
+        input_tjlf.VPAR[i] = getfield(input_tglf, Symbol("VPAR_", i))
+        input_tjlf.VPAR_SHEAR[i] = getfield(input_tglf, Symbol("VPAR_SHEAR_", i))
     end
 
 
     # Defaults
-    input_tjlf.KY= 0.3
+    input_tjlf.KY = 0.3
     input_tjlf.ALPHA_E = 1.0
-    input_tjlf.ALPHA_P= 1.0
+    input_tjlf.ALPHA_P = 1.0
     input_tjlf.XNU_FACTOR = 1.0
     input_tjlf.DEBYE_FACTOR = 1.0
     input_tjlf.RLNP_CUTOFF = 18.0
@@ -193,19 +195,19 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     input_tjlf.ETG_FACTOR = 1.25
     input_tjlf.DAMP_PSI = 0.0
     input_tjlf.DAMP_SIG = 0.0
-   
+
     input_tjlf.FIND_EIGEN = true
     input_tjlf.NXGRID = 16
 
     input_tjlf.ADIABATIC_ELEC = false
     input_tjlf.VPAR_MODEL = 0
     input_tjlf.NEW_EIKONAL = true
-    input_tjlf.USE_BISECTION= true
+    input_tjlf.USE_BISECTION = true
     input_tjlf.USE_INBOARD_DETRAPPED = false
     input_tjlf.IFLUX = true
-    input_tjlf.IBRANCH = -1 
+    input_tjlf.IBRANCH = -1
     input_tjlf.KX0_LOC = 0.0
-    
+
     # for now settings
     input_tjlf.ALPHA_ZF = -1  # smooth   
 
@@ -214,12 +216,12 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     field_names = fieldnames(InputTJLF)
     for field_name in field_names
         field_value = getfield(input_tjlf, field_name)
-        
-         if typeof(field_value)<:Missing || typeof(field_value)<:Real
-             @assert !ismissing(field_value) || !isnan(field_value) "Did not properly populate input_tjlf for $field_name"
-         end
 
-         if typeof(field_value) <: Vector && field_name != :KY_SPECTRUM && field_name != :EIGEN_SPECTRUM && field_name != :EIGEN_SPECTRUM2
+        if typeof(field_value) <: Missing || typeof(field_value) <: Real
+            @assert !ismissing(field_value) || !isnan(field_value) "Did not properly populate input_tjlf for $field_name"
+        end
+
+        if typeof(field_value) <: Vector && field_name != :KY_SPECTRUM && field_name != :EIGEN_SPECTRUM && field_name != :EIGEN_SPECTRUM2
             for val in field_value
                 @assert !isnan(val) "Did not properly populate input_tjlf for array $field_name"
             end

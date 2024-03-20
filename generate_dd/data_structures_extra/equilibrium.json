@@ -1,0 +1,53 @@
+{
+ "equilibrium.time_slice[:].boundary.ovality": {
+  "data_type": "FLT_0D",
+  "documentation": "Ovality of the plasma boundary",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "equilibrium.time_slice[:].boundary.squareness": {
+  "data_type": "FLT_0D",
+  "documentation": "Squareness of the plasma boundary",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "equilibrium.time_slice[:].global_quantities.vacuum_toroidal_field.b0": {
+  "data_type": "FLT_0D",
+  "documentation": "Vacuum toroidal field at R0 [T]; Positive sign means anti-clockwise when viewing from above. The product R0B0 must be consistent with the b_tor_vacuum_r field of the tf IDS.",
+  "type": "dynamic",
+  "units": "T"
+ },
+ "equilibrium.time_slice[:].global_quantities.vacuum_toroidal_field.r0": {
+  "data_type": "FLT_0D",
+  "documentation": "Reference major radius where the vacuum toroidal magnetic field is given (usually a fixed position such as the middle of the vessel at the equatorial midplane)",
+  "type": "constant",
+  "units": "m"
+ },
+ "equilibrium.time_slice[:].profiles_1d.fsa_bp": {
+  "coordinates": [
+   "equilibrium.time_slice[:].profiles_1d.psi"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Flux surface averaged Bp",
+  "type": "dynamic",
+  "units": "T"
+ },
+ "equilibrium.time_slice[:].profiles_1d.gm10": {
+  "coordinates": [
+   "equilibrium.time_slice[:].profiles_1d.psi"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Flux surface averaged R^2",
+  "type": "dynamic",
+  "units": "m^2"
+ },
+ "equilibrium.time_slice[:].profiles_1d.psi_norm": {
+  "coordinates": [
+   "equilibrium.time_slice[:].profiles_1d.psi"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Normalised poloidal flux coordinate",
+  "type": "dynamic",
+  "units": "-"
+ }
+}

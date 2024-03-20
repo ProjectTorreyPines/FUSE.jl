@@ -1,0 +1,212 @@
+{
+ "balance_of_plant": {
+  "documentation": "Electricial and thermal power balance of the plant"
+ },
+ "balance_of_plant.Q_plant": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Electricity gain of the plant (ratio of net electric / plant electricity during operation)",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "balance_of_plant.power_electric_net": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Net electric power",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_electric_plant_operation.system[:].index": {
+  "data_type": "INT_0D",
+  "documentation": "Index of the system, used to generate functions",
+  "type": "static"
+ },
+ "balance_of_plant.power_electric_plant_operation.system[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the system",
+  "type": "static"
+ },
+ "balance_of_plant.power_electric_plant_operation.system[:].power": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Electrical power used to operate the system",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_electric_plant_operation.system[:].subsystem[:].index": {
+  "data_type": "INT_0D",
+  "documentation": "Index of the system, used to generate functions",
+  "type": "static"
+ },
+ "balance_of_plant.power_electric_plant_operation.system[:].subsystem[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the system",
+  "type": "static"
+ },
+ "balance_of_plant.power_electric_plant_operation.system[:].subsystem[:].power": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Electrical power used to operate the system",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_electric_plant_operation.total_power": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Total ",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_plant.generator_conversion_efficiency": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Conversion efficiency of thermal to electric power of the steam cycle",
+  "type": "dynamic",
+  "units": "-"
+ },
+ "balance_of_plant.power_plant.power_cycle_type": {
+  "data_type": "STR_0D",
+  "documentation": "Type of primary power cycle, :brayton = gas, :rankine = steam",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.power_electric_generated": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "The net electric power produced by the thermal plant, equal tot the power produced by turbines LESS the power consumed by pumps and compressors",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].index": {
+  "data_type": "INT_0D",
+  "documentation": "Index of the system, used to generate functions",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the component",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].massflow": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Mass Flow Rate of the fluid",
+  "type": "dynamic",
+  "units": "kg/s"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].mechanicalPower": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Shaft power associated with the component, (+) = into the system, (-) = out of the system",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the port",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].pressure": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Fluid pressure",
+  "type": "dynamic",
+  "units": "Bar"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].temperature": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Fluid Temperature",
+  "type": "dynamic",
+  "units": "C"
+ },
+ "balance_of_plant.power_plant.system[:].component[:].port[:].thermalPower": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Heattransfer rate of the component, (+) = into the system, (-) = out of the system",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_plant.system[:].index": {
+  "data_type": "INT_0D",
+  "documentation": "Index of the system, used to generate functions",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.system[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the system",
+  "type": "static"
+ },
+ "balance_of_plant.power_plant.total_heat_rejected": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "The total heat flow being rejected from the thermal plant",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.power_plant.total_heat_supplied": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "The total heat flow being supplied to the thermal Plant (Fusion thermal power).",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "W"
+ },
+ "balance_of_plant.thermal_efficiency_cycle": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "The fractional thermal effiency of the power cycle. Calculated as 1-Q_out/Q_in",
+  "type": "dynamic"
+ },
+ "balance_of_plant.thermal_efficiency_plant": {
+  "coordinates": [
+   "balance_of_plant.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "The fractional thermal effiency of the entire BOP thermal plant, inlcudes all of the individual cycles. Calculated as 1-Q_out/Q_in",
+  "type": "dynamic"
+ },
+ "balance_of_plant.time": {
+  "units": "s",
+  "coordinates": [
+   "1...N"
+  ],
+  "lifecycle_status": "active",
+  "data_type": "FLT_1D_TYPE",
+  "full_path": "balance_of_plant/time(:)",
+  "timebasepath": "time",
+  "documentation": "Generic time",
+  "type": "dynamic"
+ }
+}

@@ -1,0 +1,3281 @@
+{
+ "spi": {
+  "documentation": "Shattered pellets injectors",
+  "full_path": "spi",
+  "lifecycle_last_change": "3.40.0",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.40.0",
+  "maxoccur": "2"
+ },
+ "spi.code": {
+  "data_type": "STRUCTURE",
+  "documentation": "Generic decription of the code-specific parameters for the code that has produced this IDS",
+  "full_path": "spi/code",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code"
+ },
+ "spi.code.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "spi/code/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "spi/code/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.library": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of external libraries used by the code that has produced this IDS",
+  "full_path": "spi/code/library(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "library"
+ },
+ "spi.code.library[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "spi/code/library(i1)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.library[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "spi/code/library(i1)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.library[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software",
+  "full_path": "spi/code/library(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.library[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "spi/code/library(i1)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.library[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "spi/code/library(i1)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.library[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "spi/code/library(i1)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software generating IDS",
+  "full_path": "spi/code/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.output_flag": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "INT_1D",
+  "documentation": "Output flag : 0 means the run is successful, other values mean some difficulty has been encountered, the exact meaning is then code specific. Negative values mean the result shall not be used.",
+  "full_path": "spi/code/output_flag(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic"
+ },
+ "spi.code.parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "spi/code/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "spi/code/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.code.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "spi/code/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties": {
+  "data_type": "STRUCTURE",
+  "documentation": "Interface Data Structure properties. This element identifies the node above as an IDS",
+  "full_path": "spi/ids_properties",
+  "lifecycle_status": "alpha",
+  "structure_reference": "ids_properties"
+ },
+ "spi.ids_properties.comment": {
+  "data_type": "STR_0D",
+  "documentation": "Any comment describing the content of this IDS",
+  "full_path": "spi/ids_properties/comment",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.creation_date": {
+  "data_type": "STR_0D",
+  "documentation": "Date at which this data has been produced",
+  "full_path": "spi/ids_properties/creation_date",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.homogeneous_time": {
+  "data_type": "INT_0D",
+  "documentation": "This node must be filled (with 0, 1, or 2) for the IDS to be valid. If 1, the time of this IDS is homogeneous, i.e. the time values for this IDS are stored in the time node just below the root of this IDS. If 0, the time values are stored in the various time fields at lower levels in the tree. In the case only constant or static nodes are filled within the IDS, homogeneous_time must be set to 2",
+  "full_path": "spi/ids_properties/homogeneous_time",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.name": {
+  "data_type": "STR_0D",
+  "documentation": "User-defined name for this IDS occurrence",
+  "full_path": "spi/ids_properties/name",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.occurrence_type": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "utilities/occurrence_type_identifier.xml",
+  "documentation": "Type of data contained in this occurrence\n1) reconstruction : Equilibrium reconstruction\n2) prediction_fixed : Equilibrium prediction, fixed boundary\n3) prediction_free : Equilibrium prediction, free boundary\n4) mapping : Used for mapping equilibrium results from one grid type / resolution to another, or for including variables not present in the first set such as the calculation of magnetic field of other derived parameters",
+  "full_path": "spi/ids_properties/occurrence_type",
+  "introduced_after_version": "3.39.0",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "spi.ids_properties.occurrence_type.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "spi/ids_properties/occurrence_type/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.occurrence_type.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "spi/ids_properties/occurrence_type/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.occurrence_type.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "spi/ids_properties/occurrence_type/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information about the plugins used to write/read this IDS. This structure is filled automatically by the Access Layer at GET/PUT time, no need to fill it via a user program.",
+  "full_path": "spi/ids_properties/plugins",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.39.0",
+  "structure_reference": "ids_plugins"
+ },
+ "spi.ids_properties.plugins.infrastructure_get": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to GET the data",
+  "full_path": "spi/ids_properties/plugins/infrastructure_get",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "spi.ids_properties.plugins.infrastructure_get.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "spi/ids_properties/plugins/infrastructure_get/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_get.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "spi/ids_properties/plugins/infrastructure_get/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_get.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "spi/ids_properties/plugins/infrastructure_get/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_get.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "spi/ids_properties/plugins/infrastructure_get/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_get.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "spi/ids_properties/plugins/infrastructure_get/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Plugin infrastructure used to PUT the data",
+  "full_path": "spi/ids_properties/plugins/infrastructure_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "code_constant_noparam"
+ },
+ "spi.ids_properties.plugins.infrastructure_put.commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "spi/ids_properties/plugins/infrastructure_put/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_put.description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "spi/ids_properties/plugins/infrastructure_put/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_put.name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "spi/ids_properties/plugins/infrastructure_put/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_put.repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "spi/ids_properties/plugins/infrastructure_put/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.infrastructure_put.version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "spi/ids_properties/plugins/infrastructure_put/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which a plugin has been applied",
+  "full_path": "spi/ids_properties/plugins/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_plugins_node",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].get_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins actually used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application). This information is filled by the plugin infrastructure during the GET operation.",
+  "full_path": "spi/ids_properties/plugins/node(i1)/get_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "spi.ids_properties.plugins.node[:].get_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "spi/ids_properties/plugins/node(i1)/get_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].get_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "spi/ids_properties/plugins/node(i1)/get_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].get_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "spi/ids_properties/plugins/node(i1)/get_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].get_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "spi/ids_properties/plugins/node(i1)/get_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].get_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "spi/ids_properties/plugins/node(i1)/get_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].get_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "spi/ids_properties/plugins/node(i1)/get_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the plugin applies to the whole IDS.",
+  "full_path": "spi/ids_properties/plugins/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "spi.ids_properties.plugins.node[:].put_operation": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins used to PUT a node (potentially, multiple plugins can be applied, if so they are listed by order of application)",
+  "full_path": "spi/ids_properties/plugins/node(i1)/put_operation(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "spi.ids_properties.plugins.node[:].put_operation[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "spi/ids_properties/plugins/node(i1)/put_operation(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].put_operation[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "spi/ids_properties/plugins/node(i1)/put_operation(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].put_operation[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "spi/ids_properties/plugins/node(i1)/put_operation(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].put_operation[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "spi/ids_properties/plugins/node(i1)/put_operation(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].put_operation[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "spi/ids_properties/plugins/node(i1)/put_operation(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].put_operation[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "spi/ids_properties/plugins/node(i1)/put_operation(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].readback": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Plugins to be used to read back a node (potentially, multiple plugins can be applied, listed in reverse order of application) ",
+  "full_path": "spi/ids_properties/plugins/node(i1)/readback(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "10",
+  "structure_reference": "code_constant"
+ },
+ "spi.ids_properties.plugins.node[:].readback[:].commit": {
+  "data_type": "STR_0D",
+  "documentation": "Unique commit reference of software",
+  "full_path": "spi/ids_properties/plugins/node(i1)/readback(i2)/commit",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].readback[:].description": {
+  "data_type": "STR_0D",
+  "documentation": "Short description of the software (type, purpose)",
+  "full_path": "spi/ids_properties/plugins/node(i1)/readback(i2)/description",
+  "introduced_after_version": "3.38.1",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].readback[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of software used",
+  "full_path": "spi/ids_properties/plugins/node(i1)/readback(i2)/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].readback[:].parameters": {
+  "data_type": "STR_0D",
+  "documentation": "List of the code specific parameters in XML format",
+  "full_path": "spi/ids_properties/plugins/node(i1)/readback(i2)/parameters",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].readback[:].repository": {
+  "data_type": "STR_0D",
+  "documentation": "URL of software repository",
+  "full_path": "spi/ids_properties/plugins/node(i1)/readback(i2)/repository",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.plugins.node[:].readback[:].version": {
+  "data_type": "STR_0D",
+  "documentation": "Unique version (tag) of software",
+  "full_path": "spi/ids_properties/plugins/node(i1)/readback(i2)/version",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.provenance": {
+  "data_type": "STRUCTURE",
+  "documentation": "Provenance information about this IDS",
+  "full_path": "spi/ids_properties/provenance",
+  "lifecycle_status": "alpha",
+  "lifecycle_version": "3.34.0",
+  "structure_reference": "ids_provenance"
+ },
+ "spi.ids_properties.provenance.node": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of IDS nodes for which the provenance is given. The provenance information applies to the whole structure below the IDS node. For documenting provenance information for the whole IDS, set the size of this array of structure to 1 and leave the child \"path\" node empty",
+  "full_path": "spi/ids_properties/provenance/node(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "20",
+  "structure_reference": "ids_provenance_node",
+  "type": "constant"
+ },
+ "spi.ids_properties.provenance.node[:].path": {
+  "data_type": "STR_0D",
+  "documentation": "Path of the node within the IDS, following the syntax given in the link below. If empty, means the provenance information applies to the whole IDS.",
+  "full_path": "spi/ids_properties/provenance/node(i1)/path",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IDS-path-syntax.md"
+ },
+ "spi.ids_properties.provenance.node[:].sources": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STR_1D",
+  "documentation": "List of sources used to import or calculate this node, identified as explained below. In case the node is the result of of a calculation / data processing, the source is an input to the process described in the \"code\" structure at the root of the IDS. The source can be an IDS (identified by a URI or a persitent identifier, see syntax in the link below) or non-IDS data imported directly from an non-IMAS database (identified by the command used to import the source, or the persistent identifier of the data source). Often data are obtained by a chain of processes, however only the last process input are recorded here. The full chain of provenance has then to be reconstructed recursively from the provenance information contained in the data sources.",
+  "full_path": "spi/ids_properties/provenance/node(i1)/sources(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "url": "utilities/IMAS-URI-scheme.md"
+ },
+ "spi.ids_properties.provider": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the person in charge of producing this data",
+  "full_path": "spi/ids_properties/provider",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.source": {
+  "data_type": "STR_0D",
+  "documentation": "Source of the data (any comment describing the origin of the data : code, path to diagnostic signals, processing method, ...). Superseeded by the new provenance structure.",
+  "full_path": "spi/ids_properties/source",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.34.0",
+  "type": "constant"
+ },
+ "spi.ids_properties.version_put": {
+  "data_type": "STRUCTURE",
+  "documentation": "Version of the access layer package used to PUT this IDS",
+  "full_path": "spi/ids_properties/version_put",
+  "lifecycle_status": "alpha",
+  "structure_reference": "version_dd_al"
+ },
+ "spi.ids_properties.version_put.access_layer": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Access Layer used to PUT this IDS",
+  "full_path": "spi/ids_properties/version_put/access_layer",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.version_put.access_layer_language": {
+  "data_type": "STR_0D",
+  "documentation": "Programming language of the Access Layer high level API used to PUT this IDS",
+  "full_path": "spi/ids_properties/version_put/access_layer_language",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.ids_properties.version_put.data_dictionary": {
+  "data_type": "STR_0D",
+  "documentation": "Version of Data Dictionary used to PUT this IDS",
+  "full_path": "spi/ids_properties/version_put/data_dictionary",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.injector": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of shattered pellet injectors",
+  "full_path": "spi/injector(i1)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "5",
+  "structure_reference": "spi_single"
+ },
+ "spi.injector[:].fragment": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Set of shattered pellet fragments",
+  "full_path": "spi/injector(i1)/fragment(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "100",
+  "structure_reference": "spi_fragment"
+ },
+ "spi.injector[:].fragment[:].position": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the centre of mass of the pellet",
+  "full_path": "spi/injector(i1)/fragment(i2)/position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi1d_dynamic_root_time"
+ },
+ "spi.injector[:].fragment[:].position.phi": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Toroidal angle",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/phi(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].position.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].position.phi_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/phi_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].position.phi_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/phi_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].position.r": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/r(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].position.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].position.r_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/r_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].position.r_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/r_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].position.z": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Height",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/z(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].position.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].position.z_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/z_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].position.z_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/position/z_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].fragment[:].species": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Atomic species in the fragment composition",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "3",
+  "structure_reference": "spi_species_density"
+ },
+ "spi.injector[:].fragment[:].species[:].a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/a",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].fragment[:].species[:].a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].species[:].a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].fragment[:].species[:].a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].fragment[:].species[:].density": {
+  "data_type": "FLT_0D",
+  "documentation": "Density of the species",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/density",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].fragment[:].species[:].density_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"density\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/density_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].species[:].density_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"density\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/density_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].fragment[:].species[:].density_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"density\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/density_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].fragment[:].species[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying the species (e.g. H, D, T, ...)",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/label",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].species[:].z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/z_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].fragment[:].species[:].z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].species[:].z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].fragment[:].species[:].z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/species(i3)/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].fragment[:].velocity_r": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius component of the fragment velocity",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_r(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].velocity_r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_r\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].velocity_r_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"velocity_r\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_r_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].velocity_r_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"velocity_r\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_r_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].velocity_tor": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Toroidal component of the fragment velocity",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_tor(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].velocity_tor_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_tor\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_tor_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].velocity_tor_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"velocity_tor\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_tor_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].velocity_tor_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"velocity_tor\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_tor_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].velocity_z": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Vertical component of the fragment velocity",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_z(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].velocity_z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_z\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].velocity_z_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"velocity_z\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_z_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].velocity_z_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"velocity_z\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/velocity_z_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].fragment[:].volume": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Volume of the fragment",
+  "full_path": "spi/injector(i1)/fragment(i2)/volume(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m^3"
+ },
+ "spi.injector[:].fragment[:].volume_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"volume\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/volume_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragment[:].volume_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"volume\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/volume_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m^3"
+ },
+ "spi.injector[:].fragment[:].volume_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"volume\"",
+  "full_path": "spi/injector(i1)/fragment(i2)/volume_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m^3"
+ },
+ "spi.injector[:].fragmentation_gas": {
+  "data_type": "STRUCTURE",
+  "documentation": "Description of the gas produced during fragmentation",
+  "full_path": "spi/injector(i1)/fragmentation_gas",
+  "lifecycle_status": "alpha",
+  "structure_reference": "spi_gas"
+ },
+ "spi.injector[:].fragmentation_gas.atoms_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Total number of atoms of the gas",
+  "full_path": "spi/injector(i1)/fragmentation_gas/atoms_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].fragmentation_gas.atoms_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/atoms_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragmentation_gas.atoms_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/atoms_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].fragmentation_gas.atoms_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/atoms_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].fragmentation_gas.flow_rate": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Flow rate of the gas at the injector exit",
+  "full_path": "spi/injector(i1)/fragmentation_gas/flow_rate(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "atoms.s^-1"
+ },
+ "spi.injector[:].fragmentation_gas.flow_rate_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"flow_rate\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/flow_rate_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragmentation_gas.flow_rate_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"flow_rate\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/flow_rate_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "atoms.s^-1"
+ },
+ "spi.injector[:].fragmentation_gas.flow_rate_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"flow_rate\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/flow_rate_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "atoms.s^-1"
+ },
+ "spi.injector[:].fragmentation_gas.species": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Atomic species in the gas composition",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "3",
+  "structure_reference": "spi_species_fraction"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/a",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].fraction": {
+  "data_type": "FLT_0D",
+  "documentation": "Atomic fraction of the species",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/fraction",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].fraction_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"fraction\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/fraction_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].fraction_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"fraction\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/fraction_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].fraction_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"fraction\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/fraction_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying the species (e.g. H, D, T, ...)",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/label",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/z_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].fragmentation_gas.species[:].z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/species(i2)/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].fragmentation_gas.temperature": {
+  "data_type": "FLT_0D",
+  "documentation": "Gas temperature",
+  "full_path": "spi/injector(i1)/fragmentation_gas/temperature",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "K"
+ },
+ "spi.injector[:].fragmentation_gas.temperature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"temperature\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/temperature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].fragmentation_gas.temperature_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"temperature\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/temperature_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "K"
+ },
+ "spi.injector[:].fragmentation_gas.temperature_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"temperature\"",
+  "full_path": "spi/injector(i1)/fragmentation_gas/temperature_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "K"
+ },
+ "spi.injector[:].identifier": {
+  "data_type": "STR_0D",
+  "documentation": "Identifier of the injector",
+  "full_path": "spi/injector(i1)/identifier",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "spi.injector[:].injection_direction": {
+  "data_type": "STRUCTURE",
+  "documentation": "Unit vector of the unshattered pellet velocity direction right before shattering",
+  "full_path": "spi/injector(i1)/injection_direction",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_constant"
+ },
+ "spi.injector[:].injection_direction.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "spi/injector(i1)/injection_direction/x",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].injection_direction.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "spi/injector(i1)/injection_direction/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].injection_direction.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "spi/injector(i1)/injection_direction/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].injection_direction.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "spi/injector(i1)/injection_direction/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].injection_direction.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "spi/injector(i1)/injection_direction/y",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].injection_direction.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "spi/injector(i1)/injection_direction/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].injection_direction.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "spi/injector(i1)/injection_direction/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].injection_direction.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "spi/injector(i1)/injection_direction/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].injection_direction.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "spi/injector(i1)/injection_direction/z",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].injection_direction.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/injection_direction/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].injection_direction.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/injection_direction/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].injection_direction.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/injection_direction/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Name of the injector",
+  "full_path": "spi/injector(i1)/name",
+  "lifecycle_status": "alpha",
+  "type": "static"
+ },
+ "spi.injector[:].optical_pellet_diagnostic": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information related to the embedded optical pellet diagnostic",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic",
+  "lifecycle_status": "alpha",
+  "structure_reference": "spi_opd"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the measurement",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.position.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/position/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.time_arrival": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Arrival time at the optical pellet diagnostic, for each object",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/time_arrival(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.time_arrival_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"time_arrival\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/time_arrival_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.time_arrival_error_lower": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"time_arrival\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/time_arrival_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].optical_pellet_diagnostic.time_arrival_error_upper": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"time_arrival\"",
+  "full_path": "spi/injector(i1)/optical_pellet_diagnostic/time_arrival_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].pellet": {
+  "data_type": "STRUCTURE",
+  "documentation": "Information related to the pellet",
+  "full_path": "spi/injector(i1)/pellet",
+  "lifecycle_status": "alpha",
+  "structure_reference": "spi_pellet"
+ },
+ "spi.injector[:].pellet.core": {
+  "data_type": "STRUCTURE",
+  "documentation": "Core of the unshattered pellet",
+  "full_path": "spi/injector(i1)/pellet/core",
+  "lifecycle_status": "alpha",
+  "structure_reference": "spi_shell"
+ },
+ "spi.injector[:].pellet.core.atoms_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Total number of atoms of desublimated gas",
+  "full_path": "spi/injector(i1)/pellet/core/atoms_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].pellet.core.atoms_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/pellet/core/atoms_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.core.atoms_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/pellet/core/atoms_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].pellet.core.atoms_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/pellet/core/atoms_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].pellet.core.species": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Atomic species in the shell composition",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "3",
+  "structure_reference": "spi_species_density"
+ },
+ "spi.injector[:].pellet.core.species[:].a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/a",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].pellet.core.species[:].a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.core.species[:].a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].pellet.core.species[:].a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].pellet.core.species[:].density": {
+  "data_type": "FLT_0D",
+  "documentation": "Density of the species",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/density",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].pellet.core.species[:].density_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"density\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/density_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.core.species[:].density_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"density\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/density_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].pellet.core.species[:].density_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"density\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/density_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].pellet.core.species[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying the species (e.g. H, D, T, ...)",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/label",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.core.species[:].z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/z_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].pellet.core.species[:].z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.core.species[:].z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].pellet.core.species[:].z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "spi/injector(i1)/pellet/core/species(i2)/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].pellet.diameter": {
+  "data_type": "FLT_0D",
+  "documentation": "Pellet diameter",
+  "full_path": "spi/injector(i1)/pellet/diameter",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].pellet.diameter_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"diameter\"",
+  "full_path": "spi/injector(i1)/pellet/diameter_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.diameter_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"diameter\"",
+  "full_path": "spi/injector(i1)/pellet/diameter_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].pellet.diameter_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"diameter\"",
+  "full_path": "spi/injector(i1)/pellet/diameter_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].pellet.length": {
+  "data_type": "FLT_0D",
+  "documentation": "Pellet length (cylindrical pellet)",
+  "full_path": "spi/injector(i1)/pellet/length",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].pellet.length_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"length\"",
+  "full_path": "spi/injector(i1)/pellet/length_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.length_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"length\"",
+  "full_path": "spi/injector(i1)/pellet/length_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].pellet.length_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"length\"",
+  "full_path": "spi/injector(i1)/pellet/length_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].pellet.position": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position of the centre of mass of the pellet",
+  "full_path": "spi/injector(i1)/pellet/position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi1d_dynamic_root_time"
+ },
+ "spi.injector[:].pellet.position.phi": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Toroidal angle",
+  "full_path": "spi/injector(i1)/pellet/position/phi(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.position.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "spi/injector(i1)/pellet/position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.position.phi_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "spi/injector(i1)/pellet/position/phi_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.position.phi_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "spi/injector(i1)/pellet/position/phi_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "rad",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.position.r": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius",
+  "full_path": "spi/injector(i1)/pellet/position/r(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.position.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "spi/injector(i1)/pellet/position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.position.r_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "spi/injector(i1)/pellet/position/r_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.position.r_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "spi/injector(i1)/pellet/position/r_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.position.z": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Height",
+  "full_path": "spi/injector(i1)/pellet/position/z(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.position.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/pellet/position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.position.z_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/pellet/position/z_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.position.z_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/pellet/position/z_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m",
+  "utilities_aoscontext": "yes"
+ },
+ "spi.injector[:].pellet.shell": {
+  "data_type": "STRUCTURE",
+  "documentation": "Shell-layer around of the unshattered pellet",
+  "full_path": "spi/injector(i1)/pellet/shell",
+  "lifecycle_status": "alpha",
+  "structure_reference": "spi_shell"
+ },
+ "spi.injector[:].pellet.shell.atoms_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Total number of atoms of desublimated gas",
+  "full_path": "spi/injector(i1)/pellet/shell/atoms_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].pellet.shell.atoms_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/pellet/shell/atoms_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.shell.atoms_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/pellet/shell/atoms_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].pellet.shell.atoms_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/pellet/shell/atoms_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].pellet.shell.species": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Atomic species in the shell composition",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "3",
+  "structure_reference": "spi_species_density"
+ },
+ "spi.injector[:].pellet.shell.species[:].a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/a",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].pellet.shell.species[:].a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.shell.species[:].a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].pellet.shell.species[:].a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].pellet.shell.species[:].density": {
+  "data_type": "FLT_0D",
+  "documentation": "Density of the species",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/density",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].pellet.shell.species[:].density_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"density\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/density_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.shell.species[:].density_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"density\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/density_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].pellet.shell.species[:].density_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"density\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/density_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms.m^-3"
+ },
+ "spi.injector[:].pellet.shell.species[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying the species (e.g. H, D, T, ...)",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/label",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.shell.species[:].z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/z_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].pellet.shell.species[:].z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.shell.species[:].z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].pellet.shell.species[:].z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "spi/injector(i1)/pellet/shell/species(i2)/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].pellet.velocity_r": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Major radius component of the velocity of the centre of mass of the pellet",
+  "full_path": "spi/injector(i1)/pellet/velocity_r(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_r\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.velocity_r_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"velocity_r\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_r_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_r_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"velocity_r\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_r_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_shatter": {
+  "data_type": "FLT_0D",
+  "documentation": "Norm of the velocity of the centre of mass of the pellet right before shattering",
+  "full_path": "spi/injector(i1)/pellet/velocity_shatter",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_shatter_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_shatter\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_shatter_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.velocity_shatter_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"velocity_shatter\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_shatter_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_shatter_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"velocity_shatter\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_shatter_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_tor": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Toroidal component of the velocity of the centre of mass of the pellet",
+  "full_path": "spi/injector(i1)/pellet/velocity_tor(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_tor_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_tor\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_tor_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.velocity_tor_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"velocity_tor\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_tor_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_tor_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"velocity_tor\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_tor_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_z": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Vertical component of the velocity of the centre of mass of the pellet",
+  "full_path": "spi/injector(i1)/pellet/velocity_z(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_z\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].pellet.velocity_z_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"velocity_z\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_z_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].pellet.velocity_z_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"velocity_z\"",
+  "full_path": "spi/injector(i1)/pellet/velocity_z_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].propellant_gas": {
+  "data_type": "STRUCTURE",
+  "documentation": "Description of the propellant gas",
+  "full_path": "spi/injector(i1)/propellant_gas",
+  "lifecycle_status": "alpha",
+  "structure_reference": "spi_gas"
+ },
+ "spi.injector[:].propellant_gas.atoms_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Total number of atoms of the gas",
+  "full_path": "spi/injector(i1)/propellant_gas/atoms_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].propellant_gas.atoms_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/propellant_gas/atoms_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].propellant_gas.atoms_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/propellant_gas/atoms_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].propellant_gas.atoms_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"atoms_n\"",
+  "full_path": "spi/injector(i1)/propellant_gas/atoms_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "atoms"
+ },
+ "spi.injector[:].propellant_gas.flow_rate": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Flow rate of the gas at the injector exit",
+  "full_path": "spi/injector(i1)/propellant_gas/flow_rate(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "atoms.s^-1"
+ },
+ "spi.injector[:].propellant_gas.flow_rate_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"flow_rate\"",
+  "full_path": "spi/injector(i1)/propellant_gas/flow_rate_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].propellant_gas.flow_rate_error_lower": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Lower error for \"flow_rate\"",
+  "full_path": "spi/injector(i1)/propellant_gas/flow_rate_error_lower(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "atoms.s^-1"
+ },
+ "spi.injector[:].propellant_gas.flow_rate_error_upper": {
+  "coordinates": [
+   "spi.time"
+  ],
+  "data_type": "FLT_1D",
+  "documentation": "Upper error for \"flow_rate\"",
+  "full_path": "spi/injector(i1)/propellant_gas/flow_rate_error_upper(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "/time",
+  "type": "dynamic",
+  "units": "atoms.s^-1"
+ },
+ "spi.injector[:].propellant_gas.species": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "Atomic species in the gas composition",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)",
+  "lifecycle_status": "alpha",
+  "maxoccur": "3",
+  "structure_reference": "spi_species_fraction"
+ },
+ "spi.injector[:].propellant_gas.species[:].a": {
+  "data_type": "FLT_0D",
+  "documentation": "Mass of atom",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/a",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].propellant_gas.species[:].a_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"a\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/a_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].propellant_gas.species[:].a_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"a\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/a_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].propellant_gas.species[:].a_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"a\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/a_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Atomic Mass Unit"
+ },
+ "spi.injector[:].propellant_gas.species[:].fraction": {
+  "data_type": "FLT_0D",
+  "documentation": "Atomic fraction of the species",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/fraction",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "spi.injector[:].propellant_gas.species[:].fraction_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"fraction\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/fraction_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].propellant_gas.species[:].fraction_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"fraction\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/fraction_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "spi.injector[:].propellant_gas.species[:].fraction_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"fraction\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/fraction_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "-"
+ },
+ "spi.injector[:].propellant_gas.species[:].label": {
+  "data_type": "STR_0D",
+  "documentation": "String identifying the species (e.g. H, D, T, ...)",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/label",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.injector[:].propellant_gas.species[:].z_n": {
+  "data_type": "FLT_0D",
+  "documentation": "Nuclear charge",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/z_n",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].propellant_gas.species[:].z_n_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z_n\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/z_n_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].propellant_gas.species[:].z_n_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z_n\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/z_n_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].propellant_gas.species[:].z_n_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z_n\"",
+  "full_path": "spi/injector(i1)/propellant_gas/species(i2)/z_n_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "Elementary Charge Unit"
+ },
+ "spi.injector[:].propellant_gas.temperature": {
+  "data_type": "FLT_0D",
+  "documentation": "Gas temperature",
+  "full_path": "spi/injector(i1)/propellant_gas/temperature",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "K"
+ },
+ "spi.injector[:].propellant_gas.temperature_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"temperature\"",
+  "full_path": "spi/injector(i1)/propellant_gas/temperature_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].propellant_gas.temperature_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"temperature\"",
+  "full_path": "spi/injector(i1)/propellant_gas/temperature_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "K"
+ },
+ "spi.injector[:].propellant_gas.temperature_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"temperature\"",
+  "full_path": "spi/injector(i1)/propellant_gas/temperature_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "K"
+ },
+ "spi.injector[:].shatter_cone": {
+  "data_type": "STRUCTURE",
+  "documentation": "Description of the elliptic shatter cone",
+  "full_path": "spi/injector(i1)/shatter_cone",
+  "lifecycle_status": "alpha",
+  "structure_reference": "spi_shatter_cone",
+  "url": "spi/shatter_cone.svg"
+ },
+ "spi.injector[:].shatter_cone.angle_major": {
+  "data_type": "FLT_0D",
+  "documentation": "Angle between the cone direction and unit_vector_major",
+  "full_path": "spi/injector(i1)/shatter_cone/angle_major",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.angle_major_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"angle_major\"",
+  "full_path": "spi/injector(i1)/shatter_cone/angle_major_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.angle_major_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"angle_major\"",
+  "full_path": "spi/injector(i1)/shatter_cone/angle_major_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.angle_major_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"angle_major\"",
+  "full_path": "spi/injector(i1)/shatter_cone/angle_major_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.angle_minor": {
+  "data_type": "FLT_0D",
+  "documentation": "Angle between the cone direction and unit_vector_minor",
+  "full_path": "spi/injector(i1)/shatter_cone/angle_minor",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.angle_minor_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"angle_minor\"",
+  "full_path": "spi/injector(i1)/shatter_cone/angle_minor_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.angle_minor_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"angle_minor\"",
+  "full_path": "spi/injector(i1)/shatter_cone/angle_minor_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.angle_minor_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"angle_minor\"",
+  "full_path": "spi/injector(i1)/shatter_cone/angle_minor_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.direction": {
+  "data_type": "STRUCTURE",
+  "documentation": "Unit vector of the cone direction",
+  "full_path": "spi/injector(i1)/shatter_cone/direction",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_constant"
+ },
+ "spi.injector[:].shatter_cone.direction.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/x",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.direction.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.direction.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.direction.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.direction.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/y",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.direction.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.direction.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.direction.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.direction.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/z",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.direction.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.direction.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.direction.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/direction/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.origin": {
+  "data_type": "STRUCTURE",
+  "documentation": "Coordinates of the origin of the shatter cone",
+  "full_path": "spi/injector(i1)/shatter_cone/origin",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static"
+ },
+ "spi.injector[:].shatter_cone.origin.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.origin.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.origin.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.origin.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].shatter_cone.origin.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.origin.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.origin.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.origin.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.origin.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.origin.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.origin.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.origin.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/origin/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major": {
+  "data_type": "STRUCTURE",
+  "documentation": "Major unit vector describing the geometry of the elliptic shatter cone",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_major.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_major/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor": {
+  "data_type": "STRUCTURE",
+  "documentation": "Minor unit vector describing the geometry of the elliptic shatter cone",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor",
+  "lifecycle_status": "alpha",
+  "structure_reference": "xyz0d_static"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.x": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along X axis",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/x",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.x_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/x_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.x_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/x_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.x_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"x\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/x_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.y": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Y axis",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/y",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.y_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/y_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.y_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/y_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.y_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"y\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/y_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Component along Z axis",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shatter_cone.unit_vector_minor.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/shatter_cone/unit_vector_minor/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shattering_angle": {
+  "data_type": "FLT_0D",
+  "documentation": "Impact (or grazing) angle of the pellet with the shattering element. It is the complementary of the incidence angle with the element surface at the shattering location",
+  "full_path": "spi/injector(i1)/shattering_angle",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad",
+  "url": "spi/shattering.svg"
+ },
+ "spi.injector[:].shattering_angle_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"shattering_angle\"",
+  "full_path": "spi/injector(i1)/shattering_angle_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shattering_angle_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"shattering_angle\"",
+  "full_path": "spi/injector(i1)/shattering_angle_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad",
+  "url": "spi/shattering.svg"
+ },
+ "spi.injector[:].shattering_angle_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"shattering_angle\"",
+  "full_path": "spi/injector(i1)/shattering_angle_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "rad",
+  "url": "spi/shattering.svg"
+ },
+ "spi.injector[:].shattering_position": {
+  "data_type": "STRUCTURE",
+  "documentation": "Position where the pellet is shattered. It is defined as the intersection of the trayectory of the pellet center of mass with the shattering element",
+  "full_path": "spi/injector(i1)/shattering_position",
+  "lifecycle_status": "alpha",
+  "structure_reference": "rzphi0d_static",
+  "url": "spi/shattering.svg"
+ },
+ "spi.injector[:].shattering_position.phi": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal angle (oriented counter-clockwise when viewing from above)",
+  "full_path": "spi/injector(i1)/shattering_position/phi",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].shattering_position.phi_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"phi\"",
+  "full_path": "spi/injector(i1)/shattering_position/phi_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shattering_position.phi_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"phi\"",
+  "full_path": "spi/injector(i1)/shattering_position/phi_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].shattering_position.phi_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"phi\"",
+  "full_path": "spi/injector(i1)/shattering_position/phi_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "rad"
+ },
+ "spi.injector[:].shattering_position.r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius",
+  "full_path": "spi/injector(i1)/shattering_position/r",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shattering_position.r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"r\"",
+  "full_path": "spi/injector(i1)/shattering_position/r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shattering_position.r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"r\"",
+  "full_path": "spi/injector(i1)/shattering_position/r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shattering_position.r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"r\"",
+  "full_path": "spi/injector(i1)/shattering_position/r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shattering_position.z": {
+  "data_type": "FLT_0D",
+  "documentation": "Height",
+  "full_path": "spi/injector(i1)/shattering_position/z",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shattering_position.z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"z\"",
+  "full_path": "spi/injector(i1)/shattering_position/z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].shattering_position.z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"z\"",
+  "full_path": "spi/injector(i1)/shattering_position/z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].shattering_position.z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"z\"",
+  "full_path": "spi/injector(i1)/shattering_position/z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "m"
+ },
+ "spi.injector[:].time_shatter": {
+  "data_type": "FLT_0D",
+  "documentation": "Arrival time at the shattering unit",
+  "full_path": "spi/injector(i1)/time_shatter",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].time_shatter_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"time_shatter\"",
+  "full_path": "spi/injector(i1)/time_shatter_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].time_shatter_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"time_shatter\"",
+  "full_path": "spi/injector(i1)/time_shatter_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].time_shatter_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"time_shatter\"",
+  "full_path": "spi/injector(i1)/time_shatter_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].time_trigger": {
+  "data_type": "FLT_0D",
+  "documentation": "Time of trigger request to the power supply according to the DMS sequence",
+  "full_path": "spi/injector(i1)/time_trigger",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].time_trigger_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"time_trigger\"",
+  "full_path": "spi/injector(i1)/time_trigger_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].time_trigger_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"time_trigger\"",
+  "full_path": "spi/injector(i1)/time_trigger_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].time_trigger_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"time_trigger\"",
+  "full_path": "spi/injector(i1)/time_trigger_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "s"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_r": {
+  "data_type": "FLT_0D",
+  "documentation": "Major radius component of the velocity of the centre of mass of the fragments at the shattering cone origin",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_r",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_r_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_mass_centre_fragments_r\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_r_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_r_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"velocity_mass_centre_fragments_r\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_r_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_r_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"velocity_mass_centre_fragments_r\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_r_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_tor": {
+  "data_type": "FLT_0D",
+  "documentation": "Toroidal component of the velocity of the centre of mass of the fragments at the shattering cone origin",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_tor",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_tor_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_mass_centre_fragments_tor\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_tor_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_tor_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"velocity_mass_centre_fragments_tor\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_tor_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_tor_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"velocity_mass_centre_fragments_tor\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_tor_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_z": {
+  "data_type": "FLT_0D",
+  "documentation": "Vertical component of the velocity velocity of the centre of mass of the fragments at the shattering cone origin",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_z",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_z_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"velocity_mass_centre_fragments_z\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_z_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_z_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"velocity_mass_centre_fragments_z\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_z_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.injector[:].velocity_mass_centre_fragments_z_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"velocity_mass_centre_fragments_z\"",
+  "full_path": "spi/injector(i1)/velocity_mass_centre_fragments_z_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "constant",
+  "units": "m.s^-1"
+ },
+ "spi.latency": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper bound of the delay between input command received from the RT network and actuator starting to react. Applies globally to the system described by this IDS unless specific latencies (e.g. channel-specific or antenna-specific) are provided at a deeper level in the IDS structure.",
+  "full_path": "spi/latency",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "spi.latency_error_index": {
+  "data_type": "INT_TYPE",
+  "documentation": "Index in the error_description list for \"latency\"",
+  "full_path": "spi/latency_error_index",
+  "lifecycle_status": "obsolescent",
+  "lifecycle_version": "3.39.0",
+  "type": "constant"
+ },
+ "spi.latency_error_lower": {
+  "data_type": "FLT_0D",
+  "documentation": "Lower error for \"latency\"",
+  "full_path": "spi/latency_error_lower",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "spi.latency_error_upper": {
+  "data_type": "FLT_0D",
+  "documentation": "Upper error for \"latency\"",
+  "full_path": "spi/latency_error_upper",
+  "lifecycle_status": "alpha",
+  "type": "static",
+  "units": "s"
+ },
+ "spi.shatter_cone_definition": {
+  "data_type": "STRUCTURE",
+  "doc_identifier": "spi/shatter_cone_identifier.xml",
+  "documentation": "Definition of the shatter cone\n1) mass_95 : Elliptical cone with minimal angles to effectively enclose 95% of the total mass of the fragments prior to their entry into the plasma",
+  "full_path": "spi/shatter_cone_definition",
+  "lifecycle_status": "alpha",
+  "structure_reference": "identifier"
+ },
+ "spi.shatter_cone_definition.description": {
+  "data_type": "STR_0D",
+  "documentation": "Verbose description",
+  "full_path": "spi/shatter_cone_definition/description",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.shatter_cone_definition.index": {
+  "data_type": "INT_0D",
+  "documentation": "Integer identifier (enumeration index within a list). Private identifier values must be indicated by a negative index.",
+  "full_path": "spi/shatter_cone_definition/index",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.shatter_cone_definition.name": {
+  "data_type": "STR_0D",
+  "documentation": "Short string identifier",
+  "full_path": "spi/shatter_cone_definition/name",
+  "lifecycle_status": "alpha",
+  "type": "constant"
+ },
+ "spi.time": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "FLT_1D_TYPE",
+  "documentation": "Generic time",
+  "full_path": "spi/time(:)",
+  "lifecycle_status": "alpha",
+  "timebasepath": "time",
+  "type": "dynamic",
+  "units": "s"
+ }
+}

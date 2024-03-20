@@ -206,7 +206,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(pr, pz, RA, ZA, 8)
         else
-            coils = IMAS_pf_active__coils(dd; green_model=:quad)
+            coils = IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
         end
 
         psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; flux_cps, saddle_cps, ψbound=psib, λ_regularize=-1.0)
