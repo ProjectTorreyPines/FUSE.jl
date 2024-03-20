@@ -87,7 +87,9 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             if !(typeof(data.ne_ped) <: Vector{Missing})
                 dd.pulse_schedule.density_control.n_e_pedestal.reference = data.ne_ped
             end
-            dd.pulse_schedule.density_control.n_e_greenwald_fraction.reference = data.greenwald_fraction
+            if !(typeof(data.greenwald_fraction) <: Vector{Missing})
+                dd.pulse_schedule.density_control.n_e_greenwald_fraction.reference = data.greenwald_fraction
+            end
 
             # NB
             resize!(dd.pulse_schedule.nbi.unit, length(ini.nb_unit))
