@@ -151,16 +151,23 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
 
     value = getfield(par, field).value
 
+    # if it is a time dependent quantity
     if typeof(value) <: Function
         time = collect(SimulationParameters.time_range(par))
         data = value.(time)
         if !(eltype(data) <: Number)
-            data = Float64.(SimulationParameters.encode_array(data)[1])
-        end
-        if simplify_time_traces != 0.0
-            time, data = IMAS.simplify_2d_path(time, data, simplify_time_traces)
+            data, mapping = SimulationParameters.encode_array(data)
+            if simplify_time_traces != 0.0
+                time, data = IMAS.simplify_2d_path(time, Float64.(data), simplify_time_traces)
+            end
+            data = [mapping[Int(d)] for d in data]
+        else
+            if simplify_time_traces != 0.0
+                time, data = IMAS.simplify_2d_path(time, data, simplify_time_traces)
+            end
         end
 
+    # if it is a constant
     else
         if simplify_time_traces != 0.0 || isempty(SimulationParameters.time_range(par))
             time = Float64[-Inf, SimulationParameters.global_time(par), Inf]
@@ -194,9 +201,11 @@ function get_time_dependent(par::AbstractParameters, field::Symbol, all_times::V
         time = collect(SimulationParameters.time_range(par))
         data = value.(time)
         if !(eltype(data) <: Number)
-            data = Float64.(SimulationParameters.encode_array(data)[1])
+            data, mapping = SimulationParameters.encode_array(data)
+            all_data = [mapping[Int(d)] for d in IMAS.interp1d(time, Float64.(data), :constant).(all_times)]
+        else
+            all_data = IMAS.interp1d(time, data, :constant).(all_times)
         end
-        all_data = IMAS.interp1d(time, data).(all_times)
     else
         all_data = fill(value, size(all_times))
     end
