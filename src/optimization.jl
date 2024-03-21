@@ -262,7 +262,7 @@ function optimization_engine(
         save(savedir, nothing, ini, act, e; timer=true, freeze=false, overwrite_files=true)
         
         # rethrow(e) # uncomment for debugging purposes
-        
+
         ff = Float64[Inf for f in objective_functions]
         gg = Float64[Inf for g in constraint_functions]
         hh = Float64[]
