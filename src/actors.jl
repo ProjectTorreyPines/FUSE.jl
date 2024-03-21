@@ -64,6 +64,10 @@ function switch_get_from(quantity::Symbol)::Switch{Symbol}
         swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt)
     elseif quantity == :βn
         swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt)
+    elseif quantity == :ne_ped
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt)
+    elseif quantity == :zeff_ped
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt)
     else
         error("`$quantity` not supported in switch_get_from()")
     end

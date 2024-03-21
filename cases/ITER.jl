@@ -57,7 +57,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     end
     act.ActorEquilibrium.model = :TEQUILA
 
-    ini.equilibrium.ip = (t -> ramp(t / 100.0) * 14E6 + ramp((t - 100) / 100.0) * 1E6) ↔ (2, (100.0, 200.0), (14E6, 15E6))
+    ini.equilibrium.ip = (t -> ramp(t / 100.0) * 10E6 + ramp((t - 100) / 200.0) * 5E6) ↔ (2, (100.0, 300.0), (10E6, 15E6))
 
     ini.time.pulse_shedule_time_basis = range(0, 300, 1000)
     ini.time.simulation_start = 300.0
@@ -98,26 +98,26 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.oh.technology = :nb3sn_iter
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
-    ini.core_profiles.greenwald_fraction = 0.9
-    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
+    ini.core_profiles.greenwald_fraction_ped = (t -> 0.95/1.2) ↔ (2, (100.0, 300.0), (0.3/1.2, 0.95/1.2), (:match, :float))
+    ini.core_profiles.greenwald_fraction = ini.core_profiles.greenwald_fraction_ped * 1.2
     ini.core_profiles.helium_fraction = 0.01
-    ini.core_profiles.T_ratio = 1.0
+    ini.core_profiles.T_ratio = 0.9
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9
-    ini.core_profiles.zeff = 2.0
+    ini.core_profiles.zeff = 2.0 #(t -> 2.0) ↔ (2, (100.0, 300.0), (2.0, 4.0), (:match, :float))
     ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    ini.nb_unit[1].power_launched = (t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6) ↔ (2, (100.0, 300.0), (0.0, 33.4E6), (:match, :float))
+    ini.nb_unit[1].power_launched = 33.4E6 # (t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6) ↔ (2, (100.0, 300.0), (0.0, 33.4E6), (:match, :float))
     ini.nb_unit[1].beam_energy = 1e6
 
-    ini.ec_launcher[1].power_launched = (t -> 10e6 + ramp((t - 100) / 100.0) * 10e6) ↔ (2, (100.0, 300.0), (0.0, 20E6), (:match, :float))
-    ini.ec_launcher[1].rho_0 = (t -> 0.5) ↔ (2, (100.0, 300.0), (0.0, 0.8), (:match, :float))
+    ini.ec_launcher[1].power_launched = 20E6 # (t -> 10e6 + ramp((t - 100) / 100.0) * 10e6) ↔ (2, (100.0, 300.0), (0.0, 20E6), (:match, :float))
+    ini.ec_launcher[1].rho_0 = 0.0 # (t -> 0.5) ↔ (2, (100.0, 300.0), (0.0, 0.8), (:float, :float))
 
-    ini.ic_antenna[1].power_launched = (t -> 12e6 + ramp((t - 100) / 100.0) * 12e6) ↔ (2, (100.0, 300.0), (0.0, 24E6), (:match, :float))
+    ini.ic_antenna[1].power_launched = 24E6 # (t -> 12e6 + ramp((t - 100) / 100.0) * 12e6) ↔ (2, (100.0, 300.0), (0.0, 24E6), (:match, :float))
 
-    ini.lh_antenna[1].power_launched = (t -> 5e6 + ramp((t - 100) / 100.0) * 5e6) ↔ (2, (100.0, 300.0), (0.0, 10E6), (:match, :float))
+    ini.lh_antenna[1].power_launched = 10E6 # (t -> 5e6 + ramp((t - 100) / 100.0) * 5e6) ↔ (2, (100.0, 300.0), (0.0, 10E6), (:match, :float))
 
     ini.pellet_launcher[1].shape = :cylindrical
     ini.pellet_launcher[1].species = :T
@@ -126,6 +126,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
+    act.ActorPedestal.ped_factor=0.8
 
     act.ActorWholeFacility.update_build = false
 
