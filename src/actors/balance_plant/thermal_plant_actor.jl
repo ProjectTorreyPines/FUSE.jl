@@ -4,8 +4,8 @@
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
 import ModelingToolkit as MTK
 import DifferentialEquations
-import ThermalSystem_Models
-TSMD = ThermalSystem_Models.Dynamics
+import ThermalSystemModels
+TSMD = ThermalSystemModels.Dynamics
 MTK.@variables t
 
 Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActorBuild{T}
