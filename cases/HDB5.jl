@@ -64,7 +64,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
 
     # to match the experimental volume and area:
     mxh = IMAS.MXH(ini, IMAS.dd())
-    mxh_volume = FUSE.fitMXHboundary(mxh; upper_x_point, lower_x_point, target_volume=data_row[:VOL], target_area=data_row[:AREA])
+    mxh_volume = fitMXHboundary(mxh; upper_x_point, lower_x_point, target_volume=data_row[:VOL], target_area=data_row[:AREA])
     ini.equilibrium.boundary_from = :MXH_params
     ini.equilibrium.MXH_params = IMAS.flat_coeffs(IMAS.MXH(mxh_volume.r_boundary, mxh_volume.z_boundary))
 
