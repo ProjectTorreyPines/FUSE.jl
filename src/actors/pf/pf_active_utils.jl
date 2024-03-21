@@ -194,21 +194,6 @@ function VacuumFields.mutual(C1::VacuumFields.AbstractCoil, C2::GS_IMAS_pf_activ
     end
 end
 
-function VacuumFields.mutual(C1::VacuumFields.AbstractCoil, C2::GS_IMAS_pf_active__coil; xorder::Int=3, yorder::Int=3)
-
-    green_model = getfield(C2, :green_model)
-    if green_model == :point # fastest
-        fac = -2π * VacuumFields.μ₀ * VacuumFields.turns(C1) * C2.turns
-        return fac * Green(C1, C2.r, C2.z)
-
-    elseif green_model == :quad # high-fidelity
-        return VacuumFields.mutual(C1, C2.imas; xorder, yorder)
-
-    else
-        error("$(typeof(C2)) green_model can only be (in order of accuracy) :quad and :point")
-    end
-end
-
 
 function VacuumFields._pfunc(Pfunc, image::VacuumFields.Image, C::GS_IMAS_pf_active__coil, δZ;
                 COCOS::MXHEquilibrium.COCOS=MXHEquilibrium.cocos(11),
