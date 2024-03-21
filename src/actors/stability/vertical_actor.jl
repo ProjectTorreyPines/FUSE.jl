@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: Pa
     #== actor parameters ==#
     wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=0.1)
     wall_max_seg_length::Entry{Float64} = Entry{Float64}("-", "Maximum segment length for making wall quadralaterals"; default=0.5)
+    default_passive_material::Entry{Symbol} = Entry{Symbol}("-", "Default material to use for poorly defined vacuum vessel"; default=:steel)
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
@@ -71,12 +72,17 @@ function _step(actor::ActorVerticalStability)
     # N.B.: this just takes the material from the outermost build layer;
     #       does not account for toroidal breaks, heterogeneous materials,
     #          or builds with "water" vacuum vessels
-    eta = 1.0 / Material(bd.layer[kout].material).electrical_conductivity
+    mat_vv = Material(bd.layer[kout].material)
+    if ismissing(mat_vv) || ismissing(mat_vv.electrical_conductivity)
+        mat_vv = Material(par.default_passive_material)
+    end
+    eta = 1.0 / mat_vv.electrical_conductivity(temperature=0.0)
     if !ismissing(eta)
         for coil in passive_coils
             coil.resistance = VacuumFields.resistance(coil, eta)
         end
     end
+
     coils = vcat(active_coils, passive_coils)
 
     image = VacuumFields.Image(dd)
