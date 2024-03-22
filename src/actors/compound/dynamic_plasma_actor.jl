@@ -52,7 +52,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
     if act.ActorCoreTransport.model == :FluxMatcher
-        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium)
+        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium, ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule)
         actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
         actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
     else
@@ -207,7 +207,7 @@ Inclusinon in BEAMER presentation can then be done with:
 """
 function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true)
     l = @layout grid(3, 4)
-    p = plot(; layout=l, size=(1600, 1000))
+    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm)
 
     # Ip and Vloop
     subplot = 1
@@ -265,10 +265,15 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" initial", subplot)
     plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
 
-    # power scan
+    # q
     subplot = 9
     plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
     plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="q", subplot)
+
+    # # fusion power
+    # subplot = 9
+    # plot!(dd.summary.fusion.power, :value; lw=2.0, label="", ylabel="Fusion power [MW]", normalization=5*1E-6, subplot, title="Fusion power")
+    # vline!([time0]; label="", subplot)
 
     # core_sources
     subplot = 5
