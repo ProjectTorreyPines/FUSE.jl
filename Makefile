@@ -292,6 +292,9 @@ XSteamTP:
 	$(call clone_pull_repo,$@)
 
 ThermalSystemModels:
+	@find ~/.julia/environments/ -type f -name "*.toml" -exec sed -i.bak 's/ThermalSystem_Models/ThermalSystemModels/g' {} \; -exec rm -f {}.bak \;
+	@find ../ -type f -name "*.toml" -exec sed -i.bak 's/ThermalSystem_Models/ThermalSystemModels/g' {} \; -exec rm -f {}.bak \;
+	@rm -rf ../ThermalSystem_Models
 	$(call clone_pull_repo,$@)
 
 ServeFUSE:
