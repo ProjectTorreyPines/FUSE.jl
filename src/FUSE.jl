@@ -129,6 +129,7 @@ include(joinpath("actors", "costing", "costing_actor.jl"))
 include(joinpath("actors", "control", "controller_actor.jl"))
 
 include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
+include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))
