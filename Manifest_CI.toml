@@ -2,7 +2,7 @@
 
 julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "575a25dcdfc80df9a9405f70437825f55700f085"
+project_hash = "3d97d6cb2afdf2416b8dd864558a832790ed0fbc"
 
 [[deps.ADAS]]
 deps = ["AbstractTrees", "BSON", "Colors", "FileIO", "Interpolations", "JLD2", "Logging", "MD5", "RecipesBase"]
@@ -1221,7 +1221,7 @@ version = "1.24.2"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "IMASDD", "Interpolations", "JSON", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "86951dbb18628eaa8870a1153800b30eb3fe6683"
+git-tree-sha1 = "972293b42f80090c43159634f82e4dfc700296e3"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1229,7 +1229,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "Memoize", "OrderedCollections", "PCHIPInterpolation", "Printf", "StaticArraysCore"]
-git-tree-sha1 = "e5ac08e90039ffcf62339ac919c929e91ab35c3d"
+git-tree-sha1 = "d8312f79cc7d265595e56d18da153e78d8ac9138"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -2722,7 +2722,7 @@ version = "1.1.0"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections", "RecipesBase", "YAML"]
-git-tree-sha1 = "7878262c31201b857c318e9600cc43a5c132d7e2"
+git-tree-sha1 = "0d44ade211e78cbde31275e034291347aae26914"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
@@ -2973,7 +2973,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "7c55e1a517d6814070150e578df11cb9239b2ec1"
+git-tree-sha1 = "5f5c2fe61da3d7cfbb5e5cfc9183ea1e42714581"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
@@ -2981,7 +2981,7 @@ version = "0.1.0"
 
 [[deps.TJLF]]
 deps = ["Arpack", "Compat", "LinearAlgebra", "Revise", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "1f8cdf153cf4ced070050755ce9f1120ceaac029"
+git-tree-sha1 = "fd40b7375671e13fce0d34d58bccf013ca7e92c1"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TJLF.jl.git"
 uuid = "12ecd31c-256b-4db5-a799-cd5afeb0bd7d"
@@ -3024,11 +3024,11 @@ git-tree-sha1 = "9250ef9b01b66667380cf3275b3f7488d0e25faf"
 uuid = "b718987f-49a8-5099-9789-dcd902bef87d"
 version = "1.0.1"
 
-[[deps.ThermalSystem_Models]]
+[[deps.ThermalSystemModels]]
 deps = ["AbstractTrees", "DifferentialEquations", "FileIO", "GeometryBasics", "Graphs", "IJulia", "JLD2", "LayeredLayouts", "LinearAlgebra", "Logging", "MetaGraphs", "ModelingToolkit", "NetworkLayout", "NonlinearSolve", "OrdinaryDiffEq", "Plots", "Printf", "Random", "Revise", "Statistics", "StatsBase", "Symbolics", "Unitful", "WebIO", "XSteamTP"]
-git-tree-sha1 = "37a694f2b4265a35ebb9f415dfdde7be427320ba"
+git-tree-sha1 = "e316c90cd7af95dc8f9596ef337d2e4e2ab36fbe"
 repo-rev = "master"
-repo-url = "git@github.com/ProjectTorreyPines/ThermalSystem_Models.jl.git"
+repo-url = "git@github.com/ProjectTorreyPines/ThermalSystemModels.jl.git"
 uuid = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"
 version = "0.0.1"
 
