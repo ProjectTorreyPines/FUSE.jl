@@ -44,6 +44,25 @@ using Test
                         rethrow(e)
                     end
                 end
+
+                @testset "ini_json" begin
+                    ini.general.dd = missing
+                    ini_str = FUSE.SimulationParameters.par2jstr(ini)
+                    ini2 = try
+                        FUSE.SimulationParameters.jstr2par(ini_str, FUSE.ParametersInits())
+                    catch e
+                        rethrow(e)
+                    end
+                end
+
+                @testset "act_json" begin
+                    act_str = FUSE.SimulationParameters.par2jstr(act)
+                    act2 = try
+                        FUSE.SimulationParameters.jstr2par(act_str, FUSE.ParametersActors())
+                    catch e
+                        rethrow(e)
+                    end
+                end
             end
         end
     end

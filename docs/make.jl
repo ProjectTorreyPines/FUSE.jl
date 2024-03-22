@@ -86,7 +86,7 @@ function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParame
             default = "* **Default:** `$(leaf.default)`"
             note = "tip"
         end
-        if typeof(leaf) <: FUSE.Switch
+        if typeof(leaf) <: SimulationParameters.Switch
             options = "* **Options:** " * join(["`$(opt.first)`" for opt in leaf.options], ", ") * "\n    "
         else
             options = ""
