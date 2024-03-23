@@ -39,7 +39,7 @@ function GS_IMAS_pf_active__coil(
     if ismissing(mat_pf) || ismissing(sigma)
         coil.resistance = default_resistance
     else
-        coil.resistance = VacuumFields.resistance(coil, 1.0 / sigma(temperature=0.0), :parallel)
+        coil.resistance = VacuumFields.resistance(coil.imas, 1.0 / sigma(temperature=0.0), :parallel)
     end
 
     return coil
