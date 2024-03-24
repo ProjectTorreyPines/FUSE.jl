@@ -1,7 +1,7 @@
-using Metaheuristics: Metaheuristics
-using ProgressMeter: ProgressMeter
-using Distributed: Distributed
-using Dates: Dates
+import Metaheuristics
+import ProgressMeter
+import Distributed
+import Dates
 ProgressMeter.ijulia_behavior(:clear)
 
 # ==================== #
