@@ -119,8 +119,8 @@ end
 Build quads between two layers
 """
 function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
-    inner_outline = inner_layer.outline
-    outer_outline = outer_layer.outline
+    inner_outline = IMAS.closed_polygon(inner_layer.outline.r, inner_layer.outline.z)
+    outer_outline = IMAS.closed_polygon(outer_layer.outline.r, outer_layer.outline.z)
 
     # reorder surface so that it starts on the hfs
     pr = outer_outline.r
@@ -131,7 +131,7 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     @views pr = [pr[1:indexes[1][1]]; crossings[1][1]; pr[indexes[1][1]+1:end]]
     @views pz = [pz[1:indexes[1][1]]; crossings[1][2]; pz[indexes[1][1]+1:end]]
     istart = indexes[1][1] + 1
-    IMAS.reorder_flux_surface!(pr, pz, istart; force_close=true)
+    IMAS.reorder_flux_surface!(pr, pz, istart)
 
     # simplify surface polygon
     @views R1, Z1 = IMAS.rdp_simplify_2d_path(pr[1:end-1], pz[1:end-1], precision)
