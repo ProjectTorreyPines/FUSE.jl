@@ -8,7 +8,7 @@ options_green_model = [
 #= ==================================== =#
 #  IMAS.pf_active__coil to VacuumFields  #
 #= ==================================== =#
-mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real} <: VacuumFields.AbstractCoil{T1,T2,T3}
+mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real,T4<:Real} <: VacuumFields.AbstractCoil{T1,T2,T3,T4}
     imas::IMAS.pf_active__coil{T1}
     tech::IMAS.build__pf_active__technology{T1}
     time0::Float64
@@ -28,7 +28,7 @@ function GS_IMAS_pf_active__coil(
         setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
     end
 
-    coil = GS_IMAS_pf_active__coil{T,T,T}(
+    coil = GS_IMAS_pf_active__coil{T,T,T,T}(
             pfcoil,
             coil_tech,
             global_time(pfcoil),
