@@ -47,13 +47,15 @@ Compute vertical stability metrics
 function _step(actor::ActorVerticalStability)
     par = actor.par
     dd = actor.dd
+
     bd = dd.build
     eqt = dd.equilibrium.time_slice[]
     Ip = eqt.global_quantities.ip
     active_coils = IMAS_pf_active__coils(dd; green_model=:quad)
 
     # Defaults
-    actor.stability_margin, actor.normalized_growth_rate = NaN, NaN
+    actor.stability_margin = NaN
+    actor.normalized_growth_rate = NaN
 
     if all(coil.current == 0.0 for coil in active_coils)
         @warn "Active coils have no current. Can't compute vertical stability metrics"
@@ -62,8 +64,13 @@ function _step(actor::ActorVerticalStability)
 
     # The vacuum vessel can have multiple layers
     # Find all the bounding ones and turn the area in between into quads
-    kin = findfirst(layer -> occursin("lfs vacuum vessel", layer.name), bd.layer) - 1
-    kout = findlast(layer -> occursin("lfs vacuum vessel", layer.name), bd.layer)
+    kvessel = IMAS.get_build_indexes(bd.layer; type=_vessel_, fs=_lfs_)
+    if isempty(kvessel)
+        @warn "No vessel found. Can't compute vertical stability metrics"
+        return actor
+    end
+    kout = kvessel[end]
+    kin = kvessel[1] - 1
     quads = layer_quads(bd.layer[kin], bd.layer[kout], par.wall_precision, par.wall_max_seg_length)
 
     passive_coils =  [VacuumFields.QuadCoil(R, Z) for (R, Z) in quads]
@@ -71,7 +78,7 @@ function _step(actor::ActorVerticalStability)
     # Compute resistance based on material resistivity & geometry of coil
     # N.B.: this just takes the material from the outermost build layer;
     #       does not account for toroidal breaks, heterogeneous materials,
-    #          or builds with "water" vacuum vessels
+    #       or builds with "water" vacuum vessels
     mat_vv = Material(bd.layer[kout].material)
     if ismissing(mat_vv) || ismissing(mat_vv.electrical_conductivity)
         mat_vv = Material(par.default_passive_material)
@@ -83,9 +90,9 @@ function _step(actor::ActorVerticalStability)
         end
     end
 
-    coils = vcat(active_coils, passive_coils)
+    image = VacuumFields.Image(eqt)
 
-    image = VacuumFields.Image(dd)
+    coils = vcat(active_coils, passive_coils)
 
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
 
