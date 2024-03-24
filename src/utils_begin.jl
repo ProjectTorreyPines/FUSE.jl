@@ -3,7 +3,6 @@ import Distributed
 import ClusterManagers
 import TimerOutputs
 import Dates
-using InteractiveUtils: summarysize, format_bytes, Markdown
 using SimulationParameters
 
 # =========== #
