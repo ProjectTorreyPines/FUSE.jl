@@ -7,7 +7,6 @@ import Plots
 using Plots
 using Printf
 using InteractiveUtils
-import SnoopPrecompile
 import LinearAlgebra
 using StaticArrays
 
@@ -37,7 +36,7 @@ include("parameters.jl")
 #= ===== =#
 #  CASES  #
 #= ===== =#
-include("../cases/_cases.jl")
+include(joinpath("cases", "_cases.jl"))
 
 #= ======= =#
 #  PHYSICS  #

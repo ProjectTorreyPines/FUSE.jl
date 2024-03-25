@@ -20,9 +20,9 @@ test_cases["DTT"] = ([:DTT], Dict())
 #  cases  #
 #= ===== =#
 # NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
-for filename in readdir(joinpath(@__DIR__, "..", "cases"))
+for filename in readdir(joinpath(@__DIR__))
     if !startswith(splitpath(filename)[end], "_") && endswith(filename, ".jl")
-        include("../cases/" * filename)
+        include(filename)
     end
 end
 
