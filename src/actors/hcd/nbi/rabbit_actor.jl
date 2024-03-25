@@ -55,14 +55,16 @@ function _finalize(actor::ActorRABBIT)
 
     powe = reshape(actor.outputs.powe_data, length(actor.outputs.rho_data), length(actor.outputs.time_data))
 
-    plot(actor.outputs.rho_data, powe[:,1])
-    plot!(actor.outputs.rho_data, powe[:,2])
-    plot!(actor.outputs.rho_data, powe[:,3])
-    plot!(actor.outputs.rho_data, powe[:,4])
-    xlabel!("rho")
-    display(ylabel!("Power density profile to electrons - W/m^3 "))
+    p = plot(actor.outputs.rho_data, powe[:,1])
 
-    # write the outputs to dd.core_sources
+    for i in 2:length(actor.outputs.time_data)
+        plot!(p, actor.outputs.rho_data, powe[:,i])
+    end
+    display(p)
+
+    xlabel!("rho")
+    ylims!(0,1e5)
+    display(ylabel!("Power density profile to electrons - W/m^3 "))
         
     return actor
 
