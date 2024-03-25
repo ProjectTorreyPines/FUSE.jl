@@ -1,4 +1,5 @@
 import VacuumFields
+import DataFrames
 
 options_green_model = [
     :point => "One filament per coil",
