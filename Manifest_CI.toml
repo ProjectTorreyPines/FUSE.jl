@@ -955,9 +955,9 @@ uuid = "a3f928ae-7b40-5064-980b-68af3947d34b"
 version = "2.13.93+0"
 
 [[deps.Format]]
-git-tree-sha1 = "f3cf88025f6d03c194d73f5d13fee9004a108329"
+git-tree-sha1 = "9c68794ef81b08086aeb32eeaf33531668d5f5fc"
 uuid = "1fa38f19-a742-5d3f-a2b9-30dd87b9d5f8"
-version = "1.3.6"
+version = "1.3.7"
 
 [[deps.Formatting]]
 deps = ["Logging", "Printf"]
@@ -1173,9 +1173,9 @@ version = "1.12.2+2"
 
 [[deps.HTTP]]
 deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
-git-tree-sha1 = "995f762e0182ebc50548c434c171a5bb6635f8e4"
+git-tree-sha1 = "8e59b47b9dc525b70550ca082ce85bcd7f5477cd"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "1.10.4"
+version = "1.10.5"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg"]
@@ -2079,9 +2079,9 @@ version = "1.2.0"
 
 [[deps.NonlinearSolve]]
 deps = ["ADTypes", "ArrayInterface", "ConcreteStructs", "DiffEqBase", "FastBroadcast", "FastClosures", "FiniteDiff", "ForwardDiff", "LazyArrays", "LineSearches", "LinearAlgebra", "LinearSolve", "MaybeInplace", "PrecompileTools", "Preferences", "Printf", "RecursiveArrayTools", "Reexport", "SciMLBase", "SimpleNonlinearSolve", "SparseArrays", "SparseDiffTools", "StaticArraysCore", "TimerOutputs"]
-git-tree-sha1 = "13232c70f50a05f98c7206190ab33dd48fa39c5b"
+git-tree-sha1 = "1638addfc31707aea26333ff822afcf9d2e6f7de"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
-version = "3.8.1"
+version = "3.8.3"
 
     [deps.NonlinearSolve.extensions]
     NonlinearSolveBandedMatricesExt = "BandedMatrices"
@@ -2484,9 +2484,9 @@ version = "0.6.12"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "DocStringExtensions", "GPUArraysCore", "IteratorInterfaceExtensions", "LinearAlgebra", "RecipesBase", "SparseArrays", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "a94d22ca9ad49a7a169ecbc5419c59b9793937cc"
+git-tree-sha1 = "d8f131090f2e44b145084928856a561c83f43b27"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "3.12.0"
+version = "3.13.0"
 
     [deps.RecursiveArrayTools.extensions]
     RecursiveArrayToolsFastBroadcastExt = "FastBroadcast"
@@ -2610,9 +2610,9 @@ version = "0.6.42"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "PrecompileTools", "Preferences", "Printf", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "SciMLStructures", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "3daaea955c0905200943175637f184a968574a2d"
+git-tree-sha1 = "d15c65e25615272e1b1c5edb1d307484c7942824"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.30.3"
+version = "2.31.0"
 
     [deps.SciMLBase.extensions]
     SciMLBaseChainRulesCoreExt = "ChainRulesCore"
@@ -2977,7 +2977,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "CoordinateConventions", "DataStructures", "Dates", "Distributions", "Flux", "ForwardDiff", "IMAS", "IMASDD", "JSON", "LaTeXStrings", "Measurements", "Memoize", "MillerExtendedHarmonic", "ProgressMeter", "StatsBase", "Zygote"]
-git-tree-sha1 = "5f5c2fe61da3d7cfbb5e5cfc9183ea1e42714581"
+git-tree-sha1 = "1afbb4ddb5099997139be535c38e8da4c15af64a"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
