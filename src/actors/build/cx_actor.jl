@@ -1,3 +1,6 @@
+import LibGEOS
+import GeoInterface
+
 #= ============= =#
 #  cross-section  #
 #= ============= =#

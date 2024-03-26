@@ -1,4 +1,5 @@
 import VacuumFields
+import DataFrames
 
 options_green_model = [
     :point => "One filament per coil",
@@ -80,7 +81,7 @@ function Base.getproperty(coil::GS_IMAS_pf_active__coil{T}, field::Symbol) where
     elseif field == :resistance
         value = getfield(pfcoil, field)
     elseif field == :turns
-        value = Int(abs(getproperty(pfcoil.element[1], :turns_with_sign, 1.0)))
+        value = abs(getproperty(pfcoil.element[1], :turns_with_sign, 1.0))
     else
         value = getfield(coil, field)
     end
