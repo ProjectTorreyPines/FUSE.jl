@@ -2,6 +2,8 @@ import SpecialFunctions
 import QuadGK
 import Interpolations
 import PolygonOps
+import LibGEOS
+import GeoInterface
 
 #= =============== =#
 #  Shape functions  #
