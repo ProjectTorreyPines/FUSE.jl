@@ -2,7 +2,7 @@
 
 julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "3d97d6cb2afdf2416b8dd864558a832790ed0fbc"
+project_hash = "8ae0eba8fd34bc0ab81503b2bbe89f12ce6fbf8e"
 
 [[deps.ADAS]]
 deps = ["AbstractTrees", "BSON", "Colors", "FileIO", "Interpolations", "JLD2", "Logging", "MD5", "RecipesBase"]
@@ -1221,7 +1221,7 @@ version = "1.24.2"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "IMASDD", "Interpolations", "JSON", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "910ed32b71865fc27fd13edcc93d0b42adefefe6"
+git-tree-sha1 = "ef5e4ce7d5e7dadb3b22c2de69c01b7391a9c55b"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1909,7 +1909,7 @@ version = "0.1.4"
 
 [[deps.MillerExtendedHarmonic]]
 deps = ["Dierckx", "LinearAlgebra", "Optim", "RecipesBase"]
-git-tree-sha1 = "d4ae54fb3906240aff5727a1c4c9de839187758b"
+git-tree-sha1 = "1fdb7c9f79730062da08306d737bf591a2a97254"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"
 uuid = "c82744c2-dc08-461a-8c37-87ab04d0f9b8"
@@ -1973,7 +1973,7 @@ version = "1.4.1"
 
 [[deps.NEO]]
 deps = ["IMAS", "SpecialFunctions"]
-git-tree-sha1 = "f84d00146d794a8d335ff07fa2be69b977bacd44"
+git-tree-sha1 = "105575b690ceab762ca826b5320288ada49964ad"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/NEO.jl.git"
 uuid = "081d0416-0f87-42c0-8034-5895805e76d8"
@@ -3174,7 +3174,7 @@ version = "0.2.0"
 
 [[deps.VacuumFields]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "FastGaussQuadrature", "FiniteElementHermite", "IMAS", "LinearAlgebra", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic", "PlotUtils", "RecipesBase", "StaticArrays", "TEQUILA"]
-git-tree-sha1 = "cae4af73b0876a86dcab078366840174af9e66b7"
+git-tree-sha1 = "0fe0ce2074154f066659115e03ee65547e0761ef"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
