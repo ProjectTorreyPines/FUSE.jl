@@ -1,5 +1,6 @@
 using LaTeXStrings
 import JSON
+using TGLFNN
 
 #= ================= =#
 #  StudyTGLFdb  #
@@ -159,6 +160,8 @@ function run_case(filename, study, item)
 
     dd = preprocess_dd(filename)
 
+    act.ActorFluxMatcher.evolve_densities = FUSE.setup_density_evolution_electron_flux_match_impurities_fixed(dd)
+
     cp1d = dd.core_profiles.profiles_1d[]
     exp_values = [
         cp1d.electrons.density_thermal[1], cp1d.electrons.temperature[1],
@@ -224,12 +227,8 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport)
     rho_cp = cp1d.grid.rho_tor_norm
 
-    return (
-        shot=dd.dataset_description.data_entry.pulse,
-        time=dd.dataset_description.data_entry.pulse,
-        ne0=cp1d.electrons.density_thermal[1],
-        Te0=cp1d.electrons.temperature[1],
-        Ti0=cp1d.ion[1].temperature[1],
+    return (shot=dd.dataset_description.data_entry.pulse, time=convert(Int64,dd.summary.time[1] * 1000),
+        ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.ion[1].temperature[1],
         WTH=IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
         rot0=cp1d.rotation_frequency_tor_sonic[1],
         ne0_exp=exp_values[1],
@@ -330,9 +329,8 @@ function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol
         ylim=xy_lim, xlim=xy_lim, tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern",
         xguidefontsize=15, yguidefontsize=14)
 
-    plot!(xy_lim, xy_lim; linestyle=:dash, color=:black, label=nothing, title="SAT$name $EM_contribution")
-
-    println("MRE SAT$name $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
+    plot!(xy_lim, xy_lim; linestyle=:dash, color=:black, label=nothing, title="$(replace(uppercase(name), "_" => " "))")
+    println("MRE $(replace(uppercase(name), "_" => " ")) W_thermal = $MRE % with N = $(length(x))")
 
     if save_fig
         savefig(p, save_path)
