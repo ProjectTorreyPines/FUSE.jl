@@ -17,19 +17,15 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                     ped_summ = dd.summary.local.pedestal
                     cp1d = dd.core_profiles.profiles_1d[]
                     @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - w_ped)
-
                     if ismissing(getproperty(dd1.summary.local.pedestal.n_e, :value, missing))
                         @ddtime ped_summ.n_e.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.density_thermal).(1 - w_ped)
                     end
-
-                    if ismissing(getproperty(dd1.summary.local.pedestal.t_i_average, :value, missing))
-                        @ddtime ped_summ.t_i_average.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].ion[1].temperature).(1 - w_ped)
-                    end
-
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_e, :value, missing))
                         @ddtime ped_summ.t_e.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.temperature).(1 - w_ped)
                     end
-
+                    if ismissing(getproperty(dd1.summary.local.pedestal.t_i_average, :value, missing))
+                        @ddtime ped_summ.t_i_average.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].t_i_average).(1 - w_ped)
+                    end
                     if ismissing(getproperty(dd1.summary.local.pedestal.zeff, :value, missing))
                         @ddtime ped_summ.zeff.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].zeff).(1 - w_ped)
                     end

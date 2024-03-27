@@ -1,4 +1,5 @@
 import VacuumFields
+import DataFrames
 
 options_green_model = [
     :point => "One filament per coil",
@@ -8,7 +9,7 @@ options_green_model = [
 #= ==================================== =#
 #  IMAS.pf_active__coil to VacuumFields  #
 #= ==================================== =#
-mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real} <: VacuumFields.AbstractCoil{T1,T2,T3}
+mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real,T4<:Real} <: VacuumFields.AbstractCoil{T1,T2,T3,T4}
     imas::IMAS.pf_active__coil{T1}
     tech::IMAS.build__pf_active__technology{T1}
     time0::Float64
@@ -18,7 +19,8 @@ end
 function GS_IMAS_pf_active__coil(
     pfcoil::IMAS.pf_active__coil{T},
     oh_pf_coil_tech::Union{IMAS.build__oh__technology{T},IMAS.build__pf_active__technology{T}},
-    green_model::Symbol) where {T<:Real}
+    green_model::Symbol,
+    default_resistance::Float64=1e-6) where {T<:Real}
 
     # convert everything to build__pf_active__technology so that the `coil_tech`
     # type in GS_IMAS_pf_active__coil is defined at compile time
@@ -27,14 +29,25 @@ function GS_IMAS_pf_active__coil(
         setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
     end
 
-    return GS_IMAS_pf_active__coil{T,T,T}(
-        pfcoil,
-        coil_tech,
-        global_time(pfcoil),
-        green_model)
+    coil = GS_IMAS_pf_active__coil{T,T,T,T}(
+            pfcoil,
+            coil_tech,
+            global_time(pfcoil),
+            green_model)
+
+    mat_pf = Material(coil_tech)
+    sigma = mat_pf.electrical_conductivity
+    if ismissing(mat_pf) || ismissing(sigma)
+        coil.resistance = default_resistance
+    else
+        coil.resistance = VacuumFields.resistance(coil.imas, 1.0 / sigma(temperature=0.0), :parallel)
+    end
+
+    return coil
+
 end
 
-function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol, zero_currents::Bool) where {D<:Real}
+function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol=:quad, zero_currents::Bool=false) where {D<:Real}
     coils = GS_IMAS_pf_active__coil{D,D}[]
     for coil in dd.pf_active.coil
         if zero_currents
@@ -65,6 +78,10 @@ function Base.getproperty(coil::GS_IMAS_pf_active__coil{T}, field::Symbol) where
     elseif field == :current
         # IMAS uses current per turn, GS_IMAS_pf_active__coil uses total current
         value = IMAS.get_time_array(pfcoil.current, :data, getfield(coil, :time0)) .* getproperty(pfcoil.element[1], :turns_with_sign, 1.0)
+    elseif field == :resistance
+        value = getfield(pfcoil, field)
+    elseif field == :turns
+        value = abs(getproperty(pfcoil.element[1], :turns_with_sign, 1.0))
     else
         value = getfield(coil, field)
     end
@@ -79,6 +96,11 @@ function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value::
         return IMAS.set_time_array(pfcoil.current, :data, getfield(coil, :time0), value)
     elseif field ∈ (:r, :z, :width, :height)
         return setfield!(pfcoil.element[1].geometry.rectangle, field, value)
+    elseif field == :resistance
+        setfield!(pfcoil, field, value)
+    elseif field == :turns
+        val = abs(value) * sign(getproperty(pfcoil.element[1], :turns_with_sign, 1.0))
+        setfield!(pfcoil.element[1], :turns_with_sign, val)
     else
         setfield!(coil, field, value)
     end
@@ -90,19 +112,19 @@ end
 
 Calculates coil green function at given R and Z coordinate
 """
-function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
     return _gfunc(VacuumFields.Green, coil, R, Z)
 end
 
-function VacuumFields.dG_dR(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.dG_dR(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
     return _gfunc(VacuumFields.dG_dR, coil, R, Z)
 end
 
-function VacuumFields.dG_dZ(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function VacuumFields.dG_dZ(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
     return _gfunc(VacuumFields.dG_dZ, coil, R, Z)
 end
 
-function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
+function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; xorder::Int=3, yorder::Int=3)
     green_model = getfield(coil, :green_model)
 
     if green_model == :point # low-fidelity
@@ -118,6 +140,79 @@ function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real
 
     end
 end
+
+
+# Mutual inductance
+
+function VacuumFields.mutual(C1::GS_IMAS_pf_active__coil, C2::GS_IMAS_pf_active__coil; xorder::Int=3, yorder::Int=3)
+
+    gm1 = getfield(C1, :green_model)
+    gm2 = getfield(C2, :green_model)
+    @assert gm1 in (:point, :quad)
+    @assert gm2 in (:point, :quad)
+
+    if gm1 === :quad && gm2 === :quad
+        VacuumFields.mutual(C1.imas, C2.imas; xorder, yorder)
+    else
+        fac = -2π * VacuumFields.μ₀ * C1.turns * C2.turns
+        if gm1 === :point && gm2 === :point
+            return fac * Green(C1.r, C1.z, C2.r, C2.z)
+        elseif gm1 === :point
+            return fac * Green(C2.imas, C1.r, C1.r)
+        else
+            return fac * Green(C1.imas, C2.r, C2.r)
+        end
+    end
+end
+
+function VacuumFields.mutual(C1::GS_IMAS_pf_active__coil, C2::VacuumFields.AbstractCoil; xorder::Int=3, yorder::Int=3)
+
+    green_model = getfield(C1, :green_model)
+    if green_model == :point # fastest
+        fac = -2π * VacuumFields.μ₀ * VacuumFields.turns(C2) * C1.turns
+        return fac * Green(C2, C1.r, C1.z)
+
+    elseif green_model == :quad # high-fidelity
+        return VacuumFields.mutual(C1.imas, C2; xorder, yorder)
+
+    else
+        error("$(typeof(C2)) green_model can only be (in order of accuracy) :quad and :point")
+    end
+end
+
+function VacuumFields.mutual(C1::VacuumFields.AbstractCoil, C2::GS_IMAS_pf_active__coil; xorder::Int=3, yorder::Int=3)
+
+    green_model = getfield(C2, :green_model)
+    if green_model == :point # fastest
+        fac = -2π * VacuumFields.μ₀ * VacuumFields.turns(C1) * C2.turns
+        return fac * Green(C1, C2.r, C2.z)
+
+    elseif green_model == :quad # high-fidelity
+        return VacuumFields.mutual(C1, C2.imas; xorder, yorder)
+
+    else
+        error("$(typeof(C2)) green_model can only be (in order of accuracy) :quad and :point")
+    end
+end
+
+
+function VacuumFields._pfunc(Pfunc, image::VacuumFields.Image, C::GS_IMAS_pf_active__coil, δZ;
+                COCOS::MXHEquilibrium.COCOS=MXHEquilibrium.cocos(11),
+                xorder::Int=3, yorder::Int=3)
+
+    green_model = getfield(C, :green_model)
+    if green_model == :point # fastest
+        PC = VacuumFields.PointCoil(C.r, C.z; C.turns)
+        return VacuumFields._pfunc(Pfunc, image, PC, δZ; COCOS)
+
+    elseif green_model == :quad # high-fidelity
+        return VacuumFields._pfunc(Pfunc, image, C.imas, δZ; COCOS, xorder, yorder)
+
+    else
+        error("$(typeof(C)) green_model can only be (in order of accuracy) :quad and :point")
+    end
+end
+
 
 """
     encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}

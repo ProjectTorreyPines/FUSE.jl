@@ -25,7 +25,11 @@ function SimulationParameters.time_range(parameters::ParametersInit)
 end
 
 function SimulationParameters.time_range(parameters::ParametersAllInits)
-    return parameters.time.pulse_shedule_time_basis
+    if ismissing(parameters.time, :pulse_shedule_time_basis)
+        return Float64[]
+    else
+        return parameters.time.pulse_shedule_time_basis
+    end
 end
 
 function SimulationParameters.global_time(parameters::ParametersInit)

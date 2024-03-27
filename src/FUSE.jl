@@ -7,8 +7,8 @@ import Plots
 using Plots
 using Printf
 using InteractiveUtils
-import SnoopPrecompile
 import LinearAlgebra
+using StaticArrays
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -36,7 +36,7 @@ include("parameters.jl")
 #= ===== =#
 #  CASES  #
 #= ===== =#
-include("../cases/_cases.jl")
+include(joinpath("cases", "_cases.jl"))
 
 #= ======= =#
 #  PHYSICS  #
@@ -116,6 +116,7 @@ include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))
 include(joinpath("actors", "stability", "limit_models.jl"))
+include(joinpath("actors", "stability", "vertical_actor.jl"))
 
 include(joinpath("actors", "balance_plant", "thermal_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "power_needs_actor.jl"))
