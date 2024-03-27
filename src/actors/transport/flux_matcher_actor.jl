@@ -369,8 +369,6 @@ function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, 
         end
     end
 
-    if prog !== nothing
-        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(targets)))
     return targets
 end
 
