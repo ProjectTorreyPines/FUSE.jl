@@ -157,7 +157,7 @@ mutable struct ParametersInitsPlasma{T<:Real} <: ParametersAllInits{T}
     lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
 end
 
-function ParametersInitsPlasma{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
+function ParametersInitsPlasma{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0) where {T<:Real}
     ini = ParametersInitsPlasma{T}(
         WeakRef(nothing),
         :ini,
@@ -172,10 +172,6 @@ function ParametersInitsPlasma{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic:
         ParametersVector{FUSEparameters__pellet_launcher{T}}(),
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}())
-
-    for k in 1:n_layers
-        push!(ini.build.layers, FUSEparameters__build_layer{T}())
-    end
 
     for k in 1:n_nb
         push!(ini.nb_unit, FUSEparameters__nb_unit{T}())

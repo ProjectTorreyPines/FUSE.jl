@@ -94,3 +94,12 @@
        Keep this terminal always open. You may need to re-issue this command whenever you put your laptop to sleep.
 
 5. On your computer open a web browser tab to `localhost:33445` to connect to the Jupyter-lab session on `omega`. Use the token when prompted.
+
+## Using Revise on OMEGA
+When working on omega it seems ones need to manually trigger revise to pick up code changes:
+```
+import Revise
+Revise.revise()  # manual trigger
+```
+
+This is even if setting [`JULIA_REVISE_POLL=1`](https://timholy.github.io/Revise.jl/stable/config/#Polling-and-NFS-mounted-code-directories:-JULIA_REVISE_POLL)

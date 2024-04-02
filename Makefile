@@ -38,7 +38,7 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteamTP ThermalSystem_Models
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteamTP ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -191,7 +191,7 @@ update_all: install
 	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
 # update, a synonim of clone_pull and develop
-update: clone_pull_all develop resolve
+update: forward_compatibility clone_pull_all develop resolve
 
 # resolve the current environment (eg. after manually adding a new package)
 resolve:
@@ -201,9 +201,10 @@ resolve:
 forward_compatibility:
 	julia -e '\
 using Pkg;\
-for package in ("Equilibrium", "Broker", "ZMQ");\
+for package in ("Equilibrium", "Broker", "ZMQ", "FUSE_GA");\
 	try; Pkg.activate();    Pkg.rm(package); catch; end;\
 	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
+	try; Pkg.activate("./docs"); Pkg.rm(package); catch; end;\
 end;\
 '
 # undo --single-branch clones of git repos
@@ -213,7 +214,7 @@ undo_single_branch:
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) FUSE ServeFUSE FUSE_GA $(FUSE_PACKAGES_MAKEFILE)
+	make -i $(PARALLELISM) FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
 
 playground: .PHONY
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
@@ -291,7 +292,10 @@ NEO:
 XSteamTP:
 	$(call clone_pull_repo,$@)
 
-ThermalSystem_Models:
+ThermalSystemModels:
+	@find ~/.julia/environments/ -type f -name "*.toml" -exec sed -i.bak 's/ThermalSystem_Models/ThermalSystemModels/g' {} \; -exec rm -f {}.bak \;
+	@find ../ -type f -name "*.toml" -exec sed -i.bak 's/ThermalSystem_Models/ThermalSystemModels/g' {} \; -exec rm -f {}.bak \;
+	@rm -rf ../ThermalSystem_Models
 	$(call clone_pull_repo,$@)
 
 ServeFUSE:
@@ -301,16 +305,6 @@ fuse_packages = $(FUSE_PACKAGES);\
 println(fuse_packages);\
 using Pkg;\
 Pkg.activate("../ServeFUSE/task_tiller");\
-Pkg.develop([["FUSE"] ; fuse_packages]);\
-'
-
-FUSE_GA:
-	$(call clone_pull_repo,$@)
-	julia -e '\
-fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
-using Pkg;\
-Pkg.activate("../FUSE_GA");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
 

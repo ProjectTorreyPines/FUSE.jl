@@ -60,8 +60,31 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
         end
 
         # core_profiles
-        if !ismissing(dd1.core_profiles.global_quantities, :ejima)
+        if ismissing(ini.core_profiles, :ejima) && !ismissing(dd1.core_profiles.global_quantities, :ejima)
             ini.core_profiles.ejima = @ddtime(dd1.core_profiles.global_quantities.ejima)
+        end
+        if !isempty(dd1.core_profiles.profiles_1d) && !ismissing(dd1.core_profiles.profiles_1d[].electrons, :pressure)
+            cp1d = dd1.core_profiles.profiles_1d[]
+            pe_ped, w_ped = IMAS.pedestal_finder(cp1d.electrons.pressure, cp1d.grid.psi_norm)
+            ne_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(1 - w_ped)
+            te_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(1 - w_ped)
+            ti_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(1 - w_ped)
+            zeff_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(1 - w_ped)
+            if ismissing(ini.core_profiles, :ne_ped) && ismissing(ini.core_profiles, :greenwald_fraction_ped)
+                ini.core_profiles.greenwald_fraction_ped = ne_ped / IMAS.greenwald_density(dd1)
+            end
+            if ismissing(ini.core_profiles, :w_ped)
+                ini.core_profiles.w_ped = w_ped
+            end
+            if ismissing(ini.core_profiles, :zeff)
+                ini.core_profiles.zeff = zeff_ped
+            end
+            if ismissing(ini.core_profiles, :T_ratio)
+                ini.core_profiles.T_ratio = ti_ped / te_ped
+            end
+            if ismissing(ini.core_profiles, :greenwald_fraction)
+                ini.core_profiles.greenwald_fraction = IMAS.greenwald_fraction(dd1)
+            end
         end
 
         # Here we delete fields from the ODS for which we know FUSE has expressions for.

@@ -1,5 +1,3 @@
-import LibGEOS
-import GeoInterface
 import Interpolations
 import OrderedCollections
 

@@ -111,7 +111,7 @@ mutable struct ParametersInitsBuild{T<:Real} <: ParametersAllInits{T}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInitsBuild{T}(; kw...) where {T<:Real}
+function ParametersInitsBuild{T}(; n_layers::Int=0, kw...) where {T<:Real}
 
     ini_plasma = ParametersInitsPlasma{T}(; kw...)
 
@@ -134,6 +134,10 @@ function ParametersInitsBuild{T}(; kw...) where {T<:Real}
         FUSEparameters__tf{T}(),
         FUSEparameters__oh{T}(),
         FUSEparameters__requirements{T}())
+
+    for k in 1:n_layers
+        push!(ini.build.layers, FUSEparameters__build_layer{T}())
+    end
 
     setup_parameters!(ini)
 
