@@ -126,7 +126,7 @@ function _step(actor::ActorBlanket)
                 i = 0
                 for mat in dl.material
                     i += 1
-                    bm.layer[kl].material[i].name = mat.name # fix this
+                    bm.layer[kl].material[i].name = mat.name
                     bm.layer[kl].material[i].composition = mat.composition
                 end
             end
