@@ -1,5 +1,5 @@
 using Pkg
-Pkg.activate(@__DIR__)
+#Pkg.activate(@__DIR__)
 import OrderedCollections
 import Memoize
 import JSON

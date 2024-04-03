@@ -37,8 +37,8 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     layers[:cryostat] = 0.186
     act.ActorCXbuild.rebuild_wall = false
     ini.build.layers = layers
-    ini.build.layers[:hfs_blanket].material = :flibe
-    ini.build.layers[:lfs_blanket].material = :flibe
+    ini.build.layers[:hfs_blanket].material = OrderedCollections.OrderedDict{Symbol,Float64}(:flibe => 1.0)
+    ini.build.layers[:lfs_blanket].material = OrderedCollections.OrderedDict{Symbol,Float64}(:flibe => 1.0)
 
     ini.equilibrium.xpoints = :double
 

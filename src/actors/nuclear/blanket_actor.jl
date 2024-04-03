@@ -116,13 +116,19 @@ function _step(actor::ActorBlanket)
         for (kl, dl) in enumerate(bm.layer)
             dl.name = "dummy layer $kl"
             dl.midplane_thickness = 0.0
-            dl.material = "vacuum"
+            resize!(dl.material, 1)
+            dl.material[1].name = "vacuum"
         end
         for (kl, dl) in enumerate([d1, d2, d3])
             if !isempty(dl)
                 bm.layer[kl].name = dl.name
                 bm.layer[kl].midplane_thickness = dl.thickness
-                bm.layer[kl].material = dl.material
+                i = 0
+                for mat in dl.material
+                    i += 1
+                    bm.layer[kl].material[i].name = mat.name # fix this
+                    bm.layer[kl].material[i].composition = mat.composition
+                end
             end
         end
 
@@ -198,7 +204,7 @@ function _step(actor::ActorBlanket)
         extra_cost = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
             bmt = bm.time_slice[]
-            bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
+            bm.layer[2].material[1].name = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
             module_tritium_breeding_ratio = 0.0
             module_wall_loading_power = sum(modules_wall_loading_power[ibm])
             d1 = bm.layer[1].midplane_thickness * abs(modules_relative_thickness13[1+(ibm-1)*2])

@@ -17,9 +17,20 @@
   "documentation": "List of layers in the blanket module"
  },
  "blanket.module[:].layer[:].material": {
-  "data_type": "STR_0D",
-  "documentation": "Material of the layer",
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of materials that comprise the layer",
   "type": "static"
+ },
+ "blanket.module[:].layer[:].material[:].composition": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of layer comprised of the specified material"
+ },
+ "blanket.module[:].layer[:].material[:].name": {
+  "data_type": "STR_0D",
+  "documentation": "Material name"
  },
  "blanket.module[:].layer[:].midplane_thickness": {
   "data_type": "FLT_0D",

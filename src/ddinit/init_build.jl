@@ -133,7 +133,7 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
         layer.side = Int(ini_layer.side)
 
         if !isempty(ini_layer.material)
-            init_build!(bd, ini_layer.material)
+            init_build!(layer, ini_layer.material)
         else
             resize!(layer.material, 1)
         end
@@ -146,12 +146,12 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
     return bd
 end
 
-function init_build!(bd::IMAS.build, materials::ParametersVector{<:FUSEparameters__build_layer_material})
+function init_build!(layer::IMAS.build__layer{Float64}, materials::ParametersVector{<:FUSEparameters__build_layer_material{Float64}})
     k = 0 
     for ini_material in materials
         k += 1
-        material = resize!(bd.layer.material, k)[k]
-        material.name = ini_material.name
+        material = resize!(layer.material, k)[k]
+        material.name = String(ini_material.name)
         material.composition = ini_material.composition
     end
 end
@@ -211,6 +211,26 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
                 layer.side = :out
             end
         end
+    end
+end
+
+"""
+    setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, mats::AbstractDict{Symbol,<:Real}) where {T<:Real}
+
+Allows users to initialize composite materials from a dictionary
+"""
+function Base.setproperty!(parameters_layers::FUSEparameters__build_layer{T}, field::Symbol, mats::AbstractDict{Symbol,<:Real}) where {T<:Real}
+    @assert field == :material
+    for (k, (name, composition)) in enumerate(mats)
+        mat = FUSEparameters__build_layer_material{T}()
+        push!(parameters_layers.material, mat)
+
+        # name
+        mat.name = name
+
+        # composition
+        mat.composition = composition
+
     end
 end
 

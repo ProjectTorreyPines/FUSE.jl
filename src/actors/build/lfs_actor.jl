@@ -59,9 +59,9 @@ function _step(actor::ActorLFSsizing)
         if par.verbose
             println("TF outer leg radius changed by $delta [m]")
         end
-        thicknesses = [dd.build.layer[k].thickness for k in iplasma:itf if !vac || lowercase(dd.build.layer[k].material) == "vacuum"]
+        thicknesses = [dd.build.layer[k].thickness for k in iplasma:itf if !vac || "vacuum" ∈ [lowercase(dd.build.layer[k].material[i].name) for i in 1:length(dd.build.layer[k].material)]]
         for k in iplasma:itf
-            if !vac || lowercase(dd.build.layer[k].material) == "vacuum"
+            if !vac || "vacuum" ∈ [lowercase(dd.build.layer[k].material[i].name) for i in 1:length(dd.build.layer[k].material)]
                 dd.build.layer[k].thickness *= (1 + delta / sum(thicknesses))
                 hfs_thickness = IMAS.get_build_layer(dd.build.layer, identifier=dd.build.layer[k].identifier, fs=_hfs_).thickness
                 if dd.build.layer[k].thickness < hfs_thickness

@@ -51,6 +51,11 @@
   "type": "static",
   "units": "m"
  },
+ "build.layer[:].fabrication": {
+  "data_type": "STR_0D",
+  "documentation": "Fabrication style of the layer",
+  "type": "static"
+ },
  "build.layer[:].identifier": {
   "data_type": "INT_0D",
   "documentation": "Integer to identify the same layer on the high-field-side and low-field-side",
