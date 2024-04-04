@@ -1,5 +1,8 @@
-import TGLFNN: InputTGLF, run_tglf, run_tglfnn
-import TJLF: InputTJLF, run_tjlf, get_ky_spectrum_size, checkInput
+import TGLFNN
+import TGLFNN: InputTGLF
+import TJLF
+import TJLF: InputTJLF
+
 #= ========= =#
 #  ActorTGLF  #
 #= ========= =#
@@ -70,8 +73,8 @@ function _step(actor::ActorTGLF)
     theta_1 = (0.7 - 0.8) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.8
     theta_trapped = range(theta_0, theta_1, length(cp1d.grid.rho_tor_norm))
 
-    for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
-        input_tglf = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
+    for (k, gridpoint_cp) in enumerate(ix_cp)
+        input_tglf = InputTGLF(dd, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
             if par.model == :TGLFNN
@@ -81,7 +84,7 @@ function _step(actor::ActorTGLF)
             end
         elseif par.model == :TJLF
             if !isassigned(actor.input_tglfs, k)
-                nky = get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
+                nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
                 actor.input_tglfs[k] = InputTJLF{Float64}(input_tglf.NS, nky)
                 actor.input_tglfs[k].WIDTH_SPECTRUM .= 0.0
                 actor.input_tglfs[k].FIND_WIDTH = true # first case should find the widths
@@ -104,12 +107,12 @@ function _step(actor::ActorTGLF)
     end
 
     if par.model == :TGLFNN
-        actor.flux_solutions = run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
+        actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
     elseif par.model == :TGLF
-        actor.flux_solutions = run_tglf(actor.input_tglfs)
+        actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
     elseif par.model == :TJLF
-        QL_fluxes_out = run_tjlf(actor.input_tglfs)
-        actor.flux_solutions = [IMAS.flux_solution(single[1, 1, 1], single[1, 2, 3], single[1, 1, 2], single[1, 2, 2]) for single in QL_fluxes_out]
+        QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
+        actor.flux_solutions = [IMAS.flux_solution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
     end
 
     return actor
@@ -161,6 +164,7 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
         end
         setfield!(input_tjlf, fieldname, getfield(input_tglf, fieldname))
     end
+
     for i in 1:input_tglf.NS
         input_tjlf.ZS[i] = getfield(input_tglf, Symbol("ZS_", i))
         input_tjlf.AS[i] = getfield(input_tglf, Symbol("AS_", i))
@@ -171,7 +175,6 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
         input_tjlf.VPAR[i] = getfield(input_tglf, Symbol("VPAR_", i))
         input_tjlf.VPAR_SHEAR[i] = getfield(input_tglf, Symbol("VPAR_SHEAR_", i))
     end
-
 
     # Defaults
     input_tjlf.KY = 0.3
@@ -211,7 +214,7 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     # for now settings
     input_tjlf.ALPHA_ZF = -1  # smooth   
 
-    checkInput(input_tjlf)
+    TJLF.checkInput(input_tjlf)
     # check converison
     field_names = fieldnames(InputTJLF)
     for field_name in field_names

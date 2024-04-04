@@ -7,7 +7,7 @@ function init_expressions(; save::Bool=false)
     all_expr_fields = Vector{OrderedCollections.OrderedSet{String}}()
     for (testname, (args, kw)) in FUSE.test_cases
         @info ("init primary quantities of $testname")
-        ini, act = FUSE.case_parameters(args...; kw...)
+        ini, act = case_parameters(args...; kw...)
         dd = IMAS.dd()
         init(dd, ini, act; restore_expressions=false)
 

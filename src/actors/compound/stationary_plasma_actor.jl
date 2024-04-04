@@ -51,7 +51,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
     if act.ActorCoreTransport.model == :FluxMatcher
-        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium)
+        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium, ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule)
         actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
         actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
     else
@@ -76,12 +76,14 @@ function _step(actor::ActorStationaryPlasma)
         pp = plot(dd.core_profiles; color=:gray, label=" (before)")
         ps = plot(dd.core_sources; color=:gray, label=" (before)")
 
-        @printf("Jtor0_before = %.2f MA/m²\n", getproperty(dd.core_profiles.profiles_1d[], :j_tor, [0.0])[1] / 1e6)
-        @printf("P0_before = %.2f kPa\n", getproperty(dd.core_profiles.profiles_1d[], :pressure, [0.0])[1] / 1e3)
+        println("initial")
+        @printf("Jtor0  = %.2f MA/m²\n", getproperty(dd.core_profiles.profiles_1d[], :j_tor, [0.0])[1] / 1e6)
+        @printf("P0     = %.2f kPa\n", getproperty(dd.core_profiles.profiles_1d[], :pressure, [0.0])[1] / 1e3)
         @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
         @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+        @printf("ne_ped = %.2e m⁻³\n", @ddtime(dd.summary.local.pedestal.n_e.value))
         @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
-        @printf("rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
+        @printf(" ρ_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
     end
 
     # set actors switches specific to this workflow
@@ -144,12 +146,13 @@ function _step(actor::ActorStationaryPlasma)
                 plot!(ps, dd.core_sources; label="i=$(length(total_error))")
 
                 @printf("\n")
-                @printf("Jtor0_after = %.2f MA m^2\n", cp1d.j_tor[1] / 1e6)
-                @printf("   P0_after = %.2f kPa\n", cp1d.pressure[1] / 1e3)
-                @printf("     βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
-                @printf("     βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
-                @printf("     Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
-                @printf("    rho_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
+                @printf(" Jtor0 = %.2f MA m^2\n", cp1d.j_tor[1] / 1e6)
+                @printf("    P0 = %.2f kPa\n", cp1d.pressure[1] / 1e3)
+                @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
+                @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+                @printf("ne_ped = %.2e m⁻³\n", @ddtime(dd.summary.local.pedestal.n_e.value))
+                @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
+                @printf(" ρ_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
