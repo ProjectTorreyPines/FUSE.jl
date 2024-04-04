@@ -33,6 +33,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
+    save_tglf_first_iteration_folder::Entry{String} = Entry{String}("-", "Save the intput_tglfs in designated folder at first FM iteration";default="")
 end
 
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
@@ -125,7 +126,7 @@ function _step(actor::ActorFluxMatcher)
     if par.optimizer_algorithm == :none
         res = (zero=z_init_scaled,)
     elseif par.optimizer_algorithm == :simple
-        res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
+        res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog;par.save_tglf_first_iteration_folder)
     else
         res = try
             res = NLsolve.nlsolve(
@@ -140,7 +141,6 @@ function _step(actor::ActorFluxMatcher)
                 opts...
             )
         finally
-            # @show flux_match_errors(actor, z_scaled_history[end], initial_cp1d)
             actor_logging(dd, old_logging)
         end
     end
@@ -216,7 +216,8 @@ function flux_match_errors(
     initial_cp1d::IMAS.core_profiles__profiles_1d;
     z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[],
-    prog::Any=nothing)
+    prog::Any=nothing,
+    save_tglf_first_iteration_folder::String="")
 
     dd = actor.dd
     par = actor.par
@@ -249,6 +250,13 @@ function flux_match_errors(
     end
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
+
+    if !isempty(save_tglf_first_iteration_folder)
+        for (idx,input_tglf) in enumerate(actor.actor_ct.actor_turb.input_tglfs)
+            name = joinpath(par.save_tglf_first_iteration_folder,"input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
+            TGLFNN.save(input_tglf,name)
+        end
+    end
 
     # compare fluxes
     errors = flux_match_errors(dd, par, actor.norms, prog)
@@ -295,7 +303,6 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     if evolve_densities[:electrons] == :flux_match #[m^-2 s^-1]
         push!(norms, target_transformation(total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
-
     return norms
 end
 
@@ -435,7 +442,8 @@ function flux_match_simple(
     err_history::Vector{Float64},
     ftol::Float64,
     xtol::Float64,
-    prog::Any
+    prog::Any;
+    save_tglf_first_iteration_folder::String
 )
     dd = actor.dd
     par = actor.par
@@ -445,7 +453,7 @@ function flux_match_simple(
     xerror = 1e10
 
     zprofiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
-    flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+    flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog, save_tglf_first_iteration_folder)
     fluxes = flux_match_fluxes(dd, par, prog)
     targets = flux_match_targets(dd, par, prog)
     fluxes_old = deepcopy(fluxes)
