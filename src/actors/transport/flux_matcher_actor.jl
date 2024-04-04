@@ -97,6 +97,13 @@ function _step(actor::ActorFluxMatcher)
         actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
     end
 
+    # make sure no zeros are in norms
+    for i in 1:length(actor.norms)
+        if actor.norms[i] == 0.
+            actor.norms[i] = 1.0
+        end
+    end
+
     z_init = pack_z_profiles(cp1d, par)
     z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping
 
