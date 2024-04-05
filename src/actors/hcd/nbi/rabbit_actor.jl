@@ -52,20 +52,45 @@ function _step(actor::ActorRABBIT)
 end
 
 function _finalize(actor::ActorRABBIT)
+    dd = actor.dd
+    cs = dd.core_sources
 
-    powe = reshape(actor.outputs.powe_data, length(actor.outputs.rho_data), length(actor.outputs.time_data))
+    num_t = length(actor.outputs.time_data)
+    num_rho = length(actor.outputs.rho_data)
+
+    powe = reshape(actor.outputs.powe_data, num_rho, num_t)
+    powi = reshape(actor.outputs.powi_data, num_rho, num_t)
+
+    source = resize!(cs.source, :nbi, "identifier.name" => "nbi"; wipe=false)
+    prof_1d = resize!(source.profiles_1d, num_t)[num_t]
+    ion = resize!(source.profiles_1d[1].ion, 1)[1] # fix this
+
+    source.profiles_1d[1].grid.rho_tor_norm = actor.outputs.rho_data
+    for i in 1:length(num_t)
+        source.profiles_1d[i].ion[1].energy = powi[:,i]
+        source.profiles_1d[i].electrons.energy = powe[:,i] 
+    end
 
     p = plot(actor.outputs.rho_data, powe[:,1])
 
     for i in 2:length(actor.outputs.time_data)
         plot!(p, actor.outputs.rho_data, powe[:,i])
     end
+
+    xlabel!(p, "rho")
+    ylabel!(p, "Power density profile to electrons - W/m^3 ")
     display(p)
 
-    xlabel!("rho")
-    ylims!(0,1e5)
-    display(ylabel!("Power density profile to electrons - W/m^3 "))
-        
+    pp = plot(actor.outputs.rho_data, powi[:,1])
+
+    for i in 2:length(actor.outputs.time_data)
+        plot!(pp, actor.outputs.rho_data, powi[:,i])
+    end
+
+    xlabel!(pp, "rho")
+    ylabel!(pp, "Power density profile to ions - W/m^3 ")
+    display(pp)
+   
     return actor
 
 end
