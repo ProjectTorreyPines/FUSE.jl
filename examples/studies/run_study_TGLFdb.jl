@@ -8,34 +8,23 @@ sty,act = FUSE.study_parameters(:TGLFdb);
 sty
 # Interacting with sty
 sty.server = "saga"
-sty.n_workers = 40
+sty.n_workers = 20
 
-sty.database_folder = "/mnt/beegfs/users/neisert/ODSs/mastu_intersect_steady" 
+sty.database_folder = "/mnt/beegfs/users/neisert/ODSs/mastu_intersect_steady"
 
-#iri/166066"#mastu_intersect_steady"#d3d_negDcake_oak"#iri/166066"#mastu_curated_intersect"#d3d"#_negDcake_oak"
+#mastu_intersect_steady"#d3d_negDcake_oak"#iri/166066"#d3d"
 
-sty.save_folder = "/mnt/beegfs/users/neisert/ODSs/mastu_intersect_steady/outputs_rerun2_rho_0p1_0p05_0p75_rot"
-
-#iri/166066/outputs_rerun_rho_0p05_0p02_0p85_rot"
-#mastu_intersect_steady
-#mastu_curated_intersect/outputs_rho_0p1_0p05_0p95_rot"
+sty.save_folder = "/mnt/beegfs/users/neisert/ODSs/mastu_intersect_steady/outputs_rerun2_rho_0p1_0p05_0p80_rot"
 
 sty.sat_rules = missing #[:sat1,:sat2,:sat3] #study specific parameters
 # It's also possible to run with a custom tglfnn model, set sty.custom_tglf_models
-sty.custom_tglf_models = ["sat0quench_es_mastu_azf+1","sat0quench_em_mastu_azf+1","sat0_es_mastu_azf+1", "sat0_em_mastu_azf+1", "sat1_es_mastu_azf+1", "sat1_em_mastu_azf+1", "sat2_es_mastu_azf+1", "sat2_es_mastu_azf-1", "sat2_em_mastu_azf+1", "sat2_em_mastu_azf-1", "sat3_es_mastu_azf+1", "sat3_es_mastu_azf-1", "sat3_em_mastu_azf+1", "sat3_em_mastu_azf-1"]
-
-#["sat0quench_es_d3d_azf+1", "sat0quench_em_d3d_azf+1", "sat0_es_d3d", "sat0_em_d3d", "sat1_es_d3d", "sat1_em_d3d", "sat2_es_d3d_azf+1"]
-#["sat2_es_d3d_azf-1", "sat2_em_d3d_azf+1", "sat2_em_d3d_azf-1", "sat3_es_d3d_azf+1", "sat3_es_d3d_azf-1", "sat3_em_d3d_azf+1", "sat3_em_d3d_azf-1"]
-
-
-#["sat0quench_es_mastu_azf+1","sat0quench_em_mastu_azf+1","sat0_es_mastu_azf+1", "sat0_em_mastu_azf+1", "sat1_es_mastu_azf+1", "sat1_em_mastu_azf+1", "sat2_es_mastu_azf+1", "sat2_es_mastu_azf-1", "sat2_em_mastu_azf+1", "sat2_em_mastu_azf-1", "sat3_es_mastu_azf+1", "sat3_es_mastu_azf-1", "sat3_em_mastu_azf+1", "sat3_em_mastu_azf-1"]
-#["sat0quench_es_d3d_azf+1", "sat0quench_em_d3d_azf+1", "sat0_es_d3d", "sat0_em_d3d", "sat1_es_d3d", "sat1_em_d3d", "sat2_es_d3d_azf+1", "sat2_es_d3d_azf-1", "sat2_em_d3d_azf+1", "sat2_em_d3d_azf-1", "sat3_es_d3d_azf+1", "sat3_es_d3d_azf-1"], "sat3_em_d3d_azf+1", "sat3_em_d3d_azf-1"]
+sty.custom_tglf_models = ["sat1_es_d3d+mastu_azf+1", "sat0quench_em_d3d+mastu_azf+1"]
 
 # All DIII-D
 #["sat0quench_es_d3d_azf+1", "sat0quench_em_d3d_azf+1", "sat0_es_d3d", "sat0_em_d3d", "sat1_es_d3d", "sat1_em_d3d", "sat2_es_d3d_azf+1", "sat2_es_d3d_azf-1", "sat2_em_d3d_azf+1", "sat2_em_d3d_azf-1", "sat3_es_d3d_azf+1", "sat3_es_d3d_azf-1", "sat3_em_d3d_azf+1", "sat3_em_d3d_azf-1"]
 
 # All MAST-U
-#["sat0quench_es_mastu_azf+1","sat0quench_em_mastu_azf+1","sat0_es_mastu_azf+1", "sat0_em_mastu_azf+1", "sat1_es_mastu_azf+1", "sat1_em_mastu_azf+1", "sat2_es_mastu_azf+1", "sat2_es_mastu_azf-1", "sat2_em_mastu_azf+1", "sat2_em_mastu_azf-1", "sat3_es_mastu_azf+1", "sat3_es_mastu_azf-1", "sat3_em_mastu_azf+1", "sat3_em_mastu_azf-1"]
+#["sat1_es_d3d+mastu_azf+1", "sat0quench_em_d3d+mastu_azf+1","sat0quench_es_mastu_azf+1","sat0quench_em_mastu_azf+1","sat0_es_mastu_azf+1", "sat0_em_mastu_azf+1", "sat1_es_mastu_azf+1", "sat1_em_mastu_azf+1", "sat2_es_mastu_azf+1", "sat2_es_mastu_azf-1", "sat2_em_mastu_azf+1", "sat2_em_mastu_azf-1", "sat3_es_mastu_azf+1", "sat3_es_mastu_azf-1", "sat3_em_mastu_azf+1", "sat3_em_mastu_azf-1"]
 
 # All negD
 #["sat0_em_d3d_negD", "sat1_em_d3d_negD", "sat2_em_d3d_negD", "sat3_em_d3d_negD"]
@@ -43,14 +32,14 @@ sty.custom_tglf_models = ["sat0quench_es_mastu_azf+1","sat0quench_em_mastu_azf+1
 # FPP
 #["sat1_em_fpp", "sat1_em_fpp_iter", "sat1_em_fpp_d3d"] 
 
-sty.file_save_mode = :safe_write #overwrite or #safe_write
+sty.file_save_mode = :overwrite #overwrite or #safe_write
 sty.release_workers_after_run = true # this is the default behavior and releases workers after running the study
 sty
-study = FUSE.StudyTGLFdb(sty, act; n_workers=40); # it is possible to pass in keyword arguments to sty
+study = FUSE.StudyTGLFdb(sty, act; n_workers=20); # it is possible to pass in keyword arguments to sty
 using Distributed
 @everywhere import FUSE
 study.act.ActorFluxMatcher.evolve_rotation = :flux_match
-study.act.ActorFluxMatcher.rho_transport = 0.1:0.05:0.75
+study.act.ActorFluxMatcher.rho_transport = 0.1:0.05:0.80
 study.act.ActorFluxMatcher
 FUSE.run(study);
 FUSE.analyze(study);

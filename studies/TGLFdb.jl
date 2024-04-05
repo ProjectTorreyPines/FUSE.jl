@@ -53,7 +53,7 @@ function TGLF_dataframe()
         shot=Int[], time=Int[], ne0=Float64[],
         Te0=Float64[], Ti0=Float64[], ne0_exp=Float64[],
         Te0_exp=Float64[], Ti0_exp=Float64[], WTH_exp=Float64[],
-        rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], rho=Vector{Float64}[],
+        rot0_exp=Float64[], WTH=Float64[], rot0=Float64[],timef=Int[], rho=Vector{Float64}[],
         Qe_target=Vector{Float64}[], Qe_TGLF=Vector{Float64}[], Qe_neoc=Vector{Float64}[],
         Qi_target=Vector{Float64}[], Qi_TGLF=Vector{Float64}[], Qi_neoc=Vector{Float64}[],
         particle_target=Vector{Float64}[], particle_TGLF=Vector{Float64}[], particle_neoc=Vector{Float64}[],
@@ -162,11 +162,19 @@ function run_case(filename, study, item)
 
     act.ActorFluxMatcher.evolve_densities = FUSE.setup_density_evolution_electron_flux_match_impurities_fixed(dd)
 
+    # find time from filename
+    timefn = match(r"(\d+)\.\w+$", filename)
+    if timefn !== nothing
+        timef = parse(Int,timefn.captures[1])
+    else
+        timef = 0
+    end
+
     cp1d = dd.core_profiles.profiles_1d[]
     exp_values = [
         cp1d.electrons.density_thermal[1], cp1d.electrons.temperature[1],
         cp1d.ion[1].temperature[1], @ddtime(dd.summary.global_quantities.energy_thermal.value),
-        cp1d.rotation_frequency_tor_sonic[1]]
+        cp1d.rotation_frequency_tor_sonic[1], timef]
 
     name = split(splitpath(filename)[end], ".")[1]
     output_case = joinpath(sty.save_folder, name)
@@ -236,6 +244,7 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
         Ti0_exp=exp_values[3],
         WTH_exp=exp_values[4],
         rot0_exp=exp_values[5],
+        timef=exp_values[6],
         rho=rho_transport,
         Qe_target=ct1d_target.electrons.energy.flux,
         Qe_TGLF=ct1d_tglf.electrons.energy.flux,
