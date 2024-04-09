@@ -369,10 +369,6 @@ function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, 
         end
     end
 
-    if prog !== nothing
-        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(targets)))
-    end
-
     return targets
 end
 
@@ -423,10 +419,6 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, p
         end
     end
 
-    if prog !== nothing
-        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(fluxes)))
-    end
-
     return fluxes
 end
 
@@ -447,7 +439,6 @@ function flux_match_simple(
 )
     dd = actor.dd
     par = actor.par
-    # this will be a while loop with some ftol/xtol
 
     i = 0
     ferror = 1e10
@@ -524,17 +515,17 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     z_profiles = Float64[]
 
     if par.evolve_Ti == :flux_match
-        z_Ti = calc_z_backward_bc(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature, cp_gridpoints)
+        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature, :backward)[cp_gridpoints]
         append!(z_profiles, z_Ti)
     end
 
     if par.evolve_Te == :flux_match
-        z_Te = calc_z_backward_bc(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, cp_gridpoints)
+        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward)[cp_gridpoints]
         append!(z_profiles, z_Te)
     end
 
     if par.evolve_rotation == :flux_match
-        z_rot = calc_z_backward_bc(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, cp_gridpoints)
+        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
         append!(z_profiles, z_rot)
     end
 
@@ -542,30 +533,18 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     if !isempty(evolve_densities)
         check_evolve_densities(cp1d, evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            z_ne = calc_z_backward_bc(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, cp_gridpoints)
+            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
             append!(z_profiles, z_ne)
         end
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                z_ni = calc_z_backward_bc(cp1d.grid.rho_tor_norm, ion.density_thermal, cp_gridpoints)
+                z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :backward)[cp_gridpoints]
                 append!(z_profiles, z_ni)
             end
         end
     end
 
     return z_profiles
-end
-
-"""
-    calc_z_backward_bc(x::Vector{T}, y::Vector{T}, grid::AbstractVector{Int}) where {T<:Real}
-
-Calculate inverse scale length with third order accuracy everywhere but where the boundary condition is set
-At the boundary condition location we used :backward finite difference to allow for discontinuty in the gradient
-"""
-function calc_z_backward_bc(x::Vector{T}, y::Vector{T}, grid::AbstractVector{Int}) where {T<:Real}
-    z = IMAS.calc_z(x, y; method=:backward)[grid]
-    z[end] = IMAS.calc_z(x, y; method=:backward)[grid[end]]
-    return z
 end
 
 """
@@ -614,7 +593,7 @@ function unpack_z_profiles(
                 IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
             counter += N
         end
-        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
+        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])

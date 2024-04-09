@@ -7,18 +7,18 @@ FUSE.logging(Logging.Info; actors=Logging.Info);
 sty,act = FUSE.study_parameters(:TGLFdb);
 sty
 # Interacting with sty
-sty.server = "saga"
-sty.n_workers = 20
+sty.server = "localhost"
+sty.n_workers = 10
 
-sty.database_folder = "/mnt/beegfs/users/neisert/ODSs/mastu_intersect_steady"
+sty.database_folder = "/mnt/beegfs/users/neisert/ODSs/iri/166066"
 
 #mastu_intersect_steady"#d3d_negDcake_oak"#iri/166066"#d3d"
 
-sty.save_folder = "/mnt/beegfs/users/neisert/ODSs/mastu_intersect_steady/outputs_rerun2_rho_0p1_0p05_0p80_rot"
+sty.save_folder = "/mnt/beegfs/users/neisert/ODSs/iri/166066/outputs_gknn_rho_0p1_0p05_0p80_rot"
 
 sty.sat_rules = missing #[:sat1,:sat2,:sat3] #study specific parameters
 # It's also possible to run with a custom tglfnn model, set sty.custom_tglf_models
-sty.custom_tglf_models = ["sat1_es_d3d+mastu_azf+1", "sat0quench_em_d3d+mastu_azf+1"]
+sty.custom_tglf_models = ["sat2_em_d3d_azf+1", "sat3_em_d3d_azf+1", "sat2_em_d3d_azf-1", "sat2_em_d3d_azf-1"]
 
 # All DIII-D
 #["sat0quench_es_d3d_azf+1", "sat0quench_em_d3d_azf+1", "sat0_es_d3d", "sat0_em_d3d", "sat1_es_d3d", "sat1_em_d3d", "sat2_es_d3d_azf+1", "sat2_es_d3d_azf-1", "sat2_em_d3d_azf+1", "sat2_em_d3d_azf-1", "sat3_es_d3d_azf+1", "sat3_es_d3d_azf-1", "sat3_em_d3d_azf+1", "sat3_em_d3d_azf-1"]
@@ -35,7 +35,7 @@ sty.custom_tglf_models = ["sat1_es_d3d+mastu_azf+1", "sat0quench_em_d3d+mastu_az
 sty.file_save_mode = :overwrite #overwrite or #safe_write
 sty.release_workers_after_run = true # this is the default behavior and releases workers after running the study
 sty
-study = FUSE.StudyTGLFdb(sty, act; n_workers=20); # it is possible to pass in keyword arguments to sty
+study = FUSE.StudyTGLFdb(sty, act; n_workers=10); # it is possible to pass in keyword arguments to sty
 using Distributed
 @everywhere import FUSE
 study.act.ActorFluxMatcher.evolve_rotation = :flux_match
