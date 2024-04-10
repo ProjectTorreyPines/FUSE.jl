@@ -1,16 +1,23 @@
 import TGLFNN
 import TGLFNN: InputQLGYRO, InputCGYRO
 
-#= ========= =#
+#= =========== =#
 #  ActorQLGYRO  #
-#= ========= =#
+#= =========== =#
 Base.@kwdef mutable struct FUSEparameters__ActorQLGYRO{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+    model::Switch{Symbol} = Switch{Symbol}([:QLGYRO], "-", "Implementation of QLGYRO"; default=:QLGYRO)
+    user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
+    ky::Entry{Float64} = Entry{Float64}("-", "Max ky"; default=1.6)
+    nky::Entry{Int} = Entry{Int}("-", "Number of ky modes"; default=16)
+    cpu_per_ky::Entry{Int} = Entry{Int}("-", "Number of cpus per ky"; default=1)
+    kygrid_model::Entry{Int} = Entry{Int}("-", "TGLF ky grid model"; default=0)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
-    nfields::Entry{Int} = Entry{Int}("-", "Electromagnetic or electrostatic"; default=1)
-    dt:::Entry{Int} = Entry{Float64}("-", "step size "; default=0.005)
+    n_field::Entry{Int} = Entry{Int}("-", "Electromagnetic or electrostatic"; default=1)
+    delta_t::Entry{Float64} = Entry{Float64}("-", "step size "; default=0.005)
+    max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
 end
@@ -37,10 +44,10 @@ end
 
 function ActorQLGYRO(dd::IMAS.dd, par::FUSEparameters__ActorQLGYRO; kw...)
     par = par(kw...)
-    if par.model ∈ [:QLGYRO]
-        input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
+    input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
+    input_CGYROs = Vector{InputCGYRO}(undef, length(par.rho_transport))
 
-    return ActorQLGYRO(dd, par, input_QLGYROs, IMAS.flux_solution[])
+    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, IMAS.flux_solution[])
 end
 
 """
@@ -59,30 +66,51 @@ function _step(actor::ActorQLGYRO)
 
 
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
-        input_qlgyro = TGLFNN.InputQLGYRO()
+        actor.input_qlgyros[k] = TGLFNN.InputQLGYRO()
 
-        input_qlgyro.N_PARALLEL = par.nky
-        input_qlgyro.N_RUNS = 1
-        input_qlgyro.GAMMA_E = 0.0
-        input_qlgyro.CODE= -1
-        input_qlgyro.NKY = par.nky * par.cpu_per_ky
-        input_qlgyro.KYGRID_MODEL= par.kygrid_model
-        input_qlgyro.KY= par.ky
-        input_qlgyro.SAT_RULE = par.sat_rule
-        input_QLGYRO = InputQLGYRO(dd, gridpoint_cp, par.electromagnetic, par.lump_ions)
-        input_CGYRO = InputCGYRO(dd)
+        actor.input_qlgyros[k].N_PARALLEL = par.nky
+        actor.input_qlgyros[k].N_RUNS = 1
+        actor.input_qlgyros[k].GAMMA_E = 0.0
+        actor.input_qlgyros[k].CODE= -1
+        actor.input_qlgyros[k].NKY = par.nky * par.cpu_per_ky
+        actor.input_qlgyros[k].KYGRID_MODEL= par.kygrid_model
+        actor.input_qlgyros[k].KY= par.ky
+        
+        #input_qlgyro.SAT_RULE = par.sat_rule
+        if par.sat_rule == :sat2
+            actor.input_qlgyros[k].SAT_RULE = 2
+        elseif par.sat_rule == :sat1
+            actor.input_qlgyros[k].SAT_RULE = 1
+        elseif par.sat_rule == :sat1geo
+            actor.input_qlgyros[k].SAT_RULE = 1
+            #input_qlgyro.UNITS = "CGYRO"
+        end
+
+        #input_QLGYRO = InputQLGYRO(dd, gridpoint_cp, par.electromagnetic, par.sat_rule, par.lump_ions)
+        actor.input_cgyros[k] = InputCGYRO(dd,gridpoint_cp,par.lump_ions)
+        actor.input_cgyros[k].N_FIELD = par.n_field
+        actor.input_cgyros[k].DELTA_T = par.delta_t
+        actor.input_cgyros[k].MAX_TIME =par.max_time
 
         # Setting up the QLGYRO run with the custom parameter mask (this overwrites all the above)
-        if !ismissing(par, :custom_input_files)
-            for field_name in fieldnames(typeof(actor.input_QLGYROs[k]))
-                if !ismissing(getproperty(par.custom_input_files[k], field_name))
-                    setproperty!(actor.input_QLGYROs[k], field_name, getproperty(par.custom_input_files[k], field_name))
-                end
-            end
-        end
+        #if !ismissing(par, :custom_input_files)
+        #    for field_name in fieldnames(typeof(actor.input_QLGYROs[k]))
+        #        if !ismissing(getproperty(par.custom_input_files[k], field_name))
+        #            setproperty!(actor.input_QLGYROs[k], field_name, getproperty(par.custom_input_files[k], field_name))
+        #        end
+        #    end
+        #end
+        #if !ismissing(par, :custom_input_files)
+        #    for field_name in fieldnames(typeof(actor.input_CGYROs[k]))
+        #        if !ismissing(getproperty(par.custom_input_files[k], field_name))
+        #            setproperty!(actor.input_CGYROs[k], field_name, getproperty(par.custom_input_files[k], field_name))
+        #        end
+        #    end
+        #end
+
     end
 
-    actor.flux_solutions = TGLFNN.run_QLGYRO(actor.input_QLGYROs,actor.input_CGYROs)
+    actor.flux_solutions = TGLFNN.run_qlgyro(actor.input_qlgyros,actor.input_cgyros)
 
     return actor
 end
@@ -112,7 +140,7 @@ function model_filename(par::FUSEparameters__ActorQLGYRO)
     if !isempty(par.user_specified_model)
         filename = par.user_specified_model
     else
-        filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+        filename = string(par.sat_rule) * "_" * string(par.n_field)
         filename *= "_d3d" # will be changed to FPP soon
     end
     return filename
