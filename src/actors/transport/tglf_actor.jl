@@ -73,8 +73,8 @@ function _step(actor::ActorTGLF)
     theta_1 = (0.7 - 0.8) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.8
     theta_trapped = range(theta_0, theta_1, length(cp1d.grid.rho_tor_norm))
 
-    for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
-        input_tglf = InputTGLF(dd, gridpoint_eq, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
+    for (k, gridpoint_cp) in enumerate(ix_cp)
+        input_tglf = InputTGLF(dd, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
             if par.model == :TGLFNN
