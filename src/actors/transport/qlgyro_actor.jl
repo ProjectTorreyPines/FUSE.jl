@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQLGYRO{T<:Real} <: ParametersAct
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     n_field::Entry{Int} = Entry{Int}("-", "Electromagnetic or electrostatic"; default=1)
     delta_t::Entry{Float64} = Entry{Float64}("-", "step size "; default=0.005)
-    max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.)
+    max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.0)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
 end
@@ -71,11 +71,11 @@ function _step(actor::ActorQLGYRO)
         actor.input_qlgyros[k].N_PARALLEL = par.nky
         actor.input_qlgyros[k].N_RUNS = 1
         actor.input_qlgyros[k].GAMMA_E = 0.0
-        actor.input_qlgyros[k].CODE= -1
+        actor.input_qlgyros[k].CODE = -1
         actor.input_qlgyros[k].NKY = par.nky * par.cpu_per_ky
-        actor.input_qlgyros[k].KYGRID_MODEL= par.kygrid_model
-        actor.input_qlgyros[k].KY= par.ky
-        
+        actor.input_qlgyros[k].KYGRID_MODEL = par.kygrid_model
+        actor.input_qlgyros[k].KY = par.ky
+
         #input_qlgyro.SAT_RULE = par.sat_rule
         if par.sat_rule == :sat2
             actor.input_qlgyros[k].SAT_RULE = 2
@@ -87,10 +87,10 @@ function _step(actor::ActorQLGYRO)
         end
 
         #input_QLGYRO = InputQLGYRO(dd, gridpoint_cp, par.electromagnetic, par.sat_rule, par.lump_ions)
-        actor.input_cgyros[k] = InputCGYRO(dd,gridpoint_cp,par.lump_ions)
+        actor.input_cgyros[k] = InputCGYRO(dd, gridpoint_cp, par.lump_ions)
         actor.input_cgyros[k].N_FIELD = par.n_field
         actor.input_cgyros[k].DELTA_T = par.delta_t
-        actor.input_cgyros[k].MAX_TIME =par.max_time
+        actor.input_cgyros[k].MAX_TIME = par.max_time
 
         # Setting up the QLGYRO run with the custom parameter mask (this overwrites all the above)
         #if !ismissing(par, :custom_input_files)
@@ -110,7 +110,7 @@ function _step(actor::ActorQLGYRO)
 
     end
 
-    actor.flux_solutions = TGLFNN.run_qlgyro(actor.input_qlgyros,actor.input_cgyros)
+    actor.flux_solutions = TGLFNN.run_qlgyro(actor.input_qlgyros, actor.input_cgyros)
 
     return actor
 end
