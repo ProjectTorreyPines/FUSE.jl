@@ -163,7 +163,7 @@ function init_core_profiles!(
     end
 
     # Set temperatures
-    Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
+    Te_core = minimum([pressure_core / (ni_core + ne_core) / IMAS.constants.e,20e3])
     Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
     @ddtime summary.local.pedestal.t_e.value = Te_ped
 

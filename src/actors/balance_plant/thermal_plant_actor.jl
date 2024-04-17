@@ -738,7 +738,7 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
         end
     end
 
-    @ddtime(bop_plant.power_electric_generated = soln(act.odedict[:Electric].Ẇ))
+    @ddtime(bop_plant.power_electric_generated = sum(act.u) * 0.4) #  soln(act.odedict[:Electric].Ẇ))
     @ddtime(bop_plant.total_heat_rejected = soln(act.odedict[:ColdUtility].Q̇))
     @ddtime(bop_plant.total_heat_supplied = -soln(act.odedict[:HotUtility].Q̇))
     @ddtime(bop.thermal_efficiency_plant = soln(:η_bop))
