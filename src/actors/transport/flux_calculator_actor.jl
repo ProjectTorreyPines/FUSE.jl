@@ -13,7 +13,7 @@ end
 mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxCalculator{P}
-    actor_turb::Union{ActorTGLF{D,P},ActorNoOperation{D,P}}
+    actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorNoOperation{D,P}}
     actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
 end
 

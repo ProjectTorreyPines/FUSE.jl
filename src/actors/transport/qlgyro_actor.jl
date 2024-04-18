@@ -68,45 +68,28 @@ function _step(actor::ActorQLGYRO)
     for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
         actor.input_qlgyros[k] = TGLFNN.InputQLGYRO()
 
-        actor.input_qlgyros[k].N_PARALLEL = par.nky
+        actor.input_qlgyros[k].N_PARALLEL = par.nky * par.cpu_per_ky
         actor.input_qlgyros[k].N_RUNS = 1
         actor.input_qlgyros[k].GAMMA_E = 0.0
         actor.input_qlgyros[k].CODE = -1
-        actor.input_qlgyros[k].NKY = par.nky * par.cpu_per_ky
+        actor.input_qlgyros[k].NKY = par.nky 
         actor.input_qlgyros[k].KYGRID_MODEL = par.kygrid_model
         actor.input_qlgyros[k].KY = par.ky
 
-        #input_qlgyro.SAT_RULE = par.sat_rule
         if par.sat_rule == :sat2
             actor.input_qlgyros[k].SAT_RULE = 2
         elseif par.sat_rule == :sat1
             actor.input_qlgyros[k].SAT_RULE = 1
-        elseif par.sat_rule == :sat1geo
-            actor.input_qlgyros[k].SAT_RULE = 1
-            #input_qlgyro.UNITS = "CGYRO"
         end
 
-        #input_QLGYRO = InputQLGYRO(dd, gridpoint_cp, par.electromagnetic, par.sat_rule, par.lump_ions)
         actor.input_cgyros[k] = InputCGYRO(dd, gridpoint_cp, par.lump_ions)
         actor.input_cgyros[k].N_FIELD = par.n_field
         actor.input_cgyros[k].DELTA_T = par.delta_t
         actor.input_cgyros[k].MAX_TIME = par.max_time
 
-        # Setting up the QLGYRO run with the custom parameter mask (this overwrites all the above)
-        #if !ismissing(par, :custom_input_files)
-        #    for field_name in fieldnames(typeof(actor.input_QLGYROs[k]))
-        #        if !ismissing(getproperty(par.custom_input_files[k], field_name))
-        #            setproperty!(actor.input_QLGYROs[k], field_name, getproperty(par.custom_input_files[k], field_name))
-        #        end
-        #    end
-        #end
-        #if !ismissing(par, :custom_input_files)
-        #    for field_name in fieldnames(typeof(actor.input_CGYROs[k]))
-        #        if !ismissing(getproperty(par.custom_input_files[k], field_name))
-        #            setproperty!(actor.input_CGYROs[k], field_name, getproperty(par.custom_input_files[k], field_name))
-        #        end
-        #    end
-        #end
+        input_cgyro.DELTA_T_METHOD = 1
+        input_cgyro.FREQ_TOL = 0.01
+
 
     end
 
@@ -137,12 +120,10 @@ function _finalize(actor::ActorQLGYRO)
 end
 
 function model_filename(par::FUSEparameters__ActorQLGYRO)
-    if !isempty(par.user_specified_model)
-        filename = par.user_specified_model
-    else
-        filename = string(par.sat_rule) * "_" * string(par.n_field)
-        filename *= "_d3d" # will be changed to FPP soon
-    end
+
+    filename = string(par.sat_rule) * "_" * string(par.n_field)
+    filename *= "_d3d" # will be changed to FPP soon
+
     return filename
 end
 
