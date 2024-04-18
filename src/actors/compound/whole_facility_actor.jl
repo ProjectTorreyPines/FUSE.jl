@@ -21,7 +21,9 @@ mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
     LFSsizing::Union{Nothing,ActorLFSsizing{D,P}}
     CXbuild::Union{Nothing,ActorCXbuild{D,P}}
     PFdesign::Union{Nothing,ActorPFdesign{D,P}}
+    PFactive::Union{Nothing,ActorPFactive{D,P}}
     PassiveStructures::Union{Nothing,ActorPassiveStructures{D,P}}
+    VerticalStability::Union{Nothing,ActorVerticalStability{D,P}}
     Neutronics::Union{Nothing,ActorNeutronics{D,P}}
     Blanket::Union{Nothing,ActorBlanket{D,P}}
     Divertors::Union{Nothing,ActorDivertors{D,P}}
@@ -42,7 +44,9 @@ Compound actor that runs all the physics, engineering and costing actors needed 
   - ActorFluxSwing
   - ActorStresses
   - ActorPFdesign
+  - ActorPFactive
   - ActorPassiveStructures
+  - ActorVerticalStability
   - ActorNeutronics
   - ActorBlanket
   - ActorDivertors
@@ -65,6 +69,8 @@ function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility
     par = par(kw...)
 
     return ActorWholeFacility(dd, par, act,
+        nothing,
+        nothing,
         nothing,
         nothing,
         nothing,
@@ -104,12 +110,15 @@ function _step(actor::ActorWholeFacility)
             actor.PFdesign = ActorPFdesign(dd, act)
             if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
                 actor.CXbuild = ActorCXbuild(dd, act)
-                ActorPFactive(dd, act; update_equilibrium=false)
+                actor.PFactive = ActorPFactive(dd, act; update_equilibrium=false)
             end
         else
-            ActorFluxSwing(dd, act)
-            ActorStresses(dd, act)
+            actor.FluxSwing = ActorFluxSwing(dd, act)
+            actor.Stresses = ActorStresses(dd, act)
+            actor.PFactive = ActorPFactive(dd, act)
         end
+
+        actor.VerticalStability = ActorVerticalStability(dd, act)
 
         actor.Neutronics = ActorNeutronics(dd, act)
 

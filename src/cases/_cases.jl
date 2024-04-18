@@ -20,9 +20,9 @@ test_cases["DTT"] = ([:DTT], Dict())
 #  cases  #
 #= ===== =#
 # NOTE only called once at precompile time, kernel needs to be restarted to include new file in cases
-for filename in readdir(joinpath(@__DIR__, "..", "cases"))
+for filename in readdir(joinpath(@__DIR__))
     if !startswith(splitpath(filename)[end], "_") && endswith(filename, ".jl")
-        include("../cases/" * filename)
+        include(filename)
     end
 end
 
@@ -36,10 +36,10 @@ end
 """
     case_parameters_creation_from_ini(ini_case::AbstractParameters)
 
-Useful function to create a case_paramter function for a case from an ini
+Useful function to create a case_parameters function for a case from an ini
 """
 function case_parameters_creation_from_ini(ini_case::ParametersAllInits)
-    ini_base = ParametersInits()
+    ini_base = typeof(ini_case)()
     for field in keys(ini_base)
         code_string = ""
         for sub_field in keys(getproperty(ini_base, field))

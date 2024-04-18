@@ -1,3 +1,6 @@
+import LibGEOS
+import GeoInterface
+
 #= ============= =#
 #  cross-section  #
 #= ============= =#
@@ -565,8 +568,8 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
 
     # _in_
     TF = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_)
-    D = (minimum(plasma.outline.z) * 2 + minimum(TF.outline.z)) / 3.0
-    U = (maximum(plasma.outline.z) * 2 + maximum(TF.outline.z)) / 3.0
+    D = minimum(TF.outline.z)
+    U = maximum(TF.outline.z)
     for k in IMAS.get_build_indexes(bd.layer; fs=_in_)
         layer = bd.layer[k]
         L = layer.start_radius
