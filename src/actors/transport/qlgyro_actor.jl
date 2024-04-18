@@ -117,13 +117,6 @@ function _finalize(actor::ActorQLGYRO)
     return actor
 end
 
-function model_filename(par::FUSEparameters__ActorQLGYRO)
-
-    filename = string(par.sat_rule) * "_" * string(par.n_field)
-    filename *= "_d3d" # will be changed to FPP soon
-
-    return filename
-end
 
 function Base.show(input::InputQLGYRO)
     for field_name in fieldnames(typeof(input))
