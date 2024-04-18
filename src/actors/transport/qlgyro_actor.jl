@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQLGYRO{T<:Real} <: ParametersAct
     cpu_per_ky::Entry{Int} = Entry{Int}("-", "Number of cpus per ky"; default=1)
     kygrid_model::Entry{Int} = Entry{Int}("-", "TGLF ky grid model"; default=0)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat1, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
-    n_field::Entry{Int} = Switch{Int}("-", "1:phi, 2:phi+apar, 3:phi+apar+bpar"; default=1)
+    n_field::Switch{Int} = Switch{Int}("-", "1:phi, 2:phi+apar, 3:phi+apar+bpar"; default=1)
     delta_t::Entry{Float64} = Entry{Float64}("-", "CGYRO step size "; default=0.005)
     max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.0)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
