@@ -11,7 +11,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T} <: ParametersActor wh
     thermal_power_extraction_efficiency::Entry{T} = Entry{T}("-",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+        update_build::Entry{Bool} = Entry{Bool}("-", "Optimize blanket build"; default=true)
+        verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorBlanket{D,P} <: ReactorAbstractActor{D,P}
@@ -249,7 +250,9 @@ function _step(actor::ActorBlanket)
     end
 
     # rebuild geometry
-    ActorCXbuild(dd, act)
-
+    if par.update_build
+        ActorCXbuild(dd, act)
+    end
+    
     return actor
 end

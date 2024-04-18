@@ -597,7 +597,7 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
         @debug "$(layer.name) $(layer_shape)"
 
         obstruction_outline = nothing
-        vertical_clearance = 1.0
+        vertical_clearance = 1.5
         if contains(lowercase(layer.name), "coils")
             coils = pfa.coil
             if !isempty(coils)

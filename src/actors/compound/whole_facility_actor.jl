@@ -112,7 +112,7 @@ function _step(actor::ActorWholeFacility)
 
         actor.Neutronics = ActorNeutronics(dd, act)
 
-        actor.Blanket = ActorBlanket(dd, act)
+        actor.Blanket = ActorBlanket(dd, act; update_build=par.update_build)
 
         actor.Divertors = ActorDivertors(dd, act)
 
