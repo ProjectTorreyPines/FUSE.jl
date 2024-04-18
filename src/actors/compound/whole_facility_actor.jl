@@ -107,7 +107,7 @@ function _step(actor::ActorWholeFacility)
             actor.CXbuild = ActorCXbuild(dd, act)
             actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
-            actor.PFdesign = ActorPFdesign(dd, act)
+            #actor.PFdesign = ActorPFdesign(dd, act)
             if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
                 actor.CXbuild = ActorCXbuild(dd, act)
                 actor.PFactive = ActorPFactive(dd, act; update_equilibrium=false)

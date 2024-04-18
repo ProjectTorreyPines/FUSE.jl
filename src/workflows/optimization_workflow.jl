@@ -22,7 +22,7 @@ function workflow_multiobjective_optimization(
     act::ParametersAllActors,
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
     objective_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
-    constraint_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
+    constraint_functions::Vector{<:IMAS.ConstraintFunction}=IMAS.ConstraintFunction[];
     exploitation_vs_exploration::Float64=0.0,
     N::Int=10,
     iterations::Int=N,
@@ -161,7 +161,7 @@ function save_optimization(
     ini::ParametersAllInits,
     act::ParametersAllActors,
     objectives_functions::Vector{<:ObjectiveFunction},
-    constraints_functions::Vector{<:ConstraintFunction}
+    constraints_functions::Vector{<:IMAS.ConstraintFunction}
 )
     data = Dict("state" => state, "ini" => ini, "act" => act, "objective_functions" => objectives_functions, "constraint_functions" => constraints_functions)
     open(filename, "w") do io
