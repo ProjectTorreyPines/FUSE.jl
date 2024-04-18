@@ -184,7 +184,10 @@ function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, 
         cost = layer.volume * 0.36  # $M/m^3
         return future_dollars(cost, da)
     else
-        cost = layer.volume * unit_cost(Material(layer.material), cst)
+        cost = 0
+        for mat in layer.material
+            cost += layer.volume * unit_cost(Material(mat.name), cst) * mat.composition # fix this
+        end
         return future_dollars(cost, da)
     end
 end

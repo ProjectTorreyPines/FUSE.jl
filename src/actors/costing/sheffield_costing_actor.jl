@@ -239,9 +239,9 @@ function cost_direct_capital_Sheffield(::Type{Val{:shields}}, cst::IMAS.costing,
 
     cost = 0.0
     for layer in shields_hfs
-        vol_shield_hfs = layer.volume
-        material_shield_hfs = layer.material
-        cost += vol_shield_hfs * unit_cost(Material(material_shield_hfs), cst)
+        for mat in layer.material
+            cost += layer.volume * unit_cost(Material(mat.name), cst) * mat.composition
+        end
     end
 
     return future_dollars(1.25 * cost, da)
@@ -295,8 +295,10 @@ function cost_direct_capital_Sheffield(::Type{Val{:blanket}}, cap::Bool, dd::IMA
         cst = dd.costing
         blankets = IMAS.get_build_layers(bd.layer; type=IMAS._blanket_, fs=_lfs_)
         for blanket in blankets
-            blanket_capital_cost = 1.1 * blanket.volume * unit_cost(Material(blanket.material), cst)
-            cost += 1.1 * blanket_capital_cost
+            for mat in blanket.material
+                blanket_capital_cost = 1.1 * blanket.volume * unit_cost(Material(mat.name), cst) * mat.composition
+                cost += 1.1 * blanket_capital_cost
+            end
         end
     end
 
@@ -344,7 +346,10 @@ function cost_fuel_Sheffield(
     cost = 0.0
     if !isempty(blankets)
         for blanket in blankets
-            initial_cost_blanket = 1.1 * blanket.volume * unit_cost(Material(blanket.material), cst)
+            initial_cost_blanket = 0.0
+            for mat in blanket.material
+                initial_cost_blanket += 1.1 * blanket.volume * unit_cost(Material(mat.name), cst) * mat.composition
+            end
 
             if cap
                 blanket_capital_cost = 0.0

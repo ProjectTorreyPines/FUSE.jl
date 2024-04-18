@@ -79,7 +79,7 @@ function _step(actor::ActorVerticalStability)
     # N.B.: this just takes the material from the outermost build layer;
     #       does not account for toroidal breaks, heterogeneous materials,
     #       or builds with "water" vacuum vessels
-    mat_vv = Material(bd.layer[kout].material)
+    mat_vv = Material(bd.layer[kout].material[1].name)
     if ismissing(mat_vv) || ismissing(mat_vv.electrical_conductivity)
         mat_vv = Material(par.default_passive_material)
     end
