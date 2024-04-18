@@ -178,7 +178,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
     eq2d.psi = collect(shot.surfaces')
 
     # RZ
-    if ismissing(par.Z)
+    if ismissing(par, :Z)
         Zdim = κ * 1.6 * a
         nz_grid = nψ_grid
         Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
@@ -188,7 +188,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
         nz_grid = length(Zgrid)
     end
 
-    if ismissing(par.R)
+    if ismissing(par, :R)
         Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
         nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
         Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
