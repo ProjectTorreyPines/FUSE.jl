@@ -34,8 +34,8 @@ mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
     sym2var::Dict{}
     var2val::Dict{}
     optpar::Vector{}
-    x
-    u
+    x   # Parameters actors
+    u   # Load vector
     # Inner constructor for the actor starting from `dd` and `par` (we generally refer to `par` as `act.ThermalPlant`)
     # NOTE: Computation should not happen here since in workflows it is normal to instantiate
     #       an actor once `ThermalPlant(dd, act.ThermalPlant)` and then call `finalize(step(actor))` several times as needed.
@@ -162,7 +162,7 @@ function _step(actor::ActorThermalPlant)
                 returnmode=:eq
             )
 
-            MTK.@named boilhx = TSMD.S2G_HeatExchanger(;
+            MTK.@named boilhx = TSMD.Gen_HeatExchanger(;
                 A=sdict[:steam_boiler],
                 B=idict[:inter_loop_hx4],
                 returnmode=:eq
@@ -257,6 +257,11 @@ function _step(actor::ActorThermalPlant)
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
             actor.G = TSMD.system2metagraph(sys, utility_vector; soln=soln, verbose=false)
+            
+
+            if TSMD.has_edge(actor.G,actor.G[:steam_boiler,:name],actor.G[:inter_loop_hx4,:name])
+                TSMD.reverse_edge!(actor.G,actor.G[:steam_boiler,:name],actor.G[:inter_loop_hx4,:name])
+            end
 
             para_vars = MTK.parameters(simple_sys)
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
@@ -275,7 +280,6 @@ function _step(actor::ActorThermalPlant)
             xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy)
             TSMD.edgeroute_nodes(gcopy; voff=0.1)
             TSMD.set_plot_props!(gcopy)
-
             actor.gplot = gcopy
 
         elseif par.model == :brayton
@@ -387,6 +391,9 @@ function _step(actor::ActorThermalPlant)
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
             actor.G = TSMD.system2metagraph(sys, utility_vector; soln=sol, verbose=false)
 
+            if TSMD.has_edge(actor.G,actor.G[:cycle_heat,:name],actor.G[:inter_loop_hx4,:name])
+                TSMD.reverse_edge!(actor.G,actor.G[:cycle_heat,:name],actor.G[:inter_loop_hx4,:name])
+            end
             para_vars = MTK.parameters(simple_sys)
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
 
@@ -411,7 +418,7 @@ function _step(actor::ActorThermalPlant)
 
     soln = plant_wrapper(actor)
     TSMD.updateGraphSoln(actor.G, soln)
-    TSMD.updateGraphSoln(actor.gplot, soln)
+    # TSMD.updateGraphSoln(actor.gplot, soln)
 
     # write to dd if ddwrite = true
     initddbop(actor; soln=soln)
@@ -738,7 +745,7 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
         end
     end
 
-    @ddtime(bop_plant.power_electric_generated = sum(act.u) * 0.4) #  soln(act.odedict[:Electric].Ẇ))
+    @ddtime(bop_plant.power_electric_generated = soln(act.odedict[:Electric].Ẇ))
     @ddtime(bop_plant.total_heat_rejected = soln(act.odedict[:ColdUtility].Q̇))
     @ddtime(bop_plant.total_heat_supplied = -soln(act.odedict[:HotUtility].Q̇))
     @ddtime(bop.thermal_efficiency_plant = soln(:η_bop))
