@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQLGYRO{T<:Real} <: ParametersAct
     kygrid_model::Entry{Int} = Entry{Int}("-", "TGLF ky grid model"; default=0)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     n_field::Entry{Int} = Entry{Int}("-", "Electromagnetic or electrostatic"; default=1)
-    delta_t::Entry{Float64} = Entry{Float64}("-", "step size "; default=0.005)
+    delta_t::Entry{Float64} = Entry{Float64}("-", "step size of CGRYO "; default=0.005)
     max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.0)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
