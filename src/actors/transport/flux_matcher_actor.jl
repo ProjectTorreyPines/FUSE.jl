@@ -175,15 +175,17 @@ function _step(actor::ActorFluxMatcher)
         display(p)
     end
 
-    # for completely collapsed cases we don't want it to crash in the optimizer so
+    # for completely collapsed cases we don't want it to crash in the optimizer
+    # Also when the power flowing through the separatrix is below zero we want to punish the profiles (otherwise we generate energy from nothing)
     cp1d = dd.core_profiles.profiles_1d[]
-    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te
+    total_sources = IMAS.total_sources(dd)
+    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te || !(total_sources.electrons.power_inside[end] + total_sources.total_ion_power_inside[end] >= 0)
         @warn "Profiles completely collpased due to insufficient source versus turbulence"
         te = cp1d.electrons.temperature
         teped = @ddtime(dd.summary.local.pedestal.t_e.value)
         lowest_profile = IMAS.Hmode_profiles(te[end], teped, teped * 1.5, length(te), 1.1, 1.1, 2 * (1 - @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)))
         cp1d.electrons.temperature = lowest_profile
-        if par.evolve_Ti
+        if par.evolve_Ti == :flux_match
             for ion in cp1d.ion
                 ion.temperature = lowest_profile
             end
