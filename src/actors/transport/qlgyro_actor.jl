@@ -110,7 +110,7 @@ function _finalize(actor::ActorQLGYRO)
     eqt = dd.equilibrium.time_slice[]
 
     model = resize!(dd.core_transport.model, :anomalous; wipe=false)
-    model.identifier.name = string(par.model) * " " * model_filename(par)
+    model.identifier.name = string(par.model)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
