@@ -125,7 +125,7 @@ function _step(actor::ActorWholeFacility)
         actor.Blanket = ActorBlanket(dd, act)
 
         actor.Divertors = ActorDivertors(dd, act)
-
+        act.ActorThermalPlant.model = Symbol(dd.balance_of_plant.power_plant.power_cycle_type)
         actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
 
         actor.Costing = ActorCosting(dd, act)

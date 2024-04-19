@@ -82,6 +82,14 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInitBuil
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; check=x -> @assert x > 0.0 "must be: coil_j_margin > 0.0")
 end
 
+
+Base.@kwdef mutable struct FUSEparameters__balance_of_plant{T} <: ParametersInitBuild{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :balance_of_plant
+    cycle_type::Switch{Symbol} = Switch{Symbol}([:rankine, :brayton],"-", "Thermal cycle type";default=:rankine)
+end
+
+
 mutable struct ParametersInitsBuild{T<:Real} <: ParametersAllInits{T}
     _parent::WeakRef
     _name::Symbol
@@ -101,6 +109,7 @@ mutable struct ParametersInitsBuild{T<:Real} <: ParametersAllInits{T}
     center_stack::FUSEparameters__center_stack{T} #
     tf::FUSEparameters__tf{T}
     oh::FUSEparameters__oh{T}
+    bop::FUSEparameters__balance_of_plant{T}
     requirements::FUSEparameters__requirements{T}
 end
 
@@ -126,6 +135,7 @@ function ParametersInitsBuild{T}(; n_layers::Int=0, kw...) where {T<:Real}
         FUSEparameters__center_stack{T}(),
         FUSEparameters__tf{T}(),
         FUSEparameters__oh{T}(),
+        FUSEparameters__balance_of_plant{T}(),
         FUSEparameters__requirements{T}())
 
     for k in 1:n_layers
