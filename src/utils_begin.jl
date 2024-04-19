@@ -204,7 +204,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                 nworkers = min(nworkers, nprocs_max)
             end
             np = nworkers + 1
-            gigamem_per_cpu = Int(round(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if Distributed.nprocs() < np
                 Distributed.addprocs(
@@ -232,7 +232,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                 nworkers = min(nworkers, nprocs_max)
             end
             np = nworkers + 1
-            gigamem_per_cpu = Int(round(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if Distributed.nprocs() < np
                 Distributed.addprocs(
