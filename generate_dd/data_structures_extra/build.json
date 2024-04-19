@@ -195,10 +195,22 @@
   "units": "-"
  },
  "build.oh.technology.material": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of materials that comprise the OH",
+  "type": "static"
+ },
+ "build.oh.technology.material[:].composition": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of OH comprised of the specified material",
+  "type": "static"
+ },
+ "build.oh.technology.material[:].name": {
   "data_type": "STR_0D",
-  "documentation": "Material of the OH coils",
-  "type": "static",
-  "units": "-"
+  "documentation": "Material name",
+  "type": "static"
  },
  "build.oh.technology.ratio_SC_to_copper": {
   "data_type": "FLT_0D",
@@ -291,10 +303,22 @@
   "units": "-"
  },
  "build.pf_active.technology.material": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of materials that comprise the PF",
+  "type": "static"
+ },
+ "build.pf_active.technology.material[:].composition": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of PF comprised of the specified material",
+  "type": "static"
+ },
+ "build.pf_active.technology.material[:].name": {
   "data_type": "STR_0D",
-  "documentation": "Material of the PF coils",
-  "type": "static",
-  "units": "-"
+  "documentation": "Material name",
+  "type": "static"
  },
  "build.pf_active.technology.ratio_SC_to_copper": {
   "data_type": "FLT_0D",
@@ -441,10 +465,22 @@
   "units": "-"
  },
  "build.tf.technology.material": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of materials that comprise the TF",
+  "type": "static"
+ },
+ "build.tf.technology.material[:].composition": {
+  "data_type": "FLT_0D",
+  "documentation": "Fraction of TF comprised of the specified material",
+  "type": "static"
+ },
+ "build.tf.technology.material[:].name": {
   "data_type": "STR_0D",
-  "documentation": "Material of the TF coils",
-  "type": "static",
-  "units": "-"
+  "documentation": "Material name",
+  "type": "static"
  },
  "build.tf.technology.ratio_SC_to_copper": {
   "data_type": "FLT_0D",

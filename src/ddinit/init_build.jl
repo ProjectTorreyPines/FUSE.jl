@@ -335,11 +335,21 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         elseif layer.type == Int(_gap_)
             layer.material[1].name = "vacuum"
         elseif layer.type == Int(_oh_)
-            # layer.material[1].name = bd.oh.technology.material # fix this
-            layer.material[1].name = "nb3sn"
+            resize!(layer.material, length(bd.oh.technology.material))
+            k = 0
+            for mat in bd.oh.technology.material
+                k += 1
+                layer.material[k].name = mat.name
+                layer.material[k].composition = mat.composition
+            end
         elseif layer.type == Int(_tf_)
-            # layer.material[1].name = bd.tf.technology.material
-            layer.material[1].name = "nb3sn"
+            resize!(layer.material, length(bd.tf.technology.material))
+            k = 0
+            for mat in bd.tf.technology.material
+                k += 1
+                layer.material[k].name = mat.name
+                layer.material[k].composition = mat.composition
+            end
         elseif layer.type == Int(_shield_)
             layer.material[1].name = "steel"
         elseif layer.type == Int(_blanket_)

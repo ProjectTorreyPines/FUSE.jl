@@ -43,7 +43,7 @@ function tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
     plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
     R0 = (plasma.end_radius + plasma.start_radius) / 2.0
     B0 = maximum(abs, eq.vacuum_toroidal_field.b0)
-    mat_tf = Material(bd.tf.technology)
+    mat_tf = Material(FusionMaterials.primary_coil_material(bd.tf.technology); coil_tech = bd.tf.technology)
 
     # current in the TF coils
     current_TF = B0 * R0 * 2π / constants.μ_0 / bd.tf.coils_n

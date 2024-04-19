@@ -26,7 +26,18 @@ function GS_IMAS_pf_active__coil(
     # type in GS_IMAS_pf_active__coil is defined at compile time
     coil_tech = IMAS.build__pf_active__technology{T}()
     for field in keys(oh_pf_coil_tech)
-        setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
+        if field == :material 
+            mat = getproperty(oh_pf_coil_tech, field)
+            resize!(coil_tech.material, length(mat))
+
+            for k in 1:length(mat)
+                coil_tech.material[k].name = mat[k].name
+                coil_tech.material[k].composition = mat[k].composition
+                k+=1
+            end
+        else
+            setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
+        end
     end
 
     coil = GS_IMAS_pf_active__coil{T,T,T,T}(
@@ -35,7 +46,7 @@ function GS_IMAS_pf_active__coil(
             global_time(pfcoil),
             green_model)
 
-    mat_pf = Material(coil_tech)
+    mat_pf = Material(FusionMaterials.primary_coil_material(coil_tech))
     sigma = mat_pf.electrical_conductivity
     if ismissing(mat_pf) || ismissing(sigma)
         coil.resistance = default_resistance
@@ -279,17 +290,17 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
         else
             coil_tech = bd.pf_active.technology
         end
-        mat_pf = Material(coil_tech)
+        mat_pf = Material(FusionMaterials.primary_coil_material(coil_tech); coil_tech)
 
         # magnetic field of operation
         coil.b_field_max = range(0.1, 30; step=0.1)
 
-        # temperature range of operation
-        coil.temperature = [-1, coil_tech.temperature]
+        # temperature range of operation to enable linear interpolation later on 
+        coil.temperature = [coil_tech.temperature, coil_tech.temperature + 1]
 
         # current limit evaluated at all magnetic fields and temperatures
         coil.current_limit_max = [
-            abs(mat_pf.critical_current_density(; Bext=b) * IMAS.area(coil) * IMAS.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
+            abs(mat_pf.critical_current_density(; Bext=b, temperature = t) * IMAS.area(coil) * FusionMaterials.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
             b in coil.b_field_max,
             t in coil.temperature
         ]
@@ -305,7 +316,6 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
         end
     end
 end
-
 @recipe function plot_coil(coil::GS_IMAS_pf_active__coil)
     @series begin
         seriestype := :scatter
@@ -455,11 +465,11 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
         pfcoil.element[1].geometry.rectangle.height = height
         pfcoil.element[1].geometry.rectangle.width = width
 
-        mat = Material(coil.tech)
+        mat = Material(FusionMaterials.primary_coil_material(coil.tech); coil_tech = coil.tech)
         Bext = coil_selfB(pfcoil, coil.current)
 
         needed_conductor_area = abs(coil.current) / mat.critical_current_density(; Bext)
-        needed_area = needed_conductor_area / IMAS.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
+        needed_area = needed_conductor_area / FusionMaterials.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
 
         cost = (area - needed_area)^2
         return cost

@@ -31,7 +31,7 @@ end
 #  materials cost - coils  #
 #= ====================== =#
 function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, cst::IMAS.costing)
-    if coil_tech.material == "copper"
+    if FusionMaterials.primary_coil_material(coil_tech) == "copper"
         return unit_cost(Material(:copper), cst)
     else
         fraction_cable = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
@@ -39,7 +39,7 @@ function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__t
         fraction_copper = fraction_cable - fraction_SC
         return (
             coil_tech.fraction_steel * unit_cost(Material(:steel), cst) + fraction_copper * unit_cost(Material(:copper), cst) +
-            fraction_SC * unit_cost(Material(coil_tech.material), cst)
+            fraction_SC * unit_cost(Material(FusionMaterials.primary_coil_material(coil_tech)), cst)
         )
     end
 end

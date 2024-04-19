@@ -49,7 +49,7 @@ function oh_required_J_B!(bd::IMAS.build; double_swing::Bool=true)
     OH = IMAS.get_build_layer(bd.layer; type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
-    mat_oh = Material(bd.oh.technology)
+    mat_oh = Material(FusionMaterials.primary_coil_material(bd.oh.technology); coil_tech = bd.oh.technology)
 
     totalOhFluxReq = bd.flux_swing.rampup + bd.flux_swing.flattop + bd.flux_swing.pf
 
