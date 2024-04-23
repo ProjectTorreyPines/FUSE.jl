@@ -46,7 +46,6 @@ function ActorQLGYRO(dd::IMAS.dd, par::FUSEparameters__ActorQLGYRO; kw...)
     par = par(kw...)
     input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
     input_CGYROs = Vector{InputCGYRO}(undef, length(par.rho_transport))
-
     return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, IMAS.flux_solution[])
 end
 
@@ -59,19 +58,17 @@ function _step(actor::ActorQLGYRO)
     par = actor.par
     dd = actor.dd
 
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
     cp1d = dd.core_profiles.profiles_1d[]
-    ix_eq = [argmin(abs.(eq1d.rho_tor_norm .- rho)) for rho in par.rho_transport]
     ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
 
-    for (k, (gridpoint_eq, gridpoint_cp)) in enumerate(zip(ix_eq, ix_cp))
+    for (k, gridpoint_cp) in enumerate(ix_cp)
         actor.input_qlgyros[k] = TGLFNN.InputQLGYRO()
 
         actor.input_qlgyros[k].N_PARALLEL = par.nky * par.cpu_per_ky
         actor.input_qlgyros[k].N_RUNS = 1
         actor.input_qlgyros[k].GAMMA_E = 0.0
         actor.input_qlgyros[k].CODE = -1
-        actor.input_qlgyros[k].NKY = par.nky 
+        actor.input_qlgyros[k].NKY = par.nky
         actor.input_qlgyros[k].KYGRID_MODEL = par.kygrid_model
         actor.input_qlgyros[k].KY = par.ky
 
@@ -88,8 +85,6 @@ function _step(actor::ActorQLGYRO)
 
         input_cgyro.DELTA_T_METHOD = 1
         input_cgyro.FREQ_TOL = 0.01
-
-
     end
 
     actor.flux_solutions = TGLFNN.run_qlgyro(actor.input_qlgyros, actor.input_cgyros)
@@ -116,14 +111,6 @@ function _finalize(actor::ActorQLGYRO)
     IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux, :momentum_flux], actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
-end
-
-function model_filename(par::FUSEparameters__ActorQLGYRO)
-
-    filename = string(par.sat_rule) * "_" * string(par.n_field)
-    filename *= "_d3d" # will be changed to FPP soon
-
-    return filename
 end
 
 function Base.show(input::InputQLGYRO)

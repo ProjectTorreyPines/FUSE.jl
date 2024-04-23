@@ -55,7 +55,6 @@ function _step(actor::ActorLFSsizing)
     par = actor.par
 
     TF_lfs_layer = IMAS.get_build_layer(dd.build.layer; type=_tf_, fs=_lfs_)
-    vessel_lfs_layer = IMAS.get_build_layer(dd.build.layer; type=_vessel_, fs=_lfs_)
 
     # calculate TF leg radius that gives required TF field ripple
     ripple_TF_radius = IMAS.R_tf_ripple(IMAS.get_build_layer(dd.build.layer; type=_plasma_).end_radius, dd.build.tf.ripple, dd.build.tf.coils_n)
@@ -66,10 +65,12 @@ function _step(actor::ActorLFSsizing)
 
         if par.tor_modularity == 1
             # if tor_modularity is 1, then lfs vessel end_radius must coincide with rVP_lfs_ob
+            vessel_lfs_layer = IMAS.get_build_layer(dd.build.layer; type=_vessel_, fs=_lfs_)
+            @assert TF_lfs_layer.start_radius > vessel_lfs_layer.end_radius
             maintenance_TF_radius = rVP_lfs_ob + (TF_lfs_layer.start_radius - vessel_lfs_layer.end_radius)
         else
             # if tor_modularity is 2, then TF coil end_radius can be flush with rVP_lfs_ob
-            maintenance_TF_radius = rVP_lfs_ob - (TF_lfs_layer.thickness)
+            maintenance_TF_radius = rVP_lfs_ob - TF_lfs_layer.thickness
         end
     else
         maintenance_TF_radius = 0.0
@@ -77,7 +78,6 @@ function _step(actor::ActorLFSsizing)
 
     # new TF radius is the larger of the two constraints
     new_TF_radius = maximum([ripple_TF_radius, maintenance_TF_radius])
-
     old_TF_radius = TF_lfs_layer.start_radius
     delta = new_TF_radius - old_TF_radius
 
