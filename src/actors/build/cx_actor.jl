@@ -546,16 +546,13 @@ function port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity
 
     elseif maintenance == :vertical
         rVP_hfs_ib, rVP_hfs_ob, rVP_lfs_ib, rVP_lfs_ob = IMAS.vertical_maintenance(bd; tor_modularity, pol_modularity)
-
         pr = vcat(rVP_hfs_ib, rVP_hfs_ib, vR, vR[end], horz_port_maxr, horz_port_maxr, rVP_lfs_ob, rVP_lfs_ob, rVP_hfs_ib)
         pz = vcat(vert_port_maxz, vZ[1], vZ, vessel_minz, vessel_minz, horz_port_maxz, horz_port_maxz, vert_port_maxz, vert_port_maxz)
-
         name = "vertical maintenance port"
 
     elseif maintenance == :horizontal
         pr = vcat(vR, vR[end], horz_port_maxr, horz_port_maxr, vR[1])
         pz = vcat(vZ, vessel_minz, vessel_minz, vessel_maxz, vessel_maxz)
-
         name = "horizontal maintenance port"
     end
 
@@ -606,7 +603,7 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
         @debug "$(layer.name) $(layer_shape)"
 
         obstruction_outline = nothing
-        vertical_clearance = 1.5
+        vertical_clearance = 1.0
         if contains(lowercase(layer.name), "coils")
             coils = pfa.coil
             if !isempty(coils)
