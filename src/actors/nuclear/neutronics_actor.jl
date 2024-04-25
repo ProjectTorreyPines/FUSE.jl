@@ -76,8 +76,8 @@ function _step(actor::ActorNeutronics)
 end
 
 
-function define_neutrons(actor::ActorNeutronics)
-    return define_neutrons(actor.dd, actor.par.N)
+function define_neutrons(actor::ActorNeutronics; N::Int=actor.par.N)
+    return define_neutrons(actor.dd, N)
 end
 
 function define_neutrons(dd::IMAS.dd, N::Int)
