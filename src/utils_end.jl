@@ -484,7 +484,7 @@ function digest(
         p = plot(; layout=l, size=(900, 400))
         plot!(p, dd.neutronics.time_slice[].wall_loading; xlim, subplot=1)
         neutrons = define_neutrons(dd, 100000)[1]
-        plot!(p, neutrons, dd.equilibrium.time_slice[]; xlim, subplot=1)
+        plot!(p, neutrons, dd.equilibrium.time_slice[]; xlim, subplot=1, colorbar_entry=false)
         plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel="")
         display(p)
     end
