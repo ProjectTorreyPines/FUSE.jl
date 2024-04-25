@@ -67,7 +67,7 @@ function _step(actor::ActorNeutronics)
     if do_plot
         plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=1)
         sol = IMAS.sol(dd; levels=1)
-        plot!(sol; subplot=2, line_z=nothing, color=:black)
+        plot!(p, sol; subplot=2, line_z=nothing, color=:black)
         plot!(p, ntt.wall_loading; subplot=2)
         display(p)
     end

@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreRadHeatFlux{T<:Real} <: Para
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    N::Entry{Int} = Entry{Int}("-", "Number of launched photons"; default=500000)
+    N::Entry{Int} = Entry{Int}("-", "Number of launched photons"; default=100000)
     r::Entry{Vector{T}} = Entry{Vector{T}}("m", "Vector of r at outermidplane"; default=T[])
     q::Entry{Vector{T}} = Entry{Vector{T}}("W m^-2", "Vector of parallel power density at outer midplane"; default=T[])
     levels::Entry{Union{Int,Vector}} =
@@ -68,10 +68,12 @@ function _step(actor::ActorCoreRadHeatFlux)
     if par.do_plot
         ll = @layout [a{0.6w,0.9h} b{0.4w}]
         p = plot(; layout=ll, size=(1500, 500))
-        plot!(HF; which_plot=:oneD, q=:core_radiation, subplot=1)
+        plot!(p, HF; which_plot=:oneD, q=:core_radiation, subplot=1)
         sol = IMAS.sol(dd; levels=1)
-        plot!(sol; subplot=2, line_z=nothing, color=:black)
-        plot!(HF; q=:core_radiation, plot_type=:path, subplot=2)
+        photons, W_per_trace, dr, dz = IMAS.define_particles(eqt, psi, source_1d, par.N)
+        plot!(p, photons, actor.dd.equilibrium.time_slice[]; colorbar_entry=false, subplot=2)
+        plot!(p, sol; subplot=2, line_z=nothing, color=:black)
+        plot!(p, HF; q=:core_radiation, plot_type=:path, subplot=2)
         display(p)
     end
 

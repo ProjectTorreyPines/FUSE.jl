@@ -65,10 +65,10 @@ function _step(actor::ActorParticleHeatFlux)
     if par.do_plot
         ll = @layout [a{0.6w,0.9h} b{0.4w}]
         p = plot(; layout=ll, size=(1500, 500))
-        plot!(HF; which_plot=:oneD, q=:particle, subplot=1)
-        sol = IMAS.sol(dd; levels=1)
-        plot!(sol; subplot=2, line_z=nothing, color=:black)
-        plot!(HF; q=:particle, plot_type=:path, subplot=2)
+        plot!(p, HF; which_plot=:oneD, q=:particle, subplot=1)
+        sol = IMAS.sol(dd; levels=100)
+        plot!(p, sol; subplot=2, colorbar_entry=false, color=:grays)
+        plot!(p, HF; q=:particle, plot_type=:path, subplot=2)
         display(p)
     end
 
