@@ -54,7 +54,7 @@ function _step(actor::ActorCoreRadHeatFlux)
 
     # Parameters for heat flux due to core radiarion
     total_rad_source1d = IMAS.total_radiation_sources(dd.core_sources, cp1d)
-    psi = dd.core_sources.source[1].profiles_1d[1].grid.psi
+    psi = cp1d.grid.psi
     source_1d = -total_rad_source1d.electrons.energy # minus sign because loss for dd.core_sources
     Prad_core = -total_rad_source1d.electrons.power_inside[end]
 
