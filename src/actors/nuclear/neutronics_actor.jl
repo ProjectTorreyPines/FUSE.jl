@@ -40,9 +40,9 @@ function _step(actor::ActorNeutronics)
     p = do_plot ? plot() : nothing
 
     neutrons, W_per_trace, dr, dz = define_neutrons(actor)
-    if do_plot
-        plot!(p, neutrons, actor.dd.equilibrium.time_slice[])
-    end
+    # if do_plot
+    #     plot!(p, neutrons, actor.dd.equilibrium.time_slice[])
+    # end
 
     rwall, zwall = define_wall(actor)
     nflux_r, nflux_z, wall_s = IMAS.find_flux(neutrons, W_per_trace, rwall, zwall, dr,dz)
@@ -63,10 +63,25 @@ function _step(actor::ActorNeutronics)
     ntt.wall_loading.power .*= norm
 
     # plot neutron wall loading cx
+    # if do_plot
+    #     plot!(p, ntt.wall_loading; xlim=[minimum(rwall) * 0.9, maximum(rwall) * 1.1], title="First wall neutron loading")
+    #     plot!(p, rwall, zwall; color=:black, label="", xlim=[minimum(rwall) * 0.9, maximum(rwall) * 1.1], title="")
+    #     display(p)
+    # end
     if do_plot
-        plot!(p, ntt.wall_loading; xlim=[minimum(rwall) * 0.9, maximum(rwall) * 1.1], title="First wall neutron loading")
-        plot!(p, rwall, zwall; color=:black, label="", xlim=[minimum(rwall) * 0.9, maximum(rwall) * 1.1], title="")
-        display(p)
+        eqt = dd.equilibrium.time_slice[]
+        font = 15
+        _, psi_separatrix = IMAS.find_psi_boundary(dd)
+        surface, _ = IMAS.flux_surface(eqt, psi_separatrix, :encircling)
+        ll = @layout [a{0.6w,0.9h} b{0.4w}]
+        pp = plot(; layout=ll, size=(1500, 500))
+        plot!(pp, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=1, xtickfont= font,  ytickfont= font,guidefont= font, legendfont= font, titlefont = font+5)
+        plot!(pp, ntt.wall_loading, subplot=2, xlabel = "R [m]", ylabel = "Z [m]", xtickfont= font,  ytickfont= font,guidefont= font, legendfont= font, colorbartitlefont = font)
+        for surf in surface
+            plot!(surf; color=:grey, subplot=2)
+        end
+        plot!(legend = :none)
+        display(pp)
     end
 
     return actor

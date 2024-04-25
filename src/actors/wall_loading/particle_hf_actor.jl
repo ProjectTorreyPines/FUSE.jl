@@ -59,12 +59,13 @@ function _step(actor::ActorParticleHeatFlux)
 
     #plot
     if par.do_plot
+        font = 15
         _, psi_separatrix = IMAS.find_psi_boundary(dd)
         surface, _ = IMAS.flux_surface(eqt, psi_separatrix, :open)
         ll = @layout [a{0.6w,0.9h} b{0.4w}]
-        p = plot(; layout=ll, size=(1000, 500))
-        plot!(HF; which_plot=:oneD, q=:part, subplot=1)
-        plot!(HF; q=:part, plot_type=:path, subplot=2)
+        p = plot(; layout=ll, size=(1500, 500))
+        plot!(HF; which_plot=:oneD, q=:part, subplot=1, xtickfont= font,  ytickfont= font,guidefont= font, legendfont= font, titlefont = font+5)
+        plot!(HF; q=:part, plot_type=:path, subplot=2, xtickfont= font,  ytickfont= font,guidefont= font, legendfont= font, colorbartitlefont = font)
         for surf in surface
             plot!(surf; color=:grey, subplot=2)
         end
