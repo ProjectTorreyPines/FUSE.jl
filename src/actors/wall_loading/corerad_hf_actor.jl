@@ -9,7 +9,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreRadHeatFlux{T<:Real} <: Para
     N::Entry{Int} = Entry{Int}("-", "Number of launched photons"; default=500000)
     r::Entry{Vector{T}} = Entry{Vector{T}}("m", "Vector of r at outermidplane"; default=T[])
     q::Entry{Vector{T}} = Entry{Vector{T}}("W m^-2", "Vector of parallel power density at outer midplane"; default=T[])
-    levels::Entry{Union{Int,Vector}} = Entry{Union{Int,Vector}}("-", "If Int it defines number of levels in SOL, if vector it corresponds to the psi levels to build SOL"; default=20)
+    levels::Entry{Union{Int,Vector}} =
+        Entry{Union{Int,Vector}}("-", "If Int it defines number of levels in SOL, if vector it corresponds to the psi levels to build SOL"; default=20)
     merge_wall::Entry{Bool} = Entry{Bool}("-", "Merge dd.wall in mesh for the heat flux "; default=true)
     step::Entry{T} = Entry{T}("m", " Step for discretization of the default wall mesh (dd.wall)"; default=0.1)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -18,11 +19,13 @@ end
 mutable struct ActorCoreRadHeatFlux{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCoreRadHeatFlux{P}
-    function ActorCoreRadHeatFlux(dd::IMAS.dd{D}, par::FUSEparameters__ActorCoreRadHeatFlux{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorCoreRadHeatFlux)
-        par = par(kw...)
-        return new{D,P}(dd, par)
-    end
+    wall_heat_flux::Union{Nothing,IMAS.WallHeatFlux}
+end
+
+function ActorCoreRadHeatFlux(dd::IMAS.dd{D}, par::FUSEparameters__ActorCoreRadHeatFlux{P}; kw...) where {D<:Real,P<:Real}
+    logging_actor_init(ActorCoreRadHeatFlux)
+    par = par(kw...)
+    return ActorCoreRadHeatFlux(dd, par, nothing)
 end
 
 """
@@ -59,6 +62,7 @@ function _step(actor::ActorCoreRadHeatFlux)
     q_core_rad = IMAS.core_radiation_HF(eqt, psi, source_1d, par.N, Rwall, Zwall, Prad_core)
 
     HF = IMAS.WallHeatFlux(; r=Rwall, z=Zwall, q_core_rad, s)
+    actor.wall_heat_flux = HF
 
     #plot
     if par.do_plot
@@ -67,13 +71,14 @@ function _step(actor::ActorCoreRadHeatFlux)
         surface, _ = IMAS.flux_surface(eqt, psi_separatrix, :open)
         ll = @layout [a{0.6w,0.9h} b{0.4w}]
         p = plot(; layout=ll, size=(1500, 500))
-        plot!(HF; which_plot=:oneD, q=:corerad, subplot=1, xtickfont= font,  ytickfont= font,guidefont= font, legendfont= font, titlefont = font+5)
-        plot!(HF; q=:corerad, plot_type=:path, subplot=2, xtickfont= font,  ytickfont= font,guidefont= font, legendfont= font, colorbartitlefont = font)
+        plot!(HF; which_plot=:oneD, q=:corerad, subplot=1, xtickfont=font, ytickfont=font, guidefont=font, legendfont=font, titlefont=font + 5)
+        plot!(HF; q=:corerad, plot_type=:path, subplot=2, xtickfont=font, ytickfont=font, guidefont=font, legendfont=font, colorbartitlefont=font)
         for surf in surface
             plot!(surf; color=:grey, subplot=2)
         end
         display(p)
     end
+
     return actor
 end
 
