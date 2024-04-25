@@ -279,20 +279,20 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 
     norms = Float64[]
 
-    if par.evolve_Ti == :flux_match #[W / m^2]
+    if par.evolve_Ti == :flux_match #[W / m²]
         push!(norms, target_transformation(total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
 
-    if par.evolve_Te == :flux_match #[W / m^2]
+    if par.evolve_Te == :flux_match #[W / m²]
         push!(norms, target_transformation(total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
 
-    if par.evolve_rotation == :flux_match #[kg / m s^2]
+    if par.evolve_rotation == :flux_match #[kg / m s²]
         push!(norms, target_transformation(total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
-    if evolve_densities[:electrons] == :flux_match #[m^-2 s^-1]
+    if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
         push!(norms, target_transformation(total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
 
