@@ -90,13 +90,13 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         #     dd.build.layer[plama_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
         # end
 
-        # 2D build cross-section
-        ActorCXbuild(dd, act)
-
         # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
         # target TF ripple
         dd.build.tf.ripple = ini.tf.ripple
+
+        # 2D build cross-section
+        ActorCXbuild(dd, act)
 
         # center stack solid mechanics
         dd.solid_mechanics.center_stack.bucked = Int(ini.center_stack.bucked)
