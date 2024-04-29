@@ -10,16 +10,17 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersAc
     _time::Float64 = NaN
     rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium"; default=true)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
-mutable struct ActorCXbuild{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorCXbuild{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCXbuild{P}
-    function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}; kw...) where {D<:Real,P<:Real}
+    act::ParametersAllActors
+    function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCXbuild)
         par = par(kw...)
-        return new{D,P}(dd, par)
+        return new{D,P}(dd, par, act)
     end
 end
 
@@ -33,7 +34,7 @@ Generates the 2D cross section of the tokamak build
     Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorCXbuild(dd, act.ActorCXbuild; kw...)
+    actor = ActorCXbuild(dd, act.ActorCXbuild, act; kw...)
     step(actor)
     finalize(actor)
     if actor.par.do_plot
@@ -46,6 +47,7 @@ end
 function _step(actor::ActorCXbuild)
     dd = actor.dd
     par = actor.par
+    act = actor.act
 
     bd = dd.build
     eqt = dd.equilibrium.time_slice[]
@@ -68,6 +70,10 @@ function _step(actor::ActorCXbuild)
     divertor_regions!(bd, eqt, dd.divertors)
 
     blanket_regions!(bd, eqt)
+
+    if act.ActorLFSsizing.maintenance != :none
+        port_regions!(bd; act.ActorLFSsizing.maintenance, act.ActorLFSsizing.tor_modularity, act.ActorLFSsizing.pol_modularity)
+    end
 
     IMAS.find_strike_points!(eqt, dd.divertors)
 
@@ -509,6 +515,54 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     return nothing
 end
 
+"""
+    port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity::Int=2, pol_modularity::Int=1)
+
+Defines maintenance port structures
+"""
+function port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity::Int=2, pol_modularity::Int=1)
+    vessel = IMAS.get_build_layer(bd.layer; type=_vessel_, fs=_lfs_)
+    cryostat = IMAS.get_build_layer(bd.layer; type=_cryostat_)
+
+    # calculate radial port locations
+    vessel_maxz = maximum(vessel.outline.z)
+    vessel_minz = minimum(vessel.outline.z)
+    vessel_minr = minimum(vessel.outline.r)
+    horz_port_maxr = maximum(cryostat.outline.r) * 1.1
+    horz_port_maxz = 0.25 * (vessel_maxz - vessel_minz) + vessel_minz
+    vert_port_maxz = maximum(cryostat.outline.z)
+
+    # outer segment of the vacuum vessel
+    istart = argmin(vessel.outline.z)
+    pr = circshift(vessel.outline.r, 1 - istart)
+    pz = circshift(vessel.outline.z, 1 - istart)
+    index = argmax(pz)
+    vR = [pr[index:end]; pr[1]]
+    vZ = [pz[index:end]; pz[1]]
+
+    # build port structure based on maintenance type
+    if maintenance == :none
+        return nothing
+
+    elseif maintenance == :vertical
+        rVP_hfs_ib, rVP_hfs_ob, rVP_lfs_ib, rVP_lfs_ob = IMAS.vertical_maintenance(bd; tor_modularity, pol_modularity)
+        pr = vcat(rVP_hfs_ib, rVP_hfs_ib, vR, vR[end], horz_port_maxr, horz_port_maxr, rVP_lfs_ob, rVP_lfs_ob, rVP_hfs_ib)
+        pz = vcat(vert_port_maxz, vZ[1], vZ, vessel_minz, vessel_minz, horz_port_maxz, horz_port_maxz, vert_port_maxz, vert_port_maxz)
+        name = "vertical maintenance port"
+
+    elseif maintenance == :horizontal
+        pr = vcat(vR, vR[end], horz_port_maxr, horz_port_maxr, vR[1])
+        pz = vcat(vZ, vessel_minz, vessel_minz, vessel_maxz, vessel_maxz)
+        name = "horizontal maintenance port"
+    end
+
+    structure = resize!(bd.structure, "type" => Int(_port_), "name" => name)
+    structure.outline.r = pr
+    structure.outline.z = pz
+
+    return nothing
+end
+
 function IMAS.resample_2d_path(layer::IMAS.build__layer; method::Symbol=:linear, kw...)
     layer.outline.r, layer.outline.z = IMAS.resample_2d_path(layer.outline.r, layer.outline.z; method, kw...)
     return layer
@@ -568,8 +622,8 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
 
     # _in_
     TF = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_)
-    D = minimum(TF.outline.z)
-    U = maximum(TF.outline.z)
+    D = (minimum(plasma.outline.z) * 2 + minimum(TF.outline.z)) / 3.0
+    U = (maximum(plasma.outline.z) * 2 + maximum(TF.outline.z)) / 3.0
     for k in IMAS.get_build_indexes(bd.layer; fs=_in_)
         layer = bd.layer[k]
         L = layer.start_radius

@@ -51,9 +51,6 @@ Memoize.@memoize function imas2jl_data_type(imas_data_type::String)
             else
                 jlzero = 0.0
             end
-        elseif dim == 1
-            jldata_type = Vector{type_translator[tp]}
-            jlzero = Array{type_translator[tp]}(undef, 0)
         else
             jldata_type = Array{type_translator[tp],dim}
             jlzero = Array{type_translator[tp]}(undef, (0 for k in 1:dim)...)
