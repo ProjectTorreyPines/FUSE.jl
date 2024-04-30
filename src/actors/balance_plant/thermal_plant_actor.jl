@@ -5,6 +5,7 @@
 import ModelingToolkit as MTK
 import DifferentialEquations
 import ThermalSystemModels
+import Optim
 TSMD = ThermalSystemModels.Dynamics
 MTK.@variables t
 
@@ -34,7 +35,7 @@ mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
     sym2var::Dict{}
     var2val::Dict{}
     optpar::Vector{}
-    x
+    x   # parameters values to use during evaluation, these are identified in keypara,
     u   # Load vector
     # Inner constructor for the actor starting from `dd` and `par` (we generally refer to `par` as `act.ThermalPlant`)
     # NOTE: Computation should not happen here since in workflows it is normal to instantiate
@@ -162,7 +163,7 @@ function _step(actor::ActorThermalPlant)
                 returnmode=:eq
             )
 
-            MTK.@named boilhx = TSMD.S2G_HeatExchanger(;
+            MTK.@named boilhx = TSMD.Gen_HeatExchanger(;
                 A=sdict[:steam_boiler],
                 B=idict[:inter_loop_hx4],
                 returnmode=:eq
@@ -415,7 +416,8 @@ function _step(actor::ActorThermalPlant)
         end
         actor.x = [getval(a, actor) for a in actor.optpar]
     end
-
+    
+    actor = opt_plant(actor)
     soln = plant_wrapper(actor)
     TSMD.updateGraphSoln(actor.G, soln)
     # TSMD.updateGraphSoln(actor.gplot, soln)
@@ -757,10 +759,130 @@ end
 
 Setter for actor.x
 """
-function setxATP!(x, actorATP::ActorThermalPlant)
+function setx_ATP!(x, actorATP::ActorThermalPlant)
     for i in 1:length(x)
         actorATP.x[i] = x[i]
         actorATP.var2val[actorATP.sym2var[actorATP.optpar[i]]] = x[i]
     end
     return actorATP
+end
+
+
+ """
+    xcons_ATP!(x,lb,ub)
+ 
+ 
+ Constraint enforcing
+ """
+function xcons_ATP!(x,lb,ub)
+    # x = vector{T}
+    # lb is lowerbounds
+    # ub is upper bounds
+    # cons is vector of tuples 
+    # (a,b) where a < b
+
+    @assert length(x) == length(lb) == length(ub) "Uneven vector lengths in xcons"
+    for (i,xi) in enumerate(x)
+        xi < lb[i] ? x[i] = lb[i] : nothing
+        xi > ub[i] ? x[i] = ub[i] : nothing
+    end
+    return x
+end
+
+"""
+    gen_optfunc_ATP(x,x0,x0_idx,lb,ub,yvars,yfunc,opt_actor)
+
+general optimization function which can be adapted into an anonymous handle to optimize any subset of vatriables in x0
+x0_idx are the indices in x0 which should be optimized, (x is just ActorThermalPlant.x)
+"""
+function gen_optfunc_ATP(x,x0,x0_idx,lb,ub,yvars,yfunc,opt_actor)
+    xrep = deepcopy(x0);
+    xrep[x0_idx] .= x
+    xrep = xcons_ATP!(xrep,lb,ub)
+    opt_actor = setx_ATP!(xrep,opt_actor)
+    return plant_wrapper(opt_actor,yvars,yfunc)
+end
+
+function eval_optfunc_ATP(x,x0,x0_idx,lb,ub,yvars,opt_actor)
+    xrep = deepcopy(x0);
+    xrep[x0_idx] .= x
+    xrep=xcons_ATP!(xrep,lb,ub)
+    opt_actor = setx_ATP!(xrep,opt_actor)
+    return plant_wrapper(opt_actor,yvars)
+end
+
+
+"""
+    opt_plant(opt_actor; optp = (iterations = 50, time_limit = 60, f_tol = .001))
+
+optimizes thermal plant actor
+"""
+function opt_plant(opt_actor;
+                    optp = (iterations = 50, time_limit = 60, f_tol = .001))
+
+    # Variables to be optimized (Tunable parameters/states for the plant system)
+    # x0 = opt_actor.x (same as below, but copy and pasted for the reader) 
+    #(Unhide this line to show opt_x)
+        # opt_x = Dict{Symbol, Float64} with 9 entries:
+        #                 :divertor_supply₊T   => 350.0
+        #                 :breeder_heat₊Tout   => 1136.0
+        #                 :breeder_supply₊T    => 674.7
+        #                 :wall_heat₊Tout      => 950.0
+        #                 :steam_ṁ             => 250.0
+        #                 :inter_loop_ṁ        => 300.0
+        #                 :inter_loop_supply₊T => 350.0
+        #                 :wall_supply₊T       => 350.0
+        #                 :divertor_heat₊Tout  => 1000.0
+
+    #      cycle ṁ,  loop ṁ,   loopTmin,    wTmin,   wTmax,     divTmin, divTmax,      brdrTmin,   brdrTmax
+    x0 =   [250.0,   300.0,    350.00,      350.00,  950.00,    350.00,  1000.0,      674.7,      1136.0];
+
+    # upper and lower bounds
+    #      [  flow rates  ]  [loop Temp]   [   wall temp    ]   [ divertor temp  ]    [ breeder temp     ]
+    lb   = [10.0,    10.0,     350.00,      350.00,  601.00,    350.00,  601.00,      600.00,     901.00];
+    ub   = [300.0,   300.0,    600.00,      600.00,  950.00,    600.00,  1000.00,     900.00,     1300.00];
+
+    # Relevant, System output variable required for the objective function, 
+    # this is a simple case where we will just optimize the total electric power produced
+    yvars = [opt_actor.odedict[:Electric].Ẇ, opt_actor.plant.η_bop, opt_actor.plant.η_cycle];
+
+    # anonymous object function which will act on the sol(yvars)
+    yfunc(y) = -(y[1])/100e6
+
+    # index of mass flow variables in x0
+    mflow_opt_idx   = [1,2,3];
+    x0_opt          = x0[mflow_opt_idx];   
+
+    # anonymous optimization function
+    mflow_opt_func(x) = gen_optfunc_ATP(x,x0, mflow_opt_idx, lb, ub, yvars, yfunc, opt_actor);
+
+    # r2(x) = round(x; digits = 2)
+
+    # # initial
+    # println("x0 = $(r2.(x0))")
+    # y0 = eval_optfunc(x0_opt,mflow_opt_idx,lb,ub,yvars,opt_actor);
+    
+    # for i =1:length(yvars)
+    #     @printf "%-16s = %+-8.4g\n" string(yvars[i]) y0[i]
+    # end
+    # println("")
+
+    xr = Optim.optimize(mflow_opt_func,x0_opt,Optim.NelderMead(),Optim.Options(;optp...));
+
+    xf = Optim.minimizer(xr);
+
+    # yf = eval_optfunc(xf,mflow_opt_idx,lb,ub,yvars,opt_actor);
+
+    # println("xf = $(r2.(opt_actor.x))")
+
+    # for i =1:length(yvars)
+    #     @printf "%-16s = %+-8.4g\n" string(yvars[i]) yf[i]
+    # end
+
+    # RESULTS:
+    # xf = [300.0, 300.0, 350.0, 350.0, 950.0, 350.0, 1000.0, 674.7, 1136.0]
+    # Electric₊Ẇ(t)    = +3.481e+08
+    # η_bop(t)         = +0.3882 
+    # η_cycle(t)       = +0.4581 
+    return opt_actor
 end
