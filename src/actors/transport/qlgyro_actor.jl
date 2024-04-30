@@ -82,8 +82,8 @@ function _step(actor::ActorQLGYRO)
         actor.input_cgyros[k].DELTA_T = par.delta_t
         actor.input_cgyros[k].MAX_TIME = par.max_time
 
-        input_cgyro.DELTA_T_METHOD = 1
-        input_cgyro.FREQ_TOL = 0.01
+	actor.input_cgyros[k].DELTA_T_METHOD = 1
+	actor.input_cgyros[k].FREQ_TOL = 0.01
     end
 
     actor.flux_solutions = TGLFNN.run_qlgyro(actor.input_qlgyros, actor.input_cgyros)
