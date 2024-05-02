@@ -207,7 +207,7 @@ function optimize_shape(
             z_obstruction::Vector{Float64},
             rz_obstruction::Vector{Tuple{Float64,Float64}},
             target_clearance::Float64,
-            target_area::Float64,
+            target_volume::Float64,
             func::Function,
             r_start::Float64,
             r_end::Float64,
@@ -217,7 +217,7 @@ function optimize_shape(
         )
             R, Z = func(r_start, r_end, shape_parameters...)
 
-            cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
+            cost_volume = abs(IMAS.revolution_volume(R, Z) - target_volume) / target_volume
 
             length(R) == length(Z) || error("R and Z have different length")
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
@@ -264,15 +264,15 @@ function optimize_shape(
             end
 
             # return cost
-            return cost_min_clearance^2 + cost_mean_above_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2 + cost_area + cost_max_curvature
+            return 100 .* cost_min_clearance^2 + cost_mean_above_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2 + 10 * cost_volume + cost_max_curvature
         end
 
         r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
-        target_area = IMAS.area(r_obstruction_buffered, z_obstruction_buffered)
+        target_volume = IMAS.revolution_volume(r_obstruction_buffered, z_obstruction_buffered)
 
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
-            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature),
+            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_volume, func, r_start, r_end, shape_parameters; use_curvature),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
         if verbose
             println(res)
