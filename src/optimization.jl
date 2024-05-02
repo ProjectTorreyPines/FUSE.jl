@@ -144,17 +144,23 @@ end
 update_ConstraintFunctionsLibrary!()
 
 function (cnst::ConstraintFunction)(dd::IMAS.dd)
-    if ===(cnst.operation, ==)
-        if cnst.limit === 0.0
-            return abs((cnst.func(dd) - cnst.limit)) - cnst.tolerance
-        else
-            return abs((cnst.func(dd) - cnst.limit) / cnst.limit) - cnst.tolerance
-        end
-    elseif cnst.operation(1.0, 0.0) # > or >=
-        return cnst.limit - cnst.func(dd)
+    return constraint_cost_transform(cnst.func(dd), cnst.operation, cnst.limit, cnst.tolerance)
+end
+
+function constraint_cost_transform(value::Float64, operation::Function, limit::Float64, tolerance::Float64)
+    if ===(operation, ==)
+        out = abs(value - limit) - tolerance
+    elseif operation(1.0, 0.0) # > or >=
+        out = limit - value
     else # < or <=
-        return cnst.func(dd) - cnst.limit
+        out = value - limit
     end
+
+    if out < 0.0
+        out = 0.0
+    end
+
+    return out
 end
 
 function Base.show(io::IO, cnst::ConstraintFunction)
@@ -162,11 +168,7 @@ function Base.show(io::IO, cnst::ConstraintFunction)
     print(io, " $(cnst.operation)")
     print(io, " $(cnst.limit)")
     if ===(cnst.operation, ==)
-        if cnst.limit == 0.0
-            print(io, " ± $(cnst.tolerance)")
-        else
-            print(io, " ± $(cnst.tolerance * cnst.limit)")
-        end
+        print(io, " ± $(cnst.tolerance)")
     end
     return print(io, " [$(cnst.units)]")
 end
@@ -260,7 +262,7 @@ function optimization_engine(
     catch e
         # save empty dd and error to directory
         save(savedir, nothing, ini, act, e; timer=true, freeze=false, overwrite_files=true)
-        
+
         # rethrow(e) # uncomment for debugging purposes
 
         ff = Float64[Inf for f in objective_functions]
