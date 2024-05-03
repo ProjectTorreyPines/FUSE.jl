@@ -86,15 +86,14 @@ Plot recipe for ActorPFdesign and ActorPFactive
         R = range(xlim[1], xlim[2], ngrid)
         Z = range(ylim[1], ylim[2], Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
 
-        coils = GS4_IMAS_pf_active__coil{D,D}[]
+        coils = GS_IMAS_pf_active__coil{D,D}[]
         for coil in dd.pf_active.coil
             if IMAS.is_ohmic_coil(coil)
                 coil_tech = dd.build.oh.technology
             else
                 coil_tech = dd.build.pf_active.technology
             end
-            coil = GS4_IMAS_pf_active__coil(coil, coil_tech, par.green_model)
-            coil.time_index = time_index
+            coil = GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model)
             push!(coils, coil)
         end
 
@@ -146,7 +145,8 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 cx := true
                 label --> "Field null region"
                 color --> :red
-                IMAS.boundary(pc, 1)
+                r, z = IMAS.boundary(pc, 1)
+                r, z
             end
         else
             @series begin
