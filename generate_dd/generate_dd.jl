@@ -205,7 +205,11 @@ function imas_julia_struct(desired_structure::Vector{String})
                 if path[end] == "time" # leave `time` leaves as Float64
                     my_dtype = ":: $jldata_type"
                 else
-                    my_dtype = replace(":: $jldata_type", "Float64" => "T")
+                    if contains("$jldata_type", "{")
+                        my_dtype = replace(":: $jldata_type", "Float64" => "<:T")
+                    else
+                        my_dtype = replace(":: $jldata_type", "Float64" => "T")
+                    end
                 end
                 my_zero = replace(repr(jlzero), "Float64" => "T")
                 h[item] = (my_dtype, my_zero)
