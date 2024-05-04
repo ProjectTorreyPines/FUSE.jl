@@ -292,16 +292,20 @@ function imas_julia_struct(desired_structure::Vector{String})
             end
         end
 
-        txt_parent = join(txt_parent, "\n")
-        if length(txt_parent) > 0
-            txt_parent = "\n$(txt_parent)"
-        end
         if length(struct_name) == 0
             struct_name = "dd"
             push!(fields, "    global_time :: Float64")
             push!(inits, "0.0")
             push!(fields, "    _aux :: Dict")
             push!(inits, "Dict()")
+            push!(fields, "    _ddR :: Union{Nothing,dd{Real}}")
+            push!(inits, "nothing")
+            push!(txt_parent, "    if T <: Float64", "        setfield!(ids, :_ddR, lazycopy(Real,ids))", "    end")
+        end
+
+        txt_parent = join(txt_parent, "\n")
+        if length(txt_parent) > 0
+            txt_parent = "\n$(txt_parent)"
         end
 
         txt_inits = join(inits, ", ")
