@@ -127,10 +127,17 @@ function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T
         else
             # flat midplane wall
             R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
-            R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
-            R, Z = buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
-            circshift!(Z, argmin(R))
-            circshift!(R, argmin(R))
+            if δ < 0.0
+                R[R.<(minimum(eq_r)-gap)] .= minimum(eq_r) - gap
+                R, Z = buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
+                circshift!(Z, argmax(R))
+                circshift!(R, argmax(R))
+            else
+                R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
+                R, Z = buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
+                circshift!(Z, argmin(R))
+                circshift!(R, argmin(R))
+            end
 
             # segments
             R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_relative_error)
