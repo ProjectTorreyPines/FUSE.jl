@@ -158,6 +158,7 @@ function imas_julia_struct(desired_structure::Vector{String})
 
     all_info = Dict{String,Info}()
     all_info["global_time"] = Info(Tuple([]), "s", "FLT_0D", "Generic global time", true)
+    all_info["dd"] = Info(Tuple([]), "-", "STRUCTURE", "Top level structure", false)
 
     branches = []
     timedep_structures = String[]
