@@ -629,6 +629,7 @@ function categorize_errors(
         "OH exceeds critical current" => :OH_critical_j,
         "< dd.build.tf.critical_j" => :TF_critical_j,
         "DomainError with" => :some_negative_root,
+        "AssertionError: The output flux is NaN check your transport model fluxes" => :issue_with_transport,
         "BoundsError: attempt to access" => :flux_surfaces_C,
         "divertors" => :divertors)
     merge!(error_messages, extra_error_messages)
