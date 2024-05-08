@@ -379,7 +379,6 @@ act
 ## Running actors 
 * [Actors documentation](https://fuse.help/actors.html)
 * We'll manually step through wht **ActorWholeFacility** does:
-  * **ActorEquilibriumTransport**: transport (TAUENN) equilibrium (Solovev) and current to steady-state
   * **ActorHFSsizing**: Sizes the High Field Side of radial build (plug, OH, TF) superconductors and stresses
   * **ActorLFSsizing**: Sizes the Low Field Side of radial build
   * **ActorCXbuild**: Generate the 2D cross section of the build

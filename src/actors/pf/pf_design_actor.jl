@@ -51,7 +51,11 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
     if par.model == :none
         # pass
+        eqt = dd.equilibrium.time_slice[]
 
+        # reset pf coil rails
+        n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
+        init_pf_active!(dd.pf_active, dd.build, eqt, n_coils)
     elseif par.model in [:uniform, :optimal]
         # reset pf coil rails
         n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
@@ -60,7 +64,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
         # optimize coil placement
         if par.model == :optimal
             actor.actor_pf.λ_regularize = -1.0
-            step(actor.actor_pf)
+            _step(actor.actor_pf)
 
             function placement_cost(packed::Vector{Float64}; prog::Any)
                 # update dd.pf_active from packed vector
@@ -116,10 +120,35 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             size_pf_active(actor.actor_pf.setup_cache.optim_coils; min_size=1.0)#; tolerance=dd.requirements.coil_j_margin)
         end
 
-        # size the PF coils based on the currents they are carrying
-        
-        _step(actor.actor_pf) # this is required to update the current limits in the dd
+        coils = (coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils))
+        cost_currents = norm([coil.current for coil in coils]) / eqt.global_quantities.ip
+
+        cost = norm([actor.actor_pf.cost, 0.1 * cost_spacing])^2 * (1 .+ cost_currents)
+
+        if prog !== nothing
+            ProgressMeter.next!(prog; showvalues=[("constraints", actor.actor_pf.cost), ("spacing", cost_spacing), ("currents", cost_currents)])
+        end
+
+        return cost
     end
+
+    old_logging = actor_logging(dd, false)
+    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
+    try
+        packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
+        res = Optim.optimize(x -> placement_cost(x; prog), packed, Optim.NelderMead())#, Optim.Options(; g_tol=1E-6))
+        packed = res.minimizer
+        actor.actor_pf.λ_regularize = unpack_rail!(packed, actor.actor_pf.setup_cache.optim_coils, par.symmetric, dd.build)
+        if par.verbose
+            println(res)
+        end
+    finally
+        actor_logging(dd, old_logging)
+    end
+
+    # size the PF coils based on the currents they are carrying
+    size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=getproperty(dd.requirements, :coil_j_margin, 0.4))
+    _step(actor.actor_pf) # must run actor_pf to update the equilibrium accordingly
 
     return actor
 end

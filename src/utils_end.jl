@@ -44,6 +44,10 @@ function Base.setindex!(chk::Checkpoint, dd::IMAS.dd, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd),)
 end
 
+function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd,ParametersAllActors}, key::Symbol)
+    return chk.history[key] = (dd=deepcopy(dd_ini_act[1]), act=deepcopy(dd_ini_act[2]))
+end
+
 function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd,ParametersAllInits,ParametersAllActors}, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd_ini_act[1]), ini=deepcopy(dd_ini_act[2]), act=deepcopy(dd_ini_act[3]))
 end

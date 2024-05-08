@@ -13,14 +13,14 @@ Fidelity hierarchy is enabled by concept of *generic* Vs *specific* actors
 * Specific actors implement a specific model for that physics/component
 * For example:
   ```
-  EquilibriumActor  <--  generic
-  ├─ SolovevActor   <--  specific
-  └─ CHEASEActor    <--  specific
+  ActorEquilibrium  <--  generic
+  ├─ ActorSolovev   <--  specific
+  └─ ActorCHEASE    <--  specific
   ```
-* `act.[GenericActor].model` selects specific actor being used
+* `act.[ActorGeneric].model` selects specific actor being used
 * All specific actors will expect data and fill the same enties in `dd`
   * IMAS.jl expressions are key to make this work seamlessly
-* Where possible workflows should make use of generic actors and not hardcode use of specific actors
+* Where possible actors should make use of generic actors and not hardcode use of specific actors
 
 ```@contents
     Pages = ["actors.md"]

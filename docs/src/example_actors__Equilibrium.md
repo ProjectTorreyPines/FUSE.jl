@@ -61,7 +61,6 @@ display(plot!(eq_plot, dd.equilibrium, label="CHEASE equilibrium", coordinate=:p
 ```@julia
 dd, ini, act = FUSE.init(:D3D);
 FUSE.ActorSteadyStateCurrent(dd, act)
-FUSE.ActorTauenn(dd, act)
 FUSE.prepare(dd, :ActorCHEASE, act)
 
 
@@ -85,7 +84,6 @@ display(plot!(eq_plot, dd.equilibrium, coordinate=:psi_norm, label="CHEASE equil
 ```@julia
 dd, ini, act = FUSE.init(:D3D);
 FUSE.ActorSteadyStateCurrent(dd, act)
-FUSE.ActorTauenn(dd, act)
 FUSE.prepare(dd, :ActorCHEASE, act)
 
 
