@@ -48,9 +48,11 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
     dd = actor.dd
     par = actor.par
 
+    eqt = dd.equilibrium.time_slice[]
+
     # reset pf coil rails
     n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
-    init_pf_active!(dd.pf_active, dd.build, dd.equilibrium.time_slice[], n_coils)
+    init_pf_active!(dd.pf_active, dd.build, eqt, n_coils)
 
     actor.actor_pf.λ_regularize = -1.0
     step(actor.actor_pf)
@@ -62,7 +64,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
         # find currents
         _step(actor.actor_pf)
-        # size_pf_active(actor.actor_pf.setup_cache.optim_coils)
+        # size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt)
 
         # make coils that are close to one another more expensive
         cost_spacing = 0.0
@@ -80,11 +82,10 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
         end
 
-        eqt = dd.equilibrium.time_slice[]
-        coils = [coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils)]
+        coils = (coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils))
         cost_currents = norm([coil.current for coil in coils]) / eqt.global_quantities.ip
 
-        cost = norm([actor.actor_pf.cost, cost_spacing])^2 * (1 .+ cost_currents)
+        cost = norm([actor.actor_pf.cost, 0.1 * cost_spacing])^2 * (1 .+ cost_currents)
 
         if prog !== nothing
             ProgressMeter.next!(prog; showvalues=[("constraints", actor.actor_pf.cost), ("spacing", cost_spacing), ("currents", cost_currents)])
@@ -108,8 +109,8 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
     end
 
     # size the PF coils based on the currents they are carrying
-    size_pf_active(actor.actor_pf.setup_cache.optim_coils; min_size=1.0)#; tolerance=dd.requirements.coil_j_margin)
-    _step(actor.actor_pf) # this is required to update the current limits in the dd
+    size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=getproperty(dd.requirements, :coil_j_margin, 0.4))
+    _step(actor.actor_pf) # must run actor_pf to update the equilibrium accordingly
 
     return actor
 end

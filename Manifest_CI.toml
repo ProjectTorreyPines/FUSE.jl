@@ -2198,14 +2198,6 @@ git-tree-sha1 = "f8ab052bfcbdb9b48fad2c80c873aa0d0344dfe5"
 uuid = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 version = "0.2.2"
 
-[[deps.TAUENN]]
-deps = ["CoordinateConventions", "EPEDNN", "IMAS", "IMASDD", "Measurements", "MillerExtendedHarmonic", "NumericalIntegration", "Optim", "Plots", "Printf", "TGLFNN"]
-git-tree-sha1 = "d6dedbd8b59735a96d04e5acd1ba1218d8b82ed0"
-repo-rev = "master"
-repo-url = "git@github.com/ProjectTorreyPines/TAUENN.jl.git"
-uuid = "4f5ffc88-c87f-11eb-142e-4d2ba0394a67"
-version = "0.1.0"
-
 [[deps.TEQUILA]]
 deps = ["BSON", "FFTW", "FiniteElementHermite", "JuMP", "LinearAlgebra", "LinearSolve", "MXHEquilibrium", "MillerExtendedHarmonic", "NLopt", "Optim", "PlotUtils", "PreallocationTools", "QuadGK", "RecipesBase", "Roots", "SparseArrays", "StaticArrays"]
 git-tree-sha1 = "eef473ce794ab45a870843659205a027be0365d1"

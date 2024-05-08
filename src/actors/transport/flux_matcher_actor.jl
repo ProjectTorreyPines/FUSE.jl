@@ -453,7 +453,7 @@ function flux_match_simple(
 
     while (any(ferror .> ftol) && any(xerror .> xtol))
         i += 1
-        zprofiles = zprofiles .- par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(fluxes .^ 2 + targets .^ 2)
+        zprofiles = zprofiles .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
         flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
         fluxes = flux_match_fluxes(dd, par, prog)
         targets = flux_match_targets(dd, par, prog)
