@@ -10,11 +10,11 @@ sty
 sty.server = "saga"
 sty.n_workers = 80
 
-sty.database_folder = "/mnt/beegfs/users/neisert/ODSs/d3d_negDcake_oak"
+sty.database_folder = "/mnt/beegfs/users/neisert/ODSs/d3d"
 
-#mastu_intersect_steady"#d3d_negDcake_oak"#iri/166066"#d3d"
+#mastu_intersect_steady_hd "#d3d_negDcake_oak"#iri/166066"#d3d"
 
-sty.save_folder = "/mnt/beegfs/users/neisert/ODSs/d3d_negDcake_oak/outputs_gknn4_rho_0p1_0p05_0p85_rot"
+sty.save_folder = "/mnt/beegfs/users/neisert/ODSs/d3d/outputs_gknn8_rho_0p1_0p05_0p85_rot"
 
 sty.sat_rules = missing #[:sat1,:sat2,:sat3] #study specific parameters
 # It's also possible to run with a custom tglfnn model, set sty.custom_tglf_models
