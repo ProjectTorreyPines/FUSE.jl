@@ -48,21 +48,21 @@ Find currents that satisfy boundary and flux/saddle constraints in a least-squar
 function _step(actor::ActorPFdesign{T}) where {T<:Real}
     dd = actor.dd
     par = actor.par
+    eqt = dd.equilibrium.time_slice[]
 
-    if par.model == :none
-        # pass
-        eqt = dd.equilibrium.time_slice[]
-
+    if par.model ==:none
         # reset pf coil rails
         n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
         init_pf_active!(dd.pf_active, dd.build, eqt, n_coils)
+
     elseif par.model in [:uniform, :optimal]
         # reset pf coil rails
         n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
-        init_pf_active!(dd.pf_active, dd.build, dd.equilibrium.time_slice[], n_coils)
+        init_pf_active!(dd.pf_active, dd.build, eqt, n_coils)
 
         # optimize coil placement
         if par.model == :optimal
+
             actor.actor_pf.λ_regularize = -1.0
             _step(actor.actor_pf)
 
@@ -73,7 +73,6 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
                 # find currents
                 _step(actor.actor_pf)
-                # size_pf_active(actor.actor_pf.setup_cache.optim_coils)
 
                 # make coils that are close to one another more expensive
                 cost_spacing = 0.0
@@ -91,11 +90,10 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                     end
                 end
 
-                eqt = dd.equilibrium.time_slice[]
-                coils = [coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils)]
+                coils = (coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils))
                 cost_currents = norm([coil.current for coil in coils]) / eqt.global_quantities.ip
 
-                cost = norm([actor.actor_pf.cost, cost_spacing])^2 * (1 .+ cost_currents)
+                cost = norm([actor.actor_pf.cost, 0.1 * cost_spacing])^2 * (1 .+ cost_currents)
 
                 if prog !== nothing
                     ProgressMeter.next!(prog; showvalues=[("constraints", actor.actor_pf.cost), ("spacing", cost_spacing), ("currents", cost_currents)])
@@ -103,33 +101,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
                 return cost
             end
-
-            old_logging = actor_logging(dd, false)
-            prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
-            try
-                packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
-                res = Optim.optimize(x -> placement_cost(x; prog), packed, Optim.NelderMead())#, Optim.Options(; g_tol=1E-6))
-                packed = res.minimizer
-                actor.actor_pf.λ_regularize = unpack_rail!(packed, actor.actor_pf.setup_cache.optim_coils, par.symmetric, dd.build)
-                if par.verbose
-                    println(res)
-                end
-            finally
-                actor_logging(dd, old_logging)
-            end
-            size_pf_active(actor.actor_pf.setup_cache.optim_coils; min_size=1.0)#; tolerance=dd.requirements.coil_j_margin)
         end
-
-        coils = (coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils))
-        cost_currents = norm([coil.current for coil in coils]) / eqt.global_quantities.ip
-
-        cost = norm([actor.actor_pf.cost, 0.1 * cost_spacing])^2 * (1 .+ cost_currents)
-
-        if prog !== nothing
-            ProgressMeter.next!(prog; showvalues=[("constraints", actor.actor_pf.cost), ("spacing", cost_spacing), ("currents", cost_currents)])
-        end
-
-        return cost
     end
 
     old_logging = actor_logging(dd, false)
