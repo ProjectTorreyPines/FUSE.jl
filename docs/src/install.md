@@ -162,8 +162,7 @@ make chease
 
 1. Compile:
    ```bash
-   cd $GACODE_ROOT
-   cd make
+   cd $GACODE_ROOT ; make
    ```
 
 1. To test that the build is successful, you can run regression tests:
