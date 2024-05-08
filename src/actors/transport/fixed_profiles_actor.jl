@@ -66,17 +66,20 @@ function _step(actor::ActorFixedProfiles)
     # update ion temperature profiles using:
     # * new pedestal height & width
     # * existing Te0 & T_shaping, and T_ratio_pedestal & T_ratio_core
+    Ti = cp1d.ion[1].temperature
+    Ti_ped = @ddtime(dd.summary.local.pedestal.t_i_average.value)
+
     tval_ions = IMAS.Hmode_profiles(
-        Te[end] * par.T_ratio_pedestal,
-        Te_ped * par.T_ratio_pedestal,
-        Te[1] * par.T_ratio_core,
+        Ti[end] * par.T_ratio_pedestal,
+        Ti_ped * par.T_ratio_pedestal,
+        Ti[1] * par.T_ratio_core,
         length(cp1d.grid.rho_tor_norm),
         par.T_shaping,
         par.T_shaping,
         1.0 - w_ped
     )
     if any(tval_ions .< 0)
-        throw("Ti profile is negative for T0=$(Te[1]*par.T_ratio_core) eV and Tped=$(Te_ped*par.T_ratio_pedestal) eV")
+        throw("Ti profile is negative for T0=$(Ti[1]*par.T_ratio_core) eV and Tped=$(Ti_ped*par.T_ratio_pedestal) eV")
     end
     for ion in cp1d.ion
         ion.temperature = tval_ions
