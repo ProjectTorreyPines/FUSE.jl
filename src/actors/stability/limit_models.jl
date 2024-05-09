@@ -160,8 +160,8 @@ Model formulation: `βn / li < C_{beta}`
 
 Citation:
 """
-function model_105(dd::IMAS.dd)
-    model = resize!(dd.stability.model, :model_105)
+function beta_model_105(dd::IMAS.dd)
+    model = resize!(dd.stability.model, :beta_model_105)
     model.identifier.name = "BetaLi::Troyon"
     model.identifier.description = "βn / Li < 4.0"
 
