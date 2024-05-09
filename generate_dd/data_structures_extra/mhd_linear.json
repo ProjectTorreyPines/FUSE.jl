@@ -1,0 +1,8 @@
+{
+ "mhd_linear.time_slice[:].toroidal_mode[:].metric": {
+  "data_type": "FLT_0D",
+  "documentation": "MHD stability metric, to be defined by user",
+  "type": "dynamic",
+  "units": "-"
+ }
+}
