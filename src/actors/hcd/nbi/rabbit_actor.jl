@@ -37,12 +37,14 @@ function _step(actor::ActorRABBIT)
     
     all_inputs = RABBIT.FUSEtoRABBITinput(dd)
 
-    powe_data, powi_data, jnbcd_data, rho_data, time_data = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
+    powe_data, powi_data, jnbcd_data, bdep_data, rho_data, time_data = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
     output = RABBIT.RABBIToutputs()
 
     output.powe_data = powe_data
     output.powi_data = powi_data
     output.jnbcd_data = jnbcd_data
+    output.bdep_data = bdep_data
+    # output.torque_data = torqdepo_data
     output.rho_data = rho_data 
     output.time_data = time_data 
 
@@ -74,14 +76,16 @@ function _finalize(actor::ActorRABBIT)
     source.profiles_1d[1].grid.rho_tor_norm = actor.outputs.rho_data
     ion = resize!(source.profiles_1d[1].ion, 1)[1]
 
-    source.profiles_1d[1].ion[1].energy = powi[:,1]
+    source.profiles_1d[1].total_ion_energy = powi[:,1]
     source.profiles_1d[1].electrons.energy = powe[:,1]
+    source.profiles_1d[1].electrons.particles = vec(sum(actor.outputs.bdep_data[1,:,:], dims = 1))
     source.profiles_1d[1].j_parallel = jnbcd[:,1]
 
     if num_t > 2
         for i in 2:length(num_t)
-            source.profiles_1d[i].ion[1].energy = powi[:,i]
-            source.profiles_1d[i].electrons.energy = powe[:,i] 
+            source.profiles_1d[i].total_ion_energy = powi[:,i]
+            source.profiles_1d[i].electrons.energy = powe[:,i]
+            source.profiles_1d[i].electrons.particles = vec(sum(actor.outputs.bdep_data[i,:,:], dims = 1))
         end
     end
 
