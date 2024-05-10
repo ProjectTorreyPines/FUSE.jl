@@ -7,9 +7,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersA
     _time::Float64 = NaN
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    model::Switch{Symbol} = Switch{Symbol}([:none, :uniform,:optimal],"-" ,"Coil placement strategy" ; default=:optimal)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    model::Switch{Symbol} = Switch{Symbol}([:none, :uniform, :optimal], "-", "Coil placement strategy"; default=:optimal)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorPFdesign{D,P} <: CompoundAbstractActor{D,P}
@@ -50,10 +50,8 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
     par = actor.par
     eqt = dd.equilibrium.time_slice[]
 
-    if par.model ==:none
-        # reset pf coil rails
-        n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
-        init_pf_active!(dd.pf_active, dd.build, eqt, n_coils)
+    if par.model == :none
+        # leave untouched
 
     elseif par.model in [:uniform, :optimal]
         # reset pf coil rails
@@ -62,7 +60,6 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
         # optimize coil placement
         if par.model == :optimal
-
             actor.actor_pf.λ_regularize = -1.0
             _step(actor.actor_pf)
 
@@ -101,21 +98,21 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
                 return cost
             end
-        end
-    end
 
-    old_logging = actor_logging(dd, false)
-    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
-    try
-        packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
-        res = Optim.optimize(x -> placement_cost(x; prog), packed, Optim.NelderMead())#, Optim.Options(; g_tol=1E-6))
-        packed = res.minimizer
-        actor.actor_pf.λ_regularize = unpack_rail!(packed, actor.actor_pf.setup_cache.optim_coils, par.symmetric, dd.build)
-        if par.verbose
-            println(res)
+            old_logging = actor_logging(dd, false)
+            prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
+            try
+                packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
+                res = Optim.optimize(x -> placement_cost(x; prog), packed, Optim.NelderMead())#, Optim.Options(; g_tol=1E-6))
+                packed = res.minimizer
+                actor.actor_pf.λ_regularize = unpack_rail!(packed, actor.actor_pf.setup_cache.optim_coils, par.symmetric, dd.build)
+                if par.verbose
+                    println(res)
+                end
+            finally
+                actor_logging(dd, old_logging)
+            end
         end
-    finally
-        actor_logging(dd, old_logging)
     end
 
     # size the PF coils based on the currents they are carrying
