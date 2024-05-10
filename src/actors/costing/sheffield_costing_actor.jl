@@ -10,8 +10,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorCostingSheffield{T<:Real} <: Par
     fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default=0.078)
     capitalize_blanket::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st blanket in direct captial cost"; default=false)
     capitalize_divertor::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st divertor in direct captial cost"; default=false)
-    divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Divertor fluence over its lifetime"; default=10.0)
-    blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m^2", "Blanket fluence over its lifetime"; default=15.0)
+    divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m²", "Divertor fluence over its lifetime"; default=10.0)
+    blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m²", "Blanket fluence over its lifetime"; default=15.0)
 end
 
 mutable struct ActorCostingSheffield{D,P} <: SingleAbstractActor{D,P}
@@ -351,7 +351,7 @@ function cost_fuel_Sheffield(
                 blanket_replacement_cost = availability * (neutron_flux / blanket_fluence_lifetime) * initial_cost_blanket
             else
                 blanket_capital_cost = initial_cost_blanket * fixed_charge_rate
-                blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m^2
+                blanket_replacement_cost = ((availability * plant_lifetime * neutron_flux / blanket_fluence_lifetime - 1) * initial_cost_blanket) / plant_lifetime #blanket fluence lifetime in MW*yr/m²
             end
 
             cost += 1.1 * (blanket_capital_cost + blanket_replacement_cost)
@@ -384,7 +384,7 @@ function cost_fuel_Sheffield(
         divertor_replacement_cost = availability * (thermal_flux / divertor_fluence_lifetime) * initial_cost_divertor
     else
         divertor_capital_cost = initial_cost_divertor * fixed_charge_rate
-        divertor_replacement_cost = (availability * plant_lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / plant_lifetime #divertor fluence lifetime in MW*yr/m^2
+        divertor_replacement_cost = (availability * plant_lifetime * thermal_flux / divertor_fluence_lifetime - 1) * initial_cost_divertor / plant_lifetime #divertor fluence lifetime in MW*yr/m²
     end
 
     cost = 1.1 * (divertor_capital_cost + divertor_replacement_cost)

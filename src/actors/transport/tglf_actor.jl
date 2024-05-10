@@ -74,16 +74,11 @@ function _step(actor::ActorTGLF)
         input_tglf = InputTGLF(dd, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
-            if par.model == :TGLFNN
-                # TGLF-NN has some difficulty with the sign of rotation / shear
-                actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
-                actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
-            end
         elseif par.model == :TJLF
             if !isassigned(actor.input_tglfs, k)
                 nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
                 actor.input_tglfs[k] = InputTJLF{Float64}(input_tglf.NS, nky)
-                actor.input_tglfs[k].WIDTH_SPECTRUM .= 0.0
+                actor.input_tglfs[k].WIDTH_SPECTRUM .= 1.65
                 actor.input_tglfs[k].FIND_WIDTH = true # first case should find the widths
             end
             update_input_tjlf!(actor.input_tglfs[k], input_tglf)
