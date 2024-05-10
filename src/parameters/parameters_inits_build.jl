@@ -86,7 +86,7 @@ end
 Base.@kwdef mutable struct FUSEparameters__balance_of_plant{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :balance_of_plant
-    cycle_type::Switch{Symbol} = Switch{Symbol}([:rankine, :brayton],"-", "Thermal cycle type";default=:rankine)
+    cycle_type::Switch{Symbol} = Switch{Symbol}([:rankine, :brayton], "-", "Thermal cycle type"; default=:rankine)
 end
 
 
