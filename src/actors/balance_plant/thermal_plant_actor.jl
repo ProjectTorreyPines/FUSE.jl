@@ -73,7 +73,6 @@ end
 function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     par = act.ActorThermalPlant(kw...)
     actor = ActorThermalPlant(dd, par)
-    dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
     actor = step(actor)
     finalize(actor)
     return actor
@@ -257,10 +256,9 @@ function _step(actor::ActorThermalPlant)
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
             actor.G = TSMD.system2metagraph(sys, utility_vector; soln=soln, verbose=false)
-            
 
-            if TSMD.has_edge(actor.G,actor.G[:steam_boiler,:name],actor.G[:inter_loop_hx4,:name])
-                TSMD.reverse_edge!(actor.G,actor.G[:steam_boiler,:name],actor.G[:inter_loop_hx4,:name])
+            if TSMD.has_edge(actor.G, actor.G[:steam_boiler, :name], actor.G[:inter_loop_hx4, :name])
+                TSMD.reverse_edge!(actor.G, actor.G[:steam_boiler, :name], actor.G[:inter_loop_hx4, :name])
             end
 
             para_vars = MTK.parameters(simple_sys)
@@ -391,8 +389,8 @@ function _step(actor::ActorThermalPlant)
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
             actor.G = TSMD.system2metagraph(sys, utility_vector; soln=sol, verbose=false)
 
-            if TSMD.has_edge(actor.G,actor.G[:cycle_heat,:name],actor.G[:inter_loop_hx4,:name])
-                TSMD.reverse_edge!(actor.G,actor.G[:cycle_heat,:name],actor.G[:inter_loop_hx4,:name])
+            if TSMD.has_edge(actor.G, actor.G[:cycle_heat, :name], actor.G[:inter_loop_hx4, :name])
+                TSMD.reverse_edge!(actor.G, actor.G[:cycle_heat, :name], actor.G[:inter_loop_hx4, :name])
             end
             para_vars = MTK.parameters(simple_sys)
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
@@ -481,18 +479,25 @@ function _step(actor::ActorThermalPlant)
             )
         )
     end
+
+    dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
+
     return actor
 end
 
 """
-    getval(v,act::ActorThermalPlant)
+    getval(v, act::ActorThermalPlant)
 
 Returns the value of a system parameter identified by symbol v.
+
 Inputs:
-v::Symbol corresponding to model parameters
-act::ActorThermalPlant
+
+  - v::Symbol corresponding to model parameters
+  - act::ActorThermalPlant
+
 Outputs:
-The actors default value for that parameter
+
+  - The actors default value for that parameter
 """
 function getval(v, act::ActorThermalPlant)
     return act.var2val[act.sym2var[v]]
@@ -502,14 +507,20 @@ end
     getvar(v,act::ActorThermalPlant)
 
 Returns the variable object of a system parameter identified by symbol v.
+
 Inputs:
-v::Symbol corresponding to model parameters
-act::ActorThermalPlant
+
+  - v::Symbol corresponding to model parameters
+  - act::ActorThermalPlant
+
 Outputs:
-The variable object associated with symbol v
+
+  - The variable object associated with symbol v
+
 Example:
-getvar(:η_bop, actor) === actor.plant.η_bop
-getvar(:Electric₊Ẇ) === actor.plant.Electric.Ẇ ===  actor.odedict[:Electric].Ẇ
+
+    getvar(:η_bop, actor) === actor.plant.η_bop
+    getvar(:Electric₊Ẇ) === actor.plant.Electric.Ẇ ===  actor.odedict[:Electric].Ẇ
 """
 function getvar(v, act::ActorThermalPlant)
     return act.sym2var[v]
@@ -518,7 +529,8 @@ end
 """
     getsol(act::ActorThermalPlant)
 
-Returns the current solution object of a the ThermalPlantActor. The returned function will output the solution point for any VARIABLE object within the plant.
+Returns the current solution object of a the ThermalPlantActor.
+The returned function will output the solution point for any VARIABLE object within the plant.
 """
 function getsol(act::ActorThermalPlant)
     return act.gplot.gprops[:soln]
@@ -526,16 +538,20 @@ end
 
 
 """
-    plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan = (0,10))
+    plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
 
 Evaluates the system described by simple_sys::ODESystem.
+
 Inputs:
-u = heat loading [Q_breeder, Q_divertor, Q_wall] (Watts)
-x = parameters values to use during evaluation, these are identified in keypara,
-keypara = variabels associated with the data in indices of x
-var2val and sym2var are dicts for getting the actual variable objects, they are the same as in the actor structure
+
+  - u = heat loading [Q_breeder, Q_divertor, Q_wall] (Watts)
+  - x = parameters values to use during evaluation, these are identified in keypara,
+  - keypara = variabels associated with the data in indices of x
+  - var2val and sym2var are dicts for getting the actual variable objects, they are the same as in the actor structure
+
 Ouput:
-soln = solution object
+
+  - soln = solution object
 """
 function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
 
@@ -558,13 +574,17 @@ function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10
 end
 
 """
-    plant_wrapper(x, u, ``yvars``, simple_sys, keypara, var2val, sym2var; tspan = (0,10))
+    plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
 
 Evaluates the system described by simple_sys::ODESystem.
+
 Inputs:
-yvars = vector of output variable objects
+
+  - yvars = vector of output variable objects
+
 Ouput:
-soln.(yvars)
+
+  - soln.(yvars)
 """
 function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
     # new parameters dict
@@ -586,11 +606,13 @@ function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan
 end
 
 """
-    plant_wrapper(act::ActorThermalPlant)
+    plant_wrapper(act::ActorThermalPlant; kw...)
 
 Evaluates the system described by act.plant
+
 Ouput:
-soln, the updated solution object
+
+  - soln, the updated solution object
 """
 function plant_wrapper(act::ActorThermalPlant; kw...)
     return plant_wrapper(act.x, act.u, act.plant, act.optpar, act.var2val, act.sym2var; kw...)
@@ -600,19 +622,23 @@ end
     plant_wrapper(act::ActorThermalPlant, yvars)
 
 Evaluates the system described by act.plant
+
 Ouput:
-soln.(yvars) at the updated solution for the vars stored in yvars
+
+  - soln.(yvars) at the updated solution for the vars stored in yvars
 """
 function plant_wrapper(act::ActorThermalPlant, yvars)
     return plant_wrapper(act.x, act.u, yvars, act.plant, act.optpar, act.var2val, act.sym2var)
 end
 
 """
-    plant_wrapper(act::ActorThermalPlant,yvars,yfunc)
+    plant_wrapper(act::ActorThermalPlant, yvars, yfunc)
 
 Evaluates the system described by act.plant and returns objective function value of yfunc. This function can be used during optimization trials.
+
 Ouput:
-yfunc(soln.(yvars))
+
+  - yfunc(soln.(yvars))
 """
 function plant_wrapper(act::ActorThermalPlant, yvars, yfunc)
     y = plant_wrapper(act, yvars)
@@ -768,103 +794,120 @@ function setxATP!(x, actorATP::ActorThermalPlant)
     return actorATP
 end
 
+"""
+    xcons!(x, lb, ub)
 
-function xcons!(x,lb,ub)
-    # x = vector{T}
-    # lb is lowerbounds
-    # ub is upper bounds
-    # cons is vector of tuples 
-    # (a,b) where a < b
+Inputs:
 
+  - x = vector{T}
+  - lb is lowerbounds
+  - ub is upper bounds
+"""
+function xcons!(x, lb, ub)
     @assert length(x) == length(lb) == length(ub) "Uneven vector lengths in xcons"
-    for (i,xi) in enumerate(x)
+    for (i, xi) in enumerate(x)
         xi < lb[i] ? x[i] = lb[i] : nothing
         xi > ub[i] ? x[i] = ub[i] : nothing
     end
     return x
 end
 
-#=
+"""
+    gen_optfunc(x, x0, x0_idx, lb, ub, yvars, yfunc, opt_actor)
+
 general optimization function which can be adapted into an anonymous handle to optimize any subset of vatriables in x0
 x0_idx are the indices in x0 which should be optimized, (x is just ActorThermalPlant.x)
-=#
-function gen_optfunc(x,x0, x0_idx,lb,ub,yvars,yfunc,opt_actor)
-    xrep = deepcopy(x0);
+"""
+function gen_optfunc(x, x0, x0_idx, lb, ub, yvars, yfunc, opt_actor)
+    xrep = deepcopy(x0)
     xrep[x0_idx] .= x
-    xrep=xcons!(xrep,lb,ub)
-    opt_actor = FUSE.setxATP!(xrep,opt_actor)
-    return FUSE.plant_wrapper(opt_actor,yvars,yfunc)
+    xrep = xcons!(xrep, lb, ub)
+    opt_actor = FUSE.setxATP!(xrep, opt_actor)
+    return FUSE.plant_wrapper(opt_actor, yvars, yfunc)
 end
 
-function eval_optfunc(x,x0,x0_idx,lb,ub,yvars,opt_actor)
-    xrep = deepcopy(x0);
+function eval_optfunc(x, x0, x0_idx, lb, ub, yvars, opt_actor)
+    xrep = deepcopy(x0)
     xrep[x0_idx] .= x
-    xrep=xcons!(xrep,lb,ub)
-    opt_actor = FUSE.setxATP!(xrep,opt_actor)
-    return FUSE.plant_wrapper(opt_actor,yvars)
+    xrep = xcons!(xrep, lb, ub)
+    opt_actor = FUSE.setxATP!(xrep, opt_actor)
+    return FUSE.plant_wrapper(opt_actor, yvars)
 end
 
 
 function optimize_thermal_plant(opt_actor)
-    optp = (iterations = 100, time_limit = 60, f_tol = .001);
+    optp = (iterations=100, time_limit=60, f_tol=0.001)
 
     # Variables to be optimized (Tunable parameters/states for the plant system)
     # x0 = opt_actor.x (same as below, but copy and pasted for the reader) 
     #(Unhide this line to show opt_x)
-        # opt_x = Dict{Symbol, Float64} with 9 entries:
-        #                 :divertor_supply₊T   => 350.0
-        #                 :breeder_heat₊Tout   => 1136.0
-        #                 :breeder_supply₊T    => 674.7
-        #                 :wall_heat₊Tout      => 950.0
-        #                 :steam_ṁ             => 250.0
-        #                 :inter_loop_ṁ        => 300.0
-        #                 :inter_loop_supply₊T => 350.0
-        #                 :wall_supply₊T       => 350.0
-        #                 :divertor_heat₊Tout  => 1000.0
+    # opt_x = Dict{Symbol, Float64} with 9 entries:
+    #                 :divertor_supply₊T   => 350.0
+    #                 :breeder_heat₊Tout   => 1136.0
+    #                 :breeder_supply₊T    => 674.7
+    #                 :wall_heat₊Tout      => 950.0
+    #                 :steam_ṁ             => 250.0
+    #                 :inter_loop_ṁ        => 300.0
+    #                 :inter_loop_supply₊T => 350.0
+    #                 :wall_supply₊T       => 350.0
+    #                 :divertor_heat₊Tout  => 1000.0
 
     #      cycle ṁ,  loop ṁ,   loopTmin,    wTmin,   wTmax,     divTmin, divTmax,      brdrTmin,   brdrTmax
+    #! format: off
     x0 =   [250.0,   300.0,    350.00,      350.00,  950.00,    350.00,  1000.0,      674.7,      1136.0];
+    #! format: on
 
     # upper and lower bounds
     #      [  flow rates  ]  [loop Temp]   [   wall temp    ]   [ divertor temp  ]    [ breeder temp     ]
-    lb   = [10.0,    10.0,     350.00,      350.00,  601.00,    350.00,  601.00,      500.00,     901.00];
-    ub   = [500.0,   500.0,    600.00,      600.00,  950.00,    600.00,  1000.00,     900.00,     1300.00];
+    #! format: off
+    lb = [10.0, 10.0, 350.00, 350.00, 601.00, 350.00, 601.00, 500.00, 901.00]
+    ub = [500.0, 500.0, 600.00, 600.00, 950.00, 600.00, 1000.00, 900.00, 1300.00]
+    #! format: on
 
     # Relevant, System output variable required for the objective function, 
     # this is a simple case where we will just optimize the total electric power produced
-    yvars = [opt_actor.odedict[:Electric].Ẇ, opt_actor.plant.η_bop, opt_actor.plant.η_cycle];
+    yvars = [opt_actor.odedict[:Electric].Ẇ, opt_actor.plant.η_bop, opt_actor.plant.η_cycle]
 
     # anonymous object function which will act on the sol(yvars)
-    yfunc(y) = -(y[1])/100e6
+    yfunc(y) = -(y[1]) / 100e6
 
     # index of mass flow variables in x0
-    mflow_opt_idx   = [1,2,3,5,7,9];
-    x0_opt          = x0[mflow_opt_idx];   
+    mflow_opt_idx = [1, 2, 3, 5, 7, 9]
+    x0_opt = x0[mflow_opt_idx]
 
     # anonymous optimization function
-    mflow_opt_func(x) = gen_optfunc(x,x0, mflow_opt_idx, lb, ub, yvars, yfunc, opt_actor);
+    mflow_opt_func(x) = gen_optfunc(x, x0, mflow_opt_idx, lb, ub, yvars, yfunc, opt_actor)
 
-    r2(x) = round(x; digits = 2)
+    r2(x) = round(x; digits=2)
 
     # initial
     println("x0 = $(r2.(x0))")
-    y0 = eval_optfunc(x0_opt,x0,mflow_opt_idx,lb,ub,yvars,opt_actor);
-    for i =1:length(yvars)
+    y0 = eval_optfunc(x0_opt, x0, mflow_opt_idx, lb, ub, yvars, opt_actor)
+    for i in 1:length(yvars)
         @printf "%-16s = %+-8.4g\n" string(yvars[i]) y0[i]
     end
     println("")
 
-    xr = Optim.optimize(mflow_opt_func,x0_opt,Optim.NelderMead(),Optim.Options(;optp...));
-
-    xf = Optim.minimizer(xr);
-
-    yf = eval_optfunc(xf,x0,mflow_opt_idx,lb,ub,yvars,opt_actor);
+    xr = Optim.optimize(mflow_opt_func, x0_opt, Optim.NelderMead(), Optim.Options(; optp...))
+    xf = Optim.minimizer(xr)
+    yf = eval_optfunc(xf, x0, mflow_opt_idx, lb, ub, yvars, opt_actor)
 
     println("xf = $(r2.(opt_actor.x))")
 
-    for i =1:length(yvars)
+    for i in 1:length(yvars)
         @printf "%-16s = %+-8.4g\n" string(yvars[i]) yf[i]
     end
+
     println(xr)
-    return plant_wrapper(opt_actor.x, opt_actor.u, opt_actor.plant, opt_actor.optpar, opt_actor.var2val, opt_actor.sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
+
+    return plant_wrapper(
+        opt_actor.x,
+        opt_actor.u,
+        opt_actor.plant,
+        opt_actor.optpar,
+        opt_actor.var2val,
+        opt_actor.sym2var;
+        tspan=(0, 10),
+        solver=DifferentialEquations.Rosenbrock23()
+    )
 end
