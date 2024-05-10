@@ -12,7 +12,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: Paramet
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:brayton, :rankine], "-", "user can only select one of these"; default=:rankine) # for future additions
     heat_load_from::Switch{Symbol} = Switch{Symbol}([:dd, :actor], "-", ""; default=:dd)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
@@ -21,6 +20,7 @@ end
 mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorThermalPlant{P}       # Actors must carry with them the parameters they are run with
+    model::Symbol                       # 
     components::Vector{MTK.ODESystem}   # Vector of type ODESystem
     connections::Vector{MTK.Equation}   # Connection equations
     odeparams::Vector{MTK.Num}          # Circuit Parameters 
@@ -42,9 +42,10 @@ mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
     function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlant{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorThermalPlant)
         par = par(kw...)
-        dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
-        return new{D,P}(dd,
+        return new{D,P}(
+            dd,
             par,
+            dd.balance_of_plant.power_plant.power_cycle_type,
             MTK.ODESystem[],
             MTK.Equation[],
             MTK.Num[],
@@ -83,6 +84,7 @@ function _step(actor::ActorThermalPlant)
     dd = actor.dd
     par = actor.par
 
+    actor.model = dd.balance_of_plant.power_plant.power_cycle_type
     use_actor_u = par.heat_load_from == :dd ? false : true
 
     breeder_heat_load = (use_actor_u == false) ? (isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)) : actor.u[1]
@@ -113,8 +115,8 @@ function _step(actor::ActorThermalPlant)
         Tmin_wall = 350     # Minimum cooling temperature for first wall
         Tmax_div = 1000    # Maximum cooling temperature for Divertor
         Tmin_div = 350     # Minimum cooling temperature for Divertor
-        Tmax_breeder = par.model == :rankine ? 1136 : 1300 # Maximum cooling temperature for Breeder blanket
-        Tmin_breeder = par.model == :rankine ? 674.7 : 900 # Minimum cooling temperature for Breeder blanket
+        Tmax_breeder = actor.model == :rankine ? 1136 : 1300 # Maximum cooling temperature for Breeder blanket
+        Tmin_breeder = actor.model == :rankine ? 674.7 : 900 # Minimum cooling temperature for Breeder blanket
         Nhx = 4                  # Nhx = the number of heat exchangers to add to the loop, 4: 3 to connect to cooling loops, 1 to connect to primary power cycle
         flowrate = 300                # mass flow rate of the intermediate loop (kg/s)
         Tmin_interloop = 350 # minimum temperature for inter loop (Kelvin)
@@ -134,7 +136,7 @@ function _step(actor::ActorThermalPlant)
         # intermediate loop
         inter_loop_sys, inter_loop_connections, iparams, idict = TSMD.intermediate_loop(; Nhx=Nhx, flowrate=flowrate, Tmin=Tmin_interloop)
 
-        if par.model == :rankine
+        if actor.model == :rankine
             cycle_flowrate = 250      # kg/s
             ηpump = 0.7      # isentropic effeciency of the pump
             ηturbine = 0.95    # Isentropic effeciency of the turbine
@@ -280,7 +282,7 @@ function _step(actor::ActorThermalPlant)
             TSMD.set_plot_props!(gcopy)
             actor.gplot = gcopy
 
-        elseif par.model == :brayton
+        elseif actor.model == :brayton
             cyclesys, cconnections, cparams, cdict = TSMD.brayton_cycle(; flowrate=300)
             energy_con = vcat(
                 TSMD.work_connect(
@@ -410,6 +412,9 @@ function _step(actor::ActorThermalPlant)
             TSMD.edgeroute_nodes(gcopy; voff=0.1)
             TSMD.set_plot_props!(gcopy)
             actor.gplot = gcopy
+
+        else
+            error("ActorThermalPlant model `:$(actor.model)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [:rankine, :brayton]")
         end
         actor.x = [getval(a, actor) for a in actor.optpar]
     end
@@ -471,7 +476,7 @@ function _step(actor::ActorThermalPlant)
                 xlim=[-15, 75],
                 ylim=[-21, 21],
                 xticks=[0, 1, 2, 3, 4, 5, 6, 7],
-                plot_title="Balance Of Plant Circuit: $(titlecase(string(par.model)))",
+                plot_title="Balance Of Plant Circuit: $(titlecase(string(actor.model)))",
                 plot_titlefonthalign=:hcenter,
                 plot_titlefontvalign=:bottom,
                 dpi=200,
@@ -479,8 +484,6 @@ function _step(actor::ActorThermalPlant)
             )
         )
     end
-
-    dd.balance_of_plant.power_plant.power_cycle_type = lowercase(string(par.model))
 
     return actor
 end
