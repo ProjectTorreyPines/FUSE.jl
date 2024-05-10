@@ -31,9 +31,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
         check=x -> @assert x > 0.0 "must be: step_size > 0.0"
     )
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
+    save_input_tglf_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder at the last iteration"; default="")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
-    save_tglf_first_iteration_folder::Entry{String} = Entry{String}("-", "Save the intput_tglfs in designated folder at first FM iteration";default="")
 end
 
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
@@ -99,7 +99,7 @@ function _step(actor::ActorFluxMatcher)
 
     # make sure no zeros are in norms
     for i in 1:length(actor.norms)
-        if actor.norms[i] == 0.
+        if actor.norms[i] == 0.0
             actor.norms[i] = 1.0
         end
     end
@@ -133,7 +133,7 @@ function _step(actor::ActorFluxMatcher)
     if par.optimizer_algorithm == :none
         res = (zero=z_init_scaled,)
     elseif par.optimizer_algorithm == :simple
-        res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog;par.save_tglf_first_iteration_folder)
+        res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
     else
         res = try
             res = NLsolve.nlsolve(
@@ -152,7 +152,8 @@ function _step(actor::ActorFluxMatcher)
         end
     end
 
-    flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    # evaluate profiles at the best-matching gradients
+    flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
@@ -179,7 +180,8 @@ function _step(actor::ActorFluxMatcher)
     # Also when the power flowing through the separatrix is below zero we want to punish the profiles (otherwise we generate energy from nothing)
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd)
-    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te || !(total_sources.electrons.power_inside[end] + total_sources.total_ion_power_inside[end] >= 0)
+    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te ||
+       !(total_sources.electrons.power_inside[end] + total_sources.total_ion_power_inside[end] >= 0)
         @warn "Profiles completely collpased due to insufficient source versus turbulence"
         te = cp1d.electrons.temperature
         teped = @ddtime(dd.summary.local.pedestal.t_e.value)
@@ -226,7 +228,7 @@ function flux_match_errors(
     z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[],
     prog::Any=nothing,
-    save_tglf_first_iteration_folder::String="")
+    save_input_tglf_folder::String="")
 
     dd = actor.dd
     par = actor.par
@@ -260,10 +262,10 @@ function flux_match_errors(
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
-    if !isempty(save_tglf_first_iteration_folder)
-        for (idx,input_tglf) in enumerate(actor.actor_ct.actor_turb.input_tglfs)
-            name = joinpath(par.save_tglf_first_iteration_folder,"input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
-            TGLFNN.save(input_tglf,name)
+    if !isempty(save_input_tglf_folder)
+        for (idx, input_tglf) in enumerate(actor.actor_ct.actor_turb.input_tglfs)
+            name = joinpath(par.save_input_tglf_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
+            TGLFNN.save(input_tglf, name)
         end
     end
 
@@ -451,8 +453,7 @@ function flux_match_simple(
     err_history::Vector{Float64},
     ftol::Float64,
     xtol::Float64,
-    prog::Any;
-    save_tglf_first_iteration_folder::String
+    prog::Any
 )
     dd = actor.dd
     par = actor.par
@@ -462,7 +463,7 @@ function flux_match_simple(
     xerror = 1e10
 
     zprofiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
-    flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog, save_tglf_first_iteration_folder)
+    flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
     fluxes = flux_match_fluxes(dd, par, prog)
     targets = flux_match_targets(dd, par, prog)
     fluxes_old = deepcopy(fluxes)
