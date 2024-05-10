@@ -45,7 +45,7 @@ mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
         return new{D,P}(
             dd,
             par,
-            dd.balance_of_plant.power_plant.power_cycle_type,
+            Symbol(dd.balance_of_plant.power_plant.power_cycle_type),
             MTK.ODESystem[],
             MTK.Equation[],
             MTK.Num[],
@@ -84,7 +84,6 @@ function _step(actor::ActorThermalPlant)
     dd = actor.dd
     par = actor.par
 
-    actor.model = dd.balance_of_plant.power_plant.power_cycle_type
     use_actor_u = par.heat_load_from == :dd ? false : true
 
     breeder_heat_load = (use_actor_u == false) ? (isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)) : actor.u[1]
@@ -414,7 +413,7 @@ function _step(actor::ActorThermalPlant)
             actor.gplot = gcopy
 
         else
-            error("ActorThermalPlant model `:$(actor.model)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [:rankine, :brayton]")
+            error("ActorThermalPlant model `:$(actor.model)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\"]")
         end
         actor.x = [getval(a, actor) for a in actor.optpar]
     end

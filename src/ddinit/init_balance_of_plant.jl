@@ -17,7 +17,7 @@ function init_balance_of_plant!(dd::IMAS.dd, ini::ParametersAllInits, act::Param
         end
 
         if init_from == :scalars
-            dd.balance_of_plant.power_plant.power_cycle_type = String(ini.bop.cycle_type)
+            dd.balance_of_plant.power_plant.power_cycle_type = string(ini.bop.cycle_type)
         end
 
         return dd
