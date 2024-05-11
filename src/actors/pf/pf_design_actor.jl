@@ -112,11 +112,12 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             finally
                 actor_logging(dd, old_logging)
             end
+
+            # size the PF coils based on the currents they are carrying
+            size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=getproperty(dd.requirements, :coil_j_margin, 0.4))
         end
     end
 
-    # size the PF coils based on the currents they are carrying
-    size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=getproperty(dd.requirements, :coil_j_margin, 0.4))
     _step(actor.actor_pf) # must run actor_pf to update the equilibrium accordingly
 
     return actor
