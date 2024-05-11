@@ -31,37 +31,35 @@ mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
     prob        #::MTK.ODEProblem
     G
     gplot
-    sym2var::Dict{}
-    var2val::Dict{}
-    optpar::Vector{}
+    sym2var::Dict
+    var2val::Dict
+    optpar::Vector{Symbol}
     x   # Parameters actors
     u   # Load vector
-    # Inner constructor for the actor starting from `dd` and `par` (we generally refer to `par` as `act.ThermalPlant`)
-    # NOTE: Computation should not happen here since in workflows it is normal to instantiate
-    #       an actor once `ThermalPlant(dd, act.ThermalPlant)` and then call `finalize(step(actor))` several times as needed.
-    function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlant{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorThermalPlant)
-        par = par(kw...)
-        return new{D,P}(
-            dd,
-            par,
-            Symbol(dd.balance_of_plant.power_plant.power_cycle_type),
-            MTK.ODESystem[],
-            MTK.Equation[],
-            MTK.Num[],
-            Dict{MTK.Symbol,MTK.ODESystem}(),
-            false,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            Dict{}(),
-            Dict{}(),
-            Symbol[],
-            nothing,
-            nothing)
-    end
+end
+
+function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlant{P}; kw...) where {D<:Real,P<:Real}
+    logging_actor_init(ActorThermalPlant)
+    par = par(kw...)
+    return ActorThermalPlant(
+        dd,
+        par,
+        Symbol(dd.balance_of_plant.power_plant.power_cycle_type),
+        MTK.ODESystem[],
+        MTK.Equation[],
+        MTK.Num[],
+        Dict{MTK.Symbol,MTK.ODESystem}(),
+        false,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        nothing,
+        Dict(),
+        Dict(),
+        Symbol[],
+        nothing,
+        nothing)
 end
 
 """
@@ -80,32 +78,42 @@ function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function _step(actor::ActorThermalPlant)
-    # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
     dd = actor.dd
     par = actor.par
 
+    # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
     use_actor_u = par.heat_load_from == :dd ? false : true
+
+    # don't calculate anything in absence of a blanket 
+    blankets = IMAS.get_build_layers(dd.build.layer, type=_blanket_)
+    if !use_actor_u && isempty(blankets)
+        empty!(dd.balance_of_plant)
+        dd.balance_of_plant.power_plant.power_cycle_type = string(actor.model)
+        @warn "No blanket present for ActorThermalPlant to do anything"
+        return actor
+    end
 
     breeder_heat_load = (use_actor_u == false) ? (isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)) : actor.u[1]
     divertor_heat_load = (use_actor_u == false) ? (isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)) : actor.u[2]
-    wall_heat_load = (use_actor_u == false) ? abs.(IMAS.radiation_losses(dd.core_sources)) : actor.u[3]
+    wall_heat_load = (use_actor_u == false) ? abs(IMAS.radiation_losses(dd.core_sources)) : actor.u[3]
 
     actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
+
     # Buidling the TSM System
-    if actor.buildstatus == false
-        @info "Rebuilding ActorThermalPlant"
+    if !actor.buildstatus
+        @debug "Rebuilding ActorThermalPlant"
 
         # This is for graph construction which currently relies on the heat flow trajectory through the full BOP 
         # In one of the steps to to plot the graph, (TSMD.create_plot_graph()) there is a routine which 
         # has to take a directed cyclic graph and convert it into a directed acyclic graph, to do this correctly TSM
-        # relies on the heat flow (solution) trajectory through the entire plant in order to find the correct edge direction ( within the MetaGraph object), 
+        # relies on the heat flow (solution) trajectory through the entire plant in order to find the correct edge direction (within the MetaGraph object), 
         # since balance equations are directionless without context, 
         # This only matters for the first step since that is when TSMD builds the graph object, afterwards 0 values are not an issue
         if 0 ∈ actor.u
-            @warn "Invalid initial thermal loading is [Qbreeder, Qdivertor, Qwall] = $(actor.u), \n Setting load to default for construction step, resetting to [500e6,100e6,100e6]), \n Rerun FUSE.step(act.ActorThermalPlant) to update loading to the correct value"
             breeder_heat_load = 500e6
             divertor_heat_load = 100e6
             wall_heat_load = 100e6
+            @warn "Invalid initial thermal loading is [Qbreeder, Qdivertor, Qwall] = $(actor.u)\n Setting load to default for construction step, resetting to [$breeder_heat_load,$divertor_heat_load,$wall_heat_load])\nRerun FUSE.step(act.ActorThermalPlant) to update loading to the correct value."
         end
 
         # default parameters
@@ -265,8 +273,8 @@ function _step(actor::ActorThermalPlant)
             para_vars = MTK.parameters(simple_sys)
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
 
-            actor.sym2var = Dict(para_syms[i] => para_vars[i] for i in 1:length(para_vars))
-            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys, para_vars[i])(ode_sol) for i in 1:length(para_vars))
+            actor.sym2var = Dict(para_syms[i] => para_vars[i] for i in eachindex(para_vars))
+            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys, para_vars[i])(ode_sol) for i in eachindex(para_vars))
 
             gcopy = TSMD.create_plot_graph(actor.G; toignore=[:steam_condensor], verbose=false)
             xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy)
@@ -381,7 +389,6 @@ function _step(actor::ActorThermalPlant)
                 :breeder_supply₊T,
                 :breeder_heat₊Tout]
 
-            tspan = (0.0, 10)
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
 
             ode_sol = DifferentialEquations.solve(actor.prob)
@@ -396,8 +403,8 @@ function _step(actor::ActorThermalPlant)
             para_vars = MTK.parameters(simple_sys)
             para_syms = TSMD.variable2symbol(MTK.parameters(simple_sys))
 
-            actor.sym2var = Dict(para_syms[i] => para_vars[i] for i in 1:length(para_vars))
-            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys, para_vars[i])(ode_sol) for i in 1:length(para_vars))
+            actor.sym2var = Dict(para_syms[i] => para_vars[i] for i in eachindex(para_vars))
+            actor.var2val = Dict(para_vars[i] => MTK.getp(simple_sys, para_vars[i])(ode_sol) for i in eachindex(para_vars))
 
             gcopy = TSMD.create_plot_graph(actor.G; toignore=[:cycle_cooler], verbose=false)
             xLayReqs, vSortReqs, xs, ys, paths, lay2node = TSMD.layers_to_force!(gcopy)
@@ -425,8 +432,8 @@ function _step(actor::ActorThermalPlant)
 
     # TSMD.updateGraphSoln(actor.gplot, soln)
 
-    # write to dd if ddwrite = true
-    initddbop(actor; soln=soln)
+    # write to dd
+    initddbop(actor; soln)
 
     if par.do_plot
         sysnamedict = Dict([
@@ -538,7 +545,6 @@ function getsol(act::ActorThermalPlant)
     return act.gplot.gprops[:soln]
 end
 
-
 """
     plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
 
@@ -556,7 +562,6 @@ Ouput:
   - soln = solution object
 """
 function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
-
     # new parameters dict
     pwrapped = var2val
 
@@ -672,25 +677,25 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
         "condensor" => "Cool HX"
     )
 
-    gp = getproperty(gcopy, :gprops)
-    np = getproperty(gcopy, :vprops)
+    gp = gcopy.gprops
+    np = gcopy.vprops
     nv_g = maximum(collect(keys(np)))
     soln = (isnothing(soln) ? gp[:soln] : soln)
 
     # names of the internal subgraph objects
-    syslabs = [titlecase(replace(lowercase(string(sl)), compnamesubs...)) for sl in gcopy.gprops[:system_labels]]
+    syslabs = [titlecase(replace(lowercase(string(sl)), compnamesubs...)) for sl in gp[:system_labels]]
     format_name(x) = titlecase(replace(lowercase(string(x)), compnamesubs...))
 
     # initializing the 1st level of dd
     if length(bop_plant.system) != length(syslabs)
         empty!(dd.balance_of_plant.power_plant.system)
         resize!(bop_plant.system, length(syslabs))
-        for i in 1:length(syslabs)
+        for i in eachindex(syslabs)
             bop_plant.system[i].name = syslabs[i]
         end
     end
     bopsys = bop_plant.system
-    bops_dict = Dict(bopsys[i].name => i for i in 1:length(syslabs)) # dict where name => index
+    bops_dict = Dict(bopsys[i].name => i for i in eachindex(syslabs)) # dict where name => index
     valid_s = collect(keys(bops_dict))
 
     nparent_dict = TSMD.node_propdict(gcopy, :parent)
@@ -789,7 +794,7 @@ end
 Setter for actor.x
 """
 function setxATP!(x, actorATP::ActorThermalPlant)
-    for i in 1:length(x)
+    for i in eachindex(x)
         actorATP.x[i] = x[i]
         actorATP.var2val[actorATP.sym2var[actorATP.optpar[i]]] = x[i]
     end
@@ -836,7 +841,6 @@ function eval_optfunc(x, x0, x0_idx, lb, ub, yvars, opt_actor)
     return FUSE.plant_wrapper(opt_actor, yvars)
 end
 
-
 function optimize_thermal_plant(opt_actor)
     optp = (iterations=100, time_limit=60, f_tol=0.001)
 
@@ -882,25 +886,25 @@ function optimize_thermal_plant(opt_actor)
 
     r2(x) = round(x; digits=2)
 
-    # initial
-    println("x0 = $(r2.(x0))")
+    # print initial
+    @debug "x0 = $(r2.(x0))"
     y0 = eval_optfunc(x0_opt, x0, mflow_opt_idx, lb, ub, yvars, opt_actor)
-    for i in 1:length(yvars)
-        @printf "%-16s = %+-8.4g\n" string(yvars[i]) y0[i]
+    for i in eachindex(yvars)
+        @debug @sprintf("%-16s = %+-8.4g", string(yvars[i]), y0[i])
     end
-    println("")
-
-    xr = Optim.optimize(mflow_opt_func, x0_opt, Optim.NelderMead(), Optim.Options(; optp...))
-    xf = Optim.minimizer(xr)
+    @debug ""
+    
+    # optimize
+    res = Optim.optimize(mflow_opt_func, x0_opt, Optim.NelderMead(), Optim.Options(; optp...))
+    @debug string(res)
+    xf = Optim.minimizer(res)
     yf = eval_optfunc(xf, x0, mflow_opt_idx, lb, ub, yvars, opt_actor)
-
-    println("xf = $(r2.(opt_actor.x))")
-
-    for i in 1:length(yvars)
-        @printf "%-16s = %+-8.4g\n" string(yvars[i]) yf[i]
+    
+    # print after optimization
+    @debug "xf = $(r2.(opt_actor.x))"
+    for i in eachindex(yvars)
+        @debug @sprintf("%-16s = %+-8.4g", string(yvars[i]), yf[i])
     end
-
-    println(xr)
 
     return plant_wrapper(
         opt_actor.x,
