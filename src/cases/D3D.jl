@@ -60,7 +60,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :copper
 
-    ini.tf.shape = :rectangle_ellipse
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 24
     ini.tf.technology = :copper
 

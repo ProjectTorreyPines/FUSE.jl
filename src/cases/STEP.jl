@@ -193,9 +193,9 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :nb3sn_iter
 
+    ini.tf.shape = :rectangle
     ini.tf.n_coils = 12
     ini.tf.technology = :rebco
-    ini.tf.shape = :rectangle
     ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
 
     act.ActorPFdesign.symmetric = true

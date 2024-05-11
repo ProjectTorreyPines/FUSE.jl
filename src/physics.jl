@@ -51,11 +51,12 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction))
+            r_center = (maximum(r_obstruction) + minimum(r_obstruction)) / 2.0
+            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
+            shape_parameters = [r_center, centerpost_height, height]
+        elseif shape_index_mod == Int(_circle_ellipse_)
+            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [centerpost_height, height]
-        elseif shape_index_mod == Int(_rectangle_ellipse_)
-            height = (maximum(z_obstruction) - minimum(z_obstruction))
-            shape_parameters = [height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
@@ -121,9 +122,9 @@ function shape_function(shape_function_index::Int; resolution::Float64)
             func = princeton_D_approx
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             func = princeton_D_scaled
-        elseif shape_index_mod == Int(_double_ellipse_)
+        elseif shape_index_mod == Int(_circle_ellipse_)
             func = circle_ellipse
-        elseif shape_index_mod == Int(_rectangle_ellipse_)
+        elseif shape_index_mod == Int(_double_ellipse_)
             func = double_ellipse
         elseif shape_index_mod == Int(_rectangle_)
             func = rectangle_shape
@@ -207,7 +208,7 @@ function optimize_shape(
             z_obstruction::Vector{Float64},
             rz_obstruction::Vector{Tuple{Float64,Float64}},
             target_clearance::Float64,
-            target_volume::Float64,
+            target_area::Float64,
             func::Function,
             r_start::Float64,
             r_end::Float64,
@@ -217,7 +218,7 @@ function optimize_shape(
         )
             R, Z = func(r_start, r_end, shape_parameters...)
 
-            cost_volume = abs(IMAS.revolution_volume(R, Z) - target_volume) / target_volume
+            cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
 
             length(R) == length(Z) || error("R and Z have different length")
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
@@ -264,15 +265,15 @@ function optimize_shape(
             end
 
             # return cost
-            return 100 .* cost_min_clearance^2 + cost_mean_above_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2 + 10 * cost_volume + cost_max_curvature
+            return 100 .* cost_min_clearance^2 + cost_mean_above_distance^2 + cost_inside^2 + cost_up_down_symmetry^2 + 10 * cost_area + cost_max_curvature
         end
 
         r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
-        target_volume = IMAS.revolution_volume(r_obstruction_buffered, z_obstruction_buffered)
+        target_area = IMAS.area(r_obstruction_buffered, z_obstruction_buffered)
 
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
-            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_volume, func, r_start, r_end, shape_parameters; use_curvature),
+            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
         if verbose
             println(res)
@@ -413,6 +414,9 @@ end
 double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
+    height = abs(height)
+    centerpost_height = mirror_bound(abs(centerpost_height), 0.0, height)
+    r_center = mirror_bound(r_center, r_start, r_end)
     return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points, resolution)
 end
 
@@ -457,11 +461,11 @@ circle ellipse shape (parametrization of TF coils used in GATM)
 Special case of the double ellipse shape, where the inner ellipse is actually a circle
 """
 function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    centerpost_height = abs(centerpost_height)
     height = abs(height)
-    centerpost_height = mirror_bound(centerpost_height, 0.0, height)
-    r_center = r_start + (height - centerpost_height) / 2.0
-    return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points, resolution)
+    centerpost_height = mirror_bound(abs(centerpost_height), 0.0, height)
+    r_circle = (height - centerpost_height) / 2.0
+    r_center = r_start + r_circle
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points, resolution)
 end
 
 """

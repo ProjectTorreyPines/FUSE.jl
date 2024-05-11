@@ -25,7 +25,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :cicle_ellipse
     ini.tf.n_coils = 16
     ini.tf.technology = :nb3sn_iter
 

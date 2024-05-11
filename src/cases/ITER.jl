@@ -91,7 +91,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.pf_active.technology = :nbti
     act.ActorPFdesign.symmetric = false
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :circle_ellipse
     ini.tf.n_coils = 18
     ini.tf.technology = :nb3sn_iter
 

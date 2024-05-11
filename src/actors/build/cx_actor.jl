@@ -614,6 +614,30 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     plasma.outline.r = pr
     plasma.outline.z = pz
 
+    # up-down symmetric plasma
+    is_z_offset = false
+    if abs(sum(pz) / sum(abs, pz)) > 1E-2
+        is_z_offset = true
+    end
+
+    # up-down symmetric plasma
+    is_negative_D = false
+    _, imaxr = findmax(pr)
+    _, iminr = findmin(pr)
+    _, imaxz = findmax(pz)
+    _, iminz = findmin(pz)
+    r_at_max_z, _ = pr[imaxz], pz[imaxz]
+    r_at_min_z, _ = pr[iminz], pz[iminz]
+    _, max_r = pz[imaxr], pr[imaxr]
+    _, min_r = pz[iminr], pr[iminr]
+    a = 0.5 * (max_r - min_r)
+    R = 0.5 * (max_r + min_r)
+    δu = (R - r_at_max_z) / a
+    δl = (R - r_at_min_z) / a
+    if δu + δl < -0.1
+        is_negative_D = true
+    end
+
     # all layers between plasma and TF
     # k-1 means the layer outside (ie. towards the tf)
     # k   is the current layer
@@ -623,8 +647,9 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     for k in plasma_to_tf
         layer = bd.layer[k]
         layer_shape = BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-        @debug "$(layer.name) $(layer_shape)"
+        # @show "$(layer.name) $(layer_shape) $(layer.shape)"
 
+        # add PF coils to the obstructions if they belong to this layer
         obstruction_outline = nothing
         vertical_clearance = 1.0
         if contains(lowercase(layer.name), "coils")
@@ -635,7 +660,8 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
             end
         end
 
-        layer.shape, layer.shape_parameters = optimize_shape(bd, k + 1, k, layer_shape; vertical_clearance, resolution=n_points / 201.0, obstruction_outline)
+        layer.shape, layer.shape_parameters =
+            optimize_shape(bd, k + 1, k, layer_shape; vertical_clearance, resolution=n_points / 201.0, obstruction_outline, is_negative_D, is_z_offset)
     end
 
     # resample
@@ -688,7 +714,9 @@ function optimize_shape(
     shape_enum::BuildLayerShape;
     vertical_clearance::Float64=1.0,
     resolution::Float64=1.0,
-    obstruction_outline=nothing
+    obstruction_outline=nothing,
+    is_z_offset::Bool=false,
+    is_negative_D::Bool=false
 )
     shape = Int(shape_enum)
 
@@ -752,45 +780,11 @@ function optimize_shape(
         shape_parameters = Float64[]
 
     else # handle shapes
-        if shape > 1000
-            shape = mod(shape, 1000)
-        end
-        if shape > 100
-            shape = mod(shape, 100)
-        end
-
-        if shape == Int(_silo_)
-            is_up_down_symmetric = false
-        elseif abs(sum(oZ) / sum(abs, oZ)) < 1E-2
-            is_up_down_symmetric = true
-        else
-            is_up_down_symmetric = false
-        end
-
-        is_negative_D = false
-        if shape != Int(_silo_)
-            _, imaxr = findmax(oR)
-            _, iminr = findmin(oR)
-            _, imaxz = findmax(oZ)
-            _, iminz = findmin(oZ)
-            r_at_max_z, max_z = oR[imaxz], oZ[imaxz]
-            r_at_min_z, min_z = oR[iminz], oZ[iminz]
-            z_at_max_r, max_r = oZ[imaxr], oR[imaxr]
-            z_at_min_r, min_r = oZ[iminr], oR[iminr]
-            a = 0.5 * (max_r - min_r)
-            R = 0.5 * (max_r + min_r)
-            δu = (R - r_at_max_z) / a
-            δl = (R - r_at_min_z) / a
-            if δu + δl < -0.1
-                is_negative_D = true
-            end
-        end
-
+        shape = mod(mod(shape, 1000), 100)
         if is_negative_D
             shape = shape + 1000
         end
-
-        if !is_up_down_symmetric
+        if is_z_offset
             shape = shape + 100
         end
 
