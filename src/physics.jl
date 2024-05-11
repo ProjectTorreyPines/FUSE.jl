@@ -62,24 +62,10 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_triple_arc_)
             shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
         elseif shape_index_mod ∈ (Int(_miller_), Int(_square_miller_))
-            _, imaxr = findmax(r_obstruction)
-            _, iminr = findmin(r_obstruction)
-            _, imaxz = findmax(z_obstruction)
-            _, iminz = findmin(z_obstruction)
-            r_at_max_z, max_z = r_obstruction[imaxz], z_obstruction[imaxz]
-            r_at_min_z, min_z = r_obstruction[iminz], z_obstruction[iminz]
-            z_at_max_r, max_r = z_obstruction[imaxr], r_obstruction[imaxr]
-            z_at_min_r, min_r = z_obstruction[iminr], r_obstruction[iminr]
-            a = 0.5 * (max_r - min_r)
-            b = 0.5 * (max_z - min_z)
-            R = 0.5 * (max_r + min_r)
-            elongation = b / a
-            triup = (R - r_at_max_z) / a
-            tridown = (R - r_at_min_z) / a
-            if shape_index_mod == Int(_miller_)
-                shape_parameters = [elongation, (triup + tridown) / 2.0]
-            else
-                shape_parameters = [elongation, (triup + tridown) / 2.0, 0.0]
+            mxh = IMAS.MXH(r_obstruction, z_obstruction, 2)
+            shape_parameters = [mxh.κ, sin(mxh.s[1])]
+            if shape_index_mod == Int(_square_miller_)
+                push!(shape_parameters, -mxh.s[2])
             end
         elseif shape_index_mod == Int(_spline_)
             n = 1
@@ -217,10 +203,9 @@ function optimize_shape(
             verbose::Bool=false
         )
             R, Z = func(r_start, r_end, shape_parameters...)
-
+            @assert length(R) == length(Z) "R and Z have different length"
             cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
 
-            length(R) == length(Z) || error("R and Z have different length")
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
             index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
             Rv = view(R, index)
@@ -243,15 +228,16 @@ function optimize_shape(
             cost_mean_above_distance = mean_above_distance_error / target_clearance
 
             # curvature
+            cost_max_curvature = 0.0
             if use_curvature
                 curvature = abs.(IMAS.curvature(Rv, Zv))
-                cost_max_curvature = exp(maximum(curvature)^2.5)
-            else
-                cost_max_curvature = 0.0
+                cost_max_curvature = 1 / (1 - maximum(curvature))
             end
 
             # favor up/down symmetric solutions
-            cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
+            z_offset = (maximum(Z) + minimum(Z)) / 2.0
+            z_offset_obstruction = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
+            cost_up_down_symmetry = abs(z_offset - z_offset_obstruction) / target_clearance
 
             if verbose
                 @show minimum_distance
@@ -262,10 +248,11 @@ function optimize_shape(
                 @show cost_inside^2
                 @show cost_up_down_symmetry^2
                 @show cost_max_curvature^2
+                println()
             end
 
             # return cost
-            return 100 .* cost_min_clearance^2 + cost_mean_above_distance^2 + cost_inside^2 + cost_up_down_symmetry^2 + 10 * cost_area + cost_max_curvature
+            return norm((cost_min_clearance, cost_mean_above_distance, cost_inside, cost_up_down_symmetry, cost_area, cost_max_curvature))
         end
 
         r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
@@ -586,7 +573,7 @@ end
 Miller shape
 """
 function miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=201, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(floor(n_points * resolution) / 2) * 2 + 1
+    n_points = Int(floor(n_points * resolution / 2)) * 2 + 1
 
     θ = range(0, 2π, n_points)
     triangularity = mirror_bound(triangularity, -1.0, 1.0)
@@ -604,6 +591,8 @@ end
 Miller shape
 """
 function miller_Rstart_Rend(r_start::T, r_end::T, elongation::T, triangularity::T; n_points::Int=201, resolution::Float64=1.0) where {T<:Real}
+    elongation = mirror_bound(abs(elongation), 1.0, 3.0)
+    triangularity = mirror_bound(triangularity, -1.0, 1.0)
     return miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity; n_points, resolution)
 end
 
@@ -636,7 +625,7 @@ function square_miller(
     n_points::Integer=201,
     resolution::Float64=1.0) where {T<:Real}
 
-    n_points = Int(floor(n_points * resolution) / 2) * 2 + 1
+    n_points = Int(floor(n_points * resolution / 2)) * 2 + 1
 
     mxh = IMAS.MXH(R0, 2)
     mxh.ϵ = rmin_over_R0
@@ -660,6 +649,9 @@ end
 Miller with squareness contour
 """
 function square_miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real, squareness::Real; n_points::Int=401, resolution::Float64=1.0)
+    elongation = mirror_bound(abs(elongation), 1.0, 3.0)
+    triangularity = mirror_bound(triangularity, -1.0, 1.0)
+    squareness = mirror_bound(abs(squareness), 0.0, 1.0)
     return square_miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity, squareness; n_points, resolution)
 end
 
