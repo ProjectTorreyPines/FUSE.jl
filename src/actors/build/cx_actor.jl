@@ -550,7 +550,6 @@ function port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity
     # calculate radial port locations
     vessel_maxz = maximum(vessel.outline.z)
     vessel_minz = minimum(vessel.outline.z)
-    vessel_minr = minimum(vessel.outline.r)
     horz_port_maxr = maximum(cryostat.outline.r) * 1.1
     horz_port_maxz = 0.25 * (vessel_maxz - vessel_minz) + vessel_minz
     vert_port_maxz = maximum(cryostat.outline.z)
@@ -614,28 +613,59 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     plasma.outline.r = pr
     plasma.outline.z = pz
 
+    # up-down symmetric plasma
+    is_z_offset = false
+    if abs(sum(pz) / sum(abs, pz)) > 1E-2
+        is_z_offset = true
+    end
+
+    # up-down symmetric plasma
+    is_negative_D = false
+    _, imaxr = findmax(pr)
+    _, iminr = findmin(pr)
+    _, imaxz = findmax(pz)
+    _, iminz = findmin(pz)
+    r_at_max_z, _ = pr[imaxz], pz[imaxz]
+    r_at_min_z, _ = pr[iminz], pz[iminz]
+    _, max_r = pz[imaxr], pr[imaxr]
+    _, min_r = pz[iminr], pr[iminr]
+    a = 0.5 * (max_r - min_r)
+    R = 0.5 * (max_r + min_r)
+    δu = (R - r_at_max_z) / a
+    δl = (R - r_at_min_z) / a
+    if δu + δl < -0.1
+        is_negative_D = true
+    end
+
     # all layers between plasma and TF
     # k-1 means the layer outside (ie. towards the tf)
     # k   is the current layer
     # k+1 means the layer inside (ie. towards the plasma)
     tf_to_plasma = IMAS.get_build_indexes(bd.layer; fs=_hfs_)
     plasma_to_tf = reverse(tf_to_plasma)
+    n_rails = 1
     for k in plasma_to_tf
         layer = bd.layer[k]
         layer_shape = BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-        @debug "$(layer.name) $(layer_shape)"
+        # @show "$(layer.name) $(layer_shape) $(layer.shape)"
 
+        # add PF coils to the obstructions if they belong to this layer
         obstruction_outline = nothing
         vertical_clearance = 1.0
         if contains(lowercase(layer.name), "coils")
-            coils = pfa.coil
-            if !isempty(coils)
-                obstruction_outline = convex_outline(pfa.coil)#collect(findall(:shaping, pfa.coil)))   
-                vertical_clearance = 0.2
+            if !isempty(pfa.coil)
+                if !isempty(bd.pf_active, :rail)
+                    n_rails += 1
+                    obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
+                else
+                    obstruction_outline = convex_outline(pfa.coil)
+                end
+                vertical_clearance = 0.1
             end
         end
 
-        layer.shape, layer.shape_parameters = optimize_shape(bd, k + 1, k, layer_shape; vertical_clearance, resolution=n_points / 201.0, obstruction_outline)
+        layer.shape, layer.shape_parameters =
+            optimize_shape(bd, k + 1, k, layer_shape; vertical_clearance, resolution=n_points / 201.0, obstruction_outline, is_negative_D, is_z_offset)
     end
 
     # resample
@@ -658,7 +688,7 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     iout = IMAS.get_build_indexes(bd.layer; fs=_out_)
     if lowercase(bd.layer[iout[end]].name) == "cryostat"
         olfs = IMAS.get_build_indexes(bd.layer; fs=_lfs_)[end]
-        optimize_shape(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]].shape, 1000), 100)))
+        optimize_shape(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]].shape, 1000), 100)); vertical_clearance=1.3)
         for k in reverse(iout[2:end])
             optimize_shape(bd, k, k - 1, _negative_offset_)
         end
@@ -688,7 +718,9 @@ function optimize_shape(
     shape_enum::BuildLayerShape;
     vertical_clearance::Float64=1.0,
     resolution::Float64=1.0,
-    obstruction_outline=nothing
+    obstruction_outline=nothing,
+    is_z_offset::Bool=false,
+    is_negative_D::Bool=false
 )
     shape = Int(shape_enum)
 
@@ -729,19 +761,10 @@ function optimize_shape(
         oZ = [z for (r, z) in hull]
     end
 
-    if layer.side == Int(_out_)
-        target_clearance = lfs_thickness * 1.3 * vertical_clearance
-        use_curvature = false
-    else
-        use_curvature = shape_enum == IMAS._rectangle_ ? false : true
-        target_clearance = min(hfs_thickness, lfs_thickness) * vertical_clearance
-        target_clearance = min(hfs_thickness, lfs_thickness) * vertical_clearance
-    end
-    r_offset = (lfs_thickness .- hfs_thickness) / 2.0
-
     # handle offset, negative offset, and convex-hull
     if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         R, Z = buffer(oR, oZ, (hfs_thickness + lfs_thickness) / 2.0)
+        r_offset = (lfs_thickness .- hfs_thickness) / 2.0
         R .+= r_offset
         if shape == Int(_convex_hull_)
             hull = convex_hull(R, Z; closed_polygon=true)
@@ -752,45 +775,25 @@ function optimize_shape(
         shape_parameters = Float64[]
 
     else # handle shapes
-        if shape > 1000
-            shape = mod(shape, 1000)
-        end
-        if shape > 100
-            shape = mod(shape, 100)
+        use_curvature = true
+        if layer.side == Int(_out_) || shape_enum ∈ (IMAS._rectangle_, IMAS._silo_)
+            use_curvature = false
         end
 
-        if shape == Int(_silo_)
-            is_up_down_symmetric = false
-        elseif abs(sum(oZ) / sum(abs, oZ)) < 1E-2
-            is_up_down_symmetric = true
+        if hfs_thickness == 0.0
+            target_clearance = lfs_thickness
+        elseif lfs_thickness == 0.0
+            target_clearance = hfs_thickness
         else
-            is_up_down_symmetric = false
+            target_clearance = min(hfs_thickness, lfs_thickness)
         end
+        target_clearance *= vertical_clearance
 
-        is_negative_D = false
-        if shape != Int(_silo_)
-            _, imaxr = findmax(oR)
-            _, iminr = findmin(oR)
-            _, imaxz = findmax(oZ)
-            _, iminz = findmin(oZ)
-            r_at_max_z, max_z = oR[imaxz], oZ[imaxz]
-            r_at_min_z, min_z = oR[iminz], oZ[iminz]
-            z_at_max_r, max_r = oZ[imaxr], oR[imaxr]
-            z_at_min_r, min_r = oZ[iminr], oR[iminr]
-            a = 0.5 * (max_r - min_r)
-            R = 0.5 * (max_r + min_r)
-            δu = (R - r_at_max_z) / a
-            δl = (R - r_at_min_z) / a
-            if δu + δl < -0.1
-                is_negative_D = true
-            end
-        end
-
+        shape = mod(mod(shape, 1000), 100)
         if is_negative_D
             shape = shape + 1000
         end
-
-        if !is_up_down_symmetric
+        if is_z_offset
             shape = shape + 100
         end
 
@@ -832,6 +835,16 @@ function convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}})::IMAS.pf
     out.z = [p[2] for p in points]
 
     return out
+end
+
+function convex_outline(rail::IMAS.build__pf_active__rail{T})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
+    rails = parent(rail)
+    irail = IMAS.index(rail)
+    coil_start = sum([rails[k].coils_number for k in 1:irail-1])
+    coil_end = coil_start + rail.coils_number
+    dd = IMAS.top_dd(rail)
+    coils = [dd.pf_active.coil[k] for k in coil_start:coil_end]
+    return convex_outline(coils)
 end
 
 #= ========================================== =#

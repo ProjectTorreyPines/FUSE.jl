@@ -51,34 +51,21 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction))
+            r_center = (maximum(r_obstruction) + minimum(r_obstruction)) / 2.0
+            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
+            shape_parameters = [r_center, centerpost_height, height]
+        elseif shape_index_mod == Int(_circle_ellipse_)
+            centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [centerpost_height, height]
-        elseif shape_index_mod == Int(_rectangle_ellipse_)
-            height = (maximum(z_obstruction) - minimum(z_obstruction))
-            shape_parameters = [height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
             shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
         elseif shape_index_mod ∈ (Int(_miller_), Int(_square_miller_))
-            _, imaxr = findmax(r_obstruction)
-            _, iminr = findmin(r_obstruction)
-            _, imaxz = findmax(z_obstruction)
-            _, iminz = findmin(z_obstruction)
-            r_at_max_z, max_z = r_obstruction[imaxz], z_obstruction[imaxz]
-            r_at_min_z, min_z = r_obstruction[iminz], z_obstruction[iminz]
-            z_at_max_r, max_r = z_obstruction[imaxr], r_obstruction[imaxr]
-            z_at_min_r, min_r = z_obstruction[iminr], r_obstruction[iminr]
-            a = 0.5 * (max_r - min_r)
-            b = 0.5 * (max_z - min_z)
-            R = 0.5 * (max_r + min_r)
-            elongation = b / a
-            triup = (R - r_at_max_z) / a
-            tridown = (R - r_at_min_z) / a
-            if shape_index_mod == Int(_miller_)
-                shape_parameters = [elongation, (triup + tridown) / 2.0]
-            else
-                shape_parameters = [elongation, (triup + tridown) / 2.0, 0.0]
+            mxh = IMAS.MXH(r_obstruction, z_obstruction, 2)
+            shape_parameters = [mxh.κ, sin(mxh.s[1])]
+            if shape_index_mod == Int(_square_miller_)
+                push!(shape_parameters, -mxh.s[2])
             end
         elseif shape_index_mod == Int(_spline_)
             n = 1
@@ -121,9 +108,9 @@ function shape_function(shape_function_index::Int; resolution::Float64)
             func = princeton_D_approx
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             func = princeton_D_scaled
-        elseif shape_index_mod == Int(_double_ellipse_)
+        elseif shape_index_mod == Int(_circle_ellipse_)
             func = circle_ellipse
-        elseif shape_index_mod == Int(_rectangle_ellipse_)
+        elseif shape_index_mod == Int(_double_ellipse_)
             func = double_ellipse
         elseif shape_index_mod == Int(_rectangle_)
             func = rectangle_shape
@@ -207,7 +194,7 @@ function optimize_shape(
             z_obstruction::Vector{Float64},
             rz_obstruction::Vector{Tuple{Float64,Float64}},
             target_clearance::Float64,
-            target_volume::Float64,
+            target_area::Float64,
             func::Function,
             r_start::Float64,
             r_end::Float64,
@@ -216,10 +203,9 @@ function optimize_shape(
             verbose::Bool=false
         )
             R, Z = func(r_start, r_end, shape_parameters...)
+            @assert length(R) == length(Z) "R and Z have different length"
+            cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
 
-            cost_volume = abs(IMAS.revolution_volume(R, Z) - target_volume) / target_volume
-
-            length(R) == length(Z) || error("R and Z have different length")
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
             index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
             Rv = view(R, index)
@@ -242,15 +228,16 @@ function optimize_shape(
             cost_mean_above_distance = mean_above_distance_error / target_clearance
 
             # curvature
+            cost_max_curvature = 0.0
             if use_curvature
                 curvature = abs.(IMAS.curvature(Rv, Zv))
-                cost_max_curvature = exp(maximum(curvature)^2.5)
-            else
-                cost_max_curvature = 0.0
+                cost_max_curvature = 1 / (1 - maximum(curvature))
             end
 
             # favor up/down symmetric solutions
-            cost_up_down_symmetry = abs(maximum(Z) + minimum(Z)) / (maximum(Z) - minimum(Z))
+            z_offset = (maximum(Z) + minimum(Z)) / 2.0
+            z_offset_obstruction = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
+            cost_up_down_symmetry = abs(z_offset - z_offset_obstruction) / target_clearance
 
             if verbose
                 @show minimum_distance
@@ -261,18 +248,19 @@ function optimize_shape(
                 @show cost_inside^2
                 @show cost_up_down_symmetry^2
                 @show cost_max_curvature^2
+                println()
             end
 
             # return cost
-            return 100 .* cost_min_clearance^2 + cost_mean_above_distance^2 + cost_inside^2 + 0.1 * cost_up_down_symmetry^2 + 10 * cost_volume + cost_max_curvature
+            return norm((cost_min_clearance, cost_mean_above_distance, cost_inside, cost_up_down_symmetry, cost_area, cost_max_curvature))
         end
 
         r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
-        target_volume = IMAS.revolution_volume(r_obstruction_buffered, z_obstruction_buffered)
+        target_area = IMAS.area(r_obstruction_buffered, z_obstruction_buffered)
 
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
-            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_volume, func, r_start, r_end, shape_parameters; use_curvature),
+            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
         if verbose
             println(res)
@@ -413,6 +401,9 @@ end
 double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
+    height = abs(height)
+    centerpost_height = mirror_bound(abs(centerpost_height), 0.0, height)
+    r_center = mirror_bound(r_center, r_start, r_end)
     return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points, resolution)
 end
 
@@ -457,11 +448,11 @@ circle ellipse shape (parametrization of TF coils used in GATM)
 Special case of the double ellipse shape, where the inner ellipse is actually a circle
 """
 function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    centerpost_height = abs(centerpost_height)
     height = abs(height)
-    centerpost_height = mirror_bound(centerpost_height, 0.0, height)
-    r_center = r_start + (height - centerpost_height) / 2.0
-    return double_ellipse(r_start, r_end, r_center, centerpost_height, height; n_points, resolution)
+    centerpost_height = mirror_bound(abs(centerpost_height), 0.0, height)
+    r_circle = (height - centerpost_height) / 2.0
+    r_center = r_start + r_circle
+    return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points, resolution)
 end
 
 """
@@ -582,7 +573,7 @@ end
 Miller shape
 """
 function miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=201, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(floor(n_points * resolution) / 2) * 2 + 1
+    n_points = Int(floor(n_points * resolution / 2)) * 2 + 1
 
     θ = range(0, 2π, n_points)
     triangularity = mirror_bound(triangularity, -1.0, 1.0)
@@ -600,6 +591,8 @@ end
 Miller shape
 """
 function miller_Rstart_Rend(r_start::T, r_end::T, elongation::T, triangularity::T; n_points::Int=201, resolution::Float64=1.0) where {T<:Real}
+    elongation = mirror_bound(abs(elongation), 1.0, 3.0)
+    triangularity = mirror_bound(triangularity, -1.0, 1.0)
     return miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity; n_points, resolution)
 end
 
@@ -632,7 +625,7 @@ function square_miller(
     n_points::Integer=201,
     resolution::Float64=1.0) where {T<:Real}
 
-    n_points = Int(floor(n_points * resolution) / 2) * 2 + 1
+    n_points = Int(floor(n_points * resolution / 2)) * 2 + 1
 
     mxh = IMAS.MXH(R0, 2)
     mxh.ϵ = rmin_over_R0
@@ -656,6 +649,9 @@ end
 Miller with squareness contour
 """
 function square_miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real, squareness::Real; n_points::Int=401, resolution::Float64=1.0)
+    elongation = mirror_bound(abs(elongation), 1.0, 3.0)
+    triangularity = mirror_bound(triangularity, -1.0, 1.0)
+    squareness = mirror_bound(abs(squareness), 0.0, 1.0)
     return square_miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity, squareness; n_points, resolution)
 end
 

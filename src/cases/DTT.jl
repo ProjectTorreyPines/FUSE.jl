@@ -61,7 +61,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.pf_active.technology = :nb3sn_iter
     act.ActorPFdesign.symmetric = true
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :circle_ellipse
     ini.tf.n_coils = 18
     ini.tf.technology = :nb3sn_iter
 

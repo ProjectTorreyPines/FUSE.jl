@@ -12,16 +12,18 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             if IMAS.hasdata(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
                 dd.core_profiles = deepcopy(dd1.core_profiles)
                 # also set the pedestal in summary IDS
-                if any([ismissing(getproperty(dd1.summary.local.pedestal, field), :value) for field  in (:n_e, :zeff, :t_e)])
+                if any([ismissing(getproperty(dd1.summary.local.pedestal, field), :value) for field in (:n_e, :zeff, :t_e)])
                     pe_ped, w_ped = IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.pressure, dd.core_profiles.profiles_1d[].grid.psi_norm)
                     ped_summ = dd.summary.local.pedestal
                     cp1d = dd.core_profiles.profiles_1d[]
                     @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - w_ped)
                     if ismissing(getproperty(dd1.summary.local.pedestal.n_e, :value, missing))
-                        @ddtime ped_summ.n_e.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.density_thermal).(1 - w_ped)
+                        @ddtime ped_summ.n_e.value =
+                            IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.density_thermal).(1 - w_ped)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_e, :value, missing))
-                        @ddtime ped_summ.t_e.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.temperature).(1 - w_ped)
+                        @ddtime ped_summ.t_e.value =
+                            IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.temperature).(1 - w_ped)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_i_average, :value, missing))
                         @ddtime ped_summ.t_i_average.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].t_i_average).(1 - w_ped)
@@ -59,7 +61,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
                 ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
                 pressure_core,
-                helium_fraction = ini.core_profiles.bulk == :D ? 0.0 : ini.core_profiles.helium_fraction,
+                helium_fraction=ini.core_profiles.bulk == :D ? 0.0 : ini.core_profiles.helium_fraction,
                 ini.core_profiles.T_ratio,
                 ini.core_profiles.T_shaping,
                 ini.core_profiles.n_shaping,
@@ -163,7 +165,7 @@ function init_core_profiles!(
     end
 
     # Set temperatures
-    Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
+    Te_core = minimum([pressure_core / (ni_core + ne_core) / IMAS.constants.e, 20e3])
     Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
     @ddtime summary.local.pedestal.t_e.value = Te_ped
 

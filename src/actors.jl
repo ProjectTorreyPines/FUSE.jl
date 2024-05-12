@@ -14,7 +14,6 @@ end
 #= =========== =#
 #  name & group #
 #= =========== =#
-
 function name(actor::AbstractActor; remove_Actor::Bool=true)
     return name(typeof(actor); remove_Actor)
 end

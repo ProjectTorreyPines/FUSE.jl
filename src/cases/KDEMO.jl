@@ -63,6 +63,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.pf_active.n_coils_outside = 6
     ini.pf_active.technology = :nb3sn
 
+    ini.tf.shape = :circle_ellipse
     ini.tf.n_coils = 18
     # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
     ini.tf.technology = :nb3sn_kdemo
