@@ -234,6 +234,9 @@ function optimize_shape(
                 cost_max_curvature = 1 / (1 - maximum(curvature))
             end
 
+            # box height
+            cost_box_height = abs((maximum(Z) - minimum(Z)) - (maximum(z_obstruction) - minimum(z_obstruction) + 2 * target_clearance)) / target_clearance
+
             # favor up/down symmetric solutions
             z_offset = (maximum(Z) + minimum(Z)) / 2.0
             z_offset_obstruction = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
@@ -248,11 +251,12 @@ function optimize_shape(
                 @show cost_inside^2
                 @show cost_up_down_symmetry^2
                 @show cost_max_curvature^2
+                @show cost_box_height
                 println()
             end
 
             # return cost
-            return norm((cost_min_clearance, cost_mean_above_distance, cost_inside, cost_up_down_symmetry, cost_area, cost_max_curvature))
+            return norm((cost_min_clearance, cost_mean_above_distance, cost_inside, cost_up_down_symmetry, cost_area, cost_max_curvature, cost_box_height))
         end
 
         r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
