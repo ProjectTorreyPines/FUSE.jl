@@ -743,6 +743,18 @@ function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{
 end
 
 """
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+
+Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
+"""
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    x_b, y_b = buffer(x, y, (b_lfs + b_hfs) / 2.0)
+    x_offset = (b_lfs .- b_hfs) / 2.0
+    x_b .+= x_offset
+    return x_b, y_b
+end
+
+"""
     limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
 
 Limit maximum curvature of a polygon described by x,y arrays
