@@ -763,9 +763,7 @@ function optimize_shape(
 
     # handle offset, negative offset, and convex-hull
     if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
-        R, Z = buffer(oR, oZ, (hfs_thickness + lfs_thickness) / 2.0)
-        r_offset = (lfs_thickness .- hfs_thickness) / 2.0
-        R .+= r_offset
+        R, Z = buffer(oR, oZ, hfs_thickness, lfs_thickness)
         if shape == Int(_convex_hull_)
             hull = convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
