@@ -19,7 +19,7 @@
  },
  "stability.collection[:].identifier": {
   "data_type": "STRUCTURE",
-  "documentation": "Limit collection identifier\n ***unpack constant here"
+  "documentation": "Limit collection identifier"
  },
  "stability.collection[:].identifier.description": {
   "data_type": "STR_0D",
@@ -57,7 +57,7 @@
  },
  "stability.model[:].identifier": {
   "data_type": "STRUCTURE",
-  "documentation": "Limit model identifier\n ***unpack constant here"
+  "documentation": "Limit model identifier"
  },
  "stability.model[:].identifier.description": {
   "data_type": "STR_0D",
