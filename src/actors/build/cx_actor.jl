@@ -189,7 +189,7 @@ function wall_from_eq!(
     R_lfs_plasma = maximum(rlcfs) + gap
 
     # main chamber (clip elements that go beyond plasma radial build thickness)
-    R, Z = segmented_wall(rlcfs, zlcfs, gap, 0.)
+    R, Z = segmented_wall(rlcfs, zlcfs, gap, 0.75)
     wall_poly = xy_polygon(R, Z)
 
     # divertor lengths
