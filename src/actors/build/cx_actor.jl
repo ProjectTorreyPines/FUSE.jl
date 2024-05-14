@@ -625,8 +625,6 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     end
 
     #plot()
-    vertical_clearance = 1.0
-    obstruction_outline = nothing
     plasma_to_tf = reverse(IMAS.get_build_indexes(bd.layer; fs=IMAS._hfs_))
     pushfirst!(plasma_to_tf, plasma_to_tf[1] + 1)
 
@@ -634,6 +632,7 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     # plot(bd.layer[plasma_to_tf[1]])
 
     k = 2
+    n_rails = 1
     while k <= length(plasma_to_tf)
         layer = bd.layer[plasma_to_tf[k]]
         layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
@@ -643,10 +642,21 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
             for kk in k:length(plasma_to_tf)
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-                if layer_shape == IMAS._negative_offset_
-                    push!(neg_off_layers, kk)
-                else
-                    #@show "A", layer.name, layer_shape
+                if layer_shape != IMAS._negative_offset_ || (contains(lowercase(layer.name), "coils") && !isempty(pfa.coil))
+                    if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
+                        # @show "A1", layer.name, layer_shape
+                        if !isempty(bd.pf_active, :rail)
+                            n_rails += 1
+                            obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
+                        else
+                            obstruction_outline = convex_outline(pfa.coil)
+                        end
+                        vertical_clearance = 0.1
+                    else
+                        # @show "A2", layer.name, layer_shape
+                        obstruction_outline = nothing
+                        vertical_clearance = 1.0
+                    end
                     layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
                         bd,
                         plasma_to_tf[k-1],
@@ -661,29 +671,45 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
                     k = kk
                     #display(plot!(bd.layer[plasma_to_tf[k]]))
                     break
+                else
+                    # deal with negative offsets later
+                    push!(neg_off_layers, kk)
                 end
             end
             # go back with negative offset layers
             for kk in reverse(neg_off_layers)
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-                #                @show "C", layer.name, layer_shape
+                # @show "C", layer.name, layer_shape
                 layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
                     bd,
                     plasma_to_tf[kk+1],
                     plasma_to_tf[kk],
                     layer_shape;
-                    vertical_clearance,
+                    vertical_clearance=1.0,
                     resolution=n_points / 201.0,
-                    obstruction_outline,
+                    obstruction_outline=nothing,
                     is_negative_D,
                     is_z_offset
                 )
-                #                display(plot!(bd.layer[plasma_to_tf[kk]]))
+                # display(plot!(bd.layer[plasma_to_tf[kk]]))
             end
 
         else
-            #            @show "B", layer.name, layer_shape
+            if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
+                # @show "B1", layer.name, layer_shape
+                if !isempty(bd.pf_active, :rail)
+                    n_rails += 1
+                    obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
+                else
+                    obstruction_outline = convex_outline(pfa.coil)
+                end
+                vertical_clearance = 0.01
+            else
+                # @show "B2", layer.name, layer_shape
+                obstruction_outline = nothing
+                vertical_clearance = 1.0
+            end
             layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
                 bd,
                 plasma_to_tf[k-1],
@@ -695,7 +721,7 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
                 is_negative_D,
                 is_z_offset
             )
-            #            display(plot!(bd.layer[plasma_to_tf[k]]))
+            # display(plot!(bd.layer[plasma_to_tf[k]]))
         end
 
         k += 1
