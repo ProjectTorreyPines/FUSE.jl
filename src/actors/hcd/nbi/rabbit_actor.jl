@@ -13,12 +13,12 @@ end
 mutable struct ActorRABBIT{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorRABBIT{P}
-    outputs::Union{RABBIT.RABBIToutputs,Vector{<:RABBIT.RABBIToutputs}}
+    outputs::Union{RABBIT.RABBIToutput,Vector{<:RABBIT.RABBIToutput}}
 end
 
 function ActorRABBIT(dd::IMAS.dd, par::FUSEparameters__ActorRABBIT; kw...)
     par = par(kw...)
-    return ActorRABBIT(dd, par, RABBIT.RABBIToutputs[])
+    return ActorRABBIT(dd, par, RABBIT.RABBIToutput[])
 end
 
 """
@@ -37,14 +37,14 @@ function _step(actor::ActorRABBIT)
     
     all_inputs = RABBIT.FUSEtoRABBITinput(dd)
 
-    powe_data, powi_data, jnbcd_data, bdep_data, rho_data, time_data = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
-    output = RABBIT.RABBIToutputs()
+    powe_data, powi_data, jnbcd_data, bdep_data, torqdepo_data, rho_data, time_data = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
+    output = RABBIT.RABBIToutput()
 
     output.powe_data = powe_data
     output.powi_data = powi_data
     output.jnbcd_data = jnbcd_data
     output.bdep_data = bdep_data
-    # output.torque_data = torqdepo_data
+    output.torque_data = torqdepo_data
     output.rho_data = rho_data 
     output.time_data = time_data 
 
@@ -60,12 +60,16 @@ function _finalize(actor::ActorRABBIT)
 
     num_t = length(actor.outputs.time_data)
     num_rho = length(actor.outputs.rho_data)
+    nv = 3 # number of vector components for beam quantities, hardcoded since beam input file is hardcoded
 
     powe = reshape(actor.outputs.powe_data, num_rho, num_t)
     powi = reshape(actor.outputs.powi_data, num_rho, num_t)
     jnbcd = reshape(actor.outputs.jnbcd_data, num_rho, num_t)
 
-    source = resize!(cs.source, :nbi, "identifier.name" => "nbi"; wipe=false)
+    bdep = reshape(actor.outputs.bdep_data, num_rho, num_t, nv)
+    torq = reshape(actor.outputs.torque_data, num_rho, num_t, nv)
+
+    source = resize!(cs.source, :nbi, "identifier.name" => "nbi"; wipe=true)
     
     if num_t > 2
         prof_1d = resize!(source.profiles_1d, num_t)
@@ -78,14 +82,16 @@ function _finalize(actor::ActorRABBIT)
 
     source.profiles_1d[1].total_ion_energy = powi[:,1]
     source.profiles_1d[1].electrons.energy = powe[:,1]
-    source.profiles_1d[1].electrons.particles = vec(sum(actor.outputs.bdep_data[1,:,:], dims = 1))
+    source.profiles_1d[1].electrons.particles = vec(sum(bdep[:,1,:], dims = 2))
     source.profiles_1d[1].j_parallel = jnbcd[:,1]
+    source.profiles_1d[1].momentum_tor = vec(sum(torq[:,1,:], dims = 2))
 
     if num_t > 2
-        for i in 2:length(num_t)
+        for i in 2:num_t
             source.profiles_1d[i].total_ion_energy = powi[:,i]
             source.profiles_1d[i].electrons.energy = powe[:,i]
-            source.profiles_1d[i].electrons.particles = vec(sum(actor.outputs.bdep_data[i,:,:], dims = 1))
+            source.profiles_1d[i].electrons.particles = vec(sum(bdep[:,i,:], dims = 2))
+            source.profiles_1d[i].momentum_tor = vec(sum(torq[:,i,:], dims = 2))
         end
     end
 
