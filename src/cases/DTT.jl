@@ -11,7 +11,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.general.init_from = :scalars
 
     ini.build.symmetric = true
-    ini.build.divertors = :double
+    ini.build.divertors = :lower
 
     ini.equilibrium.B0 = 5.85
     ini.equilibrium.ip = 5.5e6
@@ -24,12 +24,12 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 2.19
-    ini.equilibrium.Z0 = 0.0
+    ini.equilibrium.Z0 = -0.04
     ini.equilibrium.ϵ = 0.32
-    ini.equilibrium.κ = 1.65
-    ini.equilibrium.δ = 0.45
-    ini.equilibrium.ζ = -0.1
-    ini.equilibrium.𝚶 = 0.0
+    ini.equilibrium.κ = 1.82
+    ini.equilibrium.δ = 0.5
+    ini.equilibrium.ζ = 0.0
+    ini.equilibrium.𝚶 = 0.1
 
     # explicitly set thickness of radial build layers
     # ==============
@@ -53,7 +53,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     layers[:cryostat] = 0.10
     ini.build.layers = layers
     # ==============
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
@@ -92,4 +92,11 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     set_new_base!(act)
 
     return ini, act
+end
+
+function TraceCAD(::Type{Val{:DTT}})
+    x_length = 5.6
+    x_offset = -0.46
+    y_offset = 0.18
+    return TraceCAD(:DTT, x_length, x_offset, y_offset)
 end

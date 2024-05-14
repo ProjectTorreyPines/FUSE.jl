@@ -78,15 +78,19 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
 
     # determine a good regularization value
     if actor.λ_regularize < 0.0
-        actor.λ_regularize = VacuumFields.optimal_λ_regularize(
-            vcat(pinned_coils, optim_coils),
-            fixed_eq,
-            image_eq,
-            vcat(actor.boundary_control_points, actor.flux_control_points),
-            actor.saddle_control_points;
-            ψbound,
-            fixed_coils
-        )
+        if fixed_eq === nothing
+            actor.λ_regularize = 0.0
+        else
+            actor.λ_regularize = VacuumFields.optimal_λ_regularize(
+                vcat(pinned_coils, optim_coils),
+                fixed_eq,
+                image_eq,
+                vcat(actor.boundary_control_points, actor.flux_control_points),
+                actor.saddle_control_points;
+                ψbound,
+                fixed_coils
+            )
+        end
     end
 
     # Find coil currents

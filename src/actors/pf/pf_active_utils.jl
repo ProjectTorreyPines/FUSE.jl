@@ -30,17 +30,17 @@ function GS_IMAS_pf_active__coil(
     end
 
     coil = GS_IMAS_pf_active__coil{T,T,T,T}(
-            pfcoil,
-            coil_tech,
-            global_time(pfcoil),
-            green_model)
+        pfcoil,
+        coil_tech,
+        global_time(pfcoil),
+        green_model)
 
     mat_pf = Material(coil_tech)
     sigma = mat_pf.electrical_conductivity
     if ismissing(mat_pf) || ismissing(sigma)
         coil.resistance = default_resistance
     else
-        coil.resistance = VacuumFields.resistance(coil.imas, 1.0 / sigma(temperature=0.0), :parallel)
+        coil.resistance = VacuumFields.resistance(coil.imas, 1.0 / sigma(; temperature=0.0), :parallel)
     end
 
     return coil
@@ -197,8 +197,7 @@ end
 
 
 function VacuumFields._pfunc(Pfunc, image::VacuumFields.Image, C::GS_IMAS_pf_active__coil, δZ;
-                COCOS::MXHEquilibrium.COCOS=MXHEquilibrium.cocos(11),
-                xorder::Int=3, yorder::Int=3)
+    COCOS::MXHEquilibrium.COCOS=MXHEquilibrium.cocos(11), xorder::Int=3, yorder::Int=3)
 
     green_model = getfield(C, :green_model)
     if green_model == :point # fastest
@@ -445,22 +444,29 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolerance::Float64=0.4, min_size::Float64=1.0)
-    function optimal_area(x; coil)
+function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0)
+    Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
+
+    function optimal_area(x; coil, r0, z0, width0, height0)
         area = abs(x[1])
 
         pfcoil = getfield(coil, :imas)
 
-        height = width = sqrt(area)
+        height = sqrt(area)
+        width = area / height
         pfcoil.element[1].geometry.rectangle.height = height
         pfcoil.element[1].geometry.rectangle.width = width
+        pfcoil.element[1].geometry.rectangle.r = r0 + sign(r0 - Rcenter) * (width - width0) / 2.0
+        pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0) * (height - height0) / 2.0
 
         mat = Material(coil.tech)
         Bext = coil_selfB(pfcoil, coil.current)
 
         needed_conductor_area = abs(coil.current) / mat.critical_current_density(; Bext)
         needed_area = needed_conductor_area / IMAS.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
-
+        if needed_area > 1E6 # to handle cases where needed_area == Inf
+            needed_area = 1E6
+        end
         cost = (area - needed_area)^2
         return cost
     end
@@ -470,7 +476,11 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
     for coil in coils
         pfcoil = getfield(coil, :imas)
         if !IMAS.is_ohmic_coil(pfcoil)
-            res = Optim.optimize(x -> optimal_area(x; coil), [0.1], Optim.NelderMead())
+            r0 = pfcoil.element[1].geometry.rectangle.r
+            z0 = pfcoil.element[1].geometry.rectangle.z
+            width0 = pfcoil.element[1].geometry.rectangle.width
+            height0 = pfcoil.element[1].geometry.rectangle.height
+            res = Optim.optimize(x -> optimal_area(x; coil, r0, z0, width0, height0), [0.1], Optim.NelderMead())
             push!(areas, abs(res.minimizer[1]))
         end
     end
@@ -482,7 +492,11 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}; tolera
         pfcoil = getfield(coil, :imas)
         if !IMAS.is_ohmic_coil(pfcoil)
             k += 1
-            optimal_area(max(areas[k], min_size * msa); coil)
+            r0 = pfcoil.element[1].geometry.rectangle.r
+            z0 = pfcoil.element[1].geometry.rectangle.z
+            width0 = pfcoil.element[1].geometry.rectangle.width
+            height0 = pfcoil.element[1].geometry.rectangle.height
+            optimal_area(max(areas[k], min_size * msa); coil, r0, z0, width0, height0)
         end
     end
 end

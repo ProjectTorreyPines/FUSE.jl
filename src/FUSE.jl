@@ -54,6 +54,7 @@ include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
+include(joinpath("ddinit", "init_balance_of_plant.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
@@ -129,6 +130,9 @@ include(joinpath("actors", "costing", "aries_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
 
 include(joinpath("actors", "control", "controller_actor.jl"))
+
+include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
+include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))

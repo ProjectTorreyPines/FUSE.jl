@@ -2,8 +2,7 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_, _port_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_,
-    _rectangle_ellipse_, _triple_arc_, _miller_, _square_miller_, _spline_, _silo_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_, _triple_arc_, _miller_, _square_miller_, _spline_, _silo_, _undefined_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -13,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :tf
     n_coils::Entry{Int} = Entry{Int}("-", "Number of TF coils"; check=x -> @assert x >= 0 "must be: n_coils >= 0")
-    shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the TF coils"; default=:double_ellipse)
+    shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the TF coils")
     ripple::Entry{T} =
         Entry{T}("-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01, check=x -> @assert x > 0.0 "must be: ripple > 0.0")
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "TF coils technology")
@@ -77,9 +76,18 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInitBuil
     h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2; check=x -> @assert x > 0.0 "must be: h98y2 > 0.0")
     hds03::Entry{T} = Entry{T}(IMAS.requirements, :hds03; check=x -> @assert x > 0.0 "must be: hds03 > 0.0")
     βn::Entry{T} = Entry{T}(IMAS.requirements, :βn; check=x -> @assert x > 0.0 "must be: βn > 0.0")
+    q95::Entry{T} = Entry{T}(IMAS.requirements, :q95; check=x -> @assert x > 0.0 "must be: q95 > 0.0")
     coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin; check=x -> @assert x > 0.0 "must be: coil_j_margin > 0.0")
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; check=x -> @assert x > 0.0 "must be: coil_j_margin > 0.0")
 end
+
+
+Base.@kwdef mutable struct FUSEparameters__balance_of_plant{T} <: ParametersInitBuild{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :balance_of_plant
+    cycle_type::Switch{Symbol} = Switch{Symbol}([:rankine, :brayton], "-", "Thermal cycle type"; default=:rankine)
+end
+
 
 mutable struct ParametersInitsBuild{T<:Real} <: ParametersAllInits{T}
     _parent::WeakRef
@@ -100,6 +108,7 @@ mutable struct ParametersInitsBuild{T<:Real} <: ParametersAllInits{T}
     center_stack::FUSEparameters__center_stack{T} #
     tf::FUSEparameters__tf{T}
     oh::FUSEparameters__oh{T}
+    bop::FUSEparameters__balance_of_plant{T}
     requirements::FUSEparameters__requirements{T}
 end
 
@@ -125,6 +134,7 @@ function ParametersInitsBuild{T}(; n_layers::Int=0, kw...) where {T<:Real}
         FUSEparameters__center_stack{T}(),
         FUSEparameters__tf{T}(),
         FUSEparameters__oh{T}(),
+        FUSEparameters__balance_of_plant{T}(),
         FUSEparameters__requirements{T}())
 
     for k in 1:n_layers

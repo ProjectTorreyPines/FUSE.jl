@@ -44,6 +44,10 @@ function Base.setindex!(chk::Checkpoint, dd::IMAS.dd, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd),)
 end
 
+function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd,ParametersAllActors}, key::Symbol)
+    return chk.history[key] = (dd=deepcopy(dd_ini_act[1]), act=deepcopy(dd_ini_act[2]))
+end
+
 function Base.setindex!(chk::Checkpoint, dd_ini_act::Tuple{IMAS.dd,ParametersAllInits,ParametersAllActors}, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd_ini_act[1]), ini=deepcopy(dd_ini_act[2]), act=deepcopy(dd_ini_act[3]))
 end
@@ -141,7 +145,7 @@ function IMAS.extract(
     end
 
     if DD === nothing
-        df = df_cache
+        df = DataFrames.DataFrame()
 
     else
         # allocate memory
@@ -484,7 +488,7 @@ function digest(
         p = plot(; layout=l, size=(900, 400))
         plot!(p, dd.neutronics.time_slice[].wall_loading; xlim, subplot=1)
         neutrons = define_neutrons(dd, 100000)[1]
-        plot!(p, neutrons, dd.equilibrium.time_slice[]; xlim, subplot=1)
+        plot!(p, neutrons, dd.equilibrium.time_slice[]; xlim, subplot=1, colorbar_entry=false)
         plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel="")
         display(p)
     end
@@ -628,7 +632,8 @@ function categorize_errors(
         "OH cannot achieve requested flattop" => :OH_flattop,
         "OH exceeds critical current" => :OH_critical_j,
         "< dd.build.tf.critical_j" => :TF_critical_j,
-        "DomainError with" => :Solovev,
+        "DomainError with" => :some_negative_root,
+        "AssertionError: The output flux is NaN check your transport model fluxes" => :issue_with_transport,
         "BoundsError: attempt to access" => :flux_surfaces_C,
         "divertors" => :divertors)
     merge!(error_messages, extra_error_messages)

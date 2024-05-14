@@ -62,33 +62,28 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
             dd.build.divertors.lower.installed = 0
         end
 
-        # set the TF shape
-        tf_to_plasma = IMAS.get_build_indexes(dd.build.layer; fs=_hfs_)
-        plama_to_tf = collect(reverse(tf_to_plasma))
-        # set all shapes to convex hull by default
-        for k in tf_to_plasma
-            dd.build.layer[k].shape = Int(_convex_hull_)
+        # set build layer shapes
+        plama_to_tf = IMAS.get_build_indexes(dd.build.layer; fs=_lfs_)
+
+        # everything inside of the TF is _negative_offset_ by default
+        for k in plama_to_tf
+            dd.build.layer[k].shape = Int(_negative_offset_)
         end
-        # set TF (shape is set by inner)
-        dd.build.layer[tf_to_plasma[2]].shape = Int(ini.tf.shape)
-        # first layer is a offset
+
+        # set TF shape (shape is set by inner)
+        dd.build.layer[plama_to_tf[end-1]].shape = Int(ini.tf.shape)
+        dd.build.layer[plama_to_tf[end]].shape = Int(_convex_hull_)
+
+        # Allow first few layers to have shapes conformal with the first wall
+        for k in 1:ini.build.n_first_wall_conformal_layers
+            dd.build.layer[plama_to_tf[k]].shape = Int(_convex_hull_)
+        end
+
+        # first wall is of type offset instead of convex hull, to allow for concave shape
         k = plama_to_tf[1]
-        if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k-1].type == Int(_blanket_)) || (dd.build.layer[k-1].type == Int(_shield_)))
+        if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)))
             dd.build.layer[k].shape = Int(_offset_)
         end
-
-        if ini.build.n_first_wall_conformal_layers >= 0
-            # for k in plama_to_tf[ini.build.n_first_wall_conformal_layers:end-1]
-            #     dd.build.layer[k+1].shape = Int(_offset_)
-            # end
-            dd.build.layer[plama_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
-        end
-
-        # if ini.build.n_first_wall_conformal_layers >= 0
-        #     dd.build.layer[tf_to_plasma[1]].shape = Int(_offset_)
-        #     dd.build.layer[tf_to_plasma[2]].shape = Int(_offset_)
-        #     dd.build.layer[plama_to_tf[ini.build.n_first_wall_conformal_layers]].shape = Int(ini.tf.shape)
-        # end
 
         # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
