@@ -194,19 +194,15 @@ function optimize_outline(
             z_obstruction::Vector{Float64},
             rz_obstruction::Vector{Tuple{Float64,Float64}},
             target_clearance::Float64,
-            target_area::Float64,
             func::Function,
             r_start::Float64,
             r_end::Float64,
             shape_parameters::Vector{Float64};
             use_curvature::Bool,
-            verbose::Bool=false
-        )
+            verbose::Bool=false)
+
             R, Z = func(r_start, r_end, shape_parameters...)
             @assert length(R) == length(Z) "R and Z have different length"
-
-            # drive optimizer to match target area
-            cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
 
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
             index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
@@ -221,7 +217,7 @@ function optimize_outline(
             end
 
             # target clearance  O(1)
-            minimum_distance, cost_frac_below_distance = IMAS.min_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance; below_target=true)
+            minimum_distance, cost_mean_distance = IMAS.min_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance)
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
@@ -231,38 +227,27 @@ function optimize_outline(
             # curvature
             cost_max_curvature = 0.0
             if use_curvature
-                curvature = abs.(IMAS.curvature(Rv, Zv))
-                cost_max_curvature = maximum(curvature)^2
+                curvature = abs.(IMAS.curvature(R, Z))
+                cost_max_curvature = 1.0 / (1.0 - maximum(curvature) ^ 2)
             end
 
-            # favor up/down symmetric solutions
-            z_offset = (maximum(Z) + minimum(Z)) / 2.0
-            z_offset_obstruction = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
-            cost_up_down_symmetry = abs(z_offset - z_offset_obstruction) / target_clearance
-            cost_up_down_symmetry = 0.0
-
             if verbose
-                @show minimum_distance
-                @show frac_below_distance
                 @show target_clearance
+                @show minimum_distance
                 @show cost_min_clearance^2
-                @show cost_frac_below_distance^2
+                @show cost_mean_distance^2
                 @show cost_inside^2
-                @show cost_up_down_symmetry^2
                 @show cost_max_curvature^2
                 println()
             end
 
             # return cost
-            return norm((10 * cost_min_clearance, 10 * cost_frac_below_distance, cost_inside, cost_up_down_symmetry, cost_area, cost_max_curvature))
+            return norm((cost_min_clearance, cost_mean_distance, cost_inside, cost_max_curvature))
         end
-
-        r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
-        target_area = IMAS.area(r_obstruction_buffered, z_obstruction_buffered)
 
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
-            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, target_area, func, r_start, r_end, shape_parameters; use_curvature),
+            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; use_curvature),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
         if verbose
             println(res)
