@@ -872,8 +872,8 @@ end
 function convex_outline(rail::IMAS.build__pf_active__rail{T})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
     rails = parent(rail)
     irail = IMAS.index(rail)
-    coil_start = sum([rails[k].coils_number for k in 1:irail-1])
-    coil_end = coil_start + rail.coils_number
+    coil_start = sum([rails[k].coils_number for k in 1:irail-1]) + 1
+    coil_end = coil_start + rail.coils_number - 1
     dd = IMAS.top_dd(rail)
     coils = [dd.pf_active.coil[k] for k in coil_start:coil_end]
     return convex_outline(coils)
