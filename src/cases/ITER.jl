@@ -83,7 +83,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     layers[:gap_tf_cryostat] = 3.343
     layers[:cryostat] = 0.05
     ini.build.layers = layers
-    ini.build.n_first_wall_conformal_layers = 5
+    ini.build.n_first_wall_conformal_layers = 4 
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0

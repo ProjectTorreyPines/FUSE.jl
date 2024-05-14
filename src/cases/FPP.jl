@@ -50,7 +50,7 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = false
     ini.build.divertors = :lower
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
 
     ini.equilibrium.B0 = 4.713171689711136
     ini.equilibrium.R0 = 4.824432302041749
@@ -79,7 +79,7 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.pf_active.n_coils_outside = 5
     ini.pf_active.technology = :nb3sn
 
-    ini.tf.shape = :circle_ellipse
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
     ini.tf.technology = :rebco
 

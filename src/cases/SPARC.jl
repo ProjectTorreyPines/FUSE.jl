@@ -21,7 +21,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.xpoints = :double
 
     # explicitly set thickness of 
-    ini.build.n_first_wall_conformal_layers = 3
+    ini.build.n_first_wall_conformal_layers = 1
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.38
     layers[:OH] = 0.30
