@@ -20,17 +20,17 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     shot_mappings = Dict(
         :H_mode => Dict(
             :time0 => 2.7,
-            :nbi_power=>4.56e6,
+            :nbi_power => 4.56e6,
             :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"
         ),
         :L_mode => Dict(
             :time0 => 2.0,
-            :nbi_power=>2.4e6,
+            :nbi_power => 2.4e6,
             :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"
         ),
         :default => Dict(:time0 => 1.0,
-        :nbi_power=>5.0e6,
-        :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
+            :nbi_power => 5.0e6,
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
     )
 
     ini.ods.filename = shot_mappings[scenario][:filename]
@@ -51,7 +51,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     )
     ini.build.layers[:hfs_wall].material = :graphite
 
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
     act.ActorCXbuild.rebuild_wall = false
     ini.build.divertors = :double
 
@@ -82,7 +82,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorWholeFacility.update_build = false
 
-    if use_ods_sources 
+    if use_ods_sources
         act.ActorHCD.nb_model = :none
         act.ActorHCD.ec_model = :none
         act.ActorHCD.lh_model = :none
@@ -105,5 +105,5 @@ function TraceCAD(::Type{Val{:D3D}})
     x_length = 3.7727
     x_offset = -0.0303
     y_offset = -0.0303
-    TraceCAD(:D3D, x_length, x_offset, y_offset)
+    return TraceCAD(:D3D, x_length, x_offset, y_offset)
 end

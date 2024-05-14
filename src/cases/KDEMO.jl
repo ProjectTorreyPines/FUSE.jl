@@ -36,7 +36,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = false
     ini.build.divertors = :lower
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
 
     ini.equilibrium.B0 = 7.5
     ini.equilibrium.R0 = 6.8

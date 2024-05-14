@@ -154,23 +154,24 @@ function shape_function(shape_function_index::Int; resolution::Float64)
     end
 
     # uniform resampling
-    function resampled_zfunc(args...; resample=true)
+    myfunc = dfunc
+    function resampled_myfunc(args...; resample=true)
         if resample
-            return IMAS.resample_2d_path(dfunc(args...)...; method=:linear)
+            return IMAS.resample_2d_path(myfunc(args...)...; method=:linear)
         else
-            return dfunc(args...)
+            return myfunc(args...)
         end
     end
 
-    return resampled_zfunc
+    return resampled_myfunc
 end
 
 """
-    optimize_shape(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
+    optimize_outline(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
-function optimize_shape(
+function optimize_outline(
     r_obstruction::Vector{Float64},
     z_obstruction::Vector{Float64},
     target_clearance::Float64,
@@ -179,8 +180,7 @@ function optimize_shape(
     r_end::Float64,
     shape_parameters::Vector{Float64};
     use_curvature::Bool=true,
-    verbose::Bool=false
-)
+    verbose::Bool=false)
 
     rz_obstruction = collect(zip(r_obstruction, z_obstruction))
     initial_guess = deepcopy(shape_parameters)
@@ -204,6 +204,8 @@ function optimize_shape(
         )
             R, Z = func(r_start, r_end, shape_parameters...)
             @assert length(R) == length(Z) "R and Z have different length"
+
+            # drive optimizer to match target area
             cost_area = abs(IMAS.area(R, Z) - target_area) / target_area
 
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
@@ -219,44 +221,40 @@ function optimize_shape(
             end
 
             # target clearance  O(1)
-            minimum_distance, mean_above_distance_error = IMAS.min_mean_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance; above_target=true)
+            minimum_distance, cost_frac_below_distance = IMAS.min_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance; below_target=true)
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
                 cost_min_clearance = 0.0
             end
-            cost_mean_above_distance = mean_above_distance_error / target_clearance
 
             # curvature
             cost_max_curvature = 0.0
             if use_curvature
                 curvature = abs.(IMAS.curvature(Rv, Zv))
-                cost_max_curvature = 1 / (1 - maximum(curvature))
+                cost_max_curvature = maximum(curvature)^2
             end
-
-            # box height
-            cost_box_height = abs((maximum(Z) - minimum(Z)) - (maximum(z_obstruction) - minimum(z_obstruction) + 2 * target_clearance)) / target_clearance
 
             # favor up/down symmetric solutions
             z_offset = (maximum(Z) + minimum(Z)) / 2.0
             z_offset_obstruction = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
             cost_up_down_symmetry = abs(z_offset - z_offset_obstruction) / target_clearance
+            cost_up_down_symmetry = 0.0
 
             if verbose
                 @show minimum_distance
-                @show mean_above_distance_error
+                @show frac_below_distance
                 @show target_clearance
                 @show cost_min_clearance^2
-                @show cost_mean_above_distance^2
+                @show cost_frac_below_distance^2
                 @show cost_inside^2
                 @show cost_up_down_symmetry^2
                 @show cost_max_curvature^2
-                @show cost_box_height
                 println()
             end
 
             # return cost
-            return norm((cost_min_clearance, cost_mean_above_distance, cost_inside, cost_up_down_symmetry, cost_area, cost_max_curvature, cost_box_height))
+            return norm((10 * cost_min_clearance, 10 * cost_frac_below_distance, cost_inside, cost_up_down_symmetry, cost_area, cost_max_curvature))
         end
 
         r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
@@ -270,18 +268,6 @@ function optimize_shape(
             println(res)
         end
         shape_parameters = Optim.minimizer(res)
-    end
-
-    # check no polygon crossings
-    R, Z = func(r_start, r_end, shape_parameters...)
-    cost_inside = 0
-    for (r, z) in zip(R, Z)
-        inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
-        cost_inside += inpoly
-    end
-
-    if cost_inside > 0
-        @warn "optimize_shape function could not avoid polygon crossings! Perhaps try changing shape?"
     end
 
     # R, Z = func(r_start, r_end, shape_parameters...; resample=false)

@@ -162,7 +162,7 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = true
     ini.build.divertors = :double
-    ini.build.n_first_wall_conformal_layers = 5
+    ini.build.n_first_wall_conformal_layers = 1
 
     ini.equilibrium.B0 = 3.2
     ini.equilibrium.R0 = 3.6
