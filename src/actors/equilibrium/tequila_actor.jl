@@ -179,22 +179,34 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
 
     # RZ
     if ismissing(par, :Z)
-        Zdim = κ * 1.6 * a
         nz_grid = nψ_grid
-        Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
+        if !isempty(dd.wall.description_2d)
+            wall = IMAS.first_wall(dd.wall)
+            Zgrid = range(minimum(wall.z), maximum(wall.z), nz_grid)
+        else
+            Zdim = κ * 1.6 * a
+            Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
+        end
     else
         Zgrid = par.Z
-        Zdim = abs(-(extrema(Zgrid)...))/2
         nz_grid = length(Zgrid)
     end
+    Zdim = abs(-(extrema(Zgrid)...)) / 2
 
     if ismissing(par, :R)
-        Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
-        nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
-        Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
+        if !isempty(dd.wall.description_2d)
+            wall = IMAS.first_wall(dd.wall)
+            Rdim = (maximum(wall.r) - minimum(wall.r)) / 2
+            nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
+            Rgrid = range(minimum(wall.r), maximum(wall.r), nr_grid)
+        else
+            Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
+            nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
+            Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
+        end
     else
         Rgrid = par.R
-        Rdim = abs(-(extrema(Rgrid)...))/2
+        Rdim = abs(-(extrema(Rgrid)...)) / 2
         nr_grid = length(Rgrid)
     end
 

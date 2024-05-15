@@ -81,7 +81,7 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 
         # first wall is of type offset instead of convex hull, to allow for concave shape
         k = plama_to_tf[1]
-        if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)))
+        if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)) || (dd.build.layer[k+1].type == Int(_wall_)))
             dd.build.layer[k].shape = Int(_offset_)
         end
 

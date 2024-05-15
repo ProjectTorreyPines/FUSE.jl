@@ -631,6 +631,7 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     # @show plasma_to_tf
     # plot(bd.layer[plasma_to_tf[1]])
 
+    verbose = false
     k = 2
     n_rails = 1
     while k <= length(plasma_to_tf)
@@ -644,16 +645,16 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
                 if layer_shape != IMAS._negative_offset_ || (contains(lowercase(layer.name), "coils") && !isempty(pfa.coil))
                     if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
-                        # @show "A1", layer.name, layer_shape
+                        verbose && @show "A1", layer.name, layer_shape
                         if !isempty(bd.pf_active, :rail)
                             n_rails += 1
                             obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
                         else
                             obstruction_outline = convex_outline(pfa.coil)
                         end
-                        vertical_clearance = 0.1
+                        vertical_clearance = 1.1
                     else
-                        # @show "A2", layer.name, layer_shape
+                        verbose && @show "A2", layer.name, layer_shape
                         obstruction_outline = nothing
                         vertical_clearance = 1.0
                     end
@@ -680,7 +681,7 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
             for kk in reverse(neg_off_layers)
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-                # @show "C", layer.name, layer_shape
+                verbose && @show "C", layer.name, layer_shape
                 layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
                     bd,
                     plasma_to_tf[kk+1],
@@ -697,16 +698,16 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
 
         else
             if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
-                # @show "B1", layer.name, layer_shape
+                verbose && @show "B1", layer.name, layer_shape
                 if !isempty(bd.pf_active, :rail)
                     n_rails += 1
                     obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
                 else
                     obstruction_outline = convex_outline(pfa.coil)
                 end
-                vertical_clearance = 0.01
+                vertical_clearance = 1.0
             else
-                # @show "B2", layer.name, layer_shape
+                verbose && @show "B2", layer.name, layer_shape
                 obstruction_outline = nothing
                 vertical_clearance = 1.0
             end
@@ -814,16 +815,18 @@ function optimize_layer_outline(
         end
     end
 
-    hfs_thickness = o_start - l_start
-    lfs_thickness = l_end - o_end
-
     oR = obstr.outline.r
     oZ = obstr.outline.z
     if obstruction_outline !== nothing
         hull = convex_hull(vcat(oR, obstruction_outline.r), vcat(oZ, obstruction_outline.z); closed_polygon=true)
         oR = [r for (r, z) in hull]
         oZ = [z for (r, z) in hull]
+        o_start = minimum(oR)
+        o_end = maximum(oR)
     end
+
+    hfs_thickness = o_start - l_start
+    lfs_thickness = l_end - o_end
 
     # handle offset, negative offset, and convex-hull
     if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
@@ -840,12 +843,7 @@ function optimize_layer_outline(
         use_curvature = true
         if layer.side == Int(_out_) || shape_enum ∈ (IMAS._rectangle_, IMAS._silo_)
             use_curvature = false
-            target_clearance = lfs_thickness
-        else
-            target_clearance = min(hfs_thickness, lfs_thickness)
         end
-
-        target_clearance *= vertical_clearance
 
         shape = mod(mod(shape, 1000), 100)
         if is_negative_D
@@ -855,11 +853,14 @@ function optimize_layer_outline(
             shape = shape + 100
         end
 
+        oZ = oZ .* vertical_clearance
+
         func = shape_function(shape; resolution)
-        shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, target_clearance)
+        initial_clerance = max(hfs_thickness, lfs_thickness) * vertical_clearance
+        shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
 
         layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...)
-        shape_parameters = optimize_outline(oR, oZ, target_clearance, func, l_start, l_end, shape_parameters; use_curvature)
+        shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters; use_curvature)
         layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...; resample=false)
     end
 

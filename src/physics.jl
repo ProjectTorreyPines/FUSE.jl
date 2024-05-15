@@ -28,8 +28,8 @@ function layer_shape_message(shape_function_index)
           100x: negative shape     (shape_parameters = [...])"
 end
 
-function initialize_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, target_clearance)
-    height = maximum(z_obstruction) - minimum(z_obstruction) + target_clearance * 2.0
+function initialize_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, clearance)
+    height = maximum(z_obstruction) - minimum(z_obstruction) + clearance * 2.0
     z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
     shape_parameters = nothing
     if shape_function_index ∈ (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
@@ -60,7 +60,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_triple_arc_)
-            shape_parameters = [log10(height), log10(1E-3), log10(1E-3), log10(45), log10(45)]
+            shape_parameters = [height, 0.5, 0.5, 45, 45]
         elseif shape_index_mod ∈ (Int(_miller_), Int(_square_miller_))
             mxh = IMAS.MXH(r_obstruction, z_obstruction, 2)
             shape_parameters = [mxh.κ, sin(mxh.s[1])]
@@ -167,14 +167,15 @@ function shape_function(shape_function_index::Int; resolution::Float64)
 end
 
 """
-    optimize_outline(r_obstruction, z_obstruction, target_clearance, func, r_start, r_end, shape_parameters; verbose=false)
+    optimize_outline(r_obstruction, z_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; verbose=false)
 
 Find shape parameters that generate smallest shape and target clearance from an obstruction
 """
 function optimize_outline(
     r_obstruction::Vector{Float64},
     z_obstruction::Vector{Float64},
-    target_clearance::Float64,
+    hfs_thickness::Float64,
+    lfs_thickness::Float64,
     func::Function,
     r_start::Float64,
     r_end::Float64,
@@ -193,7 +194,8 @@ function optimize_outline(
             r_obstruction::Vector{Float64},
             z_obstruction::Vector{Float64},
             rz_obstruction::Vector{Tuple{Float64,Float64}},
-            target_clearance::Float64,
+            hfs_thickness::Float64,
+            lfs_thickness::Float64,
             func::Function,
             r_start::Float64,
             r_end::Float64,
@@ -201,11 +203,39 @@ function optimize_outline(
             use_curvature::Bool,
             verbose::Bool=false)
 
-            R, Z = func(r_start, r_end, shape_parameters...)
-            @assert length(R) == length(Z) "R and Z have different length"
+            #@show r_start, r_end, shape_parameters
+
+            R0, Z0 = func(r_start, r_end, shape_parameters...)
+
+            if hfs_thickness == 0 || lfs_thickness == 0
+                target_clearance = (hfs_thickness + lfs_thickness) / 2.0
+                R, Z = R0, Z0
+                hbuf = 0.0
+                lbuf = 0.0
+            else
+                target_clearance = min(hfs_thickness, lfs_thickness)
+                if hfs_thickness != lfs_thickness
+                    hbuf = hfs_thickness - target_clearance
+                    lbuf = lfs_thickness - target_clearance
+                    R, Z = buffer(R0, Z0, -hbuf, -lbuf)
+                else
+                    R, Z = R0, Z0
+                    hbuf = 0.0
+                    lbuf = 0.0
+                end
+            end
+
+            # R1, Z1 = buffer(R, Z, -target_clearance)
+            # plot()
+            # plot!(R0,Z0,label="R0,Z0")
+            # plot!(R,Z;aspect_ratio=:equal,label="R,Z")
+            # vline!([r_start+hbuf, r_end-lbuf];primary=false)
+            # plot!(R1, Z1,label="R1,Z1",ls=:dash)
+            # plot!()
+            # display(plot!(r_obstruction,z_obstruction;color=:black,label="obstruction"))
 
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
+            index = (.!)(isapprox.(R, r_start + hbuf + target_clearance) .|| isapprox.(R, r_end - lbuf - target_clearance))
             Rv = view(R, index)
             Zv = view(Z, index)
 
@@ -228,7 +258,7 @@ function optimize_outline(
             cost_max_curvature = 0.0
             if use_curvature
                 curvature = abs.(IMAS.curvature(R, Z))
-                cost_max_curvature = 1.0 / (1.0 - maximum(curvature) ^ 2)
+                cost_max_curvature = 1.0 / (1.0 - maximum(curvature)^2)
             end
 
             if verbose
@@ -247,7 +277,7 @@ function optimize_outline(
 
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
-            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, target_clearance, func, r_start, r_end, shape_parameters; use_curvature),
+            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; use_curvature),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
         if verbose
             println(res)
@@ -483,8 +513,6 @@ end
         resolution::Float64=1.0) where {T<:Real}
 
 TrippleArc shape. Angles are in degrees.
-
-height, small_radius, mid_radius, small_coverage, mid_coverage are 10^exponent (to ensure positiveness)
 """
 function triple_arc(
     r_start::T,
@@ -494,18 +522,16 @@ function triple_arc(
     mid_radius::T,
     small_coverage::T,
     mid_coverage::T;
-    min_small_radius_fraction::T=0.2,
-    min_mid_radius_fraction::T=min_small_radius_fraction * 2.0,
     n_points::Integer=400,
     resolution::Float64=1.0) where {T<:Real}
 
     n_points = Int(round(n_points / 4.0 * resolution))
 
-    height = 10^height / 2.0
-    small_radius = 10^small_radius + height * min_small_radius_fraction
-    mid_radius = 10^mid_radius + height * min_mid_radius_fraction
-    small_coverage = 10^small_coverage * pi / 180
-    mid_coverage = 10^mid_coverage * pi / 180
+    height = abs(height) / 2.0
+    small_radius = mirror_bound(small_radius, 0.01, 1.0) * height
+    mid_radius = mirror_bound(mid_radius, small_radius / height, 1.0) * height
+    small_coverage = mirror_bound(small_coverage, 0.0, 180.0) * pi / 180
+    mid_coverage = mirror_bound(mid_coverage, 0.0, 180.0) * pi / 180
 
     asum = small_coverage + mid_coverage
 
@@ -538,6 +564,10 @@ function triple_arc(
     factor = (r_end - r_start) / (maximum(R) - minimum(R))
     Z = Z .* factor
     R = (R .- minimum(R)) .* factor .+ r_start
+
+    # hull = convex_hull(R, Z; closed_polygon=true)
+    # R = [r for (r, z) in hull]
+    # Z = [z for (r, z) in hull]
 
     return R, Z
 end
