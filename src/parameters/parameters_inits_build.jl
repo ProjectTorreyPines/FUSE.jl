@@ -64,21 +64,20 @@ end
 Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInitBuild{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :requirements
-    power_electric_net::Entry{T} = Entry{T}(IMAS.requirements, :power_electric_net; check=x -> @assert x > 0.0 "must be: power_electric_net > 0.0")
-    flattop_duration::Entry{T} = Entry{T}(IMAS.requirements, :flattop_duration; check=x -> @assert x > 0.0 "must be: flattop_duration > 0.0")
-    log10_flattop_duration::Entry{T} =
-        Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
-    tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio; check=x -> @assert x > 0.0 "must be: tritium_breeding_ratio > 0.0")
-    cost::Entry{T} = Entry{T}(IMAS.requirements, :cost; check=x -> @assert x > 0.0 "must be: cost > 0.0")
-    ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking; check=x -> @assert x > 0.0 "must be: ne_peaking > 0.0")
-    q_pol_omp::Entry{T} = Entry{T}(IMAS.requirements, :q_pol_omp; check=x -> @assert x > 0.0 "must be: q_pol_omp > 0.0")
-    lh_power_threshold_fraction::Entry{T} = Entry{T}(IMAS.requirements, :lh_power_threshold_fraction; check=x -> @assert x > 0.0 "must be: lh_power_threshold_fraction > 0.0")
-    h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2; check=x -> @assert x > 0.0 "must be: h98y2 > 0.0")
-    hds03::Entry{T} = Entry{T}(IMAS.requirements, :hds03; check=x -> @assert x > 0.0 "must be: hds03 > 0.0")
-    βn::Entry{T} = Entry{T}(IMAS.requirements, :βn; check=x -> @assert x > 0.0 "must be: βn > 0.0")
-    q95::Entry{T} = Entry{T}(IMAS.requirements, :q95; check=x -> @assert x > 0.0 "must be: q95 > 0.0")
-    coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin; check=x -> @assert x > 0.0 "must be: coil_j_margin > 0.0")
-    coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; check=x -> @assert x > 0.0 "must be: coil_j_margin > 0.0")
+    power_electric_net::Entry{T} = Entry{T}(IMAS.requirements, :power_electric_net; check=x -> @assert x >= 0.0 "must be: power_electric_net >= 0.0")
+    flattop_duration::Entry{T} = Entry{T}(IMAS.requirements, :flattop_duration; check=x -> @assert x >= 0.0 "must be: flattop_duration >= 0.0")
+    log10_flattop_duration::Entry{T} = Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
+    tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio; check=x -> @assert x >= 0.0 "must be: tritium_breeding_ratio >= 0.0")
+    cost::Entry{T} = Entry{T}(IMAS.requirements, :cost; check=x -> @assert x >= 0.0 "must be: cost >= 0.0")
+    ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking; check=x -> @assert x >= 0.0 "must be: ne_peaking >= 0.0")
+    q_pol_omp::Entry{T} = Entry{T}(IMAS.requirements, :q_pol_omp; check=x -> @assert x >= 0.0 "must be: q_pol_omp >= 0.0")
+    lh_power_threshold_fraction::Entry{T} = Entry{T}(IMAS.requirements, :lh_power_threshold_fraction; check=x -> @assert x >= 0.0 "must be: lh_power_threshold_fraction >= 0.0")
+    h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2; check=x -> @assert x >= 0.0 "must be: h98y2 >= 0.0")
+    hds03::Entry{T} = Entry{T}(IMAS.requirements, :hds03; check=x -> @assert x >= 0.0 "must be: hds03 >= 0.0")
+    βn::Entry{T} = Entry{T}(IMAS.requirements, :βn; check=x -> @assert x >= 0.0 "must be: βn >= 0.0")
+    q95::Entry{T} = Entry{T}(IMAS.requirements, :q95; check=x -> @assert x >= 0.0 "must be: q95 >= 0.0")
+    coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin; check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")
+    coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")
 end
 
 
