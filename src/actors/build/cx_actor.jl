@@ -241,7 +241,6 @@ function wall_from_eq!(
         if isempty(pr1)
             continue
         end
-        inner_slot_poly = xy_polygon(convex_hull(pr, pz; closed_polygon=true))
 
         # do not add more than one private flux region for each of the x-points
         if Zx > ZA
@@ -257,16 +256,10 @@ function wall_from_eq!(
         end
 
         # remove private flux region from wall (necessary because of Z expansion)
-        # this may fail if the private region is small or weirdly shaped
-        try
-            wall_poly = LibGEOS.difference(wall_poly, inner_slot_poly)
-        catch e
-            if typeof(e) <: LibGEOS.GEOSError
-                continue
-            else
-                rethrow(e)
-            end
-        end
+        pr1m = [pr1; pr1[1]; pr1[end]]
+        pz1m = [pz1; sign(pz1[1]) * 100; sign(pz1[end]) * 100]
+        pm_poly = xy_polygon(convex_hull(pr1m, pz1m; closed_polygon=true))
+        wall_poly = LibGEOS.difference(wall_poly, pm_poly)
 
         # add the divertor slots
         α = 0.25
@@ -274,6 +267,7 @@ function wall_from_eq!(
         pz2 = vcat(pz1, ZA * α + Zx * (1 - α))
 
         slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
+        inner_slot_poly = xy_polygon(convex_hull(pr, pz; closed_polygon=true))
         slot = LibGEOS.difference(slot_convhull, inner_slot_poly)
         slot = LibGEOS.buffer(slot, div_gap)
 
