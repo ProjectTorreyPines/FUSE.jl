@@ -51,6 +51,13 @@ function init(
             end
         end
 
+        # wall
+        if ini.general.init_from == :ods
+            if !isempty(dd1.wall.description_2d)
+                dd.wall = deepcopy(dd1.wall)
+            end
+        end
+
         # initialize equilibrium
         if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
             if ini.general.init_from == :ods && !isempty(dd1.pf_active.coil)

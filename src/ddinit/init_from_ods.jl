@@ -44,7 +44,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
             end
             if ismissing(ini.equilibrium, :xpoints)
                 # look for x-points that fall within the first wall (if first-wall info is available)
-                x_points = IMAS.x_points_in_wall(eqt.boundary.x_point, dd1.wall)
+                x_points = IMAS.x_points_inside_wall(eqt.boundary.x_point, dd1.wall)
                 upper = any(x_point.z > eqt.boundary.geometric_axis.z for x_point in x_points)
                 lower = any(x_point.z < eqt.boundary.geometric_axis.z for x_point in x_points)
                 if upper && lower
