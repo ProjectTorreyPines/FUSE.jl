@@ -1,5 +1,7 @@
 """
     case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,ParametersAllActors}
+
+GA EXCITE design
 """
 function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ec=2)
@@ -35,7 +37,6 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
         :cryostat => 0.05)
 
     ini.build.plasma_gap = 0.05
-    ini.build.symmetric = true
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 2
 
@@ -82,16 +83,20 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.ec_launcher[2].efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 0.0e0
-    ini.requirements.flattop_duration = 3600.0 * 12
+    ini.requirements.flattop_duration = 3600.0
     ini.requirements.tritium_breeding_ratio = 0.0
+    ini.requirements.coil_j_margin = 0.1
+    ini.requirements.coil_stress_margin = 0.1
 
-    Δt = 200 # change pulse duration to change rate of change of plasma dynamics
+    Δt = 200
     ini.time.pulse_shedule_time_basis = range(0.0, Δt; step=Δt / 1000)
     ini.time.simulation_start = Δt / 2
 
     #### ACT ####
 
     act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
+
+    act.ActorFluxSwing.operate_oh_at_j_crit = true
 
     act.ActorEquilibrium.model = :TEQUILA
     act.ActorTEQUILA.relax = 0.25

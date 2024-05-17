@@ -114,7 +114,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
 
             # size the PF coils based on the currents they are carrying
-            size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=getproperty(dd.requirements, :coil_j_margin, 0.4))
+            size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=dd.requirements.coil_j_margin)
         end
     end
 

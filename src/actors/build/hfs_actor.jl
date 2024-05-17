@@ -5,8 +5,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: Parameters
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF current limits (overrides ActorFluxSwing.j_tolerance)"; default=0.4)
-    stress_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH and TF structural stresses limits"; default=0.2)
     error_on_technology::Entry{Bool} = Entry{Bool}("-", "Error if build stresses and current limits are not met"; default=true)
     error_on_performance::Entry{Bool} = Entry{Bool}("-", "Error if requested Bt and flattop duration are not met"; default=true)
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
@@ -58,9 +56,6 @@ function _step(actor::ActorHFSsizing)
     cs = dd.solid_mechanics.center_stack
     eqt = dd.equilibrium.time_slice[]
 
-    # modify j_tolerance in fluxswing_actor (since actor.fluxswing_actor.par is a copy, this does not affect act.ActorFluxSwing)
-    actor.fluxswing_actor.par.j_tolerance = par.j_tolerance
-
     # Relative error with tolerance used for currents and stresses (not flattop)
     # NOTE: we divide by (abs(target) + 1.0) because critical currents can drop to 0.0!
     # NOTE: we stronlgy penalize going above target, and only gently encourage not going below it (since 
@@ -96,34 +91,34 @@ function _step(actor::ActorHFSsizing)
         finalize(step(actor.stresses_actor))
 
         # OH currents and stresses
-        if actor.fluxswing_actor.par.operate_oh_at_j_crit && (par.j_tolerance >= 0)
-            c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
+        if actor.fluxswing_actor.par.operate_oh_at_j_crit && (dd.requirements.coil_j_margin >= 0)
+            c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, dd.requirements.coil_j_margin) # we want max_j to be coil_j_margin% below critical_j
         else
             c_joh = 0.0
         end
 
-        if (par.stress_tolerance >= 0)
-            c_soh = target_value(maximum(cs.stress.vonmises.oh), cs.properties.yield_strength.oh, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        if (dd.requirements.coil_stress_margin >= 0)
+            c_soh = target_value(maximum(cs.stress.vonmises.oh), cs.properties.yield_strength.oh, dd.requirements.coil_stress_margin) # we want stress to be coil_stress_margin% below yield_strength
         else
             c_soh = 0.0
         end
 
         # TF currents and stresses
-        if (par.j_tolerance >= 0)
-            c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, par.j_tolerance) # we want max_j to be j_tolerance% below critical_j
+        if (dd.requirements.coil_j_margin >= 0)
+            c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, dd.requirements.coil_j_margin) # we want max_j to be coil_j_margin% below critical_j
         else
             c_jtf = 0.0
         end
 
-        if (par.stress_tolerance >= 0)
-            c_stf = target_value(maximum(cs.stress.vonmises.tf), cs.properties.yield_strength.tf, par.stress_tolerance) # we want stress to be stress_tolerance% below yield_strength
+        if (dd.requirements.coil_stress_margin >= 0)
+            c_stf = target_value(maximum(cs.stress.vonmises.tf), cs.properties.yield_strength.tf, dd.requirements.coil_stress_margin) # we want stress to be coil_stress_margin% below yield_strength
         else
             c_stf = 0.0
         end
 
         # plug stresses
-        if !ismissing(cs.stress.vonmises, :pl) && (par.stress_tolerance >= 0)
-            c_spl = target_value(maximum(cs.stress.vonmises.pl), cs.properties.yield_strength.pl, par.stress_tolerance)
+        if !ismissing(cs.stress.vonmises, :pl) && (dd.requirements.coil_stress_margin >= 0)
+            c_spl = target_value(maximum(cs.stress.vonmises.pl), cs.properties.yield_strength.pl, dd.requirements.coil_stress_margin)
         else
             c_spl = 0.0
         end
@@ -242,34 +237,34 @@ function _step(actor::ActorHFSsizing)
         success = true
         # technology checks
         success = assert_conditions(
-            dd.build.tf.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.tf.critical_j,
-            "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ par.j_tolerance) / dd.build.tf.critical_j * 100)%",
+            dd.build.tf.max_j .* (1.0 .+ dd.requirements.coil_j_margin * 0.9) < dd.build.tf.critical_j,
+            "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ dd.requirements.coil_j_margin) / dd.build.tf.critical_j * 100)%",
             par.error_on_technology,
             success
         )
         success = assert_conditions(
-            dd.build.oh.max_j .* (1.0 .+ par.j_tolerance * 0.9) < dd.build.oh.critical_j,
-            "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ par.j_tolerance) / dd.build.oh.critical_j * 100)%",
+            dd.build.oh.max_j .* (1.0 .+ dd.requirements.coil_j_margin * 0.9) < dd.build.oh.critical_j,
+            "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ dd.requirements.coil_j_margin) / dd.build.oh.critical_j * 100)%",
             par.error_on_technology,
             success
         )
         if !ismissing(cs.stress.vonmises, :pl)
             success = assert_conditions(
-                maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.pl,
-                "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.pl * 100)%",
+                maximum(cs.stress.vonmises.pl) .* (1.0 .+ dd.requirements.coil_stress_margin * 0.9) < cs.properties.yield_strength.pl,
+                "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) .* (1.0 .+ dd.requirements.coil_stress_margin) / cs.properties.yield_strength.pl * 100)%",
                 par.error_on_technology,
                 success
             )
         end
         success = assert_conditions(
-            maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.oh,
-            "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.oh * 100)%",
+            maximum(cs.stress.vonmises.oh) .* (1.0 .+ dd.requirements.coil_stress_margin * 0.9) < cs.properties.yield_strength.oh,
+            "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) .* (1.0 .+ dd.requirements.coil_stress_margin) / cs.properties.yield_strength.oh * 100)%",
             par.error_on_technology,
             success
         )
         success = assert_conditions(
-            maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance * 0.9) < cs.properties.yield_strength.tf,
-            "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) .* (1.0 .+ par.stress_tolerance) / cs.properties.yield_strength.tf * 100)%",
+            maximum(cs.stress.vonmises.tf) .* (1.0 .+ dd.requirements.coil_stress_margin * 0.9) < cs.properties.yield_strength.tf,
+            "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) .* (1.0 .+ dd.requirements.coil_stress_margin) / cs.properties.yield_strength.tf * 100)%",
             par.error_on_technology,
             success
         )

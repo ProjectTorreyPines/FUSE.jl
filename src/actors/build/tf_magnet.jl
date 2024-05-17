@@ -2,13 +2,13 @@
 #  TF magnet  #
 #= ========= =#
 """
-    tf_maximum_J_B!(bd::IMAS.build; j_tolerance)
+    tf_maximum_J_B!(bd::IMAS.build; coil_j_margin::Float64)
 
 Evaluate maxium TF current density and magnetic field for given geometry and technology.
 
 NOTE: This function is here but it's not really used for machine desing, since generally the maximum B0 is a input design parameter.
 """
-function tf_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
+function tf_maximum_J_B!(bd::IMAS.build; coil_j_margin::Float64)
     hfsTF = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_)
     TF_cx_area = π * (hfsTF.end_radius^2 - hfsTF.start_radius^2) / bd.tf.coils_n
     mat_tf = Material(bd.tf.technology)
@@ -20,7 +20,7 @@ function tf_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
         max_b_field = current_TF / hfsTF.end_radius / 2π * constants.μ_0 * bd.tf.coils_n
         critical_j = mat_tf.critical_current_density(;Bext=max_b_field)
         # do not use relative error here. Absolute error tells optimizer to lower currentDensityTF if critical_j==0
-        return abs(critical_j - currentDensityTF * (1.0 + j_tolerance))
+        return abs(critical_j - currentDensityTF * (1.0 + coil_j_margin))
     end
     res = Optim.optimize(max_J_TF, 0.0, 1E9, Optim.GoldenSection(), rel_tol=1E-3)
 
