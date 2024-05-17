@@ -16,7 +16,8 @@ test_cases["SPARC"] = ([:SPARC], Dict())
 test_cases["KDEMO"] = ([:KDEMO], Dict())
 test_cases["DTT"] = ([:DTT], Dict())
 test_cases["EXCITE"] = ([:EXCITE], Dict())
-
+test_cases["EXCITE"] = ([:EXCITE], Dict())
+test_cases["STEP"] = ([:STEP], Dict(:init_from => :scalars, :pf_from=>:ods))
 #= ===== =#
 #  cases  #
 #= ===== =#
