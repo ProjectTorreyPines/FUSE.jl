@@ -173,3 +173,14 @@ The `mode` [-1.0, 1.0] defines how skewed the distribution is
 function beta(t::Float64, t_start::Float64, Δt::Float64, mode::Float64)
     return beta((t - t_start) / Δt, mode)
 end
+
+"""
+    sequence(t::Float64, t_y_sequence::Vector{Tuple{Float64,Float64}}; scheme::Symbol=:linear)
+
+returns interpolated data given a sequence (tuple) of time/value points
+"""
+function sequence(t::Float64, t_y_sequence::Vector{Tuple{Float64,Float64}}; scheme::Symbol=:linear)
+    tt = [t0 for (t0, y0) in t_y_sequence]
+    yy = [y0 for (t0, y0) in t_y_sequence]
+    return IMAS.extrap1d(IMAS.interp1d_itp(tt, yy, scheme); first=:flat, last=:flat)(t)
+end
