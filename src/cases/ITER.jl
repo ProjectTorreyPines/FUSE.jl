@@ -7,12 +7,9 @@ Arguments:
 
   - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::Symbol=:auto)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1, n_lh=1, n_pl=1)
     act = ParametersActors()
-
-    # checking init_from and boundary_from
-    @assert boundary_from != :rz_points "boundary from :rz_points isn't supported in the ITER case"
 
     ini.general.casename = "ITER_$(init_from)"
     ini.general.init_from = init_from
@@ -23,39 +20,49 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
-        ini.equilibrium.boundary_from = :ods
-        ini.equilibrium.xpoints = :lower
+        if boundary_from == :auto
+            boundary_from = :ods
+        end
     else
         ini.equilibrium.B0 = -5.3
         ini.equilibrium.ip = 15e6
         ini.equilibrium.pressure_core = 0.643e6
-
-        ini.equilibrium.xpoints = :lower
-        ini.equilibrium.boundary_from = boundary_from
-
-        R0 = 6.2
-        Z0 = 0.4
-        ϵ = 0.32
-        κ = 1.85
-        δ = 0.485
-        ζ = -0.09583
-        if boundary_from == :scalars
-            ini.equilibrium.R0 = R0
-            ini.equilibrium.Z0 = Z0
-            ini.equilibrium.ϵ = ϵ
-            ini.equilibrium.κ = κ
-            ini.equilibrium.δ = δ
-            ini.equilibrium.ζ = ζ
-        else
-            ini.equilibrium.MXH_params = [
-                R0, Z0, ϵ, κ, 0.00337,
-                0.15912, -0.05842, -0.04573, 0.00694, 0.00614, 0.00183,
-                asin(δ), -ζ, -0.05597, -0.01655, 0.00204, 0.00306]
-        end
-
         act.ActorCXbuild.rebuild_wall = true
+        if boundary_from == :auto
+            boundary_from = :MXH_params
+        end
     end
     act.ActorEquilibrium.model = :TEQUILA
+
+    mapper(v) = v < -0.5 ? :lower : :none
+    ini.equilibrium.xpoints = (t -> mapper(-step(t - 100.0)))
+    ini.equilibrium.boundary_from = boundary_from
+
+    R0 = 6.2
+    Z0 = 0.4
+    ϵ = 0.32
+    κ = 1.85
+    δ = 0.485
+    ζ = -0.09583
+    𝚶 = 0.15912
+    if boundary_from == :scalars
+        ini.equilibrium.R0 = R0
+        ini.equilibrium.Z0 = Z0
+        ini.equilibrium.ϵ = ϵ
+        ini.equilibrium.κ = t -> 1.0 + ramp((t - 50) / 100.0) * (κ - 1)
+        ini.equilibrium.δ = t -> ramp((t - 50) / 150.0) * δ
+        ini.equilibrium.ζ = t -> ramp((t - 50) / 150.0) * ζ
+        ini.equilibrium.𝚶 = t -> ramp((t - 50) / 150.0) * 𝚶
+    elseif boundary_from == :MXH_params
+        ini.equilibrium.MXH_params = [
+            R0, Z0, ϵ, κ, 0.00337,
+            0.15912, -0.05842, -0.04573, 0.00694, 0.00614, 0.00183,
+            asin(δ), -ζ, -0.05597, -0.01655, 0.00204, 0.00306]
+    elseif boundary_from == :ODS && init_from
+        # pass
+    else
+        error("invalid boundary_from=:$boundary_from")
+    end
 
     ini.equilibrium.ip = (t -> ramp(t / 100.0) * 10E6 + ramp((t - 100) / 200.0) * 5E6) ↔ (2, (100.0, 300.0), (10E6, 15E6))
 
@@ -83,7 +90,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     layers[:gap_tf_cryostat] = 3.343
     layers[:cryostat] = 0.05
     ini.build.layers = layers
-    ini.build.n_first_wall_conformal_layers = 4 
+    ini.build.n_first_wall_conformal_layers = 4
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
@@ -98,7 +105,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.oh.technology = :nb3sn_iter
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
-    ini.core_profiles.greenwald_fraction_ped = (t -> 0.95/1.2) ↔ (2, (100.0, 300.0), (0.3/1.2, 0.95/1.2), (:match, :float))
+    ini.core_profiles.greenwald_fraction_ped = (t -> 0.95 / 1.2) ↔ (2, (100.0, 300.0), (0.3 / 1.2, 0.95 / 1.2), (:match, :float))
     ini.core_profiles.greenwald_fraction = ini.core_profiles.greenwald_fraction_ped * 1.2
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_ratio = 0.9
@@ -126,7 +133,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
-    act.ActorPedestal.ped_factor=0.8
+    act.ActorPedestal.ped_factor = 0.8
 
     act.ActorWholeFacility.update_build = false
 
